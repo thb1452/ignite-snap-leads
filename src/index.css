@@ -17,8 +17,8 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -34,7 +34,28 @@ All colors MUST be HSL.
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 217 91% 60%;
+
+    /* SnapScore color system */
+    --score-low: 0 84% 60%;
+    --score-low-foreground: 0 0% 100%;
+    --score-medium: 45 93% 57%;
+    --score-medium-foreground: 0 0% 100%;
+    --score-high: 142 76% 36%;
+    --score-high-foreground: 0 0% 100%;
+
+    /* Brand gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 75%));
+    --gradient-score-low: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 84% 70%));
+    --gradient-score-medium: linear-gradient(135deg, hsl(45 93% 57%), hsl(45 93% 67%));
+    --gradient-score-high: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 46%));
+
+    /* Shadows */
+    --shadow-elegant: 0 4px 20px -2px hsl(217 91% 60% / 0.1);
+    --shadow-card: 0 2px 8px -2px hsl(222.2 84% 4.9% / 0.08);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --radius: 0.5rem;
 

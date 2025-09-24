@@ -106,6 +106,161 @@ export type Database = {
           },
         ]
       }
+      job_materials: {
+        Row: {
+          created_at: string
+          date_assigned: string | null
+          id: string
+          job_id: number
+          location: string | null
+          material_id: string
+          notes: string | null
+          org_id: string
+          quantity_allocated: number | null
+          quantity_used: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date_assigned?: string | null
+          id?: string
+          job_id: number
+          location?: string | null
+          material_id: string
+          notes?: string | null
+          org_id: string
+          quantity_allocated?: number | null
+          quantity_used?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date_assigned?: string | null
+          id?: string
+          job_id?: number
+          location?: string | null
+          material_id?: string
+          notes?: string | null
+          org_id?: string
+          quantity_allocated?: number | null
+          quantity_used?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_materials_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      materials: {
+        Row: {
+          category: string | null
+          cost_per_unit: number | null
+          created_at: string
+          current_stock: number | null
+          description: string | null
+          id: string
+          name: string
+          on_site_stock: number | null
+          org_id: string
+          reorder_point: number | null
+          supplier: string | null
+          unit: string
+          updated_at: string
+          warehouse_stock: number | null
+        }
+        Insert: {
+          category?: string | null
+          cost_per_unit?: number | null
+          created_at?: string
+          current_stock?: number | null
+          description?: string | null
+          id?: string
+          name: string
+          on_site_stock?: number | null
+          org_id: string
+          reorder_point?: number | null
+          supplier?: string | null
+          unit?: string
+          updated_at?: string
+          warehouse_stock?: number | null
+        }
+        Update: {
+          category?: string | null
+          cost_per_unit?: number | null
+          created_at?: string
+          current_stock?: number | null
+          description?: string | null
+          id?: string
+          name?: string
+          on_site_stock?: number | null
+          org_id?: string
+          reorder_point?: number | null
+          supplier?: string | null
+          unit?: string
+          updated_at?: string
+          warehouse_stock?: number | null
+        }
+        Relationships: []
+      }
+      meetings: {
+        Row: {
+          attendees: string[] | null
+          client_name: string | null
+          created_at: string
+          date_time: string
+          duration_minutes: number | null
+          google_calendar_id: string | null
+          id: string
+          job_id: number | null
+          location: string | null
+          notes: string | null
+          org_id: string
+          status: string | null
+          title: string
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          attendees?: string[] | null
+          client_name?: string | null
+          created_at?: string
+          date_time: string
+          duration_minutes?: number | null
+          google_calendar_id?: string | null
+          id?: string
+          job_id?: number | null
+          location?: string | null
+          notes?: string | null
+          org_id: string
+          status?: string | null
+          title: string
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attendees?: string[] | null
+          client_name?: string | null
+          created_at?: string
+          date_time?: string
+          duration_minutes?: number | null
+          google_calendar_id?: string | null
+          id?: string
+          job_id?: number | null
+          location?: string | null
+          notes?: string | null
+          org_id?: string
+          status?: string | null
+          title?: string
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       organizations: {
         Row: {
           created_at: string

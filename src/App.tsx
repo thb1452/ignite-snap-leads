@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Upload } from "./pages/Upload";
 import { Leads } from "./pages/Leads";
+import { Materials } from "./pages/Materials";
+import { Meetings } from "./pages/Meetings";
 import { Settings } from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +33,16 @@ const App = () => (
           <Route path="/leads" element={
             <ProtectedRoute>
               <Leads />
+            </ProtectedRoute>
+          } />
+          <Route path="/materials" element={
+            <ProtectedRoute>
+              <Materials />
+            </ProtectedRoute>
+          } />
+          <Route path="/meetings" element={
+            <ProtectedRoute>
+              <Meetings />
             </ProtectedRoute>
           } />
           <Route path="/settings" element={

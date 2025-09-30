@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
-import { Upload, Database, Settings, LogOut, Package, Calendar } from 'lucide-react';
+import { Upload, Database, Settings, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AppLayoutProps {
@@ -16,8 +16,6 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navigation = [
     { name: 'Upload', href: '/upload', icon: Upload },
     { name: 'Leads', href: '/leads', icon: Database },
-    { name: 'Materials', href: '/materials', icon: Package },
-    { name: 'Meetings', href: '/meetings', icon: Calendar },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 

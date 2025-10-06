@@ -51,15 +51,19 @@ export function LeadsTable({ properties }: LeadsTableProps) {
     return 'bg-slate-100 text-ink-600 border border-slate-200';
   };
 
-  const getPrimaryViolation = (violations: Violation[]) => {
-    if (violations.length === 0) return "No violations";
-    const description = violations[0].description || violations[0].violation_type;
-    return description;
+  const getDistressReasons = (property: PropertyWithViolations) => {
+    const reasons: string[] = [];
+    if (property.violations.length >= 3) reasons.push("Multiple violations");
+    const maxDays = Math.max(...(property.violations.map(v => v.days_open ?? 0)), 0);
+    if (maxDays > 180) reasons.push(`${maxDays}d open`);
+    const hasSafety = property.violations.some(v => v.violation_type.toLowerCase().includes('safety'));
+    if (hasSafety) reasons.push("Safety issue");
+    return reasons.length > 0 ? reasons.join(" • ") : "Recent complaint";
   };
 
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + "...";
+  const getMaxDaysOpen = (violations: Violation[]) => {
+    if (violations.length === 0) return 0;
+    return Math.max(...violations.map(v => v.days_open ?? 0));
   };
 
   return (
@@ -74,18 +78,18 @@ export function LeadsTable({ properties }: LeadsTableProps) {
           <table className="w-full text-sm">
             <thead className="sticky top-14 bg-white/90 backdrop-blur z-10 border-b border-slate-200/70">
               <tr className="text-xs/5 text-slate-500 font-medium tracking-wide uppercase">
-                <th className="py-3 px-4 text-left w-32">SnapScore</th>
+                <th className="py-3 px-4 text-left w-28">Distress</th>
                 <th className="py-3 px-4 text-left w-64">Address</th>
-                <th className="py-3 px-4 text-left w-32">Violations</th>
-                <th className="py-3 px-4 text-left">Primary</th>
-                <th className="py-3 px-4 text-right pr-6 w-40">Actions</th>
+                <th className="py-3 px-4 text-left w-24">Days Open</th>
+                <th className="py-3 px-4 text-left w-28">Reachability</th>
+                <th className="py-3 px-4 text-left">Why Hot</th>
+                <th className="py-3 px-4 text-right pr-6 w-32">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {properties.map((property, index) => {
-                const violationCount = property.violations.length;
-                const primaryViolation = getPrimaryViolation(property.violations);
-                const displayText = truncateText(primaryViolation, 60);
+                const daysOpen = getMaxDaysOpen(property.violations);
+                const distressReasons = getDistressReasons(property);
 
                 return (
                   <motion.tr
@@ -97,34 +101,36 @@ export function LeadsTable({ properties }: LeadsTableProps) {
                     onClick={() => setSelectedProperty(property)}
                   >
                     <td className="py-3 px-4">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all ${scoreClass(property.snap_score)}`}>
-                        {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
-                        {property.snap_score ?? "N/A"}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-help ${scoreClass(property.snap_score)}`}>
+                            {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
+                            {property.snap_score ?? "N/A"}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-medium mb-1">Distress Index: {property.snap_score}</p>
+                          <p className="text-xs opacity-90">{distressReasons}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="font-medium text-ink-900">{property.address}</div>
+                      <div className="text-xs text-ink-400">{property.city}, {property.state}</div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`font-medium ${daysOpen > 180 ? 'text-rose-600' : daysOpen > 90 ? 'text-amber-600' : 'text-ink-600'}`}>
+                        {daysOpen > 0 ? `${daysOpen}d` : '—'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-ink-900 font-medium">{property.address}</td>
                     <td className="py-3 px-4">
-                      {violationCount > 1 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-50 text-amber-700 border border-amber-200 transition-all">
-                          Multiple ({violationCount})
-                        </span>
-                      ) : (
-                        <span className="text-ink-400">{violationCount}</span>
-                      )}
+                      <span className="text-xs text-ink-400 flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                        Not traced
+                      </span>
                     </td>
-                    <td className="py-3 px-4 text-ink-600">
-                      {primaryViolation !== displayText ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="truncate block max-w-md">{displayText}</span>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-sm">
-                            <p>{primaryViolation}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <span className="truncate block max-w-md">{displayText}</span>
-                      )}
+                    <td className="py-3 px-4 text-ink-600 text-sm">
+                      {distressReasons}
                     </td>
                     <td className="py-3 px-4 text-right pr-6">
                       <Button
@@ -134,9 +140,9 @@ export function LeadsTable({ properties }: LeadsTableProps) {
                           e.stopPropagation();
                           setSelectedProperty(property);
                         }}
-                        className="text-brand hover:text-brand/80 hover:bg-brand/5 transition-all opacity-0 group-hover:opacity-100"
+                        className="text-brand hover:text-brand/80 hover:bg-brand/5 transition-all opacity-0 group-hover:opacity-100 text-xs font-medium"
                       >
-                        View Details
+                        Contact
                       </Button>
                     </td>
                   </motion.tr>

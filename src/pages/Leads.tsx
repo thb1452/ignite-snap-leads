@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, X } from "lucide-react";
+import { Search, Phone, Mail, Zap } from "lucide-react";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 
 interface Violation {
@@ -233,10 +232,17 @@ export function Leads() {
     }));
   };
 
+  // Revenue-focused metrics
   const hotLeads = filteredProperties.filter(p => (p.snap_score ?? 0) >= 80).length;
+  const reachableLeads = filteredProperties.filter(p => (p.snap_score ?? 0) >= 70 && p.violations.length > 0).length;
   const multipleViolations = filteredProperties.filter(p => p.violations.length >= 3).length;
-  const avgScore = filteredProperties.length > 0
-    ? Math.round(filteredProperties.reduce((sum, p) => sum + (p.snap_score ?? 0), 0) / filteredProperties.length)
+  const avgDaysOpen = filteredProperties.length > 0
+    ? Math.round(
+        filteredProperties.reduce((sum, p) => {
+          const maxDays = Math.max(...(p.violations.map(v => v.days_open ?? 0)));
+          return sum + maxDays;
+        }, 0) / filteredProperties.length
+      )
     : 0;
 
   return (
@@ -346,31 +352,44 @@ export function Leads() {
             </div>
           </div>
 
-          {/* Stats Cards */}
+          {/* Revenue-Focused Stats Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+            <div className="rounded-2xl border border-emerald-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-gradient-to-br from-emerald-50 to-white p-4 md:p-5 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-ui">
+                <Zap className="h-3.5 w-3.5" />
+                Hot, Reachable
+              </div>
+              <div className="text-2xl md:text-3xl font-bold text-emerald-700 font-display">
+                {reachableLeads}
+              </div>
+              <div className="text-xs text-emerald-600">Distress ≥70 • Has violations</div>
+            </div>
             <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
-              <div className="text-xs text-ink-400 font-ui">Total Leads</div>
+              <div className="flex items-center gap-1.5 text-xs text-ink-400 font-ui">
+                <Phone className="h-3.5 w-3.5" />
+                Numbers Found
+              </div>
               <div className="text-2xl md:text-3xl font-bold text-ink-900 font-display">
-                {filteredProperties.length}
+                0
               </div>
+              <div className="text-xs text-ink-400">Skip trace to find contacts</div>
             </div>
             <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
-              <div className="text-xs text-ink-400 font-ui">Hot Leads</div>
-              <div className="text-2xl md:text-3xl font-bold text-emerald-600 font-display">
-                {hotLeads}
+              <div className="flex items-center gap-1.5 text-xs text-ink-400 font-ui">
+                <Mail className="h-3.5 w-3.5" />
+                Outreach Sent
               </div>
-            </div>
-            <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
-              <div className="text-xs text-ink-400 font-ui">Multiple Violations</div>
-              <div className="text-2xl md:text-3xl font-bold text-amber-600 font-display">
-                {multipleViolations}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
-              <div className="text-xs text-ink-400 font-ui">Avg SnapScore</div>
               <div className="text-2xl md:text-3xl font-bold text-brand font-display">
-                {avgScore}
+                0
               </div>
+              <div className="text-xs text-ink-400">Today</div>
+            </div>
+            <div className="rounded-2xl border border-amber-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-gradient-to-br from-amber-50 to-white p-4 md:p-5 space-y-2">
+              <div className="text-xs text-amber-700 font-ui">Avg Days Open</div>
+              <div className="text-2xl md:text-3xl font-bold text-amber-700 font-display">
+                {avgDaysOpen}
+              </div>
+              <div className="text-xs text-amber-600">Urgency indicator</div>
             </div>
           </div>
 

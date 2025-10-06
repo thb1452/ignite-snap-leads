@@ -367,6 +367,85 @@ export type Database = {
           },
         ]
       }
+      skiptrace_bulk_items: {
+        Row: {
+          duration_ms: number | null
+          message: string | null
+          property_id: string
+          run_id: string
+          status: string | null
+        }
+        Insert: {
+          duration_ms?: number | null
+          message?: string | null
+          property_id: string
+          run_id: string
+          status?: string | null
+        }
+        Update: {
+          duration_ms?: number | null
+          message?: string | null
+          property_id?: string
+          run_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skiptrace_bulk_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "skiptrace_bulk_runs"
+            referencedColumns: ["run_id"]
+          },
+        ]
+      }
+      skiptrace_bulk_runs: {
+        Row: {
+          failed: number
+          finished_at: string | null
+          list_id: string | null
+          queued: number
+          run_id: string
+          settings: Json
+          started_at: string
+          succeeded: number
+          total: number
+          user_id: string
+        }
+        Insert: {
+          failed?: number
+          finished_at?: string | null
+          list_id?: string | null
+          queued?: number
+          run_id: string
+          settings: Json
+          started_at?: string
+          succeeded?: number
+          total: number
+          user_id: string
+        }
+        Update: {
+          failed?: number
+          finished_at?: string | null
+          list_id?: string | null
+          queued?: number
+          run_id?: string
+          settings?: Json
+          started_at?: string
+          succeeded?: number
+          total?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skiptrace_bulk_runs_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lead_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sms_templates: {
         Row: {
           content: string
@@ -455,9 +534,19 @@ export type Database = {
       }
     }
     Functions: {
+      fn_bulk_run_inc: {
+        Args: { p_field: string; p_run_id: string }
+        Returns: undefined
+      }
       fn_consume_credit: {
         Args: { p_meta?: Json; p_reason: string }
         Returns: number
+      }
+      fn_properties_untraced_in_list: {
+        Args: { p_limit?: number; p_list_id: string }
+        Returns: {
+          property_id: string
+        }[]
       }
     }
     Enums: {

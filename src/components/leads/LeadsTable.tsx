@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Lightbulb } from "lucide-react";
 import { PropertyDetailPanel } from "./PropertyDetailPanel";
 import { runSkipTrace } from "@/services/skiptrace";
@@ -45,9 +46,11 @@ interface PropertyWithViolations {
 
 interface LeadsTableProps {
   properties: PropertyWithViolations[];
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }
 
-export function LeadsTable({ properties }: LeadsTableProps) {
+export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: LeadsTableProps) {
   const [selectedProperty, setSelectedProperty] = useState<PropertyWithViolations | null>(null);
   const [loadingSkipTrace, setLoadingSkipTrace] = useState<Record<string, boolean>>({});
   const [propertyContacts, setPropertyContacts] = useState<Record<string, number>>({});
@@ -131,6 +134,24 @@ export function LeadsTable({ properties }: LeadsTableProps) {
     return { text: "No numbers", color: "bg-amber-400" };
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (!onSelectionChange) return;
+    if (checked) {
+      onSelectionChange(properties.map(p => p.id));
+    } else {
+      onSelectionChange([]);
+    }
+  };
+
+  const handleSelectOne = (propertyId: string, checked: boolean) => {
+    if (!onSelectionChange) return;
+    if (checked) {
+      onSelectionChange([...selectedIds, propertyId]);
+    } else {
+      onSelectionChange(selectedIds.filter(id => id !== propertyId));
+    }
+  };
+
   return (
     <>
       <TooltipProvider>
@@ -143,6 +164,14 @@ export function LeadsTable({ properties }: LeadsTableProps) {
           <table className="w-full text-sm">
             <thead className="sticky top-14 bg-white/90 backdrop-blur z-10 border-b border-slate-200/70">
               <tr className="text-xs/5 text-slate-500 font-medium tracking-wide uppercase">
+                {onSelectionChange && (
+                  <th className="py-3 px-4 w-12">
+                    <Checkbox 
+                      checked={selectedIds.length === properties.length && properties.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </th>
+                )}
                 <th className="py-3 px-4 text-left w-28">Distress</th>
                 <th className="py-3 px-4 text-left w-64">Address</th>
                 <th className="py-3 px-4 text-left w-24">Days Open</th>
@@ -174,6 +203,14 @@ export function LeadsTable({ properties }: LeadsTableProps) {
                     className="h-16 odd:bg-white even:bg-slate-50/40 hover:bg-slate-50 transition-all cursor-pointer group"
                     onClick={() => setSelectedProperty(property)}
                   >
+                    {onSelectionChange && (
+                      <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox 
+                          checked={selectedIds.includes(property.id)}
+                          onCheckedChange={(checked) => handleSelectOne(property.id, checked as boolean)}
+                        />
+                      </td>
+                    )}
                     <td className="py-3 px-4">
                       <Tooltip>
                         <TooltipTrigger asChild>

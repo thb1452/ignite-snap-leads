@@ -1,75 +1,41 @@
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Check } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-
-interface LeadList {
-  id: string;
-  name: string;
-  created_at: string;
-}
+import { useBulkAddToList } from "@/hooks/useLists";
 
 interface AddToListDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  propertyId: string;
-  onListAdded: () => void;
-  currentListIds: string[];
+  propertyIds: string[];
+  userLists: { id: string; name: string }[];
+  onSuccess: () => void;
 }
 
-export function AddToListDialog({
-  open,
-  onOpenChange,
-  propertyId,
-  onListAdded,
-  currentListIds,
-}: AddToListDialogProps) {
-  const [lists, setLists] = useState<LeadList[]>([]);
-  const [showCreateNew, setShowCreateNew] = useState(false);
+export function AddToListDialog({ open, onOpenChange, propertyIds, userLists, onSuccess }: AddToListDialogProps) {
+  const [mode, setMode] = useState<"existing" | "new">("existing");
+  const [selectedListId, setSelectedListId] = useState("");
   const [newListName, setNewListName] = useState("");
-  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const bulkAddMutation = useBulkAddToList();
 
-  useEffect(() => {
-    if (open) {
-      fetchLists();
-    }
-  }, [open]);
-
-  const fetchLists = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("lead_lists")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setLists(data || []);
-    } catch (error) {
-      console.error("Error fetching lists:", error);
+  const handleAddToList = async () => {
+    if (mode === "existing" && !selectedListId) {
       toast({
-        title: "Error",
-        description: "Failed to load lists",
+        title: "No list selected",
+        description: "Please select a list",
         variant: "destructive",
       });
+      return;
     }
-  };
 
-  const handleCreateList = async () => {
-    if (!newListName.trim()) {
+    if (mode === "new" && !newListName.trim()) {
       toast({
-        title: "Error",
+        title: "No list name",
         description: "Please enter a list name",
         variant: "destructive",
       });
@@ -77,151 +43,113 @@ export function AddToListDialog({
     }
 
     try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("lead_lists")
-        .insert({ name: newListName.trim() })
-        .select()
-        .single();
+      let targetListId = selectedListId;
 
-      if (error) throw error;
+      // Create new list if needed
+      if (mode === "new") {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        const { data: newList, error } = await supabase
+          .from("lead_lists")
+          .insert({ name: newListName.trim(), user_id: user.id })
+          .select()
+          .single();
+
+        if (error) throw error;
+        targetListId = newList.id;
+      }
+
+      // Add properties to list
+      await bulkAddMutation.mutateAsync({
+        listId: targetListId,
+        propertyIds,
+      });
 
       toast({
         title: "Success",
-        description: "List created successfully",
+        description: `${propertyIds.length} lead(s) added to ${mode === "new" ? newListName : userLists.find(l => l.id === selectedListId)?.name}`,
       });
 
-      setNewListName("");
-      setShowCreateNew(false);
-      fetchLists();
-    } catch (error) {
-      console.error("Error creating list:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create list",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddToList = async (listId: string) => {
-    try {
-      setLoading(true);
-      const { error } = await supabase
-        .from("list_properties")
-        .insert({
-          list_id: listId,
-          property_id: propertyId,
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Property added to list",
-      });
-
-      onListAdded();
+      onSuccess();
       onOpenChange(false);
-    } catch (error) {
+      setMode("existing");
+      setSelectedListId("");
+      setNewListName("");
+    } catch (error: any) {
       console.error("Error adding to list:", error);
       toast({
         title: "Error",
-        description: "Failed to add property to list",
+        description: error.message || "Failed to add leads to list",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add to List</DialogTitle>
+          <DialogTitle>Add {propertyIds.length} Lead(s) to List</DialogTitle>
           <DialogDescription>
-            Select a list or create a new one
+            Choose an existing list or create a new one
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {showCreateNew ? (
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="list-name">List Name</Label>
-                <Input
-                  id="list-name"
-                  placeholder="e.g., High Priority Leads"
-                  value={newListName}
-                  onChange={(e) => setNewListName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleCreateList();
-                    }
-                  }}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleCreateList}
-                  disabled={loading || !newListName.trim()}
-                  className="flex-1"
-                >
-                  Create List
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowCreateNew(false);
-                    setNewListName("");
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
+          <div className="flex gap-2">
+            <Button
+              variant={mode === "existing" ? "default" : "outline"}
+              onClick={() => setMode("existing")}
+              className="flex-1"
+            >
+              Existing List
+            </Button>
+            <Button
+              variant={mode === "new" ? "default" : "outline"}
+              onClick={() => setMode("new")}
+              className="flex-1"
+            >
+              New List
+            </Button>
+          </div>
+
+          {mode === "existing" ? (
+            <div className="space-y-2">
+              <Label>Select List</Label>
+              <Select value={selectedListId} onValueChange={setSelectedListId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a list" />
+                </SelectTrigger>
+                <SelectContent>
+                  {userLists.map((list) => (
+                    <SelectItem key={list.id} value={list.id}>
+                      {list.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : (
-            <>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => setShowCreateNew(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create New List
-              </Button>
-
-              {lists.length > 0 ? (
-                <ScrollArea className="h-[200px] border rounded-md p-2">
-                  <div className="space-y-2">
-                    {lists.map((list) => {
-                      const isInList = currentListIds.includes(list.id);
-                      return (
-                        <Button
-                          key={list.id}
-                          variant={isInList ? "secondary" : "ghost"}
-                          className="w-full justify-between"
-                          onClick={() => !isInList && handleAddToList(list.id)}
-                          disabled={loading || isInList}
-                        >
-                          <span>{list.name}</span>
-                          {isInList && <Check className="h-4 w-4" />}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              ) : (
-                <div className="text-center p-6 text-muted-foreground text-sm">
-                  No lists yet. Create your first list!
-                </div>
-              )}
-            </>
+            <div className="space-y-2">
+              <Label>List Name</Label>
+              <Input
+                placeholder="e.g., High Priority Leads"
+                value={newListName}
+                onChange={(e) => setNewListName(e.target.value)}
+              />
+            </div>
           )}
         </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleAddToList} disabled={bulkAddMutation.isPending}>
+            {bulkAddMutation.isPending ? "Adding..." : "Add to List"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

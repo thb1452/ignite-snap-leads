@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Phone, Mail, Zap } from "lucide-react";
+import { Search, Phone, Mail, Zap, ListPlus } from "lucide-react";
 import { LeadsTable } from "@/components/leads/LeadsTable";
+import { AddToListDialog } from "@/components/leads/AddToListDialog";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Violation {
   id: string;
@@ -64,6 +66,8 @@ export function Leads() {
   const [userLists, setUserLists] = useState<LeadList[]>([]);
   const [loading, setLoading] = useState(true);
   const [todayOutreachCount, setTodayOutreachCount] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [addToListOpen, setAddToListOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     search: "",
     cities: [],
@@ -428,7 +432,59 @@ export function Leads() {
               </div>
             </div>
           ) : (
-            <LeadsTable properties={filteredProperties} />
+            <>
+              <LeadsTable 
+                properties={filteredProperties} 
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
+              />
+              
+              <AnimatePresence>
+                {selectedIds.length > 0 && (
+                  <motion.div
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 100, opacity: 0 }}
+                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+                  >
+                    <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 px-6 py-4 flex items-center gap-4">
+                      <div className="text-sm font-medium text-ink-900">
+                        {selectedIds.length} lead{selectedIds.length > 1 ? 's' : ''} selected
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAddToListOpen(true)}
+                          className="gap-2"
+                        >
+                          <ListPlus className="h-4 w-4" />
+                          Add to List
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedIds([])}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AddToListDialog
+                open={addToListOpen}
+                onOpenChange={setAddToListOpen}
+                propertyIds={selectedIds}
+                userLists={userLists}
+                onSuccess={() => {
+                  setSelectedIds([]);
+                  fetchUserLists();
+                }}
+              />
+            </>
           )}
         </section>
       </main>

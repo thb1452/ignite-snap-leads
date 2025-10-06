@@ -466,9 +466,9 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           <AddToListDialog
             open={addToListOpen}
             onOpenChange={setAddToListOpen}
-            propertyId={property.id}
-            onListAdded={fetchPropertyLists}
-            currentListIds={propertyLists.map((l) => l.list_id)}
+            propertyIds={[property.id]}
+            userLists={[]}
+            onSuccess={fetchPropertyLists}
           />
 
           {/* Retry Skip Trace Dialog */}

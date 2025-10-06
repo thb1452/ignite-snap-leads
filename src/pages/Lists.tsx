@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -267,113 +266,111 @@ export function Lists() {
   };
 
   return (
-    <AppLayout>
-      <div className="p-6">
-        {selectedList ? (
-          // Viewing a specific list
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <Button
-                  variant="ghost"
-                  onClick={() => setSelectedList(null)}
-                  className="mb-2"
-                >
-                  ← Back to Lists
-                </Button>
-                <h1 className="text-2xl font-bold text-foreground">
-                  {selectedList.name}
-                </h1>
-                <p className="text-muted-foreground">
-                  {listProperties.length} properties in this list
-                </p>
-              </div>
-            </div>
-
-            {listProperties.length > 0 ? (
-              <LeadsTable properties={listProperties} />
-            ) : (
-              <Card className="p-12 text-center">
-                <p className="text-muted-foreground">No properties in this list yet</p>
-              </Card>
-            )}
-          </div>
-        ) : (
-          // Lists overview
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">My Lists</h1>
-                <p className="text-muted-foreground">
-                  Organize and manage your lead collections
-                </p>
-              </div>
-              <Button onClick={() => setCreateDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create New List
+    <div className="p-6">
+      {selectedList ? (
+        // Viewing a specific list
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <Button
+                variant="ghost"
+                onClick={() => setSelectedList(null)}
+                className="mb-2"
+              >
+                ← Back to Lists
               </Button>
+              <h1 className="text-2xl font-bold text-foreground">
+                {selectedList.name}
+              </h1>
+              <p className="text-muted-foreground">
+                {listProperties.length} properties in this list
+              </p>
             </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center p-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-              </div>
-            ) : lists.length === 0 ? (
-              <Card className="p-12 text-center">
-                <div className="max-w-md mx-auto space-y-4">
-                  <h3 className="text-lg font-semibold">No lists yet</h3>
-                  <p className="text-muted-foreground">
-                    Create your first list to start organizing your leads
-                  </p>
-                  <Button onClick={() => setCreateDialogOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Your First List
-                  </Button>
-                </div>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {lists.map((list) => (
-                  <Card key={list.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <CardTitle className="flex items-start justify-between">
-                        <span className="flex-1">{list.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setListToDelete(list);
-                            setDeleteDialogOpen(true);
-                          }}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">
-                          {list.property_count} {list.property_count === 1 ? "property" : "properties"}
-                        </Badge>
-                      </div>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => handleViewList(list)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View List
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
           </div>
-        )}
-      </div>
+
+          {listProperties.length > 0 ? (
+            <LeadsTable properties={listProperties} />
+          ) : (
+            <Card className="p-12 text-center">
+              <p className="text-muted-foreground">No properties in this list yet</p>
+            </Card>
+          )}
+        </div>
+      ) : (
+        // Lists overview
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">My Lists</h1>
+              <p className="text-muted-foreground">
+                Organize and manage your lead collections
+              </p>
+            </div>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create New List
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center p-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+            </div>
+          ) : lists.length === 0 ? (
+            <Card className="p-12 text-center">
+              <div className="max-w-md mx-auto space-y-4">
+                <h3 className="text-lg font-semibold">No lists yet</h3>
+                <p className="text-muted-foreground">
+                  Create your first list to start organizing your leads
+                </p>
+                <Button onClick={() => setCreateDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First List
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {lists.map((list) => (
+                <Card key={list.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="flex items-start justify-between">
+                      <span className="flex-1">{list.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setListToDelete(list);
+                          setDeleteDialogOpen(true);
+                        }}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">
+                        {list.property_count} {list.property_count === 1 ? "property" : "properties"}
+                      </Badge>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => handleViewList(list)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View List
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Create List Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -428,6 +425,6 @@ export function Lists() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AppLayout>
+    </div>
   );
 }

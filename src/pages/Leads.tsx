@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,8 +9,18 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, X } from "lucide-react";
+import { LeadsTable } from "@/components/leads/LeadsTable";
 
-interface Property {
+interface Violation {
+  id: string;
+  violation_type: string;
+  description: string | null;
+  status: string;
+  opened_date: string | null;
+  days_open: number | null;
+}
+
+interface PropertyWithViolations {
   id: string;
   address: string;
   city: string;
@@ -24,6 +33,7 @@ interface Property {
   longitude: number | null;
   created_at: string;
   updated_at: string;
+  violations: Violation[];
 }
 
 interface Filters {
@@ -34,8 +44,8 @@ interface Filters {
 }
 
 export function Leads() {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
+  const [properties, setProperties] = useState<PropertyWithViolations[]>([]);
+  const [filteredProperties, setFilteredProperties] = useState<PropertyWithViolations[]>([]);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<Filters>({
@@ -53,18 +63,42 @@ export function Leads() {
   const fetchProperties = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data: propertiesData, error: propertiesError } = await supabase
         .from("properties")
         .select("*")
         .order("snap_score", { ascending: false, nullsFirst: false });
 
-      if (error) throw error;
+      if (propertiesError) throw propertiesError;
 
-      setProperties(data || []);
-      setFilteredProperties(data || []);
+      // Fetch violations for all properties
+      const { data: violationsData, error: violationsError } = await supabase
+        .from("violations")
+        .select("*");
+
+      if (violationsError) throw violationsError;
+
+      // Group violations by property_id
+      const violationsByProperty = (violationsData || []).reduce((acc, violation) => {
+        if (violation.property_id) {
+          if (!acc[violation.property_id]) {
+            acc[violation.property_id] = [];
+          }
+          acc[violation.property_id].push(violation);
+        }
+        return acc;
+      }, {} as Record<string, Violation[]>);
+
+      // Combine properties with their violations
+      const propertiesWithViolations = (propertiesData || []).map(property => ({
+        ...property,
+        violations: violationsByProperty[property.id] || []
+      }));
+
+      setProperties(propertiesWithViolations);
+      setFilteredProperties(propertiesWithViolations);
       
       // Extract unique cities
-      const uniqueCities = [...new Set(data?.map(p => p.city).filter(Boolean) || [])];
+      const uniqueCities = [...new Set(propertiesData?.map(p => p.city).filter(Boolean) || [])];
       setAvailableCities(uniqueCities.sort());
     } catch (error) {
       console.error("Error fetching properties:", error);
@@ -263,43 +297,24 @@ export function Leads() {
               </p>
             </div>
 
-            {/* Leads Content - Placeholder for table */}
-            <Card className="bg-white">
-              <div className="p-12 text-center text-gray-500">
-                {loading ? (
-                  <div className="space-y-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
-                    <p>Loading properties...</p>
-                  </div>
-                ) : filteredProperties.length === 0 ? (
-                  <div>
-                    <p className="text-lg font-medium mb-2">No leads found</p>
-                    <p className="text-sm">Try adjusting your filters</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-lg font-medium mb-2">✅ Dashboard ready!</p>
-                    <p className="text-sm text-gray-600">
-                      Found {filteredProperties.length} properties from {availableCities.length} cities
-                    </p>
-                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
-                      {filteredProperties.slice(0, 3).map(property => (
-                        <div key={property.id} className="text-left p-4 bg-gray-50 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <Badge variant={property.snap_score && property.snap_score >= 80 ? "default" : "secondary"}>
-                              Score: {property.snap_score}
-                            </Badge>
-                          </div>
-                          <p className="font-medium text-sm mb-1">{property.address}</p>
-                          <p className="text-xs text-gray-500">{property.city}, {property.state}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-4">Leads table coming next! 🚀</p>
-                  </div>
-                )}
+            {/* Leads Table */}
+            {loading ? (
+              <div className="flex items-center justify-center p-12 bg-card rounded-md border">
+                <div className="space-y-4 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+                  <p className="text-muted-foreground">Loading properties...</p>
+                </div>
               </div>
-            </Card>
+            ) : filteredProperties.length === 0 ? (
+              <div className="flex items-center justify-center p-12 bg-card rounded-md border">
+                <div className="text-center">
+                  <p className="text-lg font-medium mb-2">No leads found</p>
+                  <p className="text-sm text-muted-foreground">Try adjusting your filters</p>
+                </div>
+              </div>
+            ) : (
+              <LeadsTable properties={filteredProperties} />
+            )}
           </div>
         </main>
       </div>

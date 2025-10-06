@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, X, RotateCcw } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 
 interface Violation {
@@ -99,25 +99,6 @@ const createMarkerIcon = (snapScore: number | null, violationCount: number) => {
   });
 };
 
-// Map controller to reset view
-function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
-  const map = useMap();
-
-  useEffect(() => {
-    const handleReset = () => {
-      map.setView(center, zoom);
-    };
-
-    // Expose reset function globally for the button
-    (window as any).resetMapView = handleReset;
-
-    return () => {
-      delete (window as any).resetMapView;
-    };
-  }, [map, center, zoom]);
-
-  return null; // Don't render anything inside MapContainer
-}
 
 export function Map() {
   const [properties, setProperties] = useState<PropertyWithViolations[]>([]);
@@ -451,32 +432,17 @@ export function Map() {
             </div>
           ) : (
             <div className="relative h-full w-full">
-              {/* Reset View Button - Outside MapContainer */}
-              <Button
-                onClick={() => (window as any).resetMapView?.()}
-                className="absolute top-4 right-4 z-[1000] shadow-lg"
-                size="icon"
-                variant="secondary"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-
               <MapContainer
                 center={mapCenter}
                 zoom={mapZoom}
                 style={{ height: "100%", width: "100%" }}
                 className="z-0"
               >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              
-              {/* Map controller for reset functionality */}
-              <MapController center={mapCenter} zoom={mapZoom} />
+                <TileLayer
+                  attribution='&copy; OpenStreetMap'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
 
-              {/* Markers (no clustering for now to ensure stability) */}
-              <>
                 {filteredProperties.map((property) => {
                   if (!property.latitude || !property.longitude) return null;
                   
@@ -485,48 +451,35 @@ export function Map() {
                       key={property.id}
                       position={[Number(property.latitude), Number(property.longitude)]}
                       icon={createMarkerIcon(property.snap_score, property.violations.length)}
-                      eventHandlers={{
-                        click: () => handleMarkerClick(property),
-                      }}
                     >
                       <Popup>
-                        <div className="space-y-2 min-w-[200px]">
-                          <Badge
-                            variant={getScoreBadgeVariant(property.snap_score)}
-                            className="text-sm"
-                          >
-                            {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
-                            SnapScore: {property.snap_score ?? "N/A"}
-                          </Badge>
-                          <div>
-                            <p className="font-semibold text-sm">{property.address}</p>
-                            <p className="text-xs text-gray-600">
-                              {property.city}, {property.state} {property.zip}
-                            </p>
+                        <div style={{ minWidth: '200px' }}>
+                          <div style={{ fontWeight: 'bold' }}>
+                            SnapScore: {property.snap_score ?? 'N/A'}
                           </div>
-                          {property.violations.length >= 3 ? (
-                            <Badge variant="destructive" className="text-xs">
-                              ⚠️ {property.violations.length} Violations
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">
-                              {property.violations.length} Violations
-                            </Badge>
-                          )}
-                          <Button
-                            size="sm"
-                            className="w-full"
+                          <div>{property.address}</div>
+                          <div>{property.city}, {property.state}</div>
+                          <div>Violations: {property.violations.length}</div>
+                          <button 
                             onClick={() => handleMarkerClick(property)}
+                            style={{
+                              marginTop: '8px',
+                              padding: '4px 8px',
+                              backgroundColor: '#3B82F6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer'
+                            }}
                           >
                             View Details
-                          </Button>
+                          </button>
                         </div>
                       </Popup>
                     </Marker>
                   );
                 })}
-              </>
-            </MapContainer>
+              </MapContainer>
             </div>
           )}
         </main>

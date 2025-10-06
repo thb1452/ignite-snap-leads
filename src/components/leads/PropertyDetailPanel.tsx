@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { ExternalLink, MapPin, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { StatusSelector } from "./StatusSelector";
-import { runSkipTrace } from "@/services/skiptrace";
 import { useCreditBalance } from "@/hooks/useCredits";
 
 interface Violation {
@@ -63,6 +64,14 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   const [isLogging, setIsLogging] = useState(false);
   const [isTracing, setIsTracing] = useState(false);
   const [contacts, setContacts] = useState<any[]>([]);
+  const [showRetryDialog, setShowRetryDialog] = useState(false);
+  const [retryForm, setRetryForm] = useState({
+    address_line: "",
+    city: "",
+    state: "",
+    postal_code: "",
+    owner_name: ""
+  });
   const { toast } = useToast();
   const { data: creditsData } = useCreditBalance();
 
@@ -175,24 +184,63 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     }
   };
 
-  const handleSkipTrace = async () => {
+  const handleSkipTrace = async (overrides?: any) => {
     if (!property) return;
 
-    console.log("[PropertyDetailPanel] Skip trace clicked for property:", property.id);
+    console.log("[PropertyDetailPanel] Skip trace clicked for property:", property.id, overrides ? "with overrides" : "");
     
     setIsTracing(true);
     try {
-      const res = await runSkipTrace(property.id);
-      const found = res.contacts?.length ?? 0;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/skiptrace`;
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          property_id: property.id,
+          overrides: overrides || null
+        }),
+      });
+
+      const result = await response.json();
+      const found = result.contacts?.length ?? 0;
       
       console.log("[PropertyDetailPanel] Skip trace complete. Found contacts:", found);
       
-      setContacts(res.contacts || []);
-      
-      toast({
-        title: found ? `Found ${found} contact(s)` : "No numbers found",
-        description: found ? "Contact information retrieved successfully" : "No numbers found — try alternate address or owner search",
-      });
+      if (result.ok) {
+        setContacts(result.contacts || []);
+        
+        if (found > 0) {
+          const isDemoContact = result.contacts.some((c: any) => c.source?.includes("sandbox_demo"));
+          toast({
+            title: "Skip trace complete",
+            description: isDemoContact 
+              ? `Found ${found} contact(s) (Sandbox demo mode)`
+              : `Found ${found} contact(s)`,
+          });
+          setShowRetryDialog(false);
+        } else {
+          // Show retry dialog with pre-filled address
+          setRetryForm({
+            address_line: property.address,
+            city: property.city,
+            state: property.state,
+            postal_code: property.zip,
+            owner_name: ""
+          });
+          setShowRetryDialog(true);
+          toast({
+            title: "No numbers found",
+            description: "No numbers found — try alternate address or owner search",
+          });
+        }
+      } else {
+        throw new Error(result.error || "Skip trace failed");
+      }
     } catch (error: any) {
       console.error("[PropertyDetailPanel] Skip trace error:", error);
       toast({
@@ -422,6 +470,76 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
             onListAdded={fetchPropertyLists}
             currentListIds={propertyLists.map((l) => l.list_id)}
           />
+
+          {/* Retry Skip Trace Dialog */}
+          <Dialog open={showRetryDialog} onOpenChange={setShowRetryDialog}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Try Alternate Address</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Address Line</label>
+                  <Input
+                    value={retryForm.address_line}
+                    onChange={(e) => setRetryForm({ ...retryForm, address_line: e.target.value })}
+                    placeholder="123 Main St, Unit 4B"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">City</label>
+                    <Input
+                      value={retryForm.city}
+                      onChange={(e) => setRetryForm({ ...retryForm, city: e.target.value })}
+                      placeholder="Springfield"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">State</label>
+                    <Input
+                      value={retryForm.state}
+                      onChange={(e) => setRetryForm({ ...retryForm, state: e.target.value })}
+                      placeholder="IL"
+                      maxLength={2}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Postal Code</label>
+                  <Input
+                    value={retryForm.postal_code}
+                    onChange={(e) => setRetryForm({ ...retryForm, postal_code: e.target.value })}
+                    placeholder="62701"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Owner Name (Optional)</label>
+                  <Input
+                    value={retryForm.owner_name}
+                    onChange={(e) => setRetryForm({ ...retryForm, owner_name: e.target.value })}
+                    placeholder="John Doe"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowRetryDialog(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => handleSkipTrace(retryForm)}
+                  disabled={isTracing}
+                  className="flex-1"
+                >
+                  {isTracing ? "Retrying..." : "Retry Skip Trace"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </motion.div>
       </SheetContent>
     </Sheet>

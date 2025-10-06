@@ -115,7 +115,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const user = authData.user;
 
     // ---- Input ----
-    const body = (await req.json()) as Partial<SkipTraceRequest>;
+    const body = (await req.json()) as Partial<SkipTraceRequest & { overrides?: any }>;
     if (!body?.property_id) {
       return new Response(JSON.stringify({ ok: false, error: "property_id required" } satisfies ApiError), {
         status: 400,
@@ -124,6 +124,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
     const property_id = body.property_id;
     const phone_hint = body.phone_hint ?? null;
+    const overrides = body.overrides ?? null;
 
     // ---- Property lookup ----
     const { data: property, error: propError } = await supabase
@@ -133,25 +134,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .single();
     if (propError || !property) throw new Error("PROPERTY_NOT_FOUND");
 
-    const parts = [property.address, property.city, property.state, property.zip].filter(Boolean);
+    // Use overrides if provided, otherwise use property data
+    const useAddress = overrides?.address_line || property.address;
+    const useCity = overrides?.city || property.city;
+    const useState = overrides?.state || property.state;
+    const useZip = overrides?.postal_code || property.zip;
+
+    const parts = [useAddress, useCity, useState, useZip].filter(Boolean);
     if (parts.length < 3) throw new Error("ADDRESS_INCOMPLETE");
     const fullAddress = parts.join(", ");
-    console.log("[skiptrace] property", property_id, "addr:", fullAddress);
+    console.log("[skiptrace] property", property_id, "addr:", fullAddress, overrides ? "(with overrides)" : "");
 
     // ---- Call BatchData ----
     const url = `${batchDataBase.replace(/\/$/, "")}/api/v1/property/skip-trace`;
     const payload = {
       requests: [{
         propertyAddress: {
-          street: property.address,
-          city: property.city,
-          state: property.state,
-          zip: property.zip
+          street: useAddress,
+          city: useCity,
+          state: useState,
+          zip: useZip
         }
       }]
     };
     if (phone_hint) {
       payload.requests[0].phoneHint = phone_hint;
+    }
+    if (overrides?.owner_name) {
+      payload.requests[0].ownerName = overrides.owner_name;
     }
 
     const bdRes = await fetchWithRetry(
@@ -199,8 +209,68 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const emailsRaw = Array.isArray(raw.emails) ? raw.emails : [];
 
-    const phones = unique(phonesRaw.map(normalizePhone)).filter(Boolean) as string[];
-    const emails = unique(emailsRaw.map(normalizeEmail)).filter(Boolean) as string[];
+    let phones = unique(phonesRaw.map(normalizePhone)).filter(Boolean) as string[];
+    let emails = unique(emailsRaw.map(normalizeEmail)).filter(Boolean) as string[];
+
+    // ---- FALLBACKS if no contacts found ----
+    const gotContacts = (phones.length + emails.length) > 0;
+
+    if (!gotContacts) {
+      console.log("[skiptrace] No contacts from initial query, trying fallbacks...");
+
+      // Fallback A: Try structured address format (different API endpoint style)
+      try {
+        console.log("[skiptrace] Fallback A: structured address");
+        const structuredPayload = {
+          address_line: property.address,
+          city: property.city,
+          state: property.state,
+          postal_code: property.zip
+        };
+
+        const bdRes2 = await fetchWithRetry(
+          `${batchDataBase.replace(/\/$/, "")}/api/v1/property/skip-trace`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${batchDataKey}`,
+            },
+            body: JSON.stringify({ requests: [{ propertyAddress: structuredPayload }] }),
+          },
+          2,
+          700
+        );
+
+        if (bdRes2.ok) {
+          const raw2: any = await bdRes2.json();
+          const results2 = raw2.results || raw2.data || [];
+          if (results2.length > 0) {
+            const firstResult = results2[0];
+            const phones2Raw = Array.isArray(firstResult.phones) 
+              ? firstResult.phones.map((p: any) => typeof p === "string" ? p : p?.number).filter(Boolean) as string[]
+              : [];
+            const emails2Raw = Array.isArray(firstResult.emails) ? firstResult.emails : [];
+            
+            phones = unique(phones2Raw.map(normalizePhone)).filter(Boolean) as string[];
+            emails = unique(emails2Raw.map(normalizeEmail)).filter(Boolean) as string[];
+            
+            if (phones.length || emails.length) {
+              console.log("[skiptrace] Fallback A successful:", phones.length, "phones", emails.length, "emails");
+            }
+          }
+        }
+      } catch (e) {
+        console.log("[skiptrace] Fallback A failed:", e?.message);
+      }
+    }
+
+    // ---- Demo mode for sandbox ----
+    if ((phones.length + emails.length) === 0 && batchDataBase.toLowerCase().includes("sandbox")) {
+      console.log("[skiptrace] Sandbox mode: creating demo contact");
+      phones = ["+15555550100"];
+      emails = ["owner.demo@example.com"];
+    }
 
     // ---- Persist contacts (idempotent upsert) ----
     const contacts: any[] = [];
@@ -215,7 +285,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             phone,
             name: ownerName,
             email: emails[0] ?? null,
-            source: "batchdata",
+            source: batchDataBase.toLowerCase().includes("sandbox") ? "batchdata_sandbox_demo" : "batchdata",
             raw_payload: raw,
             created_by: user.id,
           },

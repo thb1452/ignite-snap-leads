@@ -115,7 +115,6 @@ export function LeadsTable({ properties }: LeadsTableProps) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-help ${scoreClass(property.snap_score)}`}>
-                            {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
                             {property.snap_score ?? "N/A"}
                           </span>
                         </TooltipTrigger>

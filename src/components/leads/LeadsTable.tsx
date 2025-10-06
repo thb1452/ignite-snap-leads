@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Lightbulb } from "lucide-react";
 import { PropertyDetailPanel } from "./PropertyDetailPanel";
 
 interface Violation {
@@ -51,14 +52,19 @@ export function LeadsTable({ properties }: LeadsTableProps) {
     return 'bg-slate-100 text-ink-600 border border-slate-200';
   };
 
-  const getDistressReasons = (property: PropertyWithViolations) => {
-    const reasons: string[] = [];
-    if (property.violations.length >= 3) reasons.push("Multiple violations");
-    const maxDays = Math.max(...(property.violations.map(v => v.days_open ?? 0)), 0);
-    if (maxDays > 180) reasons.push(`${maxDays}d open`);
-    const hasSafety = property.violations.some(v => v.violation_type.toLowerCase().includes('safety'));
-    if (hasSafety) reasons.push("Safety issue");
-    return reasons.length > 0 ? reasons.join(" • ") : "Recent complaint";
+  const computeSnapInsight = (property: PropertyWithViolations) => {
+    if (property.snap_insight) return property.snap_insight;
+    
+    // Fallback: compute from available data
+    const bits: string[] = [];
+    const daysOpen = getMaxDaysOpen(property.violations);
+    if (daysOpen > 0) bits.push(`${daysOpen}d open`);
+    if (property.violations.length > 0) {
+      const primaryType = property.violations[0].violation_type;
+      bits.push(primaryType);
+    }
+    if ((property.snap_score ?? 0) >= 80) bits.push("High SnapScore");
+    return bits.length > 0 ? bits.join(" • ") : "Recent activity";
   };
 
   const getMaxDaysOpen = (violations: Violation[]) => {
@@ -82,14 +88,19 @@ export function LeadsTable({ properties }: LeadsTableProps) {
                 <th className="py-3 px-4 text-left w-64">Address</th>
                 <th className="py-3 px-4 text-left w-24">Days Open</th>
                 <th className="py-3 px-4 text-left w-28">Reachability</th>
-                <th className="py-3 px-4 text-left">Why Hot</th>
+                <th className="py-3 px-4 text-left">
+                  <span className="inline-flex items-center gap-1 normal-case">
+                    <Lightbulb className="h-3.5 w-3.5" />
+                    SnapInsight
+                  </span>
+                </th>
                 <th className="py-3 px-4 text-right pr-6 w-32">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {properties.map((property, index) => {
                 const daysOpen = getMaxDaysOpen(property.violations);
-                const distressReasons = getDistressReasons(property);
+                const snapInsight = computeSnapInsight(property);
 
                 return (
                   <motion.tr
@@ -110,7 +121,7 @@ export function LeadsTable({ properties }: LeadsTableProps) {
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p className="font-medium mb-1">Distress Index: {property.snap_score}</p>
-                          <p className="text-xs opacity-90">{distressReasons}</p>
+                          <p className="text-xs opacity-90">{snapInsight}</p>
                         </TooltipContent>
                       </Tooltip>
                     </td>
@@ -129,8 +140,17 @@ export function LeadsTable({ properties }: LeadsTableProps) {
                         Not traced
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-ink-600 text-sm">
-                      {distressReasons}
+                    <td className="py-3 px-4">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-sm text-ink-700 line-clamp-1 cursor-help block max-w-md">
+                            {snapInsight}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          <p>{snapInsight}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </td>
                     <td className="py-3 px-4 text-right pr-6">
                       <Button

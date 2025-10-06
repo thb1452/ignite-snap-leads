@@ -517,63 +517,42 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               >
                 {propertyLists.length > 0 ? "Added to List ✓" : "Add to List"}
               </Button>
-              
-              <Separator className="my-2" />
-              
-              {/* Communication Actions */}
-              <div className="grid grid-cols-3 gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCallLogOpen(true)}
-                  className="flex flex-col items-center gap-1 h-auto py-3"
-                >
-                  <Phone className="h-4 w-4" />
-                  <span className="text-xs">Call</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSendSMSOpen(true)}
-                  className="flex flex-col items-center gap-1 h-auto py-3"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  <span className="text-xs">SMS</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSendEmailOpen(true)}
-                  className="flex flex-col items-center gap-1 h-auto py-3"
-                >
-                  <Mail className="h-4 w-4" />
-                  <span className="text-xs">Email</span>
-                </Button>
-              </div>
-              
-              {/* Show which lists this property is in */}
-              {propertyLists.length > 0 && (
-                <div className="pt-2 space-y-2">
-                  <p className="text-xs text-muted-foreground">In lists:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {propertyLists.map((list) => (
-                      <Badge
-                        key={list.id}
-                        variant="secondary"
-                        className="cursor-pointer hover:bg-destructive/10 group"
-                      >
-                        {list.list_name}
-                        <button
-                          onClick={() => handleRemoveFromList(list.id)}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Communication */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground">Communication</h3>
+            <div className="grid grid-cols-3 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCallLogOpen(true)}
+                className="flex flex-col items-center gap-1 h-auto py-3"
+              >
+                <Phone className="h-4 w-4" />
+                <span className="text-xs">Call</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSendSMSOpen(true)}
+                className="flex flex-col items-center gap-1 h-auto py-3"
+              >
+                <MessageSquare className="h-4 w-4" />
+                <span className="text-xs">SMS</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSendEmailOpen(true)}
+                className="flex flex-col items-center gap-1 h-auto py-3"
+              >
+                <Mail className="h-4 w-4" />
+                <span className="text-xs">Email</span>
+              </Button>
             </div>
           </div>
         </div>

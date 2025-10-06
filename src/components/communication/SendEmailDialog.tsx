@@ -1,25 +1,18 @@
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface SendEmailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  propertyAddress: string;
-  ownerName?: string;
-  ownerEmail?: string;
+  emailAddress?: string;
+  propertyAddress?: string;
 }
 
 interface EmailTemplate {
@@ -29,13 +22,8 @@ interface EmailTemplate {
   content: string;
 }
 
-export function SendEmailDialog({ 
-  open, 
-  onOpenChange, 
-  propertyAddress,
-  ownerName,
-  ownerEmail 
-}: SendEmailDialogProps) {
+export function SendEmailDialog({ open, onOpenChange, emailAddress = "", propertyAddress = "" }: SendEmailDialogProps) {
+  const [email, setEmail] = useState(emailAddress);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [subject, setSubject] = useState("");
@@ -46,15 +34,16 @@ export function SendEmailDialog({
   useEffect(() => {
     if (open) {
       fetchTemplates();
+      setEmail(emailAddress);
     }
-  }, [open]);
+  }, [open, emailAddress]);
 
   const fetchTemplates = async () => {
     try {
       const { data, error } = await supabase
         .from("email_templates")
         .select("*")
-        .order("name");
+        .order("is_default", { ascending: false});
 
       if (error) throw error;
       setTemplates(data || []);
@@ -63,36 +52,24 @@ export function SendEmailDialog({
     }
   };
 
-  const handleTemplateSelect = (templateId: string) => {
+  const handleTemplateChange = (templateId: string) => {
     setSelectedTemplate(templateId);
     const template = templates.find(t => t.id === templateId);
     if (template) {
-      let templateSubject = template.subject;
+      let subj = template.subject.replace(/{address}/g, propertyAddress);
       let content = template.content;
-      
-      templateSubject = templateSubject.replace("{address}", propertyAddress);
-      content = content.replace("{name}", ownerName || "Owner");
-      content = content.replace("{address}", propertyAddress);
-      
-      setSubject(templateSubject);
+      content = content.replace(/{address}/g, propertyAddress);
+      content = content.replace(/{name}/g, "Property Owner");
+      setSubject(subj);
       setMessage(content);
     }
   };
 
   const handleSendEmail = async () => {
-    if (!ownerEmail) {
-      toast({
-        title: "No Email Address",
-        description: "Please run skip trace to get the owner's email address first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!subject.trim() || !message.trim()) {
+    if (!email || !subject || !message) {
       toast({
         title: "Error",
-        description: "Please enter a subject and message",
+        description: "Email, subject, and message are required",
         variant: "destructive",
       });
       return;
@@ -100,17 +77,11 @@ export function SendEmailDialog({
 
     setLoading(true);
     toast({
-      title: "Coming Soon",
-      description: "Email sending will be available once you integrate with Resend or similar service",
+      title: "Email Not Implemented",
+      description: "Email sending requires Resend integration. Email prepared for: " + email,
     });
-    
-    // TODO: Integrate with Resend or similar email service
-    // This would typically call an edge function that handles the email API
-    
-    setTimeout(() => {
-      setLoading(false);
-      onOpenChange(false);
-    }, 1000);
+    setLoading(false);
+    onOpenChange(false);
   };
 
   return (
@@ -118,17 +89,25 @@ export function SendEmailDialog({
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Send Email</DialogTitle>
-          <DialogDescription>
-            Send an email to the property owner
-          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
           <div className="space-y-2">
+            <Label htmlFor="email">Email Address</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="owner@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="template">Template</Label>
-            <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
+            <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
               <SelectTrigger id="template">
-                <SelectValue placeholder="Choose a template..." />
+                <SelectValue placeholder="Select a template..." />
               </SelectTrigger>
               <SelectContent>
                 {templates.map((template) => (
@@ -144,7 +123,7 @@ export function SendEmailDialog({
             <Label htmlFor="subject">Subject</Label>
             <Input
               id="subject"
-              placeholder="Email subject..."
+              placeholder="Email subject"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
             />
@@ -154,26 +133,16 @@ export function SendEmailDialog({
             <Label htmlFor="message">Message</Label>
             <Textarea
               id="message"
-              placeholder="Type your message here..."
+              placeholder="Type your message..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={8}
             />
           </div>
 
-          {ownerEmail ? (
-            <p className="text-sm text-muted-foreground">
-              Sending to: {ownerEmail}
-            </p>
-          ) : (
-            <p className="text-sm text-destructive">
-              No email address available. Run skip trace first.
-            </p>
-          )}
-
-          <Button 
-            onClick={handleSendEmail} 
-            disabled={loading || !ownerEmail} 
+          <Button
+            onClick={handleSendEmail}
+            disabled={loading || !email || !subject || !message}
             className="w-full"
           >
             {loading ? "Sending..." : "Send Email"}

@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,17 +15,17 @@ interface CallLogDialogProps {
   phoneNumber?: string;
 }
 
-const CALL_STATUSES = ["completed", "missed", "voicemail", "busy"] as const;
+const CALL_STATUS_OPTIONS = ["completed", "missed", "voicemail", "busy"] as const;
 
-export function CallLogDialog({ open, onOpenChange, propertyId, phoneNumber }: CallLogDialogProps) {
-  const [phone, setPhone] = useState(phoneNumber || "");
+export function CallLogDialog({ open, onOpenChange, propertyId, phoneNumber = "" }: CallLogDialogProps) {
+  const [phone, setPhone] = useState(phoneNumber);
   const [duration, setDuration] = useState("");
   const [status, setStatus] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleLogCall = async () => {
+  const handleSaveCallLog = async () => {
     if (!phone || !status) {
       toast({
         title: "Error",
@@ -48,7 +42,7 @@ export function CallLogDialog({ open, onOpenChange, propertyId, phoneNumber }: C
       if (!user) {
         toast({
           title: "Error",
-          description: "You must be logged in to log calls",
+          description: "You must be logged in",
           variant: "destructive",
         });
         return;
@@ -59,8 +53,8 @@ export function CallLogDialog({ open, onOpenChange, propertyId, phoneNumber }: C
         property_id: propertyId,
         phone_number: phone,
         duration: duration ? parseInt(duration) : null,
-        status,
         call_type: "outbound",
+        status,
         notes: notes.trim() || null,
       });
 
@@ -71,7 +65,7 @@ export function CallLogDialog({ open, onOpenChange, propertyId, phoneNumber }: C
         description: "Call logged successfully",
       });
 
-      setPhone("");
+      setPhone(phoneNumber);
       setDuration("");
       setStatus("");
       setNotes("");
@@ -93,7 +87,6 @@ export function CallLogDialog({ open, onOpenChange, propertyId, phoneNumber }: C
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Log Call</DialogTitle>
-          <DialogDescription>Record details about your call</DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
@@ -102,7 +95,7 @@ export function CallLogDialog({ open, onOpenChange, propertyId, phoneNumber }: C
             <Input
               id="phone"
               type="tel"
-              placeholder="+1 (555) 000-0000"
+              placeholder="(555) 123-4567"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
@@ -115,9 +108,9 @@ export function CallLogDialog({ open, onOpenChange, propertyId, phoneNumber }: C
                 <SelectValue placeholder="Select status..." />
               </SelectTrigger>
               <SelectContent>
-                {CALL_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                {CALL_STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option.charAt(0).toUpperCase() + option.slice(1)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -139,15 +132,19 @@ export function CallLogDialog({ open, onOpenChange, propertyId, phoneNumber }: C
             <Label htmlFor="notes">Notes</Label>
             <Textarea
               id="notes"
-              placeholder="Add any notes about the call..."
+              placeholder="Call notes..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
             />
           </div>
 
-          <Button onClick={handleLogCall} disabled={loading} className="w-full">
-            {loading ? "Logging..." : "Log Call"}
+          <Button
+            onClick={handleSaveCallLog}
+            disabled={loading || !phone || !status}
+            className="w-full"
+          >
+            {loading ? "Saving..." : "Save Call Log"}
           </Button>
         </div>
       </DialogContent>

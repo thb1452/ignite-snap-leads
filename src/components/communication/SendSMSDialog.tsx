@@ -1,24 +1,18 @@
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface SendSMSDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  propertyAddress: string;
-  ownerName?: string;
   phoneNumber?: string;
+  propertyAddress?: string;
 }
 
 interface SMSTemplate {
@@ -27,13 +21,8 @@ interface SMSTemplate {
   content: string;
 }
 
-export function SendSMSDialog({ 
-  open, 
-  onOpenChange, 
-  propertyAddress,
-  ownerName,
-  phoneNumber 
-}: SendSMSDialogProps) {
+export function SendSMSDialog({ open, onOpenChange, phoneNumber = "", propertyAddress = "" }: SendSMSDialogProps) {
+  const [phone, setPhone] = useState(phoneNumber);
   const [templates, setTemplates] = useState<SMSTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [message, setMessage] = useState("");
@@ -43,15 +32,16 @@ export function SendSMSDialog({
   useEffect(() => {
     if (open) {
       fetchTemplates();
+      setPhone(phoneNumber);
     }
-  }, [open]);
+  }, [open, phoneNumber]);
 
   const fetchTemplates = async () => {
     try {
       const { data, error } = await supabase
         .from("sms_templates")
         .select("*")
-        .order("name");
+        .order("is_default", { ascending: false });
 
       if (error) throw error;
       setTemplates(data || []);
@@ -60,31 +50,22 @@ export function SendSMSDialog({
     }
   };
 
-  const handleTemplateSelect = (templateId: string) => {
+  const handleTemplateChange = (templateId: string) => {
     setSelectedTemplate(templateId);
     const template = templates.find(t => t.id === templateId);
     if (template) {
       let content = template.content;
-      content = content.replace("{name}", ownerName || "Owner");
-      content = content.replace("{address}", propertyAddress);
+      content = content.replace(/{address}/g, propertyAddress);
+      content = content.replace(/{name}/g, "Property Owner");
       setMessage(content);
     }
   };
 
   const handleSendSMS = async () => {
-    if (!phoneNumber) {
-      toast({
-        title: "No Phone Number",
-        description: "Please run skip trace to get the owner's phone number first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!message.trim()) {
+    if (!phone || !message) {
       toast({
         title: "Error",
-        description: "Please enter a message",
+        description: "Phone number and message are required",
         variant: "destructive",
       });
       return;
@@ -92,17 +73,11 @@ export function SendSMSDialog({
 
     setLoading(true);
     toast({
-      title: "Coming Soon",
-      description: "SMS sending will be available once you integrate with Twilio or similar service",
+      title: "SMS Not Implemented",
+      description: "SMS sending requires Twilio integration. Message prepared for: " + phone,
     });
-    
-    // TODO: Integrate with Twilio or similar SMS service
-    // This would typically call an edge function that handles the SMS API
-    
-    setTimeout(() => {
-      setLoading(false);
-      onOpenChange(false);
-    }, 1000);
+    setLoading(false);
+    onOpenChange(false);
   };
 
   return (
@@ -110,17 +85,25 @@ export function SendSMSDialog({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Send SMS</DialogTitle>
-          <DialogDescription>
-            Send a text message to the property owner
-          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
           <div className="space-y-2">
+            <Label htmlFor="phone">Phone Number</Label>
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="(555) 123-4567"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="template">Template</Label>
-            <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
+            <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
               <SelectTrigger id="template">
-                <SelectValue placeholder="Choose a template..." />
+                <SelectValue placeholder="Select a template..." />
               </SelectTrigger>
               <SelectContent>
                 {templates.map((template) => (
@@ -136,29 +119,19 @@ export function SendSMSDialog({
             <Label htmlFor="message">Message</Label>
             <Textarea
               id="message"
-              placeholder="Type your message here..."
+              placeholder="Type your message..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              rows={6}
+              rows={5}
             />
             <p className="text-xs text-muted-foreground">
               {message.length} characters
             </p>
           </div>
 
-          {phoneNumber ? (
-            <p className="text-sm text-muted-foreground">
-              Sending to: {phoneNumber}
-            </p>
-          ) : (
-            <p className="text-sm text-destructive">
-              No phone number available. Run skip trace first.
-            </p>
-          )}
-
-          <Button 
-            onClick={handleSendSMS} 
-            disabled={loading || !phoneNumber} 
+          <Button
+            onClick={handleSendSMS}
+            disabled={loading || !phone || !message}
             className="w-full"
           >
             {loading ? "Sending..." : "Send SMS"}

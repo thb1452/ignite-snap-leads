@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
@@ -476,7 +475,8 @@ export function Map() {
               {/* Map controller for reset functionality */}
               <MapController center={mapCenter} zoom={mapZoom} />
 
-              <MarkerClusterGroup chunkedLoading>
+              {/* Markers (no clustering for now to ensure stability) */}
+              <>
                 {filteredProperties.map((property) => {
                   if (!property.latitude || !property.longitude) return null;
                   
@@ -525,7 +525,7 @@ export function Map() {
                     </Marker>
                   );
                 })}
-              </MarkerClusterGroup>
+              </>
             </MapContainer>
             </div>
           )}

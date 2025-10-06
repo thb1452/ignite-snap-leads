@@ -81,10 +81,14 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     
     setIsLogging(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const { error } = await supabase
         .from("lead_activity")
         .insert({
           property_id: property.id,
+          user_id: user.id,
           status,
           notes: notes || null,
         });
@@ -174,10 +178,14 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   const handleSkipTrace = async () => {
     if (!property) return;
 
+    console.log("[PropertyDetailPanel] Skip trace clicked for property:", property.id);
+    
     setIsTracing(true);
     try {
       const res = await runSkipTrace(property.id);
       const found = res.contacts?.length ?? 0;
+      
+      console.log("[PropertyDetailPanel] Skip trace complete. Found contacts:", found);
       
       setContacts(res.contacts || []);
       
@@ -186,6 +194,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
         description: found ? "Contact information retrieved successfully" : "No numbers found — try alternate address or owner search",
       });
     } catch (error: any) {
+      console.error("[PropertyDetailPanel] Skip trace error:", error);
       toast({
         title: "Skip trace failed",
         description: error.message || "An error occurred",

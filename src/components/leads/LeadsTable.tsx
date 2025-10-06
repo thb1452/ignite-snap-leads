@@ -84,7 +84,11 @@ export function LeadsTable({ properties }: LeadsTableProps) {
   const handleSkipTrace = async (property: PropertyWithViolations, e: React.MouseEvent) => {
     e.stopPropagation();
     
+    console.log("[LeadsTable] Skip trace clicked for property:", property.id);
+    
     const credits = creditsData ?? 0;
+    console.log("[LeadsTable] Credits available:", credits);
+    
     if (credits <= 0) {
       toast({
         title: "No credits",
@@ -100,6 +104,8 @@ export function LeadsTable({ properties }: LeadsTableProps) {
       const res = await runSkipTrace(property.id);
       const found = res.contacts?.length ?? 0;
       
+      console.log("[LeadsTable] Skip trace complete. Found contacts:", found);
+      
       setPropertyContacts(prev => ({ ...prev, [property.id]: found }));
       
       toast({
@@ -107,6 +113,7 @@ export function LeadsTable({ properties }: LeadsTableProps) {
         description: found ? "Contact information retrieved successfully" : "No numbers found — try alternate address or owner search",
       });
     } catch (error: any) {
+      console.error("[LeadsTable] Skip trace error:", error);
       toast({
         title: "Skip trace failed",
         description: error.message || "An error occurred",

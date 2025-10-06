@@ -73,7 +73,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   const [loading, setLoading] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const { toast } = useToast();
-  if (!property) return null;
 
   useEffect(() => {
     if (property && open) {
@@ -81,6 +80,9 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
       fetchPropertyLists();
     }
   }, [property, open]);
+
+  // Early return AFTER all hooks are declared
+  if (!property) return null;
 
   const fetchActivities = async () => {
     if (!property) return;

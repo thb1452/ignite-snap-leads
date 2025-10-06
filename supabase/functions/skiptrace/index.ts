@@ -52,11 +52,11 @@ function unique<T>(arr: (T | null | undefined)[]): T[] {
   return Array.from(new Set(arr.filter(Boolean) as T[]));
 }
 
-async function fetchWithRetry(url: string, init: RequestInit, tries = 3, delayMs = 600) {
+async function fetchWithRetry(url: string, init: RequestInit, tries = 3, delayMs = 700) {
   let lastErr: any;
   for (let i = 0; i < tries; i++) {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 12_000); // 12s timeout
+    const t = setTimeout(() => ctrl.abort(), 25_000); // 25s timeout per try
     try {
       const res = await fetch(url, { ...init, signal: ctrl.signal });
       clearTimeout(t);
@@ -266,6 +266,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     let status = 500;
     let msg = "Internal error";
+
+    // Map abort/timeouts clearly
+    if (e?.name === "AbortError" || String(e?.message || "").toLowerCase().includes("aborted")) {
+      status = 504; msg = "BatchData timeout, please retry";
+    }
 
     switch (e?.message) {
       case "SERVER_MISCONFIGURED":

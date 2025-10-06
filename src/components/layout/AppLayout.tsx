@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Map, FolderOpen, Settings as SettingsIcon, LogOut } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Settings as SettingsIcon, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 interface AppLayoutProps {
@@ -18,7 +18,6 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const navItems = [
     { name: "Dashboard", path: "/", icon: LayoutDashboard },
-    { name: "Map", path: "/map", icon: Map },
     { name: "Lists", path: "/lists", icon: FolderOpen },
     { name: "Settings", path: "/settings", icon: SettingsIcon },
   ];

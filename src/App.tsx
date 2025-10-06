@@ -7,7 +7,6 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Upload } from "./pages/Upload";
 import { Leads } from "./pages/Leads";
 import { Lists } from "./pages/Lists";
-import { Map } from "./pages/Map";
 import { Settings } from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -38,11 +37,6 @@ const App = () => (
           <Route path="/lists" element={
             <ProtectedRoute>
               <Lists />
-            </ProtectedRoute>
-          } />
-          <Route path="/map" element={
-            <ProtectedRoute>
-              <Map />
             </ProtectedRoute>
           } />
           <Route path="/settings" element={

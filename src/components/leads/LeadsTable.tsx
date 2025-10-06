@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { PropertyDetailPanel } from "./PropertyDetailPanel";
 
 interface Violation {
   id: string;
@@ -11,6 +12,7 @@ interface Violation {
   status: string;
   opened_date: string | null;
   days_open: number | null;
+  case_id: string | null;
 }
 
 interface PropertyWithViolations {
@@ -20,6 +22,10 @@ interface PropertyWithViolations {
   state: string;
   zip: string;
   snap_score: number | null;
+  snap_insight: string | null;
+  photo_url: string | null;
+  latitude: number | null;
+  longitude: number | null;
   violations: Violation[];
 }
 
@@ -33,6 +39,13 @@ type SortDirection = "asc" | "desc" | null;
 export function LeadsTable({ properties }: LeadsTableProps) {
   const [sortField, setSortField] = useState<SortField>("snap_score");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [selectedProperty, setSelectedProperty] = useState<PropertyWithViolations | null>(null);
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false);
+
+  const handlePropertyClick = (property: PropertyWithViolations) => {
+    setSelectedProperty(property);
+    setDetailPanelOpen(true);
+  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -122,7 +135,13 @@ export function LeadsTable({ properties }: LeadsTableProps) {
   };
 
   return (
-    <div className="rounded-md border bg-card">
+    <>
+      <PropertyDetailPanel
+        property={selectedProperty}
+        open={detailPanelOpen}
+        onOpenChange={setDetailPanelOpen}
+      />
+      <div className="rounded-md border bg-card">
       <Table>
         <TableHeader>
           <TableRow>
@@ -172,10 +191,11 @@ export function LeadsTable({ properties }: LeadsTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedProperties.map((property, index) => (
+          {sortedProperties.map((property) => (
             <TableRow
               key={property.id}
               className="cursor-pointer transition-colors hover:bg-muted/50"
+              onClick={() => handlePropertyClick(property)}
             >
               <TableCell className="font-medium">
                 <Badge
@@ -215,7 +235,14 @@ export function LeadsTable({ properties }: LeadsTableProps) {
                 {getMaxDaysOpen(property.violations)} days
               </TableCell>
               <TableCell>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePropertyClick(property);
+                  }}
+                >
                   View Details
                 </Button>
               </TableCell>
@@ -223,6 +250,7 @@ export function LeadsTable({ properties }: LeadsTableProps) {
           ))}
         </TableBody>
       </Table>
-    </div>
+      </div>
+    </>
   );
 }

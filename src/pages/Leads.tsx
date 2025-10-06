@@ -18,6 +18,7 @@ interface Violation {
   status: string;
   opened_date: string | null;
   days_open: number | null;
+  case_id: string | null;
 }
 
 interface PropertyWithViolations {

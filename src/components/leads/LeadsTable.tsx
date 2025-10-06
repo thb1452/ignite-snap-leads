@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Lightbulb } from "lucide-react";
 import { PropertyDetailPanel } from "./PropertyDetailPanel";
+import { runSkipTrace } from "@/services/skiptrace";
+import { useToast } from "@/hooks/use-toast";
+import { useCreditBalance } from "@/hooks/useCredits";
 
 interface Violation {
   id: string;
@@ -36,6 +39,8 @@ interface PropertyWithViolations {
   longitude: number | null;
   violations: Violation[];
   latest_activity?: LeadActivity | null;
+  contacts?: any[];
+  contactCount?: number;
 }
 
 interface LeadsTableProps {
@@ -44,6 +49,10 @@ interface LeadsTableProps {
 
 export function LeadsTable({ properties }: LeadsTableProps) {
   const [selectedProperty, setSelectedProperty] = useState<PropertyWithViolations | null>(null);
+  const [loadingSkipTrace, setLoadingSkipTrace] = useState<Record<string, boolean>>({});
+  const [propertyContacts, setPropertyContacts] = useState<Record<string, number>>({});
+  const { toast } = useToast();
+  const { data: creditsData } = useCreditBalance();
 
   const scoreClass = (n: number | null) => {
     if (!n) return 'bg-slate-100 text-ink-600 border border-slate-200';
@@ -70,6 +79,49 @@ export function LeadsTable({ properties }: LeadsTableProps) {
   const getMaxDaysOpen = (violations: Violation[]) => {
     if (violations.length === 0) return 0;
     return Math.max(...violations.map(v => v.days_open ?? 0));
+  };
+
+  const handleSkipTrace = async (property: PropertyWithViolations, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const credits = creditsData ?? 0;
+    if (credits <= 0) {
+      toast({
+        title: "No credits",
+        description: "0 credits – Buy Credits to enable skip tracing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoadingSkipTrace(prev => ({ ...prev, [property.id]: true }));
+    
+    try {
+      const res = await runSkipTrace(property.id);
+      const found = res.contacts?.length ?? 0;
+      
+      setPropertyContacts(prev => ({ ...prev, [property.id]: found }));
+      
+      toast({
+        title: found ? `Found ${found} contact(s)` : "No numbers found",
+        description: found ? "Contact information retrieved successfully" : "No numbers found — try alternate address or owner search",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Skip trace failed",
+        description: error.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingSkipTrace(prev => ({ ...prev, [property.id]: false }));
+    }
+  };
+
+  const getReachability = (propertyId: string) => {
+    const count = propertyContacts[propertyId];
+    if (count === undefined) return { text: "Not traced", color: "bg-slate-300" };
+    if (count > 0) return { text: `Numbers found (${count})`, color: "bg-emerald-400" };
+    return { text: "No numbers", color: "bg-amber-400" };
   };
 
   return (
@@ -101,6 +153,10 @@ export function LeadsTable({ properties }: LeadsTableProps) {
               {properties.map((property, index) => {
                 const daysOpen = getMaxDaysOpen(property.violations);
                 const snapInsight = computeSnapInsight(property);
+                const reachability = getReachability(property.id);
+                const isTracing = loadingSkipTrace[property.id] ?? false;
+                const notTraced = propertyContacts[property.id] === undefined;
+                const credits = creditsData ?? 0;
 
                 return (
                   <motion.tr
@@ -135,8 +191,8 @@ export function LeadsTable({ properties }: LeadsTableProps) {
                     </td>
                     <td className="py-3 px-4">
                       <span className="text-xs text-ink-400 flex items-center gap-1">
-                        <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                        Not traced
+                        <span className={`h-1.5 w-1.5 rounded-full ${reachability.color}`} />
+                        {reachability.text}
                       </span>
                     </td>
                     <td className="py-3 px-4">
@@ -152,17 +208,29 @@ export function LeadsTable({ properties }: LeadsTableProps) {
                       </Tooltip>
                     </td>
                     <td className="py-3 px-4 text-right pr-6">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedProperty(property);
-                        }}
-                        className="text-brand hover:text-brand/80 hover:bg-brand/5 transition-all opacity-0 group-hover:opacity-100 text-xs font-medium"
-                      >
-                        Contact
-                      </Button>
+                      {notTraced ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => handleSkipTrace(property, e)}
+                          disabled={isTracing || credits <= 0}
+                          className="text-brand hover:text-brand/80 hover:bg-brand/5 transition-all opacity-0 group-hover:opacity-100 text-xs font-medium disabled:opacity-40"
+                        >
+                          {isTracing ? "Tracing..." : "Skip Trace"}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProperty(property);
+                          }}
+                          className="text-brand hover:text-brand/80 hover:bg-brand/5 transition-all opacity-0 group-hover:opacity-100 text-xs font-medium"
+                        >
+                          Contact
+                        </Button>
+                      )}
                     </td>
                   </motion.tr>
                 );

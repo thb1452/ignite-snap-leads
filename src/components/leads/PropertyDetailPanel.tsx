@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { StatusSelector } from "./StatusSelector";
+import { runSkipTrace } from "@/services/skiptrace";
+import { useCreditBalance } from "@/hooks/useCredits";
 
 interface Violation {
   id: string;
@@ -59,12 +61,16 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   const [propertyLists, setPropertyLists] = useState<PropertyList[]>([]);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
+  const [isTracing, setIsTracing] = useState(false);
+  const [contacts, setContacts] = useState<any[]>([]);
   const { toast } = useToast();
+  const { data: creditsData } = useCreditBalance();
 
   useEffect(() => {
     if (property && open) {
       fetchActivities();
       fetchPropertyLists();
+      fetchContacts();
     }
   }, [property, open]);
 
@@ -149,6 +155,47 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     }
   };
 
+  const fetchContacts = async () => {
+    if (!property) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("property_contacts")
+        .select("*")
+        .eq("property_id", property.id);
+
+      if (error) throw error;
+      setContacts(data || []);
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+    }
+  };
+
+  const handleSkipTrace = async () => {
+    if (!property) return;
+
+    setIsTracing(true);
+    try {
+      const res = await runSkipTrace(property.id);
+      const found = res.contacts?.length ?? 0;
+      
+      setContacts(res.contacts || []);
+      
+      toast({
+        title: found ? `Found ${found} contact(s)` : "No numbers found",
+        description: found ? "Contact information retrieved successfully" : "No numbers found — try alternate address or owner search",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Skip trace failed",
+        description: error.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTracing(false);
+    }
+  };
+
   const getScoreClass = (n: number | null) => {
     if (!n) return 'bg-slate-100 text-ink-600 border border-slate-200';
     if (n >= 80) return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
@@ -171,6 +218,9 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   const hasMultipleViolations = property.violations.length >= 3;
   const snapScore = property.snap_score;
+  const credits = creditsData ?? 0;
+  const hasContacts = contacts.length > 0;
+  const notTraced = contacts.length === 0;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -326,12 +376,28 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
           {/* Sticky Action Footer */}
           <div className="border-t p-4 md:p-5 bg-white sticky bottom-0 space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+            {notTraced && (
+              <div className="mb-3 flex gap-3 items-center">
+                <Button
+                  onClick={handleSkipTrace}
+                  disabled={isTracing || credits <= 0}
+                  className="rounded-xl px-5 py-2.5 bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-40"
+                >
+                  {isTracing ? "Tracing..." : "Skip Trace"}
+                </Button>
+                {credits === 0 && (
+                  <span className="text-sm text-ink-500">
+                    0 credits – Buy Credits to enable
+                  </span>
+                )}
+              </div>
+            )}
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 className="rounded-xl px-3 py-2 border flex-1 transition-all hover:border-brand/30 hover:bg-brand/5"
                 onClick={() => logActivity("Called - No Answer")}
-                disabled={isLogging}
+                disabled={isLogging || !hasContacts}
               >
                 <Phone className="h-4 w-4 mr-1" />
                 Call
@@ -340,7 +406,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 variant="outline"
                 className="rounded-xl px-3 py-2 border flex-1 transition-all hover:border-brand/30 hover:bg-brand/5"
                 onClick={() => logActivity("SMS Sent")}
-                disabled={isLogging}
+                disabled={isLogging || !hasContacts}
               >
                 <MessageSquare className="h-4 w-4 mr-1" />
                 SMS
@@ -348,7 +414,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               <Button
                 className="rounded-xl px-3 py-2 bg-ink-900 text-white hover:bg-ink-700 flex-1 transition-all"
                 onClick={() => logActivity("Email Sent")}
-                disabled={isLogging}
+                disabled={isLogging || !hasContacts}
               >
                 <Mail className="h-4 w-4 mr-1" />
                 Email

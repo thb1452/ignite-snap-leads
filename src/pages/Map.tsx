@@ -78,6 +78,7 @@ export function Map() {
     listId: "",
   });
   const { toast } = useToast();
+  const [mapInstance, setMapInstance] = useState<any>(null);
 
   // Default center (will be updated to center of properties)
   const [mapCenter, setMapCenter] = useState<[number, number]>([39.8283, -98.5795]); // Center of USA
@@ -397,6 +398,7 @@ export function Map() {
               <MapContainer
                 center={mapCenter}
                 zoom={mapZoom}
+                whenCreated={setMapInstance}
                 style={{ height: "100%", width: "100%" }}
                 className="z-0"
               >

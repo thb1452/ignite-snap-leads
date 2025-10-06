@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Search, X } from "lucide-react";
 import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { MapMarkers } from "@/components/map/MapMarkers";
+import { MapEffects } from "@/components/map/MapEffects";
 
 interface Violation {
   id: string;
@@ -205,9 +206,9 @@ export function Map() {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter(
         p =>
-          p.address.toLowerCase().includes(searchLower) ||
-          p.city.toLowerCase().includes(searchLower) ||
-          p.zip.includes(filters.search)
+          (p.address?.toLowerCase() ?? "").includes(searchLower) ||
+          (p.city?.toLowerCase() ?? "").includes(searchLower) ||
+          (p.zip ?? "").includes(filters.search)
       );
     }
 
@@ -404,6 +405,7 @@ export function Map() {
                   attribution='&copy; OpenStreetMap'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                <MapEffects center={mapCenter} zoom={mapZoom} fitTo={filteredProperties} />
                 <MapMarkers 
                   properties={filteredProperties}
                   onMarkerClick={handleMarkerClick}

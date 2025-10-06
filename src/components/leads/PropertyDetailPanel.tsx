@@ -7,10 +7,13 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ExternalLink, MapPin, AlertTriangle, X } from "lucide-react";
+import { ExternalLink, MapPin, AlertTriangle, X, Phone, Mail, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
+import { CallLogDialog } from "@/components/communication/CallLogDialog";
+import { SendSMSDialog } from "@/components/communication/SendSMSDialog";
+import { SendEmailDialog } from "@/components/communication/SendEmailDialog";
 
 interface Violation {
   id: string;
@@ -72,6 +75,9 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   const [notes, setNotes] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
+  const [callLogOpen, setCallLogOpen] = useState(false);
+  const [sendSMSOpen, setSendSMSOpen] = useState(false);
+  const [sendEmailOpen, setSendEmailOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -512,6 +518,39 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 {propertyLists.length > 0 ? "Added to List ✓" : "Add to List"}
               </Button>
               
+              <Separator className="my-2" />
+              
+              {/* Communication Actions */}
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCallLogOpen(true)}
+                  className="flex flex-col items-center gap-1 h-auto py-3"
+                >
+                  <Phone className="h-4 w-4" />
+                  <span className="text-xs">Call</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSendSMSOpen(true)}
+                  className="flex flex-col items-center gap-1 h-auto py-3"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="text-xs">SMS</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSendEmailOpen(true)}
+                  className="flex flex-col items-center gap-1 h-auto py-3"
+                >
+                  <Mail className="h-4 w-4" />
+                  <span className="text-xs">Email</span>
+                </Button>
+              </div>
+              
               {/* Show which lists this property is in */}
               {propertyLists.length > 0 && (
                 <div className="pt-2 space-y-2">
@@ -545,6 +584,24 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           propertyId={property.id}
           onListAdded={fetchPropertyLists}
           currentListIds={propertyLists.map((l) => l.list_id)}
+        />
+        
+        <CallLogDialog
+          open={callLogOpen}
+          onOpenChange={setCallLogOpen}
+          propertyId={property.id}
+        />
+        
+        <SendSMSDialog
+          open={sendSMSOpen}
+          onOpenChange={setSendSMSOpen}
+          propertyAddress={property.address}
+        />
+        
+        <SendEmailDialog
+          open={sendEmailOpen}
+          onOpenChange={setSendEmailOpen}
+          propertyAddress={property.address}
         />
       </SheetContent>
     </Sheet>

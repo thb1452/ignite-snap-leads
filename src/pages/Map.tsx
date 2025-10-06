@@ -532,11 +532,13 @@ export function Map() {
         </main>
       </div>
 
-      <PropertyDetailPanel
-        property={selectedProperty}
-        open={detailPanelOpen}
-        onOpenChange={setDetailPanelOpen}
-      />
+      {detailPanelOpen && selectedProperty && (
+        <PropertyDetailPanel
+          property={selectedProperty}
+          open={detailPanelOpen}
+          onOpenChange={setDetailPanelOpen}
+        />
+      )}
     </AppLayout>
   );
 }

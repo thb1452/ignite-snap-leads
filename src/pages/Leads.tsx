@@ -356,8 +356,8 @@ export function Leads() {
             </div>
             <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
               <div className="text-xs text-ink-400 font-ui">Hot Leads</div>
-              <div className="text-2xl md:text-3xl font-bold text-emerald-600 font-display flex items-center gap-2">
-                🔥 {hotLeads}
+              <div className="text-2xl md:text-3xl font-bold text-emerald-600 font-display">
+                {hotLeads}
               </div>
             </div>
             <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">

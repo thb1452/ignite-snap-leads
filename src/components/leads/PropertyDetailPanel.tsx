@@ -7,9 +7,10 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ExternalLink, MapPin, AlertTriangle } from "lucide-react";
+import { ExternalLink, MapPin, AlertTriangle, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { AddToListDialog } from "./AddToListDialog";
 
 interface Violation {
   id: string;
@@ -44,6 +45,12 @@ interface LeadActivity {
   updated_at: string;
 }
 
+interface PropertyList {
+  id: string;
+  list_id: string;
+  list_name: string;
+}
+
 interface PropertyDetailPanelProps {
   property: PropertyWithViolations | null;
   open: boolean;
@@ -60,15 +67,18 @@ const STATUS_OPTIONS = [
 
 export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDetailPanelProps) {
   const [activities, setActivities] = useState<LeadActivity[]>([]);
+  const [propertyLists, setPropertyLists] = useState<PropertyList[]>([]);
   const [status, setStatus] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
   const { toast } = useToast();
   if (!property) return null;
 
   useEffect(() => {
     if (property && open) {
       fetchActivities();
+      fetchPropertyLists();
     }
   }, [property, open]);
 
@@ -89,6 +99,60 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
       toast({
         title: "Error",
         description: "Failed to load activity history",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchPropertyLists = async () => {
+    if (!property) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("list_properties")
+        .select(`
+          id,
+          list_id,
+          lead_lists (
+            name
+          )
+        `)
+        .eq("property_id", property.id);
+
+      if (error) throw error;
+
+      const formattedLists = (data || []).map((item: any) => ({
+        id: item.id,
+        list_id: item.list_id,
+        list_name: item.lead_lists?.name || "Unknown List",
+      }));
+
+      setPropertyLists(formattedLists);
+    } catch (error) {
+      console.error("Error fetching property lists:", error);
+    }
+  };
+
+  const handleRemoveFromList = async (listPropertyId: string) => {
+    try {
+      const { error } = await supabase
+        .from("list_properties")
+        .delete()
+        .eq("id", listPropertyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Removed from list",
+      });
+
+      fetchPropertyLists();
+    } catch (error) {
+      console.error("Error removing from list:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove from list",
         variant: "destructive",
       });
     }
@@ -437,12 +501,49 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               <Button className="w-full" size="lg">
                 Run Skip Trace
               </Button>
-              <Button variant="outline" className="w-full" size="lg">
-                Add to List
+              <Button
+                variant="outline"
+                className="w-full"
+                size="lg"
+                onClick={() => setAddToListOpen(true)}
+              >
+                {propertyLists.length > 0 ? "Added to List ✓" : "Add to List"}
               </Button>
+              
+              {/* Show which lists this property is in */}
+              {propertyLists.length > 0 && (
+                <div className="pt-2 space-y-2">
+                  <p className="text-xs text-muted-foreground">In lists:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {propertyLists.map((list) => (
+                      <Badge
+                        key={list.id}
+                        variant="secondary"
+                        className="cursor-pointer hover:bg-destructive/10 group"
+                      >
+                        {list.list_name}
+                        <button
+                          onClick={() => handleRemoveFromList(list.id)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        <AddToListDialog
+          open={addToListOpen}
+          onOpenChange={setAddToListOpen}
+          propertyId={property.id}
+          onListAdded={fetchPropertyLists}
+          currentListIds={propertyLists.map((l) => l.list_id)}
+        />
       </SheetContent>
     </Sheet>
   );

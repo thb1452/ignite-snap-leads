@@ -51,23 +51,32 @@ interface Filters {
   cities: string[];
   status: string;
   snapScoreRange: [number, number];
+  listId: string;
+}
+
+interface LeadList {
+  id: string;
+  name: string;
 }
 
 export function Leads() {
   const [properties, setProperties] = useState<PropertyWithViolations[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<PropertyWithViolations[]>([]);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [userLists, setUserLists] = useState<LeadList[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<Filters>({
     search: "",
     cities: [],
     status: "",
     snapScoreRange: [0, 100],
+    listId: "",
   });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchProperties();
+    fetchUserLists();
   }, []);
 
   const fetchProperties = async () => {
@@ -139,12 +148,43 @@ export function Leads() {
     }
   };
 
+  const fetchUserLists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("lead_lists")
+        .select("id, name")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setUserLists(data || []);
+    } catch (error) {
+      console.error("Error fetching lists:", error);
+    }
+  };
+
   useEffect(() => {
     applyFilters();
   }, [filters, properties]);
 
-  const applyFilters = () => {
+  const applyFilters = async () => {
     let filtered = [...properties];
+
+    // List filter - needs to fetch list properties
+    if (filters.listId) {
+      try {
+        const { data: listPropertiesData, error } = await supabase
+          .from("list_properties")
+          .select("property_id")
+          .eq("list_id", filters.listId);
+
+        if (error) throw error;
+
+        const propertyIdsInList = listPropertiesData?.map((lp) => lp.property_id) || [];
+        filtered = filtered.filter(p => propertyIdsInList.includes(p.id));
+      } catch (error) {
+        console.error("Error filtering by list:", error);
+      }
+    }
 
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
@@ -181,6 +221,7 @@ export function Leads() {
       cities: [],
       status: "",
       snapScoreRange: [0, 100],
+      listId: "",
     });
   };
 
@@ -265,6 +306,27 @@ export function Leads() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* My Lists Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">My Lists</Label>
+              <Select
+                value={filters.listId || 'all'}
+                onValueChange={(value) => setFilters(prev => ({ ...prev, listId: value === 'all' ? '' : value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Leads" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Leads</SelectItem>
+                  {userLists.map((list) => (
+                    <SelectItem key={list.id} value={list.id}>
+                      {list.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Status Dropdown */}

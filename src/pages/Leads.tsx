@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Phone, Mail, Zap, ListPlus } from "lucide-react";
+import { Search, Phone, Mail, Zap, ListPlus, Download } from "lucide-react";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { motion, AnimatePresence } from "framer-motion";
@@ -460,6 +460,46 @@ export function Leads() {
                         >
                           <ListPlus className="h-4 w-4" />
                           Add to List
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const propsToExport = properties.filter(p => selectedIds.includes(p.id));
+                            if (propsToExport.length === 0) return;
+                            
+                            const csv = [
+                              ["Address", "City", "State", "ZIP", "Snap Score", "Violations", "Days Open"].join(","),
+                              ...propsToExport.map(p => [
+                                `"${p.address}"`,
+                                p.city,
+                                p.state,
+                                p.zip,
+                                p.snap_score ?? "N/A",
+                                p.violations.length,
+                                Math.max(...p.violations.map(v => v.days_open ?? 0), 0)
+                              ].join(","))
+                            ].join("\n");
+                            
+                            const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `snap-leads-${Date.now()}.csv`;
+                            document.body.appendChild(a);
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            a.remove();
+                            
+                            toast({
+                              title: "Export successful",
+                              description: `Exported ${propsToExport.length} properties`,
+                            });
+                          }}
+                          className="gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          Export CSV
                         </Button>
                         <Button
                           variant="outline"

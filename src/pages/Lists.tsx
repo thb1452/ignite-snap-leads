@@ -24,8 +24,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Eye } from "lucide-react";
+import { Plus, Trash2, Eye, Download, Zap } from "lucide-react";
 import { LeadsTable } from "@/components/leads/LeadsTable";
+import { runSkipTrace } from "@/services/skiptrace";
+import { useCreditBalance } from "@/hooks/useCredits";
 
 interface LeadList {
   id: string;
@@ -76,7 +78,10 @@ export function Lists() {
   const [listToDelete, setListToDelete] = useState<LeadList | null>(null);
   const [newListName, setNewListName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [bulkTracing, setBulkTracing] = useState(false);
+  const [traceProgress, setTraceProgress] = useState({ current: 0, total: 0 });
   const { toast } = useToast();
+  const { data: creditsData } = useCreditBalance();
 
   useEffect(() => {
     fetchLists();
@@ -276,6 +281,114 @@ export function Lists() {
     }
   };
 
+  const handleBulkSkipTrace = async () => {
+    const credits = creditsData ?? 0;
+    if (credits <= 0) {
+      toast({
+        title: "No credits",
+        description: "You need credits to skip trace. Buy credits to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get untraced properties (no contacts in property_contacts)
+    const { data: contactData } = await supabase
+      .from("property_contacts")
+      .select("property_id")
+      .in("property_id", listProperties.map(p => p.id));
+
+    const tracedIds = new Set((contactData || []).map(c => c.property_id));
+    const untracedProperties = listProperties.filter(p => !tracedIds.has(p.id));
+
+    if (untracedProperties.length === 0) {
+      toast({
+        title: "All traced",
+        description: "All properties in this list have already been traced.",
+      });
+      return;
+    }
+
+    setBulkTracing(true);
+    setTraceProgress({ current: 0, total: untracedProperties.length });
+
+    let success = 0;
+    let failed = 0;
+
+    for (let i = 0; i < untracedProperties.length; i++) {
+      const property = untracedProperties[i];
+      
+      try {
+        await runSkipTrace(property.id);
+        success++;
+      } catch (error: any) {
+        console.error(`Failed to trace ${property.address}:`, error);
+        failed++;
+      }
+
+      setTraceProgress({ current: i + 1, total: untracedProperties.length });
+
+      // Delay between calls to avoid rate limiting
+      if (i < untracedProperties.length - 1) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
+    setBulkTracing(false);
+    setTraceProgress({ current: 0, total: 0 });
+
+    toast({
+      title: "Bulk skip trace complete",
+      description: `${success} traced successfully, ${failed} failed`,
+    });
+
+    // Refresh the list
+    if (selectedList) {
+      handleViewList(selectedList);
+    }
+  };
+
+  const handleExportCSV = () => {
+    const properties = selectedList ? listProperties : [];
+    
+    if (properties.length === 0) {
+      toast({
+        title: "Nothing to export",
+        description: "No properties to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const csv = [
+      ["Address", "City", "State", "ZIP", "Snap Score", "Violations", "Days Open"].join(","),
+      ...properties.map(p => [
+        `"${p.address}"`,
+        p.city,
+        p.state,
+        p.zip,
+        p.snap_score ?? "N/A",
+        p.violations.length,
+        Math.max(...p.violations.map(v => v.days_open ?? 0), 0)
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `snap-${selectedList?.name.replace(/\s+/g, "-").toLowerCase() || "export"}-${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(url);
+    a.remove();
+
+    toast({
+      title: "Export successful",
+      description: `Exported ${properties.length} properties`,
+    });
+  };
+
   return (
     <div className="p-6">
       {selectedList ? (
@@ -296,6 +409,23 @@ export function Lists() {
               <p className="text-muted-foreground">
                 {listProperties.length} properties in this list
               </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleExportCSV}
+                disabled={listProperties.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button
+                onClick={handleBulkSkipTrace}
+                disabled={bulkTracing || listProperties.length === 0 || (creditsData ?? 0) <= 0}
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                {bulkTracing ? `Tracing ${traceProgress.current}/${traceProgress.total}...` : "Skip Trace All"}
+              </Button>
             </div>
           </div>
 

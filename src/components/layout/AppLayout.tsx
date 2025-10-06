@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { LayoutDashboard, FolderOpen, Settings as SettingsIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCreditBalance } from "@/hooks/useCredits";
+import logo from "@/assets/snap-ignite-logo.jpg";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -30,9 +31,8 @@ export function AppLayout({ children }: AppLayoutProps) {
       <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 supports-[backdrop-filter]:bg-white/55 border-b border-slate-200/70">
         <div className="mx-auto max-w-[1400px] px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-2">
-              <span className="text-xl">🔥</span>
-              <span className="font-semibold text-ink-900 font-display">Snap Ignite</span>
+            <Link to="/" className="flex items-center">
+              <img src={logo} alt="Snap Ignite" className="h-8" />
             </Link>
             <nav className="ml-6 hidden md:flex gap-4 text-sm font-ui">
               {navItems.map((item) => {

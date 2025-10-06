@@ -234,127 +234,49 @@ export function Leads() {
     }));
   };
 
+  const hotLeads = filteredProperties.filter(p => (p.snap_score ?? 0) >= 80).length;
+  const multipleViolations = filteredProperties.filter(p => p.violations.length >= 3).length;
+  const avgScore = filteredProperties.length > 0
+    ? Math.round(filteredProperties.reduce((sum, p) => sum + (p.snap_score ?? 0), 0) / filteredProperties.length)
+    : 0;
+
   return (
     <AppLayout>
-      <div className="flex h-[calc(100vh-4rem)]">
-        {/* Left Sidebar - Filters */}
-        <aside className="hidden lg:block w-80 border-r bg-white overflow-y-auto">
-          <div className="p-6 space-y-6">
-            {/* Filters Header */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <X className="h-4 w-4 mr-1" />
-                Clear All
-              </Button>
-            </div>
-
+      <div className="flex">
+        {/* Premium Filters Sidebar */}
+        <aside className="w-80 hidden lg:block">
+          <div className="m-6 rounded-2xl bg-white shadow-card p-4 space-y-4">
+            <div className="text-sm font-medium text-ink-700 font-ui">Filters</div>
+            
             {/* Search */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">Search</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search address, violation..."
-                  value={filters.search}
-                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                  className="pl-9"
-                />
-              </div>
+            <Input
+              className="w-full rounded-xl border px-3 py-2 text-sm"
+              placeholder="Search address or violation…"
+              value={filters.search}
+              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+            />
+            
+            {/* Cities as pills */}
+            <div className="flex flex-wrap gap-2">
+              {availableCities.map(city => (
+                <button
+                  key={city}
+                  onClick={() => toggleCity(city)}
+                  className={`px-2.5 py-1 rounded-full text-xs border transition-all ${
+                    filters.cities.includes(city)
+                      ? 'bg-brand/10 border-brand/30 text-brand-700'
+                      : 'border-slate-200 text-ink-500 hover:border-slate-300'
+                  }`}
+                >
+                  {city}
+                </button>
+              ))}
             </div>
-
-            {/* City Multi-Select */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">City</Label>
-              <div className="border rounded-md p-2 max-h-40 overflow-y-auto space-y-1">
-                {availableCities.map(city => (
-                  <label
-                    key={city}
-                    className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={filters.cities.includes(city)}
-                      onChange={() => toggleCity(city)}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">{city}</span>
-                  </label>
-                ))}
-              </div>
-              {filters.cities.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {filters.cities.map(city => (
-                    <Badge
-                      key={city}
-                      variant="secondary"
-                      className="text-xs"
-                    >
-                      {city}
-                      <button
-                        onClick={() => toggleCity(city)}
-                        className="ml-1 hover:text-red-600"
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* My Lists Filter */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">My Lists</Label>
-              <Select
-                value={filters.listId || 'all'}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, listId: value === 'all' ? '' : value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Leads" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Leads</SelectItem>
-                  {userLists.map((list) => (
-                    <SelectItem key={list.id} value={list.id}>
-                      {list.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Status Dropdown */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">Status</Label>
-              <Select
-                value={filters.status || 'all'}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* SnapScore Range Slider */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium text-gray-700">SnapScore Range</Label>
-                <span className="text-sm font-medium text-blue-600">
-                  {filters.snapScoreRange[0]} - {filters.snapScoreRange[1]}
-                </span>
+            
+            {/* Range slider */}
+            <div>
+              <div className="text-xs text-ink-400 mb-2">
+                SnapScore: <span className="font-medium text-ink-700">{filters.snapScoreRange[0]}–{filters.snapScoreRange[1]}</span>
               </div>
               <Slider
                 value={filters.snapScoreRange}
@@ -364,47 +286,105 @@ export function Leads() {
                 step={1}
                 className="w-full"
               />
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>0</span>
-                <span>50</span>
-                <span>100</span>
-              </div>
             </div>
+
+            {/* My Lists */}
+            <Select
+              value={filters.listId || 'all'}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, listId: value === 'all' ? '' : value }))}
+            >
+              <SelectTrigger className="rounded-xl">
+                <SelectValue placeholder="All Leads" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Leads</SelectItem>
+                {userLists.map((list) => (
+                  <SelectItem key={list.id} value={list.id}>
+                    {list.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="w-full text-xs text-ink-500"
+            >
+              Clear Filters
+            </Button>
           </div>
         </aside>
 
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto bg-gray-50">
-          <div className="p-6">
-            {/* Results Count */}
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {filteredProperties.length} leads found
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Showing {filteredProperties.length} of {properties.length} total properties
-              </p>
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto">
+          <section className="max-w-7xl mx-auto px-6 mt-6">
+            {/* Hero Header */}
+            <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+              <div>
+                <h1 className="text-2xl font-semibold text-ink-900 font-display">Leads</h1>
+                <p className="text-sm text-ink-400 font-ui">
+                  Showing {filteredProperties.length} properties • Updated just now
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="rounded-xl border px-3 py-1.5 text-sm">
+                  Save Filter
+                </Button>
+                <Button className="rounded-xl px-3 py-1.5 text-sm bg-ink-900 text-white hover:bg-ink-700">
+                  Export CSV
+                </Button>
+              </div>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="rounded-2xl bg-white shadow-card p-4 space-y-2">
+                <div className="text-xs text-ink-400 font-ui">Total Leads</div>
+                <div className="text-3xl font-bold text-ink-900 font-display">
+                  {filteredProperties.length}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white shadow-card p-4 space-y-2">
+                <div className="text-xs text-ink-400 font-ui">Hot Leads</div>
+                <div className="text-3xl font-bold text-emerald-600 font-display flex items-center gap-2">
+                  🔥 {hotLeads}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white shadow-card p-4 space-y-2">
+                <div className="text-xs text-ink-400 font-ui">Multiple Violations</div>
+                <div className="text-3xl font-bold text-amber-600 font-display">
+                  {multipleViolations}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white shadow-card p-4 space-y-2">
+                <div className="text-xs text-ink-400 font-ui">Avg SnapScore</div>
+                <div className="text-3xl font-bold text-brand font-display">
+                  {avgScore}
+                </div>
+              </div>
             </div>
 
             {/* Leads Table */}
             {loading ? (
-              <div className="flex items-center justify-center p-12 bg-card rounded-md border">
+              <div className="flex items-center justify-center p-12 bg-white rounded-2xl shadow-card">
                 <div className="space-y-4 text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-                  <p className="text-muted-foreground">Loading properties...</p>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto" />
+                  <p className="text-ink-400">Loading properties...</p>
                 </div>
               </div>
             ) : filteredProperties.length === 0 ? (
-              <div className="flex items-center justify-center p-12 bg-card rounded-md border">
+              <div className="flex items-center justify-center p-12 bg-white rounded-2xl shadow-card">
                 <div className="text-center">
-                  <p className="text-lg font-medium mb-2">No leads found</p>
-                  <p className="text-sm text-muted-foreground">Try adjusting your filters</p>
+                  <p className="text-lg font-medium mb-2 text-ink-900">No leads here yet</p>
+                  <p className="text-sm text-ink-400">Try widening SnapScore or importing a CSV</p>
                 </div>
               </div>
             ) : (
               <LeadsTable properties={filteredProperties} />
             )}
-          </div>
+          </section>
         </main>
       </div>
     </AppLayout>

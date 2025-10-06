@@ -1,8 +1,9 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FolderOpen, Settings as SettingsIcon, LogOut } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Settings as SettingsIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useCreditBalance } from "@/hooks/useCredits";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -11,93 +12,93 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const { signOut } = useAuth();
   const location = useLocation();
+  const { data: balance } = useCreditBalance();
 
   const handleSignOut = async () => {
     await signOut();
   };
 
   const navItems = [
-    { name: "Dashboard", path: "/", icon: LayoutDashboard },
-    { name: "Lists", path: "/lists", icon: FolderOpen },
-    { name: "Settings", path: "/settings", icon: SettingsIcon },
+    { name: "Leads", path: "/" },
+    { name: "Lists", path: "/lists" },
+    { name: "Settings", path: "/settings" },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-50 w-full border-b bg-white shadow-sm">
-        <div className="flex h-16 items-center justify-between px-6">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl">🔥</span>
-            <span className="text-xl font-bold text-gray-900">Snap Ignite</span>
-          </Link>
-
-          {/* Navigation Tabs - Desktop */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Sign Out Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="hidden md:flex items-center gap-2 text-gray-600 hover:text-gray-900"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Button>
+    <div className="min-h-screen bg-background">
+      {/* Premium Navigation Bar */}
+      <header className="sticky top-0 z-40 backdrop-blur bg-white/80 border-b border-border">
+        <div className="mx-auto max-w-[1400px] px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-2">
+              <span className="text-xl">🔥</span>
+              <span className="font-semibold text-ink-900 font-display">Snap Ignite</span>
+            </Link>
+            <nav className="ml-6 hidden md:flex gap-4 text-sm font-ui">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`transition-colors ${
+                      isActive
+                        ? "text-ink-900 font-medium"
+                        : "text-ink-500 hover:text-ink-900"
+                    }`}
+                  >
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-ink-700 font-ui">
+              {balance ?? 0} credits
+            </span>
+            <Button
+              size="sm"
+              className="px-3 py-1.5 text-sm rounded-xl bg-brand text-white hover:bg-brand/90"
+            >
+              Buy Credits
+            </Button>
+            <button
+              onClick={handleSignOut}
+              className="h-8 w-8 rounded-full bg-gradient-to-br from-brand/20 to-brand/40 hover:from-brand/30 hover:to-brand/50 transition-all"
+              title="Sign Out"
+            />
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="w-full">
+      <main className="w-full pb-16 md:pb-0">
         {children}
       </main>
 
       {/* Mobile Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white md:hidden">
-        <div className="flex items-center justify-around h-16">
+        <div className="flex items-center justify-around h-14">
           {navItems.map((item) => {
-            const Icon = item.icon;
             const isActive = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center justify-center gap-1 px-3 py-2 flex-1 ${
-                  isActive ? "text-blue-600" : "text-gray-600"
+                className={`flex items-center justify-center px-3 py-2 flex-1 text-xs font-medium ${
+                  isActive ? "text-brand" : "text-ink-500"
                 }`}
               >
-                <Icon className="h-5 w-5" />
-                <span className="text-xs font-medium">{item.name}</span>
+                {item.name}
               </Link>
             );
           })}
           <button
             onClick={handleSignOut}
-            className="flex flex-col items-center justify-center gap-1 px-3 py-2 flex-1 text-gray-600"
+            className="flex items-center justify-center px-3 py-2 flex-1 text-xs font-medium text-ink-500"
           >
-            <LogOut className="h-5 w-5" />
-            <span className="text-xs font-medium">Sign Out</span>
+            Sign Out
           </button>
         </div>
       </nav>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ExternalLink, MapPin, AlertTriangle, X } from "lucide-react";
+import { ExternalLink, MapPin, AlertTriangle, X, Phone, Mail, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
@@ -218,11 +219,11 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     }
   };
 
-  const getScoreBadgeVariant = (score: number | null) => {
-    if (!score) return "secondary";
-    if (score >= 80) return "score-high";
-    if (score >= 50) return "score-medium";
-    return "score-low";
+  const scoreClass = (n: number | null) => {
+    if (!n) return 'bg-slate-100 text-ink-600 border border-slate-200';
+    if (n >= 80) return 'bg-emerald-50 text-emerald-700 border border-emerald-200 animate-pulse';
+    if (n >= 50) return 'bg-amber-50 text-amber-700 border border-amber-200';
+    return 'bg-slate-100 text-ink-600 border border-slate-200';
   };
 
   const getStatusBadgeClass = (status: string) => {
@@ -255,287 +256,126 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[500px] overflow-y-auto">
-        <SheetHeader className="space-y-4 pb-6">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <Badge
-                variant={getScoreBadgeVariant(property.snap_score)}
-                className="text-lg px-4 py-1.5 mb-3"
-              >
-                {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
-                SnapScore: {property.snap_score ?? "N/A"}
-              </Badge>
-              <SheetTitle className="text-2xl font-bold text-foreground">
-                {property.address}
-              </SheetTitle>
-              <p className="text-muted-foreground mt-1">
-                {property.city}, {property.state} {property.zip}
-              </p>
-            </div>
+      <SheetContent className="w-full sm:max-w-[600px] overflow-hidden p-0 flex flex-col">
+        {/* Premium Header */}
+        <div className="p-5 border-b bg-white/90 backdrop-blur">
+          <div className="flex items-center gap-3 mb-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${scoreClass(property.snap_score)}`}>
+              {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
+              SnapScore {property.snap_score ?? "N/A"}
+            </span>
           </div>
-        </SheetHeader>
+          <h2 className="text-xl font-bold text-ink-900 font-display">{property.address}</h2>
+          <p className="text-sm text-ink-400 font-ui">{property.city}, {property.state} {property.zip}</p>
+        </div>
 
-        <div className="space-y-6 pb-6">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
           {/* Property Photo */}
-          <div className="space-y-2">
-            {property.photo_url ? (
-              <img
-                src={property.photo_url}
-                alt={property.address}
-                className="w-full h-48 object-cover rounded-lg border"
-              />
-            ) : (
-              <div className="w-full h-48 bg-muted rounded-lg border flex items-center justify-center">
-                <div className="text-center p-4">
-                  <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">{property.address}</p>
-                </div>
+          {property.photo_url ? (
+            <img
+              src={property.photo_url}
+              alt={property.address}
+              className="w-full h-72 object-cover rounded-2xl shadow-card"
+            />
+          ) : (
+            <div className="w-full h-72 bg-slate-50 rounded-2xl flex items-center justify-center border">
+              <div className="text-center p-4">
+                <MapPin className="h-12 w-12 mx-auto text-ink-400 mb-2" />
+                <p className="text-sm text-ink-400">{property.address}</p>
               </div>
-            )}
-            <a
-              href={googleMapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-            >
-              <MapPin className="h-4 w-4" />
-              View on Google Maps
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
-
-          <Separator />
-
-          {/* Multiple Violations Warning */}
-          {hasMultipleViolations && (
-            <Card className="border-destructive bg-destructive/5 p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-                <div>
-                  <p className="font-semibold text-destructive">
-                    ⚠️ MULTIPLE VIOLATIONS
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    High likelihood of distressed seller
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Violations List */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">Violations</h3>
-              <Badge variant="secondary">{property.violations.length}</Badge>
             </div>
-
-            {property.violations.length === 0 ? (
-              <Card className="p-6 text-center">
-                <p className="text-muted-foreground">No violations recorded</p>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {property.violations.map((violation) => (
-                  <Card key={violation.id} className="p-4 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-semibold text-foreground flex-1">
-                        {violation.violation_type}
-                      </h4>
-                      <Badge className={getStatusBadgeClass(violation.status)}>
-                        {violation.status}
-                      </Badge>
-                    </div>
-
-                    {violation.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {violation.description}
-                      </p>
-                    )}
-
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2">
-                      <div>
-                        <span className="font-medium">Opened:</span>{" "}
-                        {formatDate(violation.opened_date)}
-                      </div>
-                      {violation.days_open !== null && (
-                        <Badge variant="outline" className="text-xs">
-                          {violation.days_open} days open
-                        </Badge>
-                      )}
-                    </div>
-
-                    {violation.case_id && (
-                      <p className="text-xs text-muted-foreground">
-                        Case ID: {violation.case_id}
-                      </p>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* SnapScore Insight */}
-          {property.snap_insight && (
-            <>
-              <Card className="bg-primary/5 border-primary/20 p-4">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">💡</span>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-foreground mb-2">
-                      SnapScore Insight
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      {property.snap_insight}
-                    </p>
-                  </div>
+          )}
+          
+          {hasMultipleViolations && (
+            <div className="rounded-xl border-l-4 border-amber-500 bg-amber-50 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-700 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-amber-900 text-lg">⚠️ MULTIPLE VIOLATIONS</p>
+                  <p className="text-sm text-amber-700 mt-1">High likelihood of distressed seller</p>
                 </div>
-              </Card>
-              <Separator />
-            </>
+              </div>
+            </div>
           )}
 
-          {/* Property Details Placeholder */}
-          <div className="space-y-3">
-            <h3 className="text-lg font-semibold text-foreground">Property Details</h3>
-            <Card className="p-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Additional property details coming soon
-              </p>
-            </Card>
-          </div>
-
-          <Separator />
-
-          {/* Activity Tracking */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground">My Activity</h3>
-
-            {/* Activity Form */}
-            <Card className="p-4 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Select status..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Add notes about this lead..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                />
-              </div>
-
-              <Button
-                onClick={handleSaveActivity}
-                disabled={loading || !status}
-                className="w-full"
-              >
-                {loading ? "Saving..." : "Save Activity"}
-              </Button>
-            </Card>
-
-            {/* Activity History */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-muted-foreground">
-                Activity History
-              </h4>
-              {activities.length === 0 ? (
-                <Card className="p-4 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    No activity recorded yet
-                  </p>
-                </Card>
-              ) : (
-                <div className="space-y-2">
-                  {activities.map((activity) => (
-                    <Card key={activity.id} className="p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <Badge className={getActivityStatusBadgeClass(activity.status)}>
-                          {activity.status}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(activity.created_at).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
+          {/* Violations Timeline */}
+          <section className="rounded-2xl shadow-card p-4 bg-white">
+            <div className="text-sm font-medium mb-3 text-ink-700 font-ui">Violations</div>
+            {property.violations.length === 0 ? (
+              <p className="text-sm text-ink-400 text-center py-4">No violations recorded</p>
+            ) : (
+              <ol className="relative border-s border-slate-200 ml-3 space-y-4">
+                {property.violations.map((v) => (
+                  <li key={v.id} className="ms-4">
+                    <div className={`absolute -left-1.5 mt-1 h-3 w-3 rounded-full ${
+                      v.status === 'Open' ? 'bg-amber-400' : 'bg-emerald-400'
+                    }`} />
+                    <div className={`rounded-xl border p-3 border-l-4 ${
+                      v.status === 'Open' ? 'border-l-rose-400' : 'border-l-emerald-400'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium text-ink-800">{v.violation_type}</div>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${
+                          v.status === 'Open'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        }`}>
+                          {v.status}
                         </span>
                       </div>
-                      {activity.notes && (
-                        <p className="text-sm text-muted-foreground">
-                          {activity.notes}
-                        </p>
+                      {v.description && (
+                        <p className="text-sm text-ink-500 mt-1">{v.description}</p>
                       )}
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+                      <p className="text-xs text-ink-400 mt-1">
+                        Opened {formatDate(v.opened_date)} • {v.days_open} days
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
 
-          <Separator />
-
-          {/* Actions */}
-          <div className="space-y-3">
-            <h3 className="text-lg font-semibold text-foreground">Actions</h3>
-            <div className="space-y-2">
-              <Button className="w-full" size="lg">
-                Run Skip Trace
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                size="lg"
-                onClick={() => setAddToListOpen(true)}
-              >
-                {propertyLists.length > 0 ? "Added to List ✓" : "Add to List"}
-              </Button>
-              
-              {/* Show which lists this property is in */}
-              {propertyLists.length > 0 && (
-                <div className="pt-2 space-y-2">
-                  <p className="text-xs text-muted-foreground">In lists:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {propertyLists.map((list) => (
-                      <Badge
-                        key={list.id}
-                        variant="secondary"
-                        className="cursor-pointer hover:bg-destructive/10 group"
-                      >
-                        {list.list_name}
-                        <button
-                          onClick={() => handleRemoveFromList(list.id)}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
+          {property.snap_insight && (
+            <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 border border-blue-200">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">💡</span>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-ink-900 mb-2 text-base">SnapScore Insight</h4>
+                  <p className="text-sm text-ink-700">{property.snap_insight}</p>
                 </div>
-              )}
+              </div>
             </div>
+          )}
+
+          <a
+            href={googleMapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm text-brand hover:underline font-medium"
+          >
+            <MapPin className="h-4 w-4" />
+            View on Google Maps
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+
+        {/* Sticky Footer CTAs */}
+        <div className="border-t p-4 bg-white sticky bottom-0">
+          <div className="flex gap-2">
+            <Button variant="outline" className="rounded-xl px-3 py-2 border flex-1">
+              <Phone className="h-4 w-4 mr-1" />
+              Call
+            </Button>
+            <Button variant="outline" className="rounded-xl px-3 py-2 border flex-1">
+              <MessageSquare className="h-4 w-4 mr-1" />
+              SMS
+            </Button>
+            <Button className="rounded-xl px-3 py-2 bg-ink-900 text-white hover:bg-ink-700 flex-1">
+              <Mail className="h-4 w-4 mr-1" />
+              Email
+            </Button>
           </div>
         </div>
 

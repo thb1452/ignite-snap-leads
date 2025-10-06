@@ -8,54 +8,44 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 14% 98%;
+    --foreground: 220 84% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 220 84% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 220 84% 8%;
 
-    --primary: 217 91% 60%;
+    --primary: 217 100% 53%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 13% 95%;
+    --secondary-foreground: 220 47% 11%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 13% 95%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 220 13% 95%;
+    --accent-foreground: 220 47% 11%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 217 91% 60%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 100% 53%;
 
     /* SnapScore color system */
-    --score-low: 0 84% 60%;
-    --score-low-foreground: 0 0% 100%;
-    --score-medium: 45 93% 57%;
+    --score-low: 220 13% 85%;
+    --score-low-foreground: 220 9% 46%;
+    --score-medium: 38 92% 50%;
     --score-medium-foreground: 0 0% 100%;
-    --score-high: 142 76% 36%;
+    --score-high: 142 71% 45%;
     --score-high-foreground: 0 0% 100%;
 
-    /* Brand gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 75%));
-    --gradient-score-low: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 84% 70%));
-    --gradient-score-medium: linear-gradient(135deg, hsl(45 93% 57%), hsl(45 93% 67%));
-    --gradient-score-high: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 46%));
-
-    /* Shadows */
-    --shadow-elegant: 0 4px 20px -2px hsl(217 91% 60% / 0.1);
-    --shadow-card: 0 2px 8px -2px hsl(222.2 84% 4.9% / 0.08);
-
     /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.18s cubic-bezier(0.22, 0.61, 0.36, 1);
 
     --radius: 0.5rem;
 

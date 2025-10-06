@@ -159,6 +159,13 @@ export function LeadsTable({ properties }: LeadsTableProps) {
     return <ArrowUpDown className="ml-2 h-4 w-4" />;
   };
 
+  const scoreClass = (n: number | null) => {
+    if (!n) return 'bg-slate-100 text-ink-600 border border-slate-200';
+    if (n >= 80) return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+    if (n >= 50) return 'bg-amber-50 text-amber-700 border border-amber-200';
+    return 'bg-slate-100 text-ink-600 border border-slate-200';
+  };
+
   return (
     <>
       <PropertyDetailPanel
@@ -166,125 +173,65 @@ export function LeadsTable({ properties }: LeadsTableProps) {
         open={detailPanelOpen}
         onOpenChange={setDetailPanelOpen}
       />
-      <div className="rounded-md border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>
-              <Button
-                variant="ghost"
-                onClick={() => handleSort("snap_score")}
-                className="flex items-center font-semibold hover:bg-muted"
+      <div className="rounded-2xl shadow-card overflow-hidden bg-white">
+        <Table>
+          <TableHeader className="sticky top-14 bg-white/90 backdrop-blur z-10">
+            <TableRow className="text-ink-500 border-b">
+              <TableHead className="py-3 text-xs uppercase tracking-wider font-semibold">SnapScore</TableHead>
+              <TableHead className="py-3 text-xs uppercase tracking-wider font-semibold">Address</TableHead>
+              <TableHead className="py-3 text-xs uppercase tracking-wider font-semibold">Violations</TableHead>
+              <TableHead className="py-3 text-xs uppercase tracking-wider font-semibold">Primary</TableHead>
+              <TableHead className="py-3 text-xs uppercase tracking-wider font-semibold text-right pr-4">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-slate-100">
+            {sortedProperties.map((property, index) => (
+              <TableRow
+                key={property.id}
+                className={`cursor-pointer transition-all hover:bg-slate-50/60 border-l-4 border-transparent hover:border-l-brand ${
+                  index % 2 === 0 ? 'bg-white' : 'bg-slate-25'
+                }`}
+                onClick={() => handlePropertyClick(property)}
               >
-                SnapScore
-                <SortIcon field="snap_score" />
-              </Button>
-            </TableHead>
-            <TableHead>
-              <Button
-                variant="ghost"
-                onClick={() => handleSort("address")}
-                className="flex items-center font-semibold hover:bg-muted"
-              >
-                Address
-                <SortIcon field="address" />
-              </Button>
-            </TableHead>
-            <TableHead>
-              <Button
-                variant="ghost"
-                onClick={() => handleSort("violation_count")}
-                className="flex items-center font-semibold hover:bg-muted"
-              >
-                Violation Count
-                <SortIcon field="violation_count" />
-              </Button>
-            </TableHead>
-            <TableHead>Primary Violation</TableHead>
-            <TableHead>My Status</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>
-              <Button
-                variant="ghost"
-                onClick={() => handleSort("days_open")}
-                className="flex items-center font-semibold hover:bg-muted"
-              >
-                Days Open
-                <SortIcon field="days_open" />
-              </Button>
-            </TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedProperties.map((property) => (
-            <TableRow
-              key={property.id}
-              className="cursor-pointer transition-colors hover:bg-muted/50"
-              onClick={() => handlePropertyClick(property)}
-            >
-              <TableCell className="font-medium">
-                <Badge
-                  variant={getScoreBadgeVariant(property.snap_score)}
-                  className="text-base px-3 py-1"
-                >
-                  {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
-                  {property.snap_score ?? "N/A"}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div>
-                  <div className="font-semibold text-foreground">{property.address}</div>
-                  <div className="text-sm text-muted-foreground">
+                <TableCell className="py-4">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${scoreClass(property.snap_score)}`}>
+                    {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
+                    {property.snap_score ?? "N/A"}
+                  </span>
+                </TableCell>
+                <TableCell className="py-4">
+                  <div className="font-bold text-ink-900 text-base">{property.address}</div>
+                  <div className="text-sm text-ink-400 mt-0.5">
                     {property.city}, {property.state} {property.zip}
                   </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                {property.violations.length >= 3 ? (
-                  <Badge variant="destructive" className="font-semibold">
-                    ⚠️ MULTIPLE ({property.violations.length})
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">{property.violations.length}</Badge>
-                )}
-              </TableCell>
-              <TableCell className="text-muted-foreground max-w-xs">
-                {getPrimaryViolation(property.violations)}
-              </TableCell>
-              <TableCell>
-                {property.latest_activity ? (
-                  <Badge className={getActivityStatusBadgeClass(property.latest_activity.status)}>
-                    {property.latest_activity.status}
-                  </Badge>
-                ) : (
-                  <span className="text-muted-foreground">-</span>
-                )}
-              </TableCell>
-              <TableCell>
-                <Badge className={getStatusBadgeClass(getPrimaryStatus(property.violations))}>
-                  {getPrimaryStatus(property.violations)}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-foreground">
-                {getMaxDaysOpen(property.violations)} days
-              </TableCell>
-              <TableCell>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePropertyClick(property);
-                  }}
-                >
-                  View Details
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                </TableCell>
+                <TableCell className="py-4">
+                  {property.violations.length > 1 ? (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-amber-50 text-amber-700 border border-amber-200 font-medium">
+                      Multiple ({property.violations.length})
+                    </span>
+                  ) : (
+                    <span className="text-ink-400 text-sm">{property.violations.length}</span>
+                  )}
+                </TableCell>
+                <TableCell className="py-4 text-ink-600 text-sm max-w-xs">
+                  {getPrimaryViolation(property.violations)}
+                </TableCell>
+                <TableCell className="py-4 text-right pr-4">
+                  <button
+                    className="text-brand hover:underline text-sm font-medium"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePropertyClick(property);
+                    }}
+                  >
+                    View Details
+                  </button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </>
   );

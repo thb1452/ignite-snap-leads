@@ -104,20 +104,20 @@ const createMarkerIcon = (snapScore: number | null, violationCount: number) => {
 function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
 
-  const resetView = () => {
-    map.setView(center, zoom);
-  };
+  useEffect(() => {
+    const handleReset = () => {
+      map.setView(center, zoom);
+    };
 
-  return (
-    <Button
-      onClick={resetView}
-      className="absolute top-4 right-4 z-[1000] shadow-lg"
-      size="icon"
-      variant="secondary"
-    >
-      <RotateCcw className="h-4 w-4" />
-    </Button>
-  );
+    // Expose reset function globally for the button
+    (window as any).resetMapView = handleReset;
+
+    return () => {
+      delete (window as any).resetMapView;
+    };
+  }, [map, center, zoom]);
+
+  return null; // Don't render anything inside MapContainer
 }
 
 export function Map() {
@@ -451,17 +451,29 @@ export function Map() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
             </div>
           ) : (
-            <MapContainer
-              center={mapCenter}
-              zoom={mapZoom}
-              style={{ height: "100%", width: "100%" }}
-              className="z-0"
-            >
+            <div className="relative h-full w-full">
+              {/* Reset View Button - Outside MapContainer */}
+              <Button
+                onClick={() => (window as any).resetMapView?.()}
+                className="absolute top-4 right-4 z-[1000] shadow-lg"
+                size="icon"
+                variant="secondary"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+
+              <MapContainer
+                center={mapCenter}
+                zoom={mapZoom}
+                style={{ height: "100%", width: "100%" }}
+                className="z-0"
+              >
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               
+              {/* Map controller for reset functionality */}
               <MapController center={mapCenter} zoom={mapZoom} />
 
               <MarkerClusterGroup chunkedLoading>
@@ -515,6 +527,7 @@ export function Map() {
                 })}
               </MarkerClusterGroup>
             </MapContainer>
+            </div>
           )}
         </main>
       </div>

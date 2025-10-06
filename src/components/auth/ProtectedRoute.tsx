@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthForm } from './AuthForm';
-import { AppLayout } from '@/components/layout/AppLayout';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -23,5 +22,5 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <AuthForm />;
   }
 
-  return <AppLayout>{children}</AppLayout>;
+  return <>{children}</>;
 }

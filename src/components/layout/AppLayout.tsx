@@ -1,15 +1,11 @@
 import { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FolderOpen, Settings as SettingsIcon } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Settings as SettingsIcon, Map } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCreditBalance } from "@/hooks/useCredits";
 
-interface AppLayoutProps {
-  children: ReactNode;
-}
-
-export function AppLayout({ children }: AppLayoutProps) {
+export function AppLayout() {
   const { signOut } = useAuth();
   const location = useLocation();
   const { data: balance } = useCreditBalance();
@@ -19,9 +15,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   };
 
   const navItems = [
-    { name: "Leads", path: "/" },
+    { name: "Dashboard", path: "/" },
     { name: "Lists", path: "/lists" },
-    { name: "Settings", path: "/settings" },
+    { name: "Map", path: "/map" },
   ];
 
   return (
@@ -74,7 +70,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* Main Content */}
       <main className="w-full pb-16 md:pb-0">
-        {children}
+        <Outlet />
       </main>
 
       {/* Mobile Navigation */}

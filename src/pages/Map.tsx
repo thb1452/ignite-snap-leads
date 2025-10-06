@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import MarkerClusterGroup from "react-leaflet-cluster";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -160,43 +159,41 @@ export function Map() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MarkerClusterGroup chunkedLoading>
-          {properties.map((property) => (
-            <Marker
-              key={property.id}
-              position={[property.latitude, property.longitude]}
-            >
-              <Popup className="custom-popup">
-                <div className="p-2 min-w-[240px]">
-                  <div className="mb-2">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getScoreBadgeClass(property.snap_score)}`}>
-                      {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
-                      {property.snap_score ?? "N/A"}
-                    </span>
-                  </div>
-                  <div className="font-bold text-ink-900 mb-1">{property.address}</div>
-                  <div className="text-sm text-ink-500 mb-2">
-                    {property.city}, {property.state} {property.zip}
-                  </div>
-                  {property.violations_count > 0 && (
-                    <div className="mb-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {property.violations_count} violation{property.violations_count !== 1 ? 's' : ''}
-                      </Badge>
-                    </div>
-                  )}
-                  <Button
-                    size="sm"
-                    className="w-full text-xs rounded-lg"
-                    onClick={() => window.location.href = `/leads?property=${property.id}`}
-                  >
-                    View Details
-                  </Button>
+        {properties.map((property) => (
+          <Marker
+            key={property.id}
+            position={[property.latitude, property.longitude]}
+          >
+            <Popup className="custom-popup">
+              <div className="p-2 min-w-[240px]">
+                <div className="mb-2">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getScoreBadgeClass(property.snap_score)}`}>
+                    {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
+                    {property.snap_score ?? "N/A"}
+                  </span>
                 </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MarkerClusterGroup>
+                <div className="font-bold text-ink-900 mb-1">{property.address}</div>
+                <div className="text-sm text-ink-500 mb-2">
+                  {property.city}, {property.state} {property.zip}
+                </div>
+                {property.violations_count > 0 && (
+                  <div className="mb-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {property.violations_count} violation{property.violations_count !== 1 ? 's' : ''}
+                    </Badge>
+                  </div>
+                )}
+                <Button
+                  size="sm"
+                  className="w-full text-xs rounded-lg"
+                  onClick={() => window.location.href = `/leads?property=${property.id}`}
+                >
+                  View Details
+                </Button>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Lightbulb } from "lucide-react";
 import { PropertyDetailPanel } from "./PropertyDetailPanel";
@@ -154,13 +154,13 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
 
   return (
     <>
-      <TooltipProvider>
-        <PropertyDetailPanel
-          property={selectedProperty}
-          open={!!selectedProperty}
-          onOpenChange={(open) => !open && setSelectedProperty(null)}
-        />
-        <div className="rounded-2xl border border-slate-200/70 shadow-[0_8px_24px_rgba(15,23,42,0.06)] bg-white overflow-hidden">
+      <PropertyDetailPanel
+        property={selectedProperty}
+        open={!!selectedProperty}
+        onOpenChange={(open) => !open && setSelectedProperty(null)}
+      />
+      
+      <div className="rounded-2xl border border-slate-200/70 shadow-[0_8px_24px_rgba(15,23,42,0.06)] bg-white overflow-hidden">
           <table className="w-full text-sm">
             <thead className="sticky top-14 bg-white/90 backdrop-blur z-10 border-b border-slate-200/70">
               <tr className="text-xs/5 text-slate-500 font-medium tracking-wide uppercase">
@@ -282,7 +282,6 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
             </tbody>
           </table>
         </div>
-      </TooltipProvider>
     </>
   );
 }

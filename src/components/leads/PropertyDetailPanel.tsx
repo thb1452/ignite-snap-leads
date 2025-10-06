@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MapPin, AlertTriangle, Phone, Mail, MessageSquare } from "lucide-react";
+import { ExternalLink, MapPin, Phone, Mail, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
+import { ActivityTimeline } from "./ActivityTimeline";
+import { StatusSelector } from "./StatusSelector";
 
 interface Violation {
   id: string;
@@ -56,6 +58,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   const [activities, setActivities] = useState<LeadActivity[]>([]);
   const [propertyLists, setPropertyLists] = useState<PropertyList[]>([]);
   const [addToListOpen, setAddToListOpen] = useState(false);
+  const [isLogging, setIsLogging] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -66,6 +69,39 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   }, [property, open]);
 
   if (!property) return null;
+
+  const logActivity = async (status: string, notes?: string) => {
+    if (!property) return;
+    
+    setIsLogging(true);
+    try {
+      const { error } = await supabase
+        .from("lead_activity")
+        .insert({
+          property_id: property.id,
+          status,
+          notes: notes || null,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Activity logged",
+        description: `${status} recorded successfully`,
+      });
+
+      await fetchActivities();
+    } catch (error) {
+      console.error("Error logging activity:", error);
+      toast({
+        title: "Error",
+        description: "Failed to log activity",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLogging(false);
+    }
+  };
 
   const fetchActivities = async () => {
     if (!property) return;
@@ -253,6 +289,29 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               )}
             </motion.section>
 
+            {/* Activity Timeline */}
+            <motion.section
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <ActivityTimeline activities={activities} />
+            </motion.section>
+
+            {/* Status Selector */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-5"
+            >
+              <div className="text-sm font-medium mb-3 text-ink-700 font-ui">Quick Status Update</div>
+              <StatusSelector
+                onSelect={(status) => logActivity(status)}
+                disabled={isLogging}
+              />
+            </motion.div>
+
             <a
               href={googleMapsUrl}
               target="_blank"
@@ -266,17 +325,31 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           </div>
 
           {/* Sticky Action Footer */}
-          <div className="border-t p-4 md:p-5 bg-white sticky bottom-0 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+          <div className="border-t p-4 md:p-5 bg-white sticky bottom-0 space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)]">
             <div className="flex gap-2">
-              <Button variant="outline" className="rounded-xl px-3 py-2 border flex-1 transition-all hover:border-brand/30 hover:bg-brand/5">
+              <Button
+                variant="outline"
+                className="rounded-xl px-3 py-2 border flex-1 transition-all hover:border-brand/30 hover:bg-brand/5"
+                onClick={() => logActivity("Called - No Answer")}
+                disabled={isLogging}
+              >
                 <Phone className="h-4 w-4 mr-1" />
                 Call
               </Button>
-              <Button variant="outline" className="rounded-xl px-3 py-2 border flex-1 transition-all hover:border-brand/30 hover:bg-brand/5">
+              <Button
+                variant="outline"
+                className="rounded-xl px-3 py-2 border flex-1 transition-all hover:border-brand/30 hover:bg-brand/5"
+                onClick={() => logActivity("SMS Sent")}
+                disabled={isLogging}
+              >
                 <MessageSquare className="h-4 w-4 mr-1" />
                 SMS
               </Button>
-              <Button className="rounded-xl px-3 py-2 bg-ink-900 text-white hover:bg-ink-700 flex-1 transition-all">
+              <Button
+                className="rounded-xl px-3 py-2 bg-ink-900 text-white hover:bg-ink-700 flex-1 transition-all"
+                onClick={() => logActivity("Email Sent")}
+                disabled={isLogging}
+              >
                 <Mail className="h-4 w-4 mr-1" />
                 Email
               </Button>

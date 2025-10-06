@@ -63,6 +63,7 @@ export function Leads() {
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [userLists, setUserLists] = useState<LeadList[]>([]);
   const [loading, setLoading] = useState(true);
+  const [todayOutreachCount, setTodayOutreachCount] = useState(0);
   const [filters, setFilters] = useState<Filters>({
     search: "",
     cities: [],
@@ -72,9 +73,27 @@ export function Leads() {
   });
   const { toast } = useToast();
 
+  const fetchTodayOutreach = async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { data, error } = await supabase
+        .from("lead_activity")
+        .select("id", { count: "exact" })
+        .gte("created_at", today.toISOString());
+
+      if (error) throw error;
+      setTodayOutreachCount(data?.length ?? 0);
+    } catch (error) {
+      console.error("Error fetching today's outreach:", error);
+    }
+  };
+
   useEffect(() => {
     fetchProperties();
     fetchUserLists();
+    fetchTodayOutreach();
   }, []);
 
   const fetchProperties = async () => {
@@ -380,7 +399,7 @@ export function Leads() {
                 Outreach Sent
               </div>
               <div className="text-2xl md:text-3xl font-bold text-brand font-display">
-                0
+                {todayOutreachCount}
               </div>
               <div className="text-xs text-ink-400">Today</div>
             </div>

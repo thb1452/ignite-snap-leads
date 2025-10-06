@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MapPin, Phone, Mail, MessageSquare } from "lucide-react";
+import { ExternalLink, MapPin, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
@@ -392,34 +392,18 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 )}
               </div>
             )}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="rounded-xl px-3 py-2 border flex-1 transition-all hover:border-brand/30 hover:bg-brand/5"
-                onClick={() => logActivity("Called - No Answer")}
-                disabled={isLogging || !hasContacts}
-              >
-                <Phone className="h-4 w-4 mr-1" />
-                Call
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-xl px-3 py-2 border flex-1 transition-all hover:border-brand/30 hover:bg-brand/5"
-                onClick={() => logActivity("SMS Sent")}
-                disabled={isLogging || !hasContacts}
-              >
-                <MessageSquare className="h-4 w-4 mr-1" />
-                SMS
-              </Button>
-              <Button
-                className="rounded-xl px-3 py-2 bg-ink-900 text-white hover:bg-ink-700 flex-1 transition-all"
-                onClick={() => logActivity("Email Sent")}
-                disabled={isLogging || !hasContacts}
-              >
-                <Mail className="h-4 w-4 mr-1" />
-                Email
-              </Button>
-            </div>
+            {hasContacts && (
+              <div className="flex gap-2">
+                <Button
+                  className="rounded-xl px-4 py-2.5 bg-ink-900 text-white hover:bg-ink-700 flex-1 transition-all"
+                  onClick={() => logActivity("Email Sent")}
+                  disabled={isLogging}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Send Email
+                </Button>
+              </div>
+            )}
           </div>
 
           <AddToListDialog

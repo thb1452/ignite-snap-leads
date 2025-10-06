@@ -100,18 +100,11 @@ export function LeadsTable({ properties }: LeadsTableProps) {
     }
   });
 
-  const getScoreBadgeVariant = (score: number | null): "score-high" | "score-medium" | "score-low" | "secondary" => {
+  const getScoreBadgeVariant = (score: number | null) => {
     if (!score) return "secondary";
     if (score >= 80) return "score-high";
-    if (score >= 60) return "score-medium";
+    if (score >= 50) return "score-medium";
     return "score-low";
-  };
-
-  const getScoreBadgeSize = (score: number | null): "default" | "sm" | "md" | "lg" | "xl" => {
-    if (!score) return "sm";
-    if (score >= 80) return "lg";
-    if (score >= 60) return "md";
-    return "default";
   };
 
   const getStatusBadgeClass = (status: string) => {
@@ -173,15 +166,15 @@ export function LeadsTable({ properties }: LeadsTableProps) {
         open={detailPanelOpen}
         onOpenChange={setDetailPanelOpen}
       />
-      <div className="rounded-lg border bg-card shadow-md">
+      <div className="rounded-md border bg-card">
       <Table>
         <TableHeader>
-          <TableRow className="bg-muted/50">
+          <TableRow>
             <TableHead>
               <Button
                 variant="ghost"
                 onClick={() => handleSort("snap_score")}
-                className="flex items-center text-xs font-semibold uppercase tracking-wider hover:bg-muted"
+                className="flex items-center font-semibold hover:bg-muted"
               >
                 SnapScore
                 <SortIcon field="snap_score" />
@@ -191,7 +184,7 @@ export function LeadsTable({ properties }: LeadsTableProps) {
               <Button
                 variant="ghost"
                 onClick={() => handleSort("address")}
-                className="flex items-center text-xs font-semibold uppercase tracking-wider hover:bg-muted"
+                className="flex items-center font-semibold hover:bg-muted"
               >
                 Address
                 <SortIcon field="address" />
@@ -201,98 +194,85 @@ export function LeadsTable({ properties }: LeadsTableProps) {
               <Button
                 variant="ghost"
                 onClick={() => handleSort("violation_count")}
-                className="flex items-center text-xs font-semibold uppercase tracking-wider hover:bg-muted"
+                className="flex items-center font-semibold hover:bg-muted"
               >
                 Violation Count
                 <SortIcon field="violation_count" />
               </Button>
             </TableHead>
-            <TableHead className="text-xs font-semibold uppercase tracking-wider">Primary Violation</TableHead>
-            <TableHead className="text-xs font-semibold uppercase tracking-wider">My Status</TableHead>
-            <TableHead className="text-xs font-semibold uppercase tracking-wider">Status</TableHead>
+            <TableHead>Primary Violation</TableHead>
+            <TableHead>My Status</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>
               <Button
                 variant="ghost"
                 onClick={() => handleSort("days_open")}
-                className="flex items-center text-xs font-semibold uppercase tracking-wider hover:bg-muted"
+                className="flex items-center font-semibold hover:bg-muted"
               >
                 Days Open
                 <SortIcon field="days_open" />
               </Button>
             </TableHead>
-            <TableHead className="text-xs font-semibold uppercase tracking-wider">Actions</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedProperties.map((property, index) => (
+          {sortedProperties.map((property) => (
             <TableRow
               key={property.id}
-              className={`cursor-pointer transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary hover:bg-primary/5 hover:shadow-sm ${
-                index % 2 === 0 ? 'bg-white' : 'bg-muted/20'
-              }`}
+              className="cursor-pointer transition-colors hover:bg-muted/50"
               onClick={() => handlePropertyClick(property)}
             >
-              <TableCell className="font-medium py-5">
-                <div className="flex items-center justify-center">
-                  <Badge
-                    variant={getScoreBadgeVariant(property.snap_score)}
-                    size={getScoreBadgeSize(property.snap_score)}
-                    className="font-extrabold"
-                    style={
-                      property.snap_score && property.snap_score >= 80
-                        ? { background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)' }
-                        : property.snap_score && property.snap_score >= 60
-                        ? { background: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)' }
-                        : undefined
-                    }
-                  >
-                    {property.snap_score && property.snap_score >= 80 ? "🔥" : ""}
-                    {property.snap_score ?? "N/A"}
-                  </Badge>
-                </div>
+              <TableCell className="font-medium">
+                <Badge
+                  variant={getScoreBadgeVariant(property.snap_score)}
+                  className="text-base px-3 py-1"
+                >
+                  {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
+                  {property.snap_score ?? "N/A"}
+                </Badge>
               </TableCell>
-              <TableCell className="py-5">
+              <TableCell>
                 <div>
-                  <div className="font-bold text-base text-foreground leading-tight">{property.address}</div>
-                  <div className="text-[13px] text-muted-foreground font-normal mt-0.5">
+                  <div className="font-semibold text-foreground">{property.address}</div>
+                  <div className="text-sm text-muted-foreground">
                     {property.city}, {property.state} {property.zip}
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="py-5">
+              <TableCell>
                 {property.violations.length >= 3 ? (
-                  <Badge variant="destructive" className="font-bold text-sm px-3 py-1.5 shadow-md">
+                  <Badge variant="destructive" className="font-semibold">
                     ⚠️ MULTIPLE ({property.violations.length})
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="font-semibold">{property.violations.length}</Badge>
+                  <Badge variant="secondary">{property.violations.length}</Badge>
                 )}
               </TableCell>
-              <TableCell className="text-muted-foreground max-w-xs py-5">
-                <div className="text-sm leading-relaxed">{getPrimaryViolation(property.violations)}</div>
+              <TableCell className="text-muted-foreground max-w-xs">
+                {getPrimaryViolation(property.violations)}
               </TableCell>
-              <TableCell className="py-5">
+              <TableCell>
                 {property.latest_activity ? (
-                  <Badge className={`${getActivityStatusBadgeClass(property.latest_activity.status)} font-semibold`}>
+                  <Badge className={getActivityStatusBadgeClass(property.latest_activity.status)}>
                     {property.latest_activity.status}
                   </Badge>
                 ) : (
                   <span className="text-muted-foreground">-</span>
                 )}
               </TableCell>
-              <TableCell className="py-5">
-                <Badge className={`${getStatusBadgeClass(getPrimaryStatus(property.violations))} font-semibold`}>
+              <TableCell>
+                <Badge className={getStatusBadgeClass(getPrimaryStatus(property.violations))}>
                   {getPrimaryStatus(property.violations)}
                 </Badge>
               </TableCell>
-              <TableCell className="text-foreground font-medium py-5">
+              <TableCell className="text-foreground">
                 {getMaxDaysOpen(property.violations)} days
               </TableCell>
-              <TableCell className="py-5">
+              <TableCell>
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="font-medium hover:-translate-y-0.5 transition-transform shadow-sm hover:shadow-md"
                   onClick={(e) => {
                     e.stopPropagation();
                     handlePropertyClick(property);

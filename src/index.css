@@ -8,52 +8,51 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 188 94% 42%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 47% 11%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215 16.3% 46.9%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 188 94% 42%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 188 94% 42%;
+    --ring: 217 91% 60%;
 
-    /* SnapScore color system - Premium gradients */
-    --score-low: 220 13% 69%;
-    --score-low-foreground: 222 47% 11%;
-    --score-medium: 45 93% 47%;
+    /* SnapScore color system */
+    --score-low: 0 84% 60%;
+    --score-low-foreground: 0 0% 100%;
+    --score-medium: 45 93% 57%;
     --score-medium-foreground: 0 0% 100%;
-    --score-high: 0 72% 51%;
+    --score-high: 142 76% 36%;
     --score-high-foreground: 0 0% 100%;
 
     /* Brand gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(188 94% 42%) 0%, hsl(199 89% 48%) 100%);
-    --gradient-score-hot: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
-    --gradient-score-warm: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
-    --gradient-score-medium: linear-gradient(135deg, #eab308 0%, #fbbf24 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 75%));
+    --gradient-score-low: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 84% 70%));
+    --gradient-score-medium: linear-gradient(135deg, hsl(45 93% 57%), hsl(45 93% 67%));
+    --gradient-score-high: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 46%));
 
-    /* Shadows - Premium depth */
-    --shadow-elegant: 0 10px 30px -10px hsl(188 94% 42% / 0.3);
-    --shadow-glow-hot: 0 0 40px hsl(0 72% 51% / 0.4);
-    --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    /* Shadows */
+    --shadow-elegant: 0 4px 20px -2px hsl(217 91% 60% / 0.1);
+    --shadow-card: 0 2px 8px -2px hsl(222.2 84% 4.9% / 0.08);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

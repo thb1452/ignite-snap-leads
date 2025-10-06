@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, X } from "lucide-react";
 import { LeadsTable } from "@/components/leads/LeadsTable";
-import { StatsCards } from "@/components/leads/StatsCards";
 
 interface Violation {
   id: string;
@@ -375,17 +374,14 @@ export function Leads() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 to-blue-50">
-          <div className="p-8">
-            {/* Stats Cards */}
-            {!loading && <StatsCards properties={filteredProperties} />}
-            
+        <main className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="p-6">
             {/* Results Count */}
             <div className="mb-6">
-              <h1 className="text-3xl font-extrabold text-gray-900">
+              <h1 className="text-2xl font-bold text-gray-900">
                 {filteredProperties.length} leads found
               </h1>
-              <p className="text-sm text-gray-600 mt-2 font-medium">
+              <p className="text-sm text-gray-600 mt-1">
                 Showing {filteredProperties.length} of {properties.length} total properties
               </p>
             </div>

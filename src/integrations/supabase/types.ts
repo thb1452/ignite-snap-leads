@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      call_logs: {
+        Row: {
+          call_type: string
+          created_at: string
+          duration: number | null
+          id: string
+          notes: string | null
+          phone_number: string
+          property_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          call_type: string
+          created_at?: string
+          duration?: number | null
+          id?: string
+          notes?: string | null
+          phone_number: string
+          property_id?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          call_type?: string
+          created_at?: string
+          duration?: number | null
+          id?: string
+          notes?: string | null
+          phone_number?: string
+          property_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_logs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_templates: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lead_activity: {
         Row: {
           created_at: string | null
@@ -213,6 +290,36 @@ export type Database = {
           state?: string
           updated_at?: string | null
           zip?: string
+        }
+        Relationships: []
+      }
+      sms_templates: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

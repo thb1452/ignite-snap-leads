@@ -255,41 +255,49 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[500px] overflow-y-auto">
-        <SheetHeader className="space-y-4 pb-6">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <Badge
-                variant={getScoreBadgeVariant(property.snap_score)}
-                className="text-lg px-4 py-1.5 mb-3"
-              >
-                {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
-                SnapScore: {property.snap_score ?? "N/A"}
-              </Badge>
-              <SheetTitle className="text-2xl font-bold text-foreground">
+      <SheetContent className="w-full sm:max-w-[600px] overflow-y-auto transition-all duration-300">
+        <SheetHeader className="space-y-6 pb-8">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <Badge
+              variant={getScoreBadgeVariant(property.snap_score)}
+              size="xl"
+              className="font-extrabold shadow-xl"
+              style={
+                property.snap_score && property.snap_score >= 80
+                  ? { background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)' }
+                  : property.snap_score && property.snap_score >= 60
+                  ? { background: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)' }
+                  : undefined
+              }
+            >
+              {property.snap_score && property.snap_score >= 80 ? "🔥" : ""}
+              {property.snap_score ?? "N/A"}
+            </Badge>
+            <div>
+              <SheetTitle className="text-3xl font-bold text-foreground leading-tight">
                 {property.address}
               </SheetTitle>
-              <p className="text-muted-foreground mt-1">
+              <p className="text-muted-foreground mt-2 text-base font-normal">
                 {property.city}, {property.state} {property.zip}
               </p>
             </div>
           </div>
         </SheetHeader>
 
-        <div className="space-y-6 pb-6">
+        <div className="space-y-8 pb-8">
           {/* Property Photo */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             {property.photo_url ? (
               <img
                 src={property.photo_url}
                 alt={property.address}
-                className="w-full h-48 object-cover rounded-lg border"
+                className="w-full h-[300px] object-cover rounded-xl border shadow-lg"
               />
             ) : (
-              <div className="w-full h-48 bg-muted rounded-lg border flex items-center justify-center">
-                <div className="text-center p-4">
-                  <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">{property.address}</p>
+              <div className="w-full h-[300px] bg-muted rounded-xl border shadow-lg flex items-center justify-center">
+                <div className="text-center p-6">
+                  <MapPin className="h-16 w-16 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-base text-muted-foreground font-medium">{property.address}</p>
                 </div>
               </div>
             )}
@@ -297,11 +305,11 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               href={googleMapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+              className="inline-flex items-center gap-2 text-sm text-primary hover:underline font-medium"
             >
-              <MapPin className="h-4 w-4" />
+              <MapPin className="h-5 w-5" />
               View on Google Maps
-              <ExternalLink className="h-3 w-3" />
+              <ExternalLink className="h-4 w-4" />
             </a>
           </div>
 
@@ -309,14 +317,14 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
           {/* Multiple Violations Warning */}
           {hasMultipleViolations && (
-            <Card className="border-destructive bg-destructive/5 p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+            <Card className="border-l-4 border-l-destructive bg-destructive/10 p-6 shadow-md">
+              <div className="flex items-start gap-4">
+                <AlertTriangle className="h-6 w-6 text-destructive mt-1" />
                 <div>
-                  <p className="font-semibold text-destructive">
+                  <p className="font-bold text-destructive text-lg">
                     ⚠️ MULTIPLE VIOLATIONS
                   </p>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm text-muted-foreground mt-2">
                     High likelihood of distressed seller
                   </p>
                 </div>
@@ -325,54 +333,61 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           )}
 
           {/* Violations List */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">Violations</h3>
-              <Badge variant="secondary">{property.violations.length}</Badge>
+              <h3 className="text-xl font-bold text-foreground">Violations</h3>
+              <Badge variant="secondary" className="font-bold">{property.violations.length}</Badge>
             </div>
 
             {property.violations.length === 0 ? (
-              <Card className="p-6 text-center">
+              <Card className="p-8 text-center shadow-sm">
                 <p className="text-muted-foreground">No violations recorded</p>
               </Card>
             ) : (
-              <div className="space-y-3">
-                {property.violations.map((violation) => (
-                  <Card key={violation.id} className="p-4 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-semibold text-foreground flex-1">
-                        {violation.violation_type}
-                      </h4>
-                      <Badge className={getStatusBadgeClass(violation.status)}>
-                        {violation.status}
-                      </Badge>
-                    </div>
-
-                    {violation.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {violation.description}
-                      </p>
-                    )}
-
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2">
-                      <div>
-                        <span className="font-medium">Opened:</span>{" "}
-                        {formatDate(violation.opened_date)}
-                      </div>
-                      {violation.days_open !== null && (
-                        <Badge variant="outline" className="text-xs">
-                          {violation.days_open} days open
+              <div className="space-y-4">
+                {property.violations.map((violation, index) => {
+                  const severity = violation.status.toLowerCase() === 'open' ? 'destructive' : 
+                                 violation.status.toLowerCase() === 'pending' ? 'warning' : 'success';
+                  const borderColor = severity === 'destructive' ? 'border-l-destructive' :
+                                    severity === 'warning' ? 'border-l-orange-500' : 'border-l-green-600';
+                  
+                  return (
+                    <Card key={violation.id} className={`p-5 space-y-3 border-l-4 ${borderColor} shadow-md hover:shadow-lg transition-shadow`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <h4 className="font-bold text-foreground flex-1 text-base leading-snug">
+                          {violation.violation_type}
+                        </h4>
+                        <Badge className={`${getStatusBadgeClass(violation.status)} font-semibold`}>
+                          {violation.status}
                         </Badge>
-                      )}
-                    </div>
+                      </div>
 
-                    {violation.case_id && (
-                      <p className="text-xs text-muted-foreground">
-                        Case ID: {violation.case_id}
-                      </p>
-                    )}
-                  </Card>
-                ))}
+                      {violation.description && (
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {violation.description}
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t">
+                        <div className="pt-2">
+                          <span className="font-semibold">Opened:</span>{" "}
+                          {formatDate(violation.opened_date)}
+                        </div>
+                        {violation.days_open !== null && (
+                          <Badge variant="outline" className="text-xs font-medium mt-2">
+                            {violation.days_open} days open
+                          </Badge>
+                        )}
+                      </div>
+
+                      {violation.case_id && (
+                        <p className="text-xs text-muted-foreground font-mono">
+                          Case ID: {violation.case_id}
+                        </p>
+                      )}
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -382,14 +397,14 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           {/* SnapScore Insight */}
           {property.snap_insight && (
             <>
-              <Card className="bg-primary/5 border-primary/20 p-4">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">💡</span>
+              <Card className="bg-gradient-to-br from-cyan-50 to-blue-100 border-cyan-200 p-6 shadow-lg rounded-xl">
+                <div className="flex items-start gap-4">
+                  <span className="text-3xl">💡</span>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-foreground mb-2">
+                    <h4 className="font-bold text-foreground mb-3 text-lg">
                       SnapScore Insight
                     </h4>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-foreground/80 leading-relaxed">
                       {property.snap_insight}
                     </p>
                   </div>

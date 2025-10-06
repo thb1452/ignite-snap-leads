@@ -9,9 +9,8 @@ export function usePropertyContacts(propertyId?: string) {
     queryKey: ["contacts", propertyId],
     queryFn: async () => {
       const data = await listPropertyContacts(propertyId!);
-      const parsed = z.array(PropertyContactSchema).safeParse(data);
-      if (!parsed.success) throw new Error("Invalid contacts payload");
-      return parsed.data;
+      const parsed = z.array(PropertyContactSchema).parse(data); // strong parse
+      return parsed;
     },
   });
 }

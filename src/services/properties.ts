@@ -1,12 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-
-export type LeadFilters = {
-  search?: string;
-  cities?: string[];
-  status?: string;             // if you wire it to lead_activity.latest or similar
-  snapScoreRange?: [number, number];
-  listId?: string;             // filter by list contents
-};
+import type { LeadFilters } from "@/schemas";
 
 export async function fetchPropertiesPaged(
   page: number,

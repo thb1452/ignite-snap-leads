@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -240,7 +241,8 @@ export function Leads() {
     : 0;
 
   return (
-    <div className="flex">{/* ... keep existing code */}
+    <AppLayout>
+      <div className="flex">
         {/* Premium Filters Sidebar */}
         <aside className="w-80 hidden lg:block">
           <div className="m-6 rounded-2xl bg-white shadow-card p-4 space-y-4">
@@ -385,5 +387,6 @@ export function Leads() {
           </section>
         </main>
       </div>
+    </AppLayout>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PropertyDetailPanel } from "./PropertyDetailPanel";
 
 interface Violation {
@@ -53,77 +54,98 @@ export function LeadsTable({ properties }: LeadsTableProps) {
   const getPrimaryViolation = (violations: Violation[]) => {
     if (violations.length === 0) return "No violations";
     const description = violations[0].description || violations[0].violation_type;
-    return description.length > 60 ? description.substring(0, 60) + "..." : description;
+    return description;
+  };
+
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + "...";
   };
 
   return (
     <>
-      <PropertyDetailPanel
-        property={selectedProperty}
-        open={!!selectedProperty}
-        onOpenChange={(open) => !open && setSelectedProperty(null)}
-      />
-      <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="sticky top-14 bg-white/90 backdrop-blur z-10 border-b border-slate-200/70">
-            <tr className="text-xs/5 text-slate-500 font-medium tracking-wide uppercase">
-              <th className="py-3 px-4 text-left">SnapScore</th>
-              <th className="py-3 px-4 text-left">Address</th>
-              <th className="py-3 px-4 text-left">Violations</th>
-              <th className="py-3 px-4 text-left">Primary</th>
-              <th className="py-3 px-4 text-right pr-6">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {properties.map((property, index) => {
-              const violationCount = property.violations.length;
-              const primaryViolation = getPrimaryViolation(property.violations);
+      <TooltipProvider>
+        <PropertyDetailPanel
+          property={selectedProperty}
+          open={!!selectedProperty}
+          onOpenChange={(open) => !open && setSelectedProperty(null)}
+        />
+        <div className="rounded-2xl border border-slate-200/70 shadow-[0_8px_24px_rgba(15,23,42,0.06)] bg-white overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="sticky top-14 bg-white/90 backdrop-blur z-10 border-b border-slate-200/70">
+              <tr className="text-xs/5 text-slate-500 font-medium tracking-wide uppercase">
+                <th className="py-3 px-4 text-left w-32">SnapScore</th>
+                <th className="py-3 px-4 text-left w-64">Address</th>
+                <th className="py-3 px-4 text-left w-32">Violations</th>
+                <th className="py-3 px-4 text-left">Primary</th>
+                <th className="py-3 px-4 text-right pr-6 w-40">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {properties.map((property, index) => {
+                const violationCount = property.violations.length;
+                const primaryViolation = getPrimaryViolation(property.violations);
+                const displayText = truncateText(primaryViolation, 60);
 
-              return (
-                <motion.tr
-                  key={property.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.15, delay: index * 0.02 }}
-                  className="h-16 odd:bg-white even:bg-slate-50/40 hover:bg-slate-50 transition-colors cursor-pointer"
-                  onClick={() => setSelectedProperty(property)}
-                >
-                  <td className="py-3 px-4">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all ${scoreClass(property.snap_score)}`}>
-                      {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
-                      {property.snap_score ?? "N/A"}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-ink-900 font-medium">{property.address}</td>
-                  <td className="py-3 px-4">
-                    {violationCount > 1 ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-50 text-amber-700 border border-amber-200 transition-all">
-                        Multiple ({violationCount})
+                return (
+                  <motion.tr
+                    key={property.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.15, delay: index * 0.02 }}
+                    className="h-16 odd:bg-white even:bg-slate-50/40 hover:bg-slate-50 transition-all cursor-pointer group"
+                    onClick={() => setSelectedProperty(property)}
+                  >
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all ${scoreClass(property.snap_score)}`}>
+                        {property.snap_score && property.snap_score >= 80 ? "🔥 " : ""}
+                        {property.snap_score ?? "N/A"}
                       </span>
-                    ) : (
-                      <span className="text-ink-400">{violationCount}</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-ink-600">{primaryViolation}</td>
-                  <td className="py-3 px-4 text-right pr-6">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedProperty(property);
-                      }}
-                      className="text-brand hover:text-brand/80 hover:bg-brand/5 transition-all"
-                    >
-                      View Details
-                    </Button>
-                  </td>
-                </motion.tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    </td>
+                    <td className="py-3 px-4 text-ink-900 font-medium">{property.address}</td>
+                    <td className="py-3 px-4">
+                      {violationCount > 1 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-50 text-amber-700 border border-amber-200 transition-all">
+                          Multiple ({violationCount})
+                        </span>
+                      ) : (
+                        <span className="text-ink-400">{violationCount}</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-ink-600">
+                      {primaryViolation !== displayText ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="truncate block max-w-md">{displayText}</span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-sm">
+                            <p>{primaryViolation}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <span className="truncate block max-w-md">{displayText}</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-right pr-6">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProperty(property);
+                        }}
+                        className="text-brand hover:text-brand/80 hover:bg-brand/5 transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        View Details
+                      </Button>
+                    </td>
+                  </motion.tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </TooltipProvider>
     </>
   );
 }

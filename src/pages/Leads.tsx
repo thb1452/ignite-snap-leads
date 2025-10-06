@@ -242,7 +242,7 @@ export function Leads() {
   return (
     <div className="flex">
       {/* Premium Filters Sidebar */}
-      <aside className="w-80 hidden lg:block">
+      <aside className="w-80 hidden lg:block flex-shrink-0">
         <div className="m-6 rounded-2xl bg-white shadow-card p-4 space-y-4">
           <div className="text-sm font-medium text-ink-700 font-ui">Filters</div>
           

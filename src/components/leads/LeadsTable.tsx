@@ -7,7 +7,7 @@ import { Lightbulb } from "lucide-react";
 import { PropertyDetailPanel } from "./PropertyDetailPanel";
 import { runSkipTrace } from "@/services/skiptrace";
 import { useToast } from "@/hooks/use-toast";
-import { useCreditBalance } from "@/hooks/useCredits";
+import { useUserCredits } from "@/hooks/useUserProfile";
 
 interface Violation {
   id: string;
@@ -55,7 +55,7 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
   const [loadingSkipTrace, setLoadingSkipTrace] = useState<Record<string, boolean>>({});
   const [propertyContacts, setPropertyContacts] = useState<Record<string, number>>({});
   const { toast } = useToast();
-  const { data: creditsData } = useCreditBalance();
+  const { data: credits } = useUserCredits();
 
   const scoreClass = (n: number | null) => {
     if (!n) return 'bg-slate-100 text-ink-600 border border-slate-200';
@@ -89,10 +89,10 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
     
     console.log("[LeadsTable] Skip trace clicked for property:", property.id);
     
-    const credits = creditsData ?? 0;
+    const currentCredits = credits ?? 0;
     console.log("[LeadsTable] Credits available:", credits);
     
-    if (credits <= 0) {
+    if (currentCredits <= 0) {
       toast({
         title: "No credits",
         description: "0 credits – Buy Credits to enable skip tracing",
@@ -192,7 +192,7 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
                 const reachability = getReachability(property.id);
                 const isTracing = loadingSkipTrace[property.id] ?? false;
                 const notTraced = propertyContacts[property.id] === undefined;
-                const credits = creditsData ?? 0;
+                const currentCredits = credits ?? 0;
 
                 return (
                   <motion.tr
@@ -257,7 +257,7 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
                           variant="ghost"
                           size="sm"
                           onClick={(e) => handleSkipTrace(property, e)}
-                          disabled={isTracing || credits <= 0}
+                          disabled={isTracing || currentCredits <= 0}
                           className="text-brand hover:text-brand/80 hover:bg-brand/5 transition-all opacity-0 group-hover:opacity-100 text-xs font-medium disabled:opacity-40"
                         >
                           {isTracing ? "Tracing..." : "Skip Trace"}

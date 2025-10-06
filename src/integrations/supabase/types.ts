@@ -476,6 +476,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profiles: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       violations: {
         Row: {
           case_id: string | null
@@ -534,6 +558,10 @@ export type Database = {
       }
     }
     Functions: {
+      consume_credit: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       fn_bulk_run_inc: {
         Args: { p_field: string; p_run_id: string }
         Returns: undefined

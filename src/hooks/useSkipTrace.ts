@@ -12,7 +12,7 @@ export function useSkipTrace() {
     },
     onSuccess: (_contacts, { propertyId }) => {
       qc.invalidateQueries({ queryKey: ["contacts", propertyId] });
-      qc.invalidateQueries({ queryKey: ["credits", "balance"] });
+      qc.invalidateQueries({ queryKey: ["user", "credits"] });
     },
   });
 }

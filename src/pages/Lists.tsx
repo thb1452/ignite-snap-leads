@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Eye, Download, Zap } from "lucide-react";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { runSkipTrace } from "@/services/skiptrace";
-import { useCreditBalance } from "@/hooks/useCredits";
+import { useUserCredits } from "@/hooks/useUserProfile";
 
 interface LeadList {
   id: string;
@@ -81,7 +81,7 @@ export function Lists() {
   const [bulkTracing, setBulkTracing] = useState(false);
   const [traceProgress, setTraceProgress] = useState({ current: 0, total: 0 });
   const { toast } = useToast();
-  const { data: creditsData } = useCreditBalance();
+  const { data: credits } = useUserCredits();
 
   useEffect(() => {
     fetchLists();
@@ -282,8 +282,8 @@ export function Lists() {
   };
 
   const handleBulkSkipTrace = async () => {
-    const credits = creditsData ?? 0;
-    if (credits <= 0) {
+    const currentCredits = credits ?? 0;
+    if (currentCredits <= 0) {
       toast({
         title: "No credits",
         description: "You need credits to skip trace. Buy credits to continue.",
@@ -421,7 +421,7 @@ export function Lists() {
               </Button>
               <Button
                 onClick={handleBulkSkipTrace}
-                disabled={bulkTracing || listProperties.length === 0 || (creditsData ?? 0) <= 0}
+                disabled={bulkTracing || listProperties.length === 0 || (credits ?? 0) <= 0}
               >
                 <Zap className="h-4 w-4 mr-2" />
                 {bulkTracing ? `Tracing ${traceProgress.current}/${traceProgress.total}...` : "Skip Trace All"}

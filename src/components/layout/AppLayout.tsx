@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, FolderOpen, Settings as SettingsIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useCreditBalance } from "@/hooks/useCredits";
+import { useUserCredits } from "@/hooks/useUserProfile";
 import { LogoWordmark } from "@/components/branding/LogoWordmark";
 
 interface AppLayoutProps {
@@ -13,7 +13,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const { signOut } = useAuth();
   const location = useLocation();
-  const { data: balance } = useCreditBalance();
+  const { data: credits } = useUserCredits();
 
   const handleSignOut = async () => {
     await signOut();
@@ -53,7 +53,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-ink-700 font-ui">
-              {balance ?? 0} credits
+              {credits ?? 0} credits
             </span>
             <Button
               size="sm"

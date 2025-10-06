@@ -14,94 +14,97 @@ export type Database = {
   }
   public: {
     Tables: {
-      audit_events: {
+      lead_activity: {
         Row: {
-          created_at: string
-          entity: string
-          entity_id: string
-          id: number
-          kind: string
-          metadata: Json | null
-          org_id: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          property_id: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
         }
         Insert: {
-          created_at?: string
-          entity: string
-          entity_id: string
-          id?: number
-          kind: string
-          metadata?: Json | null
-          org_id: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          property_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
-          created_at?: string
-          entity?: string
-          entity_id?: string
-          id?: number
-          kind?: string
-          metadata?: Json | null
-          org_id?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          property_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "audit_events_org_id_fkey"
-            columns: ["org_id"]
+            foreignKeyName: "lead_activity_property_id_fkey"
+            columns: ["property_id"]
             isOneToOne: false
-            referencedRelation: "organizations"
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
       }
-      contacts: {
+      lead_lists: {
         Row: {
-          confidence: number | null
-          created_at: string
-          id: number
-          is_dnc: boolean | null
-          lead_id: number
-          line_type: string | null
-          org_id: string
-          source: string | null
-          type: string
-          value: string
+          created_at: string | null
+          id: string
+          name: string
+          user_id: string | null
         }
         Insert: {
-          confidence?: number | null
-          created_at?: string
-          id?: number
-          is_dnc?: boolean | null
-          lead_id: number
-          line_type?: string | null
-          org_id: string
-          source?: string | null
-          type: string
-          value: string
+          created_at?: string | null
+          id?: string
+          name: string
+          user_id?: string | null
         }
         Update: {
-          confidence?: number | null
-          created_at?: string
-          id?: number
-          is_dnc?: boolean | null
-          lead_id?: number
-          line_type?: string | null
-          org_id?: string
-          source?: string | null
-          type?: string
-          value?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      list_properties: {
+        Row: {
+          added_at: string | null
+          id: string
+          list_id: string | null
+          property_id: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          id?: string
+          list_id?: string | null
+          property_id?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          id?: string
+          list_id?: string | null
+          property_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "contacts_lead_id_fkey"
-            columns: ["lead_id"]
+            foreignKeyName: "list_properties_list_id_fkey"
+            columns: ["list_id"]
             isOneToOne: false
-            referencedRelation: "violations"
+            referencedRelation: "lead_lists"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "contacts_org_id_fkey"
-            columns: ["org_id"]
+            foreignKeyName: "list_properties_property_id_fkey"
+            columns: ["property_id"]
             isOneToOne: false
-            referencedRelation: "organizations"
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
@@ -168,138 +171,94 @@ export type Database = {
           },
         ]
       }
-      staging_violations: {
+      properties: {
         Row: {
-          created_at: string
-          id: number
-          org_id: string
-          raw: Json
-          upload_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-          org_id: string
-          raw: Json
-          upload_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: number
-          org_id?: string
-          raw?: Json
-          upload_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "staging_violations_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "staging_violations_upload_id_fkey"
-            columns: ["upload_id"]
-            isOneToOne: false
-            referencedRelation: "uploads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      uploads: {
-        Row: {
-          created_at: string
-          filename: string
+          address: string
+          city: string
+          created_at: string | null
           id: string
-          org_id: string
-          size_bytes: number
-          status: string
+          latitude: number | null
+          longitude: number | null
+          photo_url: string | null
+          snap_insight: string | null
+          snap_score: number | null
+          state: string
+          updated_at: string | null
+          zip: string
         }
         Insert: {
-          created_at?: string
-          filename: string
+          address: string
+          city: string
+          created_at?: string | null
           id?: string
-          org_id: string
-          size_bytes: number
-          status?: string
+          latitude?: number | null
+          longitude?: number | null
+          photo_url?: string | null
+          snap_insight?: string | null
+          snap_score?: number | null
+          state: string
+          updated_at?: string | null
+          zip: string
         }
         Update: {
-          created_at?: string
-          filename?: string
+          address?: string
+          city?: string
+          created_at?: string | null
           id?: string
-          org_id?: string
-          size_bytes?: number
-          status?: string
+          latitude?: number | null
+          longitude?: number | null
+          photo_url?: string | null
+          snap_insight?: string | null
+          snap_score?: number | null
+          state?: string
+          updated_at?: string | null
+          zip?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "uploads_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       violations: {
         Row: {
-          address: string | null
           case_id: string | null
-          city: string | null
-          created_at: string
-          id: number
-          insight: string | null
+          created_at: string | null
+          days_open: number | null
+          description: string | null
+          id: string
           last_updated: string | null
           opened_date: string | null
-          org_id: string
-          snap_score: number | null
-          state: string | null
-          status: string | null
-          updated_at: string
-          violation: string | null
-          zip: string | null
+          property_id: string | null
+          status: string
+          violation_type: string
         }
         Insert: {
-          address?: string | null
           case_id?: string | null
-          city?: string | null
-          created_at?: string
-          id?: number
-          insight?: string | null
+          created_at?: string | null
+          days_open?: number | null
+          description?: string | null
+          id?: string
           last_updated?: string | null
           opened_date?: string | null
-          org_id: string
-          snap_score?: number | null
-          state?: string | null
-          status?: string | null
-          updated_at?: string
-          violation?: string | null
-          zip?: string | null
+          property_id?: string | null
+          status: string
+          violation_type: string
         }
         Update: {
-          address?: string | null
           case_id?: string | null
-          city?: string | null
-          created_at?: string
-          id?: number
-          insight?: string | null
+          created_at?: string | null
+          days_open?: number | null
+          description?: string | null
+          id?: string
           last_updated?: string | null
           opened_date?: string | null
-          org_id?: string
-          snap_score?: number | null
-          state?: string | null
-          status?: string | null
-          updated_at?: string
-          violation?: string | null
-          zip?: string | null
+          property_id?: string | null
+          status?: string
+          violation_type?: string
         }
         Relationships: [
           {
-            foreignKeyName: "violations_org_id_fkey"
-            columns: ["org_id"]
+            foreignKeyName: "violations_property_id_fkey"
+            columns: ["property_id"]
             isOneToOne: false
-            referencedRelation: "organizations"
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]

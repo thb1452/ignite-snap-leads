@@ -128,9 +128,20 @@ export function Lists() {
     }
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to create a list",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from("lead_lists")
-        .insert({ name: newListName.trim() });
+        .insert({ name: newListName.trim(), user_id: user.id });
 
       if (error) throw error;
 

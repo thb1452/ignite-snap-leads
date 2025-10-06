@@ -443,10 +443,9 @@ export function Map() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                {filteredProperties.map((property) => {
-                  if (!property.latitude || !property.longitude) return null;
-                  
-                  return (
+                {filteredProperties
+                  .filter((property) => property.latitude && property.longitude)
+                  .map((property) => (
                     <Marker
                       key={property.id}
                       position={[Number(property.latitude), Number(property.longitude)]}
@@ -477,8 +476,7 @@ export function Map() {
                         </div>
                       </Popup>
                     </Marker>
-                  );
-                })}
+                  ))}
               </MapContainer>
             </div>
           )}

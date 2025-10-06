@@ -26,8 +26,6 @@ interface AddToListDialogProps {
   propertyId: string;
   onListAdded: () => void;
   currentListIds: string[];
-  bulkMode?: boolean;
-  selectedPropertyIds?: string[];
 }
 
 export function AddToListDialog({
@@ -36,8 +34,6 @@ export function AddToListDialog({
   propertyId,
   onListAdded,
   currentListIds,
-  bulkMode = false,
-  selectedPropertyIds = [],
 }: AddToListDialogProps) {
   const [lists, setLists] = useState<LeadList[]>([]);
   const [showCreateNew, setShowCreateNew] = useState(false);
@@ -113,29 +109,18 @@ export function AddToListDialog({
   const handleAddToList = async (listId: string) => {
     try {
       setLoading(true);
-      
-      // Determine which properties to add
-      const propertyIds = bulkMode && selectedPropertyIds.length > 0 
-        ? selectedPropertyIds 
-        : [propertyId];
-
-      // Create inserts for all properties
-      const inserts = propertyIds.map(id => ({
-        list_id: listId,
-        property_id: id,
-      }));
-
       const { error } = await supabase
         .from("list_properties")
-        .insert(inserts);
+        .insert({
+          list_id: listId,
+          property_id: propertyId,
+        });
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: bulkMode 
-          ? `Added ${propertyIds.length} properties to list`
-          : "Property added to list",
+        description: "Property added to list",
       });
 
       onListAdded();
@@ -158,9 +143,7 @@ export function AddToListDialog({
         <DialogHeader>
           <DialogTitle>Add to List</DialogTitle>
           <DialogDescription>
-            {bulkMode && selectedPropertyIds.length > 0
-              ? `Add ${selectedPropertyIds.length} properties to a list`
-              : "Select a list or create a new one"}
+            Select a list or create a new one
           </DialogDescription>
         </DialogHeader>
 

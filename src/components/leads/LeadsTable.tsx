@@ -2,10 +2,8 @@ import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { PropertyDetailPanel } from "./PropertyDetailPanel";
-import { BulkActionsToolbar } from "./BulkActionsToolbar";
 
 interface Violation {
   id: string;
@@ -52,29 +50,10 @@ export function LeadsTable({ properties }: LeadsTableProps) {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [selectedProperty, setSelectedProperty] = useState<PropertyWithViolations | null>(null);
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const handlePropertyClick = (property: PropertyWithViolations) => {
     setSelectedProperty(property);
     setDetailPanelOpen(true);
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(new Set(sortedProperties.map(p => p.id)));
-    } else {
-      setSelectedIds(new Set());
-    }
-  };
-
-  const handleSelectOne = (id: string, checked: boolean) => {
-    const newSelected = new Set(selectedIds);
-    if (checked) {
-      newSelected.add(id);
-    } else {
-      newSelected.delete(id);
-    }
-    setSelectedIds(newSelected);
   };
 
   const handleSort = (field: SortField) => {
@@ -120,8 +99,6 @@ export function LeadsTable({ properties }: LeadsTableProps) {
       return aValue < bValue ? 1 : -1;
     }
   });
-
-  const selectedProperties = sortedProperties.filter(p => selectedIds.has(p.id));
 
   const getScoreBadgeVariant = (score: number | null) => {
     if (!score) return "secondary";
@@ -184,33 +161,15 @@ export function LeadsTable({ properties }: LeadsTableProps) {
 
   return (
     <>
-      {selectedIds.size > 0 && (
-        <BulkActionsToolbar
-          selectedCount={selectedIds.size}
-          selectedProperties={selectedProperties}
-          onClearSelection={() => setSelectedIds(new Set())}
-          onActionComplete={() => {
-            // Refresh would happen via parent component
-          }}
-        />
-      )}
-
       <PropertyDetailPanel
         property={selectedProperty}
         open={detailPanelOpen}
         onOpenChange={setDetailPanelOpen}
       />
       <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">
-                <Checkbox
-                  checked={selectedIds.size === sortedProperties.length && sortedProperties.length > 0}
-                  onCheckedChange={handleSelectAll}
-                  aria-label="Select all"
-                />
-              </TableHead>
+      <Table>
+        <TableHeader>
+          <TableRow>
             <TableHead>
               <Button
                 variant="ghost"
@@ -262,21 +221,8 @@ export function LeadsTable({ properties }: LeadsTableProps) {
             <TableRow
               key={property.id}
               className="cursor-pointer transition-colors hover:bg-muted/50"
-              onClick={(e) => {
-                // Don't trigger row click if clicking checkbox
-                if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
-                  return;
-                }
-                handlePropertyClick(property);
-              }}
+              onClick={() => handlePropertyClick(property)}
             >
-              <TableCell onClick={(e) => e.stopPropagation()}>
-                <Checkbox
-                  checked={selectedIds.has(property.id)}
-                  onCheckedChange={(checked) => handleSelectOne(property.id, checked as boolean)}
-                  aria-label={`Select ${property.address}`}
-                />
-              </TableCell>
               <TableCell className="font-medium">
                 <Badge
                   variant={getScoreBadgeVariant(property.snap_score)}

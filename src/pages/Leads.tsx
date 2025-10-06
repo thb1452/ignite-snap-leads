@@ -10,8 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, X } from "lucide-react";
 import { LeadsTable } from "@/components/leads/LeadsTable";
-import { DashboardStats } from "@/components/dashboard/DashboardStats";
-import { ActivityTimeline } from "@/components/dashboard/ActivityTimeline";
 
 interface Violation {
   id: string;
@@ -66,7 +64,6 @@ export function Leads() {
   const [filteredProperties, setFilteredProperties] = useState<PropertyWithViolations[]>([]);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [userLists, setUserLists] = useState<LeadList[]>([]);
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<Filters>({
     search: "",
@@ -77,20 +74,9 @@ export function Leads() {
   });
   const { toast } = useToast();
 
-  // Dashboard stats
-  const totalLeads = properties.length;
-  const hotLeads = properties.filter(p => p.snap_score && p.snap_score >= 80).length;
-  const dealsInProgress = properties.filter(
-    p => p.latest_activity?.status === "Called - Interested"
-  ).length;
-  const dealsMade = properties.filter(
-    p => p.latest_activity?.status === "Deal Made"
-  ).length;
-
   useEffect(() => {
     fetchProperties();
     fetchUserLists();
-    fetchRecentActivities();
   }, []);
 
   const fetchProperties = async () => {
@@ -173,39 +159,6 @@ export function Leads() {
       setUserLists(data || []);
     } catch (error) {
       console.error("Error fetching lists:", error);
-    }
-  };
-
-  const fetchRecentActivities = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("lead_activity")
-        .select(`
-          id,
-          property_id,
-          status,
-          notes,
-          created_at,
-          properties:property_id (
-            address,
-            city,
-            state
-          )
-        `)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-
-      // Transform the data to match the expected format
-      const transformedActivities = (data || []).map((activity: any) => ({
-        ...activity,
-        property: activity.properties,
-      }));
-
-      setRecentActivities(transformedActivities);
-    } catch (error) {
-      console.error("Error fetching activities:", error);
     }
   };
 
@@ -422,55 +375,35 @@ export function Leads() {
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto bg-gray-50">
-          <div className="p-6 space-y-6">
-            {/* Dashboard Stats */}
-            <DashboardStats
-              totalLeads={totalLeads}
-              hotLeads={hotLeads}
-              dealsInProgress={dealsInProgress}
-              dealsMade={dealsMade}
-              loading={loading}
-            />
-
-            {/* Activity Timeline and Leads Table Container */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Activity Timeline - Left Column on Desktop */}
-              <div className="lg:col-span-1">
-                <ActivityTimeline activities={recentActivities} loading={loading} />
-              </div>
-
-              {/* Leads Table - Right Column on Desktop */}
-              <div className="lg:col-span-2 space-y-4">
-                {/* Results Count */}
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    {filteredProperties.length} leads found
-                  </h1>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Showing {filteredProperties.length} of {properties.length} total properties
-                  </p>
-                </div>
-
-                {/* Leads Table */}
-                {loading ? (
-                  <div className="flex items-center justify-center p-12 bg-card rounded-md border">
-                    <div className="space-y-4 text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-                      <p className="text-muted-foreground">Loading properties...</p>
-                    </div>
-                  </div>
-                ) : filteredProperties.length === 0 ? (
-                  <div className="flex items-center justify-center p-12 bg-card rounded-md border">
-                    <div className="text-center">
-                      <p className="text-lg font-medium mb-2">No leads found</p>
-                      <p className="text-sm text-muted-foreground">Try adjusting your filters</p>
-                    </div>
-                  </div>
-                ) : (
-                  <LeadsTable properties={filteredProperties} />
-                )}
-              </div>
+          <div className="p-6">
+            {/* Results Count */}
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">
+                {filteredProperties.length} leads found
+              </h1>
+              <p className="text-sm text-gray-600 mt-1">
+                Showing {filteredProperties.length} of {properties.length} total properties
+              </p>
             </div>
+
+            {/* Leads Table */}
+            {loading ? (
+              <div className="flex items-center justify-center p-12 bg-card rounded-md border">
+                <div className="space-y-4 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+                  <p className="text-muted-foreground">Loading properties...</p>
+                </div>
+              </div>
+            ) : filteredProperties.length === 0 ? (
+              <div className="flex items-center justify-center p-12 bg-card rounded-md border">
+                <div className="text-center">
+                  <p className="text-lg font-medium mb-2">No leads found</p>
+                  <p className="text-sm text-muted-foreground">Try adjusting your filters</p>
+                </div>
+              </div>
+            ) : (
+              <LeadsTable properties={filteredProperties} />
+            )}
           </div>
         </main>
       </div>

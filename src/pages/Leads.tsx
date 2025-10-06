@@ -21,6 +21,14 @@ interface Violation {
   case_id: string | null;
 }
 
+interface LeadActivity {
+  id: string;
+  property_id: string;
+  status: string;
+  notes: string | null;
+  created_at: string;
+}
+
 interface PropertyWithViolations {
   id: string;
   address: string;
@@ -35,6 +43,7 @@ interface PropertyWithViolations {
   created_at: string;
   updated_at: string;
   violations: Violation[];
+  latest_activity?: LeadActivity | null;
 }
 
 interface Filters {
@@ -78,6 +87,14 @@ export function Leads() {
 
       if (violationsError) throw violationsError;
 
+      // Fetch latest activity for all properties
+      const { data: activitiesData, error: activitiesError } = await supabase
+        .from("lead_activity")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (activitiesError) throw activitiesError;
+
       // Group violations by property_id
       const violationsByProperty = (violationsData || []).reduce((acc, violation) => {
         if (violation.property_id) {
@@ -89,10 +106,19 @@ export function Leads() {
         return acc;
       }, {} as Record<string, Violation[]>);
 
-      // Combine properties with their violations
+      // Get latest activity by property_id
+      const latestActivityByProperty = (activitiesData || []).reduce((acc, activity) => {
+        if (activity.property_id && !acc[activity.property_id]) {
+          acc[activity.property_id] = activity;
+        }
+        return acc;
+      }, {} as Record<string, LeadActivity>);
+
+      // Combine properties with their violations and latest activity
       const propertiesWithViolations = (propertiesData || []).map(property => ({
         ...property,
-        violations: violationsByProperty[property.id] || []
+        violations: violationsByProperty[property.id] || [],
+        latest_activity: latestActivityByProperty[property.id] || null,
       }));
 
       setProperties(propertiesWithViolations);

@@ -15,6 +15,14 @@ interface Violation {
   case_id: string | null;
 }
 
+interface LeadActivity {
+  id: string;
+  property_id: string;
+  status: string;
+  notes: string | null;
+  created_at: string;
+}
+
 interface PropertyWithViolations {
   id: string;
   address: string;
@@ -27,6 +35,7 @@ interface PropertyWithViolations {
   latitude: number | null;
   longitude: number | null;
   violations: Violation[];
+  latest_activity?: LeadActivity | null;
 }
 
 interface LeadsTableProps {
@@ -127,6 +136,22 @@ export function LeadsTable({ properties }: LeadsTableProps) {
     return violations[0].status;
   };
 
+  const getActivityStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case "Deal Made":
+        return "bg-green-600 text-white";
+      case "Called - Interested":
+        return "bg-primary text-primary-foreground";
+      case "Called - Not Interested":
+        return "bg-muted text-muted-foreground";
+      case "Called - No Answer":
+      case "Not Called":
+        return "bg-yellow-500 text-white";
+      default:
+        return "bg-secondary text-secondary-foreground";
+    }
+  };
+
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4" />;
     if (sortDirection === "asc") return <ArrowUp className="ml-2 h-4 w-4" />;
@@ -176,6 +201,7 @@ export function LeadsTable({ properties }: LeadsTableProps) {
               </Button>
             </TableHead>
             <TableHead>Primary Violation</TableHead>
+            <TableHead>My Status</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>
               <Button
@@ -225,6 +251,15 @@ export function LeadsTable({ properties }: LeadsTableProps) {
               </TableCell>
               <TableCell className="text-muted-foreground max-w-xs">
                 {getPrimaryViolation(property.violations)}
+              </TableCell>
+              <TableCell>
+                {property.latest_activity ? (
+                  <Badge className={getActivityStatusBadgeClass(property.latest_activity.status)}>
+                    {property.latest_activity.status}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
               </TableCell>
               <TableCell>
                 <Badge className={getStatusBadgeClass(getPrimaryStatus(property.violations))}>

@@ -14,6 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
+      call_logs: {
+        Row: {
+          call_type: string
+          created_at: string
+          duration: number | null
+          id: string
+          notes: string | null
+          phone_number: string
+          property_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          call_type: string
+          created_at?: string
+          duration?: number | null
+          id?: string
+          notes?: string | null
+          phone_number: string
+          property_id?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          call_type?: string
+          created_at?: string
+          duration?: number | null
+          id?: string
+          notes?: string | null
+          phone_number?: string
+          property_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_logs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_ledger: {
+        Row: {
+          created_at: string
+          delta: number
+          id: string
+          meta: Json | null
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          delta: number
+          id?: string
+          meta?: Json | null
+          reason: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          delta?: number
+          id?: string
+          meta?: Json | null
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_templates: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lead_activity: {
         Row: {
           created_at: string | null
@@ -76,18 +180,21 @@ export type Database = {
       list_properties: {
         Row: {
           added_at: string | null
+          created_by: string | null
           id: string
           list_id: string | null
           property_id: string | null
         }
         Insert: {
           added_at?: string | null
+          created_by?: string | null
           id?: string
           list_id?: string | null
           property_id?: string | null
         }
         Update: {
           added_at?: string | null
+          created_by?: string | null
           id?: string
           list_id?: string | null
           property_id?: string | null
@@ -216,6 +323,80 @@ export type Database = {
         }
         Relationships: []
       }
+      property_contacts: {
+        Row: {
+          created_at: string
+          created_by: string
+          email: string | null
+          id: string
+          name: string | null
+          phone: string | null
+          property_id: string
+          raw_payload: Json | null
+          source: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+          property_id: string
+          raw_payload?: Json | null
+          source?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+          property_id?: string
+          raw_payload?: Json | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_contacts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_templates: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       violations: {
         Row: {
           case_id: string | null
@@ -265,10 +446,19 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_user_credits: {
+        Row: {
+          balance: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      fn_consume_credit: {
+        Args: { p_meta?: Json; p_reason: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

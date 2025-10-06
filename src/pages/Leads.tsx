@@ -327,38 +327,48 @@ export function Leads() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="rounded-xl border px-3 py-1.5 text-sm">
+              <Button 
+                variant="outline" 
+                className="rounded-xl border px-3 py-1.5 text-sm transition-all hover:border-brand/30 hover:bg-brand/5"
+                onClick={() => {
+                  toast({
+                    title: "Filter saved",
+                    description: "Set as default view?",
+                    action: <Button size="sm" variant="ghost">Set Default</Button>
+                  });
+                }}
+              >
                 Save Filter
               </Button>
-              <Button className="rounded-xl px-3 py-1.5 text-sm bg-ink-900 text-white hover:bg-ink-700">
+              <Button className="rounded-xl px-3 py-1.5 text-sm bg-ink-900 text-white hover:bg-ink-700 transition-all">
                 Export CSV
               </Button>
             </div>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="rounded-2xl bg-white shadow-card p-4 space-y-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+            <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
               <div className="text-xs text-ink-400 font-ui">Total Leads</div>
-              <div className="text-3xl font-bold text-ink-900 font-display">
+              <div className="text-2xl md:text-3xl font-bold text-ink-900 font-display">
                 {filteredProperties.length}
               </div>
             </div>
-            <div className="rounded-2xl bg-white shadow-card p-4 space-y-2">
+            <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
               <div className="text-xs text-ink-400 font-ui">Hot Leads</div>
-              <div className="text-3xl font-bold text-emerald-600 font-display flex items-center gap-2">
+              <div className="text-2xl md:text-3xl font-bold text-emerald-600 font-display flex items-center gap-2">
                 🔥 {hotLeads}
               </div>
             </div>
-            <div className="rounded-2xl bg-white shadow-card p-4 space-y-2">
+            <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
               <div className="text-xs text-ink-400 font-ui">Multiple Violations</div>
-              <div className="text-3xl font-bold text-amber-600 font-display">
+              <div className="text-2xl md:text-3xl font-bold text-amber-600 font-display">
                 {multipleViolations}
               </div>
             </div>
-            <div className="rounded-2xl bg-white shadow-card p-4 space-y-2">
+            <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
               <div className="text-xs text-ink-400 font-ui">Avg SnapScore</div>
-              <div className="text-3xl font-bold text-brand font-display">
+              <div className="text-2xl md:text-3xl font-bold text-brand font-display">
                 {avgScore}
               </div>
             </div>

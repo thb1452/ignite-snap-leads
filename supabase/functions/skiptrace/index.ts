@@ -139,9 +139,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
     console.log("[skiptrace] property", property_id, "addr:", fullAddress);
 
     // ---- Call BatchData ----
-    const url = `${batchDataBase.replace(/\/$/, "")}/skip-trace`;
-    const payload: Record<string, unknown> = { address: fullAddress };
-    if (phone_hint) payload.phone_hint = phone_hint;
+    const url = `${batchDataBase.replace(/\/$/, "")}/api/v1/property/skip-trace`;
+    const payload = {
+      requests: [{
+        propertyAddress: {
+          street: property.address,
+          city: property.city,
+          state: property.state,
+          zip: property.zip
+        }
+      }]
+    };
+    if (phone_hint) {
+      payload.requests[0].phoneHint = phone_hint;
+    }
 
     const bdRes = await fetchWithRetry(
       url,
@@ -165,13 +176,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
       throw new Error(`BATCHDATA_${bdRes.status}`);
     }
 
-    const raw: BatchDataResponse = await bdRes.json();
+    const rawResponse: any = await bdRes.json();
+    console.log("[batchdata] raw response:", JSON.stringify(rawResponse));
+
+    // BatchData returns an array of results
+    const results = rawResponse.results || rawResponse.data || [];
+    if (!results.length) {
+      console.log("[batchdata] no results found");
+      // Return success with empty contacts
+      return new Response(JSON.stringify({ ok: true, contacts: [], raw_data: rawResponse }), { headers });
+    }
+
+    // Get the first result (we only queried one property)
+    const raw = results[0];
 
     // ---- Normalize + de-dupe ----
-    const ownerName = (raw.owner_name ?? "Unknown Owner").toString().trim() || "Unknown Owner";
+    const ownerName = (raw.owner_name ?? raw.ownerName ?? "Unknown Owner").toString().trim() || "Unknown Owner";
 
     const phonesRaw = Array.isArray(raw.phones)
-      ? raw.phones.map(p => (typeof p === "string" ? p : p?.number)).filter(Boolean) as string[]
+      ? raw.phones.map((p: any) => (typeof p === "string" ? p : p?.number)).filter(Boolean) as string[]
       : [];
 
     const emailsRaw = Array.isArray(raw.emails) ? raw.emails : [];

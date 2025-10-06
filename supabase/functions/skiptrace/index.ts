@@ -1,172 +1,265 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+// deno-lint-ignore-file no-explicit-any
+// Supabase Edge Function (Deno): Skip Trace via BatchData
+// Route: POST /skiptrace  { property_id: string, phone_hint?: string }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
+
+// ---------- CORS ----------
+const ALLOW_ORIGINS = (Deno.env.get("CORS_ALLOW_ORIGINS") ?? "*")
+  .split(",")
+  .map(o => o.trim());
+
+function cors(origin: string | null) {
+  const allowOrigin = ALLOW_ORIGINS.includes("*")
+    ? "*"
+    : (origin && ALLOW_ORIGINS.includes(origin) ? origin : ALLOW_ORIGINS[0] ?? "*");
+
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}
+
+// ---------- Types ----------
+type SkipTraceRequest = { property_id: string; phone_hint?: string | null };
+
+type BatchDataResponse = {
+  owner_name?: string | null;
+  phones?: (string | { number: string })[] | null;
+  emails?: string[] | null;
+  // Keep raw: BatchData sometimes sends more fields
+  [k: string]: any;
 };
 
-interface SkipTraceRequest {
-  property_id: string;
-  phone_hint?: string | null;
+type ApiError = { ok: false; error: string };
+type ApiOk = { ok: true; contacts: any[]; raw_data: BatchDataResponse };
+
+// ---------- Helpers ----------
+const normalizePhone = (p?: string) => {
+  if (!p) return null;
+  // strip non-digits, keep last 10/11
+  const digits = p.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) return `+1${digits.slice(1)}`;
+  if (digits.length === 10) return `+1${digits}`;
+  return `+${digits}`;
+};
+
+const normalizeEmail = (e?: string) => (e ? e.trim().toLowerCase() : null);
+
+function unique<T>(arr: (T | null | undefined)[]): T[] {
+  return Array.from(new Set(arr.filter(Boolean) as T[]));
 }
 
-interface BatchDataResponse {
-  owner_name?: string;
-  phones?: string[];
-  emails?: string[];
-  vacant?: boolean;
-  [key: string]: any;
+async function fetchWithRetry(url: string, init: RequestInit, tries = 3, delayMs = 600) {
+  let lastErr: any;
+  for (let i = 0; i < tries; i++) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 12_000); // 12s timeout
+    try {
+      const res = await fetch(url, { ...init, signal: ctrl.signal });
+      clearTimeout(t);
+      // 429/5xx retry
+      if (res.status === 429 || (res.status >= 500 && res.status <= 599)) {
+        lastErr = new Error(`Upstream ${res.status}: ${await res.text()}`);
+        await new Promise(r => setTimeout(r, delayMs * (i + 1)));
+        continue;
+      }
+      return res;
+    } catch (e) {
+      clearTimeout(t);
+      lastErr = e;
+      await new Promise(r => setTimeout(r, delayMs * (i + 1)));
+    }
+  }
+  throw lastErr;
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+// ---------- Handler ----------
+Deno.serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: cors(req.headers.get("origin")) });
   }
 
+  const headers = { ...cors(req.headers.get("origin")), "Content-Type": "application/json" };
+
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const batchDataKey = Deno.env.get('BATCHDATA_API_KEY')!;
+    // ---- Env ----
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const batchDataKey = Deno.env.get("BATCHDATA_API_KEY");
+    const batchDataBase = Deno.env.get("BATCHDATA_API_URL") ?? "https://api.batchdata.com";
+    if (!supabaseUrl || !supabaseKey || !batchDataKey) {
+      throw new Error("SERVER_MISCONFIGURED");
+    }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get auth token from request
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header');
+    // ---- Auth ----
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ ok: false, error: "Unauthorized" } satisfies ApiError), {
+        status: 401,
+        headers,
+      });
     }
-
-    // Verify user is authenticated
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      throw new Error('Unauthorized');
+    const token = authHeader.replace("Bearer ", "");
+    const { data: authData, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !authData?.user) {
+      return new Response(JSON.stringify({ ok: false, error: "Unauthorized" } satisfies ApiError), {
+        status: 401,
+        headers,
+      });
     }
+    const user = authData.user;
 
-    const { property_id, phone_hint }: SkipTraceRequest = await req.json();
+    // ---- Input ----
+    const body = (await req.json()) as Partial<SkipTraceRequest>;
+    if (!body?.property_id) {
+      return new Response(JSON.stringify({ ok: false, error: "property_id required" } satisfies ApiError), {
+        status: 400,
+        headers,
+      });
+    }
+    const property_id = body.property_id;
+    const phone_hint = body.phone_hint ?? null;
 
-    console.log('Skip trace request for property:', property_id);
-
-    // Fetch property details
+    // ---- Property lookup ----
     const { data: property, error: propError } = await supabase
-      .from('properties')
-      .select('*')
-      .eq('id', property_id)
+      .from("properties")
+      .select("id,address,city,state,zip")
+      .eq("id", property_id)
       .single();
+    if (propError || !property) throw new Error("PROPERTY_NOT_FOUND");
 
-    if (propError || !property) {
-      throw new Error('Property not found');
-    }
+    const parts = [property.address, property.city, property.state, property.zip].filter(Boolean);
+    if (parts.length < 3) throw new Error("ADDRESS_INCOMPLETE");
+    const fullAddress = parts.join(", ");
+    console.log("[skiptrace] property", property_id, "addr:", fullAddress);
 
-    // Construct full address
-    const fullAddress = `${property.address}, ${property.city}, ${property.state} ${property.zip}`;
-    console.log('Skip tracing address:', fullAddress);
+    // ---- Call BatchData ----
+    const url = `${batchDataBase.replace(/\/$/, "")}/skip-trace`;
+    const payload: Record<string, unknown> = { address: fullAddress };
+    if (phone_hint) payload.phone_hint = phone_hint;
 
-    // Call BatchData API
-    const batchDataResponse = await fetch('https://api.batchdata.com/skip-trace', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${batchDataKey}`,
+    const bdRes = await fetchWithRetry(
+      url,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${batchDataKey}`,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify({
-        address: fullAddress,
-        ...(phone_hint && { phone_hint }),
-      }),
-    });
+      3,
+      700
+    );
 
-    if (!batchDataResponse.ok) {
-      const errorText = await batchDataResponse.text();
-      console.error('BatchData API error:', errorText);
-      throw new Error(`BatchData API failed: ${batchDataResponse.status}`);
+    if (!bdRes.ok) {
+      const errTxt = await bdRes.text();
+      console.error("[batchdata] error", bdRes.status, errTxt);
+      if (bdRes.status === 401 || bdRes.status === 403) throw new Error("BATCHDATA_AUTH");
+      if (bdRes.status === 429) throw new Error("BATCHDATA_RATE_LIMIT");
+      throw new Error(`BATCHDATA_${bdRes.status}`);
     }
 
-    const batchData: BatchDataResponse = await batchDataResponse.json();
-    console.log('BatchData response:', batchData);
+    const raw: BatchDataResponse = await bdRes.json();
 
-    // Consume one credit
-    const { error: creditError } = await supabase.rpc('fn_consume_credit', {
-      p_reason: 'skip_trace',
-      p_meta: { property_id, address: fullAddress },
-    });
+    // ---- Normalize + de-dupe ----
+    const ownerName = (raw.owner_name ?? "Unknown Owner").toString().trim() || "Unknown Owner";
 
-    if (creditError) {
-      console.error('Credit consumption error:', creditError);
-      throw new Error('Insufficient credits or credit error');
-    }
+    const phonesRaw = Array.isArray(raw.phones)
+      ? raw.phones.map(p => (typeof p === "string" ? p : p?.number)).filter(Boolean) as string[]
+      : [];
 
-    // Store contacts in database
-    const contacts = [];
-    const ownerName = batchData.owner_name || 'Unknown Owner';
+    const emailsRaw = Array.isArray(raw.emails) ? raw.emails : [];
 
-    // Create contact records for phones
-    if (batchData.phones && batchData.phones.length > 0) {
-      for (const phone of batchData.phones) {
-        const { data: contact, error: contactError } = await supabase
-          .from('property_contacts')
-          .insert({
+    const phones = unique(phonesRaw.map(normalizePhone)).filter(Boolean) as string[];
+    const emails = unique(emailsRaw.map(normalizeEmail)).filter(Boolean) as string[];
+
+    // ---- Persist contacts (idempotent upsert) ----
+    const contacts: any[] = [];
+
+    // Upsert for each phone
+    for (const phone of phones) {
+      const { data: contact, error } = await supabase
+        .from("property_contacts")
+        .upsert(
+          {
             property_id,
-            name: ownerName,
             phone,
-            email: batchData.emails?.[0] || null,
-            source: 'batchdata',
-            raw_payload: batchData,
+            name: ownerName,
+            email: emails[0] ?? null,
+            source: "batchdata",
+            raw_payload: raw,
             created_by: user.id,
-          })
-          .select()
-          .single();
-
-        if (!contactError && contact) {
-          contacts.push(contact);
-        }
-      }
-    }
-
-    // If no phones but has emails, create contact with email only
-    if ((!batchData.phones || batchData.phones.length === 0) && batchData.emails && batchData.emails.length > 0) {
-      const { data: contact, error: contactError } = await supabase
-        .from('property_contacts')
-        .insert({
-          property_id,
-          name: ownerName,
-          phone: null,
-          email: batchData.emails[0],
-          source: 'batchdata',
-          raw_payload: batchData,
-          created_by: user.id,
-        })
+          },
+          { onConflict: "property_id,phone" }
+        )
         .select()
         .single();
 
-      if (!contactError && contact) {
-        contacts.push(contact);
-      }
+      if (!error && contact) contacts.push(contact);
     }
 
-    console.log(`Created ${contacts.length} contact records`);
+    // If we had NO phones, but we have an email, store a single email row
+    if (phones.length === 0 && emails.length > 0) {
+      const { data: contact, error } = await supabase
+        .from("property_contacts")
+        .upsert(
+          {
+            property_id,
+            phone: null,
+            name: ownerName,
+            email: emails[0],
+            source: "batchdata",
+            raw_payload: raw,
+            created_by: user.id,
+          },
+          { onConflict: "property_id,email" }
+        )
+        .select()
+        .single();
 
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        contacts,
-        raw_data: batchData,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
-    console.error('Skip trace error:', error);
-    return new Response(
-      JSON.stringify({
-        ok: false,
-        error: error.message,
-      }),
-      {
-        status: error.message.includes('Unauthorized') ? 401 : 
-                error.message.includes('INSUFFICIENT_CREDITS') ? 402 : 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+      if (!error && contact) contacts.push(contact);
+    }
+
+    // ---- Consume credit only after success ----
+    const { error: creditError } = await supabase.rpc("fn_consume_credit", {
+      p_reason: "skip_trace",
+      p_meta: { property_id, address: fullAddress },
+    });
+    if (creditError) {
+      console.error("[credits] error", creditError);
+      // Don't fail the whole request; return ok with a warning
+    }
+
+    const resp: ApiOk = { ok: true, contacts, raw_data: raw };
+    return new Response(JSON.stringify(resp), { headers });
+  } catch (e: any) {
+    console.error("[skiptrace] error", e?.message ?? e);
+
+    let status = 500;
+    let msg = "Internal error";
+
+    switch (e?.message) {
+      case "SERVER_MISCONFIGURED":
+        status = 500; msg = "Server misconfigured"; break;
+      case "PROPERTY_NOT_FOUND":
+        status = 404; msg = "Property not found"; break;
+      case "ADDRESS_INCOMPLETE":
+        status = 400; msg = "Property address incomplete"; break;
+      case "BATCHDATA_AUTH":
+        status = 502; msg = "Upstream auth error (BatchData)"; break;
+      case "BATCHDATA_RATE_LIMIT":
+        status = 429; msg = "BatchData rate limited, try again"; break;
+      default:
+        if (typeof e?.message === "string") msg = e.message;
+    }
+
+    const err: ApiError = { ok: false, error: msg };
+    return new Response(JSON.stringify(err), { status, headers });
   }
 });

@@ -31,12 +31,12 @@ export function VirtualizedPropertyList({
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 120, // Estimated height of each card
+    estimateSize: () => 120,
     overscan: 5,
   });
 
   return (
-    <div ref={parentRef} className="h-full overflow-auto">
+    <div ref={parentRef} className="h-full overflow-y-auto">
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -46,6 +46,8 @@ export function VirtualizedPropertyList({
       >
         {virtualizer.getVirtualItems().map((virtualItem) => {
           const property = properties[virtualItem.index];
+          const isSelected = selectedIds.includes(property.id);
+          
           return (
             <div
               key={property.id}
@@ -59,7 +61,7 @@ export function VirtualizedPropertyList({
             >
               <PropertyCard
                 property={property}
-                isSelected={selectedIds.includes(property.id)}
+                isSelected={isSelected}
                 onToggleSelect={onToggleSelect}
                 onClick={() => onPropertyClick(property.id)}
               />

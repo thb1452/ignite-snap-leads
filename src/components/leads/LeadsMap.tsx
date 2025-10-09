@@ -62,24 +62,51 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Clear existing markers and layers
+    // Clear existing markers and layers with hard null
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
     
     if (markerClusterGroupRef.current) {
       mapRef.current.removeLayer(markerClusterGroupRef.current);
+      markerClusterGroupRef.current = null;
     }
     if (heatLayerRef.current) {
       mapRef.current.removeLayer(heatLayerRef.current);
+      heatLayerRef.current = null;
     }
 
     if (viewMode === "map") {
-      // Create marker cluster group
+      // Create marker cluster group with custom icons based on avg score
       markerClusterGroupRef.current = L.markerClusterGroup({
         maxClusterRadius: 50,
         spiderfyOnMaxZoom: true,
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
+        iconCreateFunction: (cluster) => {
+          const markers = cluster.getAllChildMarkers();
+          const scores = markers.map((m: any) => m.options?.snapScore ?? 0);
+          const avg = scores.reduce((a, b) => a + b, 0) / Math.max(1, scores.length);
+          const color = avg >= 80 ? '#ef4444' : avg >= 60 ? '#f97316' : '#22c55e';
+          
+          return L.divIcon({
+            html: `<div style="
+              background:${color};
+              color:#fff;
+              border-radius:9999px;
+              width:34px;
+              height:34px;
+              display:flex;
+              align-items:center;
+              justify-content:center;
+              font-weight:600;
+              font-size:14px;
+              box-shadow:0 2px 8px rgba(0,0,0,.2);
+              border:2px solid white;
+            ">${cluster.getChildCount()}</div>`,
+            className: 'snap-cluster',
+            iconSize: L.point(34, 34),
+          });
+        },
       });
 
       // Add markers for properties with coordinates
@@ -94,7 +121,8 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
               weight: 2,
               opacity: 1,
               fillOpacity: 0.9,
-            }
+              snapScore: property.snap_score, // Store for cluster calculations
+            } as any
           );
 
           marker.bindPopup(`
@@ -123,8 +151,10 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
         mapRef.current.fitBounds(group.getBounds().pad(0.1));
       }
     } else {
-      // Heatmap mode - simple density visualization
+      // Heatmap mode - zoom-scaled radius
       heatLayerRef.current = L.layerGroup();
+      const zoom = mapRef.current.getZoom();
+      const baseRadius = Math.max(40, 12 * Math.pow(2, zoom - 10));
       
       properties.forEach(property => {
         if (property.latitude && property.longitude && mapRef.current) {
@@ -132,10 +162,11 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
           const circle = L.circle(
             [property.latitude, property.longitude],
             {
-              radius: 100,
+              radius: baseRadius,
               fillColor: intensity > 0.8 ? "#ef4444" : intensity > 0.6 ? "#f97316" : "#22c55e",
               color: "transparent",
               fillOpacity: 0.4,
+              weight: 0,
             }
           );
           
@@ -156,7 +187,7 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
           variant={viewMode === "map" ? "default" : "secondary"}
           size="sm"
           onClick={() => setViewMode("map")}
-          className="gap-2 bg-background/95 backdrop-blur"
+          className="gap-2 bg-background/95 backdrop-blur shadow-md"
         >
           <MapIcon className="h-4 w-4" />
           Map
@@ -165,12 +196,30 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
           variant={viewMode === "heatmap" ? "default" : "secondary"}
           size="sm"
           onClick={() => setViewMode("heatmap")}
-          className="gap-2 bg-background/95 backdrop-blur"
+          className="gap-2 bg-background/95 backdrop-blur shadow-md"
         >
           <Flame className="h-4 w-4" />
           Heatmap
         </Button>
       </div>
+
+      {viewMode === "heatmap" && (
+        <div className="absolute top-4 left-4 z-[1000] bg-background/95 backdrop-blur rounded-lg p-3 shadow-md text-xs">
+          <div className="font-semibold mb-2">Density by SnapScore</div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
+            <span>Low (0-59)</span>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
+            <span>Medium (60-79)</span>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
+            <span>High (80+)</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -136,4 +136,9 @@ All colors MUST be HSL.
   .leaflet-popup-pane {
     z-index: 500 !important;
   }
+
+  /* Ensure drawers/sheets stay on top */
+  [data-radix-portal] {
+    z-index: 2000 !important;
+  }
 }

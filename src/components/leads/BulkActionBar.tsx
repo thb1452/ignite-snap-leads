@@ -22,7 +22,7 @@ export function BulkActionBar({
   isTracing = false
 }: BulkActionBarProps) {
   return (
-    <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-10">
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
           <Checkbox
@@ -30,7 +30,7 @@ export function BulkActionBar({
             onCheckedChange={onToggleSelectAll}
           />
           <span className="text-sm font-medium">
-            Select all {totalCount > 0 && `(${totalCount})`}
+            {selectedCount > 0 ? `${selectedCount} selected` : `Select all ${totalCount > 0 ? `(${totalCount})` : ''}`}
           </span>
         </div>
 
@@ -38,7 +38,7 @@ export function BulkActionBar({
           {selectedCount > 0 && (
             <Button
               onClick={onSkipTrace}
-              disabled={isTracing}
+              disabled={isTracing || selectedCount === 0}
               className="gap-2"
             >
               <Zap className="h-4 w-4" />

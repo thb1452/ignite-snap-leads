@@ -137,8 +137,24 @@ All colors MUST be HSL.
     z-index: 500 !important;
   }
 
+  /* Cluster icon styling */
+  .snap-cluster {
+    background: #111827 !important;
+    color: #fff !important;
+    border-radius: 9999px !important;
+    width: 34px !important;
+    height: 34px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18) !important;
+    font-weight: 600 !important;
+    border: none !important;
+  }
+
   /* Ensure drawers/sheets stay on top */
-  [data-radix-portal] {
+  [data-radix-portal],
+  .snap-drawer {
     z-index: 2000 !important;
   }
 }

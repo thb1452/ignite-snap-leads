@@ -36,7 +36,7 @@ export function VirtualizedPropertyList({
   });
 
   return (
-    <div ref={parentRef} className="h-full overflow-y-auto">
+    <div ref={parentRef} className="h-[calc(100vh-240px)] overflow-y-auto pb-20">
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,

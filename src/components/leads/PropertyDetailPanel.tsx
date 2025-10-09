@@ -281,7 +281,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[600px] overflow-hidden p-0 flex flex-col z-[2000]">
+      <SheetContent className="w-full sm:max-w-[600px] overflow-hidden p-0 flex flex-col z-[2000] snap-drawer">
         <motion.div
           initial={{ x: 24, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import "leaflet.markercluster";
 import { Button } from "@/components/ui/button";
 import { Map as MapIcon, Flame } from "lucide-react";
 
@@ -22,6 +25,8 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.CircleMarker[]>([]);
+  const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
+  const heatLayerRef = useRef<L.LayerGroup | null>(null);
   const [viewMode, setViewMode] = useState<"map" | "heatmap">("map");
 
   const getMarkerColor = (score: number | null) => {
@@ -57,49 +62,90 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Clear existing markers
+    // Clear existing markers and layers
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
-
-    // Add markers for properties with coordinates
-    properties.forEach(property => {
-      if (property.latitude && property.longitude && mapRef.current) {
-        const marker = L.circleMarker(
-          [property.latitude, property.longitude],
-          {
-            radius: 8,
-            fillColor: getMarkerColor(property.snap_score),
-            color: "#fff",
-            weight: 2,
-            opacity: 1,
-            fillOpacity: 0.9,
-          }
-        );
-
-        marker.bindPopup(`
-          <div class="text-sm">
-            <strong>${property.address}</strong><br/>
-            Score: ${property.snap_score || "N/A"}
-          </div>
-        `);
-
-        marker.on("click", () => {
-          if (onPropertyClick) {
-            onPropertyClick(property.id);
-          }
-        });
-
-        marker.addTo(mapRef.current);
-        markersRef.current.push(marker);
-      }
-    });
-
-    // Fit bounds if we have markers
-    if (markersRef.current.length > 0) {
-      const group = L.featureGroup(markersRef.current);
-      mapRef.current.fitBounds(group.getBounds().pad(0.1));
+    
+    if (markerClusterGroupRef.current) {
+      mapRef.current.removeLayer(markerClusterGroupRef.current);
     }
-  }, [properties, onPropertyClick]);
+    if (heatLayerRef.current) {
+      mapRef.current.removeLayer(heatLayerRef.current);
+    }
+
+    if (viewMode === "map") {
+      // Create marker cluster group
+      markerClusterGroupRef.current = L.markerClusterGroup({
+        maxClusterRadius: 50,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+      });
+
+      // Add markers for properties with coordinates
+      properties.forEach(property => {
+        if (property.latitude && property.longitude && mapRef.current) {
+          const marker = L.circleMarker(
+            [property.latitude, property.longitude],
+            {
+              radius: 8,
+              fillColor: getMarkerColor(property.snap_score),
+              color: "#fff",
+              weight: 2,
+              opacity: 1,
+              fillOpacity: 0.9,
+            }
+          );
+
+          marker.bindPopup(`
+            <div class="text-sm">
+              <strong>${property.address}</strong><br/>
+              Score: ${property.snap_score || "N/A"}
+            </div>
+          `);
+
+          marker.on("click", () => {
+            if (onPropertyClick) {
+              onPropertyClick(property.id);
+            }
+          });
+
+          markerClusterGroupRef.current!.addLayer(marker);
+          markersRef.current.push(marker);
+        }
+      });
+
+      mapRef.current.addLayer(markerClusterGroupRef.current);
+
+      // Fit bounds if we have markers
+      if (markersRef.current.length > 0) {
+        const group = L.featureGroup(markersRef.current);
+        mapRef.current.fitBounds(group.getBounds().pad(0.1));
+      }
+    } else {
+      // Heatmap mode - simple density visualization
+      heatLayerRef.current = L.layerGroup();
+      
+      properties.forEach(property => {
+        if (property.latitude && property.longitude && mapRef.current) {
+          const intensity = (property.snap_score || 0) / 100;
+          const circle = L.circle(
+            [property.latitude, property.longitude],
+            {
+              radius: 100,
+              fillColor: intensity > 0.8 ? "#ef4444" : intensity > 0.6 ? "#f97316" : "#22c55e",
+              color: "transparent",
+              fillOpacity: 0.4,
+            }
+          );
+          
+          heatLayerRef.current!.addLayer(circle);
+        }
+      });
+
+      mapRef.current.addLayer(heatLayerRef.current);
+    }
+  }, [properties, onPropertyClick, viewMode]);
 
   return (
     <div className="relative h-full z-0">

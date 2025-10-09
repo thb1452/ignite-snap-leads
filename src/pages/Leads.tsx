@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { LeadsMap } from "@/components/leads/LeadsMap";
 import { FilterBar } from "@/components/leads/FilterBar";
 import { FilterControls } from "@/components/leads/FilterControls";
@@ -34,6 +35,8 @@ interface Property {
   updated_at: string | null;
   violations: Violation[];
 }
+
+import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 
 function Leads() {
   const { toast } = useToast();
@@ -205,8 +208,8 @@ function Leads() {
         </div>
 
         {/* Property List - Right Side */}
-        <div className="w-[40%] flex flex-col">
-          <ScrollArea className="flex-1">
+        <div className="w-[40%] flex flex-col relative">
+          <div className="flex-1 overflow-hidden">
             {loading ? (
               <div className="p-8 text-center text-muted-foreground">
                 Loading properties...
@@ -216,19 +219,14 @@ function Leads() {
                 No properties found
               </div>
             ) : (
-              <div>
-                {filteredProperties.map(property => (
-                  <PropertyCard
-                    key={property.id}
-                    property={property}
-                    isSelected={selectedIds.includes(property.id)}
-                    onToggleSelect={handleToggleSelect}
-                    onClick={() => setSelectedPropertyId(property.id)}
-                  />
-                ))}
-              </div>
+              <VirtualizedPropertyList
+                properties={filteredProperties}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                onPropertyClick={setSelectedPropertyId}
+              />
             )}
-          </ScrollArea>
+          </div>
 
           <BulkActionBar
             selectedCount={selectedIds.length}

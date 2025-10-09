@@ -63,7 +63,9 @@ export type Database = {
           created_at: string
           delta: number
           id: string
+          job_id_extracted: string | null
           meta: Json | null
+          property_id_extracted: string | null
           reason: string
           user_id: string
         }
@@ -71,7 +73,9 @@ export type Database = {
           created_at?: string
           delta: number
           id?: string
+          job_id_extracted?: string | null
           meta?: Json | null
+          property_id_extracted?: string | null
           reason: string
           user_id: string
         }
@@ -79,7 +83,9 @@ export type Database = {
           created_at?: string
           delta?: number
           id?: string
+          job_id_extracted?: string | null
           meta?: Json | null
+          property_id_extracted?: string | null
           reason?: string
           user_id?: string
         }

@@ -9,6 +9,7 @@ import Leads from "./pages/Leads";
 import { Lists } from "./pages/Lists";
 import { Settings } from "./pages/Settings";
 import JobDetail from "./pages/JobDetail";
+import Jobs from "./pages/Jobs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,11 @@ const App = () => (
           <Route path="/settings" element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="/jobs" element={
+            <ProtectedRoute>
+              <Jobs />
             </ProtectedRoute>
           } />
           <Route path="/jobs/:id" element={

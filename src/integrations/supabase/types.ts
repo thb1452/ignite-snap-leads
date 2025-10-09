@@ -527,6 +527,33 @@ export type Database = {
           },
         ]
       }
+      skiptrace_consent_log: {
+        Row: {
+          consented_at: string
+          created_at: string
+          id: string
+          ip_hash: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          consented_at?: string
+          created_at?: string
+          id?: string
+          ip_hash: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          consented_at?: string
+          created_at?: string
+          id?: string
+          ip_hash?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       skiptrace_jobs: {
         Row: {
           counts: Json | null

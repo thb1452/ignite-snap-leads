@@ -12,29 +12,27 @@ export async function fetchPropertiesByBBox(
   bbox: [number, number, number, number],
   filters: BBoxFilters = {},
   page: number = 1,
-  pageSize: number = 100
+  pageSize: number = 50
 ) {
-  // For now, use client-side bbox filtering until we create the DB function
-  let query = supabase
-    .from("properties")
-    .select("*")
-    .gte("latitude", bbox[1])
-    .lte("latitude", bbox[3])
-    .gte("longitude", bbox[0])
-    .lte("longitude", bbox[2]);
-
-  if (filters.scoreGte) {
-    query = query.gte("snap_score", filters.scoreGte);
-  }
-
-  query = query
-    .order("snap_score", { ascending: false, nullsFirst: false })
-    .range((page - 1) * pageSize, page * pageSize - 1);
-
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc("fn_properties_by_bbox", {
+    p_west: bbox[0],
+    p_south: bbox[1],
+    p_east: bbox[2],
+    p_north: bbox[3],
+    p_score_gte: filters.scoreGte ?? null,
+    p_last_seen_lte: filters.lastSeenLte ?? null,
+    p_limit: pageSize,
+    p_offset: (page - 1) * pageSize,
+  });
 
   if (error) throw error;
-  return data ?? [];
+  
+  const result = data as any; // PostGIS function returns jsonb
+  return {
+    items: result?.items ?? [],
+    total: result?.total ?? 0,
+    bbox: result?.bbox ?? bbox,
+  };
 }
 
 export async function fetchPropertiesPaged(

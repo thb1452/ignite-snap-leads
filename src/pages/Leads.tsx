@@ -37,6 +37,7 @@ interface Property {
 }
 
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
+import { createBulkSkipTraceJob } from "@/services/skiptraceJobs";
 
 function Leads() {
   const { toast } = useToast();
@@ -168,12 +169,23 @@ function Leads() {
     );
   };
 
-  const handleSkipTrace = () => {
-    toast({
-      title: "Skip Trace Started",
-      description: `Processing ${selectedIds.length} properties...`,
-    });
-    // TODO: Implement bulk skip trace
+  const handleSkipTrace = async () => {
+    if (selectedIds.length === 0) return;
+    
+    try {
+      await createBulkSkipTraceJob(selectedIds);
+      toast({
+        title: "Skip Trace Started",
+        description: `Processing ${selectedIds.length} properties...`,
+      });
+      setSelectedIds([]);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start skip trace",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

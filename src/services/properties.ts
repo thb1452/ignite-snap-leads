@@ -1,6 +1,42 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { LeadFilters } from "@/schemas";
 
+export interface BBoxFilters {
+  bbox?: [number, number, number, number]; // [west, south, east, north]
+  scoreGte?: number;
+  lastSeenLte?: number; // days
+  source?: string;
+}
+
+export async function fetchPropertiesByBBox(
+  bbox: [number, number, number, number],
+  filters: BBoxFilters = {},
+  page: number = 1,
+  pageSize: number = 100
+) {
+  // For now, use client-side bbox filtering until we create the DB function
+  let query = supabase
+    .from("properties")
+    .select("*")
+    .gte("latitude", bbox[1])
+    .lte("latitude", bbox[3])
+    .gte("longitude", bbox[0])
+    .lte("longitude", bbox[2]);
+
+  if (filters.scoreGte) {
+    query = query.gte("snap_score", filters.scoreGte);
+  }
+
+  query = query
+    .order("snap_score", { ascending: false, nullsFirst: false })
+    .range((page - 1) * pageSize, page * pageSize - 1);
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function fetchPropertiesPaged(
   page: number,
   pageSize: number,

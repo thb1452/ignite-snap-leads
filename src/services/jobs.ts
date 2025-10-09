@@ -194,3 +194,80 @@ export async function getJobLedger(jobId: string) {
   if (error) throw error;
   return data ?? [];
 }
+
+export async function rerunFailedJob(jobId: string) {
+  const { data, error } = await supabase.functions.invoke('rerun-failed', {
+    body: { job_id: jobId },
+  });
+
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || 'Failed to rerun job');
+  return data;
+}
+
+export async function exportJobCSV(jobId: string) {
+  // Get all success results
+  const { data: results, error } = await supabase
+    .from('properties')
+    .select(`
+      id,
+      address,
+      city,
+      state,
+      zip,
+      snap_score
+    `)
+    .in('id', (await getJob(jobId)).property_ids);
+
+  if (error) throw error;
+
+  // Get contacts for these properties
+  const propertyIds = results?.map(r => r.id) ?? [];
+  const { data: contacts } = await supabase
+    .from('property_contacts')
+    .select('property_id, phone, email, name')
+    .in('property_id', propertyIds);
+
+  // Group contacts by property
+  const contactsByProp = (contacts ?? []).reduce((acc, c) => {
+    if (!acc[c.property_id]) acc[c.property_id] = [];
+    acc[c.property_id].push(c);
+    return acc;
+  }, {} as Record<string, any[]>);
+
+  // Filter to only properties with contacts
+  const successResults = (results ?? []).filter(r => contactsByProp[r.id]?.length > 0);
+
+  // Build CSV
+  const headers = ['Address', 'City', 'State', 'Zip', 'Snap Score', 'Phones', 'Emails', 'Contact Names'];
+  const rows = successResults.map(r => {
+    const contacts = contactsByProp[r.id] || [];
+    const phones = contacts.map(c => c.phone).filter(Boolean).join('; ');
+    const emails = contacts.map(c => c.email).filter(Boolean).join('; ');
+    const names = contacts.map(c => c.name).filter(Boolean).join('; ');
+    
+    return [
+      r.address,
+      r.city,
+      r.state,
+      r.zip,
+      r.snap_score || '',
+      phones,
+      emails,
+      names,
+    ];
+  });
+
+  const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+  
+  // Trigger download
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `job-${jobId.slice(0, 8)}-results.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

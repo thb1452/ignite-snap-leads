@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { JobHeader } from "@/components/jobs/JobHeader";
 import { JobProgress } from "@/components/jobs/JobProgress";
@@ -15,25 +16,72 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'all' | 'success' | 'no_match' | 'vendor_error' | 'timeout'>('all');
 
-  // Fetch job with auto-refresh while processing
+  // Fetch job (realtime will update it)
   const jobQuery = useQuery({
     queryKey: ['job', id],
     queryFn: () => getJob(id!),
-    refetchInterval: (query) => {
-      return query.state.data?.finished_at ? false : 2500;
-    },
     enabled: !!id,
   });
 
-  // Fetch events with auto-refresh
+  // Realtime subscription for job updates
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`job_${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'skiptrace_jobs',
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          queryClient.invalidateQueries({ queryKey: ['job', id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, queryClient]);
+
+  // Fetch events (realtime will update)
   const eventsQuery = useQuery({
     queryKey: ['job-events', id],
     queryFn: () => getJobEvents(id!),
-    refetchInterval: (jobQuery.data && !jobQuery.data.finished_at) ? 3000 : false,
     enabled: !!id,
   });
+
+  // Realtime subscription for events
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`events_${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'events',
+          filter: `job_id=eq.${id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['job-events', id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, queryClient]);
 
   // Infinite query for results with filtering
   const resultsQuery = useInfiniteQuery({

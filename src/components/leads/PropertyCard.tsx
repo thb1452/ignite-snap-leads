@@ -5,6 +5,7 @@ import { MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { PropertyContactChips } from "./PropertyContactChips";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
+import { SkipTraceChip } from "./SkipTraceChip";
 
 interface PropertyCardProps {
   property: {
@@ -64,10 +65,9 @@ export function PropertyCard({
               </h3>
             </div>
             <div className="flex items-center gap-2">
-              <PropertyContactChips
-                contactCount={contacts.length}
-                hasPhone={hasPhone}
-                hasEmail={hasEmail}
+              <SkipTraceChip
+                phoneCount={contacts.filter(c => c.phone).length}
+                emailCount={contacts.filter(c => c.email).length}
               />
               <Badge
                 className={`${getScoreColor(property.snap_score)} text-white shrink-0`}

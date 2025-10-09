@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { PropertyContactChips } from "./PropertyContactChips";
+import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 
 interface PropertyCardProps {
   property: {
@@ -25,6 +27,8 @@ export function PropertyCard({
   onToggleSelect,
   onClick
 }: PropertyCardProps) {
+  const { data: contacts = [] } = usePropertyContacts(property.id);
+  
   const getScoreColor = (score: number | null) => {
     if (!score) return "bg-muted";
     if (score >= 80) return "bg-destructive";
@@ -35,6 +39,9 @@ export function PropertyCard({
   const lastSeen = property.updated_at
     ? formatDistanceToNow(new Date(property.updated_at), { addSuffix: false })
     : "Unknown";
+
+  const hasPhone = contacts.some(c => c.phone);
+  const hasEmail = contacts.some(c => c.email);
 
   return (
     <div
@@ -51,14 +58,23 @@ export function PropertyCard({
         
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
-            <h3 className="font-semibold text-base">
-              {property.address}
-            </h3>
-            <Badge
-              className={`${getScoreColor(property.snap_score)} text-white shrink-0`}
-            >
-              {property.snap_score || 0}
-            </Badge>
+            <div className="flex-1">
+              <h3 className="font-semibold text-base">
+                {property.address}
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <PropertyContactChips
+                contactCount={contacts.length}
+                hasPhone={hasPhone}
+                hasEmail={hasEmail}
+              />
+              <Badge
+                className={`${getScoreColor(property.snap_score)} text-white shrink-0`}
+              >
+                {property.snap_score || 0}
+              </Badge>
+            </div>
           </div>
 
           <p className="text-sm text-muted-foreground mb-2">

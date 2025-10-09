@@ -1,217 +1,207 @@
-// deno-lint-ignore-file no-explicit-any
+// Production-hardened bulk skip-trace with atomic transactions & refunds
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
-type BulkReq =
-  | { list_id: string; limit?: number; concurrency?: number; delay_ms?: number; resume_run_id?: string | null }
-  | { property_ids: string[]; concurrency?: number; delay_ms?: number };
-
 const EDGE_BASE = Deno.env.get("SUPABASE_URL") || "";
+const MAX_CONCURRENT = 5;
+const DELAY_MS = 400;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
 };
 
 Deno.serve(async (req: Request): Promise<Response> => {
-  const url = new URL(req.url);
-
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  if (req.method === "GET" && url.pathname.endsWith("/status")) {
-    return statusHandler(req);
-  }
-
-  if (req.method === "POST") {
-    return startHandler(req);
-  }
-
-  return new Response(JSON.stringify({ ok: false, error: "Not found" }), { status: 404, headers: corsHeaders });
-});
-
-async function startHandler(req: Request): Promise<Response> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  // auth
+  // Auth
   const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return resp(401, { ok: false, error: "Unauthorized" });
+  if (!authHeader?.startsWith("Bearer ")) {
+    return resp(401, { ok: false, error: "Unauthorized" });
+  }
   const token = authHeader.replace("Bearer ", "");
   const { data: auth } = await supabase.auth.getUser(token);
-  const user = auth.user;
-  if (!user) return resp(401, { ok: false, error: "Unauthorized" });
+  if (!auth?.user) return resp(401, { ok: false, error: "Unauthorized" });
 
-  const body = (await req.json()) as BulkReq;
-
-  // 1) Resolve property ids
-  let propertyIds: string[] = [];
-  let fromListId: string | null = null;
-
-  if ("property_ids" in body && Array.isArray(body.property_ids)) {
-    propertyIds = [...new Set(body.property_ids)];
-  } else if ("list_id" in body && body.list_id) {
-    fromListId = body.list_id;
-    const limit = "limit" in body && body.limit ? body.limit : 5000;
-    const { data, error } = await supabase
-      .rpc("fn_properties_untraced_in_list", { p_list_id: fromListId, p_limit: limit });
-    if (error) {
-      console.error("[bulk] Error loading list properties:", error);
-      return resp(400, { ok: false, error: "Failed to load list properties" });
+  try {
+    const body = await req.json() as { property_ids: string[]; job_key?: string };
+    
+    if (!Array.isArray(body.property_ids) || body.property_ids.length === 0) {
+      return resp(400, { ok: false, error: "property_ids required" });
     }
-    propertyIds = (data as { property_id: string }[]).map(r => r.property_id);
-  } else {
-    return resp(400, { ok: false, error: "Provide list_id or property_ids[]" });
+
+    const propertyIds = [...new Set(body.property_ids)];
+    
+    // Create idempotency key
+    const sortedIds = [...propertyIds].sort();
+    const jobKey = body.job_key || `${auth.user.id}:${sortedIds.join(",")}`;
+
+    // Check for existing job in last 10 minutes (idempotency)
+    const { data: existingJob } = await supabase
+      .from("skiptrace_jobs")
+      .select("*")
+      .eq("job_key", jobKey)
+      .gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .maybeSingle();
+
+    if (existingJob) {
+      console.log("[bulk] Idempotent request, returning existing job:", existingJob.id);
+      return resp(200, {
+        ok: true,
+        job_id: existingJob.id,
+        total: propertyIds.length,
+        existing: true,
+      });
+    }
+
+    // Create job record
+    const { data: job, error: jobError } = await supabase
+      .from("skiptrace_jobs")
+      .insert({
+        user_id: auth.user.id,
+        property_ids: propertyIds,
+        job_key: jobKey,
+        status: "queued",
+        counts: { total: propertyIds.length, succeeded: 0, failed: 0 },
+      })
+      .select()
+      .single();
+
+    if (jobError || !job) {
+      console.error("[bulk] Failed to create job:", jobError);
+      return resp(500, { ok: false, error: "Failed to create job" });
+    }
+
+    // Atomic credit charge
+    const { error: chargeError } = await supabase.rpc("fn_charge_credits", {
+      p_property_ids: propertyIds,
+      p_job_id: job.id,
+    });
+
+    if (chargeError) {
+      // Delete job if charge failed
+      await supabase.from("skiptrace_jobs").delete().eq("id", job.id);
+      
+      if (chargeError.message.includes("INSUFFICIENT_CREDITS")) {
+        return resp(402, { ok: false, error: "Insufficient credits" });
+      }
+      console.error("[bulk] Credit charge failed:", chargeError);
+      return resp(500, { ok: false, error: "Failed to charge credits" });
+    }
+
+    // Launch worker in background
+    EdgeRuntime.waitUntil(runWorker({ jobId: job.id, token, propertyIds }));
+
+    return resp(200, {
+      ok: true,
+      job_id: job.id,
+      total: propertyIds.length,
+    });
+  } catch (error: any) {
+    console.error("[bulk] error:", error);
+    return resp(500, { ok: false, error: error.message || "Internal error" });
   }
-
-  if (propertyIds.length === 0) {
-    return resp(200, { ok: true, run_id: null, total: 0, queued: 0, est_credits: 0 });
-  }
-
-  const concurrency = Math.min(Math.max(("concurrency" in body ? (body as any).concurrency : 3) || 3, 1), 6);
-  const delayMs = Math.min(Math.max(("delay_ms" in body ? (body as any).delay_ms : 350) || 350, 100), 1500);
-
-  // 2) Create run
-  const runId = (body as any).resume_run_id ?? `bulk_${new Date().toISOString().slice(0,19).replace(/[:T]/g,"")}_${cryptoRandom(4)}`;
-  const settings = { concurrency, delayMs, fromListId, total: propertyIds.length };
-
-  // idempotent upsert of run
-  await supabase.from("skiptrace_bulk_runs").upsert({
-    run_id: runId,
-    user_id: user.id,
-    list_id: fromListId,
-    total: propertyIds.length,
-    queued: 0,
-    settings,
-  });
-
-  // 3) Insert queued items (ignore if exists)
-  const items = propertyIds.map(pid => ({ run_id: runId, property_id: pid, status: "queued" }));
-  // chunk inserts (500 max)
-  for (let i = 0; i < items.length; i += 500) {
-    await supabase.from("skiptrace_bulk_items").upsert(items.slice(i, i + 500), { ignoreDuplicates: true });
-  }
-
-  // 4) Launch workers (fire-and-forget)
-  queueMicrotask(() => runWorker({ runId, token, concurrency, delayMs }));
-
-  return resp(200, {
-    ok: true,
-    run_id: runId,
-    total: propertyIds.length,
-    queued: propertyIds.length,
-    started_at: new Date().toISOString(),
-    est_credits: propertyIds.length,
-    progress_url: `/skiptrace-bulk/status?run_id=${runId}`,
-  });
-}
-
-async function statusHandler(req: Request): Promise<Response> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, serviceKey);
-
-  const url = new URL(req.url);
-  const runId = url.searchParams.get("run_id");
-  if (!runId) return resp(400, { ok: false, error: "run_id required" });
-
-  const { data: run } = await supabase.from("skiptrace_bulk_runs").select("*").eq("run_id", runId).single();
-  const { data: items } = await supabase
-    .from("skiptrace_bulk_items")
-    .select("status")
-    .eq("run_id", runId);
-
-  const byStatus: Record<string, number> = {};
-  (items ?? []).forEach((r: any) => {
-    byStatus[r.status] = (byStatus[r.status] || 0) + 1;
-  });
-
-  return resp(200, {
-    ok: true,
-    run: run ?? null,
-    by_status: byStatus,
-    finished: !!run?.finished_at,
-  });
-}
+});
 
 // -------- Worker ----------
-async function runWorker(opts: { runId: string; token: string; concurrency: number; delayMs: number }) {
+async function runWorker(opts: { jobId: string; token: string; propertyIds: string[] }) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  const { runId, token, concurrency, delayMs } = opts;
+  const { jobId, token, propertyIds } = opts;
 
-  const nextBatch = async () => {
-    const { data: rows } = await supabase
-      .from("skiptrace_bulk_items")
-      .select("property_id")
-      .eq("run_id", runId)
-      .eq("status", "queued")
-      .limit(concurrency);
+  // Update status to processing
+  await supabase
+    .from("skiptrace_jobs")
+    .update({ status: "processing", started_at: new Date().toISOString() })
+    .eq("id", jobId);
 
-    return (rows ?? []).map((r: any) => r.property_id);
-  };
+  const succeeded: string[] = [];
+  const failed: string[] = [];
+  const noMatch: string[] = [];
 
-  while (true) {
-    const batch = await nextBatch();
-    if (batch.length === 0) {
-      await supabase.from("skiptrace_bulk_runs").update({ finished_at: new Date().toISOString() }).eq("run_id", runId);
-      break;
-    }
-
-    // mark processing
-    await supabase
-      .from("skiptrace_bulk_items")
-      .update({ status: "processing" })
-      .in("property_id", batch)
-      .eq("run_id", runId);
-
-    const startTs = Date.now();
+  // Process in batches
+  for (let i = 0; i < propertyIds.length; i += MAX_CONCURRENT) {
+    const batch = propertyIds.slice(i, i + MAX_CONCURRENT);
+    
     const results = await Promise.allSettled(
-      batch.map((pid, idx) => callSingleSkipTrace(pid, token, delayMs * idx))
+      batch.map((pid, idx) => 
+        callSingleSkipTrace(pid, token, DELAY_MS * idx)
+      )
     );
 
-    for (let i = 0; i < batch.length; i++) {
-      const pid = batch[i];
-      const r = results[i];
-      const duration = Date.now() - startTs;
+    for (let j = 0; j < batch.length; j++) {
+      const pid = batch[j];
+      const r = results[j];
 
       if (r.status === "fulfilled") {
-        const { ok, noHit, msg } = r.value;
+        const { ok, noHit } = r.value;
         if (ok && !noHit) {
-          await supabase.from("skiptrace_bulk_items").update({
-            status: "success", message: msg, duration_ms: duration
-          }).eq("run_id", runId).eq("property_id", pid);
-          await supabase.rpc("fn_bulk_run_inc", { p_run_id: runId, p_field: "succeeded" });
+          succeeded.push(pid);
         } else if (ok && noHit) {
-          await supabase.from("skiptrace_bulk_items").update({
-            status: "no_hit", message: msg, duration_ms: duration
-          }).eq("run_id", runId).eq("property_id", pid);
+          noMatch.push(pid);
         } else {
-          await supabase.from("skiptrace_bulk_items").update({
-            status: "error", message: msg, duration_ms: duration
-          }).eq("run_id", runId).eq("property_id", pid);
-          await supabase.rpc("fn_bulk_run_inc", { p_run_id: runId, p_field: "failed" });
+          failed.push(pid);
         }
       } else {
-        await supabase.from("skiptrace_bulk_items").update({
-          status: "error", message: String(r.reason), duration_ms: duration
-        }).eq("run_id", runId).eq("property_id", pid);
-        await supabase.rpc("fn_bulk_run_inc", { p_run_id: runId, p_field: "failed" });
+        failed.push(pid);
       }
     }
 
+    // Update job counts progressively
+    await supabase
+      .from("skiptrace_jobs")
+      .update({
+        counts: {
+          total: propertyIds.length,
+          succeeded: succeeded.length,
+          failed: failed.length + noMatch.length,
+        },
+      })
+      .eq("id", jobId);
+
     await sleep(200);
   }
+
+  // Refund for failures and no-matches
+  const toRefund = [...failed, ...noMatch];
+  if (toRefund.length > 0) {
+    await supabase.rpc("fn_refund_credits", {
+      p_property_ids: toRefund,
+      p_job_id: jobId,
+      p_reason: "skiptrace_refund",
+    });
+  }
+
+  // Mark job as complete
+  await supabase
+    .from("skiptrace_jobs")
+    .update({
+      status: "completed",
+      finished_at: new Date().toISOString(),
+      counts: {
+        total: propertyIds.length,
+        succeeded: succeeded.length,
+        failed: failed.length + noMatch.length,
+      },
+    })
+    .eq("id", jobId);
+
+  console.log(`[bulk] Job ${jobId} complete: ${succeeded.length} succeeded, ${toRefund.length} refunded`);
 }
 
 async function callSingleSkipTrace(propertyId: string, token: string, waitMs: number) {
   if (waitMs > 0) await sleep(waitMs);
+  
   const endpoint = `${EDGE_BASE}/functions/v1/skiptrace`;
   const res = await fetch(endpoint, {
     method: "POST",
@@ -223,13 +213,14 @@ async function callSingleSkipTrace(propertyId: string, token: string, waitMs: nu
   if (res.ok && json?.ok) {
     const contacts = json.contacts ?? [];
     const noHit = !contacts || contacts.length === 0;
-    return { ok: true, noHit, msg: noHit ? "no contacts" : `contacts: ${contacts.length}` };
+    return { ok: true, noHit };
   }
-  return { ok: false, noHit: false, msg: json?.error || `HTTP ${res.status}` };
+  return { ok: false, noHit: false };
 }
 
-function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
-function cryptoRandom(len = 4) { return crypto.getRandomValues(new Uint8Array(len)).reduce((a,b)=>a+((b%36).toString(36)), ""); }
+function sleep(ms: number) {
+  return new Promise(r => setTimeout(r, ms));
+}
 
 function resp(status: number, body: any) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders });

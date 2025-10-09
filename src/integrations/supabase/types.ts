@@ -952,9 +952,17 @@ export type Database = {
         Args: { p_field: string; p_run_id: string }
         Returns: undefined
       }
+      fn_charge_credits: {
+        Args: { p_job_id: string; p_property_ids: string[] }
+        Returns: Json
+      }
       fn_consume_credit: {
         Args: { p_meta?: Json; p_reason: string }
         Returns: number
+      }
+      fn_job_status: {
+        Args: { p_job_id: string }
+        Returns: Json
       }
       fn_properties_by_bbox: {
         Args: {
@@ -974,6 +982,10 @@ export type Database = {
         Returns: {
           property_id: string
         }[]
+      }
+      fn_refund_credits: {
+        Args: { p_job_id: string; p_property_ids: string[]; p_reason: string }
+        Returns: Json
       }
       geography: {
         Args: { "": string } | { "": unknown }

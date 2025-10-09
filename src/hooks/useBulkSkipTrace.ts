@@ -12,9 +12,18 @@ export function useBulkSkipTrace() {
       return result;
     },
     onSuccess: (data: any) => {
-      const jobId = data.job_id || data.id;
-      const total = data.total || data.property_ids?.length || 0;
+      const jobId = data.job_id;
+      const total = data.total || 0;
+      const isExisting = data.existing || false;
       
+      if (isExisting) {
+        toast({
+          title: "Job already running",
+          description: `This skip trace is already in progress`,
+        });
+        return;
+      }
+
       toast({
         title: "Skip trace started",
         description: `Processing ${total} properties...`,
@@ -28,10 +37,11 @@ export function useBulkSkipTrace() {
           if (job.finished_at) {
             clearInterval(pollInterval);
             
-            const refunded = (job.counts?.failed || 0) + (job.counts?.total || 0) - (job.counts?.succeeded || 0);
-            const description = refunded > 0
-              ? `Found contacts for ${job.counts?.succeeded || 0} properties. ${refunded} credits refunded.`
-              : `Found contacts for ${job.counts?.succeeded || 0} properties`;
+            const succeeded = job.counts?.succeeded || 0;
+            const failed = job.counts?.failed || 0;
+            const description = failed > 0
+              ? `Found contacts for ${succeeded} properties. ${failed} credits refunded.`
+              : `Found contacts for ${succeeded} properties`;
             
             toast({
               title: "Skip trace complete",
@@ -47,7 +57,7 @@ export function useBulkSkipTrace() {
           clearInterval(pollInterval);
           console.error("Error polling job:", error);
         }
-      }, 2500); // Poll every 2.5 seconds
+      }, 2500);
 
       // Stop polling after 5 minutes
       setTimeout(() => clearInterval(pollInterval), 300000);

@@ -7,16 +7,17 @@ export async function getUserCredits(): Promise<number> {
     return 0;
   }
 
+  // Use the v_user_credits view instead of user_profiles
   const { data, error } = await supabase
-    .from("user_profiles")
-    .select("credits")
+    .from("v_user_credits")
+    .select("balance")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (error) {
+  if (error && error.code !== "PGRST116") {
     console.error("Error fetching user credits:", error);
     return 0;
   }
 
-  return data?.credits ?? 0;
+  return data?.balance ?? 0;
 }

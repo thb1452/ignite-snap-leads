@@ -1,15 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Phone, Mail, Zap, ListPlus, Download } from "lucide-react";
-import { LeadsTable } from "@/components/leads/LeadsTable";
+import { LeadsMap } from "@/components/leads/LeadsMap";
+import { FilterBar } from "@/components/leads/FilterBar";
+import { PropertyCard } from "@/components/leads/PropertyCard";
+import { BulkActionBar } from "@/components/leads/BulkActionBar";
+import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
-import { motion, AnimatePresence } from "framer-motion";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Violation {
   id: string;
@@ -21,88 +19,43 @@ interface Violation {
   case_id: string | null;
 }
 
-interface LeadActivity {
-  id: string;
-  property_id: string;
-  status: string;
-  notes: string | null;
-  created_at: string;
-}
-
-interface PropertyWithViolations {
+interface Property {
   id: string;
   address: string;
   city: string;
   state: string;
   zip: string;
+  latitude: number | null;
+  longitude: number | null;
   snap_score: number | null;
   snap_insight: string | null;
   photo_url: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  created_at: string;
-  updated_at: string;
+  updated_at: string | null;
   violations: Violation[];
-  latest_activity?: LeadActivity | null;
 }
 
-interface Filters {
-  search: string;
-  cities: string[];
-  status: string;
-  snapScoreRange: [number, number];
-  listId: string;
-}
-
-interface LeadList {
-  id: string;
-  name: string;
-}
-
-export function Leads() {
-  const [properties, setProperties] = useState<PropertyWithViolations[]>([]);
-  const [filteredProperties, setFilteredProperties] = useState<PropertyWithViolations[]>([]);
-  const [availableCities, setAvailableCities] = useState<string[]>([]);
-  const [userLists, setUserLists] = useState<LeadList[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [todayOutreachCount, setTodayOutreachCount] = useState(0);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [addToListOpen, setAddToListOpen] = useState(false);
-  const [filters, setFilters] = useState<Filters>({
-    search: "",
-    cities: [],
-    status: "",
-    snapScoreRange: [0, 100],
-    listId: "",
-  });
+export default function Leads() {
   const { toast } = useToast();
+  
+  // Data state
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const fetchTodayOutreach = async () => {
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [snapScoreMin, setSnapScoreMin] = useState(0);
+  const [lastSeenDays, setLastSeenDays] = useState<number | null>(null);
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+
+  // UI state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [showAddToListDialog, setShowAddToListDialog] = useState(false);
+
+  // Fetch properties
+  async function fetchProperties() {
+    setLoading(true);
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const { data, error } = await supabase
-        .from("lead_activity")
-        .select("id", { count: "exact" })
-        .gte("created_at", today.toISOString());
-
-      if (error) throw error;
-      setTodayOutreachCount(data?.length ?? 0);
-    } catch (error) {
-      console.error("Error fetching today's outreach:", error);
-    }
-  };
-
-  useEffect(() => {
-    fetchProperties();
-    fetchUserLists();
-    fetchTodayOutreach();
-  }, []);
-
-  const fetchProperties = async () => {
-    try {
-      setLoading(true);
       const { data: propertiesData, error: propertiesError } = await supabase
         .from("properties")
         .select("*")
@@ -110,20 +63,12 @@ export function Leads() {
 
       if (propertiesError) throw propertiesError;
 
-      // Fetch violations for all properties
+      // Fetch violations
       const { data: violationsData, error: violationsError } = await supabase
         .from("violations")
         .select("*");
 
       if (violationsError) throw violationsError;
-
-      // Fetch latest activity for all properties
-      const { data: activitiesData, error: activitiesError } = await supabase
-        .from("lead_activity")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (activitiesError) throw activitiesError;
 
       // Group violations by property_id
       const violationsByProperty = (violationsData || []).reduce((acc, violation) => {
@@ -136,27 +81,13 @@ export function Leads() {
         return acc;
       }, {} as Record<string, Violation[]>);
 
-      // Get latest activity by property_id
-      const latestActivityByProperty = (activitiesData || []).reduce((acc, activity) => {
-        if (activity.property_id && !acc[activity.property_id]) {
-          acc[activity.property_id] = activity;
-        }
-        return acc;
-      }, {} as Record<string, LeadActivity>);
-
-      // Combine properties with their violations and latest activity
+      // Combine properties with their violations
       const propertiesWithViolations = (propertiesData || []).map(property => ({
         ...property,
         violations: violationsByProperty[property.id] || [],
-        latest_activity: latestActivityByProperty[property.id] || null,
       }));
 
       setProperties(propertiesWithViolations);
-      setFilteredProperties(propertiesWithViolations);
-      
-      // Extract unique cities
-      const uniqueCities = [...new Set(propertiesData?.map(p => p.city).filter(Boolean) || [])];
-      setAvailableCities(uniqueCities.sort());
     } catch (error) {
       console.error("Error fetching properties:", error);
       toast({
@@ -167,367 +98,157 @@ export function Leads() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchUserLists = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("lead_lists")
-        .select("id, name")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setUserLists(data || []);
-    } catch (error) {
-      console.error("Error fetching lists:", error);
-    }
-  };
+  }
 
   useEffect(() => {
-    applyFilters();
-  }, [filters, properties]);
+    fetchProperties();
+  }, []);
 
-  const applyFilters = async () => {
-    let filtered = [...properties];
-
-    // List filter - needs to fetch list properties
-    if (filters.listId) {
-      try {
-        const { data: listPropertiesData, error } = await supabase
-          .from("list_properties")
-          .select("property_id")
-          .eq("list_id", filters.listId);
-
-        if (error) throw error;
-
-        const propertyIdsInList = listPropertiesData?.map((lp) => lp.property_id) || [];
-        filtered = filtered.filter(p => propertyIdsInList.includes(p.id));
-      } catch (error) {
-        console.error("Error filtering by list:", error);
+  // Filter properties
+  const filteredProperties = useMemo(() => {
+    return properties.filter(property => {
+      // Search filter
+      if (searchQuery) {
+        const search = searchQuery.toLowerCase();
+        if (
+          !property.address.toLowerCase().includes(search) &&
+          !property.city.toLowerCase().includes(search) &&
+          !property.zip.includes(search)
+        ) {
+          return false;
+        }
       }
-    }
 
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        p =>
-          p.address.toLowerCase().includes(searchLower) ||
-          p.city.toLowerCase().includes(searchLower) ||
-          p.zip.includes(filters.search)
-      );
-    }
+      // Snap score filter
+      if (snapScoreMin > 0 && (property.snap_score || 0) < snapScoreMin) {
+        return false;
+      }
 
-    if (filters.cities.length > 0) {
-      filtered = filtered.filter(p => filters.cities.includes(p.city));
-    }
+      // Last seen filter
+      if (lastSeenDays !== null && property.updated_at) {
+        const daysSince = Math.floor(
+          (Date.now() - new Date(property.updated_at).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (daysSince > lastSeenDays) {
+          return false;
+        }
+      }
 
-    if (filters.status) {
-      // We'll implement status filtering when we add violation counts
-    }
+      // City filter
+      if (selectedCities.length > 0 && !selectedCities.includes(property.city)) {
+        return false;
+      }
 
-    // SnapScore filter
-    filtered = filtered.filter(
-      p =>
-        p.snap_score !== null &&
-        p.snap_score >= filters.snapScoreRange[0] &&
-        p.snap_score <= filters.snapScoreRange[1]
-    );
-
-    setFilteredProperties(filtered);
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      search: "",
-      cities: [],
-      status: "",
-      snapScoreRange: [0, 100],
-      listId: "",
+      return true;
     });
+  }, [properties, searchQuery, snapScoreMin, lastSeenDays, selectedCities]);
+
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setSnapScoreMin(0);
+    setLastSeenDays(null);
+    setSelectedCities([]);
   };
 
-  const toggleCity = (city: string) => {
-    setFilters(prev => ({
-      ...prev,
-      cities: prev.cities.includes(city)
-        ? prev.cities.filter(c => c !== city)
-        : [...prev.cities, city]
-    }));
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
-  // Revenue-focused metrics
-  const hotLeads = filteredProperties.filter(p => (p.snap_score ?? 0) >= 80).length;
-  const reachableLeads = filteredProperties.filter(p => (p.snap_score ?? 0) >= 70 && p.violations.length > 0).length;
-  const multipleViolations = filteredProperties.filter(p => p.violations.length >= 3).length;
-  const avgDaysOpen = filteredProperties.length > 0
-    ? Math.round(
-        filteredProperties.reduce((sum, p) => {
-          const maxDays = Math.max(...(p.violations.map(v => v.days_open ?? 0)));
-          return sum + maxDays;
-        }, 0) / filteredProperties.length
-      )
-    : 0;
+  const handleToggleSelectAll = () => {
+    setSelectedIds(prev =>
+      prev.length === filteredProperties.length ? [] : filteredProperties.map(p => p.id)
+    );
+  };
+
+  const handleSkipTrace = () => {
+    toast({
+      title: "Skip Trace Started",
+      description: `Processing ${selectedIds.length} properties...`,
+    });
+    // TODO: Implement bulk skip trace
+  };
 
   return (
-    <div className="flex">
-      {/* Premium Filters Sidebar */}
-      <aside className="w-80 hidden lg:block flex-shrink-0">
-        <div className="m-6 rounded-2xl bg-white shadow-card p-4 space-y-4">
-          <div className="text-sm font-medium text-ink-700 font-ui">Filters</div>
-          
-          {/* Search */}
-          <Input
-            className="w-full rounded-xl border px-3 py-2 text-sm"
-            placeholder="Search address or violation…"
-            value={filters.search}
-            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+    <div className="flex flex-col h-screen">
+      <FilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        snapScoreMin={snapScoreMin}
+        lastSeenDays={lastSeenDays}
+        selectedCities={selectedCities}
+        propertyCount={filteredProperties.length}
+        onClearFilters={handleClearFilters}
+      />
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Map - Left Side */}
+        <div className="w-[60%] border-r">
+          <LeadsMap
+            properties={filteredProperties}
+            onPropertyClick={setSelectedPropertyId}
+            selectedPropertyId={selectedPropertyId || undefined}
           />
-          
-          {/* Cities as pills */}
-          <div className="flex flex-wrap gap-2">
-            {availableCities.map(city => (
-              <button
-                key={city}
-                onClick={() => toggleCity(city)}
-                className={`px-2.5 py-1 rounded-full text-xs border transition-all ${
-                  filters.cities.includes(city)
-                    ? 'bg-brand/10 border-brand/30 text-brand-700'
-                    : 'border-slate-200 text-ink-500 hover:border-slate-300'
-                }`}
-              >
-                {city}
-              </button>
-            ))}
-          </div>
-          
-          {/* Range slider */}
-          <div>
-            <div className="text-xs text-ink-400 mb-2">
-              SnapScore: <span className="font-medium text-ink-700">{filters.snapScoreRange[0]}–{filters.snapScoreRange[1]}</span>
-            </div>
-            <Slider
-              value={filters.snapScoreRange}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, snapScoreRange: value as [number, number] }))}
-              min={0}
-              max={100}
-              step={1}
-              className="w-full"
-            />
-          </div>
-
-          {/* My Lists */}
-          <Select
-            value={filters.listId || 'all'}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, listId: value === 'all' ? '' : value }))}
-          >
-            <SelectTrigger className="rounded-xl">
-              <SelectValue placeholder="All Leads" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Leads</SelectItem>
-              {userLists.map((list) => (
-                <SelectItem key={list.id} value={list.id}>
-                  {list.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="w-full text-xs text-ink-500"
-          >
-            Clear Filters
-          </Button>
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        <section className="max-w-7xl mx-auto px-6 mt-6">
-          {/* Hero Header */}
-          <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-2xl font-semibold text-ink-900 font-display">Leads</h1>
-              <p className="text-sm text-ink-400 font-ui">
-                Showing {filteredProperties.length} properties • Updated just now
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                className="rounded-xl border px-3 py-1.5 text-sm transition-all hover:border-brand/30 hover:bg-brand/5"
-                onClick={() => {
-                  toast({
-                    title: "Filter saved",
-                    description: "Set as default view?",
-                    action: <Button size="sm" variant="ghost">Set Default</Button>
-                  });
-                }}
-              >
-                Save Filter
-              </Button>
-              <Button className="rounded-xl px-3 py-1.5 text-sm bg-ink-900 text-white hover:bg-ink-700 transition-all">
-                Export CSV
-              </Button>
-            </div>
-          </div>
+        {/* Property List - Right Side */}
+        <div className="w-[40%] flex flex-col">
+          <ScrollArea className="flex-1">
+            {loading ? (
+              <div className="p-8 text-center text-muted-foreground">
+                Loading properties...
+              </div>
+            ) : filteredProperties.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                No properties found
+              </div>
+            ) : (
+              <div>
+                {filteredProperties.map(property => (
+                  <PropertyCard
+                    key={property.id}
+                    property={property}
+                    isSelected={selectedIds.includes(property.id)}
+                    onToggleSelect={handleToggleSelect}
+                    onClick={() => setSelectedPropertyId(property.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </ScrollArea>
 
-          {/* Revenue-Focused Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-            <div className="rounded-2xl border border-emerald-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-gradient-to-br from-emerald-50 to-white p-4 md:p-5 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-ui">
-                <Zap className="h-3.5 w-3.5" />
-                Hot, Reachable
-              </div>
-              <div className="text-2xl md:text-3xl font-bold text-emerald-700 font-display">
-                {reachableLeads}
-              </div>
-              <div className="text-xs text-emerald-600">Distress ≥70 • Has violations</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs text-ink-400 font-ui">
-                <Phone className="h-3.5 w-3.5" />
-                Numbers Found
-              </div>
-              <div className="text-2xl md:text-3xl font-bold text-ink-900 font-display">
-                0
-              </div>
-              <div className="text-xs text-ink-400">Skip trace to find contacts</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs text-ink-400 font-ui">
-                <Mail className="h-3.5 w-3.5" />
-                Outreach Sent
-              </div>
-              <div className="text-2xl md:text-3xl font-bold text-brand font-display">
-                {todayOutreachCount}
-              </div>
-              <div className="text-xs text-ink-400">Today</div>
-            </div>
-            <div className="rounded-2xl border border-amber-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-gradient-to-br from-amber-50 to-white p-4 md:p-5 space-y-2">
-              <div className="text-xs text-amber-700 font-ui">Avg Days Open</div>
-              <div className="text-2xl md:text-3xl font-bold text-amber-700 font-display">
-                {avgDaysOpen}
-              </div>
-              <div className="text-xs text-amber-600">Urgency indicator</div>
-            </div>
-          </div>
+          <BulkActionBar
+            selectedCount={selectedIds.length}
+            totalCount={filteredProperties.length}
+            allSelected={selectedIds.length === filteredProperties.length && filteredProperties.length > 0}
+            onToggleSelectAll={handleToggleSelectAll}
+            onSkipTrace={handleSkipTrace}
+            onView={() => toast({ title: "View action - coming soon" })}
+          />
+        </div>
+      </div>
 
-          {/* Leads Table */}
-          {loading ? (
-            <div className="flex items-center justify-center p-12 bg-white rounded-2xl shadow-card">
-              <div className="space-y-4 text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto" />
-                <p className="text-ink-400">Loading properties...</p>
-              </div>
-            </div>
-          ) : filteredProperties.length === 0 ? (
-            <div className="flex items-center justify-center p-12 bg-white rounded-2xl shadow-card">
-              <div className="text-center">
-                <p className="text-lg font-medium mb-2 text-ink-900">No leads here yet</p>
-                <p className="text-sm text-ink-400">Try widening SnapScore or importing a CSV</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <LeadsTable 
-                properties={filteredProperties} 
-                selectedIds={selectedIds}
-                onSelectionChange={setSelectedIds}
-              />
-              
-              <AnimatePresence>
-                {selectedIds.length > 0 && (
-                  <motion.div
-                    initial={{ y: 100, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 100, opacity: 0 }}
-                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
-                  >
-                    <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 px-6 py-4 flex items-center gap-4">
-                      <div className="text-sm font-medium text-ink-900">
-                        {selectedIds.length} lead{selectedIds.length > 1 ? 's' : ''} selected
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setAddToListOpen(true)}
-                          className="gap-2"
-                        >
-                          <ListPlus className="h-4 w-4" />
-                          Add to List
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const propsToExport = properties.filter(p => selectedIds.includes(p.id));
-                            if (propsToExport.length === 0) return;
-                            
-                            const csv = [
-                              ["Address", "City", "State", "ZIP", "Snap Score", "Violations", "Days Open"].join(","),
-                              ...propsToExport.map(p => [
-                                `"${p.address}"`,
-                                p.city,
-                                p.state,
-                                p.zip,
-                                p.snap_score ?? "N/A",
-                                p.violations.length,
-                                Math.max(...p.violations.map(v => v.days_open ?? 0), 0)
-                              ].join(","))
-                            ].join("\n");
-                            
-                            const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `snap-leads-${Date.now()}.csv`;
-                            document.body.appendChild(a);
-                            a.click();
-                            URL.revokeObjectURL(url);
-                            a.remove();
-                            
-                            toast({
-                              title: "Export successful",
-                              description: `Exported ${propsToExport.length} properties`,
-                            });
-                          }}
-                          className="gap-2"
-                        >
-                          <Download className="h-4 w-4" />
-                          Export CSV
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedIds([])}
-                        >
-                          Clear
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+      {/* Property Detail Panel */}
+      {selectedPropertyId && (
+        <PropertyDetailPanel
+          property={properties.find(p => p.id === selectedPropertyId) || null}
+          open={!!selectedPropertyId}
+          onOpenChange={(open) => !open && setSelectedPropertyId(null)}
+        />
+      )}
 
-              <AddToListDialog
-                open={addToListOpen}
-                onOpenChange={setAddToListOpen}
-                propertyIds={selectedIds}
-                userLists={userLists}
-                onSuccess={() => {
-                  setSelectedIds([]);
-                  fetchUserLists();
-                }}
-              />
-            </>
-          )}
-        </section>
-      </main>
+      {/* Add to List Dialog */}
+      <AddToListDialog
+        open={showAddToListDialog}
+        onOpenChange={setShowAddToListDialog}
+        propertyIds={selectedIds}
+        userLists={[]}
+        onSuccess={() => {
+          setSelectedIds([]);
+          setShowAddToListDialog(false);
+        }}
+      />
     </div>
   );
 }

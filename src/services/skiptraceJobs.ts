@@ -19,8 +19,31 @@ export interface SkipTraceJob {
 }
 
 export async function createBulkSkipTraceJob(propertyIds: string[]) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  // Create deterministic job key for idempotency
+  const sortedIds = [...propertyIds].sort();
+  const jobKey = `${user.id}:${sortedIds.join(",")}`;
+
+  // Check for existing job in the last 10 minutes
+  const { data: existingJob } = await supabase
+    .from("skiptrace_jobs")
+    .select("*")
+    .eq("job_key", jobKey)
+    .gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+    .maybeSingle();
+
+  if (existingJob) {
+    return { job_id: existingJob.id };
+  }
+
+  // Call edge function to create and start job
   const { data, error } = await supabase.functions.invoke("skiptrace-bulk", {
-    body: { property_ids: propertyIds },
+    body: { 
+      property_ids: propertyIds,
+      job_key: jobKey,
+    },
   });
 
   if (error) throw error;

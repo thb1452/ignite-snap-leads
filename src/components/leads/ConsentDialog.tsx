@@ -1,119 +1,74 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { checkConsent, setConsent } from "@/services/skiptraceJobs";
-import { useToast } from "@/hooks/use-toast";
 
 interface ConsentDialogProps {
   open: boolean;
+  onOpenChange: (open: boolean) => void;
   onConsent: () => void;
-  onCancel: () => void;
 }
 
-export function ConsentDialog({ open, onConsent, onCancel }: ConsentDialogProps) {
+export function ConsentDialog({ open, onOpenChange, onConsent }: ConsentDialogProps) {
   const [agreed, setAgreed] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
-  const handleConfirm = async () => {
-    if (!agreed) {
-      toast({
-        title: "Agreement required",
-        description: "Please confirm you have a permissible purpose",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await setConsent();
+  const handleConsent = () => {
+    if (agreed) {
       onConsent();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save consent",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+      onOpenChange(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Skip Trace Consent</DialogTitle>
           <DialogDescription>
-            Before proceeding, please confirm your understanding of our terms.
+            Please confirm your agreement before proceeding with skip tracing.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <p className="text-sm text-muted-foreground">
-            By using our skip trace service, you confirm that you have a permissible purpose
-            under the Fair Credit Reporting Act (FCRA) and applicable state laws.
-          </p>
-
-          <div className="flex items-start space-x-2">
-            <Checkbox
-              id="consent"
+        
+        <div className="py-4">
+          <div className="flex items-start space-x-3">
+            <Checkbox 
+              id="consent" 
               checked={agreed}
               onCheckedChange={(checked) => setAgreed(checked as boolean)}
             />
             <label
               htmlFor="consent"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              className="text-sm font-medium leading-relaxed cursor-pointer"
             >
-              I confirm I have a permissible purpose per our{" "}
-              <a href="/terms" className="text-primary underline" target="_blank">
-                Terms of Service
-              </a>
+              By skip tracing, I confirm that I have a permissible purpose under applicable law
+              (e.g., FCRA, TCPA) and agree to the Terms of Service. I understand that skip tracing
+              will use credits from my account.
             </label>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={!agreed || loading}>
-            {loading ? "Saving..." : "I Agree"}
+          <Button
+            onClick={handleConsent}
+            disabled={!agreed}
+          >
+            I Agree
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-}
-
-export function useSkipTraceConsent() {
-  const [hasConsent, setHasConsent] = useState<boolean | null>(null);
-  const [showDialog, setShowDialog] = useState(false);
-
-  useEffect(() => {
-    checkConsent().then(setHasConsent);
-  }, []);
-
-  const requestConsent = (onConsent: () => void) => {
-    if (hasConsent) {
-      onConsent();
-    } else {
-      setShowDialog(true);
-      const handleConsent = () => {
-        setHasConsent(true);
-        setShowDialog(false);
-        onConsent();
-      };
-      return { showDialog, setShowDialog, handleConsent };
-    }
-  };
-
-  return {
-    hasConsent,
-    showDialog,
-    setShowDialog,
-    requestConsent,
-  };
 }

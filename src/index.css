@@ -126,4 +126,14 @@ All colors MUST be HSL.
   textarea:focus-visible {
     @apply ring-2 ring-brand ring-offset-2;
   }
+
+  /* Fix Leaflet z-index bleeding over modals/drawers */
+  .leaflet-pane,
+  .leaflet-control-container {
+    z-index: 0 !important;
+  }
+
+  .leaflet-popup-pane {
+    z-index: 500 !important;
+  }
 }

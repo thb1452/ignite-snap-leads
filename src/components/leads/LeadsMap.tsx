@@ -102,7 +102,7 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
   }, [properties, onPropertyClick]);
 
   return (
-    <div className="relative h-full">
+    <div className="relative h-full z-0">
       <div ref={mapContainerRef} className="absolute inset-0 rounded-lg" />
       
       <div className="absolute bottom-4 left-4 z-[1000] flex gap-2">

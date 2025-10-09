@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { LeadsMap } from "@/components/leads/LeadsMap";
 import { FilterBar } from "@/components/leads/FilterBar";
+import { FilterControls } from "@/components/leads/FilterControls";
 import { PropertyCard } from "@/components/leads/PropertyCard";
 import { BulkActionBar } from "@/components/leads/BulkActionBar";
 import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
@@ -46,6 +47,7 @@ function Leads() {
   const [snapScoreMin, setSnapScoreMin] = useState(0);
   const [lastSeenDays, setLastSeenDays] = useState<number | null>(null);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [selectedSource, setSelectedSource] = useState<string | null>(null);
 
   // UI state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -148,6 +150,7 @@ function Leads() {
     setSnapScoreMin(0);
     setLastSeenDays(null);
     setSelectedCities([]);
+    setSelectedSource(null);
   };
 
   const handleToggleSelect = (id: string) => {
@@ -180,6 +183,15 @@ function Leads() {
         selectedCities={selectedCities}
         propertyCount={filteredProperties.length}
         onClearFilters={handleClearFilters}
+      />
+      
+      <FilterControls
+        snapScoreMin={snapScoreMin}
+        onSnapScoreChange={setSnapScoreMin}
+        lastSeenDays={lastSeenDays}
+        onLastSeenChange={setLastSeenDays}
+        selectedSource={selectedSource}
+        onSourceChange={setSelectedSource}
       />
 
       <div className="flex flex-1 overflow-hidden">

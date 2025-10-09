@@ -34,7 +34,7 @@ interface Property {
   violations: Violation[];
 }
 
-export default function Leads() {
+function Leads() {
   const { toast } = useToast();
   
   // Data state
@@ -252,3 +252,5 @@ export default function Leads() {
     </div>
   );
 }
+
+export default Leads;

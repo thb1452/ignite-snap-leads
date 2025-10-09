@@ -6,6 +6,8 @@ const EDGE_BASE = Deno.env.get("SUPABASE_URL") || "";
 const MAX_CONCURRENCY = 20;
 const MAX_ACTIVE_JOBS_PER_USER = 3;
 const VENDOR_TIMEOUT_MS = 15000;
+const RETRY_DELAYS = [1000, 4000, 10000]; // Backoff: 1s, 4s, 10s
+const COUNT_UPDATE_THROTTLE_MS = 500;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,17 +34,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
 async function startJobHandler(req: Request): Promise<Response> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, serviceKey);
-
-  // Auth
+  
+  // Forward auth header for cleaner auth pattern
   const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return resp(401, { ok: false, error: "Unauthorized" });
   }
   
-  const token = authHeader.replace("Bearer ", "");
-  const { data: auth } = await supabase.auth.getUser(token);
-  const user = auth.user;
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    global: { headers: { Authorization: authHeader } }
+  });
+
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return resp(401, { ok: false, error: "Unauthorized" });
 
   const body = (await req.json()) as { property_ids: string[]; job_key?: string };
@@ -55,7 +58,7 @@ async function startJobHandler(req: Request): Promise<Response> {
   const jobKey = body.job_key || `${user.id}:${propertyIds.sort().join(",")}`;
 
   // Check for existing job with same key (idempotency)
-  const { data: existingJob } = await supabase
+  const { data: existingJob, error: existingError } = await supabase
     .from("skiptrace_jobs")
     .select("*")
     .eq("job_key", jobKey)
@@ -64,6 +67,7 @@ async function startJobHandler(req: Request): Promise<Response> {
 
   if (existingJob) {
     console.log("[bulk] Returning existing job (idempotent):", existingJob.id);
+    emitEvent("job_idempotent", { job_id: existingJob.id, user_id: user.id });
     return resp(200, { 
       ok: true, 
       job_id: existingJob.id, 
@@ -91,7 +95,7 @@ async function startJobHandler(req: Request): Promise<Response> {
     });
   }
 
-  // Create job
+  // Create job (handle unique constraint race)
   const { data: newJob, error: jobError } = await supabase
     .from("skiptrace_jobs")
     .insert({
@@ -104,12 +108,32 @@ async function startJobHandler(req: Request): Promise<Response> {
     .select()
     .single();
 
-  if (jobError || !newJob) {
+  if (jobError) {
+    // Check if it's a unique constraint violation (race condition)
+    if (jobError.code === "23505") {
+      const { data: raceJob } = await supabase
+        .from("skiptrace_jobs")
+        .select("*")
+        .eq("job_key", jobKey)
+        .maybeSingle();
+      
+      if (raceJob) {
+        console.log("[bulk] Race condition: returning existing job", raceJob.id);
+        emitEvent("job_race_condition", { job_id: raceJob.id, user_id: user.id });
+        return resp(200, { ok: true, job_id: raceJob.id, total: propertyIds.length, idempotency: true });
+      }
+    }
     console.error("[bulk] Job creation error:", jobError);
     return resp(500, { ok: false, error: "Failed to create job" });
   }
+  
+  if (!newJob) {
+    return resp(500, { ok: false, error: "Failed to create job" });
+  }
+  
+  emitEvent("job_queued", { job_id: newJob.id, user_id: user.id, total: propertyIds.length });
 
-  // Atomic credit charge
+  // Atomic credit charge with proper error code checking
   try {
     const { error: chargeError } = await supabase.rpc("fn_charge_credits", {
       p_property_ids: propertyIds,
@@ -120,7 +144,9 @@ async function startJobHandler(req: Request): Promise<Response> {
       // Delete job if charge failed
       await supabase.from("skiptrace_jobs").delete().eq("id", newJob.id);
       
-      if (chargeError.message === "INSUFFICIENT_CREDITS") {
+      // Check error code detail instead of message
+      if (chargeError.details === "INSUFFICIENT_CREDITS") {
+        emitEvent("job_insufficient_credits", { job_id: newJob.id, user_id: user.id });
         return resp(402, { ok: false, error: "Insufficient credits" });
       }
       
@@ -134,7 +160,8 @@ async function startJobHandler(req: Request): Promise<Response> {
   }
 
   // Start job processing (background)
-  EdgeRuntime.waitUntil(processJob({ jobId: newJob.id, token, propertyIds }));
+  const token = authHeader.replace("Bearer ", "");
+  EdgeRuntime.waitUntil(processJob({ jobId: newJob.id, token, propertyIds, userId: user.id }));
 
   return resp(200, {
     ok: true,
@@ -144,12 +171,12 @@ async function startJobHandler(req: Request): Promise<Response> {
 }
 
 // Background job processor
-async function processJob(opts: { jobId: string; token: string; propertyIds: string[] }) {
+async function processJob(opts: { jobId: string; token: string; propertyIds: string[]; userId: string }) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  const { jobId, token, propertyIds } = opts;
+  const { jobId, token, propertyIds, userId } = opts;
 
   // Mark as processing
   await supabase
@@ -157,11 +184,13 @@ async function processJob(opts: { jobId: string; token: string; propertyIds: str
     .update({ status: "processing", started_at: new Date().toISOString() })
     .eq("id", jobId);
 
+  emitEvent("job_started", { job_id: jobId, user_id: userId, total: propertyIds.length });
   console.log(`[job:${jobId}] Processing ${propertyIds.length} properties`);
 
   const succeeded: string[] = [];
   const failed: string[] = [];
   const noMatch: string[] = [];
+  let lastCountUpdate = 0;
 
   // Process in batches with concurrency limit
   const batchSize = Math.min(MAX_CONCURRENCY, 10);
@@ -169,7 +198,7 @@ async function processJob(opts: { jobId: string; token: string; propertyIds: str
   for (let i = 0; i < propertyIds.length; i += batchSize) {
     const batch = propertyIds.slice(i, i + batchSize);
     const results = await Promise.allSettled(
-      batch.map((pid, idx) => callSingleSkipTrace(pid, token, idx * 350))
+      batch.map((pid, idx) => callSingleSkipTraceWithRetry(pid, token, idx * 350))
     );
 
     for (let j = 0; j < batch.length; j++) {
@@ -177,10 +206,10 @@ async function processJob(opts: { jobId: string; token: string; propertyIds: str
       const r = results[j];
 
       if (r.status === "fulfilled") {
-        const { ok, noHit } = r.value;
-        if (ok && !noHit) {
+        const { status, noHit } = r.value;
+        if (status === "success") {
           succeeded.push(pid);
-        } else if (ok && noHit) {
+        } else if (status === "no_match") {
           noMatch.push(pid);
         } else {
           failed.push(pid);
@@ -191,17 +220,28 @@ async function processJob(opts: { jobId: string; token: string; propertyIds: str
       }
     }
 
-    // Update counts periodically
-    await supabase
-      .from("skiptrace_jobs")
-      .update({
-        counts: {
-          total: propertyIds.length,
-          succeeded: succeeded.length,
-          failed: failed.length + noMatch.length,
-        },
-      })
-      .eq("id", jobId);
+    // Throttled count update (max once per 500ms)
+    const now = Date.now();
+    if (now - lastCountUpdate > COUNT_UPDATE_THROTTLE_MS) {
+      await supabase
+        .from("skiptrace_jobs")
+        .update({
+          counts: {
+            total: propertyIds.length,
+            succeeded: succeeded.length,
+            failed: failed.length + noMatch.length,
+          },
+        })
+        .eq("id", jobId);
+      lastCountUpdate = now;
+      
+      emitEvent("job_progress", { 
+        job_id: jobId, 
+        user_id: userId, 
+        succeeded: succeeded.length, 
+        failed: failed.length + noMatch.length 
+      });
+    }
   }
 
   // Refund for failed + no-match
@@ -214,16 +254,25 @@ async function processJob(opts: { jobId: string; token: string; propertyIds: str
         p_reason: "skiptrace_refund",
       });
       console.log(`[job:${jobId}] Refunded ${toRefund.length} credits`);
+      emitEvent("job_refunded", { job_id: jobId, user_id: userId, count: toRefund.length });
     } catch (e: any) {
       console.error(`[job:${jobId}] Refund error:`, e);
     }
+  }
+
+  // Determine final status
+  let finalStatus = "completed";
+  if (succeeded.length === 0 && (failed.length > 0 || noMatch.length > 0)) {
+    finalStatus = "failed";
+  } else if (succeeded.length > 0 && (failed.length > 0 || noMatch.length > 0)) {
+    finalStatus = "partial";
   }
 
   // Mark job as finished
   await supabase
     .from("skiptrace_jobs")
     .update({
-      status: "completed",
+      status: finalStatus,
       finished_at: new Date().toISOString(),
       counts: {
         total: propertyIds.length,
@@ -233,14 +282,46 @@ async function processJob(opts: { jobId: string; token: string; propertyIds: str
     })
     .eq("id", jobId);
 
+  emitEvent("job_done", { 
+    job_id: jobId, 
+    user_id: userId, 
+    status: finalStatus,
+    succeeded: succeeded.length, 
+    failed: failed.length + noMatch.length 
+  });
+
   console.log(
-    `[job:${jobId}] Complete. Success: ${succeeded.length}, Failed: ${failed.length}, No Match: ${noMatch.length}, Refunded: ${toRefund.length}`
+    `[job:${jobId}] ${finalStatus.toUpperCase()}. Success: ${succeeded.length}, Failed: ${failed.length}, No Match: ${noMatch.length}, Refunded: ${toRefund.length}`
   );
 }
 
-async function callSingleSkipTrace(propertyId: string, token: string, delayMs: number) {
+// Retry wrapper with exponential backoff
+async function callSingleSkipTraceWithRetry(propertyId: string, token: string, delayMs: number) {
   if (delayMs > 0) await sleep(delayMs);
 
+  for (let attempt = 0; attempt < RETRY_DELAYS.length + 1; attempt++) {
+    const result = await callSingleSkipTrace(propertyId, token);
+    
+    // Success or no_match: return immediately
+    if (result.status === "success" || result.status === "no_match") {
+      return result;
+    }
+    
+    // Vendor error and not final attempt: retry with backoff
+    if (result.status === "vendor_error" && attempt < RETRY_DELAYS.length) {
+      console.log(`[retry] Property ${propertyId} attempt ${attempt + 1} failed, retrying...`);
+      await sleep(RETRY_DELAYS[attempt]);
+      continue;
+    }
+    
+    // Final attempt or timeout: return failure
+    return result;
+  }
+  
+  return { status: "failed", noHit: false, msg: "Max retries exceeded" };
+}
+
+async function callSingleSkipTrace(propertyId: string, token: string) {
   const endpoint = `${EDGE_BASE}/functions/v1/skiptrace`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), VENDOR_TIMEOUT_MS);
@@ -264,28 +345,32 @@ async function callSingleSkipTrace(propertyId: string, token: string, delayMs: n
       const contacts = json.contacts ?? [];
       const noHit = !contacts || contacts.length === 0;
       return { 
-        ok: true, 
+        status: noHit ? "no_match" : "success",
         noHit, 
         msg: noHit ? "no contacts" : `contacts: ${contacts.length}` 
       };
     }
     
     return { 
-      ok: false, 
+      status: "vendor_error",
       noHit: false, 
       msg: json?.error || `HTTP ${res.status}` 
     };
   } catch (e: any) {
     clearTimeout(timeout);
     if (e.name === "AbortError") {
-      return { ok: false, noHit: false, msg: "Vendor timeout" };
+      return { status: "timeout", noHit: false, msg: "Vendor timeout" };
     }
-    return { ok: false, noHit: false, msg: e.message || "Network error" };
+    return { status: "vendor_error", noHit: false, msg: e.message || "Network error" };
   }
 }
 
 function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms));
+}
+
+function emitEvent(name: string, data: any) {
+  console.log(`[EVENT:${name}]`, JSON.stringify(data));
 }
 
 function resp(status: number, body: any) {

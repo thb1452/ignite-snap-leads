@@ -172,6 +172,30 @@ export type Database = {
         }
         Relationships: []
       }
+      events: {
+        Row: {
+          job_id: string
+          payload: Json | null
+          ts: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          job_id: string
+          payload?: Json | null
+          ts?: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          job_id?: string
+          payload?: Json | null
+          ts?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       lead_activity: {
         Row: {
           created_at: string | null
@@ -545,6 +569,27 @@ export type Database = {
         }
         Relationships: []
       }
+      skiptrace_outcomes: {
+        Row: {
+          created_at: string | null
+          job_id: string
+          property_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          job_id: string
+          property_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          job_id?: string
+          property_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       sms_templates: {
         Row: {
           content: string
@@ -716,6 +761,23 @@ export type Database = {
           type?: string | null
         }
         Relationships: []
+      }
+      v_property_contact_stats: {
+        Row: {
+          contact_rows: number | null
+          emails_found: number | null
+          phones_found: number | null
+          property_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_contacts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_user_credits: {
         Row: {

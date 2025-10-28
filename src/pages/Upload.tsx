@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -8,6 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload as UploadIcon, FileSpreadsheet, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
+import { uploadViolationCSV } from '@/services/upload';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 interface CSVRow {
   case_id?: string;
@@ -32,7 +35,9 @@ export function Upload() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [allData, setAllData] = useState<CSVRow[]>([]);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const csvFile = acceptedFiles[0];
@@ -64,6 +69,9 @@ export function Upload() {
       complete: (results) => {
         const data = results.data as CSVRow[];
         const preview = data.slice(0, 20);
+        
+        // Store all data for upload
+        setAllData(data);
         
         // Validate required columns
         const warnings: string[] = [];
@@ -113,74 +121,73 @@ export function Upload() {
   });
 
   const handleConfirmUpload = async () => {
-    if (!file || !validation?.isValid) return;
+    if (!file || !validation?.isValid || allData.length === 0) return;
     
     setUploading(true);
     setProgress(0);
     
-    // Simulate upload progress
-    const progressInterval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return prev;
-        }
-        return prev + 10;
-      });
-    }, 200);
-    
     try {
-      // TODO: Implement actual file upload and processing
-      // This would involve:
-      // 1. Upload CSV to Supabase Storage
-      // 2. Insert records into staging_violations table
-      // 3. Process records (SnapScore calculation, insights)
-      // 4. Move to violations table
+      // Upload all data to database
+      setProgress(10);
+      const result = await uploadViolationCSV(allData);
       
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate processing
+      setProgress(90);
+      
+      if (result.errors.length > 0) {
+        console.error("Upload errors:", result.errors);
+        toast({
+          title: "Upload completed with warnings",
+          description: `Created ${result.violationsCreated} violations and ${result.propertiesCreated} properties. ${result.errors.length} errors occurred.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Upload successful!",
+          description: `Successfully uploaded ${result.violationsCreated} violations across ${result.propertiesCreated} properties`,
+        });
+      }
       
       setProgress(100);
-      toast({
-        title: "Upload successful!",
-        description: `Processed ${validation.data.length} records`,
-      });
       
-      // Reset form
+      // Reset form and redirect to Leads page
       setTimeout(() => {
         setFile(null);
         setValidation(null);
+        setAllData([]);
         setUploading(false);
         setProgress(0);
+        navigate('/leads');
       }, 1500);
       
     } catch (error: any) {
+      console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: error.message || "Failed to upload violations",
         variant: "destructive",
       });
       setUploading(false);
       setProgress(0);
     }
-    
-    clearInterval(progressInterval);
   };
 
   const generateSampleData = () => {
+    // Remove this button - users should upload real data
     toast({
-      title: "Sample data generated",
-      description: "50 demo violation records have been added to your dashboard",
+      title: "Please upload a CSV file",
+      description: "Use the upload area above to import your violation data",
     });
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Upload Violations Data</h1>
-        <p className="text-muted-foreground mt-2">
-          Upload a CSV file with violation data to start generating leads
-        </p>
-      </div>
+    <AppLayout>
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Upload Violations Data</h1>
+          <p className="text-muted-foreground mt-2">
+            Upload a CSV file with violation data to start generating leads
+          </p>
+        </div>
 
       {!file && (
         <Card>
@@ -231,7 +238,7 @@ export function Upload() {
               <span>File Preview: {file.name}</span>
             </CardTitle>
             <CardDescription>
-              Showing first 20 rows • {file.size} bytes
+              Showing first 20 rows • Total: {allData.length} rows • {file.size} bytes
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -317,5 +324,6 @@ export function Upload() {
         </Card>
       )}
     </div>
+    </AppLayout>
   );
 }

@@ -39,13 +39,8 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Initialize map centered on first property with coords or default
-    const firstProperty = properties.find(p => p.latitude && p.longitude);
-    const center: [number, number] = firstProperty
-      ? [firstProperty.latitude!, firstProperty.longitude!]
-      : [39.8283, -98.5795]; // Center of US
-
-    mapRef.current = L.map(mapContainerRef.current).setView(center, 12);
+    // Initialize map - will be fitted to bounds once markers are added
+    mapRef.current = L.map(mapContainerRef.current).setView([32.7355, -96.2743], 13); // Terrell, TX default
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',

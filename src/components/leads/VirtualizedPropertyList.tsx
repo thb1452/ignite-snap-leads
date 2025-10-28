@@ -2,6 +2,13 @@ import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { PropertyCard } from "./PropertyCard";
 
+interface Violation {
+  id: string;
+  violation_type: string;
+  status: string;
+  opened_date: string | null;
+}
+
 interface Property {
   id: string;
   address: string;
@@ -11,6 +18,7 @@ interface Property {
   snap_score: number | null;
   snap_insight: string | null;
   updated_at: string | null;
+  violations?: Violation[];
 }
 
 interface VirtualizedPropertyListProps {
@@ -31,7 +39,7 @@ export function VirtualizedPropertyList({
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 180,
+    estimateSize: () => 220,
     overscan: 5,
   });
 

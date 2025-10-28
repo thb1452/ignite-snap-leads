@@ -21,6 +21,7 @@ interface UploadResult {
 /**
  * Upload CSV violation data to the database
  * Creates properties and violations from parsed CSV rows
+ * Optimized for batch operations
  */
 export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> {
   const result: UploadResult = {
@@ -33,8 +34,8 @@ export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> 
     throw new Error("No data to upload");
   }
 
-  // Group rows by address to avoid duplicate properties
-  const propertiesByAddress = new Map<string, CSVRow[]>();
+  // Step 1: Prepare unique properties and group violations
+  const propertyMap = new Map<string, { row: CSVRow; violations: CSVRow[] }>();
   
   rows.forEach((row, index) => {
     if (!row.address || !row.city || !row.violation) {
@@ -43,98 +44,116 @@ export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> 
     }
 
     const addressKey = `${row.address}|${row.city}|${row.state}|${row.zip}`.toLowerCase();
-    if (!propertiesByAddress.has(addressKey)) {
-      propertiesByAddress.set(addressKey, []);
+    if (!propertyMap.has(addressKey)) {
+      propertyMap.set(addressKey, { row, violations: [] });
     }
-    propertiesByAddress.get(addressKey)!.push(row);
+    propertyMap.get(addressKey)!.violations.push(row);
   });
 
-  // Process each unique property
-  for (const [addressKey, propertyRows] of propertiesByAddress.entries()) {
-    const firstRow = propertyRows[0];
-    
-    try {
-      // Check if property already exists
-      const { data: existingProperty, error: searchError } = await supabase
-        .from("properties")
-        .select("id")
-        .ilike("address", firstRow.address!)
-        .ilike("city", firstRow.city!)
-        .limit(1)
-        .maybeSingle();
+  // Step 2: Check which properties already exist (batch query)
+  const addresses = Array.from(propertyMap.values()).map(p => p.row.address!);
+  const cities = Array.from(propertyMap.values()).map(p => p.row.city!);
+  
+  const { data: existingProperties, error: searchError } = await supabase
+    .from("properties")
+    .select("id, address, city, state, zip")
+    .or(
+      Array.from(propertyMap.values())
+        .map(p => `and(address.ilike.${p.row.address},city.ilike.${p.row.city})`)
+        .join(',')
+    );
 
-      if (searchError) {
-        result.errors.push(`Error searching for property ${firstRow.address}: ${searchError.message}`);
-        continue;
-      }
+  if (searchError) {
+    console.error("Error searching for existing properties:", searchError);
+  }
 
-      let propertyId: string;
+  // Map existing properties by address key
+  const existingPropertyMap = new Map<string, string>();
+  (existingProperties || []).forEach(prop => {
+    const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+    existingPropertyMap.set(key, prop.id);
+  });
 
-      if (existingProperty) {
-        // Use existing property
-        propertyId = existingProperty.id;
-      } else {
-        // Create new property
-        const { data: newProperty, error: propertyError } = await supabase
-          .from("properties")
-          .insert({
-            address: firstRow.address!,
-            city: firstRow.city!,
-            state: firstRow.state || "",
-            zip: firstRow.zip || "",
-            latitude: null, // Can be geocoded later
-            longitude: null,
-            snap_score: null, // Can be calculated later
-            snap_insight: null,
-          })
-          .select("id")
-          .single();
+  // Step 3: Bulk insert new properties
+  const newProperties = Array.from(propertyMap.entries())
+    .filter(([key]) => !existingPropertyMap.has(key))
+    .map(([_, { row }]) => ({
+      address: row.address!,
+      city: row.city!,
+      state: row.state || "",
+      zip: row.zip || "",
+      latitude: null,
+      longitude: null,
+      snap_score: null,
+      snap_insight: null,
+    }));
 
-        if (propertyError || !newProperty) {
-          result.errors.push(`Failed to create property ${firstRow.address}: ${propertyError?.message}`);
-          continue;
-        }
+  let createdPropertyIds: { id: string; address: string; city: string; state: string; zip: string }[] = [];
+  
+  if (newProperties.length > 0) {
+    const { data: insertedProperties, error: insertError } = await supabase
+      .from("properties")
+      .insert(newProperties)
+      .select("id, address, city, state, zip");
 
-        propertyId = newProperty.id;
-        result.propertiesCreated++;
-      }
-
-      // Insert all violations for this property
-      for (const row of propertyRows) {
-        try {
-          const openedDate = row.opened_date ? new Date(row.opened_date) : null;
-          const lastUpdated = row.last_updated ? new Date(row.last_updated) : null;
-          const daysOpen = openedDate 
-            ? Math.floor((Date.now() - openedDate.getTime()) / (1000 * 60 * 60 * 24))
-            : null;
-
-          const { error: violationError } = await supabase
-            .from("violations")
-            .insert({
-              property_id: propertyId,
-              case_id: row.case_id || null,
-              violation_type: row.violation!,
-              description: null,
-              status: row.status || "Open",
-              opened_date: openedDate ? openedDate.toISOString().split('T')[0] : null,
-              last_updated: lastUpdated ? lastUpdated.toISOString().split('T')[0] : null,
-              days_open: daysOpen,
-            });
-
-          if (violationError) {
-            result.errors.push(
-              `Failed to create violation for ${row.address} (Case: ${row.case_id}): ${violationError.message}`
-            );
-          } else {
-            result.violationsCreated++;
-          }
-        } catch (err: any) {
-          result.errors.push(`Error processing violation: ${err.message}`);
-        }
-      }
-    } catch (err: any) {
-      result.errors.push(`Error processing property ${firstRow.address}: ${err.message}`);
+    if (insertError) {
+      result.errors.push(`Failed to create properties: ${insertError.message}`);
+      throw new Error("Failed to create properties");
     }
+
+    createdPropertyIds = insertedProperties || [];
+    result.propertiesCreated = createdPropertyIds.length;
+
+    // Add newly created properties to the map
+    createdPropertyIds.forEach(prop => {
+      const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+      existingPropertyMap.set(key, prop.id);
+    });
+  }
+
+  // Step 4: Bulk insert all violations
+  const allViolations: any[] = [];
+  
+  for (const [addressKey, { violations }] of propertyMap.entries()) {
+    const propertyId = existingPropertyMap.get(addressKey);
+    
+    if (!propertyId) {
+      result.errors.push(`Could not find property ID for ${addressKey}`);
+      continue;
+    }
+
+    violations.forEach(row => {
+      const openedDate = row.opened_date ? new Date(row.opened_date) : null;
+      const lastUpdated = row.last_updated ? new Date(row.last_updated) : null;
+      const daysOpen = openedDate 
+        ? Math.floor((Date.now() - openedDate.getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+
+      allViolations.push({
+        property_id: propertyId,
+        case_id: row.case_id || null,
+        violation_type: row.violation!,
+        description: null,
+        status: row.status || "Open",
+        opened_date: openedDate ? openedDate.toISOString().split('T')[0] : null,
+        last_updated: lastUpdated ? lastUpdated.toISOString().split('T')[0] : null,
+        days_open: daysOpen,
+      });
+    });
+  }
+
+  // Insert all violations in one batch
+  if (allViolations.length > 0) {
+    const { error: violationError } = await supabase
+      .from("violations")
+      .insert(allViolations);
+
+    if (violationError) {
+      result.errors.push(`Failed to create violations: ${violationError.message}`);
+      throw new Error("Failed to create violations");
+    }
+
+    result.violationsCreated = allViolations.length;
   }
 
   return result;

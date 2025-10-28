@@ -10,6 +10,9 @@ import { BulkActionBar } from "@/components/leads/BulkActionBar";
 import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { MapPin } from "lucide-react";
+import { geocodeAllProperties } from "@/services/geocoding";
 
 interface Violation {
   id: string;
@@ -57,6 +60,11 @@ function Leads() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+
+  const propertiesNeedingGeocode = useMemo(() => {
+    return properties.filter(p => !p.latitude || !p.longitude).length;
+  }, [properties]);
 
   // Fetch properties
   async function fetchProperties() {
@@ -188,6 +196,27 @@ function Leads() {
     }
   };
 
+  const handleGeocodeProperties = async () => {
+    setIsGeocoding(true);
+    try {
+      const result = await geocodeAllProperties();
+      toast({
+        title: "Geocoding Complete",
+        description: `Successfully geocoded ${result.geocoded} of ${result.total} properties`,
+      });
+      // Refresh properties to show updated coordinates
+      await fetchProperties();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to geocode properties",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <FilterBar
@@ -211,7 +240,20 @@ function Leads() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Map - Left Side */}
-        <div className="w-[60%] border-r">
+        <div className="w-[60%] border-r relative">
+          {propertiesNeedingGeocode > 0 && (
+            <div className="absolute top-4 right-4 z-[1001]">
+              <Button
+                onClick={handleGeocodeProperties}
+                disabled={isGeocoding}
+                size="sm"
+                className="gap-2 bg-primary shadow-lg"
+              >
+                <MapPin className="h-4 w-4" />
+                {isGeocoding ? "Geocoding..." : `Add ${propertiesNeedingGeocode} to Map`}
+              </Button>
+            </div>
+          )}
           <LeadsMap
             properties={filteredProperties}
             onPropertyClick={setSelectedPropertyId}

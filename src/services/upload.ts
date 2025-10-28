@@ -157,14 +157,17 @@ export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> 
     result.violationsCreated = allViolations.length;
   }
 
-  // Generate AI insights for all properties (async, non-blocking)
+  // Generate AI insights and geocode properties (async, non-blocking)
   if (existingPropertyMap.size > 0) {
     const allPropertyIds = Array.from(existingPropertyMap.values());
     
-    // Fire and forget - don't wait for insights to complete
-    callFn("generate-insights", { propertyIds: allPropertyIds }).catch(error => {
-      console.error("Error generating insights:", error);
-      // Don't fail the upload if insights fail
+    // Fire and forget - don't wait for these to complete
+    Promise.all([
+      callFn("generate-insights", { propertyIds: allPropertyIds }),
+      callFn("geocode-properties", { propertyIds: allPropertyIds })
+    ]).catch(error => {
+      console.error("Error in background processing:", error);
+      // Don't fail the upload if these fail
     });
   }
 

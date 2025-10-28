@@ -77,7 +77,7 @@ export function PropertyCard({
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground mb-2">
+          <p className="text-sm text-muted-foreground mb-2 whitespace-pre-line break-words leading-relaxed">
             {property.snap_insight || "No insight available"}
           </p>
 

@@ -31,7 +31,7 @@ export function VirtualizedPropertyList({
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 120,
+    estimateSize: () => 180,
     overscan: 5,
   });
 

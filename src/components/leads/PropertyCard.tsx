@@ -46,7 +46,7 @@ export function PropertyCard({
 
   return (
     <div
-      className="group p-4 border-b hover:bg-accent/50 transition-colors cursor-pointer"
+      className="group p-4 border-b hover:bg-accent/50 transition-colors cursor-pointer bg-background"
       onClick={onClick}
     >
       <div className="flex items-start gap-3">
@@ -54,30 +54,33 @@ export function PropertyCard({
           checked={isSelected}
           onCheckedChange={() => onToggleSelect(property.id)}
           onClick={(e) => e.stopPropagation()}
-          className="mt-1"
+          className="mt-1 shrink-0"
         />
         
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <div className="flex-1">
-              <h3 className="font-semibold text-base">
+        <div className="flex-1 min-w-0 max-w-full">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-base truncate">
                 {property.address}
               </h3>
+              <p className="text-xs text-muted-foreground">
+                {property.city}, {property.state}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <SkipTraceChip
                 phoneCount={contacts.filter(c => c.phone).length}
                 emailCount={contacts.filter(c => c.email).length}
               />
               <Badge
-                className={`${getScoreColor(property.snap_score)} text-white shrink-0`}
+                className={`${getScoreColor(property.snap_score)} text-white`}
               >
                 {property.snap_score || 0}
               </Badge>
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground mb-2 whitespace-pre-line break-words leading-relaxed">
+          <p className="text-sm text-muted-foreground mb-3 leading-relaxed line-clamp-3">
             {property.snap_insight || "No insight available"}
           </p>
 

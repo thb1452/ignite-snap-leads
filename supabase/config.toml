@@ -1,1 +1,4 @@
 project_id = "ojyxblegxpdgaqiscxpz"
+
+[functions.geocode-properties]
+verify_jwt = false

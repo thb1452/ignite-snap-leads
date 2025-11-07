@@ -34,6 +34,7 @@ export function Upload() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [allData, setAllData] = useState<CSVRow[]>([]);
   const { toast } = useToast();
@@ -95,6 +96,13 @@ export function Upload() {
             warnings.push(`Missing optional field: ${field} (may affect SnapScore calculation)`);
           }
         });
+
+        // Check for duplicate case IDs
+        const caseIds = data.filter(row => row.case_id).map(row => row.case_id!);
+        const duplicates = caseIds.filter((id, index) => caseIds.indexOf(id) !== index);
+        if (duplicates.length > 0) {
+          warnings.push(`Found ${new Set(duplicates).size} duplicate case IDs in the CSV`);
+        }
         
         setValidation({
           isValid: warnings.filter(w => w.includes('required')).length === 0,
@@ -125,19 +133,30 @@ export function Upload() {
     
     setUploading(true);
     setProgress(0);
+    setProgressMessage('Starting upload...');
     
     try {
-      // Upload all data to database
-      setProgress(10);
-      const result = await uploadViolationCSV(allData);
-      
-      setProgress(90);
+      const result = await uploadViolationCSV(allData, (progressUpdate) => {
+        const { stage, current, total, message } = progressUpdate;
+        
+        // Calculate progress percentage based on stage
+        let stageProgress = 0;
+        if (stage === 'validating') stageProgress = 10;
+        else if (stage === 'checking') stageProgress = 20;
+        else if (stage === 'creating-properties') stageProgress = 40;
+        else if (stage === 'creating-violations') {
+          const violationProgress = (current / total) * 50;
+          stageProgress = 40 + violationProgress;
+        } else if (stage === 'complete') stageProgress = 100;
+        
+        setProgress(stageProgress);
+        setProgressMessage(message);
+      });
       
       if (result.errors.length > 0) {
-        console.error("Upload errors:", result.errors);
         toast({
           title: "Upload completed with warnings",
-          description: `Created ${result.violationsCreated} violations and ${result.propertiesCreated} properties. ${result.errors.length} errors occurred.`,
+          description: `Created ${result.violationsCreated} violations and ${result.propertiesCreated} properties. ${result.errors.length} errors occurred.${result.duplicates.length > 0 ? ` Found ${result.duplicates.length} duplicate case IDs.` : ''}`,
           variant: "destructive",
         });
       } else {
@@ -148,6 +167,7 @@ export function Upload() {
       }
       
       setProgress(100);
+      setProgressMessage('Complete!');
       
       // Reset form and redirect to Leads page
       setTimeout(() => {
@@ -156,6 +176,7 @@ export function Upload() {
         setAllData([]);
         setUploading(false);
         setProgress(0);
+        setProgressMessage('');
         navigate('/leads');
       }, 1500);
       
@@ -168,6 +189,7 @@ export function Upload() {
       });
       setUploading(false);
       setProgress(0);
+      setProgressMessage('');
     }
   };
 
@@ -294,8 +316,8 @@ export function Upload() {
             {uploading && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span>Processing...</span>
-                  <span>{progress}%</span>
+                  <span className="text-muted-foreground">{progressMessage}</span>
+                  <span className="font-medium">{Math.round(progress)}%</span>
                 </div>
                 <Progress value={progress} className="w-full" />
               </div>

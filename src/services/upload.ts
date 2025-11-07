@@ -17,25 +17,60 @@ interface UploadResult {
   propertiesCreated: number;
   violationsCreated: number;
   errors: string[];
+  duplicates: string[];
+}
+
+interface UploadProgress {
+  stage: 'validating' | 'checking' | 'creating-properties' | 'creating-violations' | 'complete';
+  current: number;
+  total: number;
+  message: string;
 }
 
 /**
  * Upload CSV violation data to the database
  * Creates properties and violations from parsed CSV rows
- * Optimized for batch operations
+ * Optimized for batch operations with progress tracking
  */
-export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> {
+export async function uploadViolationCSV(
+  rows: CSVRow[],
+  onProgress?: (progress: UploadProgress) => void
+): Promise<UploadResult> {
   const result: UploadResult = {
     propertiesCreated: 0,
     violationsCreated: 0,
     errors: [],
+    duplicates: [],
   };
 
   if (rows.length === 0) {
     throw new Error("No data to upload");
   }
 
-  // Step 1: Prepare unique properties and group violations
+  onProgress?.({ stage: 'validating', current: 0, total: rows.length, message: 'Checking for duplicates...' });
+
+  // Step 1: Check for duplicate case_ids and prepare unique properties
+  const caseIdSet = new Set<string>();
+  const duplicateCaseIds = new Set<string>();
+  
+  rows.forEach((row) => {
+    if (row.case_id) {
+      if (caseIdSet.has(row.case_id)) {
+        duplicateCaseIds.add(row.case_id);
+      } else {
+        caseIdSet.add(row.case_id);
+      }
+    }
+  });
+
+  if (duplicateCaseIds.size > 0) {
+    result.duplicates = Array.from(duplicateCaseIds);
+    result.errors.push(`Found ${duplicateCaseIds.size} duplicate case IDs in CSV`);
+  }
+
+  onProgress?.({ stage: 'validating', current: rows.length, total: rows.length, message: 'Grouping properties...' });
+
+  // Step 2: Prepare unique properties and group violations
   const propertyMap = new Map<string, { row: CSVRow; violations: CSVRow[] }>();
   
   rows.forEach((row, index) => {
@@ -51,7 +86,9 @@ export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> 
     propertyMap.get(addressKey)!.violations.push(row);
   });
 
-  // Step 2: Check which properties already exist (optimized for large datasets)
+  onProgress?.({ stage: 'checking', current: 0, total: propertyMap.size, message: 'Checking existing properties...' });
+
+  // Step 3: Check which properties already exist (optimized for large datasets)
   const uniqueAddresses = Array.from(new Set(Array.from(propertyMap.values()).map(p => p.row.address!)));
   const uniqueCities = Array.from(new Set(Array.from(propertyMap.values()).map(p => p.row.city!)));
   
@@ -74,7 +111,9 @@ export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> 
     existingPropertyMap.set(key, prop.id);
   });
 
-  // Step 3: Bulk insert new properties
+  onProgress?.({ stage: 'creating-properties', current: 0, total: propertyMap.size, message: 'Creating new properties...' });
+
+  // Step 4: Bulk insert new properties
   const newProperties = Array.from(propertyMap.entries())
     .filter(([key]) => !existingPropertyMap.has(key))
     .map(([_, { row }]) => ({
@@ -111,7 +150,7 @@ export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> 
     });
   }
 
-  // Step 4: Bulk insert all violations in batches (max 1000 per batch for reliability)
+  // Step 5: Bulk insert all violations in batches (max 1000 per batch for reliability)
   const allViolations: any[] = [];
   
   for (const [addressKey, { violations }] of propertyMap.entries()) {
@@ -142,11 +181,21 @@ export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> 
     });
   }
 
+  onProgress?.({ stage: 'creating-violations', current: 0, total: allViolations.length, message: 'Preparing violations...' });
+
   // Insert violations in batches to avoid payload size limits
   if (allViolations.length > 0) {
     const BATCH_SIZE = 1000;
     for (let i = 0; i < allViolations.length; i += BATCH_SIZE) {
       const batch = allViolations.slice(i, i + BATCH_SIZE);
+      
+      onProgress?.({ 
+        stage: 'creating-violations', 
+        current: i + batch.length, 
+        total: allViolations.length, 
+        message: `Uploading violations (${i + batch.length}/${allViolations.length})...` 
+      });
+
       const { error: violationError } = await supabase
         .from("violations")
         .insert(batch);
@@ -159,6 +208,8 @@ export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> 
 
     result.violationsCreated = allViolations.length;
   }
+
+  onProgress?.({ stage: 'complete', current: allViolations.length, total: allViolations.length, message: 'Upload complete!' });
 
   // Generate AI insights and geocode properties (async, non-blocking)
   if (existingPropertyMap.size > 0) {

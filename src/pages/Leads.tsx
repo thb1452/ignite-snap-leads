@@ -9,9 +9,10 @@ import { PropertyCard } from "@/components/leads/PropertyCard";
 import { BulkActionBar } from "@/components/leads/BulkActionBar";
 import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
+import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { MapPin } from "lucide-react";
+import { MapPin, Trash2 } from "lucide-react";
 import { geocodeAllProperties } from "@/services/geocoding";
 
 interface Violation {
@@ -60,6 +61,7 @@ function Leads() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
 
   const propertiesNeedingGeocode = useMemo(() => {
@@ -242,15 +244,25 @@ function Leads() {
         {/* Map - Left Side */}
         <div className="w-[60%] border-r relative">
           {propertiesNeedingGeocode > 0 && (
-            <div className="absolute top-4 right-4 z-[1001]">
+            <div className="absolute top-4 right-4 z-[1001] flex gap-2">
               <Button
                 onClick={handleGeocodeProperties}
                 disabled={isGeocoding}
+                variant="secondary"
                 size="sm"
-                className="gap-2 bg-primary shadow-lg"
+                className="shadow-lg"
               >
-                <MapPin className="h-4 w-4" />
-                {isGeocoding ? "Geocoding..." : `Add ${propertiesNeedingGeocode} to Map`}
+                <MapPin className="h-4 w-4 mr-2" />
+                {isGeocoding ? 'Geocoding...' : `Add ${propertiesNeedingGeocode} to Map`}
+              </Button>
+              <Button
+                onClick={() => setShowBulkDeleteDialog(true)}
+                variant="destructive"
+                size="sm"
+                className="shadow-lg"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Bulk Delete
               </Button>
             </div>
           )}
@@ -311,6 +323,16 @@ function Leads() {
         onSuccess={() => {
           setSelectedIds([]);
           setShowAddToListDialog(false);
+        }}
+      />
+
+      {/* Bulk Delete Dialog */}
+      <BulkDeleteDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={setShowBulkDeleteDialog}
+        onSuccess={() => {
+          fetchProperties();
+          setShowBulkDeleteDialog(false);
         }}
       />
     </div>

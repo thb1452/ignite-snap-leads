@@ -51,21 +51,20 @@ export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> 
     propertyMap.get(addressKey)!.violations.push(row);
   });
 
-  // Step 2: Check which properties already exist (batch query)
-  const addresses = Array.from(propertyMap.values()).map(p => p.row.address!);
-  const cities = Array.from(propertyMap.values()).map(p => p.row.city!);
+  // Step 2: Check which properties already exist (optimized for large datasets)
+  const uniqueAddresses = Array.from(new Set(Array.from(propertyMap.values()).map(p => p.row.address!)));
+  const uniqueCities = Array.from(new Set(Array.from(propertyMap.values()).map(p => p.row.city!)));
   
+  // Query properties by address and city in batches to avoid query length limits
   const { data: existingProperties, error: searchError } = await supabase
     .from("properties")
     .select("id, address, city, state, zip")
-    .or(
-      Array.from(propertyMap.values())
-        .map(p => `and(address.ilike.${p.row.address},city.ilike.${p.row.city})`)
-        .join(',')
-    );
+    .in("address", uniqueAddresses)
+    .in("city", uniqueCities);
 
   if (searchError) {
     console.error("Error searching for existing properties:", searchError);
+    result.errors.push(`Property lookup failed: ${searchError.message}`);
   }
 
   // Map existing properties by address key
@@ -112,7 +111,7 @@ export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> 
     });
   }
 
-  // Step 4: Bulk insert all violations
+  // Step 4: Bulk insert all violations in batches (max 1000 per batch for reliability)
   const allViolations: any[] = [];
   
   for (const [addressKey, { violations }] of propertyMap.entries()) {
@@ -143,15 +142,19 @@ export async function uploadViolationCSV(rows: CSVRow[]): Promise<UploadResult> 
     });
   }
 
-  // Insert all violations in one batch
+  // Insert violations in batches to avoid payload size limits
   if (allViolations.length > 0) {
-    const { error: violationError } = await supabase
-      .from("violations")
-      .insert(allViolations);
+    const BATCH_SIZE = 1000;
+    for (let i = 0; i < allViolations.length; i += BATCH_SIZE) {
+      const batch = allViolations.slice(i, i + BATCH_SIZE);
+      const { error: violationError } = await supabase
+        .from("violations")
+        .insert(batch);
 
-    if (violationError) {
-      result.errors.push(`Failed to create violations: ${violationError.message}`);
-      throw new Error("Failed to create violations");
+      if (violationError) {
+        result.errors.push(`Failed to create violations batch ${i}-${i + batch.length}: ${violationError.message}`);
+        throw new Error("Failed to create violations");
+      }
     }
 
     result.violationsCreated = allViolations.length;

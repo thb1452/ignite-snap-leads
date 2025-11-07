@@ -11,32 +11,40 @@ const RATE_LIMIT_MS = 1000;
 
 async function geocodeAddress(address: string, city: string, state: string, zip: string): Promise<{ lat: number; lng: number } | null> {
   const query = `${address}, ${city}, ${state} ${zip}, USA`;
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1`;
+  
+  console.log(`Geocoding: ${query}`);
   
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'SnapIgnite-LeadApp/1.0'
+        'User-Agent': 'SnapIgnite-LeadApp/1.0',
+        'Accept': 'application/json'
       }
     });
     
     if (!response.ok) {
-      console.error(`Geocoding failed for ${query}: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`Geocoding failed for "${query}": ${response.status} - ${errorText}`);
       return null;
     }
     
     const data = await response.json();
+    console.log(`Geocoding response for "${query}":`, JSON.stringify(data));
     
     if (data && data.length > 0) {
-      return {
+      const coords = {
         lat: parseFloat(data[0].lat),
         lng: parseFloat(data[0].lon)
       };
+      console.log(`✓ Geocoded "${query}" to: ${coords.lat}, ${coords.lng}`);
+      return coords;
     }
     
+    console.warn(`✗ No results found for "${query}"`);
     return null;
   } catch (error) {
-    console.error(`Error geocoding ${query}:`, error);
+    console.error(`Error geocoding "${query}":`, error);
     return null;
   }
 }
@@ -91,8 +99,13 @@ serve(async (req) => {
     let successCount = 0;
     let failCount = 0;
 
+    console.log(`Starting to geocode ${properties.length} properties...`);
+
     // Process properties one at a time with rate limiting
-    for (const property of properties) {
+    for (let i = 0; i < properties.length; i++) {
+      const property = properties[i];
+      console.log(`[${i + 1}/${properties.length}] Processing property ${property.id}: ${property.address}, ${property.city}, ${property.state}`);
+      
       const coords = await geocodeAddress(
         property.address,
         property.city,
@@ -110,20 +123,24 @@ serve(async (req) => {
           .eq("id", property.id);
 
         if (updateError) {
-          console.error(`Error updating property ${property.id}:`, updateError);
+          console.error(`✗ Error updating property ${property.id}:`, updateError);
           failCount++;
         } else {
+          console.log(`✓ Successfully updated property ${property.id} with coordinates`);
           successCount++;
         }
       } else {
+        console.warn(`✗ Failed to geocode property ${property.id}`);
         failCount++;
       }
 
-      // Rate limit between requests
-      if (properties.indexOf(property) < properties.length - 1) {
+      // Rate limit between requests (respect Nominatim's usage policy)
+      if (i < properties.length - 1) {
         await delay(RATE_LIMIT_MS);
       }
     }
+
+    console.log(`Geocoding complete: ${successCount} succeeded, ${failCount} failed`);
 
     return new Response(
       JSON.stringify({

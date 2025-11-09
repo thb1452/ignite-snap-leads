@@ -98,7 +98,7 @@ export function BulkDeleteDialog({ open, onOpenChange, onSuccess }: BulkDeleteDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md z-50">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trash2 className="h-5 w-5 text-destructive" />
@@ -109,14 +109,14 @@ export function BulkDeleteDialog({ open, onOpenChange, onSuccess }: BulkDeleteDi
           </DialogDescription>
         </DialogHeader>
 
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="my-4">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             This action cannot be undone. All properties and violations in the specified city will be permanently deleted.
           </AlertDescription>
         </Alert>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="city">City Name</Label>
             <Input
@@ -125,6 +125,7 @@ export function BulkDeleteDialog({ open, onOpenChange, onSuccess }: BulkDeleteDi
               value={city}
               onChange={(e) => setCity(e.target.value)}
               disabled={isDeleting}
+              autoComplete="off"
             />
           </div>
 
@@ -138,11 +139,12 @@ export function BulkDeleteDialog({ open, onOpenChange, onSuccess }: BulkDeleteDi
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               disabled={isDeleting}
+              autoComplete="off"
             />
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="mt-6">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}

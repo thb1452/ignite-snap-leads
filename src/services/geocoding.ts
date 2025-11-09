@@ -19,15 +19,31 @@ export async function geocodeAllProperties(): Promise<{ geocoded: number; failed
     }
 
     const propertyIds = properties.map(p => p.id);
-    
     console.log(`Geocoding ${propertyIds.length} properties...`);
-    
-    // Call the geocoding function
-    const result = await callFn("geocode-properties", { propertyIds });
-    
-    console.log("Geocoding result:", result);
-    
-    return result as { geocoded: number; failed: number; total: number };
+
+    // Batch to avoid edge function timeout limits (~60s)
+    const BATCH_SIZE = 45; // ~45s with 1 req/sec rate limit
+    let geocoded = 0;
+    let failed = 0;
+    let processed = 0;
+
+    for (let i = 0; i < propertyIds.length; i += BATCH_SIZE) {
+      const batch = propertyIds.slice(i, i + BATCH_SIZE);
+      console.log(`Invoking geocode-properties for batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} items)`);
+      try {
+        const result = await callFn("geocode-properties", { propertyIds: batch });
+        console.log("Geocoding batch result:", result);
+        geocoded += (result as any)?.geocoded ?? 0;
+        failed += (result as any)?.failed ?? 0;
+        processed += (result as any)?.total ?? batch.length;
+      } catch (err) {
+        console.error("Batch geocoding error:", err);
+        failed += batch.length;
+        processed += batch.length;
+      }
+    }
+
+    return { geocoded, failed, total: processed };
   } catch (error) {
     console.error("Geocoding error:", error);
     throw error;

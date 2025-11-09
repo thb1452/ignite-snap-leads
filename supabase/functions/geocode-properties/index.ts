@@ -9,9 +9,36 @@ const corsHeaders = {
 // Rate limit delay between requests (1 second per Nominatim usage policy)
 const RATE_LIMIT_MS = 1000;
 
+// Address normalization to improve geocoding success on messy inputs
+const NOISE_PATTERNS = [
+  /\bTENANT REQUEST FOR\b/gi,
+  /\bTRASH IN DITCH\b/gi,
+  /\bNUMEROUS\b/gi,
+  /\bUNDERGROUND\b/gi,
+  /\bTRIPPING\b/gi,
+  /\bMULTIPLE\b/gi,
+];
+
+function normalizeAddress(raw: string): string {
+  if (!raw) return "";
+  let a = raw;
+  // Remove parenthetical notes and trailing unit/building descriptors
+  a = a.replace(/\(.*?\)/g, "");
+  a = a.replace(/[, ]+\b(?:UN|UNIT|APT|APARTMENT|BLDG|BUILDING)\b.*$/i, "");
+  // Remove noisy descriptors
+  for (const p of NOISE_PATTERNS) a = a.replace(p, "");
+  // Normalize intersections: "/" -> " & "
+  a = a.replace(/\s*\/\s*/g, " & ");
+  // Collapse whitespace
+  a = a.replace(/\s{2,}/g, " ").trim();
+  return a;
+}
+
+
 async function geocodeAddress(address: string, city: string, state: string, zip: string): Promise<{ lat: number; lng: number } | null> {
-  const query = `${address}, ${city}, ${state} ${zip}, USA`;
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1`;
+  const normalized = normalizeAddress(address);
+  const query = `${normalized}, ${city}, ${state} ${zip ?? ""}, USA`;
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1&countrycodes=us`;
   
   console.log(`Geocoding: ${query}`);
   

@@ -41,10 +41,28 @@ export function BulkDeleteDialog({ open, onOpenChange, onSuccess }: BulkDeleteDi
 
     try {
       // First get properties in the city
+      const inputRaw = city.trim();
+      const input = inputRaw.replace(/,/g, "");
+      const upper = input.toUpperCase();
+
+      // Minimal mapping so users can type full state names like "TEXAS"
+      const stateCode = (() => {
+        const map: Record<string, string> = { TEXAS: "TX" };
+        return map[upper] ?? null;
+      })();
+
+      const orFilters = [
+        `city.ilike.%${input}%`,
+        `state.ilike.%${input}%`,
+      ];
+      if (stateCode) {
+        orFilters.push(`state.eq.${stateCode}`);
+      }
+
       const { data: properties, error: fetchError } = await supabase
         .from("properties")
         .select("id")
-        .ilike("city", city.trim());
+        .or(orFilters.join(","));
 
       if (fetchError) throw fetchError;
 
@@ -105,7 +123,7 @@ export function BulkDeleteDialog({ open, onOpenChange, onSuccess }: BulkDeleteDi
             Bulk Delete Properties
           </DialogTitle>
           <DialogDescription>
-            Delete all properties and their violations from a specific city
+            Delete all properties and their violations from a specific city or state
           </DialogDescription>
         </DialogHeader>
 
@@ -118,10 +136,10 @@ export function BulkDeleteDialog({ open, onOpenChange, onSuccess }: BulkDeleteDi
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="city">City Name</Label>
+            <Label htmlFor="city">City or State</Label>
             <Input
               id="city"
-              placeholder="Enter city name"
+              placeholder="Enter city or state (e.g., Terrell or Texas)"
               value={city}
               onChange={(e) => setCity(e.target.value)}
               disabled={isDeleting}

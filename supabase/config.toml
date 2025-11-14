@@ -2,3 +2,6 @@ project_id = "ojyxblegxpdgaqiscxpz"
 
 [functions.geocode-properties]
 verify_jwt = false
+
+[functions.process-upload]
+verify_jwt = false

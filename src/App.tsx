@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { Upload } from "./pages/Upload";
+import Upload from "./pages/Upload";
 import Leads from "./pages/Leads";
 import { Lists } from "./pages/Lists";
 import { Settings } from "./pages/Settings";

@@ -671,6 +671,128 @@ export type Database = {
         }
         Relationships: []
       }
+      upload_jobs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          file_size: number
+          filename: string
+          finished_at: string | null
+          id: string
+          processed_rows: number | null
+          properties_created: number | null
+          started_at: string | null
+          status: string | null
+          storage_path: string
+          total_rows: number | null
+          updated_at: string
+          user_id: string
+          violations_created: number | null
+          warnings: Json | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          file_size: number
+          filename: string
+          finished_at?: string | null
+          id?: string
+          processed_rows?: number | null
+          properties_created?: number | null
+          started_at?: string | null
+          status?: string | null
+          storage_path: string
+          total_rows?: number | null
+          updated_at?: string
+          user_id: string
+          violations_created?: number | null
+          warnings?: Json | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          file_size?: number
+          filename?: string
+          finished_at?: string | null
+          id?: string
+          processed_rows?: number | null
+          properties_created?: number | null
+          started_at?: string | null
+          status?: string | null
+          storage_path?: string
+          total_rows?: number | null
+          updated_at?: string
+          user_id?: string
+          violations_created?: number | null
+          warnings?: Json | null
+        }
+        Relationships: []
+      }
+      upload_staging: {
+        Row: {
+          address: string
+          case_id: string | null
+          city: string
+          created_at: string | null
+          error: string | null
+          id: string
+          job_id: string
+          last_updated: string | null
+          opened_date: string | null
+          processed: boolean | null
+          property_id: string | null
+          row_num: number
+          state: string | null
+          status: string | null
+          violation: string
+          zip: string | null
+        }
+        Insert: {
+          address: string
+          case_id?: string | null
+          city: string
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          job_id: string
+          last_updated?: string | null
+          opened_date?: string | null
+          processed?: boolean | null
+          property_id?: string | null
+          row_num: number
+          state?: string | null
+          status?: string | null
+          violation: string
+          zip?: string | null
+        }
+        Update: {
+          address?: string
+          case_id?: string | null
+          city?: string
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          job_id?: string
+          last_updated?: string | null
+          opened_date?: string | null
+          processed?: boolean | null
+          property_id?: string | null
+          row_num?: number
+          state?: string | null
+          status?: string | null
+          violation?: string
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upload_staging_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "upload_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           consented_skiptrace: boolean | null

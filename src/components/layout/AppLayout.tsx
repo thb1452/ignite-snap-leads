@@ -22,6 +22,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navItems = [
     { name: "Leads", path: "/" },
     { name: "Upload", path: "/upload" },
+    { name: "Jobs", path: "/jobs" },
     { name: "Lists", path: "/lists" },
     { name: "Settings", path: "/settings" },
   ];

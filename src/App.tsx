@@ -4,12 +4,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
 import Upload from "./pages/Upload";
 import Leads from "./pages/Leads";
 import { Lists } from "./pages/Lists";
 import { Settings } from "./pages/Settings";
 import JobDetail from "./pages/JobDetail";
 import Jobs from "./pages/Jobs";
+import VADashboard from "./pages/VADashboard";
+import AdminConsole from "./pages/AdminConsole";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +58,16 @@ const App = () => (
             <ProtectedRoute>
               <JobDetail />
             </ProtectedRoute>
+          } />
+          <Route path="/va-dashboard" element={
+            <RoleProtectedRoute allowedRoles={['va']}>
+              <VADashboard />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/admin-console" element={
+            <RoleProtectedRoute allowedRoles={['admin']}>
+              <AdminConsole />
+            </RoleProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

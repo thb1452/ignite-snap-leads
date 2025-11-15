@@ -58,6 +58,114 @@ export type Database = {
           },
         ]
       }
+      clean_leads: {
+        Row: {
+          address: string
+          city: string
+          county_id: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          last_updated: string | null
+          opened_date: string | null
+          property_id: string | null
+          snap_insight: string | null
+          snap_score: number | null
+          state: string
+          violation_description: string | null
+          violation_type: string | null
+          zip: string | null
+        }
+        Insert: {
+          address: string
+          city: string
+          county_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          last_updated?: string | null
+          opened_date?: string | null
+          property_id?: string | null
+          snap_insight?: string | null
+          snap_score?: number | null
+          state: string
+          violation_description?: string | null
+          violation_type?: string | null
+          zip?: string | null
+        }
+        Update: {
+          address?: string
+          city?: string
+          county_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          last_updated?: string | null
+          opened_date?: string | null
+          property_id?: string | null
+          snap_insight?: string | null
+          snap_score?: number | null
+          state?: string
+          violation_description?: string | null
+          violation_type?: string | null
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clean_leads_county_id_fkey"
+            columns: ["county_id"]
+            isOneToOne: false
+            referencedRelation: "counties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clean_leads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      counties: {
+        Row: {
+          assigned_to: string | null
+          county_name: string
+          created_at: string | null
+          foia_status: string | null
+          id: string
+          last_upload_date: string | null
+          list_count: number | null
+          state: string
+          updated_at: string | null
+          upload_status: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          county_name: string
+          created_at?: string | null
+          foia_status?: string | null
+          id?: string
+          last_upload_date?: string | null
+          list_count?: number | null
+          state: string
+          updated_at?: string | null
+          upload_status?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          county_name?: string
+          created_at?: string | null
+          foia_status?: string | null
+          id?: string
+          last_upload_date?: string | null
+          list_count?: number | null
+          state?: string
+          updated_at?: string | null
+          upload_status?: string | null
+        }
+        Relationships: []
+      }
       credit_ledger: {
         Row: {
           created_at: string
@@ -671,6 +779,97 @@ export type Database = {
         }
         Relationships: []
       }
+      staging_uploads: {
+        Row: {
+          completed_at: string | null
+          county_id: string | null
+          created_at: string | null
+          error_messages: Json | null
+          failed_rows: number | null
+          file_name: string
+          id: string
+          processed_rows: number | null
+          status: string | null
+          total_rows: number | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          county_id?: string | null
+          created_at?: string | null
+          error_messages?: Json | null
+          failed_rows?: number | null
+          file_name: string
+          id?: string
+          processed_rows?: number | null
+          status?: string | null
+          total_rows?: number | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          county_id?: string | null
+          created_at?: string | null
+          error_messages?: Json | null
+          failed_rows?: number | null
+          file_name?: string
+          id?: string
+          processed_rows?: number | null
+          status?: string | null
+          total_rows?: number | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staging_uploads_county_id_fkey"
+            columns: ["county_id"]
+            isOneToOne: false
+            referencedRelation: "counties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      upload_history: {
+        Row: {
+          county_id: string | null
+          error_message: string | null
+          file_name: string
+          id: string
+          row_count: number | null
+          status: string
+          upload_date: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          county_id?: string | null
+          error_message?: string | null
+          file_name: string
+          id?: string
+          row_count?: number | null
+          status: string
+          upload_date?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          county_id?: string | null
+          error_message?: string | null
+          file_name?: string
+          id?: string
+          row_count?: number | null
+          status?: string
+          upload_date?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upload_history_county_id_fkey"
+            columns: ["county_id"]
+            isOneToOne: false
+            referencedRelation: "counties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       upload_jobs: {
         Row: {
           created_at: string
@@ -816,6 +1015,27 @@ export type Database = {
           credits?: number
           id?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
@@ -1233,6 +1453,13 @@ export type Database = {
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
       gettransactionid: { Args: never; Returns: unknown }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       longtransactionsenabled: { Args: never; Returns: boolean }
       populate_geometry_columns:
         | { Args: { use_typmod?: boolean }; Returns: string }
@@ -1868,7 +2095,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "va" | "user"
     }
     CompositeTypes: {
       geometry_dump: {
@@ -2003,6 +2230,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "va", "user"],
+    },
   },
 } as const

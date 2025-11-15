@@ -9,6 +9,7 @@ import { createUploadJob } from '@/services/uploadJobs';
 import { useUploadJob } from '@/hooks/useUploadJob';
 import { UploadProgress } from '@/components/upload/UploadProgress';
 import { useToast } from '@/hooks/use-toast';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 export default function Upload() {
   const { user } = useAuth();
@@ -78,7 +79,8 @@ export default function Upload() {
   });
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
+    <AppLayout>
+      <div className="container mx-auto py-8 px-4 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Upload Properties</h1>
         <p className="text-muted-foreground">
@@ -124,6 +126,7 @@ export default function Upload() {
           </AlertDescription>
         </Alert>
       </div>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

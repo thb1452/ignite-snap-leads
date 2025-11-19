@@ -46,9 +46,6 @@ import { createBulkSkipTraceJob } from "@/services/skiptraceJobs";
 function Leads() {
   const { toast } = useToast();
   
-  // Demo: Show 2M total properties but only render 40
-  const totalPropertyCount = 2000000;
-  
   // Data state
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -205,21 +202,6 @@ function Leads() {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="px-6 py-4 bg-background border-b border-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-foreground">Properties</h1>
-            <div className="flex items-center gap-2">
-              <span className="text-3xl font-bold text-primary">{totalPropertyCount.toLocaleString()}</span>
-              <span className="text-sm text-muted-foreground">nationwide properties</span>
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            Showing {properties.length} in current view
-          </div>
-        </div>
-      </div>
-      
       <FilterBar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}

@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface BulkDeleteDialogProps {
@@ -40,62 +39,12 @@ export function BulkDeleteDialog({ open, onOpenChange, onSuccess }: BulkDeleteDi
     setIsDeleting(true);
 
     try {
-      // First get properties in the city
-      const inputRaw = city.trim();
-      const input = inputRaw.replace(/,/g, "");
-      const upper = input.toUpperCase();
-
-      // Minimal mapping so users can type full state names like "TEXAS"
-      const stateCode = (() => {
-        const map: Record<string, string> = { TEXAS: "TX" };
-        return map[upper] ?? null;
-      })();
-
-      const orFilters = [
-        `city.ilike.%${input}%`,
-        `state.ilike.%${input}%`,
-      ];
-      if (stateCode) {
-        orFilters.push(`state.eq.${stateCode}`);
-      }
-
-      const { data: properties, error: fetchError } = await supabase
-        .from("properties")
-        .select("id")
-        .or(orFilters.join(","));
-
-      if (fetchError) throw fetchError;
-
-      if (!properties || properties.length === 0) {
-        toast({
-          title: "No properties found",
-          description: `No properties found in city: ${city}`,
-        });
-        setIsDeleting(false);
-        return;
-      }
-
-      const propertyIds = properties.map(p => p.id);
-
-      // Delete violations first (foreign key constraint)
-      const { error: violationsError } = await supabase
-        .from("violations")
-        .delete()
-        .in("property_id", propertyIds);
-
-      if (violationsError) throw violationsError;
-
-      // Then delete properties
-      const { error: propertiesError } = await supabase
-        .from("properties")
-        .delete()
-        .in("id", propertyIds);
-
-      if (propertiesError) throw propertiesError;
+      // Demo mode - simulate delete
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       toast({
-        title: "Bulk delete successful",
-        description: `Deleted ${properties.length} properties and their violations from ${city}`,
+        title: "Demo Mode",
+        description: `Bulk delete simulated for city: ${city}`,
       });
 
       setCity("");

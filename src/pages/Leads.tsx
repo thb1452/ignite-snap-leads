@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { generateMockProperties } from "@/services/mockData";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { LeadsMap } from "@/components/leads/LeadsMap";
 import { FilterBar } from "@/components/leads/FilterBar";
@@ -68,44 +68,23 @@ function Leads() {
     return properties.filter(p => !p.latitude || !p.longitude).length;
   }, [properties]);
 
-  // Fetch properties
+  // Fetch properties - DEMO MODE with mock data
   async function fetchProperties() {
     setLoading(true);
     try {
-      const { data: propertiesData, error: propertiesError } = await supabase
-        .from("properties")
-        .select("*")
-        .order("snap_score", { ascending: false, nullsFirst: false });
-
-      if (propertiesError) throw propertiesError;
-
-      // Fetch violations
-      const { data: violationsData, error: violationsError } = await supabase
-        .from("violations")
-        .select("*");
-
-      if (violationsError) throw violationsError;
-
-      // Group violations by property_id
-      const violationsByProperty = (violationsData || []).reduce((acc, violation) => {
-        if (violation.property_id) {
-          if (!acc[violation.property_id]) {
-            acc[violation.property_id] = [];
-          }
-          acc[violation.property_id].push(violation);
-        }
-        return acc;
-      }, {} as Record<string, Violation[]>);
-
-      // Combine properties with their violations
-      const propertiesWithViolations = (propertiesData || []).map(property => ({
-        ...property,
-        violations: violationsByProperty[property.id] || [],
-      }));
-
-      setProperties(propertiesWithViolations);
+      // Simulate API delay for realism
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Generate mock properties
+      const mockProperties = generateMockProperties(40);
+      setProperties(mockProperties);
+      
+      toast({
+        title: "Demo Mode",
+        description: "Loaded 40 sample properties",
+      });
     } catch (error) {
-      console.error("Error fetching properties:", error);
+      console.error("Error loading mock properties:", error);
       toast({
         title: "Error",
         description: "Failed to load properties",
@@ -183,10 +162,12 @@ function Leads() {
     if (selectedIds.length === 0) return;
     
     try {
-      await createBulkSkipTraceJob(selectedIds);
+      // Simulate skip trace delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       toast({
-        title: "Skip Trace Started",
-        description: `Processing ${selectedIds.length} properties...`,
+        title: "Demo Mode",
+        description: `Mock skip trace completed for ${selectedIds.length} properties`,
       });
       setSelectedIds([]);
     } catch (error: any) {
@@ -201,13 +182,13 @@ function Leads() {
   const handleGeocodeProperties = async () => {
     setIsGeocoding(true);
     try {
-      const result = await geocodeAllProperties();
+      // Simulate geocoding delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       toast({
-        title: "Geocoding Complete",
-        description: `Successfully geocoded ${result.geocoded} of ${result.total} properties`,
+        title: "Demo Mode",
+        description: "All properties already have coordinates in demo mode",
       });
-      // Refresh properties to show updated coordinates
-      await fetchProperties();
     } catch (error: any) {
       toast({
         title: "Error",

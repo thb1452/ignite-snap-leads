@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useBulkAddToList } from "@/hooks/useLists";
 
 interface AddToListDialogProps {
   open: boolean;
@@ -21,7 +19,6 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, userLists, on
   const [selectedListId, setSelectedListId] = useState("");
   const [newListName, setNewListName] = useState("");
   const { toast } = useToast();
-  const bulkAddMutation = useBulkAddToList();
 
   const handleAddToList = async () => {
     if (mode === "existing" && !selectedListId) {
@@ -43,32 +40,14 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, userLists, on
     }
 
     try {
-      let targetListId = selectedListId;
+      // Demo mode - simulate add to list
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Create new list if needed
-      if (mode === "new") {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Not authenticated");
-
-        const { data: newList, error } = await supabase
-          .from("lead_lists")
-          .insert({ name: newListName.trim(), user_id: user.id })
-          .select()
-          .single();
-
-        if (error) throw error;
-        targetListId = newList.id;
-      }
-
-      // Add properties to list
-      await bulkAddMutation.mutateAsync({
-        listId: targetListId,
-        propertyIds,
-      });
+      const listName = mode === "new" ? newListName : userLists.find(l => l.id === selectedListId)?.name;
 
       toast({
-        title: "Success",
-        description: `${propertyIds.length} lead(s) added to ${mode === "new" ? newListName : userLists.find(l => l.id === selectedListId)?.name}`,
+        title: "Demo Mode",
+        description: `${propertyIds.length} lead(s) added to ${listName}`,
       });
 
       onSuccess();
@@ -146,8 +125,8 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, userLists, on
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleAddToList} disabled={bulkAddMutation.isPending}>
-            {bulkAddMutation.isPending ? "Adding..." : "Add to List"}
+          <Button onClick={handleAddToList}>
+            Add to List
           </Button>
         </DialogFooter>
       </DialogContent>

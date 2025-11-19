@@ -5,12 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ExternalLink, MapPin, Mail } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { StatusSelector } from "./StatusSelector";
-import { useCreditBalance } from "@/hooks/useCredits";
+import { mockSkipTrace } from "@/services/mockData";
 
 interface Violation {
   id: string;
@@ -73,13 +72,13 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     owner_name: ""
   });
   const { toast } = useToast();
-  const { data: creditsData } = useCreditBalance();
 
   useEffect(() => {
     if (property && open) {
-      fetchActivities();
-      fetchPropertyLists();
-      fetchContacts();
+      // Demo mode - no backend fetches
+      setActivities([]);
+      setPropertyLists([]);
+      setContacts([]);
     }
   }, [property, open]);
 
@@ -90,26 +89,13 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     
     setIsLogging(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabase
-        .from("lead_activity")
-        .insert({
-          property_id: property.id,
-          user_id: user.id,
-          status,
-          notes: notes || null,
-        });
-
-      if (error) throw error;
+      // Demo mode - simulate activity logging
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       toast({
-        title: "Activity logged",
-        description: `${status} recorded successfully`,
+        title: "Demo Mode",
+        description: `Activity logged: ${status}`,
       });
-
-      await fetchActivities();
     } catch (error) {
       console.error("Error logging activity:", error);
       toast({
@@ -122,131 +108,39 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     }
   };
 
-  const fetchActivities = async () => {
-    if (!property) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("lead_activity")
-        .select("*")
-        .eq("property_id", property.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setActivities(data || []);
-    } catch (error) {
-      console.error("Error fetching activities:", error);
-    }
-  };
-
-  const fetchPropertyLists = async () => {
-    if (!property) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("list_properties")
-        .select(`
-          id,
-          list_id,
-          lead_lists (
-            name
-          )
-        `)
-        .eq("property_id", property.id);
-
-      if (error) throw error;
-
-      const formattedLists = (data || []).map((item: any) => ({
-        id: item.id,
-        list_id: item.list_id,
-        list_name: item.lead_lists?.name || "Unknown List",
-      }));
-
-      setPropertyLists(formattedLists);
-    } catch (error) {
-      console.error("Error fetching property lists:", error);
-    }
-  };
-
-  const fetchContacts = async () => {
-    if (!property) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("property_contacts")
-        .select("*")
-        .eq("property_id", property.id);
-
-      if (error) throw error;
-      setContacts(data || []);
-    } catch (error) {
-      console.error("Error fetching contacts:", error);
-    }
-  };
+  // Demo mode - no fetch functions needed
 
   const handleSkipTrace = async (overrides?: any) => {
     if (!property) return;
 
-    console.log("[PropertyDetailPanel] Skip trace clicked for property:", property.id, overrides ? "with overrides" : "");
+    console.log("[PropertyDetailPanel] Demo skip trace for property:", property.id);
     
     setIsTracing(true);
     try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/skiptrace`;
-      const { data: { session } } = await supabase.auth.getSession();
+      // Use mock skip trace
+      const result = await mockSkipTrace(property.id);
       
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          property_id: property.id,
-          overrides: overrides || null
-        }),
-      });
-
-      const result = await response.json();
-      const found = result.contacts?.length ?? 0;
-      
-      console.log("[PropertyDetailPanel] Skip trace complete. Found contacts:", found);
-      
-      if (result.ok) {
-        setContacts(result.contacts || []);
-        
-        if (found > 0) {
-          const isDemoContact = result.contacts.some((c: any) => c.source?.includes("sandbox_demo"));
-          toast({
-            title: "Skip trace complete",
-            description: isDemoContact 
-              ? `Found ${found} contact(s) (Sandbox demo mode)`
-              : `Found ${found} contact(s)`,
-          });
-          setShowRetryDialog(false);
-        } else {
-          // Show retry dialog with pre-filled address
-          setRetryForm({
-            address_line: property.address,
-            city: property.city,
-            state: property.state,
-            postal_code: property.zip,
-            owner_name: ""
-          });
-          setShowRetryDialog(true);
-          toast({
-            title: "No numbers found",
-            description: "No numbers found — try alternate address or owner search",
-          });
-        }
-      } else {
-        throw new Error(result.error || "Skip trace failed");
+      if (result.success && result.contacts) {
+        setContacts(result.contacts);
+        toast({
+          title: "Demo Mode",
+          description: `Found ${result.contacts.length} contact(s)`,
+        });
+        setShowRetryDialog(false);
       }
     } catch (error: any) {
-      console.error("[PropertyDetailPanel] Skip trace error:", error);
+      console.log("[PropertyDetailPanel] No contacts found in demo");
+      setRetryForm({
+        address_line: property.address,
+        city: property.city,
+        state: property.state,
+        postal_code: property.zip,
+        owner_name: ""
+      });
+      setShowRetryDialog(true);
       toast({
-        title: "Skip trace failed",
-        description: error.message || "An error occurred",
-        variant: "destructive",
+        title: "Demo Mode",
+        description: "No contacts found - try alternate search",
       });
     } finally {
       setIsTracing(false);
@@ -275,7 +169,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   const hasMultipleViolations = property.violations.length >= 3;
   const snapScore = property.snap_score;
-  const credits = creditsData ?? 0;
+  const credits = 100; // Demo mode - fake credits
   const hasContacts = contacts.length > 0;
   const notTraced = contacts.length === 0;
 
@@ -352,6 +246,25 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                     <p className="text-sm text-amber-800">{property.snap_insight}</p>
                   </div>
                 </div>
+              </motion.div>
+            )}
+
+            {/* Tags Section (Demo Mode) */}
+            {(property as any).mockTags && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.12 }}
+                className="flex flex-wrap gap-2"
+              >
+                {(property as any).mockTags.map((tag: string, index: number) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
+                  >
+                    {tag}
+                  </span>
+                ))}
               </motion.div>
             )}
 
@@ -442,7 +355,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 >
                   {isTracing ? "Tracing..." : "Skip Trace"}
                 </Button>
-                {credits === 0 && (
+                {credits <= 0 && (
                   <span className="text-sm text-ink-500">
                     0 credits – Buy Credits to enable
                   </span>
@@ -468,7 +381,12 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
             onOpenChange={setAddToListOpen}
             propertyIds={[property.id]}
             userLists={[]}
-            onSuccess={fetchPropertyLists}
+            onSuccess={() => {
+              toast({
+                title: "Demo Mode",
+                description: "List updated successfully",
+              });
+            }}
           />
 
           {/* Retry Skip Trace Dialog */}

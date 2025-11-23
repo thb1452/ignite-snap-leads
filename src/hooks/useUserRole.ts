@@ -11,22 +11,26 @@ export function useUserRole() {
 
   useEffect(() => {
     if (!user) {
+      console.log('[useUserRole] No user, clearing roles');
       setRoles([]);
       setLoading(false);
       return;
     }
 
     const fetchRoles = async () => {
+      console.log('[useUserRole] Fetching roles for user:', user.id);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error fetching roles:', error);
+        console.error('[useUserRole] Error fetching roles:', error);
         setRoles([]);
       } else {
-        setRoles(data?.map(r => r.role as AppRole) || []);
+        const fetchedRoles = data?.map(r => r.role as AppRole) || [];
+        console.log('[useUserRole] Fetched roles:', fetchedRoles);
+        setRoles(fetchedRoles);
       }
       setLoading(false);
     };

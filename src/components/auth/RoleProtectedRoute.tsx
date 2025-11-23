@@ -18,6 +18,11 @@ export function RoleProtectedRoute({
   const { user, loading: authLoading } = useAuth();
   const { roles, loading: roleLoading, hasRole } = useUserRole();
 
+  console.log('[RoleProtectedRoute] Auth loading:', authLoading, 'Role loading:', roleLoading);
+  console.log('[RoleProtectedRoute] User:', user?.id);
+  console.log('[RoleProtectedRoute] Current roles:', roles);
+  console.log('[RoleProtectedRoute] Required roles:', allowedRoles);
+
   if (authLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -27,14 +32,18 @@ export function RoleProtectedRoute({
   }
 
   if (!user) {
+    console.log('[RoleProtectedRoute] No user, redirecting to /auth');
     return <Navigate to="/auth" replace />;
   }
 
   const hasRequiredRole = allowedRoles.some(role => hasRole(role));
+  console.log('[RoleProtectedRoute] Has required role?', hasRequiredRole);
 
   if (!hasRequiredRole) {
+    console.log('[RoleProtectedRoute] Missing required role, redirecting to:', redirectTo);
     return <Navigate to={redirectTo} replace />;
   }
 
+  console.log('[RoleProtectedRoute] Access granted');
   return <>{children}</>;
 }

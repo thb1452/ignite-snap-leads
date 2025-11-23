@@ -389,8 +389,21 @@ async function processUploadJob(jobId: string) {
         }).catch(err => {
           console.error('[process-upload] Failed to trigger geocoding:', err);
         });
+
+        // Call generate-insights function (fire and forget)
+        console.log(`[process-upload] Triggering insight generation for new properties`);
+        fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-insights`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({ propertyIds: newPropertyIds }),
+        }).catch(err => {
+          console.error('[process-upload] Failed to trigger insights:', err);
+        });
       } catch (err) {
-        console.error('[process-upload] Error triggering geocoding:', err);
+        console.error('[process-upload] Error triggering post-processing:', err);
       }
     }
 

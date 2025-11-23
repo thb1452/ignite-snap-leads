@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { LayoutDashboard, FolderOpen, Settings as SettingsIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserCredits } from "@/hooks/useUserProfile";
+import { useUserRole } from "@/hooks/useUserRole";
 import { LogoWordmark } from "@/components/branding/LogoWordmark";
 
 interface AppLayoutProps {
@@ -14,18 +15,36 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { signOut } = useAuth();
   const location = useLocation();
   const { data: credits } = useUserCredits();
+  const { isAdmin, isVA, loading: roleLoading } = useUserRole();
 
   const handleSignOut = async () => {
     await signOut();
   };
 
-  const navItems = [
+  // Base nav items for all authenticated users
+  const baseNavItems = [
     { name: "Leads", path: "/" },
-    { name: "Upload", path: "/upload" },
-    { name: "Jobs", path: "/jobs" },
     { name: "Lists", path: "/lists" },
     { name: "Settings", path: "/settings" },
   ];
+
+  // Internal nav items only for admin/VA
+  const internalNavItems = (isAdmin || isVA) ? [
+    { name: "Upload", path: "/upload" },
+    { name: "Jobs", path: "/jobs" },
+  ] : [];
+
+  // Admin-specific nav items
+  const adminNavItems = isAdmin ? [
+    { name: "Admin Console", path: "/admin-console" },
+  ] : [];
+
+  // VA-specific nav items
+  const vaNavItems = isVA ? [
+    { name: "VA Dashboard", path: "/va-dashboard" },
+  ] : [];
+
+  const navItems = [...baseNavItems, ...internalNavItems, ...vaNavItems, ...adminNavItems];
 
   return (
     <div className="min-h-screen bg-background">

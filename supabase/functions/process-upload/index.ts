@@ -9,14 +9,19 @@ const corsHeaders = {
 
 interface CSVRow {
   case_id?: string;
+  file_number?: string;  // "File #"
   address?: string;
   city?: string;
   state?: string;
   zip?: string;
+  type?: string;  // "Type" column
   violation?: string;
   status?: string;
+  open_date?: string;  // "Open Date"
+  close_date?: string;  // "Close Date"
   opened_date?: string;
   last_updated?: string;
+  description?: string;  // "Description" column
 }
 
 // Background processing function
@@ -94,18 +99,25 @@ async function processUploadJob(jobId: string) {
         row[header] = values[idx]?.trim() || null;
       });
 
+      // Flexible column mapping - support multiple CSV formats
+      const caseId = row.case_id || row['file #'] || row.file_number || null;
+      const violationType = row.violation || row.type || row.violation_type || '';
+      const openDate = row.opened_date || row.open_date || row['open date'] || null;
+      const closeDate = row.close_date || row['close date'] || null;
+      const description = row.description || row.violation_description || null;
+      
       stagingRows.push({
         job_id: jobId,
         row_num: i + 1,
-        case_id: row.case_id || null,
+        case_id: caseId,
         address: row.address || '',
         city: row.city || '',
         state: row.state || '',
         zip: row.zip || '',
-        violation: row.violation || '',
+        violation: violationType,
         status: row.status || 'Open',
-        opened_date: row.opened_date || null,
-        last_updated: row.last_updated || null,
+        opened_date: openDate,
+        last_updated: closeDate || row.last_updated || null,
       });
 
       if (stagingRows.length >= BATCH_SIZE || i === dataRows.length - 1) {
@@ -254,8 +266,28 @@ async function processUploadJob(jobId: string) {
         continue;
       }
 
-      const openedDate = row.opened_date ? new Date(row.opened_date) : null;
-      const lastUpdated = row.last_updated ? new Date(row.last_updated) : null;
+      // Parse dates safely
+      let openedDate: Date | null = null;
+      let lastUpdated: Date | null = null;
+      
+      try {
+        if (row.opened_date) {
+          openedDate = new Date(row.opened_date);
+          if (isNaN(openedDate.getTime())) openedDate = null;
+        }
+      } catch (e) {
+        console.warn(`[process-upload] Invalid opened_date: ${row.opened_date}`);
+      }
+      
+      try {
+        if (row.last_updated) {
+          lastUpdated = new Date(row.last_updated);
+          if (isNaN(lastUpdated.getTime())) lastUpdated = null;
+        }
+      } catch (e) {
+        console.warn(`[process-upload] Invalid last_updated: ${row.last_updated}`);
+      }
+      
       const daysOpen = openedDate 
         ? Math.floor((Date.now() - openedDate.getTime()) / (1000 * 60 * 60 * 24))
         : null;
@@ -263,7 +295,7 @@ async function processUploadJob(jobId: string) {
       violations.push({
         property_id: propertyId,
         case_id: row.case_id,
-        violation_type: row.violation,
+        violation_type: row.violation || 'Unknown',
         description: null,
         status: row.status || 'Open',
         opened_date: openedDate ? openedDate.toISOString().split('T')[0] : null,

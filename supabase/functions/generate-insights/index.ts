@@ -59,8 +59,13 @@ serve(async (req) => {
 
     if (!properties || properties.length === 0) {
       return new Response(
-        JSON.stringify({ error: "No properties found" }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          success: true, 
+          processed: 0, 
+          total: propertyIds.length,
+          message: "No properties found to process"
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

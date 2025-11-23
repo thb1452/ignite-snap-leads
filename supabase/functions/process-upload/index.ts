@@ -255,11 +255,11 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Total properties created: ${propertiesCreated}`);
 
-    // Update status to FINALIZING
+    // Update status to CREATING_VIOLATIONS
     await supabaseClient
       .from('upload_jobs')
       .update({ 
-        status: 'FINALIZING',
+        status: 'CREATING_VIOLATIONS',
         properties_created: propertiesCreated
       })
       .eq('id', jobId);
@@ -360,23 +360,32 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Created ${violationsCreated} violations`);
 
-    // Mark complete
+    // Mark complete with accurate counts
     await supabaseClient
       .from('upload_jobs')
       .update({ 
         status: 'COMPLETE',
         finished_at: new Date().toISOString(),
+        properties_created: propertiesCreated,
         violations_created: violationsCreated
       })
       .eq('id', jobId);
 
-    console.log(`[process-upload] Job ${jobId} complete`);
+    console.log(`[process-upload] Job ${jobId} complete - ${propertiesCreated} properties, ${violationsCreated} violations`);
 
-    // Trigger geocoding for properties without coordinates
-    if (propertiesCreated > 0) {
+    // Collect all new property IDs for post-processing
+    const allPropertyIds = Array.from(existingMap.values());
+    
+    // Trigger geocoding and AI scoring for all properties in the upload
+    if (allPropertyIds.length > 0) {
       try {
-        console.log(`[process-upload] Triggering geocoding for new properties`);
-        const newPropertyIds = Array.from(existingMap.values());
+        // Update status to post-processing
+        await supabaseClient
+          .from('upload_jobs')
+          .update({ status: 'GENERATING_INSIGHTS' })
+          .eq('id', jobId);
+
+        console.log(`[process-upload] Triggering geocoding for ${allPropertyIds.length} properties`);
         
         // Call geocode-properties function (fire and forget)
         fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/geocode-properties`, {
@@ -385,20 +394,20 @@ async function processUploadJob(jobId: string) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
           },
-          body: JSON.stringify({ propertyIds: newPropertyIds }),
+          body: JSON.stringify({ propertyIds: allPropertyIds }),
         }).catch(err => {
           console.error('[process-upload] Failed to trigger geocoding:', err);
         });
 
         // Call generate-insights function (fire and forget)
-        console.log(`[process-upload] Triggering insight generation for new properties`);
+        console.log(`[process-upload] Triggering AI scoring for ${allPropertyIds.length} properties`);
         fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-insights`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
           },
-          body: JSON.stringify({ propertyIds: newPropertyIds }),
+          body: JSON.stringify({ propertyIds: allPropertyIds }),
         }).catch(err => {
           console.error('[process-upload] Failed to trigger insights:', err);
         });

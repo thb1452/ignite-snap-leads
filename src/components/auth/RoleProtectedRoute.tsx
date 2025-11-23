@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useUserRole, AppRole } from '@/hooks/useUserRole';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, AppRole } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
 
 interface RoleProtectedRouteProps {
@@ -15,15 +14,14 @@ export function RoleProtectedRoute({
   allowedRoles,
   redirectTo = '/'
 }: RoleProtectedRouteProps) {
-  const { user, loading: authLoading } = useAuth();
-  const { roles, loading: roleLoading, hasRole } = useUserRole();
+  const { user, roles, loading, hasRole } = useAuth();
 
-  console.log('[RoleProtectedRoute] Auth loading:', authLoading, 'Role loading:', roleLoading);
+  console.log('[RoleProtectedRoute] Loading:', loading);
   console.log('[RoleProtectedRoute] User:', user?.id);
   console.log('[RoleProtectedRoute] Current roles:', roles);
   console.log('[RoleProtectedRoute] Required roles:', allowedRoles);
 
-  if (authLoading || roleLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

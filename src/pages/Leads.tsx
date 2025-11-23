@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { MapPin, Trash2 } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { geocodeAllProperties } from "@/services/geocoding";
+import { generateInsights } from "@/services/insights";
 
 interface Violation {
   id: string;
@@ -58,6 +59,7 @@ function Leads() {
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
 
   const propertiesNeedingGeocode = useMemo(() => {
     return properties.filter(p => !p.latitude || !p.longitude).length;
@@ -216,6 +218,37 @@ function Leads() {
     }
   };
 
+  const handleGenerateInsights = async () => {
+    setIsGeneratingInsights(true);
+    try {
+      const propertyIds = properties.map(p => p.id);
+      
+      toast({
+        title: "Generating Insights",
+        description: `Analyzing ${propertyIds.length} properties...`,
+      });
+
+      const result = await generateInsights(propertyIds);
+      
+      toast({
+        title: "Insights Generated",
+        description: `Generated insights for ${result.processed} properties`,
+      });
+
+      // Refresh properties to show insights
+      await fetchProperties();
+    } catch (error: any) {
+      console.error("Insight generation error:", error);
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate insights",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingInsights(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <FilterBar
@@ -240,8 +273,8 @@ function Leads() {
       <div className="flex flex-1 overflow-hidden">
         {/* Map - Left Side */}
         <div className="w-[60%] border-r relative">
-          {propertiesNeedingGeocode > 0 && (
-            <div className="absolute top-4 right-4 z-[1001] flex gap-2">
+          <div className="absolute top-4 right-4 z-[1001] flex gap-2">
+            {propertiesNeedingGeocode > 0 && (
               <Button
                 onClick={handleGeocodeProperties}
                 disabled={isGeocoding}
@@ -252,17 +285,26 @@ function Leads() {
                 <MapPin className="h-4 w-4 mr-2" />
                 {isGeocoding ? 'Geocoding...' : `Add ${propertiesNeedingGeocode} to Map`}
               </Button>
-              <Button
-                onClick={() => setShowBulkDeleteDialog(true)}
-                variant="destructive"
-                size="sm"
-                className="shadow-lg"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Bulk Delete
-              </Button>
-            </div>
-          )}
+            )}
+            <Button
+              onClick={handleGenerateInsights}
+              disabled={isGeneratingInsights || properties.length === 0}
+              variant="secondary"
+              size="sm"
+              className="shadow-lg"
+            >
+              {isGeneratingInsights ? 'Analyzing...' : 'Generate Insights'}
+            </Button>
+            <Button
+              onClick={() => setShowBulkDeleteDialog(true)}
+              variant="destructive"
+              size="sm"
+              className="shadow-lg"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Bulk Delete
+            </Button>
+          </div>
           <LeadsMap
             properties={filteredProperties}
             onPropertyClick={setSelectedPropertyId}

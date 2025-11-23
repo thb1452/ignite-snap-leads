@@ -1,6 +1,6 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Zap, Eye } from "lucide-react";
+import { Download, ListPlus } from "lucide-react";
 
 interface BulkActionBarProps {
   selectedCount: number;
@@ -36,24 +36,26 @@ export function BulkActionBar({
 
         <div className="flex items-center gap-2">
           {selectedCount > 0 && (
-            <Button
-              onClick={onSkipTrace}
-              disabled={isTracing || selectedCount === 0}
-              className="gap-2"
-            >
-              <Zap className="h-4 w-4" />
-              Skip Trace ({selectedCount})
-            </Button>
+            <>
+              <Button
+                onClick={onSkipTrace}
+                disabled={isTracing || selectedCount === 0}
+                variant="default"
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export CSV ({selectedCount})
+              </Button>
+              <Button
+                variant="outline"
+                onClick={onView}
+                className="gap-2"
+              >
+                <ListPlus className="h-4 w-4" />
+                Add to List
+              </Button>
+            </>
           )}
-          
-          <Button
-            variant="outline"
-            onClick={onView}
-            className="gap-2"
-          >
-            <Eye className="h-4 w-4" />
-            View
-          </Button>
         </div>
       </div>
     </div>

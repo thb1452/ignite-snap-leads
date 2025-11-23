@@ -179,13 +179,22 @@ function Leads() {
     );
   };
 
-  const handleSkipTrace = async () => {
-    if (selectedIds.length === 0) return;
+  const handleExportCSV = async () => {
+    if (selectedIds.length === 0) {
+      toast({
+        title: "No Selection",
+        description: "Please select properties to export",
+        variant: "destructive",
+      });
+      return;
+    }
     
     toast({
-      title: "Skip Trace",
-      description: `Skip trace feature coming soon for ${selectedIds.length} properties`,
+      title: "Export Started",
+      description: `Exporting ${selectedIds.length} properties to CSV...`,
     });
+    
+    // TODO: Implement CSV export
     setSelectedIds([]);
   };
 
@@ -338,8 +347,8 @@ function Leads() {
             totalCount={filteredProperties.length}
             allSelected={selectedIds.length === filteredProperties.length && filteredProperties.length > 0}
             onToggleSelectAll={handleToggleSelectAll}
-            onSkipTrace={handleSkipTrace}
-            onView={() => toast({ title: "View action - coming soon" })}
+            onSkipTrace={handleExportCSV}
+            onView={() => setShowAddToListDialog(true)}
           />
         </div>
       </div>

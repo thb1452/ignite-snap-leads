@@ -13,6 +13,7 @@ import JobDetail from "./pages/JobDetail";
 import Jobs from "./pages/Jobs";
 import VADashboard from "./pages/VADashboard";
 import AdminConsole from "./pages/AdminConsole";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
               <Leads />
             </ProtectedRoute>
           } />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/upload" element={
             <RoleProtectedRoute allowedRoles={['admin', 'va']}>
               <Upload />

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { parse } from "https://deno.land/std@0.168.0/encoding/csv.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -58,11 +59,22 @@ async function processUploadJob(jobId: string) {
     }
 
     const csvText = await fileData.text();
-    const lines = csvText.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
     
-    const totalRows = lines.length - 1;
-    console.log(`[process-upload] Parsed ${totalRows} rows`);
+    // Use proper CSV parser to handle quoted fields with commas
+    const parsedData = parse(csvText, {
+      skipFirstRow: false,
+      strip: true,
+    }) as string[][];
+    
+    if (parsedData.length < 2) {
+      throw new Error('CSV file is empty or has no data rows');
+    }
+
+    const headers = parsedData[0].map(h => h.trim().toLowerCase());
+    const dataRows = parsedData.slice(1);
+    const totalRows = dataRows.length;
+    
+    console.log(`[process-upload] Parsed ${totalRows} rows from CSV`);
 
     // Update total rows
     await supabaseClient
@@ -74,16 +86,17 @@ async function processUploadJob(jobId: string) {
     const BATCH_SIZE = 250;
     const stagingRows: any[] = [];
     
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+    for (let i = 0; i < dataRows.length; i++) {
+      const values = dataRows[i];
       const row: any = {};
+      
       headers.forEach((header, idx) => {
-        row[header] = values[idx] || null;
+        row[header] = values[idx]?.trim() || null;
       });
 
       stagingRows.push({
         job_id: jobId,
-        row_num: i,
+        row_num: i + 1,
         case_id: row.case_id || null,
         address: row.address || '',
         city: row.city || '',
@@ -95,7 +108,7 @@ async function processUploadJob(jobId: string) {
         last_updated: row.last_updated || null,
       });
 
-      if (stagingRows.length >= BATCH_SIZE || i === lines.length - 1) {
+      if (stagingRows.length >= BATCH_SIZE || i === dataRows.length - 1) {
         const { error: insertError } = await supabaseClient
           .from('upload_staging')
           .insert(stagingRows);
@@ -106,15 +119,16 @@ async function processUploadJob(jobId: string) {
         }
 
         // Update progress more frequently
+        const processedCount = i + 1;
         await supabaseClient
           .from('upload_jobs')
           .update({ 
-            processed_rows: i,
+            processed_rows: processedCount,
             status: 'PROCESSING'
           })
           .eq('id', jobId);
 
-        console.log(`[process-upload] Staged ${i} / ${totalRows} rows (${Math.round(i / totalRows * 100)}%)`);
+        console.log(`[process-upload] Staged ${processedCount} / ${totalRows} rows (${Math.round(processedCount / totalRows * 100)}%)`);
         stagingRows.length = 0;
       }
     }

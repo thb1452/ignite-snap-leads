@@ -10,6 +10,9 @@ export function useUserRole() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Keep loading true while we determine the state
+    setLoading(true);
+    
     if (!user) {
       console.log('[useUserRole] No user, clearing roles');
       setRoles([]);

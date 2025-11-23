@@ -1,19 +1,16 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { generateMockProperties } from "@/services/mockData";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { supabase } from "@/integrations/supabase/client";
 import { LeadsMap } from "@/components/leads/LeadsMap";
 import { FilterBar } from "@/components/leads/FilterBar";
 import { FilterControls } from "@/components/leads/FilterControls";
-import { PropertyCard } from "@/components/leads/PropertyCard";
 import { BulkActionBar } from "@/components/leads/BulkActionBar";
 import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { MapPin, Trash2 } from "lucide-react";
-import { geocodeAllProperties } from "@/services/geocoding";
+import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 
 interface Violation {
   id: string;
@@ -40,9 +37,6 @@ interface Property {
   violations: Violation[];
 }
 
-import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
-import { createBulkSkipTraceJob } from "@/services/skiptraceJobs";
-
 function Leads() {
   const { toast } = useToast();
   
@@ -68,23 +62,47 @@ function Leads() {
     return properties.filter(p => !p.latitude || !p.longitude).length;
   }, [properties]);
 
-  // Fetch properties - DEMO MODE with mock data
+  // Fetch properties from database
   async function fetchProperties() {
     setLoading(true);
     try {
-      // Simulate API delay for realism
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Generate mock properties
-      const mockProperties = generateMockProperties(40);
-      setProperties(mockProperties);
+      // Fetch properties with their violations
+      const { data: propertiesData, error: propertiesError } = await supabase
+        .from('properties')
+        .select(`
+          id,
+          address,
+          city,
+          state,
+          zip,
+          latitude,
+          longitude,
+          snap_score,
+          snap_insight,
+          photo_url,
+          updated_at,
+          violations (
+            id,
+            violation_type,
+            description,
+            status,
+            opened_date,
+            days_open,
+            case_id
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (propertiesError) throw propertiesError;
+
+      setProperties(propertiesData || []);
       
       toast({
-        title: "Demo Mode",
-        description: "Loaded 40 sample properties",
+        title: "Properties Loaded",
+        description: `Loaded ${propertiesData?.length || 0} properties from database`,
       });
     } catch (error) {
-      console.error("Error loading mock properties:", error);
+      console.error("Error loading properties:", error);
       toast({
         title: "Error",
         description: "Failed to load properties",
@@ -161,43 +179,20 @@ function Leads() {
   const handleSkipTrace = async () => {
     if (selectedIds.length === 0) return;
     
-    try {
-      // Simulate skip trace delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: "Demo Mode",
-        description: `Mock skip trace completed for ${selectedIds.length} properties`,
-      });
-      setSelectedIds([]);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to start skip trace",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Skip Trace",
+      description: `Skip trace feature coming soon for ${selectedIds.length} properties`,
+    });
+    setSelectedIds([]);
   };
 
   const handleGeocodeProperties = async () => {
     setIsGeocoding(true);
-    try {
-      // Simulate geocoding delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: "Demo Mode",
-        description: "All properties already have coordinates in demo mode",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to geocode properties",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeocoding(false);
-    }
+    toast({
+      title: "Geocoding",
+      description: "Geocoding feature coming soon",
+    });
+    setIsGeocoding(false);
   };
 
   return (

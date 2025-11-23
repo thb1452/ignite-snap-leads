@@ -163,43 +163,60 @@ async function processUploadJob(jobId: string) {
       throw new Error('No staging data found');
     }
 
-    // Group by address
+    // Group by address (normalize empty strings to consistent format)
     const addressMap = new Map<string, any>();
     stagingData.forEach(row => {
-      const key = `${row.address}|${row.city}|${row.state}|${row.zip}`.toLowerCase();
+      const addr = row.address?.trim() || '';
+      const city = row.city?.trim() || '';
+      const state = row.state?.trim() || '';
+      const zip = row.zip?.trim() || '';
+      const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
       if (!addressMap.has(key)) {
-        addressMap.set(key, row);
+        addressMap.set(key, { address: addr, city, state, zip });
       }
     });
 
     console.log(`[process-upload] Found ${addressMap.size} unique addresses`);
 
     // Check existing properties in batches
-    const uniqueAddresses = Array.from(new Set(stagingData.map(r => r.address)));
+    const uniqueAddresses = Array.from(addressMap.keys());
     const PROP_BATCH = 1000;
     const existingMap = new Map<string, string>();
 
     for (let i = 0; i < uniqueAddresses.length; i += PROP_BATCH) {
       const batch = uniqueAddresses.slice(i, i + PROP_BATCH);
+      const addressValues = batch.map(key => {
+        const [addr] = key.split('|');
+        return addr;
+      }).filter(a => a);
+      
+      if (addressValues.length === 0) continue;
+
       const { data: existingProps } = await supabaseClient
         .from('properties')
         .select('id, address, city, state, zip')
-        .in('address', batch);
+        .in('address', addressValues);
 
       (existingProps || []).forEach(prop => {
-        const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+        const addr = prop.address?.trim() || '';
+        const city = prop.city?.trim() || '';
+        const state = prop.state?.trim() || '';
+        const zip = prop.zip?.trim() || '';
+        const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
         existingMap.set(key, prop.id);
       });
     }
+
+    console.log(`[process-upload] Found ${existingMap.size} existing properties`);
 
     // Insert new properties in batches
     const newProperties = Array.from(addressMap.entries())
       .filter(([key]) => !existingMap.has(key))
       .map(([_, row]) => ({
-        address: row.address,
-        city: row.city,
-        state: row.state,
-        zip: row.zip,
+        address: row.address || 'Unknown',
+        city: row.city || '',
+        state: row.state || '',
+        zip: row.zip || '',
         latitude: null,
         longitude: null,
         snap_score: null,
@@ -225,14 +242,18 @@ async function processUploadJob(jobId: string) {
       
       // Add to existing map
       (insertedProps || []).forEach(prop => {
-        const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+        const addr = prop.address?.trim() || '';
+        const city = prop.city?.trim() || '';
+        const state = prop.state?.trim() || '';
+        const zip = prop.zip?.trim() || '';
+        const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
         existingMap.set(key, prop.id);
       });
 
       console.log(`[process-upload] Created ${propertiesCreated} / ${newProperties.length} properties`);
     }
 
-    console.log(`[process-upload] Created ${propertiesCreated} new properties`);
+    console.log(`[process-upload] Total properties created: ${propertiesCreated}`);
 
     // Update status to FINALIZING
     await supabaseClient
@@ -258,7 +279,11 @@ async function processUploadJob(jobId: string) {
     let violationsCreated = 0;
 
     for (const row of allStaging) {
-      const key = `${row.address}|${row.city}|${row.state}|${row.zip}`.toLowerCase();
+      const addr = row.address?.trim() || '';
+      const city = row.city?.trim() || '';
+      const state = row.state?.trim() || '';
+      const zip = row.zip?.trim() || '';
+      const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
       const propertyId = existingMap.get(key);
 
       if (!propertyId) {

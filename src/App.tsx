@@ -30,9 +30,9 @@ const App = () => (
             </ProtectedRoute>
           } />
           <Route path="/upload" element={
-            <ProtectedRoute>
+            <RoleProtectedRoute allowedRoles={['admin', 'va']}>
               <Upload />
-            </ProtectedRoute>
+            </RoleProtectedRoute>
           } />
           <Route path="/leads" element={
             <ProtectedRoute>
@@ -50,14 +50,14 @@ const App = () => (
             </ProtectedRoute>
           } />
           <Route path="/jobs" element={
-            <ProtectedRoute>
+            <RoleProtectedRoute allowedRoles={['admin', 'va']}>
               <Jobs />
-            </ProtectedRoute>
+            </RoleProtectedRoute>
           } />
           <Route path="/jobs/:id" element={
-            <ProtectedRoute>
+            <RoleProtectedRoute allowedRoles={['admin', 'va']}>
               <JobDetail />
-            </ProtectedRoute>
+            </RoleProtectedRoute>
           } />
           <Route path="/va-dashboard" element={
             <RoleProtectedRoute allowedRoles={['va']}>

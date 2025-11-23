@@ -84,7 +84,7 @@ export default function Upload() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Upload Properties</h1>
         <p className="text-muted-foreground">
-          Upload a CSV file with property and violation data
+          <strong>Internal Upload Tool</strong> — For Snap team and operators only. Upload CSV files with property violation data.
         </p>
       </div>
 
@@ -121,8 +121,9 @@ export default function Upload() {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <strong>CSV Format:</strong> Your file should include columns for address, city, state, zip, 
-            violation type, description, opened date, status, case ID, etc.
+            <strong>CSV Format:</strong> Your file should include columns for address (required). 
+            Optional: city, state, zip, violation type, description, opened date, status, case/file ID.
+            The system supports multiple column naming formats (e.g., "File #", "Open Date", etc.).
           </AlertDescription>
         </Alert>
       </div>

@@ -54,9 +54,9 @@ export default function Jobs() {
     <AppLayout>
       <div className="container mx-auto py-8 px-4 max-w-6xl">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Upload Jobs</h1>
+          <h1 className="text-3xl font-bold mb-2">Upload Jobs (Internal)</h1>
           <p className="text-muted-foreground">
-            View all your CSV upload jobs and their processing status
+            Track internal CSV processing jobs. End users never see this — they only see processed properties on Leads.
           </p>
         </div>
 

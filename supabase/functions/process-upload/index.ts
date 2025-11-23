@@ -372,6 +372,28 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Job ${jobId} complete`);
 
+    // Trigger geocoding for properties without coordinates
+    if (propertiesCreated > 0) {
+      try {
+        console.log(`[process-upload] Triggering geocoding for new properties`);
+        const newPropertyIds = Array.from(existingMap.values());
+        
+        // Call geocode-properties function (fire and forget)
+        fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/geocode-properties`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({ propertyIds: newPropertyIds }),
+        }).catch(err => {
+          console.error('[process-upload] Failed to trigger geocoding:', err);
+        });
+      } catch (err) {
+        console.error('[process-upload] Error triggering geocoding:', err);
+      }
+    }
+
   } catch (error) {
     console.error(`[process-upload] Job ${jobId} failed:`, error);
     

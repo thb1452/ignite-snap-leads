@@ -18,24 +18,15 @@ interface CSVRow {
   last_updated?: string;
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+// Background processing function
+async function processUploadJob(jobId: string) {
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const { jobId } = await req.json();
-
-    if (!jobId) {
-      throw new Error('Missing jobId');
-    }
-
-    console.log(`[process-upload] Starting job ${jobId}`);
+    console.log(`[process-upload] Starting background job ${jobId}`);
 
     // Get job details
     const { data: job, error: jobError } = await supabaseClient
@@ -70,16 +61,17 @@ serve(async (req) => {
     const lines = csvText.split('\n').filter(line => line.trim());
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
     
-    console.log(`[process-upload] Parsed ${lines.length - 1} rows`);
+    const totalRows = lines.length - 1;
+    console.log(`[process-upload] Parsed ${totalRows} rows`);
 
     // Update total rows
     await supabaseClient
       .from('upload_jobs')
-      .update({ total_rows: lines.length - 1 })
+      .update({ total_rows: totalRows })
       .eq('id', jobId);
 
-    // Parse and insert into staging in batches
-    const BATCH_SIZE = 500;
+    // Parse and insert into staging in smaller batches for better progress
+    const BATCH_SIZE = 250;
     const stagingRows: any[] = [];
     
     for (let i = 1; i < lines.length; i++) {
@@ -113,6 +105,7 @@ serve(async (req) => {
           throw insertError;
         }
 
+        // Update progress more frequently
         await supabaseClient
           .from('upload_jobs')
           .update({ 
@@ -121,7 +114,7 @@ serve(async (req) => {
           })
           .eq('id', jobId);
 
-        console.log(`[process-upload] Staged ${i} / ${lines.length - 1} rows`);
+        console.log(`[process-upload] Staged ${i} / ${totalRows} rows (${Math.round(i / totalRows * 100)}%)`);
         stagingRows.length = 0;
       }
     }
@@ -155,23 +148,25 @@ serve(async (req) => {
 
     console.log(`[process-upload] Found ${addressMap.size} unique addresses`);
 
-    // Check existing properties
+    // Check existing properties in batches
     const uniqueAddresses = Array.from(new Set(stagingData.map(r => r.address)));
-    const uniqueCities = Array.from(new Set(stagingData.map(r => r.city)));
-
-    const { data: existingProps } = await supabaseClient
-      .from('properties')
-      .select('id, address, city, state, zip')
-      .in('address', uniqueAddresses)
-      .in('city', uniqueCities);
-
+    const PROP_BATCH = 1000;
     const existingMap = new Map<string, string>();
-    (existingProps || []).forEach(prop => {
-      const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
-      existingMap.set(key, prop.id);
-    });
 
-    // Insert new properties
+    for (let i = 0; i < uniqueAddresses.length; i += PROP_BATCH) {
+      const batch = uniqueAddresses.slice(i, i + PROP_BATCH);
+      const { data: existingProps } = await supabaseClient
+        .from('properties')
+        .select('id, address, city, state, zip')
+        .in('address', batch);
+
+      (existingProps || []).forEach(prop => {
+        const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+        existingMap.set(key, prop.id);
+      });
+    }
+
+    // Insert new properties in batches
     const newProperties = Array.from(addressMap.entries())
       .filter(([key]) => !existingMap.has(key))
       .map(([_, row]) => ({
@@ -186,10 +181,13 @@ serve(async (req) => {
       }));
 
     let propertiesCreated = 0;
-    if (newProperties.length > 0) {
+    const PROP_INSERT_BATCH = 500;
+
+    for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
+      const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
       const { data: insertedProps, error: propsError } = await supabaseClient
         .from('properties')
-        .insert(newProperties)
+        .insert(batch)
         .select('id, address, city, state, zip');
 
       if (propsError) {
@@ -197,13 +195,15 @@ serve(async (req) => {
         throw propsError;
       }
 
-      propertiesCreated = insertedProps?.length || 0;
+      propertiesCreated += insertedProps?.length || 0;
       
       // Add to existing map
       (insertedProps || []).forEach(prop => {
         const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
         existingMap.set(key, prop.id);
       });
+
+      console.log(`[process-upload] Created ${propertiesCreated} / ${newProperties.length} properties`);
     }
 
     console.log(`[process-upload] Created ${propertiesCreated} new properties`);
@@ -227,6 +227,7 @@ serve(async (req) => {
       throw new Error('No staging data for violations');
     }
 
+    const VIOL_BATCH = 500;
     const violations: any[] = [];
     let violationsCreated = 0;
 
@@ -256,7 +257,7 @@ serve(async (req) => {
         days_open: daysOpen,
       });
 
-      if (violations.length >= BATCH_SIZE) {
+      if (violations.length >= VIOL_BATCH) {
         const { error: violError } = await supabaseClient
           .from('violations')
           .insert(violations);
@@ -267,6 +268,7 @@ serve(async (req) => {
         }
 
         violationsCreated += violations.length;
+        console.log(`[process-upload] Created ${violationsCreated} violations`);
         violations.length = 0;
       }
     }
@@ -299,13 +301,56 @@ serve(async (req) => {
 
     console.log(`[process-upload] Job ${jobId} complete`);
 
+  } catch (error) {
+    console.error(`[process-upload] Job ${jobId} failed:`, error);
+    
+    // Update job with error
+    await supabaseClient
+      .from('upload_jobs')
+      .update({ 
+        status: 'FAILED',
+        error_message: error.message,
+        finished_at: new Date().toISOString()
+      })
+      .eq('id', jobId);
+  }
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { jobId } = await req.json();
+
+    if (!jobId) {
+      return new Response(
+        JSON.stringify({ error: 'Missing jobId' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    console.log(`[process-upload] Queuing job ${jobId}`);
+
+    // Start background processing
+    // @ts-ignore - EdgeRuntime.waitUntil is available in Supabase Edge Functions
+    EdgeRuntime.waitUntil(processUploadJob(jobId));
+
+    // Return immediately with 202 Accepted
     return new Response(
-      JSON.stringify({ success: true, jobId }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ success: true, jobId, message: 'Processing started' }),
+      { 
+        status: 202,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
     );
 
   } catch (error) {
-    console.error('[process-upload] Error:', error);
+    console.error('[process-upload] Request error:', error);
     
     return new Response(
       JSON.stringify({ error: error.message }),

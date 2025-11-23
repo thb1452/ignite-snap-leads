@@ -60,7 +60,7 @@ const App = () => (
             </RoleProtectedRoute>
           } />
           <Route path="/va-dashboard" element={
-            <RoleProtectedRoute allowedRoles={['va']}>
+            <RoleProtectedRoute allowedRoles={['va', 'admin']}>
               <VADashboard />
             </RoleProtectedRoute>
           } />

@@ -1,27 +1,9 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useUserRole } from "@/hooks/useUserRole";
-import { Navigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield } from "lucide-react";
 
 export default function AdminConsole() {
-  const { isAdmin, loading } = useUserRole();
-
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="container mx-auto py-8 px-4 max-w-6xl">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
-  }
-
   return (
     <AppLayout>
       <div className="container mx-auto py-8 px-4 max-w-6xl space-y-6">

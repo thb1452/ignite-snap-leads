@@ -79,66 +79,15 @@ serve(async (req) => {
         continue;
       }
 
-      // Generate AI insight
-      const violationSummary = violations
-        .map(v => `${v.violation_type} (${v.status}${v.days_open ? `, ${v.days_open} days open` : ''})`)
-        .join("; ");
-
-      const prompt = `Analyze this property violation data and provide a concise, actionable insight for a real estate investor in 1-2 sentences:
-
-Property: ${property.address}, ${property.city}
-Violations: ${violationSummary}
-
-Focus on:
-- Investment opportunity level (high/medium/low)
-- Key concerns or selling points
-- Urgency indicators
-
-Keep it brief and actionable.`;
-
-      try {
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              {
-                role: "system",
-                content: "You are a real estate investment analyst. Provide brief, actionable insights about properties based on code violation data. Focus on opportunity level and key concerns."
-              },
-              {
-                role: "user",
-                content: prompt
-              }
-            ],
-          }),
-        });
-
-        if (!aiResponse.ok) {
-          const errorText = await aiResponse.text();
-          console.error(`AI API error for property ${property.id}:`, aiResponse.status, errorText);
-          continue;
-        }
-
-        const aiData = await aiResponse.json();
-        const insight = aiData.choices?.[0]?.message?.content || null;
-
-        // Calculate snap score based on violations
-        const snapScore = calculateSnapScore(violations);
-
-        updates.push({
-          id: property.id,
-          snap_insight: insight,
-          snap_score: snapScore,
-        });
-
-      } catch (error) {
-        console.error(`Error generating insight for property ${property.id}:`, error);
-      }
+      // Generate safe, compliant insight using rule-based template
+      const snapScore = calculateSnapScore(violations);
+      const insight = generateSafeInsight(violations);
+      
+      updates.push({
+        id: property.id,
+        snap_insight: insight,
+        snap_score: snapScore,
+      });
     }
 
     // Batch update all properties
@@ -176,30 +125,110 @@ Keep it brief and actionable.`;
   }
 });
 
+// Safe, compliant scoring based on violation data only
 function calculateSnapScore(violations: Violation[]): number {
-  let score = 0;
-  const violationCount = violations.length;
-
-  // Base score on violation count (0-40 points)
-  score += Math.min(violationCount * 8, 40);
-
-  // Add points for violation severity (0-30 points)
-  const highSeverityTypes = ["junk", "inoperable", "premise", "trash", "debris", "rubbish"];
-  const highSeverityCount = violations.filter(v => 
-    highSeverityTypes.some(type => v.violation_type.toLowerCase().includes(type))
-  ).length;
-  score += Math.min(highSeverityCount * 10, 30);
-
-  // Add points for open violations (0-20 points)
+  let rawScore = 0;
+  
+  // Count open violations
   const openCount = violations.filter(v => 
     v.status?.toLowerCase().includes("open") || 
     v.status?.toLowerCase().includes("pending")
   ).length;
-  score += Math.min(openCount * 5, 20);
+  
+  // Base score on open violations (0-7 points)
+  if (openCount === 0) rawScore += 1;
+  else if (openCount === 1) rawScore += 3;
+  else if (openCount === 2) rawScore += 5;
+  else if (openCount >= 3) rawScore += 7;
+  
+  // Calculate severity score by scanning descriptions
+  let severityScore = 0;
+  const highSeverityKeywords = [
+    'unsafe', 'nuisance structure', 'condemned', 'uninhabitable', 
+    'electrical', 'fire', 'sewage', 'mold'
+  ];
+  const mediumSeverityKeywords = [
+    'multiple dwellings', 'occupied rv', 'unpermitted dwelling',
+    'junk vehicles', 'trash', 'accumulation'
+  ];
+  const lowSeverityKeywords = [
+    'tall grass', 'weeds', 'trash control', 'sign', 'fence'
+  ];
+  
+  violations.forEach(v => {
+    const desc = (v.violation_type || '').toLowerCase();
+    if (highSeverityKeywords.some(kw => desc.includes(kw))) {
+      severityScore += 3;
+    } else if (mediumSeverityKeywords.some(kw => desc.includes(kw))) {
+      severityScore += 2;
+    } else if (lowSeverityKeywords.some(kw => desc.includes(kw))) {
+      severityScore += 1;
+    }
+  });
+  
+  // Add compressed severity (max 3 points)
+  rawScore += Math.min(severityScore / 3, 3);
+  
+  // Add duration pressure (0-2 points)
+  if (openCount > 0) {
+    const avgOpenDuration = violations
+      .filter(v => v.days_open !== null)
+      .reduce((sum, v) => sum + (v.days_open || 0), 0) / 
+      violations.filter(v => v.days_open !== null).length;
+    
+    if (avgOpenDuration > 180) rawScore += 2;
+    else if (avgOpenDuration > 90) rawScore += 1;
+  }
+  
+  // Clamp to 1-10 scale
+  return Math.max(1, Math.min(10, Math.round(rawScore)));
+}
 
-  // Add points for long-standing violations (0-10 points)
-  const oldViolations = violations.filter(v => v.days_open && v.days_open > 90).length;
-  score += Math.min(oldViolations * 5, 10);
-
-  return Math.min(score, 100);
+// Generate safe, compliant insight based on violation data
+function generateSafeInsight(violations: Violation[]): string {
+  const openCount = violations.filter(v => 
+    v.status?.toLowerCase().includes("open") || 
+    v.status?.toLowerCase().includes("pending")
+  ).length;
+  
+  // Extract top violation keywords (safe descriptors)
+  const topKeywords: string[] = [];
+  const keywordMap = {
+    'unsafe': 'unsafe structure',
+    'nuisance structure': 'nuisance structure',
+    'condemned': 'condemned structure',
+    'unpermitted': 'unpermitted work',
+    'multiple dwellings': 'multiple dwellings',
+    'junk vehicles': 'junk vehicles',
+    'trash': 'trash accumulation',
+    'land disturbance': 'land disturbance'
+  };
+  
+  violations.forEach(v => {
+    const desc = (v.violation_type || '').toLowerCase();
+    for (const [key, label] of Object.entries(keywordMap)) {
+      if (desc.includes(key) && !topKeywords.includes(label)) {
+        topKeywords.push(label);
+        if (topKeywords.length >= 2) return;
+      }
+    }
+  });
+  
+  // Calculate rough timeframe
+  const oldestDays = Math.max(...violations.map(v => v.days_open || 0));
+  let timeframe = "recent months";
+  if (oldestDays > 365) timeframe = "over a year";
+  else if (oldestDays > 180) timeframe = "the last 6+ months";
+  else if (oldestDays > 90) timeframe = "the last several months";
+  
+  // Build safe template-based insight
+  if (openCount === 0) {
+    return `This property has ${violations.length} historical code enforcement case(s). All violations have been resolved.`;
+  }
+  
+  const keywordPhrase = topKeywords.length > 0 
+    ? `, including ${topKeywords.join(' and ')}`
+    : '';
+  
+  return `This property has ${openCount} open code enforcement case(s) over ${timeframe}${keywordPhrase}. This pattern suggests ongoing compliance and repair pressure, which may increase openness to solutions that help resolve the violations.`;
 }

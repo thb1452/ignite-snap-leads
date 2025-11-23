@@ -172,6 +172,21 @@ export function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Legal Disclaimer */}
+      <Card>
+        <CardHeader>
+          <CardTitle>About SnapScore & SnapInsight</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            SnapScore and SnapInsight are AI-generated estimates based solely on public code enforcement data. 
+            They are provided for informational lead-prioritization only and are not credit scores, financial advice, 
+            or a guarantee of motivation or sale. All scores and insights reflect property code violation patterns, 
+            not personal information about property owners.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

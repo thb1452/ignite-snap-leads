@@ -24,7 +24,9 @@ type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export function AuthForm() {
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const { signIn, signUp, resetPassword } = useAuth();
 
   const signInForm = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
@@ -55,6 +57,15 @@ export function AuthForm() {
     setIsLoading(false);
   };
 
+  const handleResetPassword = async () => {
+    if (!resetEmail) return;
+    setIsLoading(true);
+    await resetPassword(resetEmail);
+    setIsLoading(false);
+    setShowForgotPassword(false);
+    setResetEmail('');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
       <Card className="w-full max-w-md shadow-[var(--shadow-elegant)]">
@@ -74,43 +85,88 @@ export function AuthForm() {
           </TabsList>
           
           <TabsContent value="signin">
-            <form onSubmit={signInForm.handleSubmit(handleSignIn)}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
-                  <Input
-                    id="signin-email"
-                    type="email"
-                    placeholder="you@example.com"
-                    {...signInForm.register('email')}
-                  />
-                  {signInForm.formState.errors.email && (
-                    <p className="text-sm text-destructive">
-                      {signInForm.formState.errors.email.message}
+            {showForgotPassword ? (
+              <div>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email">Email</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Enter your email to receive a password reset link
                     </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
-                  <Input
-                    id="signin-password"
-                    type="password"
-                    {...signInForm.register('password')}
-                  />
-                  {signInForm.formState.errors.password && (
-                    <p className="text-sm text-destructive">
-                      {signInForm.formState.errors.password.message}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Sign In
-                </Button>
-              </CardFooter>
-            </form>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex flex-col gap-2">
+                  <Button 
+                    onClick={handleResetPassword} 
+                    className="w-full" 
+                    disabled={isLoading || !resetEmail}
+                  >
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Send Reset Link
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowForgotPassword(false)}
+                    className="w-full"
+                  >
+                    Back to Sign In
+                  </Button>
+                </CardFooter>
+              </div>
+            ) : (
+              <form onSubmit={signInForm.handleSubmit(handleSignIn)}>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email">Email</Label>
+                    <Input
+                      id="signin-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      {...signInForm.register('email')}
+                    />
+                    {signInForm.formState.errors.email && (
+                      <p className="text-sm text-destructive">
+                        {signInForm.formState.errors.email.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password">Password</Label>
+                    <Input
+                      id="signin-password"
+                      type="password"
+                      {...signInForm.register('password')}
+                    />
+                    {signInForm.formState.errors.password && (
+                      <p className="text-sm text-destructive">
+                        {signInForm.formState.errors.password.message}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-sm text-brand hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </CardContent>
+                <CardFooter>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Sign In
+                  </Button>
+                </CardFooter>
+              </form>
+            )}
           </TabsContent>
           
           <TabsContent value="signup">

@@ -11,6 +11,7 @@ import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
 import { MapPin, Trash2 } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
+import { geocodeAllProperties } from "@/services/geocoding";
 
 interface Violation {
   id: string;
@@ -188,11 +189,31 @@ function Leads() {
 
   const handleGeocodeProperties = async () => {
     setIsGeocoding(true);
-    toast({
-      title: "Geocoding",
-      description: "Geocoding feature coming soon",
-    });
-    setIsGeocoding(false);
+    try {
+      toast({
+        title: "Geocoding Started",
+        description: `Geocoding ${propertiesNeedingGeocode} properties in background...`,
+      });
+
+      const result = await geocodeAllProperties();
+      
+      toast({
+        title: "Geocoding Complete",
+        description: `Successfully geocoded ${result.geocoded} properties. Failed: ${result.failed}`,
+      });
+
+      // Refresh properties to show updated coordinates
+      await fetchProperties();
+    } catch (error: any) {
+      console.error("Geocoding error:", error);
+      toast({
+        title: "Geocoding Failed",
+        description: error.message || "Failed to geocode properties",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeocoding(false);
+    }
   };
 
   return (

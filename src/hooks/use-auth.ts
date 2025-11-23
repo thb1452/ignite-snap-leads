@@ -12,9 +12,14 @@ export function useAuth() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    let mounted = true;
+    
+    // Get initial session and roles
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       const currentUser = session?.user ?? null;
+      
+      if (!mounted) return;
       setUser(currentUser);
       
       if (currentUser) {
@@ -24,6 +29,7 @@ export function useAuth() {
           .select('role')
           .eq('user_id', currentUser.id);
         
+        if (!mounted) return;
         const fetchedRoles = roleData?.map(r => r.role as AppRole) || [];
         console.log('[useAuth] Initial roles for', currentUser.id, ':', fetchedRoles);
         setRoles(fetchedRoles);
@@ -31,8 +37,11 @@ export function useAuth() {
         setRoles([]);
       }
       
+      if (!mounted) return;
       setLoading(false);
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const {
@@ -56,11 +65,12 @@ export function useAuth() {
       } else {
         setRoles([]);
       }
-      
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {

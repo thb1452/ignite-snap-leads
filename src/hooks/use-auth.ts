@@ -3,15 +3,34 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+export type AppRole = 'admin' | 'va' | 'user';
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (currentUser) {
+        // Fetch roles for this user
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', currentUser.id);
+        
+        const fetchedRoles = roleData?.map(r => r.role as AppRole) || [];
+        console.log('[useAuth] Initial roles for', currentUser.id, ':', fetchedRoles);
+        setRoles(fetchedRoles);
+      } else {
+        setRoles([]);
+      }
+      
       setLoading(false);
     });
 
@@ -19,7 +38,25 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (currentUser) {
+        // Fetch roles when auth state changes
+        setTimeout(async () => {
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', currentUser.id);
+          
+          const fetchedRoles = roleData?.map(r => r.role as AppRole) || [];
+          console.log('[useAuth] Updated roles for', currentUser.id, ':', fetchedRoles);
+          setRoles(fetchedRoles);
+        }, 0);
+      } else {
+        setRoles([]);
+      }
+      
       setLoading(false);
     });
 
@@ -136,9 +173,17 @@ export function useAuth() {
     }
   };
 
+  const hasRole = (role: AppRole) => roles.includes(role);
+  const isAdmin = hasRole('admin');
+  const isVA = hasRole('va');
+
   return {
     user,
+    roles,
     loading,
+    hasRole,
+    isAdmin,
+    isVA,
     signUp,
     signIn,
     signOut,

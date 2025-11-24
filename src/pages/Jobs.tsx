@@ -159,7 +159,7 @@ export default function Jobs() {
         ) : (
           <div className="space-y-3">
             {jobs?.map((job) => {
-              const config = STATUS_CONFIG[job.status as keyof typeof STATUS_CONFIG];
+              const config = STATUS_CONFIG[job.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.QUEUED;
               const Icon = config.icon;
               const isProcessing = ['QUEUED', 'PARSING', 'PROCESSING', 'DEDUPING', 'FINALIZING'].includes(job.status);
               const progress = job.total_rows && job.processed_rows

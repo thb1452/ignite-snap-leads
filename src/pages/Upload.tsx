@@ -4,25 +4,39 @@ import { Upload as UploadIcon, FileSpreadsheet, AlertCircle } from 'lucide-react
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
 import { createUploadJob } from '@/services/uploadJobs';
 import { useUploadJob } from '@/hooks/useUploadJob';
 import { UploadProgress } from '@/components/upload/UploadProgress';
 import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { useJurisdictions } from '@/hooks/useJurisdictions';
 
 export default function Upload() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [jobId, setJobId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [jurisdictionId, setJurisdictionId] = useState<string>("");
   const { job, loading: jobLoading } = useUploadJob(jobId);
+  const { data: jurisdictions, isLoading: jurisdictionsLoading } = useJurisdictions();
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (!user) {
       toast({
         title: 'Error',
         description: 'You must be logged in to upload files',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!jurisdictionId) {
+      toast({
+        title: 'Jurisdiction Required',
+        description: 'Please select a jurisdiction before uploading',
         variant: 'destructive',
       });
       return;
@@ -53,7 +67,7 @@ export default function Upload() {
     setUploading(true);
 
     try {
-      const id = await createUploadJob({ file, userId: user.id });
+      const id = await createUploadJob({ file, userId: user.id, jurisdictionId });
       setJobId(id);
       toast({
         title: 'Upload Started',
@@ -75,7 +89,7 @@ export default function Upload() {
     onDrop,
     accept: { 'text/csv': ['.csv'] },
     maxFiles: 1,
-    disabled: uploading || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null),
+    disabled: uploading || !jurisdictionId || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null),
   });
 
   return (
@@ -89,8 +103,46 @@ export default function Upload() {
       </div>
 
       <div className="space-y-6">
+        {/* Jurisdiction Selection */}
         <Card>
           <CardContent className="pt-6">
+            <div className="space-y-2">
+              <Label htmlFor="jurisdiction" className="text-base font-semibold">
+                Step 1: Select Jurisdiction <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-sm text-muted-foreground mb-4">
+                Choose the city/county this CSV file belongs to. This will be used to geocode addresses that only contain street names.
+              </p>
+              <Select value={jurisdictionId} onValueChange={setJurisdictionId}>
+                <SelectTrigger id="jurisdiction" className="w-full">
+                  <SelectValue placeholder={jurisdictionsLoading ? "Loading jurisdictions..." : "Select a jurisdiction"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {jurisdictions?.map((jurisdiction) => (
+                    <SelectItem key={jurisdiction.id} value={jurisdiction.id}>
+                      {jurisdiction.name} ({jurisdiction.city}, {jurisdiction.state})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* CSV Upload */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-2 mb-4">
+              <Label className="text-base font-semibold">
+                Step 2: Upload CSV File <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {!jurisdictionId 
+                  ? "Select a jurisdiction first to enable file upload"
+                  : "Drag & drop your CSV file or click to browse"
+                }
+              </p>
+            </div>
             <div
               {...getRootProps()}
               className={`
@@ -106,11 +158,11 @@ export default function Upload() {
                 {isDragActive ? 'Drop the file here' : 'Drag & drop a CSV file'}
               </p>
               <p className="text-sm text-muted-foreground mb-4">
-                or click to browse
+                {isDragActive ? '' : 'or click to browse'}
               </p>
-              <Button variant="outline" disabled={uploading || (job && job.status !== 'COMPLETE' && job.status !== 'FAILED')}>
+              <Button variant="outline" disabled={!jurisdictionId || uploading || (job && job.status !== 'COMPLETE' && job.status !== 'FAILED')}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Select CSV File
+                {!jurisdictionId ? 'Select Jurisdiction First' : 'Select CSV File'}
               </Button>
             </div>
           </CardContent>

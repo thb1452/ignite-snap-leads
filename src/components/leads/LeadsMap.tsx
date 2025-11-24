@@ -146,10 +146,12 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
         mapRef.current.fitBounds(group.getBounds().pad(0.1));
       }
     } else {
-      // Heatmap mode - zoom-scaled radius
+      // Heatmap mode - zoom-scaled radius in meters
       heatLayerRef.current = L.layerGroup();
       const zoom = mapRef.current.getZoom();
-      const baseRadius = Math.max(40, 12 * Math.pow(2, zoom - 10));
+      // Use much larger radius values (in meters) for visible heatmap effect
+      // Adjust based on zoom: closer zoom = smaller radius needed
+      const baseRadius = 5000 / Math.pow(2, zoom - 10);
       
       properties.forEach(property => {
         if (property.latitude && property.longitude && mapRef.current) {

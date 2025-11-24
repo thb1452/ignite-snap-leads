@@ -191,26 +191,21 @@ function generateSafeInsight(violations: Violation[]): string {
     v.status?.toLowerCase().includes("pending")
   ).length;
   
-  // Extract top violation keywords (safe descriptors)
-  const topKeywords: string[] = [];
-  const keywordMap = {
-    'unsafe': 'unsafe structure',
-    'nuisance structure': 'nuisance structure',
-    'condemned': 'condemned structure',
-    'unpermitted': 'unpermitted work',
-    'multiple dwellings': 'multiple dwellings',
-    'junk vehicles': 'junk vehicles',
-    'trash': 'trash accumulation',
-    'land disturbance': 'land disturbance'
-  };
+  // Extract unique violation categories from open violations
+  const openViolations = violations.filter(v => 
+    v.status?.toLowerCase().includes("open") || 
+    v.status?.toLowerCase().includes("pending")
+  );
   
-  violations.forEach(v => {
-    const desc = (v.violation_type || '').toLowerCase();
-    for (const [key, label] of Object.entries(keywordMap)) {
-      if (desc.includes(key) && !topKeywords.includes(label)) {
-        topKeywords.push(label);
-        if (topKeywords.length >= 2) return;
-      }
+  const categories = new Set<string>();
+  openViolations.forEach(v => {
+    if (v.violation_type) {
+      // Clean up the violation type for display
+      const cleaned = v.violation_type
+        .toLowerCase()
+        .replace(/[_-]/g, ' ')
+        .trim();
+      categories.add(cleaned);
     }
   });
   
@@ -226,9 +221,19 @@ function generateSafeInsight(violations: Violation[]): string {
     return `This property has ${violations.length} historical code enforcement case(s). All violations have been resolved.`;
   }
   
-  const keywordPhrase = topKeywords.length > 0 
-    ? `, including ${topKeywords.join(' and ')}`
-    : '';
+  // Format categories list
+  const categoryList = Array.from(categories).slice(0, 3); // Limit to 3 for readability
+  let categoryPhrase = '';
   
-  return `This property has ${openCount} open code enforcement case(s) over ${timeframe}${keywordPhrase}. This pattern suggests ongoing compliance and repair pressure, which may increase openness to solutions that help resolve the violations.`;
+  if (categoryList.length > 0) {
+    if (categoryList.length === 1) {
+      categoryPhrase = ` related to ${categoryList[0]}`;
+    } else if (categoryList.length === 2) {
+      categoryPhrase = ` including ${categoryList[0]} and ${categoryList[1]}`;
+    } else {
+      categoryPhrase = ` including ${categoryList.slice(0, -1).join(', ')}, and ${categoryList[categoryList.length - 1]}`;
+    }
+  }
+  
+  return `This property has ${openCount} open code enforcement case(s) over ${timeframe}${categoryPhrase}. This pattern suggests ongoing compliance and repair pressure, which may increase openness to solutions that help resolve the violations.`;
 }

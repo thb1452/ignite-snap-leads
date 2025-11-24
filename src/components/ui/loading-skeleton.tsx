@@ -1,32 +1,71 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 
 export function StatsCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-4 md:p-5 space-y-2">
-      <Skeleton className="h-3 w-20" />
-      <Skeleton className="h-8 w-16" />
-    </div>
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3 mb-3">
+          <Skeleton className="h-10 w-10 rounded-lg" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <Skeleton className="h-8 w-16" />
+      </CardContent>
+    </Card>
   );
 }
 
 export function TableRowSkeleton() {
   return (
-    <tr className="h-16 border-b border-slate-100">
-      <td className="py-3 px-4">
+    <tr className="border-b border-border">
+      <td className="p-4">
+        <Skeleton className="h-4 w-32" />
+      </td>
+      <td className="p-4">
+        <Skeleton className="h-4 w-48" />
+      </td>
+      <td className="p-4">
+        <Skeleton className="h-4 w-24" />
+      </td>
+      <td className="p-4">
+        <Skeleton className="h-4 w-36" />
+      </td>
+      <td className="p-4">
+        <Skeleton className="h-4 w-20" />
+      </td>
+      <td className="p-4">
         <Skeleton className="h-6 w-16 rounded-full" />
       </td>
-      <td className="py-3 px-4">
-        <Skeleton className="h-5 w-48" />
+      <td className="p-4">
+        <Skeleton className="h-4 w-12" />
       </td>
-      <td className="py-3 px-4">
-        <Skeleton className="h-6 w-12" />
-      </td>
-      <td className="py-3 px-4">
-        <Skeleton className="h-5 w-64" />
-      </td>
-      <td className="py-3 px-4 text-right pr-6">
-        <Skeleton className="h-5 w-20 ml-auto" />
+      <td className="p-4">
+        <Skeleton className="h-8 w-16" />
       </td>
     </tr>
+  );
+}
+
+export function CardSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex gap-4">
+          <Skeleton className="h-5 w-5 flex-shrink-0 mt-1" />
+          <div className="flex-1 space-y-3">
+            <div className="flex justify-between items-start">
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-3 w-24" />
+            <div className="flex gap-3">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

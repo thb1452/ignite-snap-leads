@@ -35,44 +35,80 @@ function normalizeAddress(raw: string): string {
 }
 
 
+async function geocodeWithCensus(address: string, city: string, state: string, zip: string): Promise<{ lat: number; lng: number } | null> {
+  const normalized = normalizeAddress(address);
+  const url = `https://geocoding.geo.census.gov/geocoder/locations/address?street=${encodeURIComponent(normalized)}&city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}&zip=${encodeURIComponent(zip || "")}&benchmark=2020&format=json`;
+  
+  console.log(`Census fallback for: ${normalized}, ${city}, ${state} ${zip}`);
+  
+  try {
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      console.error(`Census API error: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data?.result?.addressMatches && data.result.addressMatches.length > 0) {
+      const match = data.result.addressMatches[0];
+      const coords = {
+        lat: match.coordinates.y,
+        lng: match.coordinates.x
+      };
+      console.log(`✓ Census geocoded to: ${coords.lat}, ${coords.lng}`);
+      return coords;
+    }
+    
+    console.warn(`✗ Census: No match found`);
+    return null;
+  } catch (error) {
+    console.error(`Census geocoding error:`, error);
+    return null;
+  }
+}
+
 async function geocodeAddress(address: string, city: string, state: string, zip: string): Promise<{ lat: number; lng: number } | null> {
   const normalized = normalizeAddress(address);
   const query = `${normalized}, ${city}, ${state} ${zip ?? ""}, USA`;
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1&countrycodes=us`;
+  
+  // Try Nominatim first
+  const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1&countrycodes=us`;
   
   console.log(`Geocoding: ${query}`);
   
   try {
-    const response = await fetch(url, {
+    const response = await fetch(nominatimUrl, {
       headers: {
         'User-Agent': 'SnapIgnite-LeadApp/1.0',
         'Accept': 'application/json'
       }
     });
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Geocoding failed for "${query}": ${response.status} - ${errorText}`);
-      return null;
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const coords = {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon)
+        };
+        console.log(`✓ Nominatim geocoded to: ${coords.lat}, ${coords.lng}`);
+        return coords;
+      }
     }
     
-    const data = await response.json();
-    console.log(`Geocoding response for "${query}":`, JSON.stringify(data));
+    // Nominatim failed, try Census as fallback
+    console.log(`Nominatim failed, trying Census fallback...`);
+    return await geocodeWithCensus(address, city, state, zip);
     
-    if (data && data.length > 0) {
-      const coords = {
-        lat: parseFloat(data[0].lat),
-        lng: parseFloat(data[0].lon)
-      };
-      console.log(`✓ Geocoded "${query}" to: ${coords.lat}, ${coords.lng}`);
-      return coords;
-    }
-    
-    console.warn(`✗ No results found for "${query}"`);
-    return null;
   } catch (error) {
-    console.error(`Error geocoding "${query}":`, error);
-    return null;
+    console.error(`Error with Nominatim:`, error);
+    // Try Census as fallback on error
+    return await geocodeWithCensus(address, city, state, zip);
   }
 }
 

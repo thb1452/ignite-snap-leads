@@ -32,15 +32,45 @@ export async function startGeocodingJob(): Promise<string> {
 
     if (error) throw error;
 
-    // Trigger background processing (fire and forget)
-    callFn("geocode-properties", { jobId: job.id }).catch(error => {
-      console.error("Failed to trigger geocoding:", error);
+    // Start the geocoding process (it will run in batches)
+    processGeocodingBatches(job.id).catch(error => {
+      console.error("Failed to process geocoding:", error);
     });
 
     return job.id;
   } catch (error) {
     console.error("Error starting geocoding job:", error);
     throw error;
+  }
+}
+
+// Process geocoding in batches
+async function processGeocodingBatches(jobId: string) {
+  try {
+    while (true) {
+      // Call the edge function to process a batch
+      const result = await callFn("geocode-properties", { jobId });
+      
+      // Check if there are more properties to process
+      if (result.remaining === 0) {
+        console.log("Geocoding complete");
+        break;
+      }
+      
+      // Wait a bit before processing next batch
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  } catch (error) {
+    console.error("Error processing geocoding batches:", error);
+    // Update job as failed
+    await supabase
+      .from("geocoding_jobs")
+      .update({ 
+        status: "failed",
+        error_message: error instanceof Error ? error.message : "Unknown error",
+        finished_at: new Date().toISOString()
+      })
+      .eq("id", jobId);
   }
 }
 

@@ -11,6 +11,7 @@ import { Lists } from "./pages/Lists";
 import { Settings } from "./pages/Settings";
 import JobDetail from "./pages/JobDetail";
 import Jobs from "./pages/Jobs";
+import UploadJobDetail from "./pages/UploadJobDetail";
 import VADashboard from "./pages/VADashboard";
 import AdminConsole from "./pages/AdminConsole";
 import ResetPassword from "./pages/ResetPassword";
@@ -59,6 +60,11 @@ const App = () => (
           <Route path="/jobs/:id" element={
             <RoleProtectedRoute allowedRoles={['admin', 'va']}>
               <JobDetail />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/upload-jobs/:id" element={
+            <RoleProtectedRoute allowedRoles={['admin', 'va']}>
+              <UploadJobDetail />
             </RoleProtectedRoute>
           } />
           <Route path="/va-dashboard" element={

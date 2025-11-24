@@ -22,11 +22,20 @@ Deno.serve(async (req) => {
 
     const { jobId } = await req.json() as GeocodeRequest;
 
-    // Update job to running
-    await supabase
+    // Get current job state
+    const { data: currentJob } = await supabase
       .from('geocoding_jobs')
-      .update({ status: 'running', started_at: new Date().toISOString() })
-      .eq('id', jobId);
+      .select('geocoded_count, failed_count, status')
+      .eq('id', jobId)
+      .single();
+
+    // Update job to running if not already
+    if (currentJob?.status !== 'running') {
+      await supabase
+        .from('geocoding_jobs')
+        .update({ status: 'running', started_at: new Date().toISOString() })
+        .eq('id', jobId);
+    }
 
     // Get properties that need geocoding (limit to batches of 50 to avoid timeout)
     const { data: properties, error: fetchError } = await supabase
@@ -60,8 +69,17 @@ Deno.serve(async (req) => {
     // Process properties individually with Census API
     for (const prop of properties) {
       try {
+        // Build address string (only include ZIP if it exists)
+        const addressParts = [prop.address, prop.city, prop.state];
+        if (prop.zip && prop.zip.trim()) {
+          addressParts.push(prop.zip);
+        }
+        const fullAddress = addressParts.join(', ');
+        
+        console.log(`Geocoding: ${fullAddress}`);
+        
         // Try Census geocoder API first
-        const censusUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(`${prop.address}, ${prop.city}, ${prop.state} ${prop.zip}`)}&benchmark=Public_AR_Current&format=json`;
+        const censusUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(fullAddress)}&benchmark=Public_AR_Current&format=json`;
         
         const censusRes = await fetch(censusUrl);
         if (censusRes.ok) {
@@ -129,18 +147,21 @@ Deno.serve(async (req) => {
       .select('id', { count: 'exact', head: true })
       .or('latitude.is.null,longitude.is.null');
 
-    // Update job progress
+    // Update job progress (accumulate counts)
+    const newGeocodedCount = (currentJob?.geocoded_count || 0) + geocoded;
+    const newFailedCount = (currentJob?.failed_count || 0) + failed;
+    
     if (remainingCount && remainingCount > 0) {
       // More properties to process - keep job running
       await supabase
         .from('geocoding_jobs')
         .update({ 
-          geocoded_count: geocoded,
-          failed_count: failed
+          geocoded_count: newGeocodedCount,
+          failed_count: newFailedCount
         })
         .eq('id', jobId);
       
-      console.log(`Batch complete: ${geocoded} geocoded, ${failed} failed, ${remainingCount} remaining`);
+      console.log(`Batch complete: ${geocoded} geocoded this batch (${newGeocodedCount} total), ${failed} failed this batch (${newFailedCount} total), ${remainingCount} remaining`);
     } else {
       // All done
       await supabase
@@ -148,12 +169,12 @@ Deno.serve(async (req) => {
         .update({ 
           status: 'completed',
           finished_at: new Date().toISOString(),
-          geocoded_count: geocoded,
-          failed_count: failed
+          geocoded_count: newGeocodedCount,
+          failed_count: newFailedCount
         })
         .eq('id', jobId);
       
-      console.log(`Job complete: ${geocoded} geocoded, ${failed} failed`);
+      console.log(`Job complete: ${newGeocodedCount} total geocoded, ${newFailedCount} total failed`);
     }
 
     return new Response(

@@ -9,6 +9,7 @@ interface FilterBarProps {
   snapScoreMin: number;
   lastSeenDays: number | null;
   selectedCities: string[];
+  selectedJurisdiction: string | null;
   propertyCount: number;
   onClearFilters: () => void;
 }
@@ -19,10 +20,11 @@ export function FilterBar({
   snapScoreMin,
   lastSeenDays,
   selectedCities,
+  selectedJurisdiction,
   propertyCount,
   onClearFilters
 }: FilterBarProps) {
-  const hasActiveFilters = snapScoreMin > 0 || lastSeenDays !== null || selectedCities.length > 0;
+  const hasActiveFilters = snapScoreMin > 0 || lastSeenDays !== null || selectedCities.length > 0 || selectedJurisdiction !== null;
 
   return (
     <div className="flex items-center gap-4 p-4 border-b bg-background">
@@ -52,6 +54,11 @@ export function FilterBar({
             {city}
           </Badge>
         ))}
+        {selectedJurisdiction && (
+          <Badge variant="secondary">
+            {selectedJurisdiction}
+          </Badge>
+        )}
       </div>
 
       <div className="flex items-center gap-4">

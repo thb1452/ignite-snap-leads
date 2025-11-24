@@ -11,6 +11,7 @@ import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
 import { MapPin, Trash2 } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
+import { JurisdictionFilter } from "@/components/leads/JurisdictionFilter";
 import { geocodeAllProperties } from "@/services/geocoding";
 import { generateInsights } from "@/services/insights";
 
@@ -52,6 +53,7 @@ function Leads() {
   const [lastSeenDays, setLastSeenDays] = useState<number | null>(null);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
+  const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<string | null>(null);
 
   // UI state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -69,7 +71,7 @@ function Leads() {
   async function fetchProperties() {
     setLoading(true);
     try {
-      // Fetch properties with their violations
+      // Fetch properties with their violations and jurisdiction
       const { data: propertiesData, error: propertiesError } = await supabase
         .from('properties')
         .select(`
@@ -84,6 +86,7 @@ function Leads() {
           snap_insight,
           photo_url,
           updated_at,
+          jurisdiction_id,
           violations (
             id,
             violation_type,
@@ -155,9 +158,14 @@ function Leads() {
         return false;
       }
 
+      // Jurisdiction filter
+      if (selectedJurisdictionId && (property as any).jurisdiction_id !== selectedJurisdictionId) {
+        return false;
+      }
+
       return true;
     });
-  }, [properties, searchQuery, snapScoreMin, lastSeenDays, selectedCities]);
+  }, [properties, searchQuery, snapScoreMin, lastSeenDays, selectedCities, selectedJurisdictionId]);
 
   const handleClearFilters = () => {
     setSearchQuery("");
@@ -165,6 +173,7 @@ function Leads() {
     setLastSeenDays(null);
     setSelectedCities([]);
     setSelectedSource(null);
+    setSelectedJurisdictionId(null);
   };
 
   const handleToggleSelect = (id: string) => {
@@ -266,18 +275,27 @@ function Leads() {
         snapScoreMin={snapScoreMin}
         lastSeenDays={lastSeenDays}
         selectedCities={selectedCities}
+        selectedJurisdiction={selectedJurisdictionId}
         propertyCount={filteredProperties.length}
         onClearFilters={handleClearFilters}
       />
       
-      <FilterControls
-        snapScoreMin={snapScoreMin}
-        onSnapScoreChange={setSnapScoreMin}
-        lastSeenDays={lastSeenDays}
-        onLastSeenChange={setLastSeenDays}
-        selectedSource={selectedSource}
-        onSourceChange={setSelectedSource}
-      />
+      <div className="flex gap-4 px-4 py-3 border-b bg-background">
+        <div className="w-64">
+          <JurisdictionFilter
+            value={selectedJurisdictionId}
+            onChange={setSelectedJurisdictionId}
+          />
+        </div>
+        <FilterControls
+          snapScoreMin={snapScoreMin}
+          onSnapScoreChange={setSnapScoreMin}
+          lastSeenDays={lastSeenDays}
+          onLastSeenChange={setLastSeenDays}
+          selectedSource={selectedSource}
+          onSourceChange={setSelectedSource}
+        />
+      </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Map - Left Side */}

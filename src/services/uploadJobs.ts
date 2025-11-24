@@ -4,9 +4,10 @@ import { callFn } from '@/integrations/http/functions';
 interface CreateJobParams {
   file: File;
   userId: string;
+  jurisdictionId: string;
 }
 
-export async function createUploadJob({ file, userId }: CreateJobParams): Promise<string> {
+export async function createUploadJob({ file, userId, jurisdictionId }: CreateJobParams): Promise<string> {
   // 1. Upload file to storage
   const timestamp = Date.now();
   const storagePath = `${userId}/${timestamp}-${file.name}`;
@@ -28,6 +29,7 @@ export async function createUploadJob({ file, userId }: CreateJobParams): Promis
       filename: file.name,
       file_size: file.size,
       status: 'QUEUED',
+      jurisdiction_id: jurisdictionId,
     })
     .select('id')
     .single();

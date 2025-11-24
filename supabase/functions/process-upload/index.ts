@@ -34,16 +34,32 @@ async function processUploadJob(jobId: string) {
   try {
     console.log(`[process-upload] Starting background job ${jobId}`);
 
-    // Get job details
+    // Get job details with jurisdiction
     const { data: job, error: jobError } = await supabaseClient
       .from('upload_jobs')
-      .select('*')
+      .select(`
+        *,
+        jurisdictions (
+          id,
+          name,
+          city,
+          county,
+          state
+        )
+      `)
       .eq('id', jobId)
       .single();
 
     if (jobError || !job) {
       throw new Error(`Job not found: ${jobError?.message}`);
     }
+
+    const jurisdiction = (job as any).jurisdictions;
+    if (!jurisdiction) {
+      throw new Error('No jurisdiction found for this upload');
+    }
+
+    console.log(`[process-upload] Using jurisdiction: ${jurisdiction.name} (${jurisdiction.city}, ${jurisdiction.state})`);
 
     // Update status to PARSING
     await supabaseClient
@@ -111,13 +127,14 @@ async function processUploadJob(jobId: string) {
         row_num: i + 1,
         case_id: caseId,
         address: row.address || '',
-        city: row.city || '',
-        state: row.state || '',
+        city: row.city || jurisdiction.city,
+        state: row.state || jurisdiction.state,
         zip: row.zip || '',
         violation: violationType,
         status: row.status || 'Open',
         opened_date: openDate,
         last_updated: closeDate || row.last_updated || null,
+        jurisdiction_id: jurisdiction.id,
       });
 
       if (stagingRows.length >= BATCH_SIZE || i === dataRows.length - 1) {
@@ -156,7 +173,7 @@ async function processUploadJob(jobId: string) {
     // Get unique addresses from staging
     const { data: stagingData } = await supabaseClient
       .from('upload_staging')
-      .select('address, city, state, zip')
+      .select('address, city, state, zip, jurisdiction_id')
       .eq('job_id', jobId);
 
     if (!stagingData) {
@@ -167,12 +184,18 @@ async function processUploadJob(jobId: string) {
     const addressMap = new Map<string, any>();
     stagingData.forEach(row => {
       const addr = row.address?.trim() || '';
-      const city = row.city?.trim() || '';
-      const state = row.state?.trim() || '';
+      const city = row.city?.trim() || jurisdiction.city;
+      const state = row.state?.trim() || jurisdiction.state;
       const zip = row.zip?.trim() || '';
       const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
       if (!addressMap.has(key)) {
-        addressMap.set(key, { address: addr, city, state, zip });
+        addressMap.set(key, { 
+          address: addr, 
+          city, 
+          state, 
+          zip,
+          jurisdiction_id: jurisdiction.id 
+        });
       }
     });
 
@@ -214,13 +237,14 @@ async function processUploadJob(jobId: string) {
       .filter(([key]) => !existingMap.has(key))
       .map(([_, row]) => ({
         address: row.address || 'Unknown',
-        city: row.city || '',
-        state: row.state || '',
+        city: row.city || jurisdiction.city,
+        state: row.state || jurisdiction.state,
         zip: row.zip || '',
         latitude: null,
         longitude: null,
         snap_score: null,
         snap_insight: null,
+        jurisdiction_id: row.jurisdiction_id,
       }));
 
     let propertiesCreated = 0;

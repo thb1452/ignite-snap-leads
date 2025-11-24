@@ -304,6 +304,36 @@ export type Database = {
         }
         Relationships: []
       }
+      jurisdictions: {
+        Row: {
+          city: string
+          county: string | null
+          created_at: string
+          default_zip_range: string | null
+          id: string
+          name: string
+          state: string
+        }
+        Insert: {
+          city: string
+          county?: string | null
+          created_at?: string
+          default_zip_range?: string | null
+          id?: string
+          name: string
+          state: string
+        }
+        Update: {
+          city?: string
+          county?: string | null
+          created_at?: string
+          default_zip_range?: string | null
+          id?: string
+          name?: string
+          state?: string
+        }
+        Relationships: []
+      }
       lead_activity: {
         Row: {
           created_at: string | null
@@ -471,6 +501,7 @@ export type Database = {
           created_at: string | null
           geom: unknown
           id: string
+          jurisdiction_id: string | null
           latitude: number | null
           longitude: number | null
           photo_url: string | null
@@ -486,6 +517,7 @@ export type Database = {
           created_at?: string | null
           geom?: unknown
           id?: string
+          jurisdiction_id?: string | null
           latitude?: number | null
           longitude?: number | null
           photo_url?: string | null
@@ -501,6 +533,7 @@ export type Database = {
           created_at?: string | null
           geom?: unknown
           id?: string
+          jurisdiction_id?: string | null
           latitude?: number | null
           longitude?: number | null
           photo_url?: string | null
@@ -510,7 +543,15 @@ export type Database = {
           updated_at?: string | null
           zip?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "properties_jurisdiction_id_fkey"
+            columns: ["jurisdiction_id"]
+            isOneToOne: false
+            referencedRelation: "jurisdictions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       property_contacts: {
         Row: {
@@ -878,6 +919,7 @@ export type Database = {
           filename: string
           finished_at: string | null
           id: string
+          jurisdiction_id: string | null
           processed_rows: number | null
           properties_created: number | null
           started_at: string | null
@@ -896,6 +938,7 @@ export type Database = {
           filename: string
           finished_at?: string | null
           id?: string
+          jurisdiction_id?: string | null
           processed_rows?: number | null
           properties_created?: number | null
           started_at?: string | null
@@ -914,6 +957,7 @@ export type Database = {
           filename?: string
           finished_at?: string | null
           id?: string
+          jurisdiction_id?: string | null
           processed_rows?: number | null
           properties_created?: number | null
           started_at?: string | null
@@ -925,7 +969,15 @@ export type Database = {
           violations_created?: number | null
           warnings?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "upload_jobs_jurisdiction_id_fkey"
+            columns: ["jurisdiction_id"]
+            isOneToOne: false
+            referencedRelation: "jurisdictions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       upload_staging: {
         Row: {
@@ -936,6 +988,7 @@ export type Database = {
           error: string | null
           id: string
           job_id: string
+          jurisdiction_id: string | null
           last_updated: string | null
           opened_date: string | null
           processed: boolean | null
@@ -954,6 +1007,7 @@ export type Database = {
           error?: string | null
           id?: string
           job_id: string
+          jurisdiction_id?: string | null
           last_updated?: string | null
           opened_date?: string | null
           processed?: boolean | null
@@ -972,6 +1026,7 @@ export type Database = {
           error?: string | null
           id?: string
           job_id?: string
+          jurisdiction_id?: string | null
           last_updated?: string | null
           opened_date?: string | null
           processed?: boolean | null
@@ -988,6 +1043,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "upload_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upload_staging_jurisdiction_id_fkey"
+            columns: ["jurisdiction_id"]
+            isOneToOne: false
+            referencedRelation: "jurisdictions"
             referencedColumns: ["id"]
           },
         ]

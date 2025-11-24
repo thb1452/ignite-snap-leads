@@ -913,6 +913,8 @@ export type Database = {
       }
       upload_jobs: {
         Row: {
+          city: string | null
+          county: string | null
           created_at: string
           error_message: string | null
           file_size: number
@@ -923,6 +925,7 @@ export type Database = {
           processed_rows: number | null
           properties_created: number | null
           started_at: string | null
+          state: string | null
           status: string | null
           storage_path: string
           total_rows: number | null
@@ -932,6 +935,8 @@ export type Database = {
           warnings: Json | null
         }
         Insert: {
+          city?: string | null
+          county?: string | null
           created_at?: string
           error_message?: string | null
           file_size: number
@@ -942,6 +947,7 @@ export type Database = {
           processed_rows?: number | null
           properties_created?: number | null
           started_at?: string | null
+          state?: string | null
           status?: string | null
           storage_path: string
           total_rows?: number | null
@@ -951,6 +957,8 @@ export type Database = {
           warnings?: Json | null
         }
         Update: {
+          city?: string | null
+          county?: string | null
           created_at?: string
           error_message?: string | null
           file_size?: number
@@ -961,6 +969,7 @@ export type Database = {
           processed_rows?: number | null
           properties_created?: number | null
           started_at?: string | null
+          state?: string | null
           status?: string | null
           storage_path?: string
           total_rows?: number | null

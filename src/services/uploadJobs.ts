@@ -5,7 +5,7 @@ interface CreateJobParams {
   file: File;
   userId: string;
   city: string;
-  county: string;
+  county: string | null;
   state: string;
 }
 

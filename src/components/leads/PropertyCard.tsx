@@ -112,7 +112,7 @@ export function PropertyCard({
           {mostRecentViolation && (
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="text-xs font-medium text-foreground">
-                {mostRecentViolation.violation_type}
+                {mostRecentViolation.violation_type || "Unknown"}
               </span>
               <span className="text-xs text-muted-foreground">•</span>
               <Badge 

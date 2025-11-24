@@ -287,7 +287,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                       }`} />
                       <div className="rounded-xl border p-3">
                         <div className="flex items-center justify-between">
-                          <div className="font-medium text-ink-800">{v.violation_type}</div>
+                          <div className="font-medium text-ink-800">{v.violation_type || "Unknown"}</div>
                           <span className={`px-2 py-0.5 rounded-full text-xs ${
                             v.status === 'Open'
                               ? 'bg-rose-50 text-rose-700 border border-rose-200'

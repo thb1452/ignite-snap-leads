@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { bulkDeletePropertiesByCityOrState } from "@/services/bulkDelete";
 
 interface BulkDeleteDialogProps {
   open: boolean;
@@ -39,12 +40,11 @@ export function BulkDeleteDialog({ open, onOpenChange, onSuccess }: BulkDeleteDi
     setIsDeleting(true);
 
     try {
-      // Demo mode - simulate delete
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await bulkDeletePropertiesByCityOrState(city);
 
       toast({
-        title: "Demo Mode",
-        description: `Bulk delete simulated for city: ${city}`,
+        title: "Properties Deleted",
+        description: `Successfully deleted ${result.deleted} properties and their violations`,
       });
 
       setCity("");

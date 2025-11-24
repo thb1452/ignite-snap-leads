@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
 import { createUploadJob } from '@/services/uploadJobs';
@@ -12,16 +13,24 @@ import { useUploadJob } from '@/hooks/useUploadJob';
 import { UploadProgress } from '@/components/upload/UploadProgress';
 import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { useJurisdictions } from '@/hooks/useJurisdictions';
+
+const US_STATES = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+];
 
 export default function Upload() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [jobId, setJobId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [jurisdictionId, setJurisdictionId] = useState<string>("");
+  const [city, setCity] = useState<string>("");
+  const [county, setCounty] = useState<string>("");
+  const [state, setState] = useState<string>("");
   const { job, loading: jobLoading } = useUploadJob(jobId);
-  const { data: jurisdictions, isLoading: jurisdictionsLoading } = useJurisdictions();
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (!user) {
@@ -33,10 +42,10 @@ export default function Upload() {
       return;
     }
 
-    if (!jurisdictionId) {
+    if (!city || !county || !state) {
       toast({
-        title: 'Jurisdiction Required',
-        description: 'Please select a jurisdiction before uploading',
+        title: 'Location Required',
+        description: 'Please fill in city, county, and state before uploading',
         variant: 'destructive',
       });
       return;
@@ -67,7 +76,7 @@ export default function Upload() {
     setUploading(true);
 
     try {
-      const id = await createUploadJob({ file, userId: user.id, jurisdictionId });
+      const id = await createUploadJob({ file, userId: user.id, city, county, state });
       setJobId(id);
       toast({
         title: 'Upload Started',
@@ -89,7 +98,7 @@ export default function Upload() {
     onDrop,
     accept: { 'text/csv': ['.csv'] },
     maxFiles: 1,
-    disabled: uploading || !jurisdictionId || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null),
+    disabled: uploading || !city || !county || !state || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null),
   });
 
   return (
@@ -103,28 +112,58 @@ export default function Upload() {
       </div>
 
       <div className="space-y-6">
-        {/* Jurisdiction Selection */}
+        {/* Location Information */}
         <Card>
           <CardContent className="pt-6">
-            <div className="space-y-2">
-              <Label htmlFor="jurisdiction" className="text-base font-semibold">
-                Step 1: Select Jurisdiction <span className="text-destructive">*</span>
-              </Label>
-              <p className="text-sm text-muted-foreground mb-4">
-                Choose the city/county this CSV file belongs to. This will be used to geocode addresses that only contain street names.
-              </p>
-              <Select value={jurisdictionId} onValueChange={setJurisdictionId}>
-                <SelectTrigger id="jurisdiction" className="w-full">
-                  <SelectValue placeholder={jurisdictionsLoading ? "Loading jurisdictions..." : "Select a jurisdiction"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {jurisdictions?.map((jurisdiction) => (
-                    <SelectItem key={jurisdiction.id} value={jurisdiction.id}>
-                      {jurisdiction.name} ({jurisdiction.city}, {jurisdiction.state})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-base font-semibold">
+                  Step 1: Enter Location Information <span className="text-destructive">*</span>
+                </Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Enter the city, county, and state for this upload. These will be used to geocode addresses.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    placeholder="e.g., Sierra Vista"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="county">County</Label>
+                  <Input
+                    id="county"
+                    placeholder="e.g., Cochise"
+                    value={county}
+                    onChange={(e) => setCounty(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Select value={state} onValueChange={setState}>
+                    <SelectTrigger id="state">
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {US_STATES.map((st) => (
+                        <SelectItem key={st} value={st}>
+                          {st}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -137,8 +176,8 @@ export default function Upload() {
                 Step 2: Upload CSV File <span className="text-destructive">*</span>
               </Label>
               <p className="text-sm text-muted-foreground">
-                {!jurisdictionId 
-                  ? "Select a jurisdiction first to enable file upload"
+                {!city || !county || !state
+                  ? "Enter location information first to enable file upload"
                   : "Drag & drop your CSV file or click to browse"
                 }
               </p>
@@ -160,9 +199,9 @@ export default function Upload() {
               <p className="text-sm text-muted-foreground mb-4">
                 {isDragActive ? '' : 'or click to browse'}
               </p>
-              <Button variant="outline" disabled={!jurisdictionId || uploading || (job && job.status !== 'COMPLETE' && job.status !== 'FAILED')}>
+              <Button variant="outline" disabled={!city || !county || !state || uploading || (job && job.status !== 'COMPLETE' && job.status !== 'FAILED')}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
-                {!jurisdictionId ? 'Select Jurisdiction First' : 'Select CSV File'}
+                {!city || !county || !state ? 'Enter Location First' : 'Select CSV File'}
               </Button>
             </div>
           </CardContent>

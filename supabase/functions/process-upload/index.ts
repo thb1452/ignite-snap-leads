@@ -34,19 +34,10 @@ async function processUploadJob(jobId: string) {
   try {
     console.log(`[process-upload] Starting background job ${jobId}`);
 
-    // Get job details with jurisdiction
+    // Get job details
     const { data: job, error: jobError } = await supabaseClient
       .from('upload_jobs')
-      .select(`
-        *,
-        jurisdictions (
-          id,
-          name,
-          city,
-          county,
-          state
-        )
-      `)
+      .select('*')
       .eq('id', jobId)
       .single();
 
@@ -54,12 +45,11 @@ async function processUploadJob(jobId: string) {
       throw new Error(`Job not found: ${jobError?.message}`);
     }
 
-    const jurisdiction = (job as any).jurisdictions;
-    if (!jurisdiction) {
-      throw new Error('No jurisdiction found for this upload');
+    if (!job.city || !job.state) {
+      throw new Error('Job missing required location information (city, state)');
     }
 
-    console.log(`[process-upload] Using jurisdiction: ${jurisdiction.name} (${jurisdiction.city}, ${jurisdiction.state})`);
+    console.log(`[process-upload] Using location: ${job.city}, ${job.county || 'N/A'}, ${job.state}`);
 
     // Update status to PARSING
     await supabaseClient
@@ -127,14 +117,14 @@ async function processUploadJob(jobId: string) {
         row_num: i + 1,
         case_id: caseId,
         address: row.address || '',
-        city: row.city || jurisdiction.city,
-        state: row.state || jurisdiction.state,
+        city: row.city || job.city,
+        state: row.state || job.state,
         zip: row.zip || '',
         violation: violationType,
         status: row.status || 'Open',
         opened_date: openDate,
         last_updated: closeDate || row.last_updated || null,
-        jurisdiction_id: jurisdiction.id,
+        jurisdiction_id: job.jurisdiction_id || null,
       });
 
       if (stagingRows.length >= BATCH_SIZE || i === dataRows.length - 1) {
@@ -184,8 +174,8 @@ async function processUploadJob(jobId: string) {
     const addressMap = new Map<string, any>();
     stagingData.forEach(row => {
       const addr = row.address?.trim() || '';
-      const city = row.city?.trim() || jurisdiction.city;
-      const state = row.state?.trim() || jurisdiction.state;
+      const city = row.city?.trim() || job.city;
+      const state = row.state?.trim() || job.state;
       const zip = row.zip?.trim() || '';
       const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
       if (!addressMap.has(key)) {
@@ -194,7 +184,7 @@ async function processUploadJob(jobId: string) {
           city, 
           state, 
           zip,
-          jurisdiction_id: jurisdiction.id 
+          jurisdiction_id: job.jurisdiction_id || null
         });
       }
     });
@@ -269,8 +259,8 @@ async function processUploadJob(jobId: string) {
 
     const geocodedProperties = await Promise.all(
       newAddressEntries.map(async ([_, row]) => {
-        const city = row.city || jurisdiction.city;
-        const state = row.state || jurisdiction.state;
+        const city = row.city || job.city;
+        const state = row.state || job.state;
 
         // Skip geocoding if no street address
         if (!row.address || row.address === 'Unknown') {

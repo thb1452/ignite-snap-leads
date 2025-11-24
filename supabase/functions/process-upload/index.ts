@@ -107,7 +107,7 @@ async function processUploadJob(jobId: string) {
 
       // Flexible column mapping - support multiple CSV formats
       const caseId = row.case_id || row['file #'] || row.file_number || null;
-      const violationType = row.violation || row.type || row.violation_type || '';
+      const violationType = row.category || row.violation || row.type || row.violation_type || '';
       const openDate = row.opened_date || row.open_date || row['open date'] || null;
       const closeDate = row.close_date || row['close date'] || null;
       const description = row.description || row.violation_description || null;

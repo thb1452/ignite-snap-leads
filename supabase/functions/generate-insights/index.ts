@@ -199,9 +199,11 @@ function generateSafeInsight(violations: Violation[]): string {
   
   const categories = new Set<string>();
   openViolations.forEach(v => {
-    if (v.violation_type) {
+    // Defensive: check multiple possible fields
+    const rawType = v.violation_type || (v as any).category || '';
+    if (rawType) {
       // Clean up the violation type for display
-      const cleaned = v.violation_type
+      const cleaned = rawType
         .toLowerCase()
         .replace(/[_-]/g, ' ')
         .trim();

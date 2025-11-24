@@ -42,10 +42,10 @@ export default function Upload() {
       return;
     }
 
-    if (!city || !county || !state) {
+    if (!city || !state) {
       toast({
         title: 'Location Required',
-        description: 'Please fill in city, county, and state before uploading',
+        description: 'Please fill in city and state before uploading',
         variant: 'destructive',
       });
       return;
@@ -76,7 +76,7 @@ export default function Upload() {
     setUploading(true);
 
     try {
-      const id = await createUploadJob({ file, userId: user.id, city, county, state });
+      const id = await createUploadJob({ file, userId: user.id, city, county: county || null, state });
       setJobId(id);
       toast({
         title: 'Upload Started',
@@ -98,7 +98,7 @@ export default function Upload() {
     onDrop,
     accept: { 'text/csv': ['.csv'] },
     maxFiles: 1,
-    disabled: uploading || !city || !county || !state || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null),
+    disabled: uploading || !city || !state || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null),
   });
 
   return (
@@ -121,7 +121,7 @@ export default function Upload() {
                   Step 1: Enter Location Information <span className="text-destructive">*</span>
                 </Label>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Enter the city, county, and state for this upload. These will be used to geocode addresses.
+                  Enter the city and state for this upload. County is optional and will be determined during geocoding if not provided.
                 </p>
               </div>
               
@@ -138,13 +138,12 @@ export default function Upload() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="county">County</Label>
+                  <Label htmlFor="county">County <span className="text-xs text-muted-foreground">(Optional)</span></Label>
                   <Input
                     id="county"
                     placeholder="e.g., Cochise"
                     value={county}
                     onChange={(e) => setCounty(e.target.value)}
-                    required
                   />
                 </div>
                 
@@ -176,8 +175,8 @@ export default function Upload() {
                 Step 2: Upload CSV File <span className="text-destructive">*</span>
               </Label>
               <p className="text-sm text-muted-foreground">
-                {!city || !county || !state
-                  ? "Enter location information first to enable file upload"
+                {!city || !state
+                  ? "Enter city and state first to enable file upload"
                   : "Drag & drop your CSV file or click to browse"
                 }
               </p>
@@ -199,9 +198,9 @@ export default function Upload() {
               <p className="text-sm text-muted-foreground mb-4">
                 {isDragActive ? '' : 'or click to browse'}
               </p>
-              <Button variant="outline" disabled={!city || !county || !state || uploading || (job && job.status !== 'COMPLETE' && job.status !== 'FAILED')}>
+              <Button variant="outline" disabled={!city || !state || uploading || (job && job.status !== 'COMPLETE' && job.status !== 'FAILED')}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
-                {!city || !county || !state ? 'Enter Location First' : 'Select CSV File'}
+                {!city || !state ? 'Enter City & State First' : 'Select CSV File'}
               </Button>
             </div>
           </CardContent>

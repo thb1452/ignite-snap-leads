@@ -1,51 +1,56 @@
 import { supabase } from "@/integrations/supabase/client";
 import { callFn } from "@/integrations/http/functions";
 
-export async function geocodeAllProperties(): Promise<{ geocoded: number; failed: number; total: number }> {
+export async function startGeocodingJob(): Promise<string> {
   try {
-    // Get all properties without coordinates
-    const { data: properties, error } = await supabase
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
+
+    // Count properties that need geocoding
+    const { count } = await supabase
       .from("properties")
-      .select("id")
+      .select("id", { count: "exact", head: true })
       .or("latitude.is.null,longitude.is.null");
 
-    if (error) {
-      console.error("Error fetching properties:", error);
-      throw error;
-    }
-    
-    if (!properties || properties.length === 0) {
-      return { geocoded: 0, failed: 0, total: 0 };
+    if (!count || count === 0) {
+      throw new Error("No properties need geocoding");
     }
 
-    const propertyIds = properties.map(p => p.id);
-    console.log(`Geocoding ${propertyIds.length} properties...`);
+    // Create job record
+    const { data: job, error } = await supabase
+      .from("geocoding_jobs")
+      .insert({
+        user_id: user.id,
+        status: "queued",
+        total_properties: count,
+        geocoded_count: 0,
+        failed_count: 0,
+      })
+      .select("id")
+      .single();
 
-    // Batch to avoid edge function timeout limits (~60s)
-    const BATCH_SIZE = 45; // ~45s with 1 req/sec rate limit
-    let geocoded = 0;
-    let failed = 0;
-    let processed = 0;
+    if (error) throw error;
 
-    for (let i = 0; i < propertyIds.length; i += BATCH_SIZE) {
-      const batch = propertyIds.slice(i, i + BATCH_SIZE);
-      console.log(`Invoking geocode-properties for batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} items)`);
-      try {
-        const result = await callFn("geocode-properties", { propertyIds: batch });
-        console.log("Geocoding batch result:", result);
-        geocoded += (result as any)?.geocoded ?? 0;
-        failed += (result as any)?.failed ?? 0;
-        processed += (result as any)?.total ?? batch.length;
-      } catch (err) {
-        console.error("Batch geocoding error:", err);
-        failed += batch.length;
-        processed += batch.length;
-      }
-    }
+    // Trigger background processing (fire and forget)
+    callFn("geocode-properties", { jobId: job.id }).catch(error => {
+      console.error("Failed to trigger geocoding:", error);
+    });
 
-    return { geocoded, failed, total: processed };
+    return job.id;
   } catch (error) {
-    console.error("Geocoding error:", error);
+    console.error("Error starting geocoding job:", error);
     throw error;
   }
+}
+
+export async function getGeocodingJob(jobId: string) {
+  const { data, error } = await supabase
+    .from("geocoding_jobs")
+    .select("*")
+    .eq("id", jobId)
+    .single();
+
+  if (error) throw error;
+  return data;
 }

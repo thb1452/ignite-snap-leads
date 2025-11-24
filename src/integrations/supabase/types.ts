@@ -304,6 +304,45 @@ export type Database = {
         }
         Relationships: []
       }
+      geocoding_jobs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          failed_count: number
+          finished_at: string | null
+          geocoded_count: number
+          id: string
+          started_at: string | null
+          status: string
+          total_properties: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          failed_count?: number
+          finished_at?: string | null
+          geocoded_count?: number
+          id?: string
+          started_at?: string | null
+          status?: string
+          total_properties?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          failed_count?: number
+          finished_at?: string | null
+          geocoded_count?: number
+          id?: string
+          started_at?: string | null
+          status?: string
+          total_properties?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       jurisdictions: {
         Row: {
           city: string

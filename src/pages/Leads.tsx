@@ -9,10 +9,9 @@ import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
-import { MapPin, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { JurisdictionFilter } from "@/components/leads/JurisdictionFilter";
-import { geocodeAllProperties } from "@/services/geocoding";
 import { generateInsights } from "@/services/insights";
 
 interface Violation {
@@ -60,12 +59,7 @@ function Leads() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-  const [isGeocoding, setIsGeocoding] = useState(false);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
-
-  const propertiesNeedingGeocode = useMemo(() => {
-    return properties.filter(p => !p.latitude || !p.longitude).length;
-  }, [properties]);
 
   // Fetch properties from database
   async function fetchProperties() {
@@ -207,35 +201,6 @@ function Leads() {
     setSelectedIds([]);
   };
 
-  const handleGeocodeProperties = async () => {
-    setIsGeocoding(true);
-    try {
-      toast({
-        title: "Geocoding Started",
-        description: `Geocoding ${propertiesNeedingGeocode} properties in background...`,
-      });
-
-      const result = await geocodeAllProperties();
-      
-      toast({
-        title: "Geocoding Complete",
-        description: `Successfully geocoded ${result.geocoded} properties. Failed: ${result.failed}`,
-      });
-
-      // Refresh properties to show updated coordinates
-      await fetchProperties();
-    } catch (error: any) {
-      console.error("Geocoding error:", error);
-      toast({
-        title: "Geocoding Failed",
-        description: error.message || "Failed to geocode properties",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeocoding(false);
-    }
-  };
-
   const handleGenerateInsights = async () => {
     setIsGeneratingInsights(true);
     try {
@@ -301,18 +266,6 @@ function Leads() {
         {/* Map - Left Side */}
         <div className="w-[60%] border-r relative">
           <div className="absolute top-4 right-4 z-[1001] flex gap-2">
-            {propertiesNeedingGeocode > 0 && (
-              <Button
-                onClick={handleGeocodeProperties}
-                disabled={isGeocoding}
-                variant="secondary"
-                size="sm"
-                className="shadow-lg"
-              >
-                <MapPin className="h-4 w-4 mr-2" />
-                {isGeocoding ? 'Geocoding...' : `Add ${propertiesNeedingGeocode} to Map`}
-              </Button>
-            )}
             <Button
               onClick={handleGenerateInsights}
               disabled={isGeneratingInsights || properties.length === 0}

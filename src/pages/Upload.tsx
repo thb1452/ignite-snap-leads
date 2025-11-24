@@ -11,8 +11,10 @@ import { useAuth } from '@/hooks/use-auth';
 import { createUploadJob } from '@/services/uploadJobs';
 import { useUploadJob } from '@/hooks/useUploadJob';
 import { UploadProgress } from '@/components/upload/UploadProgress';
+import { GeocodingProgress } from '@/components/geocoding/GeocodingProgress';
 import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { startGeocodingJob } from '@/services/geocoding';
 
 const US_STATES = [
   'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -26,6 +28,7 @@ export default function Upload() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [jobId, setJobId] = useState<string | null>(null);
+  const [geocodingJobId, setGeocodingJobId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [city, setCity] = useState<string>("");
   const [county, setCounty] = useState<string>("");
@@ -91,6 +94,23 @@ export default function Upload() {
       });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleStartGeocoding = async () => {
+    try {
+      const id = await startGeocodingJob();
+      setGeocodingJobId(id);
+      toast({
+        title: 'Geocoding Started',
+        description: 'Processing properties in background',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to start geocoding',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -207,6 +227,24 @@ export default function Upload() {
         </Card>
 
         {job && <UploadProgress job={job} />}
+        {geocodingJobId && <GeocodingProgress jobId={geocodingJobId} />}
+
+        {/* Geocoding Control */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div>
+                <Label className="text-base font-semibold">Geocoding</Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Add coordinates to properties that don't have them yet. Runs in the background.
+                </p>
+              </div>
+              <Button onClick={handleStartGeocoding} variant="secondary" className="w-full">
+                Start Geocoding Job
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Alert>
           <AlertCircle className="h-4 w-4" />

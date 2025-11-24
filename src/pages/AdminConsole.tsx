@@ -7,6 +7,10 @@ import { Progress } from "@/components/ui/progress";
 import { StatsCardSkeleton, TableRowSkeleton, CardSkeleton } from "@/components/ui/loading-skeleton";
 import { toast } from "sonner";
 import { formatRelativeTime, formatTimestamp } from "@/utils/dateHelpers";
+import { useAdminStats } from "@/hooks/useAdminStats";
+import { useAdminUploads } from "@/hooks/useAdminUploads";
+import { useAdminUsers } from "@/hooks/useAdminUsers";
+import { useAdminJurisdictions } from "@/hooks/useAdminJurisdictions";
 import * as AdminAPI from "@/services/adminApi";
 import { 
   Users, 
@@ -27,7 +31,6 @@ import {
 type Tab = "overview" | "uploads" | "users" | "jurisdictions" | "logs";
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
-const USE_MOCK_DATA = true; // Toggle this to switch between mock and real API
 
 export default function AdminConsole() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -130,61 +133,7 @@ function SystemOverviewTab({
   onSwitchTab: (tab: Tab) => void;
   refreshTrigger: Date;
 }) {
-  const [stats, setStats] = useState<AdminAPI.AdminStats | null>(null);
-  const [geocoding, setGeocoding] = useState<AdminAPI.GeocodingStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (USE_MOCK_DATA) {
-      // Use mock data
-      setStats({
-        totalLeads: 45892,
-        leadsToday: 234,
-        todayTrend: "+12%",
-        leads7Days: 1823,
-        leads30Days: 8934,
-        activeJurisdictions: 47,
-        uploads24h: 12,
-        activeUsers: 4,
-        geocodingQueued: 156,
-        geocodingRunning: 23,
-        geocodingCompleted: 45713,
-        geocodingPercent: 99.2,
-        failedUploads: 3,
-        failedGeocodes: 89,
-        stuckJobs: 1,
-      });
-      setGeocoding({
-        queued: 156,
-        running: 23,
-        completed: 45713,
-        coverage: 99.2,
-      });
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      const [statsData, geocodingData] = await Promise.all([
-        AdminAPI.fetchAdminStats(),
-        AdminAPI.fetchGeocodingStatus(),
-      ]);
-      setStats(statsData);
-      setGeocoding(geocodingData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch data');
-      toast.error('Failed to load system overview');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData, refreshTrigger]);
+  const { data: stats, isLoading: loading, error, refetch } = useAdminStats(refreshTrigger);
 
   if (error) {
     return (
@@ -194,9 +143,9 @@ function SystemOverviewTab({
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
             <div>
               <p className="font-semibold">Failed to load data</p>
-              <p className="text-sm text-muted-foreground">{error}</p>
+              <p className="text-sm text-muted-foreground">{error instanceof Error ? error.message : 'Unknown error'}</p>
             </div>
-            <Button onClick={fetchData}>
+            <Button onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
             </Button>
@@ -206,7 +155,7 @@ function SystemOverviewTab({
     );
   }
 
-  if (loading || !stats || !geocoding) {
+  if (loading || !stats) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -286,23 +235,23 @@ function SystemOverviewTab({
           <div className="grid grid-cols-4 gap-4">
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Queued</p>
-              <p className="text-2xl font-bold">{geocoding.queued}</p>
+              <p className="text-2xl font-bold">{stats.geocodingQueued}</p>
             </div>
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Running</p>
-              <p className="text-2xl font-bold">{geocoding.running}</p>
+              <p className="text-2xl font-bold">{stats.geocodingRunning}</p>
             </div>
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Completed</p>
-              <p className="text-2xl font-bold">{geocoding.completed.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{stats.geocodingCompleted.toLocaleString()}</p>
             </div>
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Coverage</p>
-              <p className="text-2xl font-bold text-green-600">{geocoding.coverage}%</p>
+              <p className="text-2xl font-bold text-green-600">{stats.geocodingPercent}%</p>
             </div>
           </div>
           <div>
-            <Progress value={geocoding.coverage} className="h-2" />
+            <Progress value={stats.geocodingPercent} className="h-2" />
           </div>
         </CardContent>
       </Card>
@@ -347,9 +296,7 @@ function SystemOverviewTab({
 
 // Upload Jobs Tab
 function UploadJobsTab({ refreshTrigger }: { refreshTrigger: Date }) {
-  const [uploads, setUploads] = useState<AdminAPI.Upload[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: uploads, isLoading: loading, error, refetch } = useAdminUploads(refreshTrigger);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [userFilter, setUserFilter] = useState<string>('all');
   const [retrying, setRetrying] = useState<string | null>(null);
@@ -402,57 +349,29 @@ function UploadJobsTab({ refreshTrigger }: { refreshTrigger: Date }) {
     },
   ];
 
-  const fetchData = useCallback(async () => {
-    if (USE_MOCK_DATA) {
-      setUploads(mockUploads.map(u => ({
-        id: u.file,
-        timestamp: u.timestamp,
-        fileName: u.file,
-        uploadedBy: u.user,
-        jurisdiction: u.jurisdiction,
-        totalRows: u.rows.total,
-        savedRows: u.rows.saved,
-        status: u.status.toLowerCase() as 'done' | 'failed' | 'processing',
-        processingTime: u.time,
-        errorCount: u.rows.errors,
-      })));
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      const filters: any = {};
-      if (statusFilter !== 'all') filters.status = statusFilter;
-      if (userFilter !== 'all') filters.user = userFilter;
-      
-      const data = await AdminAPI.fetchUploads(filters);
-      setUploads(data.uploads);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch uploads');
-      toast.error('Failed to load uploads');
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, userFilter]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData, refreshTrigger]);
-
   const handleRetry = async (uploadId: string) => {
     try {
       setRetrying(uploadId);
       await AdminAPI.retryUpload(uploadId);
       toast.success('Upload retry initiated');
-      fetchData();
+      refetch();
     } catch (err) {
       toast.error('Failed to retry upload');
     } finally {
       setRetrying(null);
     }
   };
+
+  // Filter uploads based on selected filters
+  const filteredUploads = uploads?.filter(upload => {
+    if (statusFilter !== 'all' && upload.status.toLowerCase() !== statusFilter.toLowerCase()) {
+      return false;
+    }
+    if (userFilter !== 'all' && upload.uploadedBy !== userFilter) {
+      return false;
+    }
+    return true;
+  }) || [];
 
   if (error) {
     return (
@@ -462,9 +381,9 @@ function UploadJobsTab({ refreshTrigger }: { refreshTrigger: Date }) {
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
             <div>
               <p className="font-semibold">Failed to load uploads</p>
-              <p className="text-sm text-muted-foreground">{error}</p>
+              <p className="text-sm text-muted-foreground">{error instanceof Error ? error.message : 'Unknown error'}</p>
             </div>
-            <Button onClick={fetchData}>
+            <Button onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
             </Button>
@@ -526,14 +445,14 @@ function UploadJobsTab({ refreshTrigger }: { refreshTrigger: Date }) {
                     <TableRowSkeleton key={i} />
                   ))}
                 </>
-              ) : uploads.length === 0 ? (
+              ) : filteredUploads.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-muted-foreground">
                     No uploads found
                   </td>
                 </tr>
               ) : (
-                uploads.map((upload, idx) => (
+                filteredUploads.map((upload, idx) => (
                   <tr key={idx} className="border-b border-border hover:bg-muted/50 transition-colors">
                     <td className="p-4 text-sm">{formatTimestamp(upload.timestamp)}</td>
                     <td className="p-4">
@@ -597,9 +516,7 @@ function UploadJobsTab({ refreshTrigger }: { refreshTrigger: Date }) {
 
 // User Management Tab
 function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
-  const [users, setUsers] = useState<AdminAPI.User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: users, isLoading: loading, error, refetch } = useAdminUsers(refreshTrigger);
   const [disabling, setDisabling] = useState<string | null>(null);
 
   const mockUsers = [
@@ -650,45 +567,12 @@ function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
     },
   ];
 
-  const fetchData = useCallback(async () => {
-    if (USE_MOCK_DATA) {
-      setUsers(mockUsers.map(u => ({
-        id: u.email,
-        name: u.name,
-        email: u.email,
-        role: u.role as 'Admin' | 'VA' | 'Operator',
-        status: u.status as 'Active' | 'Invited',
-        lastLogin: u.lastLogin === 'Never' ? new Date(0).toISOString() : new Date().toISOString(),
-        totalUploads: u.uploads,
-        uploads7Days: u.activity,
-      })));
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await AdminAPI.fetchUsers();
-      setUsers(data.users);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch users');
-      toast.error('Failed to load users');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData, refreshTrigger]);
-
   const handleDisable = async (userId: string) => {
     try {
       setDisabling(userId);
       await AdminAPI.disableUser(userId);
       toast.success('User disabled successfully');
-      fetchData();
+      refetch();
     } catch (err) {
       toast.error('Failed to disable user');
     } finally {
@@ -704,9 +588,9 @@ function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
             <div>
               <p className="font-semibold">Failed to load users</p>
-              <p className="text-sm text-muted-foreground">{error}</p>
+              <p className="text-sm text-muted-foreground">{error instanceof Error ? error.message : 'Unknown error'}</p>
             </div>
-            <Button onClick={fetchData}>
+            <Button onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
             </Button>
@@ -749,7 +633,7 @@ function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
                     <TableRowSkeleton key={i} />
                   ))}
                 </>
-              ) : users.length === 0 ? (
+              ) : !users || users.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-muted-foreground">
                     No users found
@@ -818,9 +702,7 @@ function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
 
 // Jurisdictions Tab
 function JurisdictionsTab({ refreshTrigger }: { refreshTrigger: Date }) {
-  const [jurisdictions, setJurisdictions] = useState<AdminAPI.Jurisdiction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: jurisdictions, isLoading: loading, error, refetch } = useAdminJurisdictions(refreshTrigger);
   const [deactivating, setDeactivating] = useState<string | null>(null);
 
   const mockJurisdictions = [
@@ -866,46 +748,12 @@ function JurisdictionsTab({ refreshTrigger }: { refreshTrigger: Date }) {
     },
   ];
 
-  const fetchData = useCallback(async () => {
-    if (USE_MOCK_DATA) {
-      setJurisdictions(mockJurisdictions.map(j => ({
-        id: j.name,
-        name: j.name,
-        location: j.location,
-        source: j.source,
-        lastUpload: new Date().toISOString(),
-        activeCount: j.active,
-        totalCount: j.total,
-        flag: j.flag,
-        flagColor: j.flagColor,
-      })));
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await AdminAPI.fetchJurisdictions();
-      setJurisdictions(data.jurisdictions);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch jurisdictions');
-      toast.error('Failed to load jurisdictions');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData, refreshTrigger]);
-
   const handleDeactivate = async (jurisdictionId: string) => {
     try {
       setDeactivating(jurisdictionId);
       await AdminAPI.deactivateJurisdiction(jurisdictionId);
       toast.success('Jurisdiction deactivated successfully');
-      fetchData();
+      refetch();
     } catch (err) {
       toast.error('Failed to deactivate jurisdiction');
     } finally {
@@ -921,9 +769,9 @@ function JurisdictionsTab({ refreshTrigger }: { refreshTrigger: Date }) {
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
             <div>
               <p className="font-semibold">Failed to load jurisdictions</p>
-              <p className="text-sm text-muted-foreground">{error}</p>
+              <p className="text-sm text-muted-foreground">{error instanceof Error ? error.message : 'Unknown error'}</p>
             </div>
-            <Button onClick={fetchData}>
+            <Button onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
             </Button>
@@ -967,7 +815,7 @@ function JurisdictionsTab({ refreshTrigger }: { refreshTrigger: Date }) {
                     <TableRowSkeleton key={i} />
                   ))}
                 </>
-              ) : jurisdictions.length === 0 ? (
+              ) : !jurisdictions || jurisdictions.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-muted-foreground">
                     No jurisdictions found
@@ -1021,6 +869,7 @@ function SystemLogsTab({ refreshTrigger }: { refreshTrigger: Date }) {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [retryingGeocodes, setRetryingGeocodes] = useState(false);
 
+  // Mock logs for now since we don't have a logs table yet
   const mockLogs = [
     {
       time: "2 min ago",
@@ -1049,32 +898,15 @@ function SystemLogsTab({ refreshTrigger }: { refreshTrigger: Date }) {
   ];
 
   const fetchData = useCallback(async () => {
-    if (USE_MOCK_DATA) {
-      setLogs(mockLogs.map(l => ({
-        id: l.jobId,
-        time: new Date().toISOString(),
-        type: l.type as 'Geocoding' | 'Upload' | 'System',
-        message: l.message,
-        jobId: l.jobId,
-      })));
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      const filters: any = {};
-      if (typeFilter !== 'all') filters.type = typeFilter;
-      
-      const data = await AdminAPI.fetchSystemLogs(filters);
-      setLogs(data.logs);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch logs');
-      toast.error('Failed to load system logs');
-    } finally {
-      setLoading(false);
-    }
+    // Using mock data for now since logs table doesn't exist yet
+    setLogs(mockLogs.map(l => ({
+      id: l.jobId,
+      time: new Date().toISOString(),
+      type: l.type as 'Geocoding' | 'Upload' | 'System',
+      message: l.message,
+      jobId: l.jobId,
+    })));
+    setLoading(false);
   }, [typeFilter]);
 
   useEffect(() => {

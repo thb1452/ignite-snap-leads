@@ -232,20 +232,79 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Found ${existingMap.size} existing properties`);
 
-    // Insert new properties in batches
-    const newProperties = Array.from(addressMap.entries())
-      .filter(([key]) => !existingMap.has(key))
-      .map(([_, row]) => ({
-        address: row.address || 'Unknown',
-        city: row.city || jurisdiction.city,
-        state: row.state || jurisdiction.state,
-        zip: row.zip || '',
-        latitude: null,
-        longitude: null,
-        snap_score: null,
-        snap_insight: null,
-        jurisdiction_id: row.jurisdiction_id,
-      }));
+    // Geocode helper function
+    async function geocodeAddress(fullAddress: string): Promise<{ lat: number | null; lon: number | null; zip: string | null }> {
+      try {
+        const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/geocode-properties`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({ propertyIds: [fullAddress] }),
+        });
+
+        if (!response.ok) {
+          console.warn(`[process-upload] Geocode failed for ${fullAddress}: ${response.status}`);
+          return { lat: null, lon: null, zip: null };
+        }
+
+        const data = await response.json();
+        const lat = data?.lat ?? data?.latitude ?? null;
+        const lon = data?.lon ?? data?.longitude ?? null;
+        const zip = data?.postcode ?? data?.zip ?? data?.postal_code ?? null;
+
+        return { lat, lon, zip };
+      } catch (error) {
+        console.error(`[process-upload] Geocode error for ${fullAddress}:`, error);
+        return { lat: null, lon: null, zip: null };
+      }
+    }
+
+    // Geocode all new addresses before inserting
+    const newAddressEntries = Array.from(addressMap.entries())
+      .filter(([key]) => !existingMap.has(key));
+
+    console.log(`[process-upload] Geocoding ${newAddressEntries.length} new addresses...`);
+
+    const geocodedProperties = await Promise.all(
+      newAddressEntries.map(async ([_, row]) => {
+        const city = row.city || jurisdiction.city;
+        const state = row.state || jurisdiction.state;
+
+        // Skip geocoding if no street address
+        if (!row.address || row.address === 'Unknown') {
+          return {
+            address: row.address || 'Unknown',
+            city,
+            state,
+            zip: row.zip || '',
+            latitude: null,
+            longitude: null,
+            snap_score: null,
+            snap_insight: null,
+            jurisdiction_id: row.jurisdiction_id,
+          };
+        }
+
+        const fullAddress = `${row.address}, ${city}, ${state}`;
+        const geo = await geocodeAddress(fullAddress);
+
+        return {
+          address: row.address || 'Unknown',
+          city,
+          state,
+          zip: geo.zip || row.zip || '',
+          latitude: geo.lat,
+          longitude: geo.lon,
+          snap_score: null,
+          snap_insight: null,
+          jurisdiction_id: row.jurisdiction_id,
+        };
+      })
+    );
+
+    const newProperties = geocodedProperties;
 
     let propertiesCreated = 0;
     const PROP_INSERT_BATCH = 500;
@@ -400,7 +459,7 @@ async function processUploadJob(jobId: string) {
     // Collect all new property IDs for post-processing
     const allPropertyIds = Array.from(existingMap.values());
     
-    // Trigger geocoding and AI scoring for all properties in the upload
+    // Trigger AI scoring for all properties in the upload (geocoding already done inline)
     if (allPropertyIds.length > 0) {
       try {
         // Update status to post-processing
@@ -408,20 +467,6 @@ async function processUploadJob(jobId: string) {
           .from('upload_jobs')
           .update({ status: 'GENERATING_INSIGHTS' })
           .eq('id', jobId);
-
-        console.log(`[process-upload] Triggering geocoding for ${allPropertyIds.length} properties`);
-        
-        // Call geocode-properties function (fire and forget)
-        fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/geocode-properties`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          },
-          body: JSON.stringify({ propertyIds: allPropertyIds }),
-        }).catch(err => {
-          console.error('[process-upload] Failed to trigger geocoding:', err);
-        });
 
         // Call generate-insights function (fire and forget)
         console.log(`[process-upload] Triggering AI scoring for ${allPropertyIds.length} properties`);

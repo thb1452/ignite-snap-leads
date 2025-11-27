@@ -125,15 +125,27 @@ serve(async (req) => {
   }
 });
 
+// Define what counts as an "open" violation
+const STATUS_OPEN_KEYWORDS = [
+  "open",
+  "pending",
+  "in progress",
+  "referred",
+  "board",
+  "hearing",
+  "lien",
+];
+
 // Safe, compliant scoring based on violation data only
 function calculateSnapScore(violations: Violation[]): number {
   let rawScore = 0;
   
-  // Count open violations
-  const openCount = violations.filter(v => 
-    v.status?.toLowerCase().includes("open") || 
-    v.status?.toLowerCase().includes("pending")
-  ).length;
+  // Count open violations using expanded keyword list
+  const openViolations = violations.filter(v => {
+    const status = (v.status || "").toLowerCase();
+    return STATUS_OPEN_KEYWORDS.some(kw => status.includes(kw));
+  });
+  const openCount = openViolations.length;
   
   // Base score on open violations (0-7 points)
   if (openCount === 0) rawScore += 1;
@@ -145,14 +157,16 @@ function calculateSnapScore(violations: Violation[]): number {
   let severityScore = 0;
   const highSeverityKeywords = [
     'unsafe', 'nuisance structure', 'condemned', 'uninhabitable', 
-    'electrical', 'fire', 'sewage', 'mold'
+    'electrical', 'fire', 'sewage', 'raw sewage', 'mold', 'roof failure'
   ];
   const mediumSeverityKeywords = [
     'multiple dwellings', 'occupied rv', 'unpermitted dwelling',
-    'junk vehicles', 'trash', 'accumulation'
+    'unpermitted addition', 'junk vehicles', 'trash', 'accumulation',
+    'debris', 'boarded'
   ];
   const lowSeverityKeywords = [
-    'tall grass', 'weeds', 'trash control', 'sign', 'fence'
+    'tall grass', 'weeds', 'overgrown', 'trash can',
+    'sign', 'fence', 'parking', 'noise'
   ];
   
   violations.forEach(v => {
@@ -169,16 +183,24 @@ function calculateSnapScore(violations: Violation[]): number {
   // Add compressed severity (max 3 points)
   rawScore += Math.min(severityScore / 3, 3);
   
-  // Add duration pressure (0-2 points)
+  // Add duration pressure (0-2 points) - only for open violations
   if (openCount > 0) {
-    const avgOpenDuration = violations
-      .filter(v => v.days_open !== null)
-      .reduce((sum, v) => sum + (v.days_open || 0), 0) / 
-      violations.filter(v => v.days_open !== null).length;
-    
-    if (avgOpenDuration > 180) rawScore += 2;
-    else if (avgOpenDuration > 90) rawScore += 1;
+    const openWithDays = openViolations.filter(v => v.days_open !== null && v.days_open !== undefined);
+    if (openWithDays.length > 0) {
+      const avgOpenDuration = openWithDays.reduce((sum, v) => sum + (v.days_open || 0), 0) / openWithDays.length;
+      
+      if (avgOpenDuration > 180) rawScore += 2;
+      else if (avgOpenDuration > 90) rawScore += 1;
+    }
   }
+  
+  // Escalation bonus (0-2 points)
+  const escalationKeywords = ['referred to code board', 'hearing', 'board', 'lien'];
+  const hasEscalation = violations.some(v => {
+    const status = (v.status || '').toLowerCase();
+    return escalationKeywords.some(kw => status.includes(kw));
+  });
+  if (hasEscalation) rawScore += 2;
   
   // Clamp to 1-10 scale
   return Math.max(1, Math.min(10, Math.round(rawScore)));
@@ -186,23 +208,18 @@ function calculateSnapScore(violations: Violation[]): number {
 
 // Generate safe, compliant insight based on violation data
 function generateSafeInsight(violations: Violation[]): string {
-  const openCount = violations.filter(v => 
-    v.status?.toLowerCase().includes("open") || 
-    v.status?.toLowerCase().includes("pending")
-  ).length;
+  // Use same open detection logic
+  const openViolations = violations.filter(v => {
+    const status = (v.status || "").toLowerCase();
+    return STATUS_OPEN_KEYWORDS.some(kw => status.includes(kw));
+  });
+  const openCount = openViolations.length;
   
   // Extract unique violation categories from open violations
-  const openViolations = violations.filter(v => 
-    v.status?.toLowerCase().includes("open") || 
-    v.status?.toLowerCase().includes("pending")
-  );
-  
   const categories = new Set<string>();
   openViolations.forEach(v => {
-    // Defensive: check multiple possible fields
     const rawType = v.violation_type || (v as any).category || '';
     if (rawType) {
-      // Clean up the violation type for display
       const cleaned = rawType
         .toLowerCase()
         .replace(/[_-]/g, ' ')
@@ -211,20 +228,28 @@ function generateSafeInsight(violations: Violation[]): string {
     }
   });
   
-  // Calculate rough timeframe
-  const oldestDays = Math.max(...violations.map(v => v.days_open || 0));
+  // Calculate rough timeframe from oldest open violation
+  const oldestDays = openViolations.length > 0 
+    ? Math.max(...openViolations.map(v => v.days_open || 0))
+    : 0;
   let timeframe = "recent months";
-  if (oldestDays > 365) timeframe = "over a year";
-  else if (oldestDays > 180) timeframe = "the last 6+ months";
-  else if (oldestDays > 90) timeframe = "the last several months";
+  if (oldestDays > 180) timeframe = "over a year";
+  else if (oldestDays > 90) timeframe = "the last 6+ months";
   
-  // Build safe template-based insight
+  // Check for escalation
+  const escalationKeywords = ['referred to code board', 'hearing', 'board', 'lien'];
+  const hasEscalation = violations.some(v => {
+    const status = (v.status || '').toLowerCase();
+    return escalationKeywords.some(kw => status.includes(kw));
+  });
+  
+  // Build insight based on situation
   if (openCount === 0) {
-    return `This property has ${violations.length} historical code enforcement case(s). All violations have been resolved.`;
+    return `This property has ${violations.length} historical code enforcement case(s). All known violations are currently marked resolved.`;
   }
   
   // Format categories list
-  const categoryList = Array.from(categories).slice(0, 3); // Limit to 3 for readability
+  const categoryList = Array.from(categories).slice(0, 3);
   let categoryPhrase = '';
   
   if (categoryList.length > 0) {
@@ -237,5 +262,9 @@ function generateSafeInsight(violations: Violation[]): string {
     }
   }
   
-  return `This property has ${openCount} open code enforcement case(s) over ${timeframe}${categoryPhrase}. This pattern suggests ongoing compliance and repair pressure, which may increase openness to solutions that help resolve the violations.`;
+  if (hasEscalation) {
+    return `This property has ${openCount} open code enforcement case(s) over ${timeframe}${categoryPhrase}, with at least one case escalated to code board / lien proceedings. This indicates sustained enforcement pressure to resolve the violations.`;
+  }
+  
+  return `This property has ${openCount} open code enforcement case(s) over ${timeframe}${categoryPhrase}. The pattern suggests ongoing maintenance and repair pressure from the local code office.`;
 }

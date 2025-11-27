@@ -20,20 +20,20 @@ async function geocodeAddress(
   city: string,
   state: string,
   zip?: string
-): Promise<{ latitude: number | null; longitude: number | null }> {
+): Promise<{ latitude: number | null; longitude: number | null; skipped: boolean }> {
   console.log(`[Geocoding START] ${address}, ${city}, ${state} ${zip || ''}`);
   
   // Validate address components
   if (!address || address.trim().toLowerCase() === 'unknown' || 
       !city || city.trim().toLowerCase() === 'unknown' || !state) {
     console.log(`[Geocoding SKIP] Invalid address components`);
-    return { latitude: null, longitude: null };
+    return { latitude: null, longitude: null, skipped: true };
   }
 
   const MAPBOX_TOKEN = Deno.env.get('MAPBOX_ACCESS_TOKEN');
   if (!MAPBOX_TOKEN) {
     console.error('[Geocoding] MAPBOX_ACCESS_TOKEN not configured');
-    return { latitude: null, longitude: null };
+    return { latitude: null, longitude: null, skipped: false };
   }
 
   // Build full address
@@ -55,7 +55,7 @@ async function geocodeAddress(
 
     if (!response.ok) {
       console.error(`[Mapbox FAIL] ${fullAddress}: HTTP ${response.status}`);
-      return { latitude: null, longitude: null };
+      return { latitude: null, longitude: null, skipped: false };
     }
 
     const data = await response.json();
@@ -63,18 +63,18 @@ async function geocodeAddress(
     if (data.features && data.features.length > 0) {
       const [lng, lat] = data.features[0].center;
       console.log(`✓ Geocoded: ${fullAddress} -> ${lat}, ${lng}`);
-      return { latitude: lat, longitude: lng };
+      return { latitude: lat, longitude: lng, skipped: false };
     }
 
     console.log(`[Mapbox FAIL] ${fullAddress}: No results`);
-    return { latitude: null, longitude: null };
+    return { latitude: null, longitude: null, skipped: false };
 
   } catch (error) {
     console.error(`[Mapbox ERROR] ${fullAddress}:`, {
       error: error instanceof Error ? error.message : String(error),
       type: error?.name
     });
-    return { latitude: null, longitude: null };
+    return { latitude: null, longitude: null, skipped: false };
   }
 }
 
@@ -157,12 +157,18 @@ serve(async (req: Request) => {
       }
 
       try {
-        const { latitude, longitude } = await geocodeAddress(
+        const { latitude, longitude, skipped } = await geocodeAddress(
           property.address,
           property.city,
           property.state,
           property.zip
         );
+
+        // If skipped due to validation, don't count as timeout
+        if (skipped) {
+          skippedCount++;
+          continue;
+        }
 
         if (latitude == null || longitude == null) {
           failCount++;

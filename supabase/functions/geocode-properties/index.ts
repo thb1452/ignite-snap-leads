@@ -66,77 +66,134 @@ Deno.serve(async (req) => {
     let geocoded = 0;
     let failed = 0;
 
-    // Process properties individually with Census API
+    // Process properties individually with better validation and error handling
     for (const prop of properties) {
       try {
-        // Build address string (only include ZIP if it exists)
-        const addressParts = [prop.address, prop.city, prop.state];
-        if (prop.zip && prop.zip.trim()) {
-          addressParts.push(prop.zip);
+        // Validate address components
+        if (!prop.address || 
+            prop.address.trim().toLowerCase() === 'unknown' || 
+            prop.address.trim() === '' ||
+            !prop.city || 
+            prop.city.trim().toLowerCase() === 'unknown' ||
+            !prop.state) {
+          console.log(`Skipping invalid address: ${prop.address}, ${prop.city}, ${prop.state}`);
+          failed++;
+          continue;
+        }
+
+        // Clean and normalize address components
+        const cleanAddress = prop.address.trim()
+          .replace(/\s+-\s*[A-Z](?:\s|$)/g, ' ') // Remove suffixes like " -A", " -B"
+          .replace(/\s+/g, ' ');
+        
+        const cleanCity = prop.city.trim();
+        const cleanState = prop.state.trim();
+        
+        // Build address string
+        const addressParts = [cleanAddress, cleanCity, cleanState];
+        if (prop.zip && prop.zip.trim() && prop.zip !== '00000') {
+          addressParts.push(prop.zip.trim());
         }
         const fullAddress = addressParts.join(', ');
         
         console.log(`Geocoding: ${fullAddress}`);
         
-        // Try Census geocoder API first
-        const censusUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(fullAddress)}&benchmark=Public_AR_Current&format=json`;
+        let geocodingSuccess = false;
         
-        const censusRes = await fetch(censusUrl);
-        if (censusRes.ok) {
-          const censusData = await censusRes.json();
+        // Try Census geocoder API first (US addresses)
+        try {
+          const censusUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(fullAddress)}&benchmark=Public_AR_Current&format=json`;
           
-          if (censusData.result?.addressMatches && censusData.result.addressMatches.length > 0) {
-            const match = censusData.result.addressMatches[0];
-            const coords = match.coordinates;
+          const censusRes = await fetch(censusUrl, { signal: AbortSignal.timeout(5000) });
+          if (censusRes.ok) {
+            const censusData = await censusRes.json();
             
-            if (coords && coords.x && coords.y) {
-              await supabase
-                .from('properties')
-                .update({ 
-                  latitude: coords.y, 
-                  longitude: coords.x,
-                  geom: `POINT(${coords.x} ${coords.y})`
-                })
-                .eq('id', prop.id);
+            if (censusData.result?.addressMatches && censusData.result.addressMatches.length > 0) {
+              const match = censusData.result.addressMatches[0];
+              const coords = match.coordinates;
               
-              geocoded++;
-              continue;
+              if (coords && coords.x && coords.y) {
+                await supabase
+                  .from('properties')
+                  .update({ 
+                    latitude: coords.y, 
+                    longitude: coords.x,
+                    geom: `POINT(${coords.x} ${coords.y})`
+                  })
+                  .eq('id', prop.id);
+                
+                console.log(`✓ Census geocoded: ${cleanAddress}`);
+                geocoded++;
+                geocodingSuccess = true;
+                continue;
+              }
             }
           }
+        } catch (censusError) {
+          console.log(`Census API error for ${cleanAddress}: ${censusError.message}`);
         }
         
-        // Fallback to Nominatim
-        await new Promise(resolve => setTimeout(resolve, 1100)); // Rate limit
-        
-        const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${prop.address}, ${prop.city}, ${prop.state}, USA`)}`;
-        const nomRes = await fetch(nominatimUrl, {
-          headers: { 'User-Agent': 'SnapIgnite/1.0' }
-        });
+        // If Census failed, try Nominatim
+        if (!geocodingSuccess) {
+          await new Promise(resolve => setTimeout(resolve, 1100)); // Rate limit
+          
+          try {
+            // Try multiple address formats for better coverage
+            const addressVariations = [
+              `${cleanAddress}, ${cleanCity}, ${cleanState}, USA`,
+              `${cleanAddress}, ${cleanCity}, ${cleanState}`,
+              `${cleanCity}, ${cleanState}, USA`
+            ];
+            
+            for (const addressVariation of addressVariations) {
+              const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressVariation)}&limit=1`;
+              const nomRes = await fetch(nominatimUrl, {
+                headers: { 'User-Agent': 'SnapIgnite/1.0' },
+                signal: AbortSignal.timeout(5000)
+              });
 
-        if (nomRes.ok) {
-          const nomData = await nomRes.json();
-          if (nomData.length > 0) {
-            const lat = parseFloat(nomData[0].lat);
-            const lng = parseFloat(nomData[0].lon);
-            
-            await supabase
-              .from('properties')
-              .update({ 
-                latitude: lat, 
-                longitude: lng,
-                geom: `POINT(${lng} ${lat})`
-              })
-              .eq('id', prop.id);
-            
-            geocoded++;
-          } else {
-            failed++;
+              if (nomRes.ok) {
+                const nomData = await nomRes.json();
+                if (nomData.length > 0) {
+                  const lat = parseFloat(nomData[0].lat);
+                  const lng = parseFloat(nomData[0].lon);
+                  
+                  // Basic validation of coordinates (must be in reasonable range)
+                  if (lat && lng && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                    await supabase
+                      .from('properties')
+                      .update({ 
+                        latitude: lat, 
+                        longitude: lng,
+                        geom: `POINT(${lng} ${lat})`
+                      })
+                      .eq('id', prop.id);
+                    
+                    console.log(`✓ Nominatim geocoded: ${cleanAddress} (using: ${addressVariation})`);
+                    geocoded++;
+                    geocodingSuccess = true;
+                    break;
+                  }
+                }
+              }
+              
+              // Small delay between variations
+              if (!geocodingSuccess) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+              }
+            }
+          } catch (nomError) {
+            console.log(`Nominatim API error for ${cleanAddress}: ${nomError.message}`);
           }
-        } else {
+        }
+        
+        if (!geocodingSuccess) {
+          console.log(`✗ Failed to geocode: ${fullAddress}`);
           failed++;
         }
+        
       } catch (e) {
-        console.error(`Geocoding failed for ${prop.id}:`, e);
+        console.error(`Geocoding error for property ${prop.id}:`, e);
         failed++;
       }
     }

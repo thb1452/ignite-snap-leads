@@ -21,9 +21,12 @@ async function geocodeAddress(
   state: string,
   zip?: string
 ): Promise<{ latitude: number | null; longitude: number | null }> {
+  console.log(`[Geocoding START] ${address}, ${city}, ${state} ${zip || ''}`);
+  
   // Validate address components
   if (!address || address.trim().toLowerCase() === 'unknown' || 
       !city || city.trim().toLowerCase() === 'unknown' || !state) {
+    console.log(`[Geocoding SKIP] Invalid address components`);
     return { latitude: null, longitude: null };
   }
 
@@ -78,7 +81,11 @@ async function geocodeAddress(
       }
     }
   } catch (censusError) {
-    console.log(`Census timeout: ${fullAddress}`);
+    console.error(`[Census FAIL] ${fullAddress}:`, {
+      error: censusError instanceof Error ? censusError.message : String(censusError),
+      type: censusError?.name,
+      address: fullAddress
+    });
   }
 
   // Fallback to Nominatim
@@ -104,7 +111,11 @@ async function geocodeAddress(
       }
     }
   } catch (nomError) {
-    console.log(`Nominatim timeout: ${fullAddress}`);
+    console.error(`[Nominatim FAIL] ${fullAddress}:`, {
+      error: nomError instanceof Error ? nomError.message : String(nomError),
+      type: nomError?.name,
+      address: fullAddress
+    });
   }
 
   return { latitude: null, longitude: null };
@@ -251,7 +262,14 @@ serve(async (req: Request) => {
 
     if (remainingError) throw remainingError;
 
-    console.log(`[Geocoding] Batch complete: ${successCount} succeeded, ${failCount} failed (${skippedCount} skipped), ${remaining ?? 0} remaining`);
+    console.log(`[BATCH COMPLETE]`, {
+      succeeded: successCount,
+      failed: failCount,
+      skipped: skippedCount,
+      total: properties.length,
+      remaining: remaining ?? 0,
+      failureRate: `${Math.round((failCount / properties.length) * 100)}%`
+    });
 
     return new Response(
       JSON.stringify({ remaining: remaining ?? 0 }),

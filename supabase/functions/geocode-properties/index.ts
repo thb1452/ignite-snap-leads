@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const BATCH_SIZE = 20; // Reduced to avoid API rate limits
+const BATCH_SIZE = 10; // Reduced further to handle timeouts better
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +32,29 @@ async function geocodeAddress(
   const cleanCity = city.trim();
   const cleanState = state.trim();
 
+  // Try simple city/state/zip first (fastest, most reliable)
+  if (zip && zip.trim() && zip !== '00000') {
+    try {
+      const simpleQuery = `${cleanCity}, ${cleanState} ${zip.trim()}`;
+      const censusUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(simpleQuery)}&benchmark=Public_AR_Current&format=json`;
+      const censusRes = await fetch(censusUrl, { signal: AbortSignal.timeout(30000) });
+      
+      if (censusRes.ok) {
+        const censusData = await censusRes.json();
+        if (censusData.result?.addressMatches && censusData.result.addressMatches.length > 0) {
+          const match = censusData.result.addressMatches[0];
+          const coords = match.coordinates;
+          if (coords && coords.x && coords.y) {
+            console.log(`✓ Simple geocode: ${simpleQuery}`);
+            return { latitude: coords.y, longitude: coords.x };
+          }
+        }
+      }
+    } catch (err) {
+      // Continue to full address
+    }
+  }
+
   // Build full address
   const addressParts = [cleanAddress, cleanCity, cleanState];
   if (zip && zip.trim() && zip !== '00000') {
@@ -39,10 +62,10 @@ async function geocodeAddress(
   }
   const fullAddress = addressParts.join(', ');
 
-  // Try Census geocoder first (US addresses) with longer timeout
+  // Try Census geocoder with full address
   try {
     const censusUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(fullAddress)}&benchmark=Public_AR_Current&format=json`;
-    const censusRes = await fetch(censusUrl, { signal: AbortSignal.timeout(10000) });
+    const censusRes = await fetch(censusUrl, { signal: AbortSignal.timeout(30000) });
     
     if (censusRes.ok) {
       const censusData = await censusRes.json();
@@ -55,19 +78,18 @@ async function geocodeAddress(
       }
     }
   } catch (censusError) {
-    console.log(`Census API error: ${censusError.message}`);
+    console.log(`Census timeout: ${fullAddress}`);
   }
 
-  // Fallback to Nominatim with better error handling
+  // Fallback to Nominatim
   try {
-    await new Promise(resolve => setTimeout(resolve, 1200)); // Rate limit
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Rate limit
 
-    // Try only the most specific variation first to fail fast
     const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`;
     
     const nomRes = await fetch(nominatimUrl, {
       headers: { 'User-Agent': 'SnapIgnite/1.0' },
-      signal: AbortSignal.timeout(10000) // Increased to 10 seconds
+      signal: AbortSignal.timeout(30000)
     });
 
     if (nomRes.ok) {
@@ -82,10 +104,7 @@ async function geocodeAddress(
       }
     }
   } catch (nomError) {
-    // Only log non-timeout errors
-    if (!nomError.message.includes('timed out')) {
-      console.log(`Nominatim API error: ${nomError.message}`);
-    }
+    console.log(`Nominatim timeout: ${fullAddress}`);
   }
 
   return { latitude: null, longitude: null };
@@ -157,14 +176,16 @@ serve(async (req: Request) => {
 
     let successCount = 0;
     let failCount = 0;
+    let skippedCount = 0;
     let consecutiveTimeouts = 0;
 
     for (const property of properties) {
-      // If we hit too many consecutive timeouts, slow down dramatically
-      if (consecutiveTimeouts >= 5) {
-        console.log(`⚠️ Too many timeouts, adding longer delay...`);
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        consecutiveTimeouts = 0;
+      // If we hit too many consecutive timeouts, skip rest to avoid wasting time
+      if (consecutiveTimeouts >= 3) {
+        console.log(`⚠️ Too many timeouts (${consecutiveTimeouts}), skipping remaining ${properties.length - properties.indexOf(property)} in batch`);
+        skippedCount = properties.length - properties.indexOf(property);
+        failCount += skippedCount;
+        break;
       }
 
       try {
@@ -176,13 +197,8 @@ serve(async (req: Request) => {
         );
 
         if (latitude == null || longitude == null) {
-          // Track if this was a timeout vs invalid address
-          if (property.address.toLowerCase().includes('unknown')) {
-            failCount++;
-          } else {
-            failCount++;
-            consecutiveTimeouts++;
-          }
+          failCount++;
+          consecutiveTimeouts++;
           continue;
         }
 
@@ -202,7 +218,6 @@ serve(async (req: Request) => {
           console.error("[Geocoding] Failed to update property", property.id, updateError);
           failCount++;
         } else {
-          console.log(`✓ Geocoded: ${property.address}`);
           successCount++;
         }
       } catch (err) {
@@ -210,6 +225,9 @@ serve(async (req: Request) => {
         failCount++;
         consecutiveTimeouts++;
       }
+      
+      // Delay between properties to avoid hammering APIs
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     // Update job counters
@@ -233,7 +251,7 @@ serve(async (req: Request) => {
 
     if (remainingError) throw remainingError;
 
-    console.log(`[Geocoding] Batch complete: ${successCount} succeeded, ${failCount} failed, ${remaining ?? 0} remaining`);
+    console.log(`[Geocoding] Batch complete: ${successCount} succeeded, ${failCount} failed (${skippedCount} skipped), ${remaining ?? 0} remaining`);
 
     return new Response(
       JSON.stringify({ remaining: remaining ?? 0 }),

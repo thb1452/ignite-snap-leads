@@ -91,7 +91,8 @@ function Leads() {
             case_id
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50000);
 
       if (propertiesError) throw propertiesError;
 

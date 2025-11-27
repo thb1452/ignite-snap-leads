@@ -421,7 +421,30 @@ async function processUploadJob(jobId: string) {
       // Don't fail the job if insights fail
     }
 
-    console.log(`[process-upload] Upload complete. Geocoding can be triggered manually from UI.`);
+    // Trigger geocoding for properties that need it
+    console.log(`[process-upload] Triggering geocoding for newly created properties`);
+    try {
+      const geocodingResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/geocode-properties`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        },
+        body: JSON.stringify({ batchSize: 50 }),
+      });
+      
+      if (geocodingResponse.ok) {
+        const geocodingData = await geocodingResponse.json();
+        console.log(`[process-upload] Geocoding started: ${geocodingData.message || 'Job created'}`);
+      } else {
+        console.error(`[process-upload] Geocoding trigger failed: ${geocodingResponse.status}`);
+      }
+    } catch (geocodingError) {
+      console.error('[process-upload] Error triggering geocoding:', geocodingError);
+      // Don't fail the job if geocoding fails
+    }
+
+    console.log(`[process-upload] Upload complete with automatic insights and geocoding triggered.`);
 
   } catch (error) {
     console.error(`[process-upload] Job ${jobId} failed:`, error);

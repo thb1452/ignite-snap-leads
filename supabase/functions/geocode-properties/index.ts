@@ -1,6 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 20; // Reduced to avoid API rate limits
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,10 +38,10 @@ async function geocodeAddress(
   }
   const fullAddress = addressParts.join(', ');
 
+  // Try Census geocoder first (US addresses) with longer timeout
   try {
-    // Try Census geocoder first (US addresses)
     const censusUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(fullAddress)}&benchmark=Public_AR_Current&format=json`;
-    const censusRes = await fetch(censusUrl, { signal: AbortSignal.timeout(5000) });
+    const censusRes = await fetch(censusUrl, { signal: AbortSignal.timeout(10000) });
     
     if (censusRes.ok) {
       const censusData = await censusRes.json();
@@ -57,39 +57,34 @@ async function geocodeAddress(
     console.log(`Census API error: ${censusError.message}`);
   }
 
-  // Fallback to Nominatim
+  // Fallback to Nominatim with better error handling
   try {
-    await new Promise(resolve => setTimeout(resolve, 1100)); // Rate limit
+    await new Promise(resolve => setTimeout(resolve, 1200)); // Rate limit
 
-    const addressVariations = [
-      `${cleanAddress}, ${cleanCity}, ${cleanState}, USA`,
-      `${cleanAddress}, ${cleanCity}, ${cleanState}`,
-      `${cleanCity}, ${cleanState}, USA`
-    ];
+    // Try only the most specific variation first to fail fast
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`;
+    
+    const nomRes = await fetch(nominatimUrl, {
+      headers: { 'User-Agent': 'SnapIgnite/1.0' },
+      signal: AbortSignal.timeout(10000) // Increased to 10 seconds
+    });
 
-    for (const addressVariation of addressVariations) {
-      const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressVariation)}&limit=1`;
-      const nomRes = await fetch(nominatimUrl, {
-        headers: { 'User-Agent': 'SnapIgnite/1.0' },
-        signal: AbortSignal.timeout(5000)
-      });
-
-      if (nomRes.ok) {
-        const nomData = await nomRes.json();
-        if (nomData.length > 0) {
-          const lat = parseFloat(nomData[0].lat);
-          const lng = parseFloat(nomData[0].lon);
-          
-          if (lat && lng && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-            return { latitude: lat, longitude: lng };
-          }
+    if (nomRes.ok) {
+      const nomData = await nomRes.json();
+      if (nomData.length > 0) {
+        const lat = parseFloat(nomData[0].lat);
+        const lng = parseFloat(nomData[0].lon);
+        
+        if (lat && lng && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          return { latitude: lat, longitude: lng };
         }
       }
-
-      await new Promise(resolve => setTimeout(resolve, 500));
     }
   } catch (nomError) {
-    console.log(`Nominatim API error: ${nomError.message}`);
+    // Only log non-timeout errors
+    if (!nomError.message.includes('timed out')) {
+      console.log(`Nominatim API error: ${nomError.message}`);
+    }
   }
 
   return { latitude: null, longitude: null };
@@ -106,7 +101,17 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { jobId } = await req.json() as GeocodeRequest;
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON" }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { jobId } = body;
 
     if (!jobId) {
       return new Response(
@@ -151,8 +156,16 @@ Deno.serve(async (req: Request) => {
 
     let successCount = 0;
     let failCount = 0;
+    let consecutiveTimeouts = 0;
 
     for (const property of properties) {
+      // If we hit too many consecutive timeouts, slow down dramatically
+      if (consecutiveTimeouts >= 5) {
+        console.log(`⚠️ Too many timeouts, adding longer delay...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        consecutiveTimeouts = 0;
+      }
+
       try {
         const { latitude, longitude } = await geocodeAddress(
           property.address,
@@ -162,11 +175,18 @@ Deno.serve(async (req: Request) => {
         );
 
         if (latitude == null || longitude == null) {
-          // Could not geocode → count as failed but do not crash batch
-          console.log(`✗ Failed to geocode: ${property.address}, ${property.city}, ${property.state}`);
-          failCount++;
+          // Track if this was a timeout vs invalid address
+          if (property.address.toLowerCase().includes('unknown')) {
+            failCount++;
+          } else {
+            failCount++;
+            consecutiveTimeouts++;
+          }
           continue;
         }
+
+        // Success - reset timeout counter
+        consecutiveTimeouts = 0;
 
         const { error: updateError } = await supabase
           .from("properties")
@@ -187,6 +207,7 @@ Deno.serve(async (req: Request) => {
       } catch (err) {
         console.error("[Geocoding] Error geocoding property", property.id, err);
         failCount++;
+        consecutiveTimeouts++;
       }
     }
 

@@ -85,6 +85,7 @@ async function processUploadJob(jobId: string) {
     const dataRows = parsedData.slice(1);
     const totalRows = dataRows.length;
     
+    console.log(`[process-upload] CSV Headers: ${JSON.stringify(headers)}`);
     console.log(`[process-upload] Parsed ${totalRows} rows from CSV`);
 
     // Update total rows
@@ -106,20 +107,21 @@ async function processUploadJob(jobId: string) {
       });
 
       // Flexible column mapping - support multiple CSV formats
-      const caseId = row.case_id || row['file #'] || row.file_number || null;
-      const violationType = row.category || row.violation || row.type || row.violation_type || '';
-      const openDate = row.opened_date || row.open_date || row['open date'] || null;
-      const closeDate = row.close_date || row['close date'] || null;
-      const description = row.description || row.violation_description || null;
+      const caseId = row.case_id || row['file #'] || row.file_number || row.id || row['file number'] || null;
+      const address = row.address || row.location || row.property_address || row['property address'] || '';
+      const violationType = row.category || row.violation || row.type || row.violation_type || row['violation type'] || row.violation_category || '';
+      const openDate = row.opened_date || row.open_date || row['open date'] || row.date || row.date_opened || null;
+      const closeDate = row.close_date || row['close date'] || row.closed_date || row.date_closed || null;
+      const description = row.description || row.violation_description || row.notes || row.comments || null;
       
       stagingRows.push({
         job_id: jobId,
         row_num: i + 1,
         case_id: caseId,
-        address: row.address || '',
+        address: address,
         city: row.city || job.city,
-        state: row.state || job.state,
-        zip: row.zip || '',
+        state: row.state?.length === 2 ? row.state : job.state, // Only use row.state if it's a 2-letter state code
+        zip: row.zip || row.zipcode || row['zip code'] || '',
         violation: violationType,
         status: row.status || 'Open',
         opened_date: openDate,

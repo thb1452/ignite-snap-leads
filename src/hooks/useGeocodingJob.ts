@@ -1,70 +1,53 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
+import { fetchLatestGeocodingJob, GeocodingJob } from "@/services/geocoding";
 
-interface GeocodingJob {
-  id: string;
-  user_id: string;
-  status: string;
-  total_properties: number;
-  geocoded_count: number;
-  failed_count: number;
-  error_message: string | null;
-  created_at: string;
-  started_at: string | null;
-  finished_at: string | null;
-}
-
-export function useGeocodingJob(jobId: string | null) {
+export function useGeocodingJob(pollMs: number = 2000) {
   const [job, setJob] = useState<GeocodingJob | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!jobId) {
-      setLoading(false);
-      return;
+    let timer: number | undefined;
+
+    async function load() {
+      try {
+        setLoading(true);
+        const latest = await fetchLatestGeocodingJob();
+        setJob(latest ?? null);
+        setError(null);
+
+        const active =
+          latest &&
+          (latest.status === "queued" || latest.status === "running");
+
+        if (active) {
+          // keep polling
+          timer = window.setTimeout(load, pollMs);
+        }
+      } catch (err) {
+        console.error("[Geocoding] Failed to fetch latest job", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load geocoding job",
+        );
+      } finally {
+        setLoading(false);
+      }
     }
 
-    // Fetch initial job state
-    const fetchJob = async () => {
-      const { data, error } = await supabase
-        .from("geocoding_jobs")
-        .select("*")
-        .eq("id", jobId)
-        .single();
-
-      if (error) {
-        console.error("Error fetching job:", error);
-        setLoading(false);
-        return;
-      }
-
-      setJob(data);
-      setLoading(false);
-    };
-
-    fetchJob();
-
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel(`geocoding-job-${jobId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "geocoding_jobs",
-          filter: `id=eq.${jobId}`,
-        },
-        (payload) => {
-          setJob(payload.new as GeocodingJob);
-        }
-      )
-      .subscribe();
+    load();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (timer) window.clearTimeout(timer);
     };
-  }, [jobId]);
+  }, [pollMs]);
 
-  return { job, loading };
+  const progress =
+    job && job.total_properties > 0
+      ? Math.min(
+          100,
+          Math.round((job.geocoded_count / job.total_properties) * 100),
+        )
+      : 0;
+
+  return { job, loading, error, progress };
 }

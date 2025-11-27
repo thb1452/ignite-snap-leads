@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload as UploadIcon, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,7 +15,6 @@ import { GeocodingProgress } from '@/components/geocoding/GeocodingProgress';
 import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { startGeocodingJob } from '@/services/geocoding';
-import { supabase } from '@/integrations/supabase/client';
 
 const US_STATES = [
   'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -29,54 +28,11 @@ export default function Upload() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [jobId, setJobId] = useState<string | null>(null);
-  const [geocodingJobId, setGeocodingJobId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [city, setCity] = useState<string>("");
   const [county, setCounty] = useState<string>("");
   const [state, setState] = useState<string>("");
   const { job, loading: jobLoading } = useUploadJob(jobId);
-
-  // Check for most recent geocoding job
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchLatestGeocodingJob = async () => {
-      const { data } = await supabase
-        .from('geocoding_jobs')
-        .select('id')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (data && !geocodingJobId) {
-        setGeocodingJobId(data.id);
-      }
-    };
-
-    fetchLatestGeocodingJob();
-
-    // Subscribe to new geocoding jobs
-    const channel = supabase
-      .channel('geocoding-jobs-new')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'geocoding_jobs',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          setGeocodingJobId(payload.new.id);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, geocodingJobId]);
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (!user) {
@@ -142,8 +98,7 @@ export default function Upload() {
 
   const handleStartGeocoding = async () => {
     try {
-      const id = await startGeocodingJob();
-      setGeocodingJobId(id);
+      await startGeocodingJob();
       toast({
         title: 'Geocoding Started',
         description: 'Processing properties in background',
@@ -270,7 +225,7 @@ export default function Upload() {
         </Card>
 
         {job && <UploadProgress job={job} />}
-        {geocodingJobId && <GeocodingProgress jobId={geocodingJobId} />}
+        <GeocodingProgress />
 
         {/* Geocoding Control */}
         <Card>

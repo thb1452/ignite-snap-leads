@@ -1,5 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
+const BATCH_SIZE = 50;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -9,7 +11,91 @@ interface GeocodeRequest {
   jobId: string;
 }
 
-Deno.serve(async (req) => {
+/**
+ * Geocode a single address using Census API first, then Nominatim fallback
+ */
+async function geocodeAddress(
+  address: string,
+  city: string,
+  state: string,
+  zip?: string
+): Promise<{ latitude: number | null; longitude: number | null }> {
+  // Validate address components
+  if (!address || address.trim().toLowerCase() === 'unknown' || 
+      !city || city.trim().toLowerCase() === 'unknown' || !state) {
+    return { latitude: null, longitude: null };
+  }
+
+  // Clean address
+  const cleanAddress = address.trim().replace(/\s+-\s*[A-Z](?:\s|$)/g, ' ').replace(/\s+/g, ' ');
+  const cleanCity = city.trim();
+  const cleanState = state.trim();
+
+  // Build full address
+  const addressParts = [cleanAddress, cleanCity, cleanState];
+  if (zip && zip.trim() && zip !== '00000') {
+    addressParts.push(zip.trim());
+  }
+  const fullAddress = addressParts.join(', ');
+
+  try {
+    // Try Census geocoder first (US addresses)
+    const censusUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(fullAddress)}&benchmark=Public_AR_Current&format=json`;
+    const censusRes = await fetch(censusUrl, { signal: AbortSignal.timeout(5000) });
+    
+    if (censusRes.ok) {
+      const censusData = await censusRes.json();
+      if (censusData.result?.addressMatches && censusData.result.addressMatches.length > 0) {
+        const match = censusData.result.addressMatches[0];
+        const coords = match.coordinates;
+        if (coords && coords.x && coords.y) {
+          return { latitude: coords.y, longitude: coords.x };
+        }
+      }
+    }
+  } catch (censusError) {
+    console.log(`Census API error: ${censusError.message}`);
+  }
+
+  // Fallback to Nominatim
+  try {
+    await new Promise(resolve => setTimeout(resolve, 1100)); // Rate limit
+
+    const addressVariations = [
+      `${cleanAddress}, ${cleanCity}, ${cleanState}, USA`,
+      `${cleanAddress}, ${cleanCity}, ${cleanState}`,
+      `${cleanCity}, ${cleanState}, USA`
+    ];
+
+    for (const addressVariation of addressVariations) {
+      const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressVariation)}&limit=1`;
+      const nomRes = await fetch(nominatimUrl, {
+        headers: { 'User-Agent': 'SnapIgnite/1.0' },
+        signal: AbortSignal.timeout(5000)
+      });
+
+      if (nomRes.ok) {
+        const nomData = await nomRes.json();
+        if (nomData.length > 0) {
+          const lat = parseFloat(nomData[0].lat);
+          const lng = parseFloat(nomData[0].lon);
+          
+          if (lat && lng && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            return { latitude: lat, longitude: lng };
+          }
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  } catch (nomError) {
+    console.log(`Nominatim API error: ${nomError.message}`);
+  }
+
+  return { latitude: null, longitude: null };
+}
+
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -22,226 +108,122 @@ Deno.serve(async (req) => {
 
     const { jobId } = await req.json() as GeocodeRequest;
 
-    // Get current job state
-    const { data: currentJob } = await supabase
-      .from('geocoding_jobs')
-      .select('geocoded_count, failed_count, status')
-      .eq('id', jobId)
+    if (!jobId) {
+      return new Response(
+        JSON.stringify({ error: "Missing jobId" }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get job
+    const { data: job, error: jobError } = await supabase
+      .from("geocoding_jobs")
+      .select("*")
+      .eq("id", jobId)
       .single();
 
-    // Update job to running if not already
-    if (currentJob?.status !== 'running') {
-      await supabase
-        .from('geocoding_jobs')
-        .update({ status: 'running', started_at: new Date().toISOString() })
-        .eq('id', jobId);
+    if (jobError || !job) {
+      console.error("[Geocoding] Job not found", jobError);
+      return new Response(
+        JSON.stringify({ error: "Job not found" }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Get properties that need geocoding (limit to batches of 50 to avoid timeout)
-    const { data: properties, error: fetchError } = await supabase
-      .from('properties')
-      .select('id, address, city, state, zip')
-      .or('latitude.is.null,longitude.is.null')
-      .limit(50);
+    // Fetch a batch of properties that still need geocoding
+    const { data: properties, error: propsError } = await supabase
+      .from("properties")
+      .select("id,address,city,state,zip,latitude,longitude")
+      .or("latitude.is.null,longitude.is.null")
+      .limit(BATCH_SIZE);
 
-    if (fetchError) throw fetchError;
+    if (propsError) throw propsError;
 
     if (!properties || properties.length === 0) {
-      await supabase
-        .from('geocoding_jobs')
-        .update({ 
-          status: 'completed', 
-          finished_at: new Date().toISOString(),
-          total_properties: 0
-        })
-        .eq('id', jobId);
-
-      return new Response(JSON.stringify({ success: true, geocoded: 0 }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      // Nothing left to process
+      return new Response(
+        JSON.stringify({ remaining: 0 }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`Processing ${properties.length} properties for job ${jobId}`);
+    console.log(`[Geocoding] Processing ${properties.length} properties for job ${jobId}`);
 
-    let geocoded = 0;
-    let failed = 0;
+    let successCount = 0;
+    let failCount = 0;
 
-    // Process properties individually with better validation and error handling
-    for (const prop of properties) {
+    for (const property of properties) {
       try {
-        // Validate address components
-        if (!prop.address || 
-            prop.address.trim().toLowerCase() === 'unknown' || 
-            prop.address.trim() === '' ||
-            !prop.city || 
-            prop.city.trim().toLowerCase() === 'unknown' ||
-            !prop.state) {
-          console.log(`Skipping invalid address: ${prop.address}, ${prop.city}, ${prop.state}`);
-          failed++;
+        const { latitude, longitude } = await geocodeAddress(
+          property.address,
+          property.city,
+          property.state,
+          property.zip
+        );
+
+        if (latitude == null || longitude == null) {
+          // Could not geocode → count as failed but do not crash batch
+          console.log(`✗ Failed to geocode: ${property.address}, ${property.city}, ${property.state}`);
+          failCount++;
           continue;
         }
 
-        // Clean and normalize address components
-        const cleanAddress = prop.address.trim()
-          .replace(/\s+-\s*[A-Z](?:\s|$)/g, ' ') // Remove suffixes like " -A", " -B"
-          .replace(/\s+/g, ' ');
-        
-        const cleanCity = prop.city.trim();
-        const cleanState = prop.state.trim();
-        
-        // Build address string
-        const addressParts = [cleanAddress, cleanCity, cleanState];
-        if (prop.zip && prop.zip.trim() && prop.zip !== '00000') {
-          addressParts.push(prop.zip.trim());
-        }
-        const fullAddress = addressParts.join(', ');
-        
-        console.log(`Geocoding: ${fullAddress}`);
-        
-        let geocodingSuccess = false;
-        
-        // Try Census geocoder API first (US addresses)
-        try {
-          const censusUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(fullAddress)}&benchmark=Public_AR_Current&format=json`;
-          
-          const censusRes = await fetch(censusUrl, { signal: AbortSignal.timeout(5000) });
-          if (censusRes.ok) {
-            const censusData = await censusRes.json();
-            
-            if (censusData.result?.addressMatches && censusData.result.addressMatches.length > 0) {
-              const match = censusData.result.addressMatches[0];
-              const coords = match.coordinates;
-              
-              if (coords && coords.x && coords.y) {
-                await supabase
-                  .from('properties')
-                  .update({ 
-                    latitude: coords.y, 
-                    longitude: coords.x,
-                    geom: `POINT(${coords.x} ${coords.y})`
-                  })
-                  .eq('id', prop.id);
-                
-                console.log(`✓ Census geocoded: ${cleanAddress}`);
-                geocoded++;
-                geocodingSuccess = true;
-                continue;
-              }
-            }
-          }
-        } catch (censusError) {
-          console.log(`Census API error for ${cleanAddress}: ${censusError.message}`);
-        }
-        
-        // If Census failed, try Nominatim
-        if (!geocodingSuccess) {
-          await new Promise(resolve => setTimeout(resolve, 1100)); // Rate limit
-          
-          try {
-            // Try multiple address formats for better coverage
-            const addressVariations = [
-              `${cleanAddress}, ${cleanCity}, ${cleanState}, USA`,
-              `${cleanAddress}, ${cleanCity}, ${cleanState}`,
-              `${cleanCity}, ${cleanState}, USA`
-            ];
-            
-            for (const addressVariation of addressVariations) {
-              const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressVariation)}&limit=1`;
-              const nomRes = await fetch(nominatimUrl, {
-                headers: { 'User-Agent': 'SnapIgnite/1.0' },
-                signal: AbortSignal.timeout(5000)
-              });
+        const { error: updateError } = await supabase
+          .from("properties")
+          .update({ 
+            latitude, 
+            longitude,
+            geom: `POINT(${longitude} ${latitude})`
+          })
+          .eq("id", property.id);
 
-              if (nomRes.ok) {
-                const nomData = await nomRes.json();
-                if (nomData.length > 0) {
-                  const lat = parseFloat(nomData[0].lat);
-                  const lng = parseFloat(nomData[0].lon);
-                  
-                  // Basic validation of coordinates (must be in reasonable range)
-                  if (lat && lng && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-                    await supabase
-                      .from('properties')
-                      .update({ 
-                        latitude: lat, 
-                        longitude: lng,
-                        geom: `POINT(${lng} ${lat})`
-                      })
-                      .eq('id', prop.id);
-                    
-                    console.log(`✓ Nominatim geocoded: ${cleanAddress} (using: ${addressVariation})`);
-                    geocoded++;
-                    geocodingSuccess = true;
-                    break;
-                  }
-                }
-              }
-              
-              // Small delay between variations
-              if (!geocodingSuccess) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-              }
-            }
-          } catch (nomError) {
-            console.log(`Nominatim API error for ${cleanAddress}: ${nomError.message}`);
-          }
+        if (updateError) {
+          console.error("[Geocoding] Failed to update property", property.id, updateError);
+          failCount++;
+        } else {
+          console.log(`✓ Geocoded: ${property.address}`);
+          successCount++;
         }
-        
-        if (!geocodingSuccess) {
-          console.log(`✗ Failed to geocode: ${fullAddress}`);
-          failed++;
-        }
-        
-      } catch (e) {
-        console.error(`Geocoding error for property ${prop.id}:`, e);
-        failed++;
+      } catch (err) {
+        console.error("[Geocoding] Error geocoding property", property.id, err);
+        failCount++;
       }
     }
 
-    // Check if there are more properties to process
-    const { count: remainingCount } = await supabase
-      .from('properties')
-      .select('id', { count: 'exact', head: true })
-      .or('latitude.is.null,longitude.is.null');
+    // Update job counters
+    const { error: jobUpdateError } = await supabase
+      .from("geocoding_jobs")
+      .update({
+        geocoded_count: (job.geocoded_count || 0) + successCount,
+        failed_count: (job.failed_count || 0) + failCount,
+      })
+      .eq("id", jobId);
 
-    // Update job progress (accumulate counts)
-    const newGeocodedCount = (currentJob?.geocoded_count || 0) + geocoded;
-    const newFailedCount = (currentJob?.failed_count || 0) + failed;
-    
-    if (remainingCount && remainingCount > 0) {
-      // More properties to process - update progress and let frontend handle next batch
-      await supabase
-        .from('geocoding_jobs')
-        .update({ 
-          geocoded_count: newGeocodedCount,
-          failed_count: newFailedCount
-        })
-        .eq('id', jobId);
-      
-      console.log(`Batch complete: ${geocoded} geocoded this batch (${newGeocodedCount} total), ${failed} failed this batch (${newFailedCount} total), ${remainingCount} remaining`);
-    } else {
-      // All done
-      await supabase
-        .from('geocoding_jobs')
-        .update({ 
-          status: 'completed',
-          finished_at: new Date().toISOString(),
-          geocoded_count: newGeocodedCount,
-          failed_count: newFailedCount
-        })
-        .eq('id', jobId);
-      
-      console.log(`Job complete: ${newGeocodedCount} total geocoded, ${newFailedCount} total failed`);
+    if (jobUpdateError) {
+      console.error("[Geocoding] Failed updating job counters", jobUpdateError);
     }
 
+    // How many still remain?
+    const { count: remaining, error: remainingError } = await supabase
+      .from("properties")
+      .select("id", { count: "exact", head: true })
+      .or("latitude.is.null,longitude.is.null");
+
+    if (remainingError) throw remainingError;
+
+    console.log(`[Geocoding] Batch complete: ${successCount} succeeded, ${failCount} failed, ${remaining ?? 0} remaining`);
+
     return new Response(
-      JSON.stringify({ success: true, geocoded, failed, remaining: remainingCount || 0 }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ remaining: remaining ?? 0 }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Geocoding error:', error);
+    console.error("[Geocoding] Edge function error:", error);
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

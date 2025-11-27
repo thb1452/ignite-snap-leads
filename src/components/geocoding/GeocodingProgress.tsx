@@ -1,24 +1,21 @@
-import { useGeocodingJob } from "@/hooks/useGeocodingJob";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { MapPin, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { useGeocodingJob } from "@/hooks/useGeocodingJob";
 
-interface GeocodingProgressProps {
-  jobId: string | null;
-}
+export function GeocodingProgress() {
+  const { job, progress, loading, error } = useGeocodingJob();
 
-export function GeocodingProgress({ jobId }: GeocodingProgressProps) {
-  const { job, loading } = useGeocodingJob(jobId);
+  if (!job && !loading) return null;
 
-  if (!jobId || loading || !job) return null;
+  const total = job?.total_properties ?? 0;
+  const done = job?.geocoded_count ?? 0;
+  const failed = job?.failed_count ?? 0;
+  const status = job?.status ?? "idle";
 
-  const progress = job.total_properties > 0 
-    ? (job.geocoded_count / job.total_properties) * 100 
-    : 0;
-
-  const isComplete = job.status === "completed";
-  const isFailed = job.status === "failed";
-  const isRunning = job.status === "running";
+  const isComplete = status === "completed";
+  const isFailed = status === "failed";
+  const isRunning = status === "running" || status === "queued";
 
   return (
     <Card className="p-4 bg-background/50 backdrop-blur-sm border-border/50">
@@ -34,19 +31,26 @@ export function GeocodingProgress({ jobId }: GeocodingProgressProps) {
               <span className="text-sm font-medium">
                 {isComplete && "Geocoding Complete"}
                 {isFailed && "Geocoding Failed"}
-                {isRunning && `Geocoding ${job.geocoded_count} / ${job.total_properties} properties`}
+                {isRunning && `Geocoding ${done} / ${total} properties`}
+                {!job && loading && "Loading..."}
               </span>
             </div>
             <span className="text-sm text-muted-foreground">
-              {Math.round(progress)}%
+              {progress}%
             </span>
           </div>
           
           <Progress value={progress} className="h-2" />
           
-          {job.failed_count > 0 && (
+          {failed > 0 && (
             <p className="text-xs text-muted-foreground mt-2">
-              {job.failed_count} failed
+              {failed} failed
+            </p>
+          )}
+
+          {error && (
+            <p className="text-xs text-destructive mt-2">
+              Error: {error}
             </p>
           )}
         </div>

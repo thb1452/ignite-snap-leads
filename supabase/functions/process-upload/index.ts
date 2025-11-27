@@ -286,6 +286,9 @@ async function processUploadJob(jobId: string) {
       })
       .eq('id', jobId);
 
+    // Collect all property IDs for insight generation
+    const allPropertyIds = Array.from(existingMap.values());
+
     // Insert violations in batches
     const { data: allStaging } = await supabaseClient
       .from('upload_staging')
@@ -395,7 +398,29 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Job ${jobId} complete - ${propertiesCreated} properties, ${violationsCreated} violations`);
 
-    // Mark job as complete - geocoding and insights will happen in background
+    // Trigger insight generation for all properties in this upload
+    console.log(`[process-upload] Triggering insight generation for ${allPropertyIds.length} properties`);
+    try {
+      const insightsResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-insights`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        },
+        body: JSON.stringify({ propertyIds: allPropertyIds }),
+      });
+      
+      if (insightsResponse.ok) {
+        const insightsData = await insightsResponse.json();
+        console.log(`[process-upload] Insights generated: ${insightsData.processed || 0} properties`);
+      } else {
+        console.error(`[process-upload] Insights generation failed: ${insightsResponse.status}`);
+      }
+    } catch (insightError) {
+      console.error('[process-upload] Error triggering insights:', insightError);
+      // Don't fail the job if insights fail
+    }
+
     console.log(`[process-upload] Upload complete. Geocoding can be triggered manually from UI.`);
 
   } catch (error) {

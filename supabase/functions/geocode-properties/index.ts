@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
     const newFailedCount = (currentJob?.failed_count || 0) + failed;
     
     if (remainingCount && remainingCount > 0) {
-      // More properties to process - keep job running
+      // More properties to process - keep job running and trigger next batch
       await supabase
         .from('geocoding_jobs')
         .update({ 
@@ -219,6 +219,27 @@ Deno.serve(async (req) => {
         .eq('id', jobId);
       
       console.log(`Batch complete: ${geocoded} geocoded this batch (${newGeocodedCount} total), ${failed} failed this batch (${newFailedCount} total), ${remainingCount} remaining`);
+      
+      // Trigger next batch in background
+      EdgeRuntime.waitUntil(
+        (async () => {
+          // Wait a bit before next batch to avoid overwhelming APIs
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          try {
+            await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/geocode-properties`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({ jobId }),
+            });
+          } catch (error) {
+            console.error('Failed to trigger next batch:', error);
+          }
+        })()
+      );
     } else {
       // All done
       await supabase

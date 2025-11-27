@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const BATCH_SIZE = 10; // Reduced further to handle timeouts better
+const BATCH_SIZE = 50; // Increased - Mapbox handles this well
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,7 +13,7 @@ interface GeocodeRequest {
 }
 
 /**
- * Geocode a single address using Census API first, then Nominatim fallback
+ * Geocode a single address using Mapbox Geocoding API
  */
 async function geocodeAddress(
   address: string,
@@ -30,95 +30,52 @@ async function geocodeAddress(
     return { latitude: null, longitude: null };
   }
 
-  // Clean address
-  const cleanAddress = address.trim().replace(/\s+-\s*[A-Z](?:\s|$)/g, ' ').replace(/\s+/g, ' ');
-  const cleanCity = city.trim();
-  const cleanState = state.trim();
-
-  // Try simple city/state/zip first (fastest, most reliable)
-  if (zip && zip.trim() && zip !== '00000') {
-    try {
-      const simpleQuery = `${cleanCity}, ${cleanState} ${zip.trim()}`;
-      const censusUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(simpleQuery)}&benchmark=Public_AR_Current&format=json`;
-      const censusRes = await fetch(censusUrl, { signal: AbortSignal.timeout(30000) });
-      
-      if (censusRes.ok) {
-        const censusData = await censusRes.json();
-        if (censusData.result?.addressMatches && censusData.result.addressMatches.length > 0) {
-          const match = censusData.result.addressMatches[0];
-          const coords = match.coordinates;
-          if (coords && coords.x && coords.y) {
-            console.log(`✓ Simple geocode: ${simpleQuery}`);
-            return { latitude: coords.y, longitude: coords.x };
-          }
-        }
-      }
-    } catch (err) {
-      // Continue to full address
-    }
+  const MAPBOX_TOKEN = Deno.env.get('MAPBOX_ACCESS_TOKEN');
+  if (!MAPBOX_TOKEN) {
+    console.error('[Geocoding] MAPBOX_ACCESS_TOKEN not configured');
+    return { latitude: null, longitude: null };
   }
 
   // Build full address
+  const cleanAddress = address.trim();
+  const cleanCity = city.trim();
+  const cleanState = state.trim();
   const addressParts = [cleanAddress, cleanCity, cleanState];
   if (zip && zip.trim() && zip !== '00000') {
     addressParts.push(zip.trim());
   }
   const fullAddress = addressParts.join(', ');
 
-  // Try Census geocoder with full address
   try {
-    const censusUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(fullAddress)}&benchmark=Public_AR_Current&format=json`;
-    const censusRes = await fetch(censusUrl, { signal: AbortSignal.timeout(30000) });
+    const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(fullAddress)}.json?access_token=${MAPBOX_TOKEN}&country=US&limit=1`;
     
-    if (censusRes.ok) {
-      const censusData = await censusRes.json();
-      if (censusData.result?.addressMatches && censusData.result.addressMatches.length > 0) {
-        const match = censusData.result.addressMatches[0];
-        const coords = match.coordinates;
-        if (coords && coords.x && coords.y) {
-          return { latitude: coords.y, longitude: coords.x };
-        }
-      }
-    }
-  } catch (censusError) {
-    console.error(`[Census FAIL] ${fullAddress}:`, {
-      error: censusError instanceof Error ? censusError.message : String(censusError),
-      type: censusError?.name,
-      address: fullAddress
+    const response = await fetch(mapboxUrl, {
+      signal: AbortSignal.timeout(10000)
     });
-  }
 
-  // Fallback to Nominatim
-  try {
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Rate limit
+    if (!response.ok) {
+      console.error(`[Mapbox FAIL] ${fullAddress}: HTTP ${response.status}`);
+      return { latitude: null, longitude: null };
+    }
 
-    const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`;
+    const data = await response.json();
     
-    const nomRes = await fetch(nominatimUrl, {
-      headers: { 'User-Agent': 'SnapIgnite/1.0' },
-      signal: AbortSignal.timeout(30000)
-    });
-
-    if (nomRes.ok) {
-      const nomData = await nomRes.json();
-      if (nomData.length > 0) {
-        const lat = parseFloat(nomData[0].lat);
-        const lng = parseFloat(nomData[0].lon);
-        
-        if (lat && lng && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-          return { latitude: lat, longitude: lng };
-        }
-      }
+    if (data.features && data.features.length > 0) {
+      const [lng, lat] = data.features[0].center;
+      console.log(`✓ Geocoded: ${fullAddress} -> ${lat}, ${lng}`);
+      return { latitude: lat, longitude: lng };
     }
-  } catch (nomError) {
-    console.error(`[Nominatim FAIL] ${fullAddress}:`, {
-      error: nomError instanceof Error ? nomError.message : String(nomError),
-      type: nomError?.name,
-      address: fullAddress
-    });
-  }
 
-  return { latitude: null, longitude: null };
+    console.log(`[Mapbox FAIL] ${fullAddress}: No results`);
+    return { latitude: null, longitude: null };
+
+  } catch (error) {
+    console.error(`[Mapbox ERROR] ${fullAddress}:`, {
+      error: error instanceof Error ? error.message : String(error),
+      type: error?.name
+    });
+    return { latitude: null, longitude: null };
+  }
 }
 
 serve(async (req: Request) => {
@@ -236,9 +193,6 @@ serve(async (req: Request) => {
         failCount++;
         consecutiveTimeouts++;
       }
-      
-      // Delay between properties to avoid hammering APIs
-      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     // Update job counters

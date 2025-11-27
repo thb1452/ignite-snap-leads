@@ -421,27 +421,64 @@ async function processUploadJob(jobId: string) {
       // Don't fail the job if insights fail
     }
 
-    // Trigger geocoding for properties that need it
-    console.log(`[process-upload] Triggering geocoding for newly created properties`);
+    // Create geocoding job for properties that need it
+    console.log(`[process-upload] Creating geocoding job for newly created properties`);
     try {
-      const geocodingResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/geocode-properties`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        },
-        body: JSON.stringify({ batchSize: 50 }),
-      });
-      
-      if (geocodingResponse.ok) {
-        const geocodingData = await geocodingResponse.json();
-        console.log(`[process-upload] Geocoding started: ${geocodingData.message || 'Job created'}`);
+      // Count properties that need geocoding
+      const { count: needsGeocodingCount } = await supabase
+        .from('properties')
+        .select('id', { count: 'exact', head: true })
+        .or('latitude.is.null,longitude.is.null');
+
+      if (needsGeocodingCount && needsGeocodingCount > 0) {
+        // Create geocoding job
+        const { data: geocodingJob, error: jobError } = await supabase
+          .from('geocoding_jobs')
+          .insert({
+            user_id: job.user_id,
+            status: 'queued',
+            total_properties: needsGeocodingCount,
+            geocoded_count: 0,
+            failed_count: 0,
+          })
+          .select('id')
+          .single();
+
+        if (jobError) {
+          console.error('[process-upload] Failed to create geocoding job:', jobError);
+        } else {
+          console.log(`[process-upload] Created geocoding job ${geocodingJob.id} for ${needsGeocodingCount} properties`);
+          
+          // Trigger geocoding with the job ID (run in background)
+          EdgeRuntime.waitUntil(
+            (async () => {
+              try {
+                const geocodingResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/geocode-properties`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                  },
+                  body: JSON.stringify({ jobId: geocodingJob.id }),
+                });
+                
+                if (geocodingResponse.ok) {
+                  console.log(`[process-upload] Geocoding started for job ${geocodingJob.id}`);
+                } else {
+                  console.error(`[process-upload] Geocoding trigger failed: ${geocodingResponse.status}`);
+                }
+              } catch (error) {
+                console.error('[process-upload] Error triggering geocoding:', error);
+              }
+            })()
+          );
+        }
       } else {
-        console.error(`[process-upload] Geocoding trigger failed: ${geocodingResponse.status}`);
+        console.log('[process-upload] No properties need geocoding');
       }
     } catch (geocodingError) {
-      console.error('[process-upload] Error triggering geocoding:', geocodingError);
-      // Don't fail the job if geocoding fails
+      console.error('[process-upload] Error setting up geocoding:', geocodingError);
+      // Don't fail the job if geocoding setup fails
     }
 
     console.log(`[process-upload] Upload complete with automatic insights and geocoding triggered.`);

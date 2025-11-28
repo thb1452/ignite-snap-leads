@@ -61,46 +61,60 @@ function Leads() {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
 
-  // Fetch properties from database
+  // Fetch properties from database in batches to overcome 1000 row limit
   async function fetchProperties() {
     setLoading(true);
     try {
-      // Fetch properties with their violations and jurisdiction
-      const { data: propertiesData, error: propertiesError } = await supabase
-        .from('properties')
-        .select(`
-          id,
-          address,
-          city,
-          state,
-          zip,
-          latitude,
-          longitude,
-          snap_score,
-          snap_insight,
-          photo_url,
-          updated_at,
-          jurisdiction_id,
-          violations (
+      let allProperties: Property[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data: batch, error } = await supabase
+          .from('properties')
+          .select(`
             id,
-            violation_type,
-            description,
-            status,
-            opened_date,
-            days_open,
-            case_id
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50000);
+            address,
+            city,
+            state,
+            zip,
+            latitude,
+            longitude,
+            snap_score,
+            snap_insight,
+            photo_url,
+            updated_at,
+            jurisdiction_id,
+            violations (
+              id,
+              violation_type,
+              description,
+              status,
+              opened_date,
+              days_open,
+              case_id
+            )
+          `)
+          .order('created_at', { ascending: false })
+          .range(from, from + batchSize - 1);
 
-      if (propertiesError) throw propertiesError;
+        if (error) throw error;
 
-      setProperties(propertiesData || []);
+        if (batch && batch.length > 0) {
+          allProperties = [...allProperties, ...batch];
+          from += batchSize;
+          hasMore = batch.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setProperties(allProperties);
       
       toast({
         title: "Properties Loaded",
-        description: `Loaded ${propertiesData?.length || 0} properties from database`,
+        description: `Loaded ${allProperties.length} properties from database`,
       });
     } catch (error) {
       console.error("Error loading properties:", error);

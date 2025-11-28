@@ -162,17 +162,17 @@ async function processUploadJob(jobId: string) {
 
     console.log('[process-upload] Starting deduplication and property creation');
 
-    // Get unique addresses from staging (including case_id for parcel-based locations)
+    // Get unique addresses from staging (including case_id and row_num for parcel-based locations)
     const { data: stagingData } = await supabaseClient
       .from('upload_staging')
-      .select('address, city, state, zip, case_id, jurisdiction_id')
+      .select('address, city, state, zip, case_id, row_num, jurisdiction_id')
       .eq('job_id', jobId);
 
     if (!stagingData) {
       throw new Error('No staging data found');
     }
 
-    // Group by address - use "Parcel-Based Location (Parcel #)" for empty addresses
+    // Group by address - use unique identifier for each empty address
     const addressMap = new Map<string, any>();
     stagingData.forEach(row => {
       let addr = row.address?.trim();
@@ -180,10 +180,15 @@ async function processUploadJob(jobId: string) {
       const state = row.state?.trim() || job.state;
       let zip = row.zip?.trim() || '';
       
-      // If address is empty, create unique property per parcel number
+      // If address is empty, create unique property using case_id or row number
       if (!addr || addr === '') {
-        const parcelNum = row.case_id || 'Unknown';
-        addr = `Parcel-Based Location (Parcel ${parcelNum})`;
+        if (row.case_id && row.case_id.trim() !== '') {
+          // Use parcel number if available
+          addr = `Parcel-Based Location (Parcel ${row.case_id.trim()})`;
+        } else {
+          // Use row number to ensure uniqueness
+          addr = `Parcel-Based Location (Row ${row.row_num})`;
+        }
         zip = ''; // Normalize zip for parcel-based locations
       }
       
@@ -321,8 +326,13 @@ async function processUploadJob(jobId: string) {
       
       // Match the parcel-based location format from property creation
       if (!addr || addr === '') {
-        const parcelNum = row.case_id || 'Unknown';
-        addr = `Parcel-Based Location (Parcel ${parcelNum})`;
+        if (row.case_id && row.case_id.trim() !== '') {
+          // Use parcel number if available
+          addr = `Parcel-Based Location (Parcel ${row.case_id.trim()})`;
+        } else {
+          // Use row number to ensure uniqueness (must match property creation logic)
+          addr = `Parcel-Based Location (Row ${row.row_num})`;
+        }
         zip = ''; // Normalize zip for parcel-based locations
       }
       

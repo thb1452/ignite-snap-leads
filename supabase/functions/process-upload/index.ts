@@ -107,7 +107,7 @@ async function processUploadJob(jobId: string) {
       });
 
       // Flexible column mapping - support multiple CSV formats
-      const caseId = row.case_id || row['file #'] || row.file_number || row.id || row['file number'] || null;
+      const caseId = row.case_id || row['case/file id'] || row['file #'] || row.file_number || row.id || row['file number'] || null;
       const address = row.address || row.location || row.property_address || row['property address'] || '';
       const violationType = row.category || row.violation || row.type || row.violation_type || row['violation type'] || row.violation_category || '';
       const openDate = row.opened_date || row.open_date || row['open date'] || row.date || row.date_opened || null;
@@ -172,7 +172,7 @@ async function processUploadJob(jobId: string) {
       throw new Error('No staging data found');
     }
 
-    // Group by address - use unique identifier for each empty address
+    // Group by address - for empty addresses, group by case_id to avoid duplicates
     const addressMap = new Map<string, any>();
     stagingData.forEach(row => {
       let addr = row.address?.trim();
@@ -180,16 +180,17 @@ async function processUploadJob(jobId: string) {
       const state = row.state?.trim() || job.state;
       let zip = row.zip?.trim() || '';
       
-      // If address is empty, create unique property using case_id or row number
+      // If address is empty, group by parcel number (case_id)
       if (!addr || addr === '') {
         if (row.case_id && row.case_id.trim() !== '') {
-          // Use parcel number if available
+          // Use parcel number to create ONE property per unique case_id
           addr = `Parcel-Based Location (Parcel ${row.case_id.trim()})`;
+          zip = ''; // Normalize zip for parcel-based locations
         } else {
-          // Use row number to ensure uniqueness
-          addr = `Parcel-Based Location (Row ${row.row_num})`;
+          // If no case_id either, create one property for all unknown parcels
+          addr = `Parcel-Based Location (Unknown Parcel)`;
+          zip = '';
         }
-        zip = ''; // Normalize zip for parcel-based locations
       }
       
       const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
@@ -327,11 +328,11 @@ async function processUploadJob(jobId: string) {
       // Match the parcel-based location format from property creation
       if (!addr || addr === '') {
         if (row.case_id && row.case_id.trim() !== '') {
-          // Use parcel number if available
+          // Group by parcel number - ONE property per case_id
           addr = `Parcel-Based Location (Parcel ${row.case_id.trim()})`;
         } else {
-          // Use row number to ensure uniqueness (must match property creation logic)
-          addr = `Parcel-Based Location (Row ${row.row_num})`;
+          // Group all unknown parcels under one property
+          addr = `Parcel-Based Location (Unknown Parcel)`;
         }
         zip = ''; // Normalize zip for parcel-based locations
       }

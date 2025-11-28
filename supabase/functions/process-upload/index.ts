@@ -443,14 +443,14 @@ async function processUploadJob(jobId: string) {
     console.log(`[process-upload] Creating geocoding job for newly created properties`);
     try {
       // Count properties that need geocoding
-      const { count: needsGeocodingCount } = await supabase
+      const { count: needsGeocodingCount } = await supabaseClient
         .from('properties')
         .select('id', { count: 'exact', head: true })
         .or('latitude.is.null,longitude.is.null');
 
       if (needsGeocodingCount && needsGeocodingCount > 0) {
         // Create geocoding job
-        const { data: geocodingJob, error: jobError } = await supabase
+        const { data: geocodingJob, error: jobError } = await supabaseClient
           .from('geocoding_jobs')
           .insert({
             user_id: job.user_id,

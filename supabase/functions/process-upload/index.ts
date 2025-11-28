@@ -305,12 +305,12 @@ async function processUploadJob(jobId: string) {
     // Collect all property IDs for insight generation
     const allPropertyIds = Array.from(existingMap.values());
 
-    // Insert violations in batches - fetch ALL staging rows (no limit)
-    const { data: allStaging, error: stagingError, count } = await supabaseClient
+    // Insert violations in batches - fetch ALL staging rows using range
+    const { data: allStaging, error: stagingError } = await supabaseClient
       .from('upload_staging')
-      .select('*', { count: 'exact' })
+      .select('*')
       .eq('job_id', jobId)
-      .limit(50000); // Set high limit to handle large uploads
+      .range(0, 99999); // Fetch up to 100k rows (far beyond typical uploads)
 
     if (stagingError) {
       throw new Error(`Failed to fetch staging data: ${stagingError.message}`);

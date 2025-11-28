@@ -59,9 +59,10 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
 
   const scoreClass = (n: number | null) => {
     if (!n) return 'bg-slate-100 text-ink-600 border border-slate-200';
-    if (n >= 80) return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-    if (n >= 50) return 'bg-amber-50 text-amber-700 border border-amber-200';
-    return 'bg-slate-100 text-ink-600 border border-slate-200';
+    if (n >= 75) return 'bg-score-red text-score-red-foreground border border-score-red/30';
+    if (n >= 50) return 'bg-score-orange text-score-orange-foreground border border-score-orange/30';
+    if (n >= 25) return 'bg-score-yellow text-score-yellow-foreground border border-score-yellow/30';
+    return 'bg-score-blue text-score-blue-foreground border border-score-blue/30';
   };
 
   const computeSnapInsight = (property: PropertyWithViolations) => {

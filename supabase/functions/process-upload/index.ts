@@ -305,15 +305,22 @@ async function processUploadJob(jobId: string) {
     // Collect all property IDs for insight generation
     const allPropertyIds = Array.from(existingMap.values());
 
-    // Insert violations in batches
-    const { data: allStaging } = await supabaseClient
+    // Insert violations in batches - fetch ALL staging rows (no limit)
+    const { data: allStaging, error: stagingError, count } = await supabaseClient
       .from('upload_staging')
-      .select('*')
-      .eq('job_id', jobId);
+      .select('*', { count: 'exact' })
+      .eq('job_id', jobId)
+      .limit(50000); // Set high limit to handle large uploads
+
+    if (stagingError) {
+      throw new Error(`Failed to fetch staging data: ${stagingError.message}`);
+    }
 
     if (!allStaging) {
       throw new Error('No staging data for violations');
     }
+
+    console.log(`[process-upload] Processing ${allStaging.length} staging rows for violations`);
 
     const VIOL_BATCH = 500;
     const violations: any[] = [];

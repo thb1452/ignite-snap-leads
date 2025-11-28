@@ -42,9 +42,10 @@ export function PropertyCard({
   
   const getScoreColor = (score: number | null) => {
     if (!score) return "bg-muted";
-    if (score >= 80) return "bg-destructive";
-    if (score >= 60) return "bg-orange-500";
-    return "bg-primary";
+    if (score >= 75) return "bg-score-red";
+    if (score >= 50) return "bg-score-orange";
+    if (score >= 25) return "bg-score-yellow";
+    return "bg-score-blue";
   };
 
   const getStatusColor = (status: string) => {

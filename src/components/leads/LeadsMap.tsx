@@ -30,10 +30,11 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
   const [viewMode, setViewMode] = useState<"map" | "heatmap">("map");
 
   const getMarkerColor = (score: number | null) => {
-    if (!score) return "#64748b";
-    if (score >= 80) return "#ef4444";
-    if (score >= 60) return "#f97316";
-    return "#22c55e";
+    if (!score) return "#64748b"; // Gray for null
+    if (score >= 75) return "#E53935"; // Red (Critical Distress)
+    if (score >= 50) return "#FA8900"; // Orange (High Distress)
+    if (score >= 25) return "#F5C518"; // Yellow (Moderate Distress)
+    return "#4A90E2"; // Blue (Low Distress)
   };
 
   useEffect(() => {

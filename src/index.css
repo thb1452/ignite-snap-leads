@@ -36,13 +36,22 @@ All colors MUST be HSL.
     --input: 220 13% 91%;
     --ring: 217 100% 53%;
 
-    /* SnapScore color system */
-    --score-low: 220 13% 85%;
-    --score-low-foreground: 220 9% 46%;
-    --score-medium: 38 92% 50%;
-    --score-medium-foreground: 0 0% 100%;
-    --score-high: 142 71% 45%;
-    --score-high-foreground: 0 0% 100%;
+    /* SnapScore Distress Color System (Official Standard) */
+    /* 0-24 = Low Distress (Blue) */
+    --score-blue: 210 71% 59%;
+    --score-blue-foreground: 0 0% 100%;
+    
+    /* 25-49 = Moderate Distress (Yellow) */
+    --score-yellow: 47 91% 53%;
+    --score-yellow-foreground: 24 10% 10%;
+    
+    /* 50-74 = High Distress (Orange) */
+    --score-orange: 33 100% 49%;
+    --score-orange-foreground: 0 0% 100%;
+    
+    /* 75-100 = Critical Distress (Red) */
+    --score-red: 1 77% 55%;
+    --score-red-foreground: 0 0% 100%;
 
     /* Animations */
     --transition-smooth: all 0.18s cubic-bezier(0.22, 0.61, 0.36, 1);

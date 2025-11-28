@@ -162,17 +162,17 @@ async function processUploadJob(jobId: string) {
 
     console.log('[process-upload] Starting deduplication and property creation');
 
-    // Get unique addresses from staging
+    // Get unique addresses from staging (including case_id for parcel-based locations)
     const { data: stagingData } = await supabaseClient
       .from('upload_staging')
-      .select('address, city, state, zip, jurisdiction_id')
+      .select('address, city, state, zip, case_id, jurisdiction_id')
       .eq('job_id', jobId);
 
     if (!stagingData) {
       throw new Error('No staging data found');
     }
 
-    // Group by address - treat empty addresses as "Unknown Address" with no zip for consistency
+    // Group by address - use "Parcel-Based Location (Parcel #)" for empty addresses
     const addressMap = new Map<string, any>();
     stagingData.forEach(row => {
       let addr = row.address?.trim();
@@ -180,11 +180,11 @@ async function processUploadJob(jobId: string) {
       const state = row.state?.trim() || job.state;
       let zip = row.zip?.trim() || '';
       
-      // If address is empty, use "Unknown Address" and normalize zip to empty string
-      // so all empty addresses for the same city/state map to ONE property
+      // If address is empty, create unique property per parcel number
       if (!addr || addr === '') {
-        addr = 'Unknown Address';
-        zip = ''; // Normalize zip for unknown addresses
+        const parcelNum = row.case_id || 'Unknown';
+        addr = `Parcel-Based Location (Parcel ${parcelNum})`;
+        zip = ''; // Normalize zip for parcel-based locations
       }
       
       const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
@@ -243,7 +243,7 @@ async function processUploadJob(jobId: string) {
       const state = row.state || job.state;
 
       return {
-        address: row.address || 'Unknown Address',
+        address: row.address || 'Parcel-Based Location',
         city,
         state,
         zip: row.zip || '',
@@ -319,10 +319,11 @@ async function processUploadJob(jobId: string) {
       const state = row.state?.trim() || '';
       let zip = row.zip?.trim() || '';
       
-      // Match the normalization logic from property creation
+      // Match the parcel-based location format from property creation
       if (!addr || addr === '') {
-        addr = 'Unknown Address';
-        zip = ''; // Normalize zip for unknown addresses
+        const parcelNum = row.case_id || 'Unknown';
+        addr = `Parcel-Based Location (Parcel ${parcelNum})`;
+        zip = ''; // Normalize zip for parcel-based locations
       }
       
       const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();

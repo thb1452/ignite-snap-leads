@@ -172,13 +172,21 @@ async function processUploadJob(jobId: string) {
       throw new Error('No staging data found');
     }
 
-    // Group by address (normalize empty strings to 'Unknown' to match property creation)
+    // Group by address - treat empty addresses as "Unknown Address" with no zip for consistency
     const addressMap = new Map<string, any>();
     stagingData.forEach(row => {
-      const addr = row.address?.trim() || 'Unknown';
+      let addr = row.address?.trim();
       const city = row.city?.trim() || job.city;
       const state = row.state?.trim() || job.state;
-      const zip = row.zip?.trim() || '';
+      let zip = row.zip?.trim() || '';
+      
+      // If address is empty, use "Unknown Address" and normalize zip to empty string
+      // so all empty addresses for the same city/state map to ONE property
+      if (!addr || addr === '') {
+        addr = 'Unknown Address';
+        zip = ''; // Normalize zip for unknown addresses
+      }
+      
       const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
       if (!addressMap.has(key)) {
         addressMap.set(key, { 
@@ -235,7 +243,7 @@ async function processUploadJob(jobId: string) {
       const state = row.state || job.state;
 
       return {
-        address: row.address || 'Unknown',
+        address: row.address || 'Unknown Address',
         city,
         state,
         zip: row.zip || '',
@@ -306,10 +314,17 @@ async function processUploadJob(jobId: string) {
     let violationsCreated = 0;
 
     for (const row of allStaging) {
-      const addr = row.address?.trim() || 'Unknown'; // Match the 'Unknown' default from property creation
+      let addr = row.address?.trim();
       const city = row.city?.trim() || '';
       const state = row.state?.trim() || '';
-      const zip = row.zip?.trim() || '';
+      let zip = row.zip?.trim() || '';
+      
+      // Match the normalization logic from property creation
+      if (!addr || addr === '') {
+        addr = 'Unknown Address';
+        zip = ''; // Normalize zip for unknown addresses
+      }
+      
       const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
       const propertyId = existingMap.get(key);
 

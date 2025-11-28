@@ -172,10 +172,10 @@ async function processUploadJob(jobId: string) {
       throw new Error('No staging data found');
     }
 
-    // Group by address (normalize empty strings to consistent format)
+    // Group by address (normalize empty strings to 'Unknown' to match property creation)
     const addressMap = new Map<string, any>();
     stagingData.forEach(row => {
-      const addr = row.address?.trim() || '';
+      const addr = row.address?.trim() || 'Unknown';
       const city = row.city?.trim() || job.city;
       const state = row.state?.trim() || job.state;
       const zip = row.zip?.trim() || '';
@@ -306,7 +306,7 @@ async function processUploadJob(jobId: string) {
     let violationsCreated = 0;
 
     for (const row of allStaging) {
-      const addr = row.address?.trim() || '';
+      const addr = row.address?.trim() || 'Unknown'; // Match the 'Unknown' default from property creation
       const city = row.city?.trim() || '';
       const state = row.state?.trim() || '';
       const zip = row.zip?.trim() || '';

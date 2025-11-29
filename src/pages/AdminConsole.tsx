@@ -12,6 +12,7 @@ import { useAdminUploads } from "@/hooks/useAdminUploads";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useAdminJurisdictions } from "@/hooks/useAdminJurisdictions";
 import * as AdminAPI from "@/services/adminApi";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Users, 
   Upload, 
@@ -579,15 +580,27 @@ function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
 
     try {
       setInviting(true);
-      // TODO: Implement actual invite API call
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulated API call
+      
+      const { data, error } = await supabase.functions.invoke('send-user-invitation', {
+        body: {
+          email: inviteEmail,
+          role: inviteRole,
+        },
+      });
+
+      if (error) {
+        console.error('Invitation error:', error);
+        throw new Error(error.message || 'Failed to send invitation');
+      }
+
       toast.success(`Invitation sent to ${inviteEmail}`);
       setInviteDialogOpen(false);
       setInviteEmail('');
       setInviteRole('user');
       refetch();
-    } catch (err) {
-      toast.error('Failed to send invitation');
+    } catch (err: any) {
+      console.error('Failed to send invitation:', err);
+      toast.error(err.message || 'Failed to send invitation');
     } finally {
       setInviting(false);
     }

@@ -518,6 +518,10 @@ function UploadJobsTab({ refreshTrigger }: { refreshTrigger: Date }) {
 function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
   const { data: users, isLoading: loading, error, refetch } = useAdminUsers(refreshTrigger);
   const [disabling, setDisabling] = useState<string | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'va' | 'user'>('user');
+  const [inviting, setInviting] = useState(false);
 
   const mockUsers = [
     {
@@ -567,6 +571,28 @@ function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
     },
   ];
 
+  const handleInvite = async () => {
+    if (!inviteEmail || !inviteEmail.includes('@')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    try {
+      setInviting(true);
+      // TODO: Implement actual invite API call
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulated API call
+      toast.success(`Invitation sent to ${inviteEmail}`);
+      setInviteDialogOpen(false);
+      setInviteEmail('');
+      setInviteRole('user');
+      refetch();
+    } catch (err) {
+      toast.error('Failed to send invitation');
+    } finally {
+      setInviting(false);
+    }
+  };
+
   const handleDisable = async (userId: string) => {
     try {
       setDisabling(userId);
@@ -605,11 +631,67 @@ function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">User Management</h2>
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={() => setInviteDialogOpen(true)}
+        >
           <UserPlus className="h-4 w-4 mr-2" />
           Invite User
         </Button>
       </div>
+
+      {/* Invite User Dialog */}
+      {inviteDialogOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setInviteDialogOpen(false)}>
+          <div className="bg-background border border-border rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold mb-4">Invite User</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Email Address</label>
+                <input
+                  type="email"
+                  placeholder="user@example.com"
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Role</label>
+                <select
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as 'admin' | 'va' | 'user')}
+                >
+                  <option value="user">User</option>
+                  <option value="va">VA</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setInviteDialogOpen(false);
+                    setInviteEmail('');
+                    setInviteRole('user');
+                  }}
+                  disabled={inviting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={handleInvite}
+                  disabled={inviting}
+                >
+                  {inviting ? 'Sending...' : 'Send Invitation'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <Card>

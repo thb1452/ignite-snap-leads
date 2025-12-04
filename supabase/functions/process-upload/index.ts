@@ -305,19 +305,35 @@ async function processUploadJob(jobId: string) {
     // Collect all property IDs for insight generation
     const allPropertyIds = Array.from(existingMap.values());
 
-    // Insert violations in batches - fetch ALL staging rows using range
-    const { data: allStaging, error: stagingError } = await supabaseClient
-      .from('upload_staging')
-      .select('*')
-      .eq('job_id', jobId)
-      .range(0, 99999); // Fetch up to 100k rows (far beyond typical uploads)
-
-    if (stagingError) {
-      throw new Error(`Failed to fetch staging data: ${stagingError.message}`);
+    // Insert violations in batches - fetch ALL staging rows
+    // Supabase has a default 1000 row limit, so we need to paginate
+    let allStaging: any[] = [];
+    let offset = 0;
+    const FETCH_BATCH = 5000;
+    
+    while (true) {
+      const { data: batch, error: stagingError } = await supabaseClient
+        .from('upload_staging')
+        .select('*')
+        .eq('job_id', jobId)
+        .order('row_num')
+        .range(offset, offset + FETCH_BATCH - 1);
+      
+      if (stagingError) {
+        throw new Error(`Failed to fetch staging data: ${stagingError.message}`);
+      }
+      
+      if (!batch || batch.length === 0) break;
+      
+      allStaging = allStaging.concat(batch);
+      console.log(`[process-upload] Fetched ${allStaging.length} staging rows so far...`);
+      
+      if (batch.length < FETCH_BATCH) break; // Last batch
+      offset += FETCH_BATCH;
     }
 
-    if (!allStaging) {
-      throw new Error('No staging data for violations');
+    if (allStaging.length === 0) {
+      console.warn('[process-upload] No staging data found for violations');
     }
 
     console.log(`[process-upload] Processing ${allStaging.length} staging rows for violations`);

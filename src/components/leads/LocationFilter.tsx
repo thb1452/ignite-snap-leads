@@ -25,6 +25,29 @@ export function LocationFilter({
   const [propertyCities, setPropertyCities] = useState<string[]>([]);
   const [loadingCities, setLoadingCities] = useState(true);
 
+  // Sanitize and validate city names
+  const isValidCity = (city: string): boolean => {
+    if (!city || city.trim().length < 2) return false;
+    // Exclude hashtags, numbers-only, entries with "County" 
+    if (city.startsWith('#')) return false;
+    if (city.toLowerCase().includes('county')) return false;
+    if (/^\d+$/.test(city.trim())) return false;
+    // Exclude cities with ZIP codes appended (e.g., "Galveston 77550")
+    if (/\s\d{5}$/.test(city.trim())) return false;
+    // Exclude apartment/unit designators that got into city field
+    if (/^#?[A-Z]?\d*$/i.test(city.trim())) return false;
+    if (city.startsWith('##')) return false;
+    return true;
+  };
+
+  // Normalize city name for consistent display
+  const normalizeCity = (city: string): string => {
+    return city.trim()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   // Fetch distinct cities directly from properties table
   useEffect(() => {
     async function fetchCities() {
@@ -36,7 +59,14 @@ export function LocationFilter({
           .order('city');
         
         if (!error && data) {
-          const uniqueCities = [...new Set(data.map(p => p.city).filter(Boolean))].sort();
+          // Filter out invalid cities and normalize
+          const validCities = data
+            .map(p => p.city)
+            .filter((city): city is string => Boolean(city) && isValidCity(city))
+            .map(normalizeCity);
+          
+          // Deduplicate after normalization (handles case differences)
+          const uniqueCities = [...new Set(validCities)].sort();
           setPropertyCities(uniqueCities);
         }
       } catch (e) {

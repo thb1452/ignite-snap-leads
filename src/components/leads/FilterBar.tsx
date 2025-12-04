@@ -8,7 +8,8 @@ interface FilterBarProps {
   onSearchChange: (value: string) => void;
   snapScoreMin: number;
   lastSeenDays: number | null;
-  selectedCities: string[];
+  selectedCity: string | null;
+  selectedCounty: string | null;
   selectedJurisdiction: string | null;
   propertyCount: number;
   onClearFilters: () => void;
@@ -19,19 +20,21 @@ export function FilterBar({
   onSearchChange,
   snapScoreMin,
   lastSeenDays,
-  selectedCities,
+  selectedCity,
+  selectedCounty,
   selectedJurisdiction,
   propertyCount,
   onClearFilters
 }: FilterBarProps) {
-  const hasActiveFilters = snapScoreMin > 0 || lastSeenDays !== null || selectedCities.length > 0 || selectedJurisdiction !== null;
+  const hasActiveFilters = snapScoreMin > 0 || lastSeenDays !== null || 
+    selectedCity !== null || selectedCounty !== null || selectedJurisdiction !== null;
 
   return (
     <div className="flex items-center gap-4 p-4 border-b bg-background">
       <div className="relative flex-1 max-w-xs">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search city or zip"
+          placeholder="Search address, city or zip"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-9"
@@ -41,29 +44,34 @@ export function FilterBar({
       <div className="flex items-center gap-2 flex-1">
         {snapScoreMin > 0 && (
           <Badge variant="secondary" className="gap-1">
-            Snap Score ≥ {snapScoreMin}
+            Score ≥ {snapScoreMin}
           </Badge>
         )}
         {lastSeenDays !== null && (
           <Badge variant="secondary" className="gap-1">
-            Last Seen ≤ {lastSeenDays} days
+            ≤ {lastSeenDays} days
           </Badge>
         )}
-        {selectedCities.map((city) => (
-          <Badge key={city} variant="secondary">
-            {city}
-          </Badge>
-        ))}
-        {selectedJurisdiction && (
+        {selectedCounty && (
           <Badge variant="secondary">
-            {selectedJurisdiction}
+            {selectedCounty} County
+          </Badge>
+        )}
+        {selectedCity && (
+          <Badge variant="secondary">
+            {selectedCity}
+          </Badge>
+        )}
+        {selectedJurisdiction && (
+          <Badge variant="outline">
+            Jurisdiction
           </Badge>
         )}
       </div>
 
       <div className="flex items-center gap-4">
         <span className="text-sm font-medium whitespace-nowrap">
-          {propertyCount} Properties
+          {propertyCount.toLocaleString()} Properties
         </span>
         {hasActiveFilters && (
           <Button

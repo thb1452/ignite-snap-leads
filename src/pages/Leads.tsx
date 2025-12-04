@@ -11,8 +11,9 @@ import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
-import { JurisdictionFilter } from "@/components/leads/JurisdictionFilter";
+import { LocationFilter } from "@/components/leads/LocationFilter";
 import { generateInsights } from "@/services/insights";
+import { useDemoCredits } from "@/hooks/useDemoCredits";
 
 interface Violation {
   id: string;
@@ -50,9 +51,13 @@ function Leads() {
   const [searchQuery, setSearchQuery] = useState("");
   const [snapScoreMin, setSnapScoreMin] = useState(0);
   const [lastSeenDays, setLastSeenDays] = useState<number | null>(null);
-  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<string | null>(null);
+  
+  // Demo credits hook
+  const { isDemoMode, isAdmin } = useDemoCredits();
 
   // UI state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -147,9 +152,12 @@ function Leads() {
         }
       }
 
-      // Snap score filter
-      if (snapScoreMin > 0 && (property.snap_score || 0) < snapScoreMin) {
-        return false;
+      // Snap score filter - only filter when threshold is meaningful
+      if (snapScoreMin > 0) {
+        const score = property.snap_score ?? 0;
+        if (score < snapScoreMin) {
+          return false;
+        }
       }
 
       // Last seen filter
@@ -162,8 +170,8 @@ function Leads() {
         }
       }
 
-      // City filter
-      if (selectedCities.length > 0 && !selectedCities.includes(property.city)) {
+      // City filter (from property data, not jurisdiction)
+      if (selectedCity && property.city !== selectedCity) {
         return false;
       }
 
@@ -174,13 +182,14 @@ function Leads() {
 
       return true;
     });
-  }, [properties, searchQuery, snapScoreMin, lastSeenDays, selectedCities, selectedJurisdictionId]);
+  }, [properties, searchQuery, snapScoreMin, lastSeenDays, selectedCity, selectedCounty, selectedJurisdictionId]);
 
   const handleClearFilters = () => {
     setSearchQuery("");
     setSnapScoreMin(0);
     setLastSeenDays(null);
-    setSelectedCities([]);
+    setSelectedCity(null);
+    setSelectedCounty(null);
     setSelectedSource(null);
     setSelectedJurisdictionId(null);
   };
@@ -254,19 +263,22 @@ function Leads() {
         onSearchChange={setSearchQuery}
         snapScoreMin={snapScoreMin}
         lastSeenDays={lastSeenDays}
-        selectedCities={selectedCities}
+        selectedCity={selectedCity}
+        selectedCounty={selectedCounty}
         selectedJurisdiction={selectedJurisdictionId}
         propertyCount={filteredProperties.length}
         onClearFilters={handleClearFilters}
       />
       
-      <div className="flex gap-4 px-4 py-3 border-b bg-background">
-        <div className="w-64">
-          <JurisdictionFilter
-            value={selectedJurisdictionId}
-            onChange={setSelectedJurisdictionId}
-          />
-        </div>
+      <div className="flex flex-wrap gap-4 px-4 py-3 border-b bg-background">
+        <LocationFilter
+          selectedJurisdiction={selectedJurisdictionId}
+          selectedCity={selectedCity}
+          selectedCounty={selectedCounty}
+          onJurisdictionChange={setSelectedJurisdictionId}
+          onCityChange={setSelectedCity}
+          onCountyChange={setSelectedCounty}
+        />
         <FilterControls
           snapScoreMin={snapScoreMin}
           onSnapScoreChange={setSnapScoreMin}

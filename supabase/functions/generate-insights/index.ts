@@ -10,6 +10,7 @@ interface Violation {
   violation_type: string;
   status: string;
   days_open: number | null;
+  opened_date: string | null;
 }
 
 serve(async (req) => {
@@ -27,11 +28,10 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!LOVABLE_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Missing required environment variables");
     }
 
@@ -47,7 +47,8 @@ serve(async (req) => {
         violations (
           violation_type,
           status,
-          days_open
+          days_open,
+          opened_date
         )
       `)
       .in("id", propertyIds);
@@ -69,19 +70,24 @@ serve(async (req) => {
       );
     }
 
+    // Build address frequency map for repeat detection
+    const addressCounts = new Map<string, number>();
+    properties.forEach(p => {
+      const normalizedAddr = normalizeAddress(p.address);
+      addressCounts.set(normalizedAddr, (addressCounts.get(normalizedAddr) || 0) + 1);
+    });
+
     const updates = [];
 
     // Process each property
     for (const property of properties) {
       const violations = property.violations as Violation[];
+      const normalizedAddr = normalizeAddress(property.address);
+      const isRepeatAddress = (addressCounts.get(normalizedAddr) || 0) > 1;
       
-      if (!violations || violations.length === 0) {
-        continue;
-      }
-
-      // Generate safe, compliant insight using rule-based template
-      const snapScore = calculateSnapScore(violations);
-      const insight = generateSafeInsight(violations);
+      // Generate score and insight even for properties with no violations
+      const snapScore = calculateSnapScoreV1(violations || [], isRepeatAddress);
+      const insight = generateInsightV1(violations || [], isRepeatAddress);
       
       updates.push({
         id: property.id,
@@ -107,6 +113,8 @@ serve(async (req) => {
       }
     }
 
+    console.log(`Generated insights for ${updates.length} properties`);
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -125,146 +133,132 @@ serve(async (req) => {
   }
 });
 
-// Define what counts as an "open" violation
-const STATUS_OPEN_KEYWORDS = [
-  "open",
-  "pending",
-  "in progress",
-  "referred",
-  "board",
-  "hearing",
-  "lien",
-];
-
-// Safe, compliant scoring based on violation data only
-function calculateSnapScore(violations: Violation[]): number {
-  let rawScore = 0;
-  
-  // Count open violations using expanded keyword list
-  const openViolations = violations.filter(v => {
-    const status = (v.status || "").toLowerCase();
-    return STATUS_OPEN_KEYWORDS.some(kw => status.includes(kw));
-  });
-  const openCount = openViolations.length;
-  
-  // Base score on open violations (0-7 points)
-  if (openCount === 0) rawScore += 1;
-  else if (openCount === 1) rawScore += 3;
-  else if (openCount === 2) rawScore += 5;
-  else if (openCount >= 3) rawScore += 7;
-  
-  // Calculate severity score by scanning descriptions
-  let severityScore = 0;
-  const highSeverityKeywords = [
-    'unsafe', 'nuisance structure', 'condemned', 'uninhabitable', 
-    'electrical', 'fire', 'sewage', 'raw sewage', 'mold', 'roof failure'
-  ];
-  const mediumSeverityKeywords = [
-    'multiple dwellings', 'occupied rv', 'unpermitted dwelling',
-    'unpermitted addition', 'junk vehicles', 'trash', 'accumulation',
-    'debris', 'boarded'
-  ];
-  const lowSeverityKeywords = [
-    'tall grass', 'weeds', 'overgrown', 'trash can',
-    'sign', 'fence', 'parking', 'noise'
-  ];
-  
-  violations.forEach(v => {
-    const desc = (v.violation_type || '').toLowerCase();
-    if (highSeverityKeywords.some(kw => desc.includes(kw))) {
-      severityScore += 3;
-    } else if (mediumSeverityKeywords.some(kw => desc.includes(kw))) {
-      severityScore += 2;
-    } else if (lowSeverityKeywords.some(kw => desc.includes(kw))) {
-      severityScore += 1;
-    }
-  });
-  
-  // Add compressed severity (max 3 points)
-  rawScore += Math.min(severityScore / 3, 3);
-  
-  // Add duration pressure (0-2 points) - only for open violations
-  if (openCount > 0) {
-    const openWithDays = openViolations.filter(v => v.days_open !== null && v.days_open !== undefined);
-    if (openWithDays.length > 0) {
-      const avgOpenDuration = openWithDays.reduce((sum, v) => sum + (v.days_open || 0), 0) / openWithDays.length;
-      
-      if (avgOpenDuration > 180) rawScore += 2;
-      else if (avgOpenDuration > 90) rawScore += 1;
-    }
-  }
-  
-  // Escalation bonus (0-2 points)
-  const escalationKeywords = ['referred to code board', 'hearing', 'board', 'lien'];
-  const hasEscalation = violations.some(v => {
-    const status = (v.status || '').toLowerCase();
-    return escalationKeywords.some(kw => status.includes(kw));
-  });
-  if (hasEscalation) rawScore += 2;
-  
-  // Clamp to 1-10 scale
-  return Math.max(1, Math.min(10, Math.round(rawScore)));
+// Normalize address for comparison
+function normalizeAddress(address: string): string {
+  return address.toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
-// Generate safe, compliant insight based on violation data
-function generateSafeInsight(violations: Violation[]): string {
-  // Use same open detection logic
-  const openViolations = violations.filter(v => {
-    const status = (v.status || "").toLowerCase();
-    return STATUS_OPEN_KEYWORDS.some(kw => status.includes(kw));
-  });
-  const openCount = openViolations.length;
+// Status classification
+function isOpenStatus(status: string): boolean {
+  const s = (status || "").toLowerCase();
+  return s.includes("open") || s.includes("pending") || s.includes("in progress") ||
+         s.includes("referred") || s.includes("board") || s.includes("hearing") ||
+         s.includes("active") || s.includes("new");
+}
+
+function isClosedStatus(status: string): boolean {
+  const s = (status || "").toLowerCase();
+  return s.includes("closed") || s.includes("resolved") || s.includes("complete") ||
+         s.includes("complied") || s.includes("dismissed") || s.includes("abated");
+}
+
+// Category classification
+function isUnsafeStructuralExterior(violationType: string): boolean {
+  const vt = (violationType || "").toLowerCase();
+  return vt.includes("unsafe") || vt.includes("structure") || vt.includes("structural") ||
+         vt.includes("exterior") || vt.includes("roof") || vt.includes("foundation") ||
+         vt.includes("condemned") || vt.includes("nuisance structure") || vt.includes("fire") ||
+         vt.includes("electrical") || vt.includes("plumbing");
+}
+
+function isInteriorUnsanitary(violationType: string): boolean {
+  const vt = (violationType || "").toLowerCase();
+  return vt.includes("interior") || vt.includes("unsanitary") || vt.includes("mold") ||
+         vt.includes("sewage") || vt.includes("trash") || vt.includes("debris") ||
+         vt.includes("accumulation") || vt.includes("maintenance");
+}
+
+function isGrassAnimals(violationType: string): boolean {
+  const vt = (violationType || "").toLowerCase();
+  return vt.includes("grass") || vt.includes("weed") || vt.includes("overgrown") ||
+         vt.includes("animal") || vt.includes("pet") || vt.includes("vegetation");
+}
+
+// SNAP Score v1 - Rule-based weights (normalized to 0-100)
+function calculateSnapScoreV1(violations: Violation[], isRepeatAddress: boolean): number {
+  let rawScore = 0;
   
-  // Extract unique violation categories from open violations
-  const categories = new Set<string>();
-  openViolations.forEach(v => {
-    const rawType = v.violation_type || (v as any).category || '';
-    if (rawType) {
-      const cleaned = rawType
-        .toLowerCase()
-        .replace(/[_-]/g, ' ')
-        .trim();
-      categories.add(cleaned);
+  for (const v of violations) {
+    // Status weights
+    if (isOpenStatus(v.status)) {
+      rawScore += 20;
+    } else if (isClosedStatus(v.status)) {
+      rawScore -= 15;
     }
-  });
-  
-  // Calculate rough timeframe from oldest open violation
-  const oldestDays = openViolations.length > 0 
-    ? Math.max(...openViolations.map(v => v.days_open || 0))
-    : 0;
-  let timeframe = "recent months";
-  if (oldestDays > 180) timeframe = "over a year";
-  else if (oldestDays > 90) timeframe = "the last 6+ months";
-  
-  // Check for escalation
-  const escalationKeywords = ['referred to code board', 'hearing', 'board', 'lien'];
-  const hasEscalation = violations.some(v => {
-    const status = (v.status || '').toLowerCase();
-    return escalationKeywords.some(kw => status.includes(kw));
-  });
-  
-  // Build insight based on situation
-  if (openCount === 0) {
-    return `This property has ${violations.length} historical code enforcement case(s). All known violations are currently marked resolved.`;
-  }
-  
-  // Format categories list
-  const categoryList = Array.from(categories).slice(0, 3);
-  let categoryPhrase = '';
-  
-  if (categoryList.length > 0) {
-    if (categoryList.length === 1) {
-      categoryPhrase = ` related to ${categoryList[0]}`;
-    } else if (categoryList.length === 2) {
-      categoryPhrase = ` including ${categoryList[0]} and ${categoryList[1]}`;
-    } else {
-      categoryPhrase = ` including ${categoryList.slice(0, -1).join(', ')}, and ${categoryList[categoryList.length - 1]}`;
+    
+    // Category weights
+    if (isUnsafeStructuralExterior(v.violation_type)) {
+      rawScore += 30;
+    } else if (isInteriorUnsanitary(v.violation_type)) {
+      rawScore += 20;
+    } else if (isGrassAnimals(v.violation_type)) {
+      rawScore += 5;
     }
   }
   
-  if (hasEscalation) {
-    return `This property has ${openCount} open code enforcement case(s) over ${timeframe}${categoryPhrase}, with at least one case escalated to code board / lien proceedings. This indicates sustained enforcement pressure to resolve the violations.`;
+  // Repeat address bonus
+  if (isRepeatAddress) {
+    rawScore += 25;
   }
   
-  return `This property has ${openCount} open code enforcement case(s) over ${timeframe}${categoryPhrase}. The pattern suggests ongoing maintenance and repair pressure from the local code office.`;
+  // Normalize to 0-100 scale
+  // Assuming max raw score around 200 (4 high-severity open violations + repeat)
+  const normalized = Math.round((rawScore / 200) * 100);
+  
+  // Clamp to 0-100
+  return Math.max(0, Math.min(100, normalized));
+}
+
+// Generate insight v1 - Rule-based sentences
+function generateInsightV1(violations: Violation[], isRepeatAddress: boolean): string {
+  if (violations.length === 0) {
+    return "No violation records found for this property.";
+  }
+  
+  const insights: string[] = [];
+  
+  // Check for open violations
+  const openViolations = violations.filter(v => isOpenStatus(v.status));
+  if (openViolations.length > 0) {
+    insights.push(`Active violation${openViolations.length > 1 ? 's' : ''} on record`);
+  }
+  
+  // Check for property distress categories
+  const hasDistressCategory = violations.some(v => 
+    isUnsafeStructuralExterior(v.violation_type) || 
+    isInteriorUnsanitary(v.violation_type)
+  );
+  if (hasDistressCategory) {
+    insights.push("Likely property distress");
+  }
+  
+  // Check for recent activity (opened within 60 days)
+  const now = new Date();
+  const hasRecentActivity = violations.some(v => {
+    if (!v.opened_date) return false;
+    const openedDate = new Date(v.opened_date);
+    const daysSince = Math.floor((now.getTime() - openedDate.getTime()) / (1000 * 60 * 60 * 24));
+    return daysSince <= 60;
+  });
+  if (hasRecentActivity) {
+    insights.push("Recent activity");
+  }
+  
+  // Check for repeat enforcement
+  if (isRepeatAddress) {
+    insights.push("Repeat enforcement history");
+  }
+  
+  // Build final insight string
+  if (insights.length === 0) {
+    // Fallback for properties with only closed/minor violations
+    const closedCount = violations.filter(v => isClosedStatus(v.status)).length;
+    if (closedCount > 0) {
+      return `${closedCount} historical violation${closedCount > 1 ? 's' : ''} resolved. Property appears compliant.`;
+    }
+    return `${violations.length} violation record${violations.length > 1 ? 's' : ''} on file.`;
+  }
+  
+  // Format as 1-2 AI-style sentences
+  return insights.join(". ") + ".";
 }

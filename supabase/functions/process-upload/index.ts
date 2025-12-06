@@ -417,12 +417,16 @@ async function processUploadJob(jobId: string) {
         ? Math.floor((Date.now() - openedDate.getTime()) / (1000 * 60 * 60 * 24))
         : null;
 
+      // Normalize violation type to short generic labels
+      const normalizedType = normalizeViolationType(row.violation || 'Unknown');
+      
       violations.push({
         property_id: propertyId,
         case_id: row.case_id,
-        violation_type: row.violation || 'Unknown',
-        description: null,
-        status: row.status || 'Open',
+        violation_type: normalizedType,
+        description: null, // Never store raw notes in public description
+        raw_description: row.raw_description || null, // INTERNAL ONLY - raw city notes
+        status: normalizeStatus(row.status || 'Open'),
         opened_date: openedDate ? openedDate.toISOString().split('T')[0] : null,
         last_updated: lastUpdated ? lastUpdated.toISOString().split('T')[0] : null,
         days_open: daysOpen,

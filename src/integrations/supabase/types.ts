@@ -1196,6 +1196,7 @@ export type Database = {
           last_updated: string | null
           opened_date: string | null
           property_id: string | null
+          raw_description: string | null
           status: string
           violation_type: string
         }
@@ -1208,6 +1209,7 @@ export type Database = {
           last_updated?: string | null
           opened_date?: string | null
           property_id?: string | null
+          raw_description?: string | null
           status: string
           violation_type: string
         }
@@ -1220,6 +1222,7 @@ export type Database = {
           last_updated?: string | null
           opened_date?: string | null
           property_id?: string | null
+          raw_description?: string | null
           status?: string
           violation_type?: string
         }

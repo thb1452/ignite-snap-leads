@@ -1,23 +1,38 @@
-import { callFn } from "@/integrations/http/functions";
+import { supabase } from "@/integrations/supabase/client";
 
-export async function exportFilteredCsv(params: { city?: string; minScore?: number; maxScore?: number }) {
-  // Call function as GET with query string to stream CSV
+interface ExportParams {
+  city?: string;
+  minScore?: number;
+  maxScore?: number;
+  jurisdictionId?: string;
+}
+
+export async function exportFilteredCsv(params: ExportParams) {
+  // Build query string
   const qs = new URLSearchParams();
   if (params.city) qs.set("city", params.city);
   if (params.minScore != null) qs.set("minScore", String(params.minScore));
   if (params.maxScore != null) qs.set("maxScore", String(params.maxScore));
+  if (params.jurisdictionId) qs.set("jurisdictionId", params.jurisdictionId);
 
-  // Use fetch directly to get text/csv
-  const csv = await callFn<string>("export-csv", undefined, { method: "GET" as any, headers: { Accept: "text/csv" } })
-    .catch(async () => {
-      // Fallback to direct fetch with query params (depends on your function signature)
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-csv?${qs.toString()}`;
-      const res = await fetch(url, { headers: { "Accept": "text/csv" } });
-      if (!res.ok) throw new Error("Export failed");
-      return await res.text();
-    });
+  // Call edge function with query params
+  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-csv?${qs.toString()}`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Accept': 'text/csv',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+    }
+  });
 
-  // trigger browser download
+  if (!response.ok) {
+    throw new Error(`Export failed: ${response.statusText}`);
+  }
+
+  const csv = await response.text();
+
+  // Trigger browser download
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);

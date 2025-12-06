@@ -14,11 +14,11 @@ import { mockSkipTrace } from "@/services/mockData";
 interface Violation {
   id: string;
   violation_type: string;
-  description: string | null;
   status: string;
   opened_date: string | null;
   days_open: number | null;
   case_id: string | null;
+  // NOTE: description and raw_description are NEVER included for legal safety
 }
 
 interface PropertyWithViolations {
@@ -296,9 +296,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                             {v.status}
                           </span>
                         </div>
-                        {v.description && (
-                          <p className="text-sm text-ink-500 mt-1">{v.description}</p>
-                        )}
+                        {/* NOTE: Raw violation descriptions are NEVER shown to users for legal safety */}
                         <p className="text-xs text-ink-400 mt-1">
                           Opened {formatDate(v.opened_date)} • {v.days_open} days
                         </p>

@@ -39,11 +39,12 @@ interface LeadList {
 interface Violation {
   id: string;
   violation_type: string;
-  description: string | null;
   status: string;
   opened_date: string | null;
+  last_updated: string | null;
   days_open: number | null;
   case_id: string | null;
+  // NOTE: description and raw_description are NEVER included for legal safety
 }
 
 interface LeadActivity {
@@ -227,10 +228,10 @@ export function Lists() {
 
       if (propertiesError) throw propertiesError;
 
-      // Fetch violations
+      // Fetch violations - ONLY clean fields, NEVER raw_description
       const { data: violationsData, error: violationsError } = await supabase
         .from("violations")
-        .select("*")
+        .select("id, property_id, violation_type, status, opened_date, last_updated, days_open, case_id")
         .in("property_id", propertyIds);
 
       if (violationsError) throw violationsError;

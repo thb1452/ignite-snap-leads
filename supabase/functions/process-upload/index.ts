@@ -120,13 +120,14 @@ async function processUploadJob(jobId: string) {
         case_id: caseId,
         address: address,
         city: row.city || job.city,
-        state: row.state?.length === 2 ? row.state : job.state, // Only use row.state if it's a 2-letter state code
+        state: row.state?.length === 2 ? row.state : job.state,
         zip: row.zip || row.zipcode || row['zip code'] || '',
         violation: violationType,
         status: row.status || 'Open',
         opened_date: openDate,
         last_updated: closeDate || row.last_updated || null,
         jurisdiction_id: job.jurisdiction_id || null,
+        raw_description: description, // Store raw notes for AI processing (INTERNAL ONLY)
       });
 
       if (stagingRows.length >= BATCH_SIZE || i === dataRows.length - 1) {
@@ -575,6 +576,49 @@ async function processUploadJob(jobId: string) {
       })
       .eq('id', jobId);
   }
+}
+
+// Normalize violation type to short generic labels (Exterior, Structural, Utility, Safety, Fire)
+function normalizeViolationType(type: string): string {
+  const t = (type || '').toLowerCase();
+  
+  if (t.includes('fire') || t.includes('burn') || t.includes('smoke')) {
+    return 'Fire';
+  }
+  if (t.includes('unsafe') || t.includes('hazard') || t.includes('danger') || t.includes('safety')) {
+    return 'Safety';
+  }
+  if (t.includes('structur') || t.includes('foundation') || t.includes('roof') || t.includes('wall') || t.includes('collapse')) {
+    return 'Structural';
+  }
+  if (t.includes('electric') || t.includes('plumb') || t.includes('water') || t.includes('gas') || t.includes('sewage') || t.includes('utility')) {
+    return 'Utility';
+  }
+  if (t.includes('exterior') || t.includes('facade') || t.includes('siding') || t.includes('paint') || t.includes('window') || t.includes('door') ||
+      t.includes('grass') || t.includes('weed') || t.includes('overgrown') || t.includes('fence') || t.includes('yard')) {
+    return 'Exterior';
+  }
+  
+  // Default to original type if no match, but clean it up
+  return type.trim().substring(0, 50) || 'Unknown';
+}
+
+// Normalize status to Open / Closed / Unknown
+function normalizeStatus(status: string): string {
+  const s = (status || '').toLowerCase();
+  
+  if (s.includes('open') || s.includes('pending') || s.includes('active') || 
+      s.includes('in progress') || s.includes('new') || s.includes('referred') ||
+      s.includes('board') || s.includes('hearing')) {
+    return 'Open';
+  }
+  
+  if (s.includes('closed') || s.includes('resolved') || s.includes('complete') ||
+      s.includes('complied') || s.includes('dismissed') || s.includes('abated')) {
+    return 'Closed';
+  }
+  
+  return 'Unknown';
 }
 
 serve(async (req) => {

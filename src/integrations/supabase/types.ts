@@ -1041,6 +1041,7 @@ export type Database = {
           opened_date: string | null
           processed: boolean | null
           property_id: string | null
+          raw_description: string | null
           row_num: number
           state: string | null
           status: string | null
@@ -1060,6 +1061,7 @@ export type Database = {
           opened_date?: string | null
           processed?: boolean | null
           property_id?: string | null
+          raw_description?: string | null
           row_num: number
           state?: string | null
           status?: string | null
@@ -1079,6 +1081,7 @@ export type Database = {
           opened_date?: string | null
           processed?: boolean | null
           property_id?: string | null
+          raw_description?: string | null
           row_num?: number
           state?: string | null
           status?: string | null

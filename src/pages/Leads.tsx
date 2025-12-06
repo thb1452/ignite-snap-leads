@@ -18,11 +18,11 @@ import { useDemoCredits } from "@/hooks/useDemoCredits";
 interface Violation {
   id: string;
   violation_type: string;
-  description: string | null;
   status: string;
   opened_date: string | null;
   days_open: number | null;
   case_id: string | null;
+  // NOTE: description and raw_description are NEVER included for legal safety
 }
 
 interface Property {

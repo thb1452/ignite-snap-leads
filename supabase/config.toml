@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.process-upload]
 verify_jwt = false
+
+[functions.generate-insights]
+verify_jwt = false
+
+[functions.export-csv]
+verify_jwt = false

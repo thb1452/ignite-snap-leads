@@ -163,14 +163,37 @@ async function processUploadJob(jobId: string) {
     console.log('[process-upload] Starting deduplication and property creation');
 
     // Get unique addresses from staging (including case_id and row_num for parcel-based locations)
-    const { data: stagingData } = await supabaseClient
-      .from('upload_staging')
-      .select('address, city, state, zip, case_id, row_num, jurisdiction_id')
-      .eq('job_id', jobId);
+    // IMPORTANT: Must paginate to avoid 1000 row default limit
+    let stagingData: any[] = [];
+    let dedupOffset = 0;
+    const DEDUP_BATCH = 5000;
+    
+    while (true) {
+      const { data: dedupBatch, error: dedupError } = await supabaseClient
+        .from('upload_staging')
+        .select('address, city, state, zip, case_id, row_num, jurisdiction_id')
+        .eq('job_id', jobId)
+        .order('row_num')
+        .range(dedupOffset, dedupOffset + DEDUP_BATCH - 1);
+      
+      if (dedupError) {
+        throw new Error(`Failed to fetch staging data for dedup: ${dedupError.message}`);
+      }
+      
+      if (!dedupBatch || dedupBatch.length === 0) break;
+      
+      stagingData = stagingData.concat(dedupBatch);
+      console.log(`[process-upload] Dedup fetch: ${stagingData.length} staging rows so far...`);
+      
+      if (dedupBatch.length < DEDUP_BATCH) break; // Last batch
+      dedupOffset += DEDUP_BATCH;
+    }
 
-    if (!stagingData) {
+    if (stagingData.length === 0) {
       throw new Error('No staging data found');
     }
+    
+    console.log(`[process-upload] Total staging rows fetched for dedup: ${stagingData.length}`);
 
     // Group by address - for empty addresses, group by case_id to avoid duplicates
     const addressMap = new Map<string, any>();

@@ -392,27 +392,9 @@ async function processUploadJob(jobId: string) {
         continue;
       }
 
-      // Parse dates safely
-      let openedDate: Date | null = null;
-      let lastUpdated: Date | null = null;
-      
-      try {
-        if (row.opened_date) {
-          openedDate = new Date(row.opened_date);
-          if (isNaN(openedDate.getTime())) openedDate = null;
-        }
-      } catch (e) {
-        console.warn(`[process-upload] Invalid opened_date: ${row.opened_date}`);
-      }
-      
-      try {
-        if (row.last_updated) {
-          lastUpdated = new Date(row.last_updated);
-          if (isNaN(lastUpdated.getTime())) lastUpdated = null;
-        }
-      } catch (e) {
-        console.warn(`[process-upload] Invalid last_updated: ${row.last_updated}`);
-      }
+      // Parse dates safely using helper
+      const openedDate = parseDate(row.opened_date);
+      const lastUpdated = parseDate(row.last_updated);
       
       const daysOpen = openedDate 
         ? Math.floor((Date.now() - openedDate.getTime()) / (1000 * 60 * 60 * 24))
@@ -666,3 +648,21 @@ serve(async (req) => {
     );
   }
 });
+
+// Safe date parser with error handling
+function parseDate(dateStr: string | null): Date | null {
+  if (!dateStr || !dateStr.trim()) return null;
+  
+  try {
+    const date = new Date(dateStr);
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.warn(`[process-upload] Invalid date: ${dateStr}`);
+      return null;
+    }
+    return date;
+  } catch (e) {
+    console.warn(`[process-upload] Error parsing date: ${dateStr}`, e);
+    return null;
+  }
+}

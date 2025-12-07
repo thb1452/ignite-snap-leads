@@ -1,3 +1,8 @@
+/**
+ * SECURITY CRITICAL: This function processes raw_description (raw city notes)
+ * to generate investor-safe summaries. raw_description is NEVER exposed to users.
+ * Only snap_insight (the AI-generated summary) is shown in the UI.
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
@@ -124,8 +129,14 @@ serve(async (req) => {
       
       let snapInsight: string;
       
-      // If we have raw descriptions and Lovable AI key, generate AI summary
-      if (rawDescriptions && LOVABLE_API_KEY) {
+      // Add validation before making API call
+      if (!rawDescriptions || rawDescriptions.length === 0) {
+        console.log(`[generate-insights] No raw descriptions for property ${property.id}, using fallback`);
+        snapInsight = generateFallbackInsight(violations);
+      } else if (!LOVABLE_API_KEY) {
+        console.log(`[generate-insights] No LOVABLE_API_KEY set, using fallback`);
+        snapInsight = generateFallbackInsight(violations);
+      } else {
         try {
           snapInsight = await generateAIInsight(rawDescriptions, violationTypes, LOVABLE_API_KEY);
         } catch (aiError) {
@@ -133,9 +144,6 @@ serve(async (req) => {
           // Fallback to rule-based insight
           snapInsight = generateFallbackInsight(violations);
         }
-      } else {
-        // No raw descriptions or no AI key - use rule-based fallback
-        snapInsight = generateFallbackInsight(violations);
       }
       
       // Calculate snap score based on detected signals in the summary and violation types

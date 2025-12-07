@@ -117,7 +117,7 @@ serve(async (req) => {
             escapeCSV(violation.violation_type || ''),
             escapeCSV(violation.opened_date || ''),
             escapeCSV(normalizeStatus(violation.status)),
-            escapeCSV(property.snap_insight || ''),  // snap_summary
+            escapeCSV(property.snap_insight || ''),  // Use snap_insight consistently
             property.snap_score?.toString() || ''
           ];
           csvRows.push(row.join(','));

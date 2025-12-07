@@ -1,7 +1,16 @@
 /**
- * SECURITY CRITICAL: This function processes raw_description (raw city notes)
- * to generate investor-safe summaries. raw_description is NEVER exposed to users.
- * Only snap_insight (the AI-generated summary) is shown in the UI.
+ * SECURITY CRITICAL: Snap Insight Generation
+ * 
+ * This function processes raw_description (raw city inspection notes) to generate
+ * investor-safe summaries. The raw_description field is INTERNAL ONLY and is NEVER
+ * exposed to end users through the UI or API responses.
+ * 
+ * Only snap_insight (the AI-generated summary) is shown in the frontend.
+ * 
+ * Build Brief Compliance:
+ * - Raw city notes stored in violations.raw_description (INTERNAL)
+ * - Sanitized summaries stored in properties.snap_insight (PUBLIC)
+ * - NO raw violation details ever displayed to users
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -19,37 +28,58 @@ interface Violation {
   raw_description: string | null;
 }
 
-// The exact prompt from the build brief
-const SNAP_INSIGHT_PROMPT = `You are Snap Insight, a real estate intelligence assistant.
+interface ViolationWithSeverity {
+  category: string;
+  severity: 'minor' | 'moderate' | 'severe';
+  original: Violation;
+}
 
-Your job is to convert raw, messy city property condition notes into a short, neutral, investor-safe property condition summary.
+// Enhanced investor-psychology focused prompt
+const SNAP_INSIGHT_PROMPT = `You are Snap Insight, a real estate distress intelligence engine.
 
-RULES:
-- Output 1–2 short sentences only.
-- Max 280 characters.
-- Do NOT mention:
-  - The city
-  - Inspectors
-  - Violations
-  - Citations
-  - Fines
-  - Legal process
-  - Police
-  - Fire department
-  - Tenants or occupants
-  - Death, hoarding, disputes, or personal behavior
-- Do NOT copy or paraphrase enforcement language.
-- Use neutral, factual, non-accusatory language only.
-- You MAY reference:
-  - Exterior condition
-  - Structural maintenance
-  - Safety-related physical condition
-  - Signs of vacancy
-  - General habitability uncertainty
-  - Fire-related damage ONLY as "fire-related damage observed"
+MISSION:
+Convert raw municipal enforcement data into investor-actionable opportunity signals.
 
-STRUCTURE:
-[Property condition] + [Impact signal] + [Opportunity cue]`;
+INPUT: Raw city violation notes (enforcement language, inspector observations, complaint details)
+OUTPUT: One concise investor insight (max 280 characters)
+
+RULES - STRICT COMPLIANCE:
+
+NEVER mention:
+- City/jurisdiction names
+- Inspector names or titles
+- Violation numbers or case IDs
+- Legal terms (citation, fine, court, prosecution)
+- Tenant/occupant information
+- Neighbor complaints or disputes
+- Death, crime, or personal behavior
+- Enforcement deadlines or penalties
+
+ALWAYS frame insights around:
+- Observable property condition
+- Deferred maintenance patterns
+- Structural/safety concerns (factual only)
+- Vacancy or abandonment signals
+- Duration of non-compliance (implies owner capacity)
+- Multi-system failures (roof + electrical + foundation = distress)
+
+TONE: Neutral, factual, opportunity-focused
+PERSPECTIVE: "What does this tell me about the owner's situation and property condition?"
+
+EXAMPLES OF GOOD INSIGHTS:
+✓ "Prolonged structural and exterior maintenance issues suggest owner capacity constraints. Property may represent value-add opportunity."
+✓ "Multiple unresolved building system failures over 18+ months. Indicates deferred capital expenditure and possible financial stress."
+✓ "Fire-related damage with extended non-remediation period. Potential distressed asset opportunity."
+
+EXAMPLES OF BAD INSIGHTS (NEVER DO THIS):
+✗ "City cited owner for violations after tenant complaint"
+✗ "Inspector found illegal occupancy and safety hazards"
+✗ "Property faces $5,000 in fines if not corrected by deadline"
+
+OUTPUT FORMAT:
+[Condition statement] + [Distress signal] + [Opportunity implication]
+
+Remember: You are translating enforcement pressure into investment intelligence.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -127,27 +157,30 @@ serve(async (req) => {
       // Collect violation types for scoring
       const violationTypes = violations.map(v => v.violation_type || '').join(' ');
       
+      // Classify violations with severity
+      const classifiedViolations = violations.map(v => classifyViolation(v));
+      
       let snapInsight: string;
       
       // Add validation before making API call
       if (!rawDescriptions || rawDescriptions.length === 0) {
         console.log(`[generate-insights] No raw descriptions for property ${property.id}, using fallback`);
-        snapInsight = generateFallbackInsight(violations);
+        snapInsight = generateFallbackInsight(violations, classifiedViolations);
       } else if (!LOVABLE_API_KEY) {
         console.log(`[generate-insights] No LOVABLE_API_KEY set, using fallback`);
-        snapInsight = generateFallbackInsight(violations);
+        snapInsight = generateFallbackInsight(violations, classifiedViolations);
       } else {
         try {
           snapInsight = await generateAIInsight(rawDescriptions, violationTypes, LOVABLE_API_KEY);
         } catch (aiError) {
           console.error(`[generate-insights] AI error for ${property.id}:`, aiError);
           // Fallback to rule-based insight
-          snapInsight = generateFallbackInsight(violations);
+          snapInsight = generateFallbackInsight(violations, classifiedViolations);
         }
       }
       
-      // Calculate snap score based on detected signals in the summary and violation types
-      const snapScore = calculateSnapScore(snapInsight, violationTypes, violations);
+      // Calculate enhanced snap score
+      const snapScore = calculateEnhancedSnapScore(snapInsight, violations, classifiedViolations);
       
       updates.push({
         id: property.id,
@@ -236,126 +269,224 @@ Snap Summary only. No labels. No extra commentary.`;
   return summary;
 }
 
-// Fallback rule-based insight when AI is not available
-function generateFallbackInsight(violations: Violation[]): string {
+// Classify violation type with severity level
+function classifyViolation(violation: Violation): ViolationWithSeverity {
+  const t = (violation.violation_type || '').toLowerCase();
+  const desc = (violation.raw_description || '').toLowerCase();
+  const combined = `${t} ${desc}`;
+  
+  // SEVERE - Life Safety / Structural Integrity
+  if (combined.includes('collapse') || combined.includes('unsafe structure') || 
+      combined.includes('condemned') || combined.includes('foundation failure') ||
+      combined.includes('imminent danger')) {
+    return { category: 'Structural', severity: 'severe', original: violation };
+  }
+  
+  if (combined.includes('fire damage') || combined.includes('burnt') || 
+      combined.includes('smoke damage') || combined.includes('charred') ||
+      combined.includes('fire-related damage')) {
+    return { category: 'Fire', severity: 'severe', original: violation };
+  }
+  
+  if (combined.includes('no utilities') || combined.includes('utility disconnect') ||
+      combined.includes('no water') || combined.includes('no electric')) {
+    return { category: 'Utility', severity: 'severe', original: violation };
+  }
+  
+  // MODERATE - System Failures / Significant Issues
+  if (combined.includes('roof leak') || combined.includes('structural damage') ||
+      combined.includes('foundation crack') || combined.includes('major repair')) {
+    return { category: 'Structural', severity: 'moderate', original: violation };
+  }
+  
+  if (combined.includes('vacant') || combined.includes('abandon') || 
+      combined.includes('unoccup') || combined.includes('boarded')) {
+    return { category: 'Vacancy', severity: 'moderate', original: violation };
+  }
+  
+  if (combined.includes('unsafe') || combined.includes('hazard') || 
+      combined.includes('danger') || combined.includes('health')) {
+    return { category: 'Safety', severity: 'moderate', original: violation };
+  }
+  
+  if (combined.includes('plumbing') || combined.includes('electrical') ||
+      combined.includes('sewage') || combined.includes('hvac')) {
+    return { category: 'Utility', severity: 'moderate', original: violation };
+  }
+  
+  // MINOR - Maintenance / Cosmetic
+  if (combined.includes('paint') || combined.includes('siding') || 
+      combined.includes('fence') || combined.includes('grass') ||
+      combined.includes('weeds') || combined.includes('debris')) {
+    return { category: 'Exterior', severity: 'minor', original: violation };
+  }
+  
+  if (combined.includes('window') || combined.includes('door') ||
+      combined.includes('screen') || combined.includes('gutter')) {
+    return { category: 'Exterior', severity: 'minor', original: violation };
+  }
+  
+  // Default based on keywords
+  if (combined.includes('structur') || combined.includes('foundation') || 
+      combined.includes('roof') || combined.includes('wall')) {
+    return { category: 'Structural', severity: 'moderate', original: violation };
+  }
+  
+  if (combined.includes('fire') || combined.includes('burn') || combined.includes('smoke')) {
+    return { category: 'Fire', severity: 'severe', original: violation };
+  }
+  
+  if (combined.includes('exterior') || combined.includes('facade')) {
+    return { category: 'Exterior', severity: 'minor', original: violation };
+  }
+  
+  return { category: 'Other', severity: 'minor', original: violation };
+}
+
+// Enhanced fallback insight with severity awareness
+function generateFallbackInsight(violations: Violation[], classified: ViolationWithSeverity[]): string {
   if (violations.length === 0) {
     return "No violation records found for this property.";
   }
   
   const insights: string[] = [];
   
-  // Check for open violations
-  const openViolations = violations.filter(v => isOpenStatus(v.status));
-  if (openViolations.length > 0) {
-    insights.push(`Active condition${openViolations.length > 1 ? 's' : ''} noted`);
+  // Check for severe issues first
+  const severeIssues = classified.filter(v => v.severity === 'severe');
+  if (severeIssues.length > 0) {
+    const categories = [...new Set(severeIssues.map(v => v.category))];
+    if (categories.includes('Fire')) {
+      insights.push("Fire-related damage observed");
+    }
+    if (categories.includes('Structural')) {
+      insights.push("Significant structural concerns identified");
+    }
+    if (categories.includes('Utility')) {
+      insights.push("Critical utility issues noted");
+    }
   }
   
-  // Check for structural/exterior issues
-  const hasStructural = violations.some(v => 
-    isStructuralDamage(v.violation_type) || isExteriorIssue(v.violation_type)
-  );
-  if (hasStructural) {
-    insights.push("Exterior maintenance opportunities");
+  // Check for moderate issues
+  const moderateIssues = classified.filter(v => v.severity === 'moderate');
+  if (moderateIssues.length > 0) {
+    const hasVacancy = moderateIssues.some(v => v.category === 'Vacancy');
+    const hasSafety = moderateIssues.some(v => v.category === 'Safety');
+    
+    if (hasVacancy) {
+      insights.push("Signs of vacancy or abandonment");
+    }
+    if (hasSafety) {
+      insights.push("Safety-related conditions present");
+    }
   }
   
-  // Check for fire-related
-  const hasFireDamage = violations.some(v => isFireDamage(v.violation_type));
-  if (hasFireDamage) {
-    insights.push("Fire-related damage observed");
+  // Check for chronic non-compliance (repeat violations)
+  if (violations.length >= 3) {
+    insights.push("Pattern of chronic non-compliance suggests owner capacity constraints");
+  } else if (violations.length > 1) {
+    insights.push("Multiple condition issues noted");
   }
   
-  // Check for vacancy signals
-  const hasVacancy = violations.some(v => isVacancySignal(v.violation_type));
-  if (hasVacancy) {
-    insights.push("Signs of vacancy");
+  // Check for long-standing issues
+  const oldestDaysOpen = Math.max(...violations.map(v => v.days_open || 0));
+  if (oldestDaysOpen > 180) {
+    insights.push("Extended non-remediation period indicates potential distress");
+  } else if (oldestDaysOpen > 90) {
+    insights.push("Prolonged maintenance deferral observed");
   }
   
+  // Default
   if (insights.length === 0) {
+    const minorCount = classified.filter(v => v.severity === 'minor').length;
+    if (minorCount > 0) {
+      return "Property shows deferred maintenance. Value-add opportunity potential.";
+    }
     return "Property condition requires further assessment.";
   }
   
-  return insights.join(". ") + ".";
+  // Combine insights (max 280 chars)
+  let result = insights.join(". ") + ".";
+  if (result.length > 280) {
+    result = insights.slice(0, 2).join(". ") + ".";
+  }
+  
+  return result;
 }
 
-// Calculate snap score based on detected signals (0-100)
-function calculateSnapScore(insight: string, violationType: string, violations: Violation[]): number {
+// Enhanced scoring algorithm with time-based weighting and severity
+function calculateEnhancedSnapScore(
+  insight: string, 
+  violations: Violation[], 
+  classified: ViolationWithSeverity[]
+): number {
   let score = 0;
-  const combined = `${insight} ${violationType}`.toLowerCase();
+  const combined = insight.toLowerCase();
   
-  // Signal detection from build brief
-  if (isDeferredMaintenance(combined)) score += 20;
-  if (isStructuralDamage(combined)) score += 25;
-  if (isFireDamage(combined)) score += 40;
-  if (isVacancySignal(combined)) score += 20;
-  if (isUtilityRisk(combined)) score += 15;
-  if (isMultiUnit(combined)) score += 10;
-  if (isSafetyExposure(combined)) score += 10;
-  if (isRepeatExteriorIssues(violations)) score += 15;
+  // ====== TIME-BASED DISTRESS (older = worse) ======
+  // +5 points per month open, capped at 30
+  const maxDaysOpen = Math.max(...violations.map(v => v.days_open || 0), 0);
+  const monthsOpen = Math.floor(maxDaysOpen / 30);
+  score += Math.min(monthsOpen * 5, 30);
+  
+  // ====== SEVERITY-BASED SCORING ======
+  // Severe issues
+  const severeCount = classified.filter(v => v.severity === 'severe').length;
+  if (severeCount > 0) {
+    // First severe issue: 40 points, each additional: 15 points
+    score += 40 + (severeCount - 1) * 15;
+  }
+  
+  // Moderate issues
+  const moderateCount = classified.filter(v => v.severity === 'moderate').length;
+  score += moderateCount * 15;
+  
+  // Minor issues
+  const minorCount = classified.filter(v => v.severity === 'minor').length;
+  score += Math.min(minorCount * 5, 15); // Cap minor contribution at 15
+  
+  // ====== MULTI-DEPARTMENT ENFORCEMENT ======
+  const uniqueCategories = [...new Set(classified.map(v => v.category))];
+  if (uniqueCategories.length >= 3) {
+    score += 25; // 3+ violation types = serious multi-system failure
+  } else if (uniqueCategories.length === 2) {
+    score += 10; // 2 violation types
+  }
+  
+  // ====== REPEAT OFFENSE BONUS ======
+  // More violations = more distress
+  if (violations.length >= 5) {
+    score += 25;
+  } else if (violations.length >= 3) {
+    score += 15;
+  } else if (violations.length >= 2) {
+    score += 5;
+  }
+  
+  // ====== STATUS MULTIPLIERS ======
+  const statuses = violations.map(v => (v.status || '').toLowerCase());
+  
+  if (statuses.some(s => s.includes('condemned') || s.includes('legal action') || s.includes('prosecution'))) {
+    score += 30; // Serious legal escalation
+  } else if (statuses.some(s => s.includes('referred') || s.includes('board') || s.includes('hearing'))) {
+    score += 15; // Escalated enforcement
+  }
+  
+  // ====== SPECIFIC SIGNAL DETECTION ======
+  // Fire damage (if not already counted via classification)
+  if (combined.includes('fire') && severeCount === 0) {
+    score += 20;
+  }
+  
+  // Vacancy signals
+  if (combined.includes('vacant') || combined.includes('abandon') || combined.includes('unoccup')) {
+    score += 10;
+  }
+  
+  // Unsecured structure
+  if (combined.includes('unsecured') || combined.includes('open to entry') || combined.includes('boarded')) {
+    score += 15;
+  }
   
   // Cap at 100
-  return Math.min(100, score);
-}
-
-// Signal detection functions
-function isOpenStatus(status: string): boolean {
-  const s = (status || "").toLowerCase();
-  return s.includes("open") || s.includes("pending") || s.includes("in progress") ||
-         s.includes("referred") || s.includes("board") || s.includes("hearing") ||
-         s.includes("active") || s.includes("new");
-}
-
-function isDeferredMaintenance(text: string): boolean {
-  return text.includes("deferred") || text.includes("maintenance") || 
-         text.includes("neglect") || text.includes("deteriorat") ||
-         text.includes("disrepair") || text.includes("worn");
-}
-
-function isStructuralDamage(text: string): boolean {
-  return text.includes("structur") || text.includes("foundation") || 
-         text.includes("roof") || text.includes("wall") ||
-         text.includes("collapse") || text.includes("unsafe") ||
-         text.includes("condemned");
-}
-
-function isFireDamage(text: string): boolean {
-  return text.includes("fire") || text.includes("burn") || 
-         text.includes("smoke") || text.includes("charred");
-}
-
-function isVacancySignal(text: string): boolean {
-  return text.includes("vacant") || text.includes("abandon") || 
-         text.includes("unoccup") || text.includes("board") ||
-         text.includes("empty") || text.includes("secure");
-}
-
-function isUtilityRisk(text: string): boolean {
-  return text.includes("electric") || text.includes("plumb") || 
-         text.includes("water") || text.includes("gas") ||
-         text.includes("sewage") || text.includes("utility");
-}
-
-function isMultiUnit(text: string): boolean {
-  return text.includes("multi") || text.includes("unit") || 
-         text.includes("apartment") || text.includes("duplex") ||
-         text.includes("complex");
-}
-
-function isSafetyExposure(text: string): boolean {
-  return text.includes("safety") || text.includes("hazard") || 
-         text.includes("danger") || text.includes("risk") ||
-         text.includes("health");
-}
-
-function isExteriorIssue(text: string): boolean {
-  const t = (text || "").toLowerCase();
-  return t.includes("exterior") || t.includes("facade") || 
-         t.includes("siding") || t.includes("paint") ||
-         t.includes("window") || t.includes("door");
-}
-
-function isRepeatExteriorIssues(violations: Violation[]): boolean {
-  const exteriorCount = violations.filter(v => 
-    isExteriorIssue(v.violation_type)
-  ).length;
-  return exteriorCount >= 2;
+  return Math.min(100, Math.max(0, score));
 }

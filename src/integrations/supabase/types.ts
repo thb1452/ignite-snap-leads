@@ -56,6 +56,13 @@ export type Database = {
             referencedRelation: "properties"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "call_logs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
         ]
       }
       clean_leads: {
@@ -123,6 +130,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clean_leads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
             referencedColumns: ["id"]
           },
         ]
@@ -243,6 +257,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_ledger_skiptrace_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
             referencedColumns: ["id"]
           },
         ]
@@ -412,6 +433,13 @@ export type Database = {
             referencedRelation: "properties"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lead_activity_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
         ]
       }
       lead_lists: {
@@ -470,6 +498,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "list_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
             referencedColumns: ["id"]
           },
         ]
@@ -629,6 +664,13 @@ export type Database = {
             referencedRelation: "jurisdictions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "properties_jurisdiction_id_fkey"
+            columns: ["jurisdiction_id"]
+            isOneToOne: false
+            referencedRelation: "v_jurisdiction_stats"
+            referencedColumns: ["jurisdiction_id"]
+          },
         ]
       }
       property_contacts: {
@@ -671,6 +713,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_contacts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
             referencedColumns: ["id"]
           },
         ]
@@ -1064,6 +1113,13 @@ export type Database = {
             referencedRelation: "jurisdictions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "upload_jobs_jurisdiction_id_fkey"
+            columns: ["jurisdiction_id"]
+            isOneToOne: false
+            referencedRelation: "v_jurisdiction_stats"
+            referencedColumns: ["jurisdiction_id"]
+          },
         ]
       }
       upload_staging: {
@@ -1141,6 +1197,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "jurisdictions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upload_staging_jurisdiction_id_fkey"
+            columns: ["jurisdiction_id"]
+            isOneToOne: false
+            referencedRelation: "v_jurisdiction_stats"
+            referencedColumns: ["jurisdiction_id"]
           },
         ]
       }
@@ -1276,6 +1339,13 @@ export type Database = {
             referencedRelation: "properties"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "violations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -1322,6 +1392,43 @@ export type Database = {
         }
         Relationships: []
       }
+      v_hot_properties: {
+        Row: {
+          address: string | null
+          city: string | null
+          distress_signals: string[] | null
+          escalated: boolean | null
+          id: string | null
+          multi_department: boolean | null
+          oldest_violation_date: string | null
+          snap_insight: string | null
+          snap_score: number | null
+          state: string | null
+          total_violations: number | null
+        }
+        Relationships: []
+      }
+      v_jurisdiction_stats: {
+        Row: {
+          avg_score: number | null
+          city: string | null
+          distressed_count: number | null
+          enforcement_profile: Json | null
+          jurisdiction_id: string | null
+          jurisdiction_name: string | null
+          property_count: number | null
+          state: string | null
+        }
+        Relationships: []
+      }
+      v_opportunity_funnel: {
+        Row: {
+          avg_score: number | null
+          opportunity_class: string | null
+          property_count: number | null
+        }
+        Relationships: []
+      }
       v_property_contact_stats: {
         Row: {
           contact_rows: number | null
@@ -1335,6 +1442,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_contacts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
             referencedColumns: ["id"]
           },
         ]

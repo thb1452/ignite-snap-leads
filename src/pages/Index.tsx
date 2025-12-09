@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Phone, Mail, ListChecks, Zap, TrendingUp, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { IntelligenceDashboard } from "@/components/intelligence/IntelligenceDashboard";
 
 export default function Index() {
   const navigate = useNavigate();
@@ -186,6 +186,12 @@ export default function Index() {
             <p className="text-xs text-amber-600 mt-1">Urgency indicator</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Intelligence Dashboard */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4">Property Intelligence</h2>
+        <IntelligenceDashboard onPropertyClick={(id) => navigate(`/leads?property=${id}`)} />
       </div>
 
       {/* Quick Actions */}

@@ -1,5 +1,5 @@
 /**
- * SECURITY CRITICAL: Snap Insight Generation
+ * SECURITY CRITICAL: Snap Insight Generation v2.0
  * 
  * This function processes raw_description (raw city inspection notes) to generate
  * investor-safe summaries. The raw_description field is INTERNAL ONLY and is NEVER
@@ -11,6 +11,12 @@
  * - Raw city notes stored in violations.raw_description (INTERNAL)
  * - Sanitized summaries stored in properties.snap_insight (PUBLIC)
  * - NO raw violation details ever displayed to users
+ * 
+ * v2.0 Features:
+ * - Property-level aggregation (total_violations, open_violations, etc.)
+ * - Advanced scoring algorithm with time pressure, severity matrix, repeat offense detection
+ * - Distress signal detection and storage
+ * - Opportunity class classification
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -21,6 +27,7 @@ const corsHeaders = {
 };
 
 interface Violation {
+  id: string;
   violation_type: string;
   status: string;
   days_open: number | null;
@@ -32,6 +39,32 @@ interface ViolationWithSeverity {
   category: string;
   severity: 'minor' | 'moderate' | 'severe';
   original: Violation;
+}
+
+interface SnapScoreResult {
+  score: number;
+  signals: string[];
+  opportunityClass: 'distressed' | 'value_add' | 'watch';
+  components: {
+    timeScore: number;
+    severityScore: number;
+    repeatScore: number;
+    multiDeptScore: number;
+    escalationScore: number;
+    vacancyScore: number;
+  };
+}
+
+interface PropertyIntelligence {
+  total_violations: number;
+  open_violations: number;
+  oldest_violation_date: string | null;
+  newest_violation_date: string | null;
+  avg_days_open: number;
+  violation_types: string[];
+  repeat_offender: boolean;
+  multi_department: boolean;
+  escalated: boolean;
 }
 
 // Enhanced investor-psychology focused prompt
@@ -113,7 +146,9 @@ serve(async (req) => {
         id,
         address,
         city,
+        jurisdiction_id,
         violations (
+          id,
           violation_type,
           status,
           days_open,
@@ -146,7 +181,16 @@ serve(async (req) => {
 
     // Process each property
     for (const property of properties) {
-      const violations = property.violations as Violation[];
+      const violations = (property.violations || []) as Violation[];
+      
+      // Aggregate property intelligence
+      const intelligence = aggregatePropertyIntelligence(violations);
+      
+      // Classify violations with severity
+      const classifiedViolations = violations.map(v => classifyViolation(v));
+      
+      // Calculate enhanced snap score with signals
+      const scoreResult = calculateSnapScoreV2(violations, classifiedViolations, intelligence);
       
       // Collect raw descriptions for AI processing
       const rawDescriptions = violations
@@ -154,38 +198,44 @@ serve(async (req) => {
         .filter(d => d && d.trim())
         .join('\n\n');
       
-      // Collect violation types for scoring
+      // Collect violation types for context
       const violationTypes = violations.map(v => v.violation_type || '').join(' ');
-      
-      // Classify violations with severity
-      const classifiedViolations = violations.map(v => classifyViolation(v));
       
       let snapInsight: string;
       
-      // Add validation before making API call
+      // Generate insight
       if (!rawDescriptions || rawDescriptions.length === 0) {
-        console.log(`[generate-insights] No raw descriptions for property ${property.id}, using fallback`);
-        snapInsight = generateFallbackInsight(violations, classifiedViolations);
+        console.log(`[generate-insights] No raw descriptions for property ${property.id}, using signal-based fallback`);
+        snapInsight = generateSignalBasedInsight(scoreResult.signals, intelligence, classifiedViolations);
       } else if (!LOVABLE_API_KEY) {
-        console.log(`[generate-insights] No LOVABLE_API_KEY set, using fallback`);
-        snapInsight = generateFallbackInsight(violations, classifiedViolations);
+        console.log(`[generate-insights] No LOVABLE_API_KEY set, using signal-based fallback`);
+        snapInsight = generateSignalBasedInsight(scoreResult.signals, intelligence, classifiedViolations);
       } else {
         try {
           snapInsight = await generateAIInsight(rawDescriptions, violationTypes, LOVABLE_API_KEY);
         } catch (aiError) {
           console.error(`[generate-insights] AI error for ${property.id}:`, aiError);
-          // Fallback to rule-based insight
-          snapInsight = generateFallbackInsight(violations, classifiedViolations);
+          snapInsight = generateSignalBasedInsight(scoreResult.signals, intelligence, classifiedViolations);
         }
       }
-      
-      // Calculate enhanced snap score
-      const snapScore = calculateEnhancedSnapScore(snapInsight, violations, classifiedViolations);
       
       updates.push({
         id: property.id,
         snap_insight: snapInsight,
-        snap_score: snapScore,
+        snap_score: scoreResult.score,
+        // Property intelligence columns
+        total_violations: intelligence.total_violations,
+        open_violations: intelligence.open_violations,
+        oldest_violation_date: intelligence.oldest_violation_date,
+        newest_violation_date: intelligence.newest_violation_date,
+        avg_days_open: intelligence.avg_days_open,
+        violation_types: intelligence.violation_types,
+        repeat_offender: intelligence.repeat_offender,
+        multi_department: intelligence.multi_department,
+        escalated: intelligence.escalated,
+        distress_signals: scoreResult.signals,
+        opportunity_class: scoreResult.opportunityClass,
+        last_analyzed_at: new Date().toISOString(),
       });
     }
 
@@ -197,6 +247,18 @@ serve(async (req) => {
           .update({
             snap_insight: update.snap_insight,
             snap_score: update.snap_score,
+            total_violations: update.total_violations,
+            open_violations: update.open_violations,
+            oldest_violation_date: update.oldest_violation_date,
+            newest_violation_date: update.newest_violation_date,
+            avg_days_open: update.avg_days_open,
+            violation_types: update.violation_types,
+            repeat_offender: update.repeat_offender,
+            multi_department: update.multi_department,
+            escalated: update.escalated,
+            distress_signals: update.distress_signals,
+            opportunity_class: update.opportunity_class,
+            last_analyzed_at: update.last_analyzed_at,
           })
           .eq("id", update.id);
 
@@ -225,6 +287,177 @@ serve(async (req) => {
     );
   }
 });
+
+// Aggregate violation data at property level
+function aggregatePropertyIntelligence(violations: Violation[]): PropertyIntelligence {
+  const openStatuses = ['open', 'pending', 'active', 'unresolved'];
+  const escalatedStatuses = ['board', 'legal', 'court', 'condemned', 'prosecution'];
+  
+  const openViolations = violations.filter(v => {
+    const status = (v.status || '').toLowerCase();
+    return openStatuses.some(s => status.includes(s)) || !status.includes('closed');
+  });
+  
+  const dates = violations
+    .map(v => v.opened_date)
+    .filter(d => d)
+    .map(d => new Date(d!))
+    .sort((a, b) => a.getTime() - b.getTime());
+  
+  const daysOpen = violations.map(v => v.days_open || 0);
+  const avgDays = daysOpen.length > 0 
+    ? Math.round(daysOpen.reduce((a, b) => a + b, 0) / daysOpen.length) 
+    : 0;
+  
+  const violationTypes = [...new Set(violations.map(v => v.violation_type).filter(Boolean))];
+  
+  const hasEscalation = violations.some(v => {
+    const status = (v.status || '').toLowerCase();
+    return escalatedStatuses.some(s => status.includes(s));
+  });
+  
+  return {
+    total_violations: violations.length,
+    open_violations: openViolations.length,
+    oldest_violation_date: dates.length > 0 ? dates[0].toISOString().split('T')[0] : null,
+    newest_violation_date: dates.length > 0 ? dates[dates.length - 1].toISOString().split('T')[0] : null,
+    avg_days_open: avgDays,
+    violation_types: violationTypes,
+    repeat_offender: violations.length >= 3,
+    multi_department: violationTypes.length >= 2,
+    escalated: hasEscalation,
+  };
+}
+
+// SNAP SCORING ENGINE v2.0
+function calculateSnapScoreV2(
+  violations: Violation[],
+  classified: ViolationWithSeverity[],
+  intelligence: PropertyIntelligence
+): SnapScoreResult {
+  let score = 0;
+  const signals: string[] = [];
+  const components = {
+    timeScore: 0,
+    severityScore: 0,
+    repeatScore: 0,
+    multiDeptScore: 0,
+    escalationScore: 0,
+    vacancyScore: 0,
+  };
+  
+  // 1. TIME PRESSURE (Max 30 points) - +3 points per month open
+  const maxDaysOpen = Math.max(...violations.map(v => v.days_open || 0), 0);
+  const monthsOpen = Math.floor(maxDaysOpen / 30);
+  components.timeScore = Math.min(30, monthsOpen * 3);
+  score += components.timeScore;
+  
+  if (maxDaysOpen > 180) {
+    signals.push('chronic_neglect');
+  }
+  
+  // 2. SEVERITY MATRIX (Max 40 points)
+  const severityPoints = { severe: 40, moderate: 15, minor: 5 };
+  const severeCount = classified.filter(v => v.severity === 'severe').length;
+  const moderateCount = classified.filter(v => v.severity === 'moderate').length;
+  const minorCount = classified.filter(v => v.severity === 'minor').length;
+  
+  // First severe issue: full points, additional: diminishing returns
+  if (severeCount > 0) {
+    components.severityScore += 40 + Math.min((severeCount - 1) * 10, 20);
+    
+    // Check specific severe categories
+    const hasFire = classified.some(v => v.severity === 'severe' && v.category === 'Fire');
+    const hasStructural = classified.some(v => v.severity === 'severe' && v.category === 'Structural');
+    if (hasFire) signals.push('fire_damage');
+    if (hasStructural) signals.push('structural_issues');
+  }
+  
+  components.severityScore += Math.min(moderateCount * 15, 30);
+  components.severityScore += Math.min(minorCount * 5, 10);
+  score += Math.min(components.severityScore, 60); // Cap severity contribution
+  
+  // 3. REPEAT OFFENDER BONUS (Max 25 points)
+  if (intelligence.repeat_offender) {
+    if (violations.length >= 5) {
+      components.repeatScore = 25;
+      signals.push('chronic_offender');
+    } else if (violations.length >= 3) {
+      components.repeatScore = 15;
+      signals.push('repeat_violations');
+    }
+  } else if (violations.length >= 2) {
+    components.repeatScore = 5;
+    signals.push('repeat_violations');
+  }
+  score += components.repeatScore;
+  
+  // 4. MULTI-DEPARTMENT ENFORCEMENT (Max 25 points)
+  const uniqueCategories = [...new Set(classified.map(v => v.category))];
+  if (uniqueCategories.length >= 3) {
+    components.multiDeptScore = 25;
+    signals.push('coordinated_enforcement');
+  } else if (intelligence.multi_department) {
+    components.multiDeptScore = 15;
+    signals.push('multi_department');
+  }
+  score += components.multiDeptScore;
+  
+  // 5. STATUS ESCALATION (Max 30 points)
+  if (intelligence.escalated) {
+    const statuses = violations.map(v => (v.status || '').toLowerCase());
+    
+    if (statuses.some(s => s.includes('condemned') || s.includes('prosecution'))) {
+      components.escalationScore = 30;
+    } else if (statuses.some(s => s.includes('legal') || s.includes('court'))) {
+      components.escalationScore = 25;
+    } else if (statuses.some(s => s.includes('board') || s.includes('hearing'))) {
+      components.escalationScore = 15;
+    }
+    
+    signals.push('legal_escalation');
+  }
+  score += components.escalationScore;
+  
+  // 6. ABANDONMENT/VACANCY SIGNALS (Max 25 points)
+  const hasVacancySignals = classified.some(v => 
+    v.category === 'Vacancy' ||
+    (v.original.violation_type || '').toLowerCase().includes('vacant') ||
+    (v.original.violation_type || '').toLowerCase().includes('abandon') ||
+    (v.original.violation_type || '').toLowerCase().includes('unsecured') ||
+    (v.original.violation_type || '').toLowerCase().includes('boarded')
+  );
+  
+  if (hasVacancySignals) {
+    components.vacancyScore = 25;
+    signals.push('vacancy_indicators');
+  }
+  score += components.vacancyScore;
+  
+  // Check for utility issues in descriptions
+  const hasUtilityIssues = classified.some(v => v.category === 'Utility');
+  if (hasUtilityIssues) {
+    signals.push('utility_issues');
+  }
+  
+  // Cap at 100
+  const finalScore = Math.min(100, Math.max(0, score));
+  
+  // Classify opportunity
+  let opportunityClass: 'distressed' | 'value_add' | 'watch' = 'watch';
+  if (finalScore >= 70) {
+    opportunityClass = 'distressed';
+  } else if (finalScore >= 40) {
+    opportunityClass = 'value_add';
+  }
+  
+  return {
+    score: finalScore,
+    signals,
+    opportunityClass,
+    components,
+  };
+}
 
 // Generate AI insight using Lovable AI Gateway
 async function generateAIInsight(rawDescription: string, violationType: string, apiKey: string): Promise<string> {
@@ -343,150 +576,80 @@ function classifyViolation(violation: Violation): ViolationWithSeverity {
   return { category: 'Other', severity: 'minor', original: violation };
 }
 
-// Enhanced fallback insight with severity awareness
-function generateFallbackInsight(violations: Violation[], classified: ViolationWithSeverity[]): string {
-  if (violations.length === 0) {
-    return "No violation records found for this property.";
-  }
-  
+// Generate context-aware insight based on detected signals
+function generateSignalBasedInsight(
+  signals: string[],
+  intelligence: PropertyIntelligence,
+  classified: ViolationWithSeverity[]
+): string {
   const insights: string[] = [];
   
-  // Check for severe issues first
-  const severeIssues = classified.filter(v => v.severity === 'severe');
-  if (severeIssues.length > 0) {
-    const categories = [...new Set(severeIssues.map(v => v.category))];
-    if (categories.includes('Fire')) {
-      insights.push("Fire-related damage observed");
-    }
-    if (categories.includes('Structural')) {
-      insights.push("Significant structural concerns identified");
-    }
-    if (categories.includes('Utility')) {
-      insights.push("Critical utility issues noted");
-    }
+  // Time pressure context
+  if (signals.includes('chronic_neglect')) {
+    insights.push('Extended non-compliance period (180+ days) suggests owner capacity constraints');
   }
   
-  // Check for moderate issues
-  const moderateIssues = classified.filter(v => v.severity === 'moderate');
-  if (moderateIssues.length > 0) {
-    const hasVacancy = moderateIssues.some(v => v.category === 'Vacancy');
-    const hasSafety = moderateIssues.some(v => v.category === 'Safety');
-    
-    if (hasVacancy) {
-      insights.push("Signs of vacancy or abandonment");
-    }
-    if (hasSafety) {
-      insights.push("Safety-related conditions present");
-    }
+  // Repeat offender context
+  if (signals.includes('chronic_offender')) {
+    insights.push('Pattern of repeat violations indicates systemic property management challenges');
+  } else if (signals.includes('repeat_violations')) {
+    insights.push('Multiple violations noted on property');
   }
   
-  // Check for chronic non-compliance (repeat violations)
-  if (violations.length >= 3) {
-    insights.push("Pattern of chronic non-compliance suggests owner capacity constraints");
-  } else if (violations.length > 1) {
-    insights.push("Multiple condition issues noted");
+  // Multi-department context
+  if (signals.includes('coordinated_enforcement')) {
+    insights.push('Multiple city departments involved - signals serious property deterioration');
+  } else if (signals.includes('multi_department')) {
+    insights.push('Cross-department enforcement activity detected');
   }
   
-  // Check for long-standing issues
-  const oldestDaysOpen = Math.max(...violations.map(v => v.days_open || 0));
-  if (oldestDaysOpen > 180) {
-    insights.push("Extended non-remediation period indicates potential distress");
-  } else if (oldestDaysOpen > 90) {
-    insights.push("Prolonged maintenance deferral observed");
+  // Legal escalation context
+  if (signals.includes('legal_escalation')) {
+    insights.push('Case escalated to legal proceedings - owner may face financial pressure');
   }
   
-  // Default
+  // Vacancy context
+  if (signals.includes('vacancy_indicators')) {
+    insights.push('Vacancy and abandonment signals present - potential acquisition opportunity');
+  }
+  
+  // Fire/Structural
+  if (signals.includes('fire_damage')) {
+    insights.push('Fire-related damage requires immediate capital investment');
+  }
+  if (signals.includes('structural_issues')) {
+    insights.push('Structural concerns identified requiring remediation');
+  }
+  
+  // Utility issues
+  if (signals.includes('utility_issues')) {
+    insights.push('Building system failures detected');
+  }
+  
+  // Default based on severity
   if (insights.length === 0) {
-    const minorCount = classified.filter(v => v.severity === 'minor').length;
-    if (minorCount > 0) {
-      return "Property shows deferred maintenance. Value-add opportunity potential.";
+    const severeCount = classified.filter(v => v.severity === 'severe').length;
+    const moderateCount = classified.filter(v => v.severity === 'moderate').length;
+    
+    if (severeCount > 0) {
+      insights.push('Critical property conditions require investor attention');
+    } else if (moderateCount > 0) {
+      insights.push('Property shows deferred maintenance patterns');
+    } else if (intelligence.total_violations > 0) {
+      insights.push('Minor exterior maintenance items noted. Value-add opportunity potential.');
+    } else {
+      insights.push('Property condition requires further assessment.');
     }
-    return "Property condition requires further assessment.";
   }
   
   // Combine insights (max 280 chars)
-  let result = insights.join(". ") + ".";
+  let result = insights.slice(0, 2).join('. ') + '.';
   if (result.length > 280) {
-    result = insights.slice(0, 2).join(". ") + ".";
+    result = insights[0] + '.';
+    if (result.length > 280) {
+      result = result.substring(0, 277) + '...';
+    }
   }
   
   return result;
-}
-
-// Enhanced scoring algorithm with time-based weighting and severity
-function calculateEnhancedSnapScore(
-  insight: string, 
-  violations: Violation[], 
-  classified: ViolationWithSeverity[]
-): number {
-  let score = 0;
-  const combined = insight.toLowerCase();
-  
-  // ====== TIME-BASED DISTRESS (older = worse) ======
-  // +5 points per month open, capped at 30
-  const maxDaysOpen = Math.max(...violations.map(v => v.days_open || 0), 0);
-  const monthsOpen = Math.floor(maxDaysOpen / 30);
-  score += Math.min(monthsOpen * 5, 30);
-  
-  // ====== SEVERITY-BASED SCORING ======
-  // Severe issues
-  const severeCount = classified.filter(v => v.severity === 'severe').length;
-  if (severeCount > 0) {
-    // First severe issue: 40 points, each additional: 15 points
-    score += 40 + (severeCount - 1) * 15;
-  }
-  
-  // Moderate issues
-  const moderateCount = classified.filter(v => v.severity === 'moderate').length;
-  score += moderateCount * 15;
-  
-  // Minor issues
-  const minorCount = classified.filter(v => v.severity === 'minor').length;
-  score += Math.min(minorCount * 5, 15); // Cap minor contribution at 15
-  
-  // ====== MULTI-DEPARTMENT ENFORCEMENT ======
-  const uniqueCategories = [...new Set(classified.map(v => v.category))];
-  if (uniqueCategories.length >= 3) {
-    score += 25; // 3+ violation types = serious multi-system failure
-  } else if (uniqueCategories.length === 2) {
-    score += 10; // 2 violation types
-  }
-  
-  // ====== REPEAT OFFENSE BONUS ======
-  // More violations = more distress
-  if (violations.length >= 5) {
-    score += 25;
-  } else if (violations.length >= 3) {
-    score += 15;
-  } else if (violations.length >= 2) {
-    score += 5;
-  }
-  
-  // ====== STATUS MULTIPLIERS ======
-  const statuses = violations.map(v => (v.status || '').toLowerCase());
-  
-  if (statuses.some(s => s.includes('condemned') || s.includes('legal action') || s.includes('prosecution'))) {
-    score += 30; // Serious legal escalation
-  } else if (statuses.some(s => s.includes('referred') || s.includes('board') || s.includes('hearing'))) {
-    score += 15; // Escalated enforcement
-  }
-  
-  // ====== SPECIFIC SIGNAL DETECTION ======
-  // Fire damage (if not already counted via classification)
-  if (combined.includes('fire') && severeCount === 0) {
-    score += 20;
-  }
-  
-  // Vacancy signals
-  if (combined.includes('vacant') || combined.includes('abandon') || combined.includes('unoccup')) {
-    score += 10;
-  }
-  
-  // Unsecured structure
-  if (combined.includes('unsecured') || combined.includes('open to entry') || combined.includes('boarded')) {
-    score += 15;
-  }
-  
-  // Cap at 100
-  return Math.min(100, Math.max(0, score));
 }

@@ -349,6 +349,7 @@ export type Database = {
           county: string | null
           created_at: string
           default_zip_range: string | null
+          enforcement_profile: Json | null
           id: string
           name: string
           state: string
@@ -358,6 +359,7 @@ export type Database = {
           county?: string | null
           created_at?: string
           default_zip_range?: string | null
+          enforcement_profile?: Json | null
           id?: string
           name: string
           state: string
@@ -367,6 +369,7 @@ export type Database = {
           county?: string | null
           created_at?: string
           default_zip_range?: string | null
+          enforcement_profile?: Json | null
           id?: string
           name?: string
           state?: string
@@ -536,50 +539,86 @@ export type Database = {
       properties: {
         Row: {
           address: string
+          avg_days_open: number | null
           city: string
           created_at: string | null
+          distress_signals: string[] | null
+          escalated: boolean | null
           geom: unknown
           id: string
           jurisdiction_id: string | null
+          last_analyzed_at: string | null
           latitude: number | null
           longitude: number | null
+          multi_department: boolean | null
+          newest_violation_date: string | null
+          oldest_violation_date: string | null
+          open_violations: number | null
+          opportunity_class: string | null
           photo_url: string | null
+          repeat_offender: boolean | null
           snap_insight: string | null
           snap_score: number | null
           state: string
+          total_violations: number | null
           updated_at: string | null
+          violation_types: string[] | null
           zip: string
         }
         Insert: {
           address: string
+          avg_days_open?: number | null
           city: string
           created_at?: string | null
+          distress_signals?: string[] | null
+          escalated?: boolean | null
           geom?: unknown
           id?: string
           jurisdiction_id?: string | null
+          last_analyzed_at?: string | null
           latitude?: number | null
           longitude?: number | null
+          multi_department?: boolean | null
+          newest_violation_date?: string | null
+          oldest_violation_date?: string | null
+          open_violations?: number | null
+          opportunity_class?: string | null
           photo_url?: string | null
+          repeat_offender?: boolean | null
           snap_insight?: string | null
           snap_score?: number | null
           state: string
+          total_violations?: number | null
           updated_at?: string | null
+          violation_types?: string[] | null
           zip: string
         }
         Update: {
           address?: string
+          avg_days_open?: number | null
           city?: string
           created_at?: string | null
+          distress_signals?: string[] | null
+          escalated?: boolean | null
           geom?: unknown
           id?: string
           jurisdiction_id?: string | null
+          last_analyzed_at?: string | null
           latitude?: number | null
           longitude?: number | null
+          multi_department?: boolean | null
+          newest_violation_date?: string | null
+          oldest_violation_date?: string | null
+          open_violations?: number | null
+          opportunity_class?: string | null
           photo_url?: string | null
+          repeat_offender?: boolean | null
           snap_insight?: string | null
           snap_score?: number | null
           state?: string
+          total_violations?: number | null
           updated_at?: string | null
+          violation_types?: string[] | null
           zip?: string
         }
         Relationships: [

@@ -147,32 +147,102 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
         mapRef.current.fitBounds(group.getBounds().pad(0.1));
       }
     } else {
-      // Heatmap mode - zoom-scaled radius in meters
+      // Heatmap mode - use gradient circles with blur effect
       heatLayerRef.current = L.layerGroup();
-      const zoom = mapRef.current.getZoom();
-      // Use much larger radius values (in meters) for visible heatmap effect
-      // Adjust based on zoom: closer zoom = smaller radius needed
-      const baseRadius = 5000 / Math.pow(2, zoom - 10);
       
-      properties.forEach(property => {
+      // Sort by score so higher scores render on top
+      const sortedProperties = [...properties]
+        .filter(p => p.latitude && p.longitude)
+        .sort((a, b) => (a.snap_score || 0) - (b.snap_score || 0));
+      
+      sortedProperties.forEach(property => {
         if (property.latitude && property.longitude && mapRef.current) {
-          const intensity = (property.snap_score || 0) / 100;
-          const circle = L.circle(
+          const score = property.snap_score || 0;
+          const intensity = score / 100;
+          
+          // Color based on score with gradient effect
+          let color: string;
+          let opacity: number;
+          if (score >= 80) {
+            color = "#ef4444"; // Red
+            opacity = 0.7;
+          } else if (score >= 60) {
+            color = "#f97316"; // Orange
+            opacity = 0.6;
+          } else if (score >= 40) {
+            color = "#eab308"; // Yellow
+            opacity = 0.5;
+          } else {
+            color = "#22c55e"; // Green
+            opacity = 0.4;
+          }
+          
+          // Create multiple overlapping circles for a glow/heat effect
+          // Outer glow
+          const outerCircle = L.circleMarker(
             [property.latitude, property.longitude],
             {
-              radius: baseRadius,
-              fillColor: intensity > 0.8 ? "#ef4444" : intensity > 0.6 ? "#f97316" : "#22c55e",
+              radius: 20 + (intensity * 15),
+              fillColor: color,
               color: "transparent",
-              fillOpacity: 0.4,
+              fillOpacity: opacity * 0.3,
               weight: 0,
             }
           );
           
-          heatLayerRef.current!.addLayer(circle);
+          // Middle ring
+          const middleCircle = L.circleMarker(
+            [property.latitude, property.longitude],
+            {
+              radius: 12 + (intensity * 8),
+              fillColor: color,
+              color: "transparent",
+              fillOpacity: opacity * 0.5,
+              weight: 0,
+            }
+          );
+          
+          // Core point
+          const coreCircle = L.circleMarker(
+            [property.latitude, property.longitude],
+            {
+              radius: 6 + (intensity * 4),
+              fillColor: color,
+              color: "#fff",
+              fillOpacity: opacity * 0.9,
+              weight: 1,
+            }
+          );
+          
+          coreCircle.bindPopup(`
+            <div class="text-sm">
+              <strong>${property.address}</strong><br/>
+              Score: ${score}
+            </div>
+          `);
+          
+          coreCircle.on("click", () => {
+            if (onPropertyClick) {
+              onPropertyClick(property.id);
+            }
+          });
+          
+          heatLayerRef.current!.addLayer(outerCircle);
+          heatLayerRef.current!.addLayer(middleCircle);
+          heatLayerRef.current!.addLayer(coreCircle);
         }
       });
 
       mapRef.current.addLayer(heatLayerRef.current);
+      
+      // Fit bounds to show all heat points
+      const validProperties = properties.filter(p => p.latitude && p.longitude);
+      if (validProperties.length > 0) {
+        const bounds = L.latLngBounds(
+          validProperties.map(p => [p.latitude!, p.longitude!] as L.LatLngTuple)
+        );
+        mapRef.current.fitBounds(bounds.pad(0.1));
+      }
     }
   }, [properties, onPropertyClick, viewMode]);
 
@@ -201,23 +271,28 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
         </Button>
       </div>
 
-      {viewMode === "heatmap" && (
-        <div className="absolute top-4 left-4 z-[1000] bg-background/95 backdrop-blur rounded-lg p-3 shadow-md text-xs">
-          <div className="font-semibold mb-2">Density by SnapScore</div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
-            <span>Low (0-59)</span>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <div className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
-            <span>Medium (60-79)</span>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <div className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
-            <span>High (80+)</span>
-          </div>
+      {/* Legend - show for both modes */}
+      <div className="absolute top-4 left-4 z-[1000] bg-background/95 backdrop-blur rounded-lg p-3 shadow-md text-xs">
+        <div className="font-semibold mb-2">
+          {viewMode === "heatmap" ? "Heat Intensity by Score" : "SnapScore Legend"}
         </div>
-      )}
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
+          <span>Low (0-39)</span>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <div className="w-3 h-3 rounded-full" style={{ background: '#eab308' }} />
+          <span>Moderate (40-59)</span>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <div className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
+          <span>High (60-79)</span>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <div className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
+          <span>Critical (80+)</span>
+        </div>
+      </div>
     </div>
   );
 }

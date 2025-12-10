@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Phone, Mail, ListChecks, Zap, TrendingUp, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { IntelligenceDashboard } from "@/components/intelligence/IntelligenceDashboard";
+import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
 
 export default function Index() {
   const navigate = useNavigate();
@@ -190,8 +191,17 @@ export default function Index() {
 
       {/* Intelligence Dashboard */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Property Intelligence</h2>
-        <IntelligenceDashboard onPropertyClick={(id) => navigate(`/leads?property=${id}`)} />
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Property Intelligence</h2>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+          <div className="lg:col-span-3">
+            <IntelligenceDashboard onPropertyClick={(id) => navigate(`/leads?property=${id}`)} />
+          </div>
+          <div className="lg:col-span-1">
+            <BatchRescoreButton />
+          </div>
+        </div>
       </div>
 
       {/* Quick Actions */}

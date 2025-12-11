@@ -263,16 +263,20 @@ async function processUploadJob(jobId: string) {
     console.log(`[process-upload] Found ${existingMap.size} existing properties`);
 
     // Prepare properties without geocoding (will be done in background)
+    // NOTE: Deduplication is enforced at DB level via idx_properties_unique_address unique index
+    // This is the SOURCE OF TRUTH for property deduplication - app-level checks are for optimization only
     const newAddressEntries = Array.from(addressMap.entries())
       .filter(([key]) => !existingMap.has(key));
 
     console.log(`[process-upload] Creating ${newAddressEntries.length} new properties (geocoding will happen in background)...`);
+    console.log(`[process-upload] App-level dedup filtered ${addressMap.size - newAddressEntries.length} existing properties`);
 
-    const newProperties = newAddressEntries.map(([_, row]) => {
+    const newProperties = newAddressEntries.map(([key, row]) => {
       const city = row.city || job.city;
       const state = row.state || job.state;
 
       return {
+        key, // Include key for mapping after insert
         address: row.address || 'Parcel-Based Location',
         city,
         state,
@@ -286,34 +290,64 @@ async function processUploadJob(jobId: string) {
     });
 
     let propertiesCreated = 0;
+    let dbLevelDedupes = 0;
     const PROP_INSERT_BATCH = 500;
 
     for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
       const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
-      const { data: insertedProps, error: propsError } = await supabaseClient
-        .from('properties')
-        .insert(batch)
-        .select('id, address, city, state, zip');
+      
+      // Insert properties one batch at a time, handling unique constraint violations
+      // The unique index idx_properties_unique_address enforces dedup at DB level
+      for (const prop of batch) {
+        const { key, ...propData } = prop;
+        
+        try {
+          const { data: insertedProp, error: insertError } = await supabaseClient
+            .from('properties')
+            .insert(propData)
+            .select('id, address, city, state, zip')
+            .single();
 
-      if (propsError) {
-        console.error('[process-upload] Property insert error:', propsError);
-        throw propsError;
+          if (insertError) {
+            // Check if this is a unique constraint violation (duplicate)
+            if (insertError.code === '23505') {
+              // DB-level dedup: fetch existing property instead of failing
+              dbLevelDedupes++;
+              console.log(`[process-upload] DB-level dedup: ${propData.address} already exists`);
+              
+              const { data: existingProp } = await supabaseClient
+                .from('properties')
+                .select('id, address, city, state, zip')
+                .ilike('address', propData.address)
+                .ilike('city', propData.city)
+                .ilike('state', propData.state)
+                .eq('zip', propData.zip || '')
+                .maybeSingle();
+              
+              if (existingProp) {
+                existingMap.set(key, existingProp.id);
+              }
+            } else {
+              console.error('[process-upload] Property insert error:', insertError);
+              throw insertError;
+            }
+          } else if (insertedProp) {
+            propertiesCreated++;
+            existingMap.set(key, insertedProp.id);
+          }
+        } catch (err: any) {
+          // Handle unexpected errors
+          if (err.code !== '23505') {
+            console.error('[process-upload] Unexpected property insert error:', err);
+            throw err;
+          }
+        }
       }
 
-      propertiesCreated += insertedProps?.length || 0;
-      
-      // Add to existing map
-      (insertedProps || []).forEach(prop => {
-        const addr = prop.address?.trim() || '';
-        const city = prop.city?.trim() || '';
-        const state = prop.state?.trim() || '';
-        const zip = prop.zip?.trim() || '';
-        const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
-        existingMap.set(key, prop.id);
-      });
-
-      console.log(`[process-upload] Created ${propertiesCreated} / ${newProperties.length} properties`);
+      console.log(`[process-upload] Processed batch: ${propertiesCreated} created, ${dbLevelDedupes} DB-level dedupes`);
     }
+
+    console.log(`[process-upload] Total: ${propertiesCreated} properties created, ${dbLevelDedupes} caught by DB unique constraint`);
 
     console.log(`[process-upload] Total properties created: ${propertiesCreated}`);
 

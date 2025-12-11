@@ -16,6 +16,12 @@ import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { startGeocodingJob } from '@/services/geocoding';
 
+// Upload limits - must match edge function constants
+const UPLOAD_LIMITS = {
+  MAX_FILE_SIZE_MB: 50,
+  MAX_ROWS: 50000,
+};
+
 const US_STATES = [
   'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
   'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
@@ -66,10 +72,10 @@ export default function Upload() {
       return;
     }
 
-    if (file.size > 50 * 1024 * 1024) {
+    if (file.size > UPLOAD_LIMITS.MAX_FILE_SIZE_MB * 1024 * 1024) {
       toast({
         title: 'File Too Large',
-        description: 'File must be less than 50MB',
+        description: `File must be less than ${UPLOAD_LIMITS.MAX_FILE_SIZE_MB}MB`,
         variant: 'destructive',
       });
       return;
@@ -247,9 +253,17 @@ export default function Upload() {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <strong>CSV Format:</strong> Your file should include columns for address (required). 
-            Optional: city, state, zip, violation type, description, opened date, status, case/file ID.
-            The system supports multiple column naming formats (e.g., "File #", "Open Date", etc.).
+            <div className="space-y-2">
+              <p>
+                <strong>CSV Format:</strong> Your file should include columns for address (required). 
+                Optional: city, state, zip, violation type, description, opened date, status, case/file ID.
+                The system supports multiple column naming formats (e.g., "File #", "Open Date", etc.).
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <strong>Limits:</strong> Max {UPLOAD_LIMITS.MAX_FILE_SIZE_MB}MB file size, {UPLOAD_LIMITS.MAX_ROWS.toLocaleString()} rows per file. 
+                For larger datasets, split into multiple files.
+              </p>
+            </div>
           </AlertDescription>
         </Alert>
       </div>

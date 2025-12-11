@@ -2,6 +2,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { parse } from "https://deno.land/std@0.168.0/encoding/csv.ts";
 
+// ============================================
+// UPLOAD LIMITS - Change these to adjust capacity
+// ============================================
+const MAX_ROWS_PER_UPLOAD = 50000;  // Maximum rows allowed in a single CSV
+const STAGING_BATCH_SIZE = 1000;    // Rows per batch for staging inserts
+const PROP_INSERT_BATCH = 500;      // Properties per batch for inserts
+const VIOL_BATCH_SIZE = 500;        // Violations per batch for inserts
+const MAX_FILE_SIZE_MB = 50;        // Maximum file size in MB
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -49,7 +58,14 @@ async function processUploadJob(jobId: string) {
       throw new Error('Job missing required location information (city, state)');
     }
 
+    // Validate file size before processing
+    const maxBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
+    if (job.file_size > maxBytes) {
+      throw new Error(`File size (${Math.round(job.file_size / 1024 / 1024)}MB) exceeds maximum of ${MAX_FILE_SIZE_MB}MB. Please use a smaller file.`);
+    }
+
     console.log(`[process-upload] Using location: ${job.city}, ${job.county || 'N/A'}, ${job.state}`);
+    console.log(`[process-upload] File size: ${Math.round(job.file_size / 1024)}KB`);
 
     // Update status to PARSING
     await supabaseClient
@@ -84,9 +100,17 @@ async function processUploadJob(jobId: string) {
     const headers = parsedData[0].map(h => h.trim().toLowerCase());
     const dataRows = parsedData.slice(1);
     const totalRows = dataRows.length;
+
+    // Validate row count to prevent memory issues
+    if (totalRows > MAX_ROWS_PER_UPLOAD) {
+      throw new Error(
+        `CSV has ${totalRows.toLocaleString()} rows, maximum is ${MAX_ROWS_PER_UPLOAD.toLocaleString()}. ` +
+        `Please split into multiple files.`
+      );
+    }
     
     console.log(`[process-upload] CSV Headers: ${JSON.stringify(headers)}`);
-    console.log(`[process-upload] Parsed ${totalRows} rows from CSV`);
+    console.log(`[process-upload] Parsed ${totalRows} rows from CSV (limit: ${MAX_ROWS_PER_UPLOAD})`);
 
     // Update total rows
     await supabaseClient
@@ -94,8 +118,7 @@ async function processUploadJob(jobId: string) {
       .update({ total_rows: totalRows })
       .eq('id', jobId);
 
-    // Parse and insert into staging in smaller batches for better progress
-    const BATCH_SIZE = 250;
+    // Parse and insert into staging in batches for memory efficiency
     const stagingRows: any[] = [];
     
     for (let i = 0; i < dataRows.length; i++) {
@@ -130,7 +153,7 @@ async function processUploadJob(jobId: string) {
         raw_description: description, // Store raw notes for AI processing (INTERNAL ONLY)
       });
 
-      if (stagingRows.length >= BATCH_SIZE || i === dataRows.length - 1) {
+      if (stagingRows.length >= STAGING_BATCH_SIZE || i === dataRows.length - 1) {
         const { error: insertError } = await supabaseClient
           .from('upload_staging')
           .insert(stagingRows);

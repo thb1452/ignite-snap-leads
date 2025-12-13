@@ -15,18 +15,33 @@ export async function exportFilteredCsv(params: ExportParams) {
   if (params.maxScore != null) qs.set("maxScore", String(params.maxScore));
   if (params.jurisdictionId) qs.set("jurisdictionId", params.jurisdictionId);
 
+  // Get user session token for authenticated request
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  if (!token) {
+    throw new Error("Please sign in to export data");
+  }
+
   // Call edge function with query params
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-csv?${qs.toString()}`;
-  
+
   const response = await fetch(url, {
     method: 'GET',
     headers: {
       'Accept': 'text/csv',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${token}`,
     }
   });
 
   if (!response.ok) {
+    // Check if limit exceeded
+    if (response.status === 403) {
+      const errorData = await response.json().catch(() => ({}));
+      if (errorData.code === 'EXPORT_LIMIT_EXCEEDED') {
+        throw new Error('EXPORT_LIMIT_EXCEEDED');
+      }
+    }
     throw new Error(`Export failed: ${response.statusText}`);
   }
 

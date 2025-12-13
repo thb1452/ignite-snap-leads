@@ -73,7 +73,7 @@ export function useAuth() {
     };
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, inviteToken?: string) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -97,9 +97,42 @@ export function useAuth() {
           console.error('Profile creation error:', profileError);
         }
 
+        // If there's an invite token, mark invitation as accepted and assign role
+        if (inviteToken) {
+          const { data: invitation, error: inviteError } = await supabase
+            .from('user_invitations')
+            .update({ 
+              status: 'accepted',
+              accepted_at: new Date().toISOString()
+            })
+            .eq('token', inviteToken)
+            .eq('email', email)
+            .eq('status', 'pending')
+            .select()
+            .single();
+
+          if (invitation && !inviteError) {
+            // Assign the role from the invitation
+            const { error: roleError } = await supabase
+              .from('user_roles')
+              .insert({
+                user_id: data.user.id,
+                role: invitation.role,
+              });
+
+            if (roleError) {
+              console.error('Role assignment error:', roleError);
+            } else {
+              console.log('Role assigned from invitation:', invitation.role);
+            }
+          } else {
+            console.error('Failed to process invitation:', inviteError);
+          }
+        }
+
         toast({
           title: "Account created successfully!",
-          description: "Welcome to Snap Ignite Demo",
+          description: inviteToken ? "Welcome to the team!" : "Welcome to Snap Ignite Demo",
         });
       }
 

@@ -83,9 +83,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Generate secure token
     const token = crypto.randomUUID();
-    const signupUrl = `${Deno.env.get("SUPABASE_URL")?.replace('//', '//').split('/')[2] ? 
-      `https://${Deno.env.get("SUPABASE_URL")?.split('/')[2]}` : 
-      Deno.env.get("SUPABASE_URL")}/auth/signup?token=${token}&email=${encodeURIComponent(email)}`;
+    // Use the app URL for signup, not Supabase URL
+    const appUrl = Deno.env.get("APP_URL") || "https://snapignite.com";
+    const signupUrl = `${appUrl}/auth?invite=${token}&email=${encodeURIComponent(email)}`;
 
     // Create invitation record
     const { data: invitation, error: inviteError } = await supabaseClient

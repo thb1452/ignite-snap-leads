@@ -112,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send invitation email
     const emailResponse = await resend.emails.send({
-      from: "SnapIgnite <onboarding@resend.dev>",
+      from: "SnapIgnite <noreply@snapignite.com>",
       to: [email],
       subject: "You're invited to join SnapIgnite",
       html: `

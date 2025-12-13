@@ -14,6 +14,11 @@ import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyL
 import { LocationFilter } from "@/components/leads/LocationFilter";
 import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
+import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
+import { useOnboarding } from "@/hooks/useOnboarding";
+import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
+import { useSubscription } from "@/hooks/useSubscription";
+import { exportFilteredCsv } from "@/services/export";
 
 interface Violation {
   id: string;
@@ -42,10 +47,14 @@ interface Property {
 
 function Leads() {
   const { toast } = useToast();
-  
+  const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
+  const { plan, checkLimit } = useSubscription();
+
   // Data state
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradeLimitType, setUpgradeLimitType] = useState<'csv_export' | 'skip_trace'>('csv_export');
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -215,14 +224,49 @@ function Leads() {
       });
       return;
     }
-    
-    toast({
-      title: "Export Started",
-      description: `Exporting ${selectedIds.length} properties to CSV...`,
-    });
-    
-    // TODO: Implement CSV export
-    setSelectedIds([]);
+
+    // Check if user can export
+    const canExport = await checkLimit('csv_export');
+    if (!canExport) {
+      setUpgradeLimitType('csv_export');
+      setShowUpgradePrompt(true);
+      return;
+    }
+
+    try {
+      toast({
+        title: "Export Started",
+        description: `Exporting ${selectedIds.length} properties to CSV...`,
+      });
+
+      // Use filters from current view
+      await exportFilteredCsv({
+        city: selectedCity || undefined,
+        minScore: snapScoreMin,
+        jurisdictionId: selectedJurisdictionId || undefined,
+      });
+
+      toast({
+        title: "Export Complete",
+        description: `Successfully exported ${selectedIds.length} properties`,
+      });
+
+      setSelectedIds([]);
+    } catch (error: any) {
+      console.error('[Leads] Export error:', error);
+
+      if (error.message === 'EXPORT_LIMIT_EXCEEDED') {
+        setUpgradeLimitType('csv_export');
+        setShowUpgradePrompt(true);
+        return;
+      }
+
+      toast({
+        title: "Export Failed",
+        description: error.message || "Failed to export properties",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleGenerateInsights = async () => {
@@ -258,6 +302,19 @@ function Leads() {
 
   return (
     <div className="flex flex-col h-screen">
+      <OnboardingFlow
+        open={showOnboarding}
+        onOpenChange={setShowOnboarding}
+        onComplete={markOnboardingComplete}
+      />
+
+      <UpgradePrompt
+        open={showUpgradePrompt}
+        onOpenChange={setShowUpgradePrompt}
+        limitType={upgradeLimitType}
+        currentPlan={plan?.name}
+      />
+
       <FilterBar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}

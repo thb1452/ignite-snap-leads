@@ -40,6 +40,50 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // ---- Auth ----
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const token = authHeader.replace("Bearer ", "");
+    const { data: authData, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !authData?.user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const user = authData.user;
+
+    // ---- Check Usage Limit ----
+    const { data: canExport, error: limitError } = await supabase.rpc('check_usage_limit', {
+      _event_type: 'csv_export',
+      _quantity: 1
+    });
+
+    if (limitError) {
+      console.error('[export-csv] Error checking limit:', limitError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to check usage limits' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!canExport) {
+      console.log('[export-csv] User hit export limit:', user.id);
+      return new Response(
+        JSON.stringify({
+          error: 'CSV export limit reached',
+          code: 'EXPORT_LIMIT_EXCEEDED',
+          message: 'You have reached your monthly CSV export limit. Please upgrade your plan to continue exporting.'
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Build query - ONLY select clean fields
     let query = supabase
       .from('properties')
@@ -140,6 +184,23 @@ serve(async (req) => {
     }
 
     const csvContent = csvRows.join('\n');
+
+    // ---- Record Usage Event ----
+    const { error: recordError } = await supabase.rpc('record_usage_event', {
+      _event_type: 'csv_export',
+      _resource_type: 'property',
+      _resource_id: null,
+      _quantity: 1,
+      _metadata: {
+        filters: { city, minScore, maxScore, jurisdictionId },
+        row_count: csvRows.length - 1 // Subtract header row
+      }
+    });
+
+    if (recordError) {
+      console.error('[export-csv] Error recording usage:', recordError);
+      // Don't fail the export if recording fails
+    }
 
     return new Response(csvContent, {
       headers: {

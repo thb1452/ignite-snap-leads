@@ -126,6 +126,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const phone_hint = body.phone_hint ?? null;
     const overrides = body.overrides ?? null;
 
+    // ---- Check Usage Limit ----
+    const { data: canSkipTrace, error: limitError } = await supabase.rpc('check_usage_limit', {
+      _event_type: 'skip_trace',
+      _quantity: 1
+    });
+
+    if (limitError) {
+      console.error('[skiptrace] Error checking limit:', limitError);
+      // Continue anyway - backward compatibility (limits are optional)
+    } else if (!canSkipTrace) {
+      console.log('[skiptrace] User hit skip trace limit:', user.id);
+      const err: ApiError = { ok: false, error: 'Skip trace limit reached. Please upgrade your plan to continue.' };
+      return new Response(JSON.stringify(err), { status: 403, headers });
+    }
+
     // ---- Property lookup ----
     const { data: property, error: propError } = await supabase
       .from("properties")
@@ -327,6 +342,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (creditError) {
       console.error("[credits] error", creditError);
       // Don't fail the whole request; return ok with a warning
+    }
+
+    // ---- Record Usage Event ----
+    const { error: recordError } = await supabase.rpc('record_usage_event', {
+      _event_type: 'skip_trace',
+      _resource_type: 'property',
+      _resource_id: property_id,
+      _quantity: 1,
+      _metadata: {
+        address: fullAddress,
+        contacts_found: contacts.length,
+        source: batchDataBase.toLowerCase().includes("sandbox") ? "sandbox" : "production"
+      }
+    });
+
+    if (recordError) {
+      console.error('[skiptrace] Error recording usage:', recordError);
+      // Don't fail the request if recording fails
     }
 
     const resp: ApiOk = { ok: true, contacts, raw_data: raw };

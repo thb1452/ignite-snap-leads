@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -7,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Mail } from 'lucide-react';
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -23,9 +25,14 @@ type SignInFormData = z.infer<typeof signInSchema>;
 type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export function AuthForm() {
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite');
+  const inviteEmail = searchParams.get('email');
+  
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [activeTab, setActiveTab] = useState(inviteToken ? 'signup' : 'signin');
   const { signIn, signUp, resetPassword } = useAuth();
 
   const signInForm = useForm<SignInFormData>({
@@ -39,11 +46,18 @@ export function AuthForm() {
   const signUpForm = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
-      email: '',
+      email: inviteEmail || '',
       password: '',
       fullName: '',
     },
   });
+
+  // Pre-fill email from invitation
+  useEffect(() => {
+    if (inviteEmail) {
+      signUpForm.setValue('email', inviteEmail);
+    }
+  }, [inviteEmail, signUpForm]);
 
   const handleSignIn = async (data: SignInFormData) => {
     setIsLoading(true);
@@ -53,7 +67,8 @@ export function AuthForm() {
 
   const handleSignUp = async (data: SignUpFormData) => {
     setIsLoading(true);
-    await signUp(data.email, data.password, data.fullName);
+    // Pass invite token to signUp if present
+    await signUp(data.email, data.password, data.fullName, inviteToken || undefined);
     setIsLoading(false);
   };
 
@@ -74,11 +89,25 @@ export function AuthForm() {
             Snap Ignite Demo
           </CardTitle>
           <CardDescription>
-            Access your violation leads dashboard
+            {inviteToken 
+              ? "You've been invited! Create your account below."
+              : "Access your violation leads dashboard"
+            }
           </CardDescription>
         </CardHeader>
+
+        {inviteToken && (
+          <div className="px-6 pb-2">
+            <Alert className="bg-primary/10 border-primary/20">
+              <Mail className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Invitation detected!</strong> Complete signup to join the team.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
         
-        <Tabs defaultValue="signin" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mx-6">
             <TabsTrigger value="signin">Sign In</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -192,6 +221,7 @@ export function AuthForm() {
                     id="signup-email"
                     type="email"
                     placeholder="you@example.com"
+                    disabled={!!inviteEmail}
                     {...signUpForm.register('email')}
                   />
                   {signUpForm.formState.errors.email && (
@@ -217,7 +247,7 @@ export function AuthForm() {
               <CardFooter>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Account
+                  {inviteToken ? 'Accept Invitation & Create Account' : 'Create Account'}
                 </Button>
               </CardFooter>
             </form>

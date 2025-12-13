@@ -14,6 +14,8 @@ import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyL
 import { LocationFilter } from "@/components/leads/LocationFilter";
 import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
+import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
+import { useOnboarding } from "@/hooks/useOnboarding";
 
 interface Violation {
   id: string;
@@ -42,7 +44,8 @@ interface Property {
 
 function Leads() {
   const { toast } = useToast();
-  
+  const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
+
   // Data state
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -258,6 +261,12 @@ function Leads() {
 
   return (
     <div className="flex flex-col h-screen">
+      <OnboardingFlow
+        open={showOnboarding}
+        onOpenChange={setShowOnboarding}
+        onComplete={markOnboardingComplete}
+      />
+
       <FilterBar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}

@@ -15,6 +15,7 @@ import UploadJobDetail from "./pages/UploadJobDetail";
 import VADashboard from "./pages/VADashboard";
 import AdminConsole from "./pages/AdminConsole";
 import ResetPassword from "./pages/ResetPassword";
+import HowSnapWorks from "./pages/HowSnapWorks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -76,6 +77,11 @@ const App = () => (
             <RoleProtectedRoute allowedRoles={['admin']}>
               <AdminConsole />
             </RoleProtectedRoute>
+          } />
+          <Route path="/how-snap-works" element={
+            <ProtectedRoute>
+              <HowSnapWorks />
+            </ProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

@@ -1,22 +1,24 @@
 import { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload as UploadIcon, FileSpreadsheet, AlertCircle } from 'lucide-react';
+import { Upload as UploadIcon, FileSpreadsheet, AlertCircle, ClipboardPaste } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { createUploadJob } from '@/services/uploadJobs';
 import { useUploadJob } from '@/hooks/useUploadJob';
 import { UploadProgress } from '@/components/upload/UploadProgress';
+import { PasteCsvUpload } from '@/components/upload/PasteCsvUpload';
 import { GeocodingProgress } from '@/components/geocoding/GeocodingProgress';
 import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { startGeocodingJob } from '@/services/geocoding';
+import { supabase } from '@/integrations/supabase/client';
 
-// Upload limits - must match edge function constants
 const UPLOAD_LIMITS = {
   MAX_FILE_SIZE_MB: 50,
   MAX_ROWS: 50000,
@@ -38,6 +40,7 @@ export default function Upload() {
   const [city, setCity] = useState<string>("");
   const [county, setCounty] = useState<string>("");
   const [state, setState] = useState<string>("");
+  const [uploadMethod, setUploadMethod] = useState<"file" | "paste">("file");
   const { job, loading: jobLoading } = useUploadJob(jobId);
 
   const onDrop = async (acceptedFiles: File[]) => {
@@ -62,7 +65,6 @@ export default function Upload() {
     const file = acceptedFiles[0];
     if (!file) return;
 
-    // Validate file
     if (!file.name.endsWith('.csv')) {
       toast({
         title: 'Invalid File',
@@ -102,6 +104,79 @@ export default function Upload() {
     }
   };
 
+  const handlePastedCsvProcess = async (csvData: string, fileName: string) => {
+    if (!user) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to upload',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!city || !state) {
+      toast({
+        title: 'Location Required',
+        description: 'Please enter city and state first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const blob = new Blob([csvData], { type: 'text/csv' });
+      const file = new File([blob], fileName, { type: 'text/csv' });
+
+      const filePath = `${user.id}/${Date.now()}_${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from('csv-uploads')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: jobData, error: jobError } = await supabase
+        .from('upload_jobs')
+        .insert({
+          user_id: user.id,
+          filename: fileName,
+          storage_path: filePath,
+          file_size: file.size,
+          city: city.trim(),
+          state,
+          county: county?.trim() || null,
+          status: 'QUEUED',
+        })
+        .select()
+        .single();
+
+      if (jobError) throw jobError;
+
+      const { error: processError } = await supabase.functions.invoke('process-upload', {
+        body: { jobId: jobData.id }
+      });
+
+      if (processError) throw processError;
+
+      setJobId(jobData.id);
+      toast({
+        title: 'CSV Processed',
+        description: 'Your pasted data is being processed',
+      });
+
+    } catch (error) {
+      console.error('Error processing pasted CSV:', error);
+      toast({
+        title: 'Processing Failed',
+        description: error instanceof Error ? error.message : 'Failed to process CSV',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleStartGeocoding = async () => {
     try {
       await startGeocodingJob();
@@ -125,148 +200,171 @@ export default function Upload() {
     disabled: uploading || !city || !state || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null),
   });
 
+  const isJobActive = job && job.status !== 'COMPLETE' && job.status !== 'FAILED';
+
   return (
     <AppLayout>
       <div className="container mx-auto py-8 px-4 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Upload Properties</h1>
-        <p className="text-muted-foreground">
-          <strong>Internal Upload Tool</strong> — For Snap team and operators only. Upload CSV files with property violation data.
-        </p>
-      </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Upload Properties</h1>
+          <p className="text-muted-foreground">
+            Upload CSV files or paste data directly from ChatGPT/Claude
+          </p>
+        </div>
 
-      <div className="space-y-6">
-        {/* Location Information */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              <div>
+        <div className="space-y-6">
+          {/* Location Information */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-semibold">
+                    Step 1: Enter Location Information <span className="text-destructive">*</span>
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Enter the city and state for this upload. County is optional.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      placeholder="e.g., Sierra Vista"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="county">County <span className="text-xs text-muted-foreground">(Optional)</span></Label>
+                    <Input
+                      id="county"
+                      placeholder="e.g., Cochise"
+                      value={county}
+                      onChange={(e) => setCounty(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="state">State</Label>
+                    <Select value={state} onValueChange={setState}>
+                      <SelectTrigger id="state">
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {US_STATES.map((st) => (
+                          <SelectItem key={st} value={st}>
+                            {st}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* CSV Upload - Now with Tabs */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-2 mb-4">
                 <Label className="text-base font-semibold">
-                  Step 1: Enter Location Information <span className="text-destructive">*</span>
+                  Step 2: Upload CSV Data <span className="text-destructive">*</span>
                 </Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Enter the city and state for this upload. County is optional and will be determined during geocoding if not provided.
+                <p className="text-sm text-muted-foreground">
+                  {!city || !state
+                    ? "Enter city and state first to enable upload"
+                    : "Upload a file or paste CSV data directly"
+                  }
                 </p>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    placeholder="e.g., Sierra Vista"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    required
+
+              <Tabs value={uploadMethod} onValueChange={(v) => setUploadMethod(v as "file" | "paste")}>
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="file" className="flex items-center gap-2">
+                    <UploadIcon className="w-4 h-4" />
+                    File Upload
+                  </TabsTrigger>
+                  <TabsTrigger value="paste" className="flex items-center gap-2">
+                    <ClipboardPaste className="w-4 h-4" />
+                    Paste CSV
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="file">
+                  <div
+                    {...getRootProps()}
+                    className={`
+                      border-2 border-dashed rounded-lg p-12 text-center cursor-pointer
+                      transition-colors
+                      ${isDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
+                      ${uploading || isJobActive ? 'opacity-50 cursor-not-allowed' : ''}
+                    `}
+                  >
+                    <input {...getInputProps()} />
+                    <UploadIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-lg font-medium mb-2">
+                      {isDragActive ? 'Drop the file here' : 'Drag & drop a CSV file'}
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {isDragActive ? '' : 'or click to browse'}
+                    </p>
+                    <Button variant="outline" disabled={!city || !state || uploading || isJobActive}>
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      {!city || !state ? 'Enter City & State First' : 'Select CSV File'}
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="paste">
+                  <PasteCsvUpload
+                    onProcess={handlePastedCsvProcess}
+                    disabled={!city || !state || uploading || !!isJobActive}
                   />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {job && <UploadProgress job={job} />}
+          <GeocodingProgress />
+
+          {/* Geocoding Control */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-semibold">Geocoding</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Add coordinates to properties that don't have them yet.
+                  </p>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="county">County <span className="text-xs text-muted-foreground">(Optional)</span></Label>
-                  <Input
-                    id="county"
-                    placeholder="e.g., Cochise"
-                    value={county}
-                    onChange={(e) => setCounty(e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="state">State</Label>
-                  <Select value={state} onValueChange={setState}>
-                    <SelectTrigger id="state">
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {US_STATES.map((st) => (
-                        <SelectItem key={st} value={st}>
-                          {st}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Button onClick={handleStartGeocoding} variant="secondary" className="w-full">
+                  Start Geocoding Job
+                </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* CSV Upload */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-2 mb-4">
-              <Label className="text-base font-semibold">
-                Step 2: Upload CSV File <span className="text-destructive">*</span>
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {!city || !state
-                  ? "Enter city and state first to enable file upload"
-                  : "Drag & drop your CSV file or click to browse"
-                }
-              </p>
-            </div>
-            <div
-              {...getRootProps()}
-              className={`
-                border-2 border-dashed rounded-lg p-12 text-center cursor-pointer
-                transition-colors
-                ${isDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
-                ${uploading || (job && job.status !== 'COMPLETE' && job.status !== 'FAILED') ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-            >
-              <input {...getInputProps()} />
-              <UploadIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-lg font-medium mb-2">
-                {isDragActive ? 'Drop the file here' : 'Drag & drop a CSV file'}
-              </p>
-              <p className="text-sm text-muted-foreground mb-4">
-                {isDragActive ? '' : 'or click to browse'}
-              </p>
-              <Button variant="outline" disabled={!city || !state || uploading || (job && job.status !== 'COMPLETE' && job.status !== 'FAILED')}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                {!city || !state ? 'Enter City & State First' : 'Select CSV File'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {job && <UploadProgress job={job} />}
-        <GeocodingProgress />
-
-        {/* Geocoding Control */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              <div>
-                <Label className="text-base font-semibold">Geocoding</Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Add coordinates to properties that don't have them yet. Runs in the background.
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="space-y-2">
+                <p>
+                  <strong>CSV Format:</strong> Your file should include columns for address (required). 
+                  Optional: city, state, zip, violation type, description, opened date, status, case/file ID.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <strong>Limits:</strong> Max {UPLOAD_LIMITS.MAX_FILE_SIZE_MB}MB file size, {UPLOAD_LIMITS.MAX_ROWS.toLocaleString()} rows per file.
                 </p>
               </div>
-              <Button onClick={handleStartGeocoding} variant="secondary" className="w-full">
-                Start Geocoding Job
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <div className="space-y-2">
-              <p>
-                <strong>CSV Format:</strong> Your file should include columns for address (required). 
-                Optional: city, state, zip, violation type, description, opened date, status, case/file ID.
-                The system supports multiple column naming formats (e.g., "File #", "Open Date", etc.).
-              </p>
-              <p className="text-xs text-muted-foreground">
-                <strong>Limits:</strong> Max {UPLOAD_LIMITS.MAX_FILE_SIZE_MB}MB file size, {UPLOAD_LIMITS.MAX_ROWS.toLocaleString()} rows per file. 
-                For larger datasets, split into multiple files.
-              </p>
-            </div>
-          </AlertDescription>
-        </Alert>
-      </div>
+            </AlertDescription>
+          </Alert>
+        </div>
       </div>
     </AppLayout>
   );

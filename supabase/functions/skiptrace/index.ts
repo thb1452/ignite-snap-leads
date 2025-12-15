@@ -87,14 +87,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     // ---- Env ----
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const batchDataKey = Deno.env.get("BATCHDATA_API_KEY");
     const batchDataBase = Deno.env.get("BATCHDATA_API_URL") ?? "https://api.batchdata.com";
-    if (!supabaseUrl || !supabaseKey || !batchDataKey) {
+    if (!supabaseUrl || !supabaseAnonKey || !batchDataKey) {
       throw new Error("SERVER_MISCONFIGURED");
     }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // ---- Auth ----
     const authHeader = req.headers.get("authorization");
@@ -105,6 +103,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
     }
     const token = authHeader.replace("Bearer ", "");
+
+    // Create client with user's token - this respects RLS policies
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    });
+
     const { data: authData, error: authErr } = await supabase.auth.getUser(token);
     if (authErr || !authData?.user) {
       return new Response(JSON.stringify({ ok: false, error: "Unauthorized" } satisfies ApiError), {

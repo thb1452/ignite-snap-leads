@@ -32,13 +32,11 @@ serve(async (req) => {
     const jurisdictionId = url.searchParams.get('jurisdictionId');
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       throw new Error("Missing required environment variables");
     }
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // ---- Auth ----
     const authHeader = req.headers.get("authorization");
@@ -49,6 +47,16 @@ serve(async (req) => {
       );
     }
     const token = authHeader.replace("Bearer ", "");
+
+    // Create client with user's token - this respects RLS policies
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    });
+
     const { data: authData, error: authErr } = await supabase.auth.getUser(token);
     if (authErr || !authData?.user) {
       return new Response(

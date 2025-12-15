@@ -386,123 +386,122 @@ async function processUploadJob(jobId: string) {
     // Collect all property IDs for insight generation
     const allPropertyIds = Array.from(existingMap.values());
 
-    // Insert violations in batches - fetch ALL staging rows
-    // Supabase has a default 1000 row limit, so we need to paginate
-    let allStaging: any[] = [];
-    let offset = 0;
-    const FETCH_BATCH = 5000;
-    
+    // Insert violations in batches - process in streaming fashion to avoid memory issues
+    // Process staging rows in chunks instead of loading all into memory
+    const STAGING_FETCH_BATCH = 1000;
+    const VIOL_INSERT_BATCH = 500;
+    let stagingOffset = 0;
+    let violationsCreatedTotal = 0;
+    let skippedRows = 0;
+
+    console.log(`[process-upload] Starting violation creation (streaming batches of ${STAGING_FETCH_BATCH})...`);
+
     while (true) {
-      const { data: batch, error: stagingError } = await supabaseClient
+      // Fetch a batch of staging rows
+      const { data: stagingBatch, error: stagingError } = await supabaseClient
         .from('upload_staging')
         .select('*')
         .eq('job_id', jobId)
         .order('row_num')
-        .range(offset, offset + FETCH_BATCH - 1);
-      
+        .range(stagingOffset, stagingOffset + STAGING_FETCH_BATCH - 1);
+
       if (stagingError) {
         throw new Error(`Failed to fetch staging data: ${stagingError.message}`);
       }
-      
-      if (!batch || batch.length === 0) break;
-      
-      allStaging = allStaging.concat(batch);
-      console.log(`[process-upload] Fetched ${allStaging.length} staging rows so far...`);
-      
-      if (batch.length < FETCH_BATCH) break; // Last batch
-      offset += FETCH_BATCH;
-    }
 
-    if (allStaging.length === 0) {
-      console.warn('[process-upload] No staging data found for violations');
-    }
+      if (!stagingBatch || stagingBatch.length === 0) {
+        console.log(`[process-upload] No more staging rows at offset ${stagingOffset}`);
+        break;
+      }
 
-    console.log(`[process-upload] Processing ${allStaging.length} staging rows for violations`);
+      console.log(`[process-upload] Processing staging batch: offset=${stagingOffset}, count=${stagingBatch.length}`);
 
-    const VIOL_BATCH = 500;
-    const violations: any[] = [];
-    let violationsCreated = 0;
+      // Process this batch of staging rows into violations
+      const violations: any[] = [];
 
-    for (const row of allStaging) {
-      let addr = row.address?.trim();
-      const city = row.city?.trim() || '';
-      const state = row.state?.trim() || '';
-      let zip = row.zip?.trim() || '';
-      
-      // Match the parcel-based location format from property creation
-      if (!addr || addr === '') {
-        if (row.case_id && row.case_id.trim() !== '') {
-          // Group by parcel number - ONE property per case_id
-          addr = `Parcel-Based Location (Parcel ${row.case_id.trim()})`;
-        } else {
-          // Group all unknown parcels under one property
-          addr = `Parcel-Based Location (Unknown Parcel)`;
+      for (const row of stagingBatch) {
+        let addr = row.address?.trim();
+        const city = row.city?.trim() || '';
+        const state = row.state?.trim() || '';
+        let zip = row.zip?.trim() || '';
+        
+        // Match the parcel-based location format from property creation
+        if (!addr || addr === '') {
+          if (row.case_id && row.case_id.trim() !== '') {
+            addr = `Parcel-Based Location (Parcel ${row.case_id.trim()})`;
+          } else {
+            addr = `Parcel-Based Location (Unknown Parcel)`;
+          }
+          zip = '';
         }
-        zip = ''; // Normalize zip for parcel-based locations
+        
+        const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
+        const propertyId = existingMap.get(key);
+
+        if (!propertyId) {
+          skippedRows++;
+          continue;
+        }
+
+        // Parse dates safely
+        const openedDate = parseDate(row.opened_date);
+        const lastUpdated = parseDate(row.last_updated);
+        
+        const daysOpen = openedDate 
+          ? Math.floor((Date.now() - openedDate.getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+
+        const normalizedType = normalizeViolationType(row.violation || 'Unknown');
+        
+        violations.push({
+          property_id: propertyId,
+          case_id: row.case_id,
+          violation_type: normalizedType,
+          description: null,
+          raw_description: row.raw_description || null,
+          status: normalizeStatus(row.status || 'Open'),
+          opened_date: openedDate ? openedDate.toISOString().split('T')[0] : null,
+          last_updated: lastUpdated ? lastUpdated.toISOString().split('T')[0] : null,
+          days_open: daysOpen,
+        });
       }
-      
-      const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
-      const propertyId = existingMap.get(key);
 
-      if (!propertyId) {
-        console.warn(`[process-upload] No property ID for ${key}`);
-        continue;
-      }
-
-      // Parse dates safely using helper
-      const openedDate = parseDate(row.opened_date);
-      const lastUpdated = parseDate(row.last_updated);
-      
-      const daysOpen = openedDate 
-        ? Math.floor((Date.now() - openedDate.getTime()) / (1000 * 60 * 60 * 24))
-        : null;
-
-      // Normalize violation type to short generic labels
-      const normalizedType = normalizeViolationType(row.violation || 'Unknown');
-      
-      violations.push({
-        property_id: propertyId,
-        case_id: row.case_id,
-        violation_type: normalizedType,
-        description: null, // Never store raw notes in public description
-        raw_description: row.raw_description || null, // INTERNAL ONLY - raw city notes
-        status: normalizeStatus(row.status || 'Open'),
-        opened_date: openedDate ? openedDate.toISOString().split('T')[0] : null,
-        last_updated: lastUpdated ? lastUpdated.toISOString().split('T')[0] : null,
-        days_open: daysOpen,
-      });
-
-      if (violations.length >= VIOL_BATCH) {
+      // Insert this batch of violations in sub-batches
+      for (let i = 0; i < violations.length; i += VIOL_INSERT_BATCH) {
+        const insertBatch = violations.slice(i, i + VIOL_INSERT_BATCH);
+        
         const { error: violError } = await supabaseClient
           .from('violations')
-          .insert(violations);
+          .insert(insertBatch);
 
         if (violError) {
           console.error('[process-upload] Violation insert error:', violError);
           throw violError;
         }
 
-        violationsCreated += violations.length;
-        console.log(`[process-upload] Created ${violationsCreated} violations`);
-        violations.length = 0;
+        violationsCreatedTotal += insertBatch.length;
+      }
+
+      console.log(`[process-upload] Violations progress: ${violationsCreatedTotal} created, ${skippedRows} skipped`);
+
+      // Update job progress periodically
+      await supabaseClient
+        .from('upload_jobs')
+        .update({ 
+          violations_created: violationsCreatedTotal
+        })
+        .eq('id', jobId);
+
+      // Move to next batch
+      stagingOffset += STAGING_FETCH_BATCH;
+
+      // Check if this was the last batch
+      if (stagingBatch.length < STAGING_FETCH_BATCH) {
+        break;
       }
     }
 
-    // Insert remaining
-    if (violations.length > 0) {
-      const { error: violError } = await supabaseClient
-        .from('violations')
-        .insert(violations);
-
-      if (violError) {
-        console.error('[process-upload] Violation insert error:', violError);
-        throw violError;
-      }
-
-      violationsCreated += violations.length;
-    }
-
-    console.log(`[process-upload] Created ${violationsCreated} violations`);
+    console.log(`[process-upload] Violation creation complete: ${violationsCreatedTotal} created, ${skippedRows} skipped (no property match)`);
 
     // Mark complete with accurate counts
     await supabaseClient
@@ -511,11 +510,11 @@ async function processUploadJob(jobId: string) {
         status: 'COMPLETE',
         finished_at: new Date().toISOString(),
         properties_created: propertiesCreated,
-        violations_created: violationsCreated
+        violations_created: violationsCreatedTotal
       })
       .eq('id', jobId);
 
-    console.log(`[process-upload] Job ${jobId} complete - ${propertiesCreated} properties, ${violationsCreated} violations`);
+    console.log(`[process-upload] Job ${jobId} complete - ${propertiesCreated} properties, ${violationsCreatedTotal} violations`);
 
     // Trigger insight generation for all properties in this upload
     console.log(`[process-upload] Triggering insight generation for ${allPropertyIds.length} properties`);

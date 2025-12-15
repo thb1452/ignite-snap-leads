@@ -48,6 +48,7 @@ const PLAN_FEATURES = {
   starter: {
     name: "Starter",
     price: "$39/mo",
+    badge: "",
     features: [
       "Up to 3 jurisdictions",
       "5,000 records per month",

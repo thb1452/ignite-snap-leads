@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 interface SubscriptionPlan {
   id: string;
@@ -20,6 +19,7 @@ interface SubscriptionPlan {
 
 interface UserSubscription {
   subscription_id: string;
+  stripe_subscription_id?: string;
   plan_id: string;
   plan_name: string;
   status: string;
@@ -37,142 +37,38 @@ interface UsageTracking {
   period_end: string;
 }
 
+// Stubbed hook - subscription tables don't exist yet
 export function useSubscription() {
-  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
-  const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
-  const [usage, setUsage] = useState<UsageTracking | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchSubscription();
-  }, []);
+  const [subscription] = useState<UserSubscription | null>(null);
+  const [plan] = useState<SubscriptionPlan | null>(null);
+  const [usage] = useState<UsageTracking | null>(null);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
 
   const fetchSubscription = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Get user's active subscription
-      const { data: subData, error: subError } = await supabase
-        .rpc('get_user_subscription')
-        .single();
-
-      if (subError) {
-        // User may not have a subscription yet
-        if (subError.code === 'PGRST116') {
-          setSubscription(null);
-          setPlan(null);
-          setUsage(null);
-          setLoading(false);
-          return;
-        }
-        throw subError;
-      }
-
-      setSubscription(subData);
-
-      // Get plan details
-      if (subData?.plan_id) {
-        const { data: planData, error: planError } = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .eq('id', subData.plan_id)
-          .single();
-
-        if (planError) throw planError;
-        setPlan(planData);
-      }
-
-      // Get current usage
-      if (subData?.subscription_id) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: usageData, error: usageError } = await supabase
-            .from('usage_tracking')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('subscription_id', subData.subscription_id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (usageError && usageError.code !== 'PGRST116') throw usageError;
-          setUsage(usageData);
-        }
-      }
-    } catch (err: any) {
-      console.error('[useSubscription] Error:', err);
-      setError(err.message || 'Failed to load subscription');
-    } finally {
-      setLoading(false);
-    }
+    // TODO: Implement when subscription tables are created
+    console.log('[useSubscription] Subscription tables not yet implemented');
   };
 
-  const checkLimit = async (eventType: string, quantity: number = 1): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase.rpc('check_usage_limit', {
-        _event_type: eventType,
-        _quantity: quantity
-      });
+  useEffect(() => {
+    // No-op for now
+  }, []);
 
-      if (error) {
-        console.error('[useSubscription] Error checking limit:', error);
-        return false;
-      }
-
-      return data === true;
-    } catch (err) {
-      console.error('[useSubscription] Error checking limit:', err);
-      return false;
-    }
+  const checkLimit = async (_eventType: string, _quantity: number = 1): Promise<boolean> => {
+    // Always return true (no limits) until subscription system is implemented
+    return true;
   };
 
-  const getUsagePercentage = (type: 'csv_exports' | 'skip_traces') => {
-    if (!usage || !plan) return 0;
-
-    const current = type === 'csv_exports'
-      ? usage.csv_exports_count
-      : usage.skip_traces_used;
-
-    const limit = type === 'csv_exports'
-      ? plan.max_csv_exports_per_month
-      : plan.skip_trace_credits_per_month;
-
-    if (limit === -1) return 0; // Unlimited
-    if (limit === 0) return 100; // Not allowed
-
-    return Math.min(100, Math.round((current / limit) * 100));
+  const getUsagePercentage = (_type: 'csv_exports' | 'skip_traces') => {
+    return 0;
   };
 
-  const getRemainingCount = (type: 'csv_exports' | 'skip_traces') => {
-    if (!usage || !plan) return 0;
-
-    const current = type === 'csv_exports'
-      ? usage.csv_exports_count
-      : usage.skip_traces_used;
-
-    const limit = type === 'csv_exports'
-      ? plan.max_csv_exports_per_month
-      : plan.skip_trace_credits_per_month;
-
-    if (limit === -1) return Infinity; // Unlimited
-    return Math.max(0, limit - current);
+  const getRemainingCount = (_type: 'csv_exports' | 'skip_traces') => {
+    return Infinity;
   };
 
-  const isAtLimit = (type: 'csv_exports' | 'skip_traces') => {
-    if (!usage || !plan) return false;
-
-    const current = type === 'csv_exports'
-      ? usage.csv_exports_count
-      : usage.skip_traces_used;
-
-    const limit = type === 'csv_exports'
-      ? plan.max_csv_exports_per_month
-      : plan.skip_trace_credits_per_month;
-
-    if (limit === -1) return false; // Unlimited
-    return current >= limit;
+  const isAtLimit = (_type: 'csv_exports' | 'skip_traces') => {
+    return false;
   };
 
   return {

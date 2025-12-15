@@ -621,3 +621,146 @@ start coverage/index.html  # Windows
 ---
 
 **Phase 5 Complete**: You now have a comprehensive testing infrastructure with utilities, mocks, and documentation to support test-driven development.
+
+## Phase 6: Expanded Test Coverage
+
+Building on Phase 5, Phase 6 adds comprehensive tests for components, React Query hooks, auth flows, and accessibility.
+
+### Test Coverage Summary
+
+**Total Tests**: 112 passing + 1 skipped = 113 tests
+
+#### Component Tests (11 tests)
+- **ErrorBoundary** (`src/components/__tests__/ErrorBoundary.test.tsx`)
+  - 6 tests covering error catching, fallback UI, retry functionality, and custom fallbacks
+
+- **ProtectedRoute** (`src/components/auth/__tests__/ProtectedRoute.test.tsx`)
+  - 4 tests for authentication flows, loading states, and role handling
+
+#### Auth Integration Tests (7 tests)
+- **RoleProtectedRoute** (`src/components/auth/__tests__/RoleProtectedRoute.test.tsx`)
+  - 7 tests for role-based access control, redirects, and multiple role handling
+
+#### React Query Hook Tests (24 tests)
+- **usePropertiesQuery** (`src/hooks/queries/__tests__/usePropertiesQuery.test.tsx`)
+  - 6 tests (1 skipped) for property fetching, pagination, filtering, error handling, and city queries
+
+- **useSubscriptionQuery** (`src/hooks/queries/__tests__/useSubscriptionQuery.test.tsx`)
+  - 18 tests for subscription plans, user subscriptions, usage limits, and helper functions
+
+#### Accessibility Tests (20 tests)
+- **Accessibility Best Practices** (`src/__tests__/accessibility.test.tsx`)
+  - Semantic HTML buttons and links
+  - ARIA labels and attributes
+  - Keyboard navigation (Enter, Space, Tab)
+  - Form accessibility (labels, errors, required fields)
+  - Loading states and live regions
+  - Headings and document structure
+  - Modals and dialogs
+
+### Key Testing Patterns
+
+#### 1. Component Testing with Mocked Dependencies
+
+```typescript
+import { vi } from 'vitest';
+import { renderWithProviders } from '@/test/utils';
+import * as useAuthModule from '@/hooks/use-auth';
+
+// Mock the hook
+vi.mock('@/hooks/use-auth');
+
+// Set up mock return value
+vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+  user: { id: 'user-123', email: 'test@example.com' },
+  roles: ['user'],
+  loading: false,
+  // ... other methods
+});
+
+// Render with providers
+renderWithProviders(<MyComponent />);
+```
+
+#### 2. React Query Hook Testing
+
+```typescript
+import { renderHook, waitFor } from '@testing-library/react';
+import { TestProviders, createTestQueryClient } from '@/test/utils';
+
+const { result } = renderHook(() => useMyQuery(), {
+  wrapper: ({ children }) => (
+    <TestProviders queryClient={createTestQueryClient()}>
+      {children}
+    </TestProviders>
+  ),
+});
+
+await waitFor(() => expect(result.current.isSuccess).toBe(true));
+```
+
+#### 3. Accessibility Testing
+
+```typescript
+// Test keyboard navigation
+const button = screen.getByRole('button');
+button.focus();
+await user.keyboard('{Enter}');
+expect(onClick).toHaveBeenCalled();
+
+// Test ARIA labels
+const closeButton = screen.getByRole('button', { name: /close/i });
+expect(closeButton).toHaveAccessibleName();
+
+// Test semantic HTML
+const link = screen.getByRole('link', { name: /dashboard/i });
+expect(link).toHaveAttribute('href', '/dashboard');
+```
+
+### Test Files Added
+
+```
+src/
+├── __tests__/
+│   └── accessibility.test.tsx          # 20 accessibility tests
+├── components/
+│   ├── __tests__/
+│   │   └── ErrorBoundary.test.tsx     # 6 component tests
+│   └── auth/
+│       └── __tests__/
+│           ├── ProtectedRoute.test.tsx      # 4 auth tests
+│           └── RoleProtectedRoute.test.tsx  # 7 role tests
+└── hooks/
+    └── queries/
+        └── __tests__/
+            ├── usePropertiesQuery.test.tsx     # 6 hook tests
+            └── useSubscriptionQuery.test.tsx   # 18 hook tests
+```
+
+### Running Specific Test Suites
+
+```bash
+# Run only accessibility tests
+npm test -- accessibility
+
+# Run only component tests
+npm test -- components
+
+# Run only hook tests
+npm test -- hooks/queries
+
+# Run specific test file
+npm test -- ErrorBoundary.test.tsx
+```
+
+### Next Steps for Testing
+
+1. **Add E2E Tests**: Consider adding Playwright or Cypress for end-to-end testing
+2. **Visual Regression Tests**: Add snapshot testing or visual regression tools
+3. **Performance Tests**: Add benchmarks for critical rendering paths
+4. **Integration Tests**: Test complete user flows across multiple components
+5. **API Contract Tests**: Test Supabase edge function contracts
+
+---
+
+**Phases 5 & 6 Complete**: Comprehensive testing infrastructure with 113 tests covering utilities, components, hooks, auth flows, and accessibility.

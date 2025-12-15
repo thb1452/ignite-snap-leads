@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { getErrorMessage } from '@/lib/utils';
 
 export type AppRole = 'admin' | 'va' | 'user';
 
@@ -137,10 +138,10 @@ export function useAuth() {
       }
 
       return { data, error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Sign up failed",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
       return { data: null, error };
@@ -162,10 +163,10 @@ export function useAuth() {
       });
 
       return { data, error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Sign in failed",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
       return { data: null, error };
@@ -181,10 +182,10 @@ export function useAuth() {
         title: "Signed out successfully",
         description: "See you next time!",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Sign out failed",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -193,7 +194,7 @@ export function useAuth() {
   const resetPassword = async (email: string) => {
     try {
       const redirectUrl = `${window.location.origin}/reset-password`;
-      
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
       });
@@ -206,10 +207,10 @@ export function useAuth() {
       });
 
       return { error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Password reset failed",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
       return { error };

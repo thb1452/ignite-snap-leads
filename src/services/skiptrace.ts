@@ -1,5 +1,15 @@
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * BatchData API raw response structure
+ */
+export type BatchDataRawResponse = {
+  owner_name?: string | null;
+  phones?: (string | { number: string })[] | null;
+  emails?: string[] | null;
+  [key: string]: unknown;
+};
+
 export type PropertyContact = {
   id: string;
   property_id: string;
@@ -7,14 +17,14 @@ export type PropertyContact = {
   phone: string | null;
   email: string | null;
   source: string | null;
-  raw_payload: any;
+  raw_payload: BatchDataRawResponse | null;
   created_at: string;
 };
 
-type SkipTraceResponse = { 
-  ok: true; 
+type SkipTraceResponse = {
+  ok: true;
   contacts: PropertyContact[];
-  raw_data: any;
+  raw_data: BatchDataRawResponse;
 };
 
 async function getUserToken(): Promise<string> {

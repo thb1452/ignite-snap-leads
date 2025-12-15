@@ -23,20 +23,19 @@ export function LocationFilter({
 }: LocationFilterProps) {
   const { data: jurisdictions, isLoading } = useJurisdictions();
   const [propertyCities, setPropertyCities] = useState<string[]>([]);
-  const [loadingCities, setLoadingCities] = useState(true);
+  const [propertyStates, setPropertyStates] = useState<string[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
 
   // Sanitize and validate city names
   const isValidCity = (city: string): boolean => {
     if (!city || city.trim().length < 2) return false;
-    // Exclude hashtags, numbers-only, entries with "County" 
     if (city.startsWith('#')) return false;
     if (city.toLowerCase().includes('county')) return false;
     if (/^\d+$/.test(city.trim())) return false;
-    // Exclude cities with ZIP codes appended (e.g., "Galveston 77550")
     if (/\s\d{5}$/.test(city.trim())) return false;
-    // Exclude apartment/unit designators that got into city field
     if (/^#?[A-Z]?\d*$/i.test(city.trim())) return false;
     if (city.startsWith('##')) return false;
+    if (city.toLowerCase() === 'unknown') return false;
     return true;
   };
 
@@ -48,37 +47,53 @@ export function LocationFilter({
       .join(' ');
   };
 
-  // Fetch distinct cities directly from properties table
+  // Fetch distinct cities and states directly from properties table
   useEffect(() => {
-    async function fetchCities() {
-      setLoadingCities(true);
+    async function fetchLocationData() {
+      setLoadingData(true);
       try {
-        const { data, error } = await supabase
+        // Fetch cities - get all and dedupe in JS to avoid 1000 limit issues
+        const { data: cityData, error: cityError } = await supabase
           .from('properties')
           .select('city')
-          .order('city');
+          .not('city', 'is', null)
+          .limit(10000);
         
-        if (!error && data) {
-          // Filter out invalid cities and normalize
-          const validCities = data
+        if (!cityError && cityData) {
+          const validCities = cityData
             .map(p => p.city)
             .filter((city): city is string => Boolean(city) && isValidCity(city))
             .map(normalizeCity);
           
-          // Deduplicate after normalization (handles case differences)
           const uniqueCities = [...new Set(validCities)].sort();
           setPropertyCities(uniqueCities);
         }
+
+        // Fetch states for "State" dropdown since county data is sparse
+        const { data: stateData, error: stateError } = await supabase
+          .from('properties')
+          .select('state')
+          .not('state', 'is', null)
+          .limit(10000);
+        
+        if (!stateError && stateData) {
+          const validStates = stateData
+            .map(p => p.state?.toUpperCase())
+            .filter((state): state is string => Boolean(state) && state.length === 2);
+          
+          const uniqueStates = [...new Set(validStates)].sort();
+          setPropertyStates(uniqueStates);
+        }
       } catch (e) {
-        console.error('Error fetching cities:', e);
+        console.error('Error fetching location data:', e);
       } finally {
-        setLoadingCities(false);
+        setLoadingData(false);
       }
     }
-    fetchCities();
+    fetchLocationData();
   }, []);
 
-  // Extract counties from jurisdictions
+  // Extract counties from jurisdictions (if available)
   const counties = useMemo(() => {
     if (!jurisdictions) return [];
     const countySet = new Set<string>();
@@ -88,10 +103,36 @@ export function LocationFilter({
     return Array.from(countySet).sort();
   }, [jurisdictions]);
 
+  // Use states as primary filter if counties are sparse
+  const showStatesInsteadOfCounties = counties.length <= 1 && propertyStates.length > 1;
+
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      {/* County Filter */}
-      {counties.length > 0 && (
+      {/* State Filter (shown when county data is sparse) */}
+      {showStatesInsteadOfCounties && (
+        <div className="flex items-center gap-2">
+          <Label className="text-sm font-medium whitespace-nowrap">State</Label>
+          <Select
+            value={selectedCounty || "all"}
+            onValueChange={(val) => onCountyChange(val === "all" ? null : val)}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All States</SelectItem>
+              {propertyStates.map((state) => (
+                <SelectItem key={state} value={state}>
+                  {state}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* County Filter (shown when county data is rich) */}
+      {!showStatesInsteadOfCounties && counties.length > 0 && (
         <div className="flex items-center gap-2">
           <Label className="text-sm font-medium whitespace-nowrap">County</Label>
           <Select
@@ -121,7 +162,7 @@ export function LocationFilter({
           onValueChange={(val) => onCityChange(val === "all" ? null : val)}
         >
           <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder={loadingCities ? "Loading..." : "All"} />
+            <SelectValue placeholder={loadingData ? "Loading..." : "All"} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Cities</SelectItem>

@@ -254,36 +254,32 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Found ${addressMap.size} unique addresses`);
 
-    // Check existing properties in batches
-    const uniqueAddresses = Array.from(addressMap.keys());
-    const PROP_BATCH = 1000;
+    // Check existing properties - use case-insensitive matching since DB index uses lower(TRIM())
+    // Filter by city+state to reduce dataset size
     const existingMap = new Map<string, string>();
 
-    for (let i = 0; i < uniqueAddresses.length; i += PROP_BATCH) {
-      const batch = uniqueAddresses.slice(i, i + PROP_BATCH);
-      const addressValues = batch.map(key => {
-        const [addr] = key.split('|');
-        return addr;
-      }).filter(a => a);
-      
-      if (addressValues.length === 0) continue;
+    console.log(`[process-upload] Fetching existing properties for ${job.city}, ${job.state}...`);
+    const { data: existingProps, error: existingError } = await supabaseClient
+      .from('properties')
+      .select('id, address, city, state, zip')
+      .ilike('city', job.city)
+      .ilike('state', job.state);
 
-      const { data: existingProps } = await supabaseClient
-        .from('properties')
-        .select('id, address, city, state, zip')
-        .in('address', addressValues);
-
-      (existingProps || []).forEach(prop => {
-        const addr = prop.address?.trim() || '';
-        const city = prop.city?.trim() || '';
-        const state = prop.state?.trim() || '';
-        const zip = prop.zip?.trim() || '';
-        const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
-        existingMap.set(key, prop.id);
-      });
+    if (existingError) {
+      console.error('[process-upload] Error fetching existing properties:', existingError);
     }
 
-    console.log(`[process-upload] Found ${existingMap.size} existing properties`);
+    // Build map with lowercase normalized keys for case-insensitive matching
+    (existingProps || []).forEach(prop => {
+      const addr = (prop.address || '').trim().toLowerCase();
+      const city = (prop.city || '').trim().toLowerCase();
+      const state = (prop.state || '').trim().toLowerCase();
+      const zip = (prop.zip || '').trim().toLowerCase();
+      const key = `${addr}|${city}|${state}|${zip}`;
+      existingMap.set(key, prop.id);
+    });
+
+    console.log(`[process-upload] Found ${existingMap.size} existing properties in ${job.city}, ${job.state}`);
 
     // Prepare properties without geocoding (will be done in background)
     // NOTE: Deduplication is enforced at DB level via idx_properties_unique_address unique index

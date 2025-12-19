@@ -17,6 +17,7 @@ import AdminConsole from "./pages/AdminConsole";
 import ResetPassword from "./pages/ResetPassword";
 import HowSnapWorks from "./pages/HowSnapWorks";
 import NotFound from "./pages/NotFound";
+import Auth from "./pages/Auth";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
               <Leads />
             </ProtectedRoute>
           } />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/upload" element={
             <RoleProtectedRoute allowedRoles={['admin', 'va']}>

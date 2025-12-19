@@ -313,66 +313,84 @@ async function processUploadJob(jobId: string) {
     });
 
     let propertiesCreated = 0;
-    let dbLevelDedupes = 0;
-    const PROP_INSERT_BATCH = 500;
+    const PROP_INSERT_BATCH = 200;
 
+    // OPTIMIZED: Batch insert properties instead of one-by-one
+    // This reduces ~1000+ DB calls to just a few batch operations
     for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
       const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
+      const batchData = batch.map(({ key, ...propData }) => propData);
+      const batchKeys = batch.map(p => p.key);
       
-      // Insert properties one batch at a time, handling unique constraint violations
-      // The unique index idx_properties_unique_address enforces dedup at DB level
-      for (const prop of batch) {
-        const { key, ...propData } = prop;
-        
-        try {
-          const { data: insertedProp, error: insertError } = await supabaseClient
-            .from('properties')
-            .insert(propData)
-            .select('id, address, city, state, zip')
-            .single();
+      // Try bulk insert first (much faster for new properties)
+      const { data: insertedProps, error: insertError } = await supabaseClient
+        .from('properties')
+        .upsert(batchData, { 
+          onConflict: 'address,city,state,zip',
+          ignoreDuplicates: true 
+        })
+        .select('id, address, city, state, zip');
 
-          if (insertError) {
-            // Check if this is a unique constraint violation (duplicate)
-            if (insertError.code === '23505') {
-              // DB-level dedup: fetch existing property instead of failing
-              dbLevelDedupes++;
-              console.log(`[process-upload] DB-level dedup: ${propData.address} already exists`);
-              
-              const { data: existingProp } = await supabaseClient
-                .from('properties')
-                .select('id, address, city, state, zip')
-                .ilike('address', propData.address)
-                .ilike('city', propData.city)
-                .ilike('state', propData.state)
-                .eq('zip', propData.zip || '')
-                .maybeSingle();
-              
-              if (existingProp) {
-                existingMap.set(key, existingProp.id);
-              }
-            } else {
-              console.error('[process-upload] Property insert error:', insertError);
-              throw insertError;
-            }
-          } else if (insertedProp) {
+      if (insertError) {
+        console.error('[process-upload] Batch insert error:', insertError);
+        // Fall back to individual inserts only if batch fails
+        for (let j = 0; j < batchData.length; j++) {
+          const propData = batchData[j];
+          const key = batchKeys[j];
+          
+          const { data: singleProp } = await supabaseClient
+            .from('properties')
+            .upsert(propData, { onConflict: 'address,city,state,zip', ignoreDuplicates: true })
+            .select('id, address, city, state, zip')
+            .maybeSingle();
+          
+          if (singleProp) {
+            existingMap.set(key, singleProp.id);
             propertiesCreated++;
-            existingMap.set(key, insertedProp.id);
           }
-        } catch (err: any) {
-          // Handle unexpected errors
-          if (err.code !== '23505') {
-            console.error('[process-upload] Unexpected property insert error:', err);
-            throw err;
-          }
+        }
+      } else if (insertedProps) {
+        // Map inserted properties back to keys
+        for (const prop of insertedProps) {
+          const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+          existingMap.set(key, prop.id);
+          propertiesCreated++;
         }
       }
 
-      console.log(`[process-upload] Processed batch: ${propertiesCreated} created, ${dbLevelDedupes} DB-level dedupes`);
+      // Update progress during property creation
+      await supabaseClient
+        .from('upload_jobs')
+        .update({ 
+          status: 'DEDUPING',
+          processed_rows: Math.min(i + PROP_INSERT_BATCH, newProperties.length)
+        })
+        .eq('id', jobId);
+
+      console.log(`[process-upload] Property batch ${Math.floor(i / PROP_INSERT_BATCH) + 1}: processed ${Math.min(i + PROP_INSERT_BATCH, newProperties.length)}/${newProperties.length}`);
     }
 
-    console.log(`[process-upload] Total: ${propertiesCreated} properties created, ${dbLevelDedupes} caught by DB unique constraint`);
+    // For properties that failed upsert (already existed), fetch their IDs in bulk
+    const missingKeys = Array.from(addressMap.keys()).filter(key => !existingMap.has(key));
+    if (missingKeys.length > 0) {
+      console.log(`[process-upload] Fetching ${missingKeys.length} existing property IDs...`);
+      
+      // Fetch all existing properties in one query
+      const missingAddresses = missingKeys.map(key => key.split('|')[0]);
+      const { data: existingFetch } = await supabaseClient
+        .from('properties')
+        .select('id, address, city, state, zip')
+        .in('address', missingAddresses);
+      
+      (existingFetch || []).forEach(prop => {
+        const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+        if (!existingMap.has(key)) {
+          existingMap.set(key, prop.id);
+        }
+      });
+    }
 
-    console.log(`[process-upload] Total properties created: ${propertiesCreated}`);
+    console.log(`[process-upload] Total properties in map: ${existingMap.size}, created: ${propertiesCreated}`);
 
     // Update status to CREATING_VIOLATIONS
     await supabaseClient

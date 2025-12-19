@@ -312,79 +312,87 @@ async function processUploadJob(jobId: string) {
     let propertiesCreated = 0;
     const PROP_INSERT_BATCH = 100;
 
-    // OPTIMIZED: Batch insert with proper duplicate handling
-    // The unique index uses lower(TRIM()) so we check what actually exists before inserting
+    // OPTIMIZED: Pre-fetch existing properties in batch, then only insert truly new ones
     for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
       const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
-      const batchData = batch.map(({ key, ...propData }) => propData);
-      const batchKeys = batch.map(p => p.key);
       
-      // Try bulk insert
-      const { data: insertedProps, error: insertError } = await supabaseClient
+      // First, fetch all existing properties that match this batch's addresses (single query)
+      const batchAddresses = [...new Set(batch.map(p => p.address))];
+      const { data: existingInBatch } = await supabaseClient
         .from('properties')
-        .insert(batchData)
-        .select('id, address, city, state, zip');
+        .select('id, address, city, state, zip')
+        .in('address', batchAddresses);
+      
+      // Map existing properties
+      const existingInBatchMap = new Map<string, string>();
+      (existingInBatch || []).forEach(prop => {
+        const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+        existingInBatchMap.set(key, prop.id);
+        existingMap.set(key, prop.id);
+      });
+      
+      // Filter to only truly new properties
+      const trulyNew = batch.filter(p => !existingInBatchMap.has(p.key));
+      
+      if (trulyNew.length > 0) {
+        const insertData = trulyNew.map(({ key, ...propData }) => propData);
+        
+        const { data: insertedProps, error: insertError } = await supabaseClient
+          .from('properties')
+          .insert(insertData)
+          .select('id, address, city, state, zip');
 
-      if (insertError) {
-        // If batch fails due to duplicate, insert one by one
-        if (insertError.code === '23505') {
-          console.log(`[process-upload] Batch has duplicates, inserting individually...`);
-          for (let j = 0; j < batchData.length; j++) {
-            const propData = batchData[j];
-            const key = batchKeys[j];
-            
-            // First check if it already exists by matching with trim/lowercase
-            const { data: existingProp } = await supabaseClient
+        if (insertError) {
+          if (insertError.code === '23505') {
+            // Race condition - refetch all and insert remaining one by one
+            console.log(`[process-upload] Batch race condition, handling ${trulyNew.length} remaining...`);
+            const { data: refetch } = await supabaseClient
               .from('properties')
               .select('id, address, city, state, zip')
-              .ilike('address', propData.address.trim())
-              .ilike('city', propData.city.trim())
-              .ilike('state', propData.state.trim())
-              .limit(1)
-              .maybeSingle();
+              .in('address', trulyNew.map(p => p.address));
             
-            if (existingProp) {
-              // Property already exists - map it
-              const existingKey = `${existingProp.address}|${existingProp.city}|${existingProp.state}|${existingProp.zip}`.toLowerCase();
-              existingMap.set(existingKey, existingProp.id);
-              existingMap.set(key, existingProp.id); // Also map with original key
-              continue;
-            }
+            const refetchMap = new Map<string, string>();
+            (refetch || []).forEach(prop => {
+              const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+              refetchMap.set(key, prop.id);
+              existingMap.set(key, prop.id);
+            });
             
-            // Try to insert
-            const { data: singleProp, error: singleError } = await supabaseClient
-              .from('properties')
-              .insert(propData)
-              .select('id, address, city, state, zip')
-              .maybeSingle();
-            
-            if (singleError?.code === '23505') {
-              // Race condition - someone else inserted it, fetch it
-              const { data: raceProp } = await supabaseClient
-                .from('properties')
-                .select('id, address, city, state, zip')
-                .ilike('address', propData.address.trim())
-                .ilike('city', propData.city.trim())
-                .ilike('state', propData.state.trim())
-                .limit(1)
-                .maybeSingle();
-              if (raceProp) {
-                existingMap.set(key, raceProp.id);
+            // Insert remaining that still don't exist
+            for (const prop of trulyNew) {
+              if (!refetchMap.has(prop.key)) {
+                const { key, ...propData } = prop;
+                const { data: single, error: singleErr } = await supabaseClient
+                  .from('properties')
+                  .insert(propData)
+                  .select('id')
+                  .maybeSingle();
+                
+                if (single) {
+                  existingMap.set(key, single.id);
+                  propertiesCreated++;
+                } else if (singleErr?.code === '23505') {
+                  // Already exists from race - fetch it
+                  const { data: raceP } = await supabaseClient
+                    .from('properties')
+                    .select('id, address, city, state, zip')
+                    .eq('address', propData.address)
+                    .eq('city', propData.city)
+                    .maybeSingle();
+                  if (raceP) existingMap.set(key, raceP.id);
+                }
               }
-            } else if (singleProp) {
-              existingMap.set(key, singleProp.id);
-              propertiesCreated++;
             }
+          } else {
+            console.error('[process-upload] Batch insert error:', insertError);
+            throw insertError;
           }
-        } else {
-          console.error('[process-upload] Batch insert error:', insertError);
-          throw insertError;
-        }
-      } else if (insertedProps) {
-        for (const prop of insertedProps) {
-          const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
-          existingMap.set(key, prop.id);
-          propertiesCreated++;
+        } else if (insertedProps) {
+          for (const prop of insertedProps) {
+            const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+            existingMap.set(key, prop.id);
+            propertiesCreated++;
+          }
         }
       }
 
@@ -394,7 +402,7 @@ async function processUploadJob(jobId: string) {
         .update({ status: 'DEDUPING', processed_rows: i + batch.length })
         .eq('id', jobId);
 
-      console.log(`[process-upload] Properties: ${i + batch.length}/${newProperties.length}, created so far: ${propertiesCreated}`);
+      console.log(`[process-upload] Properties: ${i + batch.length}/${newProperties.length}, new: ${trulyNew.length}, created: ${propertiesCreated}`);
     }
 
     // Ensure all addresses are mapped - fetch any still missing

@@ -124,8 +124,8 @@ async function processGeocodingBatches(jobId: string) {
         break;
       }
 
-      // Small delay to avoid hammering the provider / hitting rate limits
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Small delay to avoid hammering the provider (reduced since we use parallel batching)
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   } catch (error) {
     console.error("[Geocoding] Error processing geocoding batches:", error);

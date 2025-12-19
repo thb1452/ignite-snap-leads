@@ -17,6 +17,7 @@ import AdminConsole from "./pages/AdminConsole";
 import ResetPassword from "./pages/ResetPassword";
 import HowSnapWorks from "./pages/HowSnapWorks";
 import NotFound from "./pages/NotFound";
+import Auth from "./pages/Auth";
 
 const queryClient = new QueryClient();
 
@@ -28,10 +29,11 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={
-            <ProtectedRoute>
+            <RoleProtectedRoute allowedRoles={['admin']} redirectTo="/va-dashboard">
               <Leads />
-            </ProtectedRoute>
+            </RoleProtectedRoute>
           } />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/upload" element={
             <RoleProtectedRoute allowedRoles={['admin', 'va']}>
@@ -39,14 +41,14 @@ const App = () => (
             </RoleProtectedRoute>
           } />
           <Route path="/leads" element={
-            <ProtectedRoute>
+            <RoleProtectedRoute allowedRoles={['admin']}>
               <Leads />
-            </ProtectedRoute>
+            </RoleProtectedRoute>
           } />
           <Route path="/lists" element={
-            <ProtectedRoute>
+            <RoleProtectedRoute allowedRoles={['admin']}>
               <Lists />
-            </ProtectedRoute>
+            </RoleProtectedRoute>
           } />
           <Route path="/settings" element={
             <ProtectedRoute>

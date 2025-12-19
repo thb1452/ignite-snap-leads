@@ -21,22 +21,16 @@ export function AppLayout({ children }: AppLayoutProps) {
     await signOut();
   };
 
-  // Base nav items for all authenticated users
-  const baseNavItems = [
+  // Admin-only nav items
+  const adminNavItems = isAdmin ? [
     { name: "Leads", path: "/" },
     { name: "Lists", path: "/lists" },
-    { name: "Settings", path: "/settings" },
-  ];
-
-  // Internal nav items only for admin/VA
-  const internalNavItems = (isAdmin || isVA) ? [
-    { name: "Upload", path: "/upload" },
-    { name: "Jobs", path: "/jobs" },
   ] : [];
 
-  // Admin-specific nav items
-  const adminNavItems = isAdmin ? [
-    { name: "Admin Console", path: "/admin-console" },
+  // Upload/Jobs nav items (admin + VA)
+  const uploadNavItems = (isAdmin || isVA) ? [
+    { name: "Upload", path: "/upload" },
+    { name: "Jobs", path: "/jobs" },
   ] : [];
 
   // VA-specific nav items
@@ -44,7 +38,17 @@ export function AppLayout({ children }: AppLayoutProps) {
     { name: "VA Dashboard", path: "/va-dashboard" },
   ] : [];
 
-  const navItems = [...baseNavItems, ...internalNavItems, ...vaNavItems, ...adminNavItems];
+  // Admin-specific nav items
+  const adminSpecificNavItems = isAdmin ? [
+    { name: "Admin Console", path: "/admin-console" },
+  ] : [];
+
+  // Shared nav items for all authenticated users
+  const sharedNavItems = [
+    { name: "Settings", path: "/settings" },
+  ];
+
+  const navItems = [...adminNavItems, ...uploadNavItems, ...vaNavItems, ...adminSpecificNavItems, ...sharedNavItems];
 
   return (
     <div className="min-h-screen bg-background">

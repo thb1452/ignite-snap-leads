@@ -287,8 +287,14 @@ async function processUploadJob(jobId: string) {
     const newAddressEntries = Array.from(addressMap.entries())
       .filter(([key]) => !existingMap.has(key));
 
-    console.log(`[process-upload] Creating ${newAddressEntries.length} new properties (geocoding will happen in background)...`);
-    console.log(`[process-upload] App-level dedup filtered ${addressMap.size - newAddressEntries.length} existing properties`);
+    console.log(`[process-upload] Property deduplication summary:`);
+    console.log(`[process-upload]   - Unique addresses in CSV: ${addressMap.size}`);
+    console.log(`[process-upload]   - Already exist in database: ${existingMap.size}`);
+    console.log(`[process-upload]   - New properties to create: ${newAddressEntries.length}`);
+
+    if (newAddressEntries.length === 0 && addressMap.size > 0) {
+      console.log(`[process-upload] ⚠️ All properties already exist - this is normal if re-uploading violations for existing properties`);
+    }
 
     const newProperties = newAddressEntries.map(([key, row]) => {
       const city = row.city || job.city;
@@ -499,10 +505,15 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Violation creation complete: ${violationsCreatedTotal} created, ${skippedRows} skipped (no property match)`);
 
+    console.log(`[process-upload] ===== UPLOAD SUMMARY =====`);
+    console.log(`[process-upload] Properties: ${propertiesCreated} new, ${existingMap.size - propertiesCreated} already existed`);
+    console.log(`[process-upload] Violations: ${violationsCreatedTotal} created, ${skippedRows} skipped`);
+    console.log(`[process-upload] Total properties linked: ${allPropertyIds.length}`);
+
     // Mark complete with accurate counts
     await supabaseClient
       .from('upload_jobs')
-      .update({ 
+      .update({
         status: 'COMPLETE',
         finished_at: new Date().toISOString(),
         properties_created: propertiesCreated,
@@ -510,7 +521,7 @@ async function processUploadJob(jobId: string) {
       })
       .eq('id', jobId);
 
-    console.log(`[process-upload] Job ${jobId} complete - ${propertiesCreated} properties, ${violationsCreatedTotal} violations`);
+    console.log(`[process-upload] Job ${jobId} complete`);
 
     // Trigger insight generation for all properties in this upload
     console.log(`[process-upload] Triggering insight generation for ${allPropertyIds.length} properties`);

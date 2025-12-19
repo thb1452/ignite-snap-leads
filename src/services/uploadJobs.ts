@@ -42,10 +42,24 @@ export async function createUploadJob({ file, userId, city, county, state }: Cre
     throw new Error(`Failed to create job: ${jobError?.message}`);
   }
 
-  // 3. Trigger processing edge function (fire and forget)
-  callFn('process-upload', { jobId: job.id }).catch(error => {
-    console.error('Failed to trigger processing:', error);
-  });
+  // 3. Trigger processing edge function
+  console.log('[uploadJobs] Invoking process-upload function for job:', job.id);
+  try {
+    const result = await callFn('process-upload', { jobId: job.id });
+    console.log('[uploadJobs] process-upload function invoked successfully:', result);
+  } catch (error) {
+    console.error('[uploadJobs] Failed to trigger processing:', error);
+    // Mark job as failed if we can't even invoke the function
+    await supabase
+      .from('upload_jobs')
+      .update({
+        status: 'FAILED',
+        error_message: `Failed to start processing: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        finished_at: new Date().toISOString()
+      })
+      .eq('id', job.id);
+    throw error;
+  }
 
   return job.id;
 }

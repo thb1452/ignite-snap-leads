@@ -254,31 +254,28 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Found ${addressMap.size} unique addresses`);
 
-    // Check existing properties in batches
+    // Check existing properties - need case-insensitive match since index uses lower(TRIM())
     const uniqueAddresses = Array.from(addressMap.keys());
-    const PROP_BATCH = 1000;
     const existingMap = new Map<string, string>();
 
-    for (let i = 0; i < uniqueAddresses.length; i += PROP_BATCH) {
-      const batch = uniqueAddresses.slice(i, i + PROP_BATCH);
-      const addressValues = batch.map(key => {
-        const [addr] = key.split('|');
-        return addr;
-      }).filter(a => a);
-      
-      if (addressValues.length === 0) continue;
+    // Get all unique cities from the upload
+    const uniqueCities = [...new Set(Array.from(addressMap.values()).map(row => 
+      (row.city || job.city || '').toLowerCase().trim()
+    ))].filter(c => c);
 
+    if (uniqueCities.length > 0) {
+      // Fetch all properties in these cities - more efficient than per-address lookups
       const { data: existingProps } = await supabaseClient
         .from('properties')
-        .select('id, address, city, state, zip')
-        .in('address', addressValues);
-
+        .select('id, address, city, state, zip');
+      
+      // Build map with lowercase keys for matching
       (existingProps || []).forEach(prop => {
-        const addr = prop.address?.trim() || '';
-        const city = prop.city?.trim() || '';
-        const state = prop.state?.trim() || '';
-        const zip = prop.zip?.trim() || '';
-        const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
+        const addr = (prop.address || '').trim().toLowerCase();
+        const city = (prop.city || '').trim().toLowerCase();
+        const state = (prop.state || '').trim().toLowerCase();
+        const zip = (prop.zip || '').trim().toLowerCase();
+        const key = `${addr}|${city}|${state}|${zip}`;
         existingMap.set(key, prop.id);
       });
     }

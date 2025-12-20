@@ -505,10 +505,53 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Violation creation complete: ${violationsCreatedTotal} created, ${skippedRows} skipped (no property match)`);
 
-    console.log(`[process-upload] ===== UPLOAD SUMMARY =====`);
-    console.log(`[process-upload] Properties: ${propertiesCreated} new, ${existingMap.size - propertiesCreated} already existed`);
-    console.log(`[process-upload] Violations: ${violationsCreatedTotal} created, ${skippedRows} skipped`);
-    console.log(`[process-upload] Total properties linked: ${allPropertyIds.length}`);
+    // ===== ENHANCED PRODUCTION METRICS =====
+    console.log(`[process-upload] =====================================================`);
+    console.log(`[process-upload] ===== UPLOAD COMPLETE - DETAILED METRICS =====`);
+    console.log(`[process-upload] =====================================================`);
+    console.log(`[process-upload]`);
+    console.log(`[process-upload] 📊 CSV INPUT:`);
+    console.log(`[process-upload]   • Total rows processed: ${totalRows}`);
+    console.log(`[process-upload]   • Unique addresses in CSV: ${addressMap.size}`);
+    console.log(`[process-upload]   • Avg rows per address: ${(totalRows / addressMap.size).toFixed(2)}`);
+    console.log(`[process-upload]`);
+    console.log(`[process-upload] 🏠 PROPERTY DEDUPLICATION:`);
+    console.log(`[process-upload]   • Already existed in database: ${existingMap.size - propertiesCreated}`);
+    console.log(`[process-upload]   • Newly created properties: ${propertiesCreated}`);
+    console.log(`[process-upload]   • DB-level dedupes caught: ${dbLevelDedupes}`);
+    console.log(`[process-upload]   • Total unique properties: ${existingMap.size}`);
+    console.log(`[process-upload]   • Dedup rate: ${Math.round(((existingMap.size - propertiesCreated) / addressMap.size) * 100)}%`);
+    console.log(`[process-upload]`);
+    console.log(`[process-upload] ⚠️  VIOLATIONS:`);
+    console.log(`[process-upload]   • Successfully created: ${violationsCreatedTotal}`);
+    console.log(`[process-upload]   • Skipped (no property match): ${skippedRows}`);
+    console.log(`[process-upload]   • Success rate: ${Math.round((violationsCreatedTotal / totalRows) * 100)}%`);
+    console.log(`[process-upload]   • Avg violations per property: ${(violationsCreatedTotal / existingMap.size).toFixed(2)}`);
+    console.log(`[process-upload]`);
+    console.log(`[process-upload] ✅ DATA INTEGRITY:`);
+    console.log(`[process-upload]   • Properties with violations: ${allPropertyIds.length}`);
+    console.log(`[process-upload]   • Orphaned violations: ${skippedRows}`);
+    console.log(`[process-upload]   • Property match rate: ${Math.round((allPropertyIds.length / addressMap.size) * 100)}%`);
+    console.log(`[process-upload]`);
+
+    // CRITICAL ALERT: Warn if violations were orphaned
+    if (skippedRows > 0) {
+      console.error(`[process-upload] =====================================================`);
+      console.error(`[process-upload] ⚠️⚠️⚠️  DATA QUALITY ALERT  ⚠️⚠️⚠️`);
+      console.error(`[process-upload] =====================================================`);
+      console.error(`[process-upload] ${skippedRows} violations could not be matched to properties!`);
+      console.error(`[process-upload] This indicates:`);
+      console.error(`[process-upload]   1. Deduplication key mismatch between property creation and violation lookup`);
+      console.error(`[process-upload]   2. Property insert failed AND fallback lookup also failed`);
+      console.error(`[process-upload]   3. Data quality issue in CSV (mismatched city/state/zip)`);
+      console.error(`[process-upload] ACTION REQUIRED: Review staging data for rows that failed to match`);
+      console.error(`[process-upload] =====================================================`);
+    } else {
+      console.log(`[process-upload] ✅ All violations successfully matched to properties`);
+    }
+
+    console.log(`[process-upload] =====================================================`);
+
 
     // Mark complete with accurate counts
     await supabaseClient

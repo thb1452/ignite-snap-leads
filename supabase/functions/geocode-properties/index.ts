@@ -23,11 +23,15 @@ async function geocodeAddress(
   zip?: string
 ): Promise<{ latitude: number | null; longitude: number | null; skipped: boolean }> {
   console.log(`[Geocoding START] ${address}, ${city}, ${state} ${zip || ''}`);
-  
+
   // Validate address components
-  if (!address || address.trim().toLowerCase() === 'unknown' || 
-      !city || city.trim().toLowerCase() === 'unknown' || !state) {
-    console.log(`[Geocoding SKIP] Invalid address components`);
+  const addressLower = address?.trim().toLowerCase() || '';
+  const cityLower = city?.trim().toLowerCase() || '';
+
+  if (!address || addressLower === 'unknown' ||
+      !city || cityLower === 'unknown' || !state ||
+      addressLower.startsWith('parcel-based location')) {
+    console.log(`[Geocoding SKIP] Invalid or parcel-based address: ${address}`);
     return { latitude: null, longitude: null, skipped: true };
   }
 

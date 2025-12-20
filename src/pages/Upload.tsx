@@ -58,6 +58,10 @@ export default function Upload() {
     setPendingFile(null);
     setPendingCsvData(null);
     setDetection(null);
+  };
+  
+  const resetAll = () => {
+    resetDetection();
     setJobId(null);
     setJobIds([]);
   };

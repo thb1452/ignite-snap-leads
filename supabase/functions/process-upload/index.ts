@@ -277,13 +277,16 @@ async function processUploadJob(jobId: string) {
     let dedupOffset = 0;
     const DEDUP_BATCH = 5000;
     
+    // Use smaller batches to avoid Supabase's default 1000 row limit issue
+    const DEDUP_PAGE_SIZE = 1000;
+    
     while (true) {
       const { data: dedupBatch, error: dedupError } = await supabaseClient
         .from('upload_staging')
         .select('address, city, state, zip, case_id, row_num, jurisdiction_id')
         .eq('job_id', jobId)
         .order('row_num')
-        .range(dedupOffset, dedupOffset + DEDUP_BATCH - 1);
+        .range(dedupOffset, dedupOffset + DEDUP_PAGE_SIZE - 1);
       
       if (dedupError) {
         throw new Error(`Failed to fetch staging data for dedup: ${dedupError.message}`);
@@ -294,8 +297,8 @@ async function processUploadJob(jobId: string) {
       stagingData = stagingData.concat(dedupBatch);
       console.log(`[process-upload] Dedup fetch: ${stagingData.length} staging rows so far...`);
       
-      if (dedupBatch.length < DEDUP_BATCH) break; // Last batch
-      dedupOffset += DEDUP_BATCH;
+      if (dedupBatch.length < DEDUP_PAGE_SIZE) break; // Last batch
+      dedupOffset += DEDUP_PAGE_SIZE;
     }
 
     if (stagingData.length === 0) {

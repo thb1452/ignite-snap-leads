@@ -316,14 +316,16 @@ async function processUploadJob(jobId: string) {
     for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
       const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
       
-      // First, fetch all existing properties that match this batch's addresses (single query)
+      // First, fetch all existing properties that match this batch's addresses AND cities (single query)
       const batchAddresses = [...new Set(batch.map(p => p.address))];
+      const batchCities = [...new Set(batch.map(p => p.city))];
       const { data: existingInBatch } = await supabaseClient
         .from('properties')
         .select('id, address, city, state, zip')
-        .in('address', batchAddresses);
+        .in('address', batchAddresses)
+        .in('city', batchCities);
       
-      // Map existing properties
+      // Map existing properties - use full key to avoid cross-city matches
       const existingInBatchMap = new Map<string, string>();
       (existingInBatch || []).forEach(prop => {
         const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();

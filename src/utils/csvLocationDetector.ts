@@ -59,24 +59,28 @@ export function detectCsvLocations(csvText: string): CsvDetectionResult {
  * IMPORTANT: Preserves original headers and row data exactly
  */
 export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackState?: string): Map<string, string> {
-  // First parse to get the original header line
-  const lines = csvText.trim().split('\n');
-  const headerLine = lines[0];
-  
-  // Parse with normalized headers for location detection
+  // Parse CSV while preserving original row data
   const result = Papa.parse<Record<string, string>>(csvText, {
     header: true,
     skipEmptyLines: true,
-    transformHeader: (header) => header.trim().toLowerCase(),
   });
 
   const rows = result.data;
-  const cityGroups = new Map<string, number[]>(); // Store indices of rows for each city
+  const originalHeaders = result.meta.fields || [];
+  
+  // Create lowercase header map for location detection
+  const headerMap = new Map<string, string>();
+  originalHeaders.forEach(h => headerMap.set(h.toLowerCase().trim(), h));
+  
+  const cityHeader = headerMap.get('city') || 'city';
+  const stateHeader = headerMap.get('state') || 'state';
+  
+  // Group rows by city|state
+  const cityGroups = new Map<string, Record<string, string>[]>();
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    let city = (row.city || "").trim();
-    let state = (row.state || "").trim().toUpperCase();
+  for (const row of rows) {
+    let city = (row[cityHeader] || "").trim();
+    let state = (row[stateHeader] || "").trim().toUpperCase();
 
     // Apply fallbacks if missing
     if (!city && fallbackCity) city = fallbackCity;
@@ -86,24 +90,20 @@ export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackS
     if (!city || !state) continue;
 
     const key = `${city}|${state}`;
-    const indices = cityGroups.get(key) || [];
-    indices.push(i);
-    cityGroups.set(key, indices);
+    const group = cityGroups.get(key) || [];
+    group.push(row);
+    cityGroups.set(key, group);
   }
 
-  // Convert groups back to CSV strings using original lines
+  // Convert groups back to CSV strings
   const csvGroups = new Map<string, string>();
-  const dataLines = lines.slice(1); // All lines after header
-  
-  for (const [key, rowIndices] of cityGroups) {
-    // Build CSV with original header + selected rows
-    const groupLines = [headerLine];
-    for (const idx of rowIndices) {
-      if (dataLines[idx]) {
-        groupLines.push(dataLines[idx]);
-      }
-    }
-    csvGroups.set(key, groupLines.join('\n'));
+  for (const [key, groupRows] of cityGroups) {
+    // Use Papa.unparse with the original headers to preserve structure
+    const csv = Papa.unparse(groupRows, { 
+      columns: originalHeaders,
+      header: true 
+    });
+    csvGroups.set(key, csv);
   }
 
   return csvGroups;

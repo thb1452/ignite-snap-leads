@@ -59,28 +59,25 @@ export function detectCsvLocations(csvText: string): CsvDetectionResult {
  * IMPORTANT: Preserves original headers and row data exactly
  */
 export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackState?: string): Map<string, string> {
-  // Parse CSV while preserving original row data
+  // Parse CSV with normalized lowercase headers for consistent access
   const result = Papa.parse<Record<string, string>>(csvText, {
     header: true,
     skipEmptyLines: true,
+    transformHeader: (header) => header.trim().toLowerCase(),
   });
 
   const rows = result.data;
-  const originalHeaders = result.meta.fields || [];
+  const normalizedHeaders = result.meta.fields || [];
   
-  // Create lowercase header map for location detection
-  const headerMap = new Map<string, string>();
-  originalHeaders.forEach(h => headerMap.set(h.toLowerCase().trim(), h));
-  
-  const cityHeader = headerMap.get('city') || 'city';
-  const stateHeader = headerMap.get('state') || 'state';
+  console.log('[splitCsvByCity] Parsed rows:', rows.length);
+  console.log('[splitCsvByCity] Headers:', normalizedHeaders);
   
   // Group rows by city|state
   const cityGroups = new Map<string, Record<string, string>[]>();
 
   for (const row of rows) {
-    let city = (row[cityHeader] || "").trim();
-    let state = (row[stateHeader] || "").trim().toUpperCase();
+    let city = (row.city || "").trim();
+    let state = (row.state || "").trim().toUpperCase();
 
     // Apply fallbacks if missing
     if (!city && fallbackCity) city = fallbackCity;
@@ -95,12 +92,14 @@ export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackS
     cityGroups.set(key, group);
   }
 
+  console.log('[splitCsvByCity] City groups:', Array.from(cityGroups.entries()).map(([k, v]) => `${k}: ${v.length} rows`));
+
   // Convert groups back to CSV strings
   const csvGroups = new Map<string, string>();
   for (const [key, groupRows] of cityGroups) {
-    // Use Papa.unparse with the original headers to preserve structure
+    // Use Papa.unparse with the normalized headers
     const csv = Papa.unparse(groupRows, { 
-      columns: originalHeaders,
+      columns: normalizedHeaders,
       header: true 
     });
     csvGroups.set(key, csv);

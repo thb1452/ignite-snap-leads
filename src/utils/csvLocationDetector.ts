@@ -56,10 +56,20 @@ export function detectCsvLocations(csvText: string): CsvDetectionResult {
 /**
  * Split CSV rows by city for multi-job creation
  * Returns a map of "city|state" -> CSV string
- * IMPORTANT: Preserves original headers and row data exactly
+ * IMPORTANT: Preserves original CSV lines exactly to avoid parsing issues
  */
 export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackState?: string): Map<string, string> {
-  // Parse CSV with normalized lowercase headers for consistent access
+  // Split into lines, preserving the original header
+  const lines = csvText.trim().split(/\r?\n/);
+  if (lines.length < 2) {
+    console.log('[splitCsvByCity] CSV has no data rows');
+    return new Map();
+  }
+  
+  const headerLine = lines[0];
+  const dataLines = lines.slice(1);
+  
+  // Parse to get normalized headers for city/state detection
   const result = Papa.parse<Record<string, string>>(csvText, {
     header: true,
     skipEmptyLines: true,
@@ -67,15 +77,14 @@ export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackS
   });
 
   const rows = result.data;
-  const normalizedHeaders = result.meta.fields || [];
   
-  console.log('[splitCsvByCity] Parsed rows:', rows.length);
-  console.log('[splitCsvByCity] Headers:', normalizedHeaders);
+  console.log('[splitCsvByCity] Total lines:', lines.length, 'Data rows:', dataLines.length, 'Parsed rows:', rows.length);
   
-  // Group rows by city|state
-  const cityGroups = new Map<string, Record<string, string>[]>();
+  // Group LINE INDICES by city|state (not parsed rows)
+  const cityLineIndices = new Map<string, number[]>();
 
-  for (const row of rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
     let city = (row.city || "").trim();
     let state = (row.state || "").trim().toUpperCase();
 
@@ -87,21 +96,25 @@ export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackS
     if (!city || !state) continue;
 
     const key = `${city}|${state}`;
-    const group = cityGroups.get(key) || [];
-    group.push(row);
-    cityGroups.set(key, group);
+    const indices = cityLineIndices.get(key) || [];
+    indices.push(i);
+    cityLineIndices.set(key, indices);
   }
 
-  console.log('[splitCsvByCity] City groups:', Array.from(cityGroups.entries()).map(([k, v]) => `${k}: ${v.length} rows`));
+  console.log('[splitCsvByCity] City groups:', Array.from(cityLineIndices.entries()).map(([k, v]) => `${k}: ${v.length} rows`));
 
-  // Convert groups back to CSV strings
+  // Build CSV strings using ORIGINAL lines (not Papa.unparse)
   const csvGroups = new Map<string, string>();
-  for (const [key, groupRows] of cityGroups) {
-    // Use Papa.unparse with the normalized headers
-    const csv = Papa.unparse(groupRows, { 
-      columns: normalizedHeaders,
-      header: true 
-    });
+  for (const [key, indices] of cityLineIndices) {
+    const groupLines = [headerLine];
+    for (const idx of indices) {
+      // dataLines[idx] corresponds to rows[idx]
+      if (dataLines[idx]) {
+        groupLines.push(dataLines[idx]);
+      }
+    }
+    const csv = groupLines.join('\n');
+    console.log(`[splitCsvByCity] Group ${key}: ${groupLines.length - 1} data lines, CSV length: ${csv.length}`);
     csvGroups.set(key, csv);
   }
 

@@ -33,6 +33,87 @@ interface CSVRow {
   description?: string;  // "Description" column
 }
 
+/**
+ * Pre-sanitize CSV text to handle malformed quotes in fields.
+ * Municipal data often contains unescaped quotes in inspector notes/descriptions.
+ * This function makes the CSV parseable while preserving all content.
+ */
+function sanitizeCsvQuotes(csvText: string): string {
+  const lines = csvText.split(/\r?\n/);
+  const result: string[] = [];
+  
+  for (const line of lines) {
+    if (!line.trim()) {
+      result.push(line);
+      continue;
+    }
+    
+    // Parse each field, handling quoted and unquoted fields
+    const fields: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    let i = 0;
+    
+    while (i < line.length) {
+      const char = line[i];
+      
+      if (char === '"') {
+        if (!inQuotes && current === '') {
+          // Start of quoted field
+          inQuotes = true;
+          current += char;
+        } else if (inQuotes) {
+          // Check if this is an escaped quote ("") or end of field
+          if (i + 1 < line.length && line[i + 1] === '"') {
+            // Escaped quote - keep both
+            current += '""';
+            i++;
+          } else if (i + 1 >= line.length || line[i + 1] === ',') {
+            // End of quoted field
+            current += char;
+            inQuotes = false;
+          } else {
+            // Bare quote inside quoted field - escape it
+            current += '""';
+          }
+        } else {
+          // Bare quote in unquoted field - this is the problem case
+          // Wrap the entire remaining field content in quotes
+          // Find the next comma (end of field)
+          let fieldEnd = i;
+          while (fieldEnd < line.length && line[fieldEnd] !== ',') {
+            fieldEnd++;
+          }
+          // Get the rest of this field including the quote
+          const restOfField = line.substring(i, fieldEnd);
+          // Escape any quotes and wrap
+          current = '"' + current + restOfField.replace(/"/g, '""') + '"';
+          i = fieldEnd - 1; // Will be incremented at end of loop
+        }
+      } else if (char === ',' && !inQuotes) {
+        // End of field
+        fields.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+      i++;
+    }
+    
+    // Handle unclosed quotes at end of line
+    if (inQuotes && current.startsWith('"') && !current.endsWith('"')) {
+      current += '"';
+    }
+    
+    // Push last field
+    fields.push(current);
+    
+    result.push(fields.join(','));
+  }
+  
+  return result.join('\n');
+}
+
 // Background processing function
 async function processUploadJob(jobId: string) {
   const supabaseClient = createClient(
@@ -85,7 +166,11 @@ async function processUploadJob(jobId: string) {
       throw new Error(`Failed to download file: ${downloadError?.message}`);
     }
 
-    const csvText = await fileData.text();
+    const rawCsvText = await fileData.text();
+    
+    // Pre-sanitize CSV to handle malformed quotes in municipal data
+    console.log(`[process-upload] Sanitizing CSV quotes...`);
+    const csvText = sanitizeCsvQuotes(rawCsvText);
     
     // Use proper CSV parser to handle quoted fields with commas
     const parsedData = parse(csvText, {

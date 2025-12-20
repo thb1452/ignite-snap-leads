@@ -23,6 +23,16 @@ import { startGeocodingJob } from '@/services/geocoding';
 import { supabase } from '@/integrations/supabase/client';
 import { detectCsvLocations, splitCsvByCity } from '@/utils/csvLocationDetector';
 
+// Sanitize filename for Supabase storage - remove all problematic characters
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/['"]/g, '') // Remove quotes
+    .replace(/[^a-zA-Z0-9_\-\.]/g, '_') // Replace other special chars with underscore
+    .replace(/_+/g, '_') // Collapse multiple underscores
+    .replace(/^_|_$/g, '') // Trim leading/trailing underscores
+    .substring(0, 50); // Limit length
+}
+
 const UPLOAD_LIMITS = {
   MAX_FILE_SIZE_MB: 50,
   MAX_ROWS: 50000,
@@ -126,7 +136,7 @@ export default function Upload() {
         for (const [key, csvContent] of cityGroups) {
           const [groupCity, groupState] = key.split('|');
           const blob = new Blob([csvContent], { type: 'text/csv' });
-          const fileName = `${groupCity.replace(/\s+/g, '_')}_${groupState}_${Date.now()}.csv`;
+          const fileName = `${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
           const file = new File([blob], fileName, { type: 'text/csv' });
 
           const id = await createUploadJob({ 
@@ -220,7 +230,7 @@ export default function Upload() {
         for (const [key, csvContent] of cityGroups) {
           const [groupCity, groupState] = key.split('|');
           const blob = new Blob([csvContent], { type: 'text/csv' });
-          const fileName = `pasted_${groupCity.replace(/\s+/g, '_')}_${groupState}_${Date.now()}.csv`;
+          const fileName = `pasted_${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
           const file = new File([blob], fileName, { type: 'text/csv' });
 
           const filePath = `${user.id}/${Date.now()}_${fileName}`;

@@ -11,7 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { createUploadJob } from '@/services/uploadJobs';
 import { useUploadJob } from '@/hooks/useUploadJob';
+import { useUploadJobs } from '@/hooks/useUploadJobs';
 import { UploadProgress } from '@/components/upload/UploadProgress';
+import { MultiJobProgress } from '@/components/upload/MultiJobProgress';
 import { PasteCsvUpload } from '@/components/upload/PasteCsvUpload';
 import { GeocodingProgress } from '@/components/geocoding/GeocodingProgress';
 import { CsvLocationDetector, type CsvDetectionResult } from '@/components/upload/CsvLocationDetector';
@@ -38,12 +40,14 @@ export default function Upload() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [jobId, setJobId] = useState<string | null>(null);
+  const [jobIds, setJobIds] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [city, setCity] = useState<string>("");
   const [county, setCounty] = useState<string>("");
   const [state, setState] = useState<string>("");
   const [uploadMethod, setUploadMethod] = useState<"file" | "paste">("file");
   const { job, loading: jobLoading } = useUploadJob(jobId);
+  const { stats: multiJobStats, loading: multiJobLoading } = useUploadJobs(jobIds);
   
   // CSV detection state
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -54,6 +58,8 @@ export default function Upload() {
     setPendingFile(null);
     setPendingCsvData(null);
     setDetection(null);
+    setJobId(null);
+    setJobIds([]);
   };
 
   const processFileForDetection = useCallback(async (file: File) => {
@@ -111,8 +117,7 @@ export default function Upload() {
       if (shouldSplit) {
         // Multi-city upload - split and create multiple jobs
         const cityGroups = splitCsvByCity(pendingCsvData, city || undefined, state || undefined);
-        let jobsCreated = 0;
-        let lastJobId: string | null = null;
+        const createdJobIds: string[] = [];
 
         for (const [key, csvContent] of cityGroups) {
           const [groupCity, groupState] = key.split('|');
@@ -127,14 +132,14 @@ export default function Upload() {
             county: county || null, 
             state: groupState 
           });
-          lastJobId = id;
-          jobsCreated++;
+          createdJobIds.push(id);
         }
 
-        if (lastJobId) setJobId(lastJobId);
+        setJobIds(createdJobIds);
+        setJobId(null); // Use multi-job tracking instead
         toast({
           title: 'Upload Started',
-          description: `Created ${jobsCreated} ingest jobs for ${cityGroups.size} locations`,
+          description: `Created ${createdJobIds.length} ingest jobs for ${cityGroups.size} locations`,
         });
       } else {
         // Single location upload
@@ -206,8 +211,7 @@ export default function Upload() {
 
       if (shouldSplit) {
         const cityGroups = splitCsvByCity(pendingCsvData, city || undefined, state || undefined);
-        let jobsCreated = 0;
-        let lastJobId: string | null = null;
+        const createdJobIds: string[] = [];
 
         for (const [key, csvContent] of cityGroups) {
           const [groupCity, groupState] = key.split('|');
@@ -243,14 +247,14 @@ export default function Upload() {
             body: { jobId: jobData.id }
           });
 
-          lastJobId = jobData.id;
-          jobsCreated++;
+          createdJobIds.push(jobData.id);
         }
 
-        if (lastJobId) setJobId(lastJobId);
+        setJobIds(createdJobIds);
+        setJobId(null);
         toast({
           title: 'CSV Processed',
-          description: `Created ${jobsCreated} ingest jobs`,
+          description: `Created ${createdJobIds.length} ingest jobs`,
         });
       } else {
         // Single location
@@ -339,10 +343,10 @@ export default function Upload() {
     onDrop,
     accept: { 'text/csv': ['.csv'] },
     maxFiles: 1,
-    disabled: uploading || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null),
+    disabled: uploading || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null) || multiJobStats.isProcessing,
   });
 
-  const isJobActive = job && job.status !== 'COMPLETE' && job.status !== 'FAILED';
+  const isJobActive = (job && job.status !== 'COMPLETE' && job.status !== 'FAILED') || multiJobStats.isProcessing;
   const hasDetection = detection !== null;
 
   return (
@@ -501,7 +505,12 @@ export default function Upload() {
             </Card>
           )}
 
+          {/* Single job progress */}
           {job && <UploadProgress job={job} />}
+          
+          {/* Multi-job progress for split uploads */}
+          {jobIds.length > 0 && <MultiJobProgress stats={multiJobStats} />}
+          
           <GeocodingProgress />
 
           {/* Geocoding Control */}

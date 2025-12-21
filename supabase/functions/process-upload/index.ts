@@ -33,6 +33,87 @@ interface CSVRow {
   description?: string;  // "Description" column
 }
 
+/**
+ * Pre-sanitize CSV text to handle malformed quotes in fields.
+ * Municipal data often contains unescaped quotes in inspector notes/descriptions.
+ * This function makes the CSV parseable while preserving all content.
+ */
+function sanitizeCsvQuotes(csvText: string): string {
+  const lines = csvText.split(/\r?\n/);
+  const result: string[] = [];
+  
+  for (const line of lines) {
+    if (!line.trim()) {
+      result.push(line);
+      continue;
+    }
+    
+    // Parse each field, handling quoted and unquoted fields
+    const fields: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    let i = 0;
+    
+    while (i < line.length) {
+      const char = line[i];
+      
+      if (char === '"') {
+        if (!inQuotes && current === '') {
+          // Start of quoted field
+          inQuotes = true;
+          current += char;
+        } else if (inQuotes) {
+          // Check if this is an escaped quote ("") or end of field
+          if (i + 1 < line.length && line[i + 1] === '"') {
+            // Escaped quote - keep both
+            current += '""';
+            i++;
+          } else if (i + 1 >= line.length || line[i + 1] === ',') {
+            // End of quoted field
+            current += char;
+            inQuotes = false;
+          } else {
+            // Bare quote inside quoted field - escape it
+            current += '""';
+          }
+        } else {
+          // Bare quote in unquoted field - this is the problem case
+          // Wrap the entire remaining field content in quotes
+          // Find the next comma (end of field)
+          let fieldEnd = i;
+          while (fieldEnd < line.length && line[fieldEnd] !== ',') {
+            fieldEnd++;
+          }
+          // Get the rest of this field including the quote
+          const restOfField = line.substring(i, fieldEnd);
+          // Escape any quotes and wrap
+          current = '"' + current + restOfField.replace(/"/g, '""') + '"';
+          i = fieldEnd - 1; // Will be incremented at end of loop
+        }
+      } else if (char === ',' && !inQuotes) {
+        // End of field
+        fields.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+      i++;
+    }
+    
+    // Handle unclosed quotes at end of line
+    if (inQuotes && current.startsWith('"') && !current.endsWith('"')) {
+      current += '"';
+    }
+    
+    // Push last field
+    fields.push(current);
+    
+    result.push(fields.join(','));
+  }
+  
+  return result.join('\n');
+}
+
 // Background processing function
 async function processUploadJob(jobId: string) {
   const supabaseClient = createClient(
@@ -85,7 +166,11 @@ async function processUploadJob(jobId: string) {
       throw new Error(`Failed to download file: ${downloadError?.message}`);
     }
 
-    const csvText = await fileData.text();
+    const rawCsvText = await fileData.text();
+    
+    // Pre-sanitize CSV to handle malformed quotes in municipal data
+    console.log(`[process-upload] Sanitizing CSV quotes...`);
+    const csvText = sanitizeCsvQuotes(rawCsvText);
     
     // Use proper CSV parser to handle quoted fields with commas
     const parsedData = parse(csvText, {
@@ -192,13 +277,16 @@ async function processUploadJob(jobId: string) {
     let dedupOffset = 0;
     const DEDUP_BATCH = 5000;
     
+    // Use smaller batches to avoid Supabase's default 1000 row limit issue
+    const DEDUP_PAGE_SIZE = 1000;
+    
     while (true) {
       const { data: dedupBatch, error: dedupError } = await supabaseClient
         .from('upload_staging')
         .select('address, city, state, zip, case_id, row_num, jurisdiction_id')
         .eq('job_id', jobId)
         .order('row_num')
-        .range(dedupOffset, dedupOffset + DEDUP_BATCH - 1);
+        .range(dedupOffset, dedupOffset + DEDUP_PAGE_SIZE - 1);
       
       if (dedupError) {
         throw new Error(`Failed to fetch staging data for dedup: ${dedupError.message}`);
@@ -209,8 +297,8 @@ async function processUploadJob(jobId: string) {
       stagingData = stagingData.concat(dedupBatch);
       console.log(`[process-upload] Dedup fetch: ${stagingData.length} staging rows so far...`);
       
-      if (dedupBatch.length < DEDUP_BATCH) break; // Last batch
-      dedupOffset += DEDUP_BATCH;
+      if (dedupBatch.length < DEDUP_PAGE_SIZE) break; // Last batch
+      dedupOffset += DEDUP_PAGE_SIZE;
     }
 
     if (stagingData.length === 0) {
@@ -254,32 +342,33 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Found ${addressMap.size} unique addresses`);
 
-    // Check existing properties - use case-insensitive matching since DB index uses lower(TRIM())
-    // Filter by city+state to reduce dataset size
+    // Check existing properties - need case-insensitive match since index uses lower(TRIM())
+    const uniqueAddresses = Array.from(addressMap.keys());
     const existingMap = new Map<string, string>();
 
-    console.log(`[process-upload] Fetching existing properties for ${job.city}, ${job.state}...`);
-    const { data: existingProps, error: existingError } = await supabaseClient
-      .from('properties')
-      .select('id, address, city, state, zip')
-      .ilike('city', job.city)
-      .ilike('state', job.state);
+    // Get all unique cities from the upload
+    const uniqueCities = [...new Set(Array.from(addressMap.values()).map(row =>
+      (row.city || job.city || '').toLowerCase().trim()
+    ))].filter(c => c);
 
-    if (existingError) {
-      console.error('[process-upload] Error fetching existing properties:', existingError);
+    if (uniqueCities.length > 0) {
+      // Fetch all properties in these cities - more efficient than per-address lookups
+      const { data: existingProps } = await supabaseClient
+        .from('properties')
+        .select('id, address, city, state, zip');
+
+      // Build map with lowercase keys for matching
+      (existingProps || []).forEach(prop => {
+        const addr = (prop.address || '').trim().toLowerCase();
+        const city = (prop.city || '').trim().toLowerCase();
+        const state = (prop.state || '').trim().toLowerCase();
+        const zip = (prop.zip || '').trim().toLowerCase();
+        const key = `${addr}|${city}|${state}|${zip}`;
+        existingMap.set(key, prop.id);
+      });
     }
 
-    // Build map with lowercase normalized keys for case-insensitive matching
-    (existingProps || []).forEach(prop => {
-      const addr = (prop.address || '').trim().toLowerCase();
-      const city = (prop.city || '').trim().toLowerCase();
-      const state = (prop.state || '').trim().toLowerCase();
-      const zip = (prop.zip || '').trim().toLowerCase();
-      const key = `${addr}|${city}|${state}|${zip}`;
-      existingMap.set(key, prop.id);
-    });
-
-    console.log(`[process-upload] Found ${existingMap.size} existing properties in ${job.city}, ${job.state}`);
+    console.log(`[process-upload] Found ${existingMap.size} existing properties`);
 
     // Prepare properties without geocoding (will be done in background)
     // NOTE: Deduplication is enforced at DB level via idx_properties_unique_address unique index
@@ -299,13 +388,17 @@ async function processUploadJob(jobId: string) {
     const newProperties = newAddressEntries.map(([key, row]) => {
       const city = row.city || job.city;
       const state = row.state || job.state;
+      
+      // IMPORTANT: Normalize address to UPPERCASE for consistent matching
+      // This prevents case-sensitivity issues when matching violations to properties
+      const normalizedAddress = (row.address || 'Parcel-Based Location').toUpperCase().trim();
 
       return {
         key, // Include key for mapping after insert
-        address: row.address || 'Parcel-Based Location',
-        city,
-        state,
-        zip: row.zip || '',
+        address: normalizedAddress,
+        city: city.trim(),
+        state: (state || '').toUpperCase().trim(),
+        zip: (row.zip || '').trim(),
         latitude: null,
         longitude: null,
         snap_score: null,
@@ -315,66 +408,131 @@ async function processUploadJob(jobId: string) {
     });
 
     let propertiesCreated = 0;
-    let dbLevelDedupes = 0;
-    const PROP_INSERT_BATCH = 500;
+    const PROP_INSERT_BATCH = 100;
 
+    // OPTIMIZED: Pre-fetch existing properties in batch, then only insert truly new ones
     for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
       const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
       
-      // Insert properties one batch at a time, handling unique constraint violations
-      // The unique index idx_properties_unique_address enforces dedup at DB level
-      for (const prop of batch) {
-        const { key, ...propData } = prop;
+      // First, fetch all existing properties that match this batch's addresses AND cities
+      // Use case-insensitive matching via ilike filters
+      const batchAddresses = [...new Set(batch.map(p => p.address.toLowerCase()))];
+      const batchCities = [...new Set(batch.map(p => p.city.toLowerCase()))];
+      
+      // Build OR filter for case-insensitive address matching
+      let existingInBatch: any[] = [];
+      for (const city of batchCities) {
+        const { data: cityProps } = await supabaseClient
+          .from('properties')
+          .select('id, address, city, state, zip')
+          .ilike('city', city);
+        if (cityProps) existingInBatch.push(...cityProps);
+      }
+      
+      // Map existing properties - use lowercase full key for consistent matching
+      const existingInBatchMap = new Map<string, string>();
+      existingInBatch.forEach(prop => {
+        const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+        existingInBatchMap.set(key, prop.id);
+        existingMap.set(key, prop.id);
+      });
+      
+      // Filter to only truly new properties
+      const trulyNew = batch.filter(p => !existingInBatchMap.has(p.key));
+      
+      if (trulyNew.length > 0) {
+        const insertData = trulyNew.map(({ key, ...propData }) => propData);
         
-        try {
-          const { data: insertedProp, error: insertError } = await supabaseClient
-            .from('properties')
-            .insert(propData)
-            .select('id, address, city, state, zip')
-            .single();
+        const { data: insertedProps, error: insertError } = await supabaseClient
+          .from('properties')
+          .insert(insertData)
+          .select('id, address, city, state, zip');
 
-          if (insertError) {
-            // Check if this is a unique constraint violation (duplicate)
-            if (insertError.code === '23505') {
-              // DB-level dedup: fetch existing property instead of failing
-              dbLevelDedupes++;
-              console.log(`[process-upload] DB-level dedup: ${propData.address} already exists`);
-              
-              const { data: existingProp } = await supabaseClient
-                .from('properties')
-                .select('id, address, city, state, zip')
-                .ilike('address', propData.address)
-                .ilike('city', propData.city)
-                .ilike('state', propData.state)
-                .eq('zip', propData.zip || '')
-                .maybeSingle();
-              
-              if (existingProp) {
-                existingMap.set(key, existingProp.id);
+        if (insertError) {
+          if (insertError.code === '23505') {
+            // Race condition - refetch all and insert remaining one by one
+            console.log(`[process-upload] Batch race condition, handling ${trulyNew.length} remaining...`);
+            const { data: refetch } = await supabaseClient
+              .from('properties')
+              .select('id, address, city, state, zip')
+              .in('address', trulyNew.map(p => p.address));
+            
+            const refetchMap = new Map<string, string>();
+            (refetch || []).forEach(prop => {
+              const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+              refetchMap.set(key, prop.id);
+              existingMap.set(key, prop.id);
+            });
+            
+            // Insert remaining that still don't exist
+            for (const prop of trulyNew) {
+              if (!refetchMap.has(prop.key)) {
+                const { key, ...propData } = prop;
+                const { data: single, error: singleErr } = await supabaseClient
+                  .from('properties')
+                  .insert(propData)
+                  .select('id')
+                  .maybeSingle();
+                
+                if (single) {
+                  existingMap.set(key, single.id);
+                  propertiesCreated++;
+                } else if (singleErr?.code === '23505') {
+                  // Already exists from race - fetch it
+                  const { data: raceP } = await supabaseClient
+                    .from('properties')
+                    .select('id, address, city, state, zip')
+                    .eq('address', propData.address)
+                    .eq('city', propData.city)
+                    .maybeSingle();
+                  if (raceP) existingMap.set(key, raceP.id);
+                }
               }
-            } else {
-              console.error('[process-upload] Property insert error:', insertError);
-              throw insertError;
             }
-          } else if (insertedProp) {
-            propertiesCreated++;
-            existingMap.set(key, insertedProp.id);
+          } else {
+            console.error('[process-upload] Batch insert error:', insertError);
+            throw insertError;
           }
-        } catch (err: any) {
-          // Handle unexpected errors
-          if (err.code !== '23505') {
-            console.error('[process-upload] Unexpected property insert error:', err);
-            throw err;
+        } else if (insertedProps) {
+          for (const prop of insertedProps) {
+            const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+            existingMap.set(key, prop.id);
+            propertiesCreated++;
           }
         }
       }
 
-      console.log(`[process-upload] Processed batch: ${propertiesCreated} created, ${dbLevelDedupes} DB-level dedupes`);
+      // Update progress
+      await supabaseClient
+        .from('upload_jobs')
+        .update({ status: 'DEDUPING', processed_rows: i + batch.length })
+        .eq('id', jobId);
+
+      console.log(`[process-upload] Properties: ${i + batch.length}/${newProperties.length}, new: ${trulyNew.length}, created: ${propertiesCreated}`);
     }
 
-    console.log(`[process-upload] Total: ${propertiesCreated} properties created, ${dbLevelDedupes} caught by DB unique constraint`);
+    // Ensure all addresses are mapped - fetch any still missing
+    const missingKeys = Array.from(addressMap.keys()).filter(key => !existingMap.has(key));
+    if (missingKeys.length > 0) {
+      console.log(`[process-upload] Fetching ${missingKeys.length} remaining property IDs...`);
+      
+      // Fetch by unique cities instead of addresses - more reliable with case-insensitive matching
+      const missingCities = [...new Set(missingKeys.map(key => key.split('|')[1]))];
+      
+      for (const city of missingCities) {
+        const { data: existingFetch } = await supabaseClient
+          .from('properties')
+          .select('id, address, city, state, zip')
+          .ilike('city', city);
+        
+        (existingFetch || []).forEach(prop => {
+          const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+          if (!existingMap.has(key)) existingMap.set(key, prop.id);
+        });
+      }
+    }
 
-    console.log(`[process-upload] Total properties created: ${propertiesCreated}`);
+    console.log(`[process-upload] Properties mapped: ${existingMap.size}, created: ${propertiesCreated}`);
 
     // Update status to CREATING_VIOLATIONS
     await supabaseClient

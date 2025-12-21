@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload as UploadIcon, FileSpreadsheet, AlertCircle, ClipboardPaste } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,13 +11,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { createUploadJob } from '@/services/uploadJobs';
 import { useUploadJob } from '@/hooks/useUploadJob';
+import { useUploadJobs } from '@/hooks/useUploadJobs';
 import { UploadProgress } from '@/components/upload/UploadProgress';
+import { MultiJobProgress } from '@/components/upload/MultiJobProgress';
 import { PasteCsvUpload } from '@/components/upload/PasteCsvUpload';
 import { GeocodingProgress } from '@/components/geocoding/GeocodingProgress';
+import { CsvLocationDetector, type CsvDetectionResult } from '@/components/upload/CsvLocationDetector';
 import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { startGeocodingJob } from '@/services/geocoding';
 import { supabase } from '@/integrations/supabase/client';
+import { detectCsvLocations, splitCsvByCity } from '@/utils/csvLocationDetector';
+
+// Sanitize filename for Supabase storage - remove all problematic characters
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/['"]/g, '') // Remove quotes
+    .replace(/[^a-zA-Z0-9_\-\.]/g, '_') // Replace other special chars with underscore
+    .replace(/_+/g, '_') // Collapse multiple underscores
+    .replace(/^_|_$/g, '') // Trim leading/trailing underscores
+    .substring(0, 50); // Limit length
+}
 
 const UPLOAD_LIMITS = {
   MAX_FILE_SIZE_MB: 50,
@@ -36,27 +50,45 @@ export default function Upload() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [jobId, setJobId] = useState<string | null>(null);
+  const [jobIds, setJobIds] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [city, setCity] = useState<string>("");
   const [county, setCounty] = useState<string>("");
   const [state, setState] = useState<string>("");
   const [uploadMethod, setUploadMethod] = useState<"file" | "paste">("file");
   const { job, loading: jobLoading } = useUploadJob(jobId);
+  const { stats: multiJobStats, loading: multiJobLoading } = useUploadJobs(jobIds);
+  
+  // CSV detection state
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingCsvData, setPendingCsvData] = useState<string | null>(null);
+  const [detection, setDetection] = useState<CsvDetectionResult | null>(null);
+
+  const resetDetection = () => {
+    setPendingFile(null);
+    setPendingCsvData(null);
+    setDetection(null);
+  };
+  
+  const resetAll = () => {
+    resetDetection();
+    setJobId(null);
+    setJobIds([]);
+  };
+
+  const processFileForDetection = useCallback(async (file: File) => {
+    const text = await file.text();
+    const detected = detectCsvLocations(text);
+    setDetection(detected);
+    setPendingFile(file);
+    setPendingCsvData(text);
+  }, []);
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (!user) {
       toast({
         title: 'Error',
         description: 'You must be logged in to upload files',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!city || !state) {
-      toast({
-        title: 'Location Required',
-        description: 'Please fill in city and state before uploading',
         variant: 'destructive',
       });
       return;
@@ -83,15 +115,77 @@ export default function Upload() {
       return;
     }
 
+    // Detect locations first
+    await processFileForDetection(file);
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!user || !pendingCsvData) return;
+
     setUploading(true);
 
     try {
-      const id = await createUploadJob({ file, userId: user.id, city, county: county || null, state });
-      setJobId(id);
-      toast({
-        title: 'Upload Started',
-        description: 'Your file is being processed',
-      });
+      // Check if we should split by city
+      const shouldSplit = detection && detection.locations.length > 1;
+      
+      if (shouldSplit) {
+        // Multi-city upload - split and create multiple jobs
+        const cityGroups = splitCsvByCity(pendingCsvData, city || undefined, state || undefined);
+        const createdJobIds: string[] = [];
+
+        for (const [key, csvContent] of cityGroups) {
+          const [groupCity, groupState] = key.split('|');
+          const blob = new Blob([csvContent], { type: 'text/csv' });
+          const fileName = `${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
+          const file = new File([blob], fileName, { type: 'text/csv' });
+
+          const id = await createUploadJob({ 
+            file, 
+            userId: user.id, 
+            city: groupCity, 
+            county: county || null, 
+            state: groupState 
+          });
+          createdJobIds.push(id);
+        }
+
+        setJobIds(createdJobIds);
+        setJobId(null); // Use multi-job tracking instead
+        toast({
+          title: 'Upload Started',
+          description: `Created ${createdJobIds.length} ingest jobs for ${cityGroups.size} locations`,
+        });
+      } else {
+        // Single location upload
+        const file = pendingFile!;
+        const jobCity = detection?.locations[0]?.city || city || "";
+        const jobState = detection?.locations[0]?.state || state || "";
+
+        if (!jobCity || !jobState) {
+          toast({
+            title: 'Location Required',
+            description: 'No location detected in CSV. Please provide fallback city and state.',
+            variant: 'destructive',
+          });
+          setUploading(false);
+          return;
+        }
+
+        const id = await createUploadJob({ 
+          file, 
+          userId: user.id, 
+          city: jobCity, 
+          county: county || null, 
+          state: jobState 
+        });
+        setJobId(id);
+        toast({
+          title: 'Upload Started',
+          description: 'Your file is being processed',
+        });
+      }
+
+      resetDetection();
     } catch (error) {
       console.error('Upload error:', error);
       toast({
@@ -114,57 +208,123 @@ export default function Upload() {
       return;
     }
 
-    if (!city || !state) {
-      toast({
-        title: 'Location Required',
-        description: 'Please enter city and state first',
-        variant: 'destructive',
-      });
-      return;
-    }
+    // Detect locations and show preview
+    const detected = detectCsvLocations(csvData);
+    setDetection(detected);
+    setPendingCsvData(csvData);
+    setPendingFile(null);
+  };
+
+  const handleConfirmPasteUpload = async () => {
+    if (!user || !pendingCsvData) return;
 
     setUploading(true);
 
     try {
-      const blob = new Blob([csvData], { type: 'text/csv' });
-      const file = new File([blob], fileName, { type: 'text/csv' });
+      const shouldSplit = detection && detection.locations.length > 1;
 
-      const filePath = `${user.id}/${Date.now()}_${fileName}`;
-      const { error: uploadError } = await supabase.storage
-        .from('csv-uploads')
-        .upload(filePath, file);
+      if (shouldSplit) {
+        const cityGroups = splitCsvByCity(pendingCsvData, city || undefined, state || undefined);
+        const createdJobIds: string[] = [];
 
-      if (uploadError) throw uploadError;
+        for (const [key, csvContent] of cityGroups) {
+          const [groupCity, groupState] = key.split('|');
+          const blob = new Blob([csvContent], { type: 'text/csv' });
+          const fileName = `pasted_${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
+          const file = new File([blob], fileName, { type: 'text/csv' });
 
-      const { data: jobData, error: jobError } = await supabase
-        .from('upload_jobs')
-        .insert({
-          user_id: user.id,
-          filename: fileName,
-          storage_path: filePath,
-          file_size: file.size,
-          city: city.trim(),
-          state,
-          county: county?.trim() || null,
-          status: 'QUEUED',
-        })
-        .select()
-        .single();
+          const filePath = `${user.id}/${Date.now()}_${sanitizeFilename(fileName)}`;
+          const { error: uploadError } = await supabase.storage
+            .from('csv-uploads')
+            .upload(filePath, file);
 
-      if (jobError) throw jobError;
+          if (uploadError) throw uploadError;
 
-      const { error: processError } = await supabase.functions.invoke('process-upload', {
-        body: { jobId: jobData.id }
-      });
+          const { data: jobData, error: jobError } = await supabase
+            .from('upload_jobs')
+            .insert({
+              user_id: user.id,
+              filename: fileName,
+              storage_path: filePath,
+              file_size: file.size,
+              city: groupCity.trim(),
+              state: groupState,
+              county: county?.trim() || null,
+              status: 'QUEUED',
+            })
+            .select()
+            .single();
 
-      if (processError) throw processError;
+          if (jobError) throw jobError;
 
-      setJobId(jobData.id);
-      toast({
-        title: 'CSV Processed',
-        description: 'Your pasted data is being processed',
-      });
+          await supabase.functions.invoke('process-upload', {
+            body: { jobId: jobData.id }
+          });
 
+          createdJobIds.push(jobData.id);
+        }
+
+        setJobIds(createdJobIds);
+        setJobId(null);
+        toast({
+          title: 'CSV Processed',
+          description: `Created ${createdJobIds.length} ingest jobs`,
+        });
+      } else {
+        // Single location
+        const jobCity = detection?.locations[0]?.city || city || "";
+        const jobState = detection?.locations[0]?.state || state || "";
+
+        if (!jobCity || !jobState) {
+          toast({
+            title: 'Location Required',
+            description: 'No location detected. Please provide fallback city and state.',
+            variant: 'destructive',
+          });
+          setUploading(false);
+          return;
+        }
+
+        const fileName = `pasted_${Date.now()}.csv`;
+        const blob = new Blob([pendingCsvData], { type: 'text/csv' });
+        const file = new File([blob], fileName, { type: 'text/csv' });
+
+        const filePath = `${user.id}/${Date.now()}_${sanitizeFilename(fileName)}`;
+        const { error: uploadError } = await supabase.storage
+          .from('csv-uploads')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: jobData, error: jobError } = await supabase
+          .from('upload_jobs')
+          .insert({
+            user_id: user.id,
+            filename: fileName,
+            storage_path: filePath,
+            file_size: file.size,
+            city: jobCity.trim(),
+            state: jobState,
+            county: county?.trim() || null,
+            status: 'QUEUED',
+          })
+          .select()
+          .single();
+
+        if (jobError) throw jobError;
+
+        await supabase.functions.invoke('process-upload', {
+          body: { jobId: jobData.id }
+        });
+
+        setJobId(jobData.id);
+        toast({
+          title: 'CSV Processed',
+          description: 'Your pasted data is being processed',
+        });
+      }
+
+      resetDetection();
     } catch (error) {
       console.error('Error processing pasted CSV:', error);
       toast({
@@ -197,10 +357,11 @@ export default function Upload() {
     onDrop,
     accept: { 'text/csv': ['.csv'] },
     maxFiles: 1,
-    disabled: uploading || !city || !state || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null),
+    disabled: uploading || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null) || multiJobStats.isProcessing,
   });
 
-  const isJobActive = job && job.status !== 'COMPLETE' && job.status !== 'FAILED';
+  const isJobActive = (job && job.status !== 'COMPLETE' && job.status !== 'FAILED') || multiJobStats.isProcessing;
+  const hasDetection = detection !== null;
 
   return (
     <AppLayout>
@@ -213,28 +374,27 @@ export default function Upload() {
         </div>
 
         <div className="space-y-6">
-          {/* Location Information */}
+          {/* Location Context - Now Optional */}
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
                 <div>
                   <Label className="text-base font-semibold">
-                    Step 1: Enter Location Information <span className="text-destructive">*</span>
+                    Location Context (Optional)
                   </Label>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Enter the city and state for this upload. County is optional.
+                    Snap automatically detects location from your data. Use these fields only if your file is missing location info.
                   </p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
+                    <Label htmlFor="city">City <span className="text-xs text-muted-foreground">(Fallback)</span></Label>
                     <Input
                       id="city"
                       placeholder="e.g., Sierra Vista"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      required
                     />
                   </div>
                   
@@ -249,7 +409,7 @@ export default function Upload() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="state">State</Label>
+                    <Label htmlFor="state">State <span className="text-xs text-muted-foreground">(Fallback)</span></Label>
                     <Select value={state} onValueChange={setState}>
                       <SelectTrigger id="state">
                         <SelectValue placeholder="Select state" />
@@ -268,69 +428,103 @@ export default function Upload() {
             </CardContent>
           </Card>
 
+          {/* Detection Results */}
+          {hasDetection && (
+            <CsvLocationDetector 
+              detection={detection} 
+              fallbackCity={city}
+              fallbackState={state}
+            />
+          )}
+
+          {/* Confirm Upload Button */}
+          {hasDetection && (
+            <div className="flex gap-3">
+              <Button 
+                onClick={pendingFile ? handleConfirmUpload : handleConfirmPasteUpload}
+                disabled={uploading}
+                className="flex-1"
+                size="lg"
+              >
+                {uploading ? 'Processing...' : `Start Ingest${detection.locations.length > 1 ? ` (${detection.locations.length} Jobs)` : ''}`}
+              </Button>
+              <Button 
+                onClick={resetDetection}
+                variant="outline"
+                disabled={uploading}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+
           {/* CSV Upload - Now with Tabs */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-2 mb-4">
-                <Label className="text-base font-semibold">
-                  Step 2: Upload CSV Data <span className="text-destructive">*</span>
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  {!city || !state
-                    ? "Enter city and state first to enable upload"
-                    : "Upload a file or paste CSV data directly"
-                  }
-                </p>
-              </div>
+          {!hasDetection && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-2 mb-4">
+                  <Label className="text-base font-semibold">
+                    Upload CSV Data
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Upload a file or paste CSV data directly. Location will be auto-detected.
+                  </p>
+                </div>
 
-              <Tabs value={uploadMethod} onValueChange={(v) => setUploadMethod(v as "file" | "paste")}>
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="file" className="flex items-center gap-2">
-                    <UploadIcon className="w-4 h-4" />
-                    File Upload
-                  </TabsTrigger>
-                  <TabsTrigger value="paste" className="flex items-center gap-2">
-                    <ClipboardPaste className="w-4 h-4" />
-                    Paste CSV
-                  </TabsTrigger>
-                </TabsList>
+                <Tabs value={uploadMethod} onValueChange={(v) => setUploadMethod(v as "file" | "paste")}>
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="file" className="flex items-center gap-2">
+                      <UploadIcon className="w-4 h-4" />
+                      File Upload
+                    </TabsTrigger>
+                    <TabsTrigger value="paste" className="flex items-center gap-2">
+                      <ClipboardPaste className="w-4 h-4" />
+                      Paste CSV
+                    </TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="file">
-                  <div
-                    {...getRootProps()}
-                    className={`
-                      border-2 border-dashed rounded-lg p-12 text-center cursor-pointer
-                      transition-colors
-                      ${isDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
-                      ${uploading || isJobActive ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                  >
-                    <input {...getInputProps()} />
-                    <UploadIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-lg font-medium mb-2">
-                      {isDragActive ? 'Drop the file here' : 'Drag & drop a CSV file'}
-                    </p>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {isDragActive ? '' : 'or click to browse'}
-                    </p>
-                    <Button variant="outline" disabled={!city || !state || uploading || isJobActive}>
-                      <FileSpreadsheet className="mr-2 h-4 w-4" />
-                      {!city || !state ? 'Enter City & State First' : 'Select CSV File'}
-                    </Button>
-                  </div>
-                </TabsContent>
+                  <TabsContent value="file">
+                    <div
+                      {...getRootProps()}
+                      className={`
+                        border-2 border-dashed rounded-lg p-12 text-center cursor-pointer
+                        transition-colors
+                        ${isDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
+                        ${uploading || isJobActive ? 'opacity-50 cursor-not-allowed' : ''}
+                      `}
+                    >
+                      <input {...getInputProps()} />
+                      <UploadIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-lg font-medium mb-2">
+                        {isDragActive ? 'Drop the file here' : 'Drag & drop a CSV file'}
+                      </p>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {isDragActive ? '' : 'or click to browse'}
+                      </p>
+                      <Button variant="outline" disabled={uploading || isJobActive}>
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        Select CSV File
+                      </Button>
+                    </div>
+                  </TabsContent>
 
-                <TabsContent value="paste">
-                  <PasteCsvUpload
-                    onProcess={handlePastedCsvProcess}
-                    disabled={!city || !state || uploading || !!isJobActive}
-                  />
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                  <TabsContent value="paste">
+                    <PasteCsvUpload
+                      onProcess={handlePastedCsvProcess}
+                      disabled={uploading || !!isJobActive}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          )}
 
+          {/* Single job progress */}
           {job && <UploadProgress job={job} />}
+          
+          {/* Multi-job progress for split uploads */}
+          {jobIds.length > 0 && <MultiJobProgress stats={multiJobStats} />}
+          
           <GeocodingProgress />
 
           {/* Geocoding Control */}
@@ -356,7 +550,7 @@ export default function Upload() {
               <div className="space-y-2">
                 <p>
                   <strong>CSV Format:</strong> Your file should include columns for address (required). 
-                  Optional: city, state, zip, violation type, description, opened date, status, case/file ID.
+                  Location columns (city, state) enable auto-detection. Other optional: zip, violation type, description, opened date, status, case/file ID.
                 </p>
                 <p className="text-xs text-muted-foreground">
                   <strong>Limits:</strong> Max {UPLOAD_LIMITS.MAX_FILE_SIZE_MB}MB file size, {UPLOAD_LIMITS.MAX_ROWS.toLocaleString()} rows per file.

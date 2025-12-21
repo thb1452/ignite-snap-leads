@@ -14,10 +14,11 @@ export function UploadProgress({ job }: UploadProgressProps) {
   
   const statusMessages: Record<string, string> = {
     QUEUED: 'Waiting to start...',
-    PARSING: 'Parsing CSV file...',
-    PROCESSING: 'Processing rows...',
-    DEDUPING: 'Deduplicating properties...',
-    FINALIZING: 'Creating violations...',
+    PARSING: 'Reading CSV file...',
+    PROCESSING: 'Staging rows...',
+    DEDUPING: 'Creating properties...',
+    CREATING_VIOLATIONS: 'Creating violations...',
+    FINALIZING: 'Finalizing...',
     COMPLETE: 'Upload complete!',
     FAILED: 'Upload failed',
   };

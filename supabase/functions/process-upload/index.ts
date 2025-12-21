@@ -500,6 +500,7 @@ async function processUploadJob(jobId: string) {
     });
 
     let propertiesCreated = 0;
+    let dbLevelDedupes = 0;
     const PROP_INSERT_BATCH = 100;
 
     // OPTIMIZED: Pre-fetch existing properties in batch, then only insert truly new ones
@@ -571,6 +572,7 @@ async function processUploadJob(jobId: string) {
                   propertiesCreated++;
                 } else if (singleErr?.code === '23505') {
                   // Already exists from race - fetch it
+                  dbLevelDedupes++;
                   const { data: raceP } = await supabaseClient
                     .from('properties')
                     .select('id, address, city, state, zip')

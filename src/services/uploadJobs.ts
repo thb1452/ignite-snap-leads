@@ -1,15 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { callFn } from '@/integrations/http/functions';
-
-// Sanitize filename for Supabase storage - remove all problematic characters
-function sanitizeFilename(name: string): string {
-  return name
-    .replace(/['"()[\]{}]/g, '') // Remove quotes, parentheses, brackets
-    .replace(/[^a-zA-Z0-9_\-\.]/g, '_') // Replace other special chars with underscore
-    .replace(/_+/g, '_') // Collapse multiple underscores
-    .replace(/^_|_$/g, '') // Trim leading/trailing underscores
-    .substring(0, 100); // Limit length
-}
+import { sanitizeFilename } from '@/utils/sanitizeFilename';
 
 interface CreateJobParams {
   file: File;
@@ -24,12 +15,21 @@ export async function createUploadJob({ file, userId, city, county, state }: Cre
   const timestamp = Date.now();
   const sanitizedName = sanitizeFilename(file.name);
   const storagePath = `${userId}/${timestamp}-${sanitizedName}`;
-  
+
+  console.log(`[uploadJobs] Uploading file: "${file.name}" → "${sanitizedName}"`);
+
   const { error: uploadError } = await supabase.storage
     .from('csv-uploads')
     .upload(storagePath, file);
 
   if (uploadError) {
+    // Check if it's a filename issue
+    if (uploadError.message.includes('Invalid key')) {
+      throw new Error(
+        `Filename contains invalid characters. Please rename your file and try again. ` +
+        `Original name: "${file.name}"`
+      );
+    }
     throw new Error(`Failed to upload file: ${uploadError.message}`);
   }
 

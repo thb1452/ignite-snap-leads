@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const BATCH_SIZE = 50; // Increased - Mapbox handles this well
+const BATCH_SIZE = 100; // Process more properties per invocation
+const PARALLEL_REQUESTS = 10; // Number of concurrent geocoding requests
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,11 +23,15 @@ async function geocodeAddress(
   zip?: string
 ): Promise<{ latitude: number | null; longitude: number | null; skipped: boolean }> {
   console.log(`[Geocoding START] ${address}, ${city}, ${state} ${zip || ''}`);
-  
+
   // Validate address components
-  if (!address || address.trim().toLowerCase() === 'unknown' || 
-      !city || city.trim().toLowerCase() === 'unknown' || !state) {
-    console.log(`[Geocoding SKIP] Invalid address components`);
+  const addressLower = address?.trim().toLowerCase() || '';
+  const cityLower = city?.trim().toLowerCase() || '';
+
+  if (!address || addressLower === 'unknown' ||
+      !city || cityLower === 'unknown' || !state ||
+      addressLower.startsWith('parcel-based location')) {
+    console.log(`[Geocoding SKIP] Invalid or parcel-based address: ${address}`);
     return { latitude: null, longitude: null, skipped: true };
   }
 
@@ -50,7 +55,7 @@ async function geocodeAddress(
     const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(fullAddress)}.json?access_token=${MAPBOX_TOKEN}&country=US&limit=1`;
     
     const response = await fetch(mapboxUrl, {
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(5000) // 5 second timeout - fail fast
     });
 
     if (!response.ok) {
@@ -140,64 +145,65 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log(`[Geocoding] Processing ${properties.length} properties for job ${jobId}`);
+    console.log(`[Geocoding] Processing ${properties.length} properties in parallel (${PARALLEL_REQUESTS} concurrent)`);
 
     let successCount = 0;
     let failCount = 0;
     let skippedCount = 0;
-    let consecutiveTimeouts = 0;
 
-    for (const property of properties) {
-      // If we hit too many consecutive timeouts, skip rest to avoid wasting time
-      if (consecutiveTimeouts >= 3) {
-        console.log(`⚠️ Too many timeouts (${consecutiveTimeouts}), skipping remaining ${properties.length - properties.indexOf(property)} in batch`);
-        skippedCount = properties.length - properties.indexOf(property);
-        failCount += skippedCount;
-        break;
+    // Process properties in parallel batches
+    const updates: Array<{ id: string; latitude: number; longitude: number }> = [];
+
+    for (let i = 0; i < properties.length; i += PARALLEL_REQUESTS) {
+      const chunk = properties.slice(i, i + PARALLEL_REQUESTS);
+
+      const results = await Promise.allSettled(
+        chunk.map(prop => geocodeAddress(prop.address, prop.city, prop.state, prop.zip)
+          .then(result => ({ propertyId: prop.id, ...result })))
+      );
+
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+
+        if (result.status === 'fulfilled') {
+          const { propertyId, latitude, longitude, skipped } = result.value;
+
+          if (skipped) {
+            skippedCount++;
+          } else if (latitude != null && longitude != null) {
+            updates.push({ id: propertyId, latitude, longitude });
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } else {
+          console.error('[Geocoding] Promise rejected:', result.reason);
+          failCount++;
+        }
       }
 
-      try {
-        const { latitude, longitude, skipped } = await geocodeAddress(
-          property.address,
-          property.city,
-          property.state,
-          property.zip
-        );
+      console.log(`[Geocoding] Processed ${Math.min(i + PARALLEL_REQUESTS, properties.length)}/${properties.length}`);
+    }
 
-        // If skipped due to validation, don't count as timeout
-        if (skipped) {
-          skippedCount++;
-          continue;
-        }
+    // Batch update all successful geocodes
+    if (updates.length > 0) {
+      console.log(`[Geocoding] Batch updating ${updates.length} properties`);
 
-        if (latitude == null || longitude == null) {
-          failCount++;
-          consecutiveTimeouts++;
-          continue;
-        }
-
-        // Success - reset timeout counter
-        consecutiveTimeouts = 0;
-
+      for (const update of updates) {
         const { error: updateError } = await supabase
           .from("properties")
-          .update({ 
-            latitude, 
-            longitude,
-            geom: `POINT(${longitude} ${latitude})`
+          .update({
+            latitude: update.latitude,
+            longitude: update.longitude,
+            geom: `POINT(${update.longitude} ${update.latitude})`
           })
-          .eq("id", property.id);
+          .eq("id", update.id);
 
         if (updateError) {
-          console.error("[Geocoding] Failed to update property", property.id, updateError);
+          console.error("[Geocoding] Failed to update property", update.id, updateError);
+          successCount--;
           failCount++;
-        } else {
-          successCount++;
         }
-      } catch (err) {
-        console.error("[Geocoding] Error geocoding property", property.id, err);
-        failCount++;
-        consecutiveTimeouts++;
       }
     }
 

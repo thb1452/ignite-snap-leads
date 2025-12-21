@@ -627,13 +627,14 @@ async function processUploadJob(jobId: string) {
           : null;
 
         const normalizedType = normalizeViolationType(row.violation || 'Unknown');
-        
+        const rawDesc = row.raw_description || null;
+
         violations.push({
           property_id: propertyId,
           case_id: row.case_id,
           violation_type: normalizedType,
-          description: null,
-          raw_description: row.raw_description || null,
+          description: rawDesc, // Populate immediately with raw description
+          raw_description: rawDesc, // Keep raw for AI processing
           status: normalizeStatus(row.status || 'Open'),
           opened_date: openedDate ? openedDate.toISOString().split('T')[0] : null,
           last_updated: lastUpdated ? lastUpdated.toISOString().split('T')[0] : null,

@@ -22,16 +22,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { startGeocodingJob } from '@/services/geocoding';
 import { supabase } from '@/integrations/supabase/client';
 import { detectCsvLocations, splitCsvByCity } from '@/utils/csvLocationDetector';
-
-// Sanitize filename for Supabase storage - remove all problematic characters
-function sanitizeFilename(name: string): string {
-  return name
-    .replace(/['"]/g, '') // Remove quotes
-    .replace(/[^a-zA-Z0-9_\-\.]/g, '_') // Replace other special chars with underscore
-    .replace(/_+/g, '_') // Collapse multiple underscores
-    .replace(/^_|_$/g, '') // Trim leading/trailing underscores
-    .substring(0, 50); // Limit length
-}
+import { sanitizeFilename } from '@/utils/sanitizeFilename';
 
 const UPLOAD_LIMITS = {
   MAX_FILE_SIZE_MB: 50,
@@ -162,7 +153,7 @@ export default function Upload() {
         setJobId(null); // Use multi-job tracking instead
         toast({
           title: 'Upload Started',
-          description: `Created ${createdJobIds.length} ingest jobs for ${cityGroups.size} locations`,
+          description: `Created ${createdJobIds.length} ingest jobs for ${csvGroups.size} locations`,
         });
       } else {
         // Single location upload
@@ -233,6 +224,7 @@ export default function Upload() {
       const shouldSplit = detection && detection.locations.length > 1;
 
       if (shouldSplit) {
+        // Multi-city upload - split and create multiple jobs
         const { csvGroups, skippedRows } = splitCsvByCity(pendingCsvData, city || undefined, state || undefined);
         const createdJobIds: string[] = [];
 
@@ -251,35 +243,14 @@ export default function Upload() {
           const fileName = `pasted_${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
           const file = new File([blob], fileName, { type: 'text/csv' });
 
-          const filePath = `${user.id}/${Date.now()}_${sanitizeFilename(fileName)}`;
-          const { error: uploadError } = await supabase.storage
-            .from('csv-uploads')
-            .upload(filePath, file);
-
-          if (uploadError) throw uploadError;
-
-          const { data: jobData, error: jobError } = await supabase
-            .from('upload_jobs')
-            .insert({
-              user_id: user.id,
-              filename: fileName,
-              storage_path: filePath,
-              file_size: file.size,
-              city: groupCity.trim(),
-              state: groupState,
-              county: county?.trim() || null,
-              status: 'QUEUED',
-            })
-            .select()
-            .single();
-
-          if (jobError) throw jobError;
-
-          await supabase.functions.invoke('process-upload', {
-            body: { jobId: jobData.id }
+          const id = await createUploadJob({
+            file,
+            userId: user.id,
+            city: groupCity,
+            county: county || null,
+            state: groupState
           });
-
-          createdJobIds.push(jobData.id);
+          createdJobIds.push(id);
         }
 
         setJobIds(createdJobIds);
@@ -307,35 +278,14 @@ export default function Upload() {
         const blob = new Blob([pendingCsvData], { type: 'text/csv' });
         const file = new File([blob], fileName, { type: 'text/csv' });
 
-        const filePath = `${user.id}/${Date.now()}_${sanitizeFilename(fileName)}`;
-        const { error: uploadError } = await supabase.storage
-          .from('csv-uploads')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: jobData, error: jobError } = await supabase
-          .from('upload_jobs')
-          .insert({
-            user_id: user.id,
-            filename: fileName,
-            storage_path: filePath,
-            file_size: file.size,
-            city: jobCity.trim(),
-            state: jobState,
-            county: county?.trim() || null,
-            status: 'QUEUED',
-          })
-          .select()
-          .single();
-
-        if (jobError) throw jobError;
-
-        await supabase.functions.invoke('process-upload', {
-          body: { jobId: jobData.id }
+        const id = await createUploadJob({
+          file,
+          userId: user.id,
+          city: jobCity,
+          county: county || null,
+          state: jobState
         });
-
-        setJobId(jobData.id);
+        setJobId(id);
         toast({
           title: 'CSV Processed',
           description: 'Your pasted data is being processed',

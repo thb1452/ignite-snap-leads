@@ -769,6 +769,15 @@ async function processUploadJob(jobId: string) {
       console.log('[process-upload] No properties created, skipping insight generation');
     }
 
+    // Build warnings array for data quality issues
+    const warnings: string[] = [];
+    if (skippedRows > 0) {
+      warnings.push(`${skippedRows} violations could not be matched to properties (orphaned)`);
+    }
+    if (insightsGenerated < allPropertyIds.length && allPropertyIds.length > 0) {
+      warnings.push(`Only ${insightsGenerated}/${allPropertyIds.length} properties received insights`);
+    }
+
     // NOW mark complete - insights are done
     await supabaseClient
       .from('upload_jobs')
@@ -776,11 +785,16 @@ async function processUploadJob(jobId: string) {
         status: 'COMPLETE',
         finished_at: new Date().toISOString(),
         properties_created: propertiesCreated,
-        violations_created: violationsCreatedTotal
+        violations_created: violationsCreatedTotal,
+        rows_skipped: skippedRows,
+        insights_generated: insightsGenerated,
+        warnings: warnings.length > 0 ? warnings : null
       })
       .eq('id', jobId);
 
-    console.log(`[process-upload] Job ${jobId} marked COMPLETE (${insightsGenerated}/${allPropertyIds.length} insights generated)`);
+    console.log(`[process-upload] Job ${jobId} marked COMPLETE`);
+    console.log(`[process-upload]   • Insights: ${insightsGenerated}/${allPropertyIds.length} generated`);
+    console.log(`[process-upload]   • Data quality: ${warnings.length} warning(s)`);
 
     // Create geocoding job for properties that need it
     console.log(`[process-upload] Creating geocoding job for newly created properties`);

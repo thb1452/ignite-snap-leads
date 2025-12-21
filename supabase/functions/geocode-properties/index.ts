@@ -213,6 +213,7 @@ serve(async (req: Request) => {
       .update({
         geocoded_count: (job.geocoded_count || 0) + successCount,
         failed_count: (job.failed_count || 0) + failCount,
+        skipped_count: (job.skipped_count || 0) + skippedCount,  // Track parcel-based locations separately
       })
       .eq("id", jobId);
 
@@ -234,8 +235,14 @@ serve(async (req: Request) => {
       skipped: skippedCount,
       total: properties.length,
       remaining: remaining ?? 0,
-      failureRate: `${Math.round((failCount / properties.length) * 100)}%`
+      successRate: `${Math.round((successCount / properties.length) * 100)}%`,
+      failureRate: `${Math.round((failCount / properties.length) * 100)}%`,
+      skipRate: `${Math.round((skippedCount / properties.length) * 100)}%`,
     });
+
+    if (skippedCount > 0) {
+      console.log(`[Geocoding] ℹ️ ${skippedCount} properties skipped (parcel-based locations with no real address)`);
+    }
 
     return new Response(
       JSON.stringify({ remaining: remaining ?? 0 }),

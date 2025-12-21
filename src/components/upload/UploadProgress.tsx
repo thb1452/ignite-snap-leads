@@ -14,11 +14,11 @@ export function UploadProgress({ job }: UploadProgressProps) {
   
   const statusMessages: Record<string, string> = {
     QUEUED: 'Waiting to start...',
-    PARSING: 'Reading CSV file...',
-    PROCESSING: 'Staging rows...',
-    DEDUPING: 'Creating properties...',
+    PARSING: 'Reading and parsing CSV file...',
+    PROCESSING: 'Staging rows in database...',
+    DEDUPING: 'Creating properties (deduplicating)...',
     CREATING_VIOLATIONS: 'Creating violations...',
-    FINALIZING: 'Finalizing...',
+    FINALIZING: 'Finalizing and generating insights...',
     COMPLETE: 'Upload complete!',
     FAILED: 'Upload failed',
   };
@@ -33,6 +33,10 @@ export function UploadProgress({ job }: UploadProgressProps) {
     return <Loader2 className="h-5 w-5 animate-spin text-primary" />;
   };
 
+  // Show indeterminate progress for stages where we don't have row counts
+  const isIndeterminateStage = ['QUEUED', 'PARSING', 'DEDUPING', 'CREATING_VIOLATIONS', 'FINALIZING'].includes(job.status);
+  const showProgress = !['COMPLETE', 'FAILED'].includes(job.status);
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -44,17 +48,32 @@ export function UploadProgress({ job }: UploadProgressProps) {
       <CardContent>
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{statusMessages[job.status]}</span>
+            <span className="text-muted-foreground">{statusMessages[job.status] || job.status}</span>
             <span className="font-medium">{job.status}</span>
           </div>
 
-          {total > 0 && job.status !== 'COMPLETE' && job.status !== 'FAILED' && (
+          {showProgress && (
             <>
-              <Progress value={pct} className="h-2" />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{done.toLocaleString()} / {total.toLocaleString()} rows</span>
-                <span>{pct}%</span>
-              </div>
+              {isIndeterminateStage ? (
+                // Animated indeterminate progress bar
+                <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                  <div className="h-full w-1/3 bg-primary rounded-full animate-pulse" 
+                       style={{ animation: 'indeterminate 1.5s ease-in-out infinite' }} />
+                </div>
+              ) : (
+                <Progress value={pct} className="h-2" />
+              )}
+              
+              {total > 0 && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{done.toLocaleString()} / {total.toLocaleString()} rows</span>
+                  <span>{isIndeterminateStage ? 'Processing...' : `${pct}%`}</span>
+                </div>
+              )}
+              
+              {total === 0 && job.status === 'PARSING' && (
+                <p className="text-xs text-muted-foreground">Counting rows...</p>
+              )}
             </>
           )}
 

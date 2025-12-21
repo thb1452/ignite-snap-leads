@@ -68,13 +68,13 @@ export function useUploadJob(jobId: string | null) {
 
     fetchJob();
 
-    // Poll for updates every 1 second while job is active
+    // Poll for updates every 500ms while job is active (faster for better UX)
     pollInterval = setInterval(async () => {
       const data = await fetchJob();
       if (data && (data.status === 'COMPLETE' || data.status === 'FAILED')) {
         if (pollInterval) clearInterval(pollInterval);
       }
-    }, 1000);
+    }, 500);
 
     // Subscribe to realtime updates as backup
     const channel = supabase

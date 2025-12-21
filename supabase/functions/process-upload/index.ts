@@ -382,13 +382,17 @@ async function processUploadJob(jobId: string) {
     const newProperties = newAddressEntries.map(([key, row]) => {
       const city = row.city || job.city;
       const state = row.state || job.state;
+      
+      // IMPORTANT: Normalize address to UPPERCASE for consistent matching
+      // This prevents case-sensitivity issues when matching violations to properties
+      const normalizedAddress = (row.address || 'Parcel-Based Location').toUpperCase().trim();
 
       return {
         key, // Include key for mapping after insert
-        address: row.address || 'Parcel-Based Location',
-        city,
-        state,
-        zip: row.zip || '',
+        address: normalizedAddress,
+        city: city.trim(),
+        state: (state || '').toUpperCase().trim(),
+        zip: (row.zip || '').trim(),
         latitude: null,
         longitude: null,
         snap_score: null,

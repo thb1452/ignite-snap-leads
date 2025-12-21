@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export interface UploadJob {
   id: string;
-  status: 'QUEUED' | 'PARSING' | 'PROCESSING' | 'DEDUPING' | 'FINALIZING' | 'COMPLETE' | 'FAILED';
+  status: 'QUEUED' | 'PARSING' | 'PROCESSING' | 'DEDUPING' | 'CREATING_VIOLATIONS' | 'FINALIZING' | 'COMPLETE' | 'FAILED';
   total_rows: number | null;
   processed_rows: number | null;
   properties_created: number | null;

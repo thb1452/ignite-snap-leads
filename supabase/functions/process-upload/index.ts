@@ -353,9 +353,22 @@ async function processUploadJob(jobId: string) {
 
     if (uniqueCities.length > 0) {
       // Fetch all properties in these cities - more efficient than per-address lookups
-      const { data: existingProps } = await supabaseClient
+      // PERFORMANCE FIX: Filter by cities in this upload instead of fetching entire database
+      console.log(`[process-upload] Fetching existing properties from ${uniqueCities.length} cities: ${uniqueCities.slice(0, 5).join(', ')}${uniqueCities.length > 5 ? '...' : ''}`);
+
+      // Build case-insensitive city filter (OR query for multiple cities)
+      const cityFilters = uniqueCities.map(city => `city.ilike.${city}`).join(',');
+
+      const { data: existingProps, error: existingError } = await supabaseClient
         .from('properties')
-        .select('id, address, city, state, zip');
+        .select('id, address, city, state, zip')
+        .or(cityFilters)  // Filter to only cities in this upload
+        .limit(50000);  // Safety limit to prevent unbounded queries
+
+      if (existingError) {
+        console.error('[process-upload] Error fetching existing properties:', existingError);
+        // Continue with empty map - will create all as new
+      }
 
       // Build map with lowercase keys for matching
       (existingProps || []).forEach(prop => {
@@ -366,9 +379,11 @@ async function processUploadJob(jobId: string) {
         const key = `${addr}|${city}|${state}|${zip}`;
         existingMap.set(key, prop.id);
       });
+
+      console.log(`[process-upload] Loaded ${existingProps?.length || 0} existing properties from database`);
     }
 
-    console.log(`[process-upload] Found ${existingMap.size} existing properties`);
+    console.log(`[process-upload] Found ${existingMap.size} existing properties matching upload addresses`);
 
     // Prepare properties without geocoding (will be done in background)
     // NOTE: Deduplication is enforced at DB level via idx_properties_unique_address unique index

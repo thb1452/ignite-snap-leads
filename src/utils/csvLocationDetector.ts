@@ -29,7 +29,11 @@ function isValidCityName(value: string): boolean {
     'unpermitted', 'code', 'notice', 'complaint', 'hazard', 'unsafe',
     'repair', 'maintain', 'fence', 'yard', 'property', 'building',
     'structure', 'obstruct', 'block', 'parked', 'stored', 'dumped',
-    'please', 'must', 'should', 'shall', 'required', 'notify'
+    'please', 'must', 'should', 'shall', 'required', 'notify',
+    'backyard', 'front', 'side', 'rear', 'porch', 'roof', 'window',
+    'vehicle', 'junk', 'abandoned', 'grass', 'tall', 'high', 'fire',
+    'permit', 'inspection', 'inspector', 'citation', 'fine', 'warning',
+    'hurricane', 'storm', 'flood', 'damage', 'broken', 'missing'
   ];
 
   const lowerValue = value.toLowerCase();

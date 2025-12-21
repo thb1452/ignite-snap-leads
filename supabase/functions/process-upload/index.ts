@@ -16,6 +16,64 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Valid US state codes (2-letter abbreviations)
+const VALID_US_STATES = new Set([
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+]);
+
+/**
+ * Validate that a string looks like a real city name, not a violation description
+ */
+function isValidCityName(value: string): boolean {
+  if (!value || value.length === 0) return false;
+  if (value.length > 50) return false;
+  
+  // Reject multi-sentence text
+  if (/\.\s+[A-Z]/.test(value)) return false;
+  
+  // Reject violation-like keywords
+  const violationKeywords = [
+    'violation', 'debris', 'trash', 'weeds', 'overgrown', 'illegal',
+    'unpermitted', 'code', 'notice', 'complaint', 'hazard', 'unsafe',
+    'repair', 'maintain', 'fence', 'yard', 'property', 'building',
+    'structure', 'obstruct', 'block', 'parked', 'stored', 'dumped',
+    'please', 'must', 'should', 'shall', 'required', 'notify',
+    'backyard', 'front', 'side', 'rear', 'porch', 'roof', 'window',
+    'vehicle', 'junk', 'abandoned', 'grass', 'tall', 'high', 'fire'
+  ];
+  
+  const lowerValue = value.toLowerCase();
+  for (const keyword of violationKeywords) {
+    if (lowerValue.includes(keyword)) return false;
+  }
+  
+  // Reject common violation punctuation
+  if (value.includes(':') || value.includes(';')) return false;
+  if (value.includes('(') || value.includes(')')) return false;
+  if (value.includes('[') || value.includes(']')) return false;
+  
+  // Reject if starts with numbers/special chars
+  if (/^[\d\-#•]/.test(value)) return false;
+  
+  // City names should be mostly letters/spaces/hyphens
+  if (!/^[A-Za-z\s\-'.]+$/.test(value)) return false;
+  
+  return true;
+}
+
+/**
+ * Validate that a string is a valid 2-letter US state code
+ */
+function isValidStateCode(value: string): boolean {
+  if (!value || value.length === 0) return false;
+  const upperValue = value.trim().toUpperCase();
+  return upperValue.length === 2 && VALID_US_STATES.has(upperValue);
+}
+
 interface CSVRow {
   case_id?: string;
   file_number?: string;  // "File #"
@@ -222,13 +280,32 @@ async function processUploadJob(jobId: string) {
       const closeDate = row.close_date || row['close date'] || row.closed_date || row.date_closed || null;
       const description = row.description || row.violation_description || row.notes || row.comments || null;
       
+      // Validate city/state from CSV row - only use if they look valid
+      let rowCity = row.city?.trim() || '';
+      let rowState = row.state?.trim().toUpperCase() || '';
+      
+      // If CSV city/state look invalid (like violation text), use job defaults
+      const csvCityValid = isValidCityName(rowCity);
+      const csvStateValid = isValidStateCode(rowState);
+      
+      const finalCity = csvCityValid ? rowCity : job.city;
+      const finalState = csvStateValid ? rowState : job.state;
+      
+      // Log validation failures for debugging
+      if (!csvCityValid && rowCity) {
+        console.log(`[process-upload] Row ${i + 1}: Invalid city "${rowCity.substring(0, 50)}..." - using job default`);
+      }
+      if (!csvStateValid && rowState) {
+        console.log(`[process-upload] Row ${i + 1}: Invalid state "${rowState}" - using job default`);
+      }
+      
       stagingRows.push({
         job_id: jobId,
         row_num: i + 1,
         case_id: caseId,
         address: address,
-        city: row.city || job.city,
-        state: row.state?.length === 2 ? row.state : job.state,
+        city: finalCity,
+        state: finalState,
         zip: row.zip || row.zipcode || row['zip code'] || '',
         violation: violationType,
         status: row.status || 'Open',

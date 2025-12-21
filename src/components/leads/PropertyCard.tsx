@@ -134,7 +134,7 @@ export function PropertyCard({
           )}
 
           {/* AI Insight */}
-          <div className="mb-3">
+          <div className="mb-2">
             <p className={`text-sm text-muted-foreground leading-relaxed ${!insightExpanded && shouldShowExpand ? 'line-clamp-3' : ''}`}>
               {insightText}
             </p>
@@ -161,7 +161,12 @@ export function PropertyCard({
             )}
           </div>
 
-          <div className="flex items-center justify-between">
+          {/* Snap Updated Timestamp */}
+          <p className="text-xs text-muted-foreground mb-3">
+            Snap updated {lastSeen}
+          </p>
+
+          <div className="flex items-center">
             <Button
               variant="ghost"
               size="sm"
@@ -174,10 +179,6 @@ export function PropertyCard({
               <MessageSquare className="h-4 w-4" />
               Text owner
             </Button>
-
-            <span className="text-xs text-muted-foreground">
-              {lastSeen}
-            </span>
           </div>
         </div>
       </div>

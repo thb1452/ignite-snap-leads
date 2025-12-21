@@ -4,12 +4,13 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ExternalLink, MapPin, Mail } from "lucide-react";
+import { ExternalLink, MapPin, Mail, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { StatusSelector } from "./StatusSelector";
 import { mockSkipTrace } from "@/services/mockData";
+import { formatDistanceToNow, format } from "date-fns";
 
 interface Violation {
   id: string;
@@ -32,6 +33,7 @@ interface PropertyWithViolations {
   photo_url: string | null;
   latitude: number | null;
   longitude: number | null;
+  updated_at: string | null;
   violations: Violation[];
 }
 
@@ -194,6 +196,15 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                   <p className="text-sm text-ink-400 font-ui mt-1">
                     {property.city}, {property.state} {property.zip}
                   </p>
+                  {/* Last Snap Update Timestamp */}
+                  {property.updated_at && (
+                    <div className="flex items-center gap-1.5 mt-2 text-xs text-ink-400">
+                      <Clock className="h-3 w-3" />
+                      <span>
+                        Last Snap update: {format(new Date(property.updated_at), "MMM d, yyyy")} ({formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })})
+                      </span>
+                    </div>
+                  )}
                 </div>
                 {snapScore !== null && (
                   <motion.span

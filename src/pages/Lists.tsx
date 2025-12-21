@@ -66,6 +66,7 @@ interface PropertyWithViolations {
   photo_url: string | null;
   latitude: number | null;
   longitude: number | null;
+  updated_at: string | null;
   violations: Violation[];
   latest_activity?: LeadActivity | null;
 }

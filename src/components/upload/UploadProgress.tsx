@@ -35,6 +35,7 @@ export function UploadProgress({ job }: UploadProgressProps) {
 
   // Show indeterminate progress for stages where we don't have row counts
   const isIndeterminateStage = ['QUEUED', 'PARSING', 'DEDUPING', 'CREATING_VIOLATIONS', 'FINALIZING'].includes(job.status);
+  const showRowCounts = job.status === 'PROCESSING' && total > 0;
   const showProgress = !['COMPLETE', 'FAILED'].includes(job.status);
 
   return (
@@ -64,15 +65,29 @@ export function UploadProgress({ job }: UploadProgressProps) {
                 <Progress value={pct} className="h-2" />
               )}
               
-              {total > 0 && (
+              {showRowCounts && (
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>{done.toLocaleString()} / {total.toLocaleString()} rows</span>
-                  <span>{isIndeterminateStage ? 'Processing...' : `${pct}%`}</span>
+                  <span>{pct}%</span>
                 </div>
               )}
               
-              {total === 0 && job.status === 'PARSING' && (
-                <p className="text-xs text-muted-foreground">Counting rows...</p>
+              {job.status === 'PARSING' && (
+                <p className="text-xs text-muted-foreground">
+                  {total > 0 ? `Found ${total.toLocaleString()} rows, staging...` : 'Counting rows...'}
+                </p>
+              )}
+              
+              {job.status === 'DEDUPING' && (
+                <p className="text-xs text-muted-foreground">Creating properties from {total.toLocaleString()} rows...</p>
+              )}
+              
+              {job.status === 'CREATING_VIOLATIONS' && (
+                <p className="text-xs text-muted-foreground">Creating violation records...</p>
+              )}
+              
+              {job.status === 'FINALIZING' && (
+                <p className="text-xs text-muted-foreground">Running insights and geocoding...</p>
               )}
             </>
           )}

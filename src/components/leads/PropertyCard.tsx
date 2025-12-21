@@ -7,6 +7,8 @@ import { differenceInDays, differenceInHours, format } from "date-fns";
 import { PropertyContactChips } from "./PropertyContactChips";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 import { SkipTraceChip } from "./SkipTraceChip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
 
 interface Violation {
   id: string;
@@ -48,19 +50,7 @@ export function PropertyCard({
     return "bg-score-blue";
   };
 
-  const getStatusColor = (status: string) => {
-    const statusLower = status.toLowerCase();
-    if (statusLower.includes("pending summons") || statusLower.includes("repeat violation") || statusLower.includes("abate")) {
-      return "bg-destructive/90 text-destructive-foreground";
-    }
-    if (statusLower.includes("notice sent") || statusLower.includes("abatement pending") || statusLower.includes("pending")) {
-      return "bg-yellow-500/90 text-white";
-    }
-    if (statusLower.includes("voluntary compliance") || statusLower.includes("closed")) {
-      return "bg-green-500/90 text-white";
-    }
-    return "bg-muted text-muted-foreground";
-  };
+  const getStatusStyle = (status: string) => getViolationStatusStyle(status);
 
   const getSnapUpdatedText = (dateStr: string | null) => {
     if (!dateStr) return null;
@@ -130,12 +120,33 @@ export function PropertyCard({
                 {mostRecentViolation.violation_type || "Unknown"}
               </span>
               <span className="text-xs text-muted-foreground">•</span>
-              <Badge 
-                variant="outline" 
-                className={`text-xs ${getStatusColor(mostRecentViolation.status)}`}
-              >
-                {mostRecentViolation.status}
-              </Badge>
+              {(() => {
+                const statusStyle = getStatusStyle(mostRecentViolation.status);
+                const badgeElement = (
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs ${statusStyle.badge}`}
+                  >
+                    {mostRecentViolation.status || "Unknown"}
+                  </Badge>
+                );
+                
+                if (statusStyle.tooltip) {
+                  return (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          {badgeElement}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs max-w-[200px]">{statusStyle.tooltip}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                }
+                return badgeElement;
+              })()}
               {mostRecentViolation.opened_date && (
                 <>
                   <span className="text-xs text-muted-foreground">•</span>

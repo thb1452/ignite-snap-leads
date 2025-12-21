@@ -11,6 +11,8 @@ import { ActivityTimeline } from "./ActivityTimeline";
 import { StatusSelector } from "./StatusSelector";
 import { mockSkipTrace } from "@/services/mockData";
 import { formatDistanceToNow, format } from "date-fns";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
 
 interface Violation {
   id: string;
@@ -291,29 +293,41 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 <p className="text-sm text-ink-400 text-center py-4">No violations recorded</p>
               ) : (
                 <ol className="relative border-s border-slate-200 ml-3 space-y-4">
-                  {property.violations.map((v) => (
-                    <li key={v.id} className="ms-4">
-                      <div className={`absolute -left-1.5 mt-1 h-3 w-3 rounded-full ${
-                        v.status === 'Open' ? 'bg-amber-400' : 'bg-emerald-400'
-                      }`} />
-                      <div className="rounded-xl border p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium text-ink-800">{v.violation_type || "Unknown"}</div>
-                          <span className={`px-2 py-0.5 rounded-full text-xs ${
-                            v.status === 'Open'
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}>
-                            {v.status}
-                          </span>
+                  {property.violations.map((v) => {
+                    const statusStyle = getViolationStatusStyle(v.status);
+                    const statusBadge = (
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${statusStyle.badge}`}>
+                        {v.status || "Unknown"}
+                      </span>
+                    );
+                    
+                    return (
+                      <li key={v.id} className="ms-4">
+                        <div className={`absolute -left-1.5 mt-1 h-3 w-3 rounded-full ${statusStyle.dot}`} />
+                        <div className="rounded-xl border p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="font-medium text-ink-800">{v.violation_type || "Unknown"}</div>
+                            {statusStyle.tooltip ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    {statusBadge}
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs max-w-[200px]">{statusStyle.tooltip}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : statusBadge}
+                          </div>
+                          {/* NOTE: Raw violation descriptions are NEVER shown to users for legal safety */}
+                          <p className="text-xs text-ink-400 mt-1">
+                            Opened {formatDate(v.opened_date)} • {v.days_open} days
+                          </p>
                         </div>
-                        {/* NOTE: Raw violation descriptions are NEVER shown to users for legal safety */}
-                        <p className="text-xs text-ink-400 mt-1">
-                          Opened {formatDate(v.opened_date)} • {v.days_open} days
-                        </p>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ol>
               )}
             </motion.section>

@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
+import { MessageSquare, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { differenceInDays, differenceInHours, format } from "date-fns";
 import { PropertyContactChips } from "./PropertyContactChips";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 import { SkipTraceChip } from "./SkipTraceChip";
@@ -62,9 +62,23 @@ export function PropertyCard({
     return "bg-muted text-muted-foreground";
   };
 
-  const lastSeen = property.updated_at
-    ? formatDistanceToNow(new Date(property.updated_at), { addSuffix: false })
-    : "Unknown";
+  const getSnapUpdatedText = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    const date = new Date(dateStr);
+    const now = new Date();
+    const hoursDiff = differenceInHours(now, date);
+    const daysDiff = differenceInDays(now, date);
+    
+    if (hoursDiff < 24) {
+      return `${hoursDiff} hour${hoursDiff !== 1 ? 's' : ''} ago`;
+    } else if (daysDiff <= 7) {
+      return `${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago`;
+    } else {
+      return format(date, "MMM d, yyyy");
+    }
+  };
+
+  const snapUpdatedText = getSnapUpdatedText(property.updated_at);
 
   const hasPhone = contacts.some(c => c.phone);
   const hasEmail = contacts.some(c => c.email);
@@ -162,9 +176,12 @@ export function PropertyCard({
           </div>
 
           {/* Snap Updated Timestamp */}
-          <p className="text-xs text-muted-foreground mb-3">
-            Snap updated {lastSeen}
-          </p>
+          {snapUpdatedText && (
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 mb-3">
+              <RefreshCw className="h-3 w-3" />
+              <span>Snap updated {snapUpdatedText}</span>
+            </div>
+          )}
 
           <div className="flex items-center">
             <Button

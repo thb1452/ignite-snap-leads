@@ -745,7 +745,15 @@ async function processUploadJob(jobId: string) {
         if (insightsResponse.ok) {
           const insightsData = await insightsResponse.json();
           insightsGenerated = insightsData.processed || 0;
+          const breakdown = insightsData.breakdown || {};
           console.log(`[process-upload] ✓ Insights generated: ${insightsGenerated} properties`);
+          console.log(`[process-upload]   - AI-generated: ${breakdown.ai_generated || 0}`);
+          console.log(`[process-upload]   - Rule-based: ${breakdown.rule_based || 0}`);
+          console.log(`[process-upload]   - No data: ${breakdown.no_data || 0}`);
+
+          if (breakdown.rule_based > 0) {
+            console.warn(`[process-upload] ⚠️ ${breakdown.rule_based} properties using rule-based insights (LOVABLE_API_KEY may not be configured)`);
+          }
         } else {
           const errorText = await insightsResponse.text();
           console.error(`[process-upload] ✗ Insights generation failed: HTTP ${insightsResponse.status}`);

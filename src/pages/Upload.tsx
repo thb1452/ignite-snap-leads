@@ -130,10 +130,19 @@ export default function Upload() {
       
       if (shouldSplit) {
         // Multi-city upload - split and create multiple jobs
-        const cityGroups = splitCsvByCity(pendingCsvData, city || undefined, state || undefined);
+        const { csvGroups, skippedRows } = splitCsvByCity(pendingCsvData, city || undefined, state || undefined);
         const createdJobIds: string[] = [];
 
-        for (const [key, csvContent] of cityGroups) {
+        // Warn user if rows were skipped
+        if (skippedRows > 0) {
+          toast({
+            title: 'Warning: Some Rows Skipped',
+            description: `${skippedRows} row(s) dropped due to missing city/state. Use fallback fields if your CSV lacks location data.`,
+            variant: 'destructive',
+          });
+        }
+
+        for (const [key, csvContent] of csvGroups) {
           const [groupCity, groupState] = key.split('|');
           const blob = new Blob([csvContent], { type: 'text/csv' });
           const fileName = `${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
@@ -224,10 +233,19 @@ export default function Upload() {
       const shouldSplit = detection && detection.locations.length > 1;
 
       if (shouldSplit) {
-        const cityGroups = splitCsvByCity(pendingCsvData, city || undefined, state || undefined);
+        const { csvGroups, skippedRows } = splitCsvByCity(pendingCsvData, city || undefined, state || undefined);
         const createdJobIds: string[] = [];
 
-        for (const [key, csvContent] of cityGroups) {
+        // Warn user if rows were skipped
+        if (skippedRows > 0) {
+          toast({
+            title: 'Warning: Some Rows Skipped',
+            description: `${skippedRows} row(s) dropped due to missing city/state. Provide fallback city/state if your CSV lacks location columns.`,
+            variant: 'destructive',
+          });
+        }
+
+        for (const [key, csvContent] of csvGroups) {
           const [groupCity, groupState] = key.split('|');
           const blob = new Blob([csvContent], { type: 'text/csv' });
           const fileName = `pasted_${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;

@@ -178,6 +178,7 @@ serve(async (req) => {
     console.log(`[generate-insights] Processing ${properties.length} properties`);
 
     const updates = [];
+    const methodCounts = { ai: 0, rule_based: 0, no_data: 0 };
 
     // Process each property
     for (const property of properties) {
@@ -202,23 +203,34 @@ serve(async (req) => {
       const violationTypes = violations.map(v => v.violation_type || '').join(' ');
       
       let snapInsight: string;
-      
+      let insightMethod: 'ai' | 'rule_based' | 'no_data' = 'no_data';
+
       // Generate insight
       if (!rawDescriptions || rawDescriptions.length === 0) {
         console.log(`[generate-insights] No raw descriptions for property ${property.id}, using signal-based fallback`);
         snapInsight = generateSignalBasedInsight(scoreResult.signals, intelligence, classifiedViolations);
+        insightMethod = 'no_data';
       } else if (!LOVABLE_API_KEY) {
-        console.log(`[generate-insights] No LOVABLE_API_KEY set, using signal-based fallback`);
+        // CRITICAL WARNING: AI key missing - insights will be lower quality
+        console.warn(`[generate-insights] ⚠️ LOVABLE_API_KEY not configured! Property ${property.id} has ${rawDescriptions.length} chars of description but AI unavailable.`);
+        console.warn(`[generate-insights] ⚠️ Falling back to rule-based insights (lower quality). Set LOVABLE_API_KEY environment variable for AI-powered insights.`);
         snapInsight = generateSignalBasedInsight(scoreResult.signals, intelligence, classifiedViolations);
+        insightMethod = 'rule_based';
       } else {
         try {
           snapInsight = await generateAIInsight(rawDescriptions, violationTypes, LOVABLE_API_KEY);
+          insightMethod = 'ai';
         } catch (aiError) {
-          console.error(`[generate-insights] AI error for ${property.id}:`, aiError);
+          console.error(`[generate-insights] ✗ AI generation failed for property ${property.id}:`, aiError);
+          console.error(`[generate-insights] Error details: ${aiError instanceof Error ? aiError.message : String(aiError)}`);
           snapInsight = generateSignalBasedInsight(scoreResult.signals, intelligence, classifiedViolations);
+          insightMethod = 'rule_based';
         }
       }
-      
+
+      // Track method used
+      methodCounts[insightMethod]++;
+
       updates.push({
         id: property.id,
         snap_insight: snapInsight,
@@ -268,13 +280,31 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[generate-insights] Generated insights for ${updates.length} properties`);
+    console.log(`[generate-insights] =====================================================`);
+    console.log(`[generate-insights] Insight Generation Summary:`);
+    console.log(`[generate-insights]   ✓ AI-generated: ${methodCounts.ai} properties`);
+    console.log(`[generate-insights]   ⚙ Rule-based fallback: ${methodCounts.rule_based} properties`);
+    console.log(`[generate-insights]   ⊘ No data: ${methodCounts.no_data} properties`);
+    console.log(`[generate-insights]   Total: ${updates.length} properties`);
+
+    if (methodCounts.rule_based > 0 && !LOVABLE_API_KEY) {
+      console.warn(`[generate-insights] ⚠️⚠️⚠️ ACTION REQUIRED ⚠️⚠️⚠️`);
+      console.warn(`[generate-insights] ${methodCounts.rule_based} properties used rule-based insights because LOVABLE_API_KEY is not set.`);
+      console.warn(`[generate-insights] Set environment variable: LOVABLE_API_KEY=your_key_here`);
+      console.warn(`[generate-insights] Current insight quality: LOW (rule-based) | Expected: HIGH (AI-powered)`);
+    }
+    console.log(`[generate-insights] =====================================================`);
 
     return new Response(
       JSON.stringify({
         success: true,
         processed: updates.length,
         total: propertyIds.length,
+        breakdown: {
+          ai_generated: methodCounts.ai,
+          rule_based: methodCounts.rule_based,
+          no_data: methodCounts.no_data,
+        },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

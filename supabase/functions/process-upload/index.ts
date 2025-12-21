@@ -862,18 +862,22 @@ async function processUploadJob(jobId: string) {
     }
 
     // NOW mark complete - insights are done
-    await supabaseClient
+    const { error: completeError } = await supabaseClient
       .from('upload_jobs')
       .update({
         status: 'COMPLETE',
         finished_at: new Date().toISOString(),
         properties_created: propertiesCreated,
         violations_created: violationsCreatedTotal,
-        rows_skipped: skippedRows,
-        insights_generated: insightsGenerated,
+        total_rows: totalRows,
         warnings: warnings.length > 0 ? warnings : null
       })
       .eq('id', jobId);
+    
+    if (completeError) {
+      console.error('[process-upload] Failed to mark job complete:', completeError);
+      throw new Error(`Failed to update job status: ${completeError.message}`);
+    }
 
     console.log(`[process-upload] Job ${jobId} marked COMPLETE`);
     console.log(`[process-upload]   • Insights: ${insightsGenerated}/${allPropertyIds.length} generated`);

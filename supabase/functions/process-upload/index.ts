@@ -404,18 +404,24 @@ async function processUploadJob(jobId: string) {
     for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
       const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
       
-      // First, fetch all existing properties that match this batch's addresses AND cities (single query)
-      const batchAddresses = [...new Set(batch.map(p => p.address))];
-      const batchCities = [...new Set(batch.map(p => p.city))];
-      const { data: existingInBatch } = await supabaseClient
-        .from('properties')
-        .select('id, address, city, state, zip')
-        .in('address', batchAddresses)
-        .in('city', batchCities);
+      // First, fetch all existing properties that match this batch's addresses AND cities
+      // Use case-insensitive matching via ilike filters
+      const batchAddresses = [...new Set(batch.map(p => p.address.toLowerCase()))];
+      const batchCities = [...new Set(batch.map(p => p.city.toLowerCase()))];
       
-      // Map existing properties - use full key to avoid cross-city matches
+      // Build OR filter for case-insensitive address matching
+      let existingInBatch: any[] = [];
+      for (const city of batchCities) {
+        const { data: cityProps } = await supabaseClient
+          .from('properties')
+          .select('id, address, city, state, zip')
+          .ilike('city', city);
+        if (cityProps) existingInBatch.push(...cityProps);
+      }
+      
+      // Map existing properties - use lowercase full key for consistent matching
       const existingInBatchMap = new Map<string, string>();
-      (existingInBatch || []).forEach(prop => {
+      existingInBatch.forEach(prop => {
         const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
         existingInBatchMap.set(key, prop.id);
         existingMap.set(key, prop.id);
@@ -500,15 +506,14 @@ async function processUploadJob(jobId: string) {
     if (missingKeys.length > 0) {
       console.log(`[process-upload] Fetching ${missingKeys.length} remaining property IDs...`);
       
-      // Fetch in smaller batches to avoid query limits
-      for (let i = 0; i < missingKeys.length; i += 100) {
-        const keyBatch = missingKeys.slice(i, i + 100);
-        const missingAddresses = [...new Set(keyBatch.map(key => key.split('|')[0]))];
-        
+      // Fetch by unique cities instead of addresses - more reliable with case-insensitive matching
+      const missingCities = [...new Set(missingKeys.map(key => key.split('|')[1]))];
+      
+      for (const city of missingCities) {
         const { data: existingFetch } = await supabaseClient
           .from('properties')
           .select('id, address, city, state, zip')
-          .in('address', missingAddresses);
+          .ilike('city', city);
         
         (existingFetch || []).forEach(prop => {
           const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();

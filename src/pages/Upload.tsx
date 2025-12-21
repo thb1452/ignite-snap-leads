@@ -233,7 +233,7 @@ export default function Upload() {
           const fileName = `pasted_${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
           const file = new File([blob], fileName, { type: 'text/csv' });
 
-          const filePath = `${user.id}/${Date.now()}_${fileName}`;
+          const filePath = `${user.id}/${Date.now()}_${sanitizeFilename(fileName)}`;
           const { error: uploadError } = await supabase.storage
             .from('csv-uploads')
             .upload(filePath, file);
@@ -289,7 +289,7 @@ export default function Upload() {
         const blob = new Blob([pendingCsvData], { type: 'text/csv' });
         const file = new File([blob], fileName, { type: 'text/csv' });
 
-        const filePath = `${user.id}/${Date.now()}_${fileName}`;
+        const filePath = `${user.id}/${Date.now()}_${sanitizeFilename(fileName)}`;
         const { error: uploadError } = await supabase.storage
           .from('csv-uploads')
           .upload(filePath, file);

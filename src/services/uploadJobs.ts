@@ -1,6 +1,16 @@
 import { supabase } from '@/integrations/supabase/client';
 import { callFn } from '@/integrations/http/functions';
 
+// Sanitize filename for Supabase storage - remove all problematic characters
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/['"()[\]{}]/g, '') // Remove quotes, parentheses, brackets
+    .replace(/[^a-zA-Z0-9_\-\.]/g, '_') // Replace other special chars with underscore
+    .replace(/_+/g, '_') // Collapse multiple underscores
+    .replace(/^_|_$/g, '') // Trim leading/trailing underscores
+    .substring(0, 100); // Limit length
+}
+
 interface CreateJobParams {
   file: File;
   userId: string;
@@ -10,9 +20,10 @@ interface CreateJobParams {
 }
 
 export async function createUploadJob({ file, userId, city, county, state }: CreateJobParams): Promise<string> {
-  // 1. Upload file to storage
+  // 1. Upload file to storage with sanitized filename
   const timestamp = Date.now();
-  const storagePath = `${userId}/${timestamp}-${file.name}`;
+  const sanitizedName = sanitizeFilename(file.name);
+  const storagePath = `${userId}/${timestamp}-${sanitizedName}`;
   
   const { error: uploadError } = await supabase.storage
     .from('csv-uploads')

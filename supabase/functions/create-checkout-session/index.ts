@@ -57,11 +57,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // ---- Input ----
     const body = await req.json();
-    const { plan_id } = body;
+    const { tier_name, billing_cycle = "monthly" } = body;
 
-    if (!plan_id) {
+    if (!tier_name) {
       return new Response(
-        JSON.stringify({ error: "plan_id required" }),
+        JSON.stringify({ error: "tier_name required" }),
+        { status: 400, headers }
+      );
+    }
+
+    if (!["monthly", "annual"].includes(billing_cycle)) {
+      return new Response(
+        JSON.stringify({ error: "billing_cycle must be 'monthly' or 'annual'" }),
         { status: 400, headers }
       );
     }
@@ -70,7 +77,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const { data: plan, error: planError } = await supabase
       .from("subscription_plans")
       .select("*")
-      .eq("id", plan_id)
+      .eq("name", tier_name)
       .single();
 
     if (planError || !plan) {
@@ -80,12 +87,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    if (!plan.stripe_price_id) {
-      return new Response(
-        JSON.stringify({ error: "Plan not available for purchase (no Stripe price ID)" }),
-        { status: 400, headers }
-      );
-    }
+    // Calculate price based on billing cycle
+    const priceAmount = billing_cycle === "annual"
+      ? Math.round(plan.price_monthly_cents * 12 * 0.8) // 20% discount for annual
+      : plan.price_monthly_cents;
 
     // ---- Get or Create Stripe Customer ----
     const { data: existingSubscription } = await supabase
@@ -114,21 +119,33 @@ Deno.serve(async (req: Request): Promise<Response> => {
       payment_method_types: ["card"],
       line_items: [
         {
-          price: plan.stripe_price_id,
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: plan.display_name,
+              description: plan.description,
+            },
+            recurring: {
+              interval: billing_cycle === "annual" ? "year" : "month",
+            },
+            unit_amount: priceAmount,
+          },
           quantity: 1,
         },
       ],
       mode: "subscription",
-      success_url: `${appUrl}/settings?tab=subscription&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/settings?tab=subscription&canceled=true`,
+      success_url: `${appUrl}/leads?checkout=success`,
+      cancel_url: `${appUrl}/pricing?canceled=true`,
       metadata: {
         user_id: user.id,
-        plan_id: plan_id,
+        plan_id: plan.id,
+        billing_cycle: billing_cycle,
       },
       subscription_data: {
         metadata: {
           user_id: user.id,
-          plan_id: plan_id,
+          plan_id: plan.id,
+          billing_cycle: billing_cycle,
         },
       },
       allow_promotion_codes: true,
@@ -139,7 +156,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         sessionId: session.id,
-        url: session.url,
+        checkout_url: session.url,
+        url: session.url, // Keep for backward compatibility
       }),
       { headers }
     );

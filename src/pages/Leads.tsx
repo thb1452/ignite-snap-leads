@@ -19,6 +19,7 @@ import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { useSubscription } from "@/hooks/useSubscription";
 import { exportFilteredCsv } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
+import { useMapMarkers } from "@/hooks/useMapMarkers";
 
 const PAGE_SIZE = 50;
 
@@ -58,8 +59,11 @@ function Leads() {
     snapScoreRange: snapScoreMin > 0 ? [snapScoreMin, 100] as [number, number] : undefined,
   }), [searchQuery, selectedCity, snapScoreMin]);
 
-  // Use paginated properties hook
+  // Use paginated properties hook for the list
   const { data, isLoading, refetch } = useProperties(page, PAGE_SIZE, filters);
+  
+  // Use lightweight markers query for the map (all properties with coords)
+  const { data: mapMarkers = [] } = useMapMarkers();
   
   const properties = data?.data ?? [];
   const totalCount = data?.total ?? 0;
@@ -246,7 +250,7 @@ function Leads() {
             </Button>
           </div>
           <LeadsMap
-            properties={mappedProperties}
+            properties={mapMarkers}
             onPropertyClick={setSelectedPropertyId}
             selectedPropertyId={selectedPropertyId || undefined}
           />

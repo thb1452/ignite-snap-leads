@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,43 +22,78 @@ interface PricingTier {
   popular?: boolean;
 }
 
+// Hardcoded pricing tiers since the table doesn't exist yet
+const PRICING_TIERS: PricingTier[] = [
+  {
+    id: 'starter',
+    name: 'starter',
+    display_name: 'Starter',
+    price_monthly_cents: 12900,
+    price_annual_cents_with_discount: 124000,
+    description: 'Perfect for investors getting started with distressed properties',
+    features: [
+      'Up to 3 jurisdictions',
+      '500 property records/month',
+      '50 skip trace credits/month',
+      'Basic property intelligence',
+      'Email support',
+    ],
+    max_jurisdictions: 3,
+    max_monthly_records: 500,
+    skip_trace_credits_per_month: 50,
+    icon: Zap,
+    popular: false,
+  },
+  {
+    id: 'pro',
+    name: 'pro',
+    display_name: 'Pro',
+    price_monthly_cents: 24900,
+    price_annual_cents_with_discount: 239000,
+    description: 'For serious investors who want to dominate their markets',
+    features: [
+      'Up to 10 jurisdictions',
+      '2,000 property records/month',
+      '200 skip trace credits/month',
+      'Advanced Snap Score filtering',
+      'CSV exports',
+      'Priority support',
+    ],
+    max_jurisdictions: 10,
+    max_monthly_records: 2000,
+    skip_trace_credits_per_month: 200,
+    icon: TrendingUp,
+    popular: true,
+  },
+  {
+    id: 'elite',
+    name: 'elite',
+    display_name: 'Elite',
+    price_monthly_cents: 49900,
+    price_annual_cents_with_discount: 479000,
+    description: 'Enterprise-grade intelligence for power users and teams',
+    features: [
+      'Unlimited jurisdictions',
+      'Unlimited property records',
+      '1,000 skip trace credits/month',
+      'API access',
+      'Bulk SMS & mail campaigns',
+      'Dedicated account manager',
+      'Custom integrations',
+    ],
+    max_jurisdictions: -1,
+    max_monthly_records: -1,
+    skip_trace_credits_per_month: 1000,
+    icon: Building2,
+    popular: false,
+  },
+];
+
 export default function Pricing() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [loading, setLoading] = useState<string | null>(null);
-  const [tiers, setTiers] = useState<PricingTier[]>([]);
-  const [fetchingTiers, setFetchingTiers] = useState(true);
-
-  useEffect(() => {
-    fetchPricingTiers();
-  }, []);
-
-  const fetchPricingTiers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('active_pricing_tiers')
-        .select('*')
-        .order('sort_order');
-
-      if (error) throw error;
-
-      const icons = [Zap, TrendingUp, Building2];
-
-      const tiersWithIcons: PricingTier[] = (data || []).map((tier, index) => ({
-        ...tier,
-        icon: icons[index] || Zap,
-        popular: tier.name === 'pro', // Mark Pro as popular
-      }));
-
-      setTiers(tiersWithIcons);
-    } catch (error) {
-      console.error('Error fetching pricing tiers:', error);
-      toast.error('Failed to load pricing information');
-    } finally {
-      setFetchingTiers(false);
-    }
-  };
 
   const handleSelectPlan = async (tier: PricingTier) => {
     if (!user) {
@@ -110,14 +145,6 @@ export default function Pricing() {
     return savings;
   };
 
-  if (fetchingTiers) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand" />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <div className="container max-w-7xl py-12 px-4">
@@ -159,7 +186,7 @@ export default function Pricing() {
 
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-3 gap-8 mb-16">
-          {tiers.map((tier) => {
+          {PRICING_TIERS.map((tier) => {
             const Icon = tier.icon;
             return (
               <Card
@@ -204,7 +231,7 @@ export default function Pricing() {
                     </div>
                     {billingCycle === "annual" && (
                       <div className="text-sm text-green-600 dark:text-green-400 mt-2 font-medium">
-                        💰 Save {getSavings(tier)}% with annual billing
+                        Save {getSavings(tier)}% with annual billing
                       </div>
                     )}
                     {billingCycle === "monthly" && (

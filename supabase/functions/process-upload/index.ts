@@ -255,11 +255,17 @@ async function processUploadJob(jobId: string) {
     console.log(`[process-upload] CSV Headers: ${JSON.stringify(headers)}`);
     console.log(`[process-upload] Parsed ${totalRows} rows from CSV (limit: ${MAX_ROWS_PER_UPLOAD})`);
 
-    // Update total rows
+    // Update total rows AND set status to PROCESSING immediately so frontend sees progress
     await supabaseClient
       .from('upload_jobs')
-      .update({ total_rows: totalRows })
+      .update({ 
+        total_rows: totalRows,
+        status: 'PROCESSING',
+        processed_rows: 0
+      })
       .eq('id', jobId);
+
+    console.log(`[process-upload] Starting staging inserts for ${totalRows} rows`);
 
     // Parse and insert into staging in batches for memory efficiency
     const stagingRows: any[] = [];
@@ -325,14 +331,11 @@ async function processUploadJob(jobId: string) {
           throw insertError;
         }
 
-        // Update progress more frequently
+        // Update progress - keep status as PROCESSING
         const processedCount = i + 1;
         await supabaseClient
           .from('upload_jobs')
-          .update({ 
-            processed_rows: processedCount,
-            status: 'PROCESSING'
-          })
+          .update({ processed_rows: processedCount })
           .eq('id', jobId);
 
         console.log(`[process-upload] Staged ${processedCount} / ${totalRows} rows (${Math.round(processedCount / totalRows * 100)}%)`);

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { callFn } from '@/integrations/http/functions';
+import { sanitizeFilename } from '@/utils/sanitizeFilename';
 
 interface CreateJobParams {
   file: File;
@@ -10,15 +11,25 @@ interface CreateJobParams {
 }
 
 export async function createUploadJob({ file, userId, city, county, state }: CreateJobParams): Promise<string> {
-  // 1. Upload file to storage
+  // 1. Upload file to storage with sanitized filename
   const timestamp = Date.now();
-  const storagePath = `${userId}/${timestamp}-${file.name}`;
-  
+  const sanitizedName = sanitizeFilename(file.name);
+  const storagePath = `${userId}/${timestamp}-${sanitizedName}`;
+
+  console.log(`[uploadJobs] Uploading file: "${file.name}" → "${sanitizedName}"`);
+
   const { error: uploadError } = await supabase.storage
     .from('csv-uploads')
     .upload(storagePath, file);
 
   if (uploadError) {
+    // Check if it's a filename issue
+    if (uploadError.message.includes('Invalid key')) {
+      throw new Error(
+        `Filename contains invalid characters. Please rename your file and try again. ` +
+        `Original name: "${file.name}"`
+      );
+    }
     throw new Error(`Failed to upload file: ${uploadError.message}`);
   }
 

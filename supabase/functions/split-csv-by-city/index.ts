@@ -8,6 +8,28 @@ const corsHeaders = {
 };
 
 /**
+ * Sanitize filename for Supabase Storage compliance
+ * Removes/replaces characters that cause "Invalid key" errors
+ */
+function sanitizeFilename(filename: string): string {
+  // Preserve file extension
+  const lastDotIndex = filename.lastIndexOf('.');
+  const name = lastDotIndex > 0 ? filename.substring(0, lastDotIndex) : filename;
+  const ext = lastDotIndex > 0 ? filename.substring(lastDotIndex) : '';
+
+  const sanitized = name
+    .replace(/["']/g, '')           // Remove quotes
+    .replace(/[()[\]{}]/g, '')      // Remove brackets/parens
+    .replace(/\s+/g, '_')           // Spaces → underscores
+    .replace(/[<>:|?*]/g, '-')      // Invalid path chars → hyphens
+    .replace(/\./g, '_')            // Replace remaining dots in name
+    .replace(/_{2,}/g, '_')         // Collapse multiple underscores
+    .replace(/^[._-]+|[._-]+$/g, ''); // Trim leading/trailing special chars
+
+  return sanitized + ext;
+}
+
+/**
  * Split a multi-city CSV into separate per-city upload jobs
  * CRITICAL: Uses object-first approach - NO index-based slicing
  */
@@ -120,16 +142,23 @@ serve(async (req: Request) => {
       const newCsvData = [headers, ...rows];
       const newCsvText = stringify(newCsvData);
 
-      // Upload the split CSV file
-      const splitFileName = `${city.replace(/\s+/g, '_')}_${state}_split_${Date.now()}.csv`;
+      // Upload the split CSV file with sanitized city/state names
+      const splitFileName = `${sanitizeFilename(city)}_${sanitizeFilename(state)}_split_${Date.now()}.csv`;
       const splitPath = `${job.user_id}/splits/${splitFileName}`;
+
+      console.log(`[split-csv] Sanitized filename: "${city}_${state}" → "${splitFileName}"`);
 
       const { error: uploadError } = await supabaseClient.storage
         .from('csv-uploads')
         .upload(splitPath, new Blob([newCsvText], { type: 'text/csv' }));
 
       if (uploadError) {
-        console.error(`[split-csv] Failed to upload split file for ${city}:`, uploadError);
+        if (uploadError.message.includes('Invalid key')) {
+          console.error(`[split-csv] Invalid storage key for ${city}, ${state}: "${splitFileName}"`, uploadError);
+          console.error(`[split-csv] This should not happen with sanitization. Original city: "${city}"`);
+        } else {
+          console.error(`[split-csv] Failed to upload split file for ${city}:`, uploadError);
+        }
         continue;
       }
 

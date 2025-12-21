@@ -725,8 +725,43 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] =====================================================`);
 
+    // ===== GENERATE INSIGHTS BEFORE MARKING COMPLETE =====
+    // IMPORTANT: Run insights synchronously so "COMPLETE" status means insights are done
+    // This prevents UI showing "Upload Complete" while insights are still generating
+    console.log(`[process-upload] Generating insights for ${allPropertyIds.length} properties...`);
 
-    // Mark complete with accurate counts
+    let insightsGenerated = 0;
+    if (allPropertyIds.length > 0) {
+      try {
+        const insightsResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-insights`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({ propertyIds: allPropertyIds }),
+        });
+
+        if (insightsResponse.ok) {
+          const insightsData = await insightsResponse.json();
+          insightsGenerated = insightsData.processed || 0;
+          console.log(`[process-upload] ✓ Insights generated: ${insightsGenerated} properties`);
+        } else {
+          const errorText = await insightsResponse.text();
+          console.error(`[process-upload] ✗ Insights generation failed: HTTP ${insightsResponse.status}`);
+          console.error(`[process-upload] Response: ${errorText}`);
+          // Continue - insights are enhancement, not critical for upload success
+        }
+      } catch (insightError) {
+        console.error('[process-upload] ✗ Error during insight generation:', insightError);
+        console.error('[process-upload] Upload will complete but properties may lack AI insights');
+        // Continue - don't fail upload if insights fail
+      }
+    } else {
+      console.log('[process-upload] No properties created, skipping insight generation');
+    }
+
+    // NOW mark complete - insights are done
     await supabaseClient
       .from('upload_jobs')
       .update({
@@ -737,30 +772,7 @@ async function processUploadJob(jobId: string) {
       })
       .eq('id', jobId);
 
-    console.log(`[process-upload] Job ${jobId} complete`);
-
-    // Trigger insight generation for all properties in this upload
-    console.log(`[process-upload] Triggering insight generation for ${allPropertyIds.length} properties`);
-    try {
-      const insightsResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-insights`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        },
-        body: JSON.stringify({ propertyIds: allPropertyIds }),
-      });
-      
-      if (insightsResponse.ok) {
-        const insightsData = await insightsResponse.json();
-        console.log(`[process-upload] Insights generated: ${insightsData.processed || 0} properties`);
-      } else {
-        console.error(`[process-upload] Insights generation failed: ${insightsResponse.status}`);
-      }
-    } catch (insightError) {
-      console.error('[process-upload] Error triggering insights:', insightError);
-      // Don't fail the job if insights fail
-    }
+    console.log(`[process-upload] Job ${jobId} marked COMPLETE (${insightsGenerated}/${allPropertyIds.length} insights generated)`);
 
     // Create geocoding job for properties that need it
     console.log(`[process-upload] Creating geocoding job for newly created properties`);

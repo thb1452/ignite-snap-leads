@@ -36,68 +36,29 @@ export interface JurisdictionStats {
   distressed_count: number;
 }
 
-// Fetch opportunity funnel data
+// Fetch opportunity funnel data using efficient database function
 export function useOpportunityFunnel() {
   return useQuery({
     queryKey: ["opportunity-funnel"],
     queryFn: async () => {
-      // Use raw query since the view might not be in types
-      const { data, error } = await supabase
-        .from("properties")
-        .select("snap_score")
-        .not("snap_score", "is", null);
+      const { data, error } = await supabase.rpc("fn_opportunity_funnel");
 
-      if (error) throw error;
+      if (error) {
+        console.error("fn_opportunity_funnel error:", error);
+        throw error;
+      }
 
-      // Calculate funnel locally
-      const funnel = {
-        distressed: { count: 0, total: 0 },
-        value_add: { count: 0, total: 0 },
-        watch: { count: 0, total: 0 },
-      };
-
-      (data || []).forEach((p) => {
-        const score = p.snap_score ?? 0;
-        if (score >= 70) {
-          funnel.distressed.count++;
-          funnel.distressed.total += score;
-        } else if (score >= 40) {
-          funnel.value_add.count++;
-          funnel.value_add.total += score;
-        } else {
-          funnel.watch.count++;
-          funnel.watch.total += score;
-        }
-      });
-
-      return [
-        {
-          opportunity_class: "distressed",
-          property_count: funnel.distressed.count,
-          avg_score: funnel.distressed.count > 0 
-            ? Math.round(funnel.distressed.total / funnel.distressed.count) 
-            : 0,
-        },
-        {
-          opportunity_class: "value_add",
-          property_count: funnel.value_add.count,
-          avg_score: funnel.value_add.count > 0 
-            ? Math.round(funnel.value_add.total / funnel.value_add.count) 
-            : 0,
-        },
-        {
-          opportunity_class: "watch",
-          property_count: funnel.watch.count,
-          avg_score: funnel.watch.count > 0 
-            ? Math.round(funnel.watch.total / funnel.watch.count) 
-            : 0,
-        },
-      ] as OpportunityFunnel[];
+      return (data || []).map((row: any) => ({
+        opportunity_class: row.opportunity_class,
+        property_count: Number(row.property_count),
+        avg_score: Number(row.avg_score),
+      })) as OpportunityFunnel[];
     },
+    staleTime: 30000, // Cache for 30 seconds
   });
 }
 
-// Fetch hot properties (top distressed)
+// Fetch hot properties (top distressed) - already efficient with LIMIT
 export function useHotProperties(limit = 10) {
   return useQuery({
     queryKey: ["hot-properties", limit],
@@ -125,76 +86,65 @@ export function useHotProperties(limit = 10) {
       if (error) throw error;
       return (data || []) as HotProperty[];
     },
+    staleTime: 30000,
   });
 }
 
-// Fetch jurisdiction statistics
+// Fetch jurisdiction statistics using efficient database function
 export function useJurisdictionStats() {
   return useQuery({
     queryKey: ["jurisdiction-stats"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("jurisdictions")
-        .select(`
-          id,
-          name,
-          city,
-          state,
-          enforcement_profile
-        `);
+      const { data, error } = await supabase.rpc("fn_jurisdiction_stats");
 
-      if (error) throw error;
+      if (error) {
+        console.error("fn_jurisdiction_stats error:", error);
+        throw error;
+      }
 
-      // Get property counts per jurisdiction
-      const { data: properties } = await supabase
-        .from("properties")
-        .select("jurisdiction_id, snap_score");
-
-      // Aggregate stats
-      const statsMap = new Map<string, JurisdictionStats>();
-
-      (data || []).forEach((j) => {
-        statsMap.set(j.id, {
-          jurisdiction_id: j.id,
-          jurisdiction_name: j.name,
-          city: j.city,
-          state: j.state,
-          enforcement_profile: (j.enforcement_profile as any) || {
-            strictness: "unknown",
-            avg_violations_per_property: 0,
-            score_multiplier: 1.0,
-          },
-          property_count: 0,
-          avg_score: 0,
-          distressed_count: 0,
-        });
-      });
-
-      // Count properties per jurisdiction
-      const jurisdictionCounts = new Map<string, { count: number; total: number; distressed: number }>();
-      
-      (properties || []).forEach((p) => {
-        if (!p.jurisdiction_id) return;
-        const existing = jurisdictionCounts.get(p.jurisdiction_id) || { count: 0, total: 0, distressed: 0 };
-        existing.count++;
-        existing.total += p.snap_score ?? 0;
-        if ((p.snap_score ?? 0) >= 70) existing.distressed++;
-        jurisdictionCounts.set(p.jurisdiction_id, existing);
-      });
-
-      // Merge counts into stats
-      jurisdictionCounts.forEach((counts, jId) => {
-        const stat = statsMap.get(jId);
-        if (stat) {
-          stat.property_count = counts.count;
-          stat.avg_score = counts.count > 0 ? Math.round(counts.total / counts.count) : 0;
-          stat.distressed_count = counts.distressed;
-        }
-      });
-
-      return Array.from(statsMap.values())
-        .filter((s) => s.property_count > 0)
-        .sort((a, b) => b.property_count - a.property_count);
+      return (data || []).map((row: any) => ({
+        jurisdiction_id: row.jurisdiction_id,
+        jurisdiction_name: row.jurisdiction_name,
+        city: row.city,
+        state: row.state,
+        enforcement_profile: row.enforcement_profile || {
+          strictness: "unknown",
+          avg_violations_per_property: 0,
+          score_multiplier: 1.0,
+        },
+        property_count: Number(row.property_count),
+        avg_score: Number(row.avg_score),
+        distressed_count: Number(row.distressed_count),
+      })) as JurisdictionStats[];
     },
+    staleTime: 30000,
+  });
+}
+
+// Hook for dashboard stats using efficient database function
+export function useDashboardStats() {
+  return useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("fn_dashboard_stats");
+
+      if (error) {
+        console.error("fn_dashboard_stats error:", error);
+        throw error;
+      }
+
+      return data as {
+        total_leads: number;
+        hot_leads: number;
+        avg_snap_score: number;
+        distressed_count: number;
+        value_add_count: number;
+        watch_count: number;
+        distressed_avg: number;
+        value_add_avg: number;
+        watch_avg: number;
+      };
+    },
+    staleTime: 30000,
   });
 }

@@ -1635,7 +1635,29 @@ export type Database = {
         Args: { p_meta?: Json; p_reason: string }
         Returns: number
       }
+      fn_dashboard_stats: { Args: never; Returns: Json }
       fn_job_status: { Args: { p_job_id: string }; Returns: Json }
+      fn_jurisdiction_stats: {
+        Args: never
+        Returns: {
+          avg_score: number
+          city: string
+          distressed_count: number
+          enforcement_profile: Json
+          jurisdiction_id: string
+          jurisdiction_name: string
+          property_count: number
+          state: string
+        }[]
+      }
+      fn_opportunity_funnel: {
+        Args: never
+        Returns: {
+          avg_score: number
+          opportunity_class: string
+          property_count: number
+        }[]
+      }
       fn_properties_by_bbox: {
         Args: {
           p_east: number

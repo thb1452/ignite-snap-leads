@@ -133,27 +133,36 @@ export default function Upload() {
           });
         }
 
+        // Stagger job creation to prevent database race conditions
+        // Each job queries for existing properties - simultaneous queries can cause duplicates
+        let jobIndex = 0;
         for (const [key, csvContent] of csvGroups) {
           const [groupCity, groupState] = key.split('|');
           const blob = new Blob([csvContent], { type: 'text/csv' });
           const fileName = `${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
           const file = new File([blob], fileName, { type: 'text/csv' });
 
-          const id = await createUploadJob({ 
-            file, 
-            userId: user.id, 
-            city: groupCity, 
-            county: county || null, 
-            state: groupState 
+          const id = await createUploadJob({
+            file,
+            userId: user.id,
+            city: groupCity,
+            county: county || null,
+            state: groupState
           });
           createdJobIds.push(id);
+
+          // Stagger by 1.5 seconds between jobs (except last one)
+          if (jobIndex < csvGroups.size - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+          jobIndex++;
         }
 
         setJobIds(createdJobIds);
         setJobId(null); // Use multi-job tracking instead
         toast({
           title: 'Upload Started',
-          description: `Created ${createdJobIds.length} ingest jobs for ${csvGroups.size} locations`,
+          description: `Created ${createdJobIds.length} ingest jobs for ${csvGroups.size} locations (staggered to prevent conflicts)`,
         });
       } else {
         // Single location upload
@@ -237,6 +246,8 @@ export default function Upload() {
           });
         }
 
+        // Stagger job creation to prevent database race conditions
+        let jobIndex = 0;
         for (const [key, csvContent] of csvGroups) {
           const [groupCity, groupState] = key.split('|');
           const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -251,13 +262,19 @@ export default function Upload() {
             state: groupState
           });
           createdJobIds.push(id);
+
+          // Stagger by 1.5 seconds between jobs (except last one)
+          if (jobIndex < csvGroups.size - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+          jobIndex++;
         }
 
         setJobIds(createdJobIds);
         setJobId(null);
         toast({
           title: 'CSV Processed',
-          description: `Created ${createdJobIds.length} ingest jobs`,
+          description: `Created ${createdJobIds.length} ingest jobs (staggered to prevent conflicts)`,
         });
       } else {
         // Single location

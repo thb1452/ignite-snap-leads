@@ -55,18 +55,22 @@ export function detectCsvLocations(csvText: string): CsvDetectionResult {
 
 /**
  * Split CSV rows by city for multi-job creation
- * Returns a map of "city|state" -> CSV string
+ * Returns a map of "city|state" -> CSV string, and count of skipped rows
  * IMPORTANT: Preserves original CSV lines exactly to avoid parsing issues
- * 
+ *
  * Fixed: Now properly maps parsed row indices to original line indices
  * to handle skipEmptyLines and other parsing edge cases.
  */
-export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackState?: string): Map<string, string> {
+export function splitCsvByCity(
+  csvText: string,
+  fallbackCity?: string,
+  fallbackState?: string
+): { csvGroups: Map<string, string>; skippedRows: number } {
   // Split into lines, preserving the original header
   const lines = csvText.trim().split(/\r?\n/);
   if (lines.length < 2) {
     console.log('[splitCsvByCity] CSV has no data rows');
-    return new Map();
+    return { csvGroups: new Map(), skippedRows: 0 };
   }
   
   const headerLine = lines[0];
@@ -84,6 +88,7 @@ export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackS
   // Group original LINE INDICES by city|state
   // This avoids the mismatch between parsed rows (with skipEmptyLines) and original lines
   const cityLineIndices = new Map<string, number[]>();
+  let skippedRowCount = 0;
 
   for (let i = 0; i < dataLines.length; i++) {
     const line = dataLines[i];
@@ -105,6 +110,7 @@ export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackS
     // Skip rows without location (no fallback provided)
     if (!city || !state) {
       console.log(`[splitCsvByCity] Skipping line ${i + 2}: no city/state - city="${city}" state="${state}"`);
+      skippedRowCount++;
       continue;
     }
 
@@ -115,6 +121,7 @@ export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackS
   }
 
   console.log('[splitCsvByCity] City groups:', Array.from(cityLineIndices.entries()).map(([k, v]) => `${k}: ${v.length} rows`));
+  console.log(`[splitCsvByCity] Skipped ${skippedRowCount} rows due to missing city/state`);
 
   // Build CSV strings using ORIGINAL lines
   const csvGroups = new Map<string, string>();
@@ -142,5 +149,5 @@ export function splitCsvByCity(csvText: string, fallbackCity?: string, fallbackS
     }
   }
 
-  return csvGroups;
+  return { csvGroups, skippedRows: skippedRowCount };
 }

@@ -5,5 +5,7 @@ export function useCreditBalance() {
   return useQuery({
     queryKey: ["credits", "balance"],
     queryFn: getCreditBalance,
+    retry: 1, // Only retry once to prevent infinite loops
+    staleTime: 30000,
   });
 }

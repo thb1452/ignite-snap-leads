@@ -50,5 +50,6 @@ export function useMapMarkers() {
     queryKey: ["map-markers"],
     queryFn: fetchAllMarkers,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 1,
   });
 }

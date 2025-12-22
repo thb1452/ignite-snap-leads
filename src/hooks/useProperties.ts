@@ -20,5 +20,7 @@ export function useProperties(page: number, pageSize: number, filters: unknown) 
       return result;
     },
     placeholderData: (prev) => prev,
+    retry: 1,
+    staleTime: 30000,
   });
 }

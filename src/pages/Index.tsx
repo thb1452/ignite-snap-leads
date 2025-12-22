@@ -68,8 +68,8 @@ export default function Index() {
     }
   };
 
-  // Don't block on errors - show the page with available data
-  const loading = (statsLoading && !statsError) || extraLoading;
+  // Only block if BOTH are still loading - show page as soon as one finishes
+  const loading = statsLoading && extraLoading;
 
   if (loading) {
     return (

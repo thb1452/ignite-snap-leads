@@ -248,12 +248,20 @@ serve(async (req: Request) => {
       JSON.stringify({ remaining: remaining ?? 0 }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
-    console.error("[Geocoding] Edge function error:", error);
+  } catch (error: unknown) {
+    // Better error logging
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : typeof error,
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 3).join('\n') : undefined,
+      raw: JSON.stringify(error)
+    };
+    console.error("[Geocoding] Edge function error:", errorDetails);
 
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorDetails.message || "Unknown error",
+        details: errorDetails
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

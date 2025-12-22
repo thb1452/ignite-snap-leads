@@ -22,18 +22,42 @@ async function geocodeAddress(
   state: string,
   zip?: string
 ): Promise<{ latitude: number | null; longitude: number | null; skipped: boolean }> {
-  console.log(`[Geocoding START] ${address}, ${city}, ${state} ${zip || ''}`);
+  // Sanitize address - remove Windows line breaks, extra spaces, duplicate city names
+  let cleanAddress = (address || '')
+    .replace(/_X000D_/g, ' ')  // Remove Windows carriage returns
+    .replace(/\s+/g, ' ')       // Collapse multiple spaces
+    .trim();
 
-  // Validate address components
-  const addressLower = address?.trim().toLowerCase() || '';
-  const cityLower = city?.trim().toLowerCase() || '';
+  // Remove city name if it appears at the end of address (common CSV issue)
+  const cityUpper = (city || '').toUpperCase().trim();
+  if (cityUpper && cleanAddress.toUpperCase().endsWith(cityUpper)) {
+    cleanAddress = cleanAddress.slice(0, -cityUpper.length).trim();
+  }
 
-  if (!address || addressLower === 'unknown' ||
-      !city || cityLower === 'unknown' || !state ||
-      addressLower.startsWith('parcel-based location')) {
-    console.log(`[Geocoding SKIP] Invalid or parcel-based address: ${address}`);
+  const addressLower = cleanAddress.toLowerCase();
+  const cityLower = (city || '').trim().toLowerCase();
+
+  // Skip invalid addresses
+  const invalidPatterns = [
+    'unknown', 'parcel-based location', 'parcel-based', 
+    '?', 'the city of', 'received a call', 'parked on',
+    'regarding', 'neighbor', 'complaint'
+  ];
+  
+  const isInvalid = !cleanAddress || 
+    addressLower === 'unknown' ||
+    !city || cityLower === 'unknown' || 
+    !state ||
+    cleanAddress.length > 100 ||  // Too long = probably not an address
+    cleanAddress.length < 5 ||    // Too short = probably not valid
+    invalidPatterns.some(p => addressLower.includes(p));
+
+  if (isInvalid) {
+    console.log(`[Geocoding SKIP] Invalid address: ${cleanAddress.substring(0, 50)}...`);
     return { latitude: null, longitude: null, skipped: true };
   }
+
+  console.log(`[Geocoding] ${cleanAddress}, ${city}, ${state}`);
 
   const MAPBOX_TOKEN = Deno.env.get('MAPBOX_ACCESS_TOKEN');
   if (!MAPBOX_TOKEN) {
@@ -42,7 +66,6 @@ async function geocodeAddress(
   }
 
   // Build full address
-  const cleanAddress = address.trim();
   const cleanCity = city.trim();
   const cleanState = state.trim();
   const addressParts = [cleanAddress, cleanCity, cleanState];

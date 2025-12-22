@@ -808,60 +808,13 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] =====================================================`);
 
-    // ===== GENERATE INSIGHTS BEFORE MARKING COMPLETE =====
-    // IMPORTANT: Run insights synchronously so "COMPLETE" status means insights are done
-    // This prevents UI showing "Upload Complete" while insights are still generating
-    console.log(`[process-upload] Generating insights for ${allPropertyIds.length} properties...`);
-
-    let insightsGenerated = 0;
-    if (allPropertyIds.length > 0) {
-      try {
-        const insightsResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-insights`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          },
-          body: JSON.stringify({ propertyIds: allPropertyIds }),
-        });
-
-        if (insightsResponse.ok) {
-          const insightsData = await insightsResponse.json();
-          insightsGenerated = insightsData.processed || 0;
-          const breakdown = insightsData.breakdown || {};
-          console.log(`[process-upload] ✓ Insights generated: ${insightsGenerated} properties`);
-          console.log(`[process-upload]   - AI-generated: ${breakdown.ai_generated || 0}`);
-          console.log(`[process-upload]   - Rule-based: ${breakdown.rule_based || 0}`);
-          console.log(`[process-upload]   - No data: ${breakdown.no_data || 0}`);
-
-          if (breakdown.rule_based > 0) {
-            console.warn(`[process-upload] ⚠️ ${breakdown.rule_based} properties using rule-based insights (LOVABLE_API_KEY may not be configured)`);
-          }
-        } else {
-          const errorText = await insightsResponse.text();
-          console.error(`[process-upload] ✗ Insights generation failed: HTTP ${insightsResponse.status}`);
-          console.error(`[process-upload] Response: ${errorText}`);
-          // Continue - insights are enhancement, not critical for upload success
-        }
-      } catch (insightError) {
-        console.error('[process-upload] ✗ Error during insight generation:', insightError);
-        console.error('[process-upload] Upload will complete but properties may lack AI insights');
-        // Continue - don't fail upload if insights fail
-      }
-    } else {
-      console.log('[process-upload] No properties created, skipping insight generation');
-    }
-
     // Build warnings array for data quality issues
     const warnings: string[] = [];
     if (skippedRows > 0) {
       warnings.push(`${skippedRows} violations could not be matched to properties (orphaned)`);
     }
-    if (insightsGenerated < allPropertyIds.length && allPropertyIds.length > 0) {
-      warnings.push(`Only ${insightsGenerated}/${allPropertyIds.length} properties received insights`);
-    }
 
-    // NOW mark complete - insights are done
+    // Mark job complete FIRST - insights will run in background
     const { error: completeError } = await supabaseClient
       .from('upload_jobs')
       .update({
@@ -880,8 +833,46 @@ async function processUploadJob(jobId: string) {
     }
 
     console.log(`[process-upload] Job ${jobId} marked COMPLETE`);
-    console.log(`[process-upload]   • Insights: ${insightsGenerated}/${allPropertyIds.length} generated`);
     console.log(`[process-upload]   • Data quality: ${warnings.length} warning(s)`);
+
+    // ===== GENERATE INSIGHTS IN BACKGROUND =====
+    // Run insights asynchronously so upload completes faster
+    if (allPropertyIds.length > 0) {
+      console.log(`[process-upload] Triggering background insights generation for ${allPropertyIds.length} properties...`);
+      
+      EdgeRuntime.waitUntil(
+        (async () => {
+          try {
+            const insightsResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-insights`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({ propertyIds: allPropertyIds }),
+            });
+
+            if (insightsResponse.ok) {
+              const insightsData = await insightsResponse.json();
+              const insightsGenerated = insightsData.processed || 0;
+              const breakdown = insightsData.breakdown || {};
+              console.log(`[process-upload] ✓ Background insights complete: ${insightsGenerated} properties`);
+              console.log(`[process-upload]   - AI-generated: ${breakdown.ai_generated || 0}`);
+              console.log(`[process-upload]   - Rule-based: ${breakdown.rule_based || 0}`);
+              console.log(`[process-upload]   - No data: ${breakdown.no_data || 0}`);
+            } else {
+              const errorText = await insightsResponse.text();
+              console.error(`[process-upload] ✗ Background insights failed: HTTP ${insightsResponse.status}`);
+              console.error(`[process-upload] Response: ${errorText}`);
+            }
+          } catch (insightError) {
+            console.error('[process-upload] ✗ Error during background insight generation:', insightError);
+          }
+        })()
+      );
+    } else {
+      console.log('[process-upload] No properties created, skipping insight generation');
+    }
 
     // Create geocoding job for properties that need it
     console.log(`[process-upload] Creating geocoding job for newly created properties`);

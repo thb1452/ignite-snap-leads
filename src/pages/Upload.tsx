@@ -395,11 +395,12 @@ export default function Upload() {
                   
                   <div className="space-y-2">
                     <Label htmlFor="state">State <span className="text-xs text-muted-foreground">(Fallback)</span></Label>
-                    <Select value={state} onValueChange={setState}>
+                    <Select value={state || "none"} onValueChange={(v) => setState(v === "none" ? "" : v)}>
                       <SelectTrigger id="state">
                         <SelectValue placeholder="Select state" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
                         {US_STATES.map((st) => (
                           <SelectItem key={st} value={st}>
                             {st}

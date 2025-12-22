@@ -25,7 +25,7 @@ import { detectCsvLocations, splitCsvByCity } from '@/utils/csvLocationDetector'
 import { sanitizeFilename } from '@/utils/sanitizeFilename';
 
 const UPLOAD_LIMITS = {
-  MAX_FILE_SIZE_MB: 50,
+  MAX_FILE_SIZE_MB: 15,  // Edge function memory limit requires smaller files
   MAX_ROWS: 50000,
 };
 

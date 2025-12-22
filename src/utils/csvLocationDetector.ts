@@ -197,59 +197,42 @@ export function detectCsvLocations(csvText: string): CsvDetectionResult {
 /**
  * Split CSV rows by city for multi-job creation
  * Returns a map of "city|state" -> CSV string, and count of skipped rows
- * IMPORTANT: Preserves original CSV lines exactly to avoid parsing issues
- *
- * Fixed: Now properly maps parsed row indices to original line indices
- * to handle skipEmptyLines and other parsing edge cases.
+ * 
+ * Uses papaparse to properly handle multi-line quoted fields
  */
 export function splitCsvByCity(
   csvText: string,
   fallbackCity?: string,
   fallbackState?: string
 ): { csvGroups: Map<string, string>; skippedRows: number } {
-  // Split into lines, preserving the original header
-  const lines = csvText.trim().split(/\r?\n/);
-  if (lines.length < 2) {
-    console.log('[splitCsvByCity] CSV has no data rows');
-    return { csvGroups: new Map(), skippedRows: 0 };
-  }
+  // Parse CSV properly with papaparse (handles multi-line quoted fields)
+  const result = Papa.parse<Record<string, string>>(csvText, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (header) => header.trim().toLowerCase(),
+  });
   
-  const headerLine = lines[0];
-  const dataLines = lines.slice(1);
+  const rows = result.data;
+  const headers = result.meta.fields || [];
   
-  // Parse headers to find city/state/address column indices
-  const headerResult = Papa.parse<string[]>(headerLine, { header: false });
-  const headers = (headerResult.data[0] || []).map(h => h.trim().toLowerCase());
-  const cityColIndex = headers.findIndex(h => h === 'city');
-  const stateColIndex = headers.findIndex(h => h === 'state');
-  const addressColIndex = headers.findIndex(h => h === 'address' || h === 'location' || h === 'property_address');
+  console.log('[splitCsvByCity] Parsed', rows.length, 'rows with papaparse');
+  console.log('[splitCsvByCity] Headers:', headers.join(', '));
   
-  console.log('[splitCsvByCity] Total lines:', lines.length, 'Data lines:', dataLines.length);
-  console.log('[splitCsvByCity] City column index:', cityColIndex, 'State column index:', stateColIndex, 'Address column index:', addressColIndex);
-  
-  // Group original LINE INDICES by city|state
-  // This avoids the mismatch between parsed rows (with skipEmptyLines) and original lines
-  const cityLineIndices = new Map<string, number[]>();
+  // Group rows by city|state
+  const cityGroups = new Map<string, Record<string, string>[]>();
   let skippedRowCount = 0;
 
-  for (let i = 0; i < dataLines.length; i++) {
-    const line = dataLines[i];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
     
-    // Skip truly empty lines
-    if (!line || line.trim() === '') continue;
-    
-    // Parse this single line to extract city/state/address values
-    const rowResult = Papa.parse<string[]>(line, { header: false });
-    const values = rowResult.data[0] || [];
-    
-    const rawCity = (cityColIndex >= 0 && values[cityColIndex]) ? values[cityColIndex].trim() : '';
-    const address = (addressColIndex >= 0 && values[addressColIndex]) ? values[addressColIndex].trim() : '';
-    let state = (stateColIndex >= 0 && values[stateColIndex]) ? values[stateColIndex].trim().toUpperCase() : '';
+    const rawCity = (row.city || "").trim();
+    const address = (row.address || row.location || row.property_address || "").trim();
+    let state = (row.state || "").trim().toUpperCase();
     
     // Try to extract city from address if city column is empty or contains a zip code
     let city = extractCityFromAddress(address, rawCity);
 
-    // Validate city/state - reject if they look like violation descriptions
+    // Validate city/state
     const cityLooksValid = city && isValidCityName(city);
     const stateLooksValid = state && isValidStateCode(state);
 
@@ -263,44 +246,33 @@ export function splitCsvByCity(
 
     // Skip rows without valid location data
     if (!finalCityValid || !finalStateValid) {
-      console.log(`[splitCsvByCity] Skipping line ${i + 2}: invalid/missing city/state - city="${city}" (valid=${finalCityValid}) state="${state}" (valid=${finalStateValid})`);
+      console.log(`[splitCsvByCity] Skipping row ${i + 1}: invalid/missing city/state - city="${city}" state="${state}"`);
       skippedRowCount++;
       continue;
     }
 
     const key = `${city}|${state}`;
-    const indices = cityLineIndices.get(key) || [];
-    indices.push(i); // Store original line index
-    cityLineIndices.set(key, indices);
+    const group = cityGroups.get(key) || [];
+    group.push(row);
+    cityGroups.set(key, group);
   }
 
-  console.log('[splitCsvByCity] City groups:', Array.from(cityLineIndices.entries()).map(([k, v]) => `${k}: ${v.length} rows`));
+  console.log('[splitCsvByCity] City groups:', Array.from(cityGroups.entries()).map(([k, v]) => `${k}: ${v.length} rows`));
   console.log(`[splitCsvByCity] Skipped ${skippedRowCount} rows due to missing city/state`);
 
-  // Build CSV strings using ORIGINAL lines
+  // Convert grouped rows back to CSV strings
   const csvGroups = new Map<string, string>();
-  for (const [key, indices] of cityLineIndices) {
-    if (indices.length === 0) {
-      console.log(`[splitCsvByCity] Skipping group ${key}: no rows`);
-      continue;
-    }
+  for (const [key, groupRows] of cityGroups) {
+    if (groupRows.length === 0) continue;
     
-    const groupLines = [headerLine];
-    for (const idx of indices) {
-      const line = dataLines[idx];
-      if (line && line.trim() !== '') {
-        groupLines.push(line);
-      }
-    }
+    // Use papaparse to serialize back to CSV (handles quoting properly)
+    const csv = Papa.unparse(groupRows, {
+      columns: headers,
+      header: true,
+    });
     
-    // Only create group if we have actual data rows
-    if (groupLines.length > 1) {
-      const csv = groupLines.join('\n');
-      console.log(`[splitCsvByCity] Group ${key}: ${groupLines.length - 1} data lines, CSV length: ${csv.length}`);
-      csvGroups.set(key, csv);
-    } else {
-      console.log(`[splitCsvByCity] Skipping group ${key}: only header, no data`);
-    }
+    console.log(`[splitCsvByCity] Group ${key}: ${groupRows.length} rows, CSV length: ${csv.length}`);
+    csvGroups.set(key, csv);
   }
 
   return { csvGroups, skippedRows: skippedRowCount };

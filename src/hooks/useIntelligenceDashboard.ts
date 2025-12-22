@@ -130,7 +130,18 @@ export function useDashboardStats() {
 
       if (error) {
         console.error("fn_dashboard_stats error:", error);
-        throw error;
+        // Return default values instead of throwing to prevent infinite loading
+        return {
+          total_leads: 0,
+          hot_leads: 0,
+          avg_snap_score: 0,
+          distressed_count: 0,
+          value_add_count: 0,
+          watch_count: 0,
+          distressed_avg: 0,
+          value_add_avg: 0,
+          watch_avg: 0,
+        };
       }
 
       return data as {
@@ -146,5 +157,6 @@ export function useDashboardStats() {
       };
     },
     staleTime: 30000,
+    retry: 1, // Only retry once instead of 3 times
   });
 }

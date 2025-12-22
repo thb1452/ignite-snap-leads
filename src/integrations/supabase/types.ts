@@ -333,6 +333,7 @@ export type Database = {
           finished_at: string | null
           geocoded_count: number
           id: string
+          skipped_count: number
           started_at: string | null
           status: string
           total_properties: number
@@ -345,6 +346,7 @@ export type Database = {
           finished_at?: string | null
           geocoded_count?: number
           id?: string
+          skipped_count?: number
           started_at?: string | null
           status?: string
           total_properties?: number
@@ -357,6 +359,7 @@ export type Database = {
           finished_at?: string | null
           geocoded_count?: number
           id?: string
+          skipped_count?: number
           started_at?: string | null
           status?: string
           total_properties?: number

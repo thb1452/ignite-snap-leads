@@ -41,11 +41,13 @@ export function useGeocodingJob(pollMs: number = 2000) {
     };
   }, [pollMs]);
 
+  // FIX: Include skipped_count in progress calculation
+  // Progress = (successfully geocoded + intentionally skipped) / total
   const progress =
     job && job.total_properties > 0
       ? Math.min(
           100,
-          Math.round((job.geocoded_count / job.total_properties) * 100),
+          Math.round(((job.geocoded_count + (job.skipped_count || 0)) / job.total_properties) * 100),
         )
       : 0;
 

@@ -28,6 +28,7 @@ async function geocodeAddress(
   const addressLower = address?.trim().toLowerCase() || '';
   const cityLower = city?.trim().toLowerCase() || '';
 
+  // Basic validation: missing data or known placeholders
   if (!address || addressLower === 'unknown' ||
       !city || cityLower === 'unknown' || !state ||
       addressLower.startsWith('parcel-based location')) {
@@ -35,10 +36,30 @@ async function geocodeAddress(
     return { latitude: null, longitude: null, skipped: true };
   }
 
+  // Sanitization: Skip addresses containing violation keywords or garbage
+  const violationKeywords = [
+    'violation', 'debris', 'trash', 'weeds', 'overgrown',
+    'complaint', 'notice', 'hazard', 'illegal', 'unpermitted',
+    'junk', 'abandoned', 'dumped', '_x000d_', '\\n', '\\r'
+  ];
+
+  for (const keyword of violationKeywords) {
+    if (addressLower.includes(keyword) || cityLower.includes(keyword)) {
+      console.log(`[Geocoding SKIP] Address contains violation text: ${address}`);
+      return { latitude: null, longitude: null, skipped: true };
+    }
+  }
+
+  // Skip if address looks malformed (e.g. contains multiple sentences, excessive punctuation)
+  if (address.includes(';') || address.split('.').length > 2) {
+    console.log(`[Geocoding SKIP] Address appears malformed: ${address}`);
+    return { latitude: null, longitude: null, skipped: true };
+  }
+
   const MAPBOX_TOKEN = Deno.env.get('MAPBOX_ACCESS_TOKEN');
   if (!MAPBOX_TOKEN) {
-    console.error('[Geocoding] MAPBOX_ACCESS_TOKEN not configured');
-    return { latitude: null, longitude: null, skipped: false };
+    console.error('[Geocoding] ⚠️ MAPBOX_ACCESS_TOKEN not configured - skipping all geocoding');
+    return { latitude: null, longitude: null, skipped: true };  // FIX: Mark as skipped, not failed
   }
 
   // Build full address

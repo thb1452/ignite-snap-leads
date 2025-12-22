@@ -10,7 +10,7 @@ import { useDashboardStats } from "@/hooks/useIntelligenceDashboard";
 
 export default function Index() {
   const navigate = useNavigate();
-  const { data: dashboardStats, isLoading: statsLoading } = useDashboardStats();
+  const { data: dashboardStats, isLoading: statsLoading, error: statsError } = useDashboardStats();
   
   const [extraStats, setExtraStats] = useState({
     tracedLeads: 0,
@@ -21,6 +21,11 @@ export default function Index() {
 
   useEffect(() => {
     fetchExtraStats();
+    // Safety timeout - if loading takes more than 10s, stop loading
+    const timeout = setTimeout(() => {
+      setExtraLoading(false);
+    }, 10000);
+    return () => clearTimeout(timeout);
   }, []);
 
   const fetchExtraStats = async () => {
@@ -28,22 +33,28 @@ export default function Index() {
       setExtraLoading(true);
 
       // Traced leads (count distinct properties with contacts) - use count
-      const { count: tracedLeads } = await supabase
+      const { count: tracedLeads, error: tracedError } = await supabase
         .from("property_contacts")
         .select("property_id", { count: "exact", head: true });
 
+      if (tracedError) console.error("Error fetching traced leads:", tracedError);
+
       // Active lists
-      const { count: activeLists } = await supabase
+      const { count: activeLists, error: listsError } = await supabase
         .from("lead_lists")
         .select("*", { count: "exact", head: true });
+
+      if (listsError) console.error("Error fetching active lists:", listsError);
 
       // Outreach today
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const { count: outreachToday } = await supabase
+      const { count: outreachToday, error: outreachError } = await supabase
         .from("lead_activity")
         .select("*", { count: "exact", head: true })
         .gte("created_at", today.toISOString());
+
+      if (outreachError) console.error("Error fetching outreach:", outreachError);
 
       setExtraStats({
         tracedLeads: tracedLeads ?? 0,
@@ -57,7 +68,8 @@ export default function Index() {
     }
   };
 
-  const loading = statsLoading || extraLoading;
+  // Don't block on errors - show the page with available data
+  const loading = (statsLoading && !statsError) || extraLoading;
 
   if (loading) {
     return (

@@ -108,46 +108,19 @@ function sanitizeCsvQuotes(csvText: string): string {
   const expectedColumns = countCsvColumns(headerLine);
   console.log(`[process-upload] Detected ${expectedColumns} columns in header`);
   
-  // Process the CSV character by character, handling multi-line quoted fields
+  // Process row by row - don't try to merge across rows
+  const lines = text.split('\n');
   const result: string[] = [];
-  let currentRow = '';
-  let inQuotes = false;
-  let i = 0;
   
-  while (i < text.length) {
-    const char = text[i];
-    
-    if (char === '"') {
-      // Check for escaped quote ("")
-      if (inQuotes && i + 1 < text.length && text[i + 1] === '"') {
-        currentRow += '""';
-        i += 2;
-        continue;
-      }
-      // Toggle quote state
-      inQuotes = !inQuotes;
-      currentRow += char;
-    } else if (char === '\n') {
-      if (inQuotes) {
-        // Inside quotes - replace newline with space to flatten multi-line fields
-        currentRow += ' ';
-      } else {
-        // End of row - validate and fix if needed
-        const fixedRow = fixRowQuotes(currentRow, expectedColumns);
-        if (fixedRow.trim()) {
-          result.push(fixedRow);
-        }
-        currentRow = '';
-      }
-    } else {
-      currentRow += char;
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    const line = lines[lineIdx];
+    if (!line.trim()) {
+      if (lineIdx === 0) result.push(line); // Keep header even if blank
+      continue;
     }
-    i++;
-  }
-  
-  // Handle last row if no trailing newline
-  if (currentRow.trim()) {
-    const fixedRow = fixRowQuotes(currentRow, expectedColumns);
+    
+    // Fix quote issues in this single row
+    const fixedRow = fixRowQuotes(line, expectedColumns);
     if (fixedRow.trim()) {
       result.push(fixedRow);
     }
@@ -178,17 +151,10 @@ function countCsvColumns(line: string): number {
 }
 
 /**
- * Fix quote issues in a single row
+ * Fix quote issues in a single row by properly escaping unescaped quotes
  */
 function fixRowQuotes(row: string, expectedColumns: number): string {
-  // First try: parse as-is
-  const currentColumns = countCsvColumns(row);
-  if (currentColumns === expectedColumns) {
-    return row;
-  }
-  
-  // If column count doesn't match, we have malformed quotes
-  // Strategy: remove all quotes from problematic fields and re-quote if needed
+  // Parse fields, properly handling and escaping quotes
   const fields: string[] = [];
   let current = '';
   let inQuotes = false;
@@ -212,7 +178,7 @@ function fixRowQuotes(row: string, expectedColumns: number): string {
           current += char;
           inQuotes = false;
         } else {
-          // Bare quote inside - escape it
+          // Bare quote inside quoted field - escape it
           current += '""';
         }
       } else {
@@ -234,17 +200,6 @@ function fixRowQuotes(row: string, expectedColumns: number): string {
   }
   
   fields.push(current);
-  
-  // If we still don't have the right column count, try aggressive cleaning
-  if (fields.length !== expectedColumns && fields.length > expectedColumns) {
-    // Too many columns - likely quotes creating splits
-    // Merge excess columns into the last "text" field
-    const merged = fields.slice(0, expectedColumns - 1);
-    const rest = fields.slice(expectedColumns - 1).join(',');
-    const cleanRest = '"' + rest.replace(/"/g, '""').replace(/^"|"$/g, '') + '"';
-    merged.push(cleanRest);
-    return merged.join(',');
-  }
   
   return fields.join(',');
 }
@@ -382,11 +337,20 @@ async function processUploadJob(jobId: string) {
         console.log(`[process-upload] Row ${i + 1}: Invalid state "${rowState}" - using job default`);
       }
       
+      // Truncate fields to prevent index size errors (PostgreSQL btree index limit is ~2700 bytes per column)
+      const MAX_ADDRESS_LENGTH = 500;
+      const MAX_DESCRIPTION_LENGTH = 2000;
+      
+      const truncatedAddress = address.length > MAX_ADDRESS_LENGTH ? address.substring(0, MAX_ADDRESS_LENGTH) : address;
+      const truncatedDescription = description && description.length > MAX_DESCRIPTION_LENGTH 
+        ? description.substring(0, MAX_DESCRIPTION_LENGTH) + '...' 
+        : description;
+      
       stagingRows.push({
         job_id: jobId,
         row_num: i + 1,
         case_id: caseId,
-        address: address,
+        address: truncatedAddress,
         city: finalCity,
         state: finalState,
         zip: row.zip || row.zipcode || row['zip code'] || '',
@@ -395,7 +359,7 @@ async function processUploadJob(jobId: string) {
         opened_date: openDate,
         last_updated: closeDate || row.last_updated || null,
         jurisdiction_id: job.jurisdiction_id || null,
-        raw_description: description, // Store raw notes for AI processing (INTERNAL ONLY)
+        raw_description: truncatedDescription, // Store raw notes for AI processing (INTERNAL ONLY)
       });
 
       if (stagingRows.length >= STAGING_BATCH_SIZE || i === dataRows.length - 1) {

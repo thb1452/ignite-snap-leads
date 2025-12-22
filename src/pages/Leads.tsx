@@ -60,10 +60,14 @@ function Leads() {
   }), [searchQuery, selectedCity, snapScoreMin]);
 
   // Use paginated properties hook for the list
-  const { data, isLoading, refetch } = useProperties(page, PAGE_SIZE, filters);
+  const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
   
   // Use lightweight markers query for the map (all properties with coords)
-  const { data: mapMarkers = [] } = useMapMarkers();
+  const { data: mapMarkers = [], error: mapError } = useMapMarkers();
+  
+  // Log any errors
+  if (error) console.error("[Leads] Properties error:", error);
+  if (mapError) console.error("[Leads] Map markers error:", mapError);
   
   const properties = data?.data ?? [];
   const totalCount = data?.total ?? 0;

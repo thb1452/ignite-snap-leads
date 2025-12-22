@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import { parse } from "https://deno.land/std@0.168.0/encoding/csv.ts";
+import Papa from "https://esm.sh/papaparse@5.4.1";
 
 // ============================================
 // UPLOAD LIMITS - Change these to adjust capacity
@@ -92,116 +92,35 @@ interface CSVRow {
 }
 
 /**
- * Pre-sanitize CSV text to handle malformed quotes in fields.
- * Municipal data often contains unescaped quotes, multi-line fields, and other issues.
- * This function makes the CSV parseable while preserving all content.
+ * Parse CSV using papaparse which properly handles:
+ * - Multi-line quoted fields
+ * - Escaped quotes within fields
+ * - Malformed CSVs from municipal sources
  */
-function sanitizeCsvQuotes(csvText: string): string {
-  // First, normalize line endings
-  let text = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+function parseCSVWithPapaparse(csvText: string): { headers: string[], dataRows: Record<string, any>[] } {
+  console.log('[process-upload] Parsing CSV with papaparse...');
   
-  // Count the number of columns from the header
-  const headerEnd = text.indexOf('\n');
-  if (headerEnd === -1) return text;
-  
-  const headerLine = text.substring(0, headerEnd);
-  const expectedColumns = countCsvColumns(headerLine);
-  console.log(`[process-upload] Detected ${expectedColumns} columns in header`);
-  
-  // Process row by row - don't try to merge across rows
-  const lines = text.split('\n');
-  const result: string[] = [];
-  
-  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-    const line = lines[lineIdx];
-    if (!line.trim()) {
-      if (lineIdx === 0) result.push(line); // Keep header even if blank
-      continue;
+  const parseResult = Papa.parse(csvText, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (header: string) => header.trim().toLowerCase(),
+    transform: (value: string) => {
+      // Flatten multi-line values by replacing newlines with spaces
+      return value.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
     }
-    
-    // Fix quote issues in this single row
-    const fixedRow = fixRowQuotes(line, expectedColumns);
-    if (fixedRow.trim()) {
-      result.push(fixedRow);
-    }
-  }
-  
-  return result.join('\n');
-}
+  });
 
-/**
- * Count CSV columns handling quoted fields
- */
-function countCsvColumns(line: string): number {
-  let count = 1;
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
-        i++; // Skip escaped quote
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === ',' && !inQuotes) {
-      count++;
-    }
+  if (parseResult.errors && parseResult.errors.length > 0) {
+    console.warn('[process-upload] CSV parse warnings:', JSON.stringify(parseResult.errors.slice(0, 10)));
   }
-  return count;
-}
 
-/**
- * Fix quote issues in a single row by properly escaping unescaped quotes
- */
-function fixRowQuotes(row: string, expectedColumns: number): string {
-  // Parse fields, properly handling and escaping quotes
-  const fields: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  let i = 0;
+  const headers = parseResult.meta?.fields || [];
+  const dataRows = parseResult.data as Record<string, any>[];
   
-  while (i < row.length) {
-    const char = row[i];
-    
-    if (char === '"') {
-      if (!inQuotes && current === '') {
-        // Start of quoted field
-        inQuotes = true;
-        current += char;
-      } else if (inQuotes) {
-        // Check for escaped quote
-        if (i + 1 < row.length && row[i + 1] === '"') {
-          current += '""';
-          i++;
-        } else if (i + 1 >= row.length || row[i + 1] === ',') {
-          // Proper end of quoted field
-          current += char;
-          inQuotes = false;
-        } else {
-          // Bare quote inside quoted field - escape it
-          current += '""';
-        }
-      } else {
-        // Quote in unquoted field - escape it
-        current += '""';
-      }
-    } else if (char === ',' && !inQuotes) {
-      fields.push(current);
-      current = '';
-    } else {
-      current += char;
-    }
-    i++;
-  }
+  console.log(`[process-upload] Papaparse detected ${headers.length} columns: ${headers.join(', ')}`);
+  console.log(`[process-upload] Parsed ${dataRows.length} rows from CSV`);
   
-  // Handle unclosed quote at end
-  if (inQuotes && current.startsWith('"') && !current.endsWith('"')) {
-    current += '"';
-  }
-  
-  fields.push(current);
-  
-  return fields.join(',');
+  return { headers, dataRows };
 }
 
 // Background processing function
@@ -258,23 +177,14 @@ async function processUploadJob(jobId: string) {
 
     const rawCsvText = await fileData.text();
     
-    // Pre-sanitize CSV to handle malformed quotes in municipal data
-    console.log(`[process-upload] Sanitizing CSV quotes...`);
-    const csvText = sanitizeCsvQuotes(rawCsvText);
+    // Parse CSV using papaparse (handles multi-line quoted fields properly)
+    const { headers, dataRows: parsedRows } = parseCSVWithPapaparse(rawCsvText);
     
-    // Use proper CSV parser to handle quoted fields with commas
-    const parsedData = parse(csvText, {
-      skipFirstRow: false,
-      strip: true,
-    }) as string[][];
-    
-    if (parsedData.length < 2) {
+    if (parsedRows.length === 0) {
       throw new Error('CSV file is empty or has no data rows');
     }
 
-    const headers = parsedData[0].map(h => h.trim().toLowerCase());
-    const dataRows = parsedData.slice(1);
-    const totalRows = dataRows.length;
+    const totalRows = parsedRows.length;
 
     // Validate row count to prevent memory issues
     if (totalRows > MAX_ROWS_PER_UPLOAD) {
@@ -285,7 +195,7 @@ async function processUploadJob(jobId: string) {
     }
     
     console.log(`[process-upload] CSV Headers: ${JSON.stringify(headers)}`);
-    console.log(`[process-upload] Parsed ${totalRows} rows from CSV (limit: ${MAX_ROWS_PER_UPLOAD})`);
+    console.log(`[process-upload] Processing ${totalRows} rows (limit: ${MAX_ROWS_PER_UPLOAD})`);
 
     // Update total rows AND set status to PROCESSING immediately so frontend sees progress
     await supabaseClient
@@ -302,13 +212,9 @@ async function processUploadJob(jobId: string) {
     // Parse and insert into staging in batches for memory efficiency
     const stagingRows: any[] = [];
     
-    for (let i = 0; i < dataRows.length; i++) {
-      const values = dataRows[i];
-      const row: any = {};
-      
-      headers.forEach((header, idx) => {
-        row[header] = values[idx]?.trim() || null;
-      });
+    for (let i = 0; i < parsedRows.length; i++) {
+      // papaparse already returns objects with header keys
+      const row = parsedRows[i] as Record<string, any>;
 
       // Flexible column mapping - support multiple CSV formats
       const caseId = row.case_id || row['case/file id'] || row['file #'] || row.file_number || row.id || row['file number'] || null;
@@ -362,7 +268,7 @@ async function processUploadJob(jobId: string) {
         raw_description: truncatedDescription, // Store raw notes for AI processing (INTERNAL ONLY)
       });
 
-      if (stagingRows.length >= STAGING_BATCH_SIZE || i === dataRows.length - 1) {
+      if (stagingRows.length >= STAGING_BATCH_SIZE || i === parsedRows.length - 1) {
         const { error: insertError } = await supabaseClient
           .from('upload_staging')
           .insert(stagingRows);

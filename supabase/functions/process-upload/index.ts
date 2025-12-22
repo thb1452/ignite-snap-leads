@@ -93,83 +93,160 @@ interface CSVRow {
 
 /**
  * Pre-sanitize CSV text to handle malformed quotes in fields.
- * Municipal data often contains unescaped quotes in inspector notes/descriptions.
+ * Municipal data often contains unescaped quotes, multi-line fields, and other issues.
  * This function makes the CSV parseable while preserving all content.
  */
 function sanitizeCsvQuotes(csvText: string): string {
-  const lines = csvText.split(/\r?\n/);
-  const result: string[] = [];
+  // First, normalize line endings
+  let text = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   
-  for (const line of lines) {
-    if (!line.trim()) {
-      result.push(line);
-      continue;
-    }
+  // Count the number of columns from the header
+  const headerEnd = text.indexOf('\n');
+  if (headerEnd === -1) return text;
+  
+  const headerLine = text.substring(0, headerEnd);
+  const expectedColumns = countCsvColumns(headerLine);
+  console.log(`[process-upload] Detected ${expectedColumns} columns in header`);
+  
+  // Process the CSV character by character, handling multi-line quoted fields
+  const result: string[] = [];
+  let currentRow = '';
+  let inQuotes = false;
+  let i = 0;
+  
+  while (i < text.length) {
+    const char = text[i];
     
-    // Parse each field, handling quoted and unquoted fields
-    const fields: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    let i = 0;
-    
-    while (i < line.length) {
-      const char = line[i];
-      
-      if (char === '"') {
-        if (!inQuotes && current === '') {
-          // Start of quoted field
-          inQuotes = true;
-          current += char;
-        } else if (inQuotes) {
-          // Check if this is an escaped quote ("") or end of field
-          if (i + 1 < line.length && line[i + 1] === '"') {
-            // Escaped quote - keep both
-            current += '""';
-            i++;
-          } else if (i + 1 >= line.length || line[i + 1] === ',') {
-            // End of quoted field
-            current += char;
-            inQuotes = false;
-          } else {
-            // Bare quote inside quoted field - escape it
-            current += '""';
-          }
-        } else {
-          // Bare quote in unquoted field - this is the problem case
-          // Wrap the entire remaining field content in quotes
-          // Find the next comma (end of field)
-          let fieldEnd = i;
-          while (fieldEnd < line.length && line[fieldEnd] !== ',') {
-            fieldEnd++;
-          }
-          // Get the rest of this field including the quote
-          const restOfField = line.substring(i, fieldEnd);
-          // Escape any quotes and wrap
-          current = '"' + current + restOfField.replace(/"/g, '""') + '"';
-          i = fieldEnd - 1; // Will be incremented at end of loop
-        }
-      } else if (char === ',' && !inQuotes) {
-        // End of field
-        fields.push(current);
-        current = '';
-      } else {
-        current += char;
+    if (char === '"') {
+      // Check for escaped quote ("")
+      if (inQuotes && i + 1 < text.length && text[i + 1] === '"') {
+        currentRow += '""';
+        i += 2;
+        continue;
       }
-      i++;
+      // Toggle quote state
+      inQuotes = !inQuotes;
+      currentRow += char;
+    } else if (char === '\n') {
+      if (inQuotes) {
+        // Inside quotes - replace newline with space to flatten multi-line fields
+        currentRow += ' ';
+      } else {
+        // End of row - validate and fix if needed
+        const fixedRow = fixRowQuotes(currentRow, expectedColumns);
+        if (fixedRow.trim()) {
+          result.push(fixedRow);
+        }
+        currentRow = '';
+      }
+    } else {
+      currentRow += char;
     }
-    
-    // Handle unclosed quotes at end of line
-    if (inQuotes && current.startsWith('"') && !current.endsWith('"')) {
-      current += '"';
+    i++;
+  }
+  
+  // Handle last row if no trailing newline
+  if (currentRow.trim()) {
+    const fixedRow = fixRowQuotes(currentRow, expectedColumns);
+    if (fixedRow.trim()) {
+      result.push(fixedRow);
     }
-    
-    // Push last field
-    fields.push(current);
-    
-    result.push(fields.join(','));
   }
   
   return result.join('\n');
+}
+
+/**
+ * Count CSV columns handling quoted fields
+ */
+function countCsvColumns(line: string): number {
+  let count = 1;
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+        i++; // Skip escaped quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * Fix quote issues in a single row
+ */
+function fixRowQuotes(row: string, expectedColumns: number): string {
+  // First try: parse as-is
+  const currentColumns = countCsvColumns(row);
+  if (currentColumns === expectedColumns) {
+    return row;
+  }
+  
+  // If column count doesn't match, we have malformed quotes
+  // Strategy: remove all quotes from problematic fields and re-quote if needed
+  const fields: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  let i = 0;
+  
+  while (i < row.length) {
+    const char = row[i];
+    
+    if (char === '"') {
+      if (!inQuotes && current === '') {
+        // Start of quoted field
+        inQuotes = true;
+        current += char;
+      } else if (inQuotes) {
+        // Check for escaped quote
+        if (i + 1 < row.length && row[i + 1] === '"') {
+          current += '""';
+          i++;
+        } else if (i + 1 >= row.length || row[i + 1] === ',') {
+          // Proper end of quoted field
+          current += char;
+          inQuotes = false;
+        } else {
+          // Bare quote inside - escape it
+          current += '""';
+        }
+      } else {
+        // Quote in unquoted field - escape it
+        current += '""';
+      }
+    } else if (char === ',' && !inQuotes) {
+      fields.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+    i++;
+  }
+  
+  // Handle unclosed quote at end
+  if (inQuotes && current.startsWith('"') && !current.endsWith('"')) {
+    current += '"';
+  }
+  
+  fields.push(current);
+  
+  // If we still don't have the right column count, try aggressive cleaning
+  if (fields.length !== expectedColumns && fields.length > expectedColumns) {
+    // Too many columns - likely quotes creating splits
+    // Merge excess columns into the last "text" field
+    const merged = fields.slice(0, expectedColumns - 1);
+    const rest = fields.slice(expectedColumns - 1).join(',');
+    const cleanRest = '"' + rest.replace(/"/g, '""').replace(/^"|"$/g, '') + '"';
+    merged.push(cleanRest);
+    return merged.join(',');
+  }
+  
+  return fields.join(',');
 }
 
 // Background processing function

@@ -4,12 +4,13 @@ import Papa from "https://esm.sh/papaparse@5.4.1";
 
 // ============================================
 // UPLOAD LIMITS - Change these to adjust capacity
+// Edge functions have ~150MB memory limit, so we must be conservative
 // ============================================
 const MAX_ROWS_PER_UPLOAD = 50000;  // Maximum rows allowed in a single CSV
-const STAGING_BATCH_SIZE = 1000;    // Rows per batch for staging inserts
-const PROP_INSERT_BATCH = 500;      // Properties per batch for inserts
-const VIOL_BATCH_SIZE = 500;        // Violations per batch for inserts
-const MAX_FILE_SIZE_MB = 50;        // Maximum file size in MB
+const STAGING_BATCH_SIZE = 500;     // Rows per batch for staging inserts (smaller = less memory)
+const PROP_INSERT_BATCH = 250;      // Properties per batch for inserts
+const VIOL_BATCH_SIZE = 250;        // Violations per batch for inserts
+const MAX_FILE_SIZE_MB = 15;        // Maximum file size in MB (edge function memory limit)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

@@ -57,43 +57,55 @@ function extractCityFromAddress(
   stateField: string
 ): { cleanAddress: string; extractedCity: string } {
   const trimmedCity = cityField?.trim() || '';
-  
-  // If city field is valid (not empty, not a zip code), use it
-  if (trimmedCity && !/^\d{5}(-\d{4})?$/.test(trimmedCity)) {
-    return { cleanAddress: address, extractedCity: trimmedCity };
-  }
-  
-  // Try to find known city at end of address
   const addressTrimmed = address.trim();
   
-  for (const city of ALL_KNOWN_CITIES) {
-    const cityPattern = new RegExp(`\\b${city}\\s*$`, 'i');
+  // Check if city field needs extraction (empty or contains a zip code)
+  const needsExtraction = !trimmedCity || /^\d{5}(-\d{4})?$/.test(trimmedCity);
+  
+  if (!needsExtraction) {
+    return { cleanAddress: addressTrimmed, extractedCity: trimmedCity };
+  }
+  
+  console.log(`[process-upload] City extraction needed for address: "${addressTrimmed.substring(0, 60)}..." (city field: "${trimmedCity}")`);
+  
+  // Try to find known city at end of address (sorted by length to match longer names first)
+  const sortedCities = [...ALL_KNOWN_CITIES].sort((a, b) => b.length - a.length);
+  
+  for (const city of sortedCities) {
+    // Match city at end of address, with optional comma before
+    const cityPattern = new RegExp(`[,\\s]+${city.replace(/\s+/g, '\\s+')}\\s*$`, 'i');
     
     if (cityPattern.test(addressTrimmed)) {
       // Found city at end of address - extract it
-      const cleanAddress = addressTrimmed.replace(cityPattern, '').trim().replace(/,\s*$/, '');
-      console.log(`[process-upload] Extracted city "${city}" from address "${addressTrimmed.substring(0, 50)}..."`);
+      const cleanAddress = addressTrimmed.replace(cityPattern, '').trim();
+      console.log(`[process-upload] ✓ Extracted known city "${city}" from address`);
       return { cleanAddress, extractedCity: city };
     }
   }
   
-  // Fallback: if city field is a zip code, try to extract last 1-2 words from address
-  if (/^\d{5}(-\d{4})?$/.test(trimmedCity)) {
-    const parts = addressTrimmed.split(/\s+/);
-    if (parts.length >= 3) {
-      // Try last 2 words as potential city name
-      const potentialCity = parts.slice(-2).join(' ');
-      
-      // Verify it looks like a city (starts with capital, not a number, no special chars)
-      if (/^[A-Z][a-zA-Z\s]+$/.test(potentialCity) && !/^\d/.test(potentialCity)) {
-        const cleanAddress = parts.slice(0, -2).join(' ').replace(/,\s*$/, '');
-        console.log(`[process-upload] Inferred city "${potentialCity}" from address end`);
-        return { cleanAddress, extractedCity: potentialCity };
-      }
+  // Fallback: try to extract last word(s) as potential city
+  const parts = addressTrimmed.split(/\s+/);
+  
+  if (parts.length >= 2) {
+    // Try last 2 words first (for cities like "Santa Ana", "Los Alamitos")
+    const last2Words = parts.slice(-2).join(' ');
+    if (/^[A-Z][a-zA-Z]+\s+[A-Z][a-zA-Z]+$/.test(last2Words)) {
+      const cleanAddress = parts.slice(0, -2).join(' ').replace(/,\s*$/, '');
+      console.log(`[process-upload] ✓ Inferred 2-word city "${last2Words}" from address`);
+      return { cleanAddress, extractedCity: last2Words };
+    }
+    
+    // Try last 1 word (for cities like "Anaheim", "Orange", "Tustin")
+    const lastWord = parts[parts.length - 1];
+    if (/^[A-Z][a-zA-Z]+$/.test(lastWord) && lastWord.length >= 4) {
+      const cleanAddress = parts.slice(0, -1).join(' ').replace(/,\s*$/, '');
+      console.log(`[process-upload] ✓ Inferred 1-word city "${lastWord}" from address`);
+      return { cleanAddress, extractedCity: lastWord };
     }
   }
   
-  return { cleanAddress: address, extractedCity: trimmedCity };
+  console.log(`[process-upload] ✗ Could not extract city from address`);
+  return { cleanAddress: addressTrimmed, extractedCity: trimmedCity };
 }
 
 /**

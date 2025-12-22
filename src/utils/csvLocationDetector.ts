@@ -10,6 +10,79 @@ const VALID_US_STATES = new Set([
   'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
 ]);
 
+// Known cities for smart extraction from address fields
+const KNOWN_CITIES_CA = [
+  'Anaheim', 'Santa Ana', 'Orange', 'Irvine', 'Huntington Beach',
+  'Costa Mesa', 'Fullerton', 'Garden Grove', 'Tustin', 'Westminster',
+  'Newport Beach', 'Buena Park', 'Lake Forest', 'San Clemente',
+  'Mission Viejo', 'Yorba Linda', 'San Juan Capistrano', 'Laguna Niguel',
+  'La Habra', 'Fountain Valley', 'Placentia', 'Rancho Santa Margarita',
+  'Aliso Viejo', 'Laguna Beach', 'Stanton', 'Cypress', 'Dana Point',
+  'Laguna Hills', 'Seal Beach', 'Brea', 'La Palma', 'Los Alamitos',
+  'Villa Park', 'Midway City', 'Silverado', 'Trabuco Canyon', 'Ladera Ranch',
+  'Coto De Caza', 'Las Flores', 'Rancho Mission Viejo', 'Rossmoor',
+  'Los Angeles', 'San Diego', 'San Francisco', 'San Jose', 'Oakland',
+  'Long Beach', 'Sacramento', 'Fresno', 'Bakersfield', 'Riverside',
+  'El Toro'
+];
+
+const KNOWN_CITIES_NV = [
+  'Carson City', 'Reno', 'Sparks', 'Henderson', 'Las Vegas', 'North Las Vegas',
+  'Elko', 'Boulder City', 'Mesquite', 'Fallon', 'Fernley', 'Winnemucca',
+  'Pahrump', 'Incline Village', 'Minden', 'Gardnerville', 'Dayton', 'Yerington'
+];
+
+const ALL_KNOWN_CITIES = [...KNOWN_CITIES_CA, ...KNOWN_CITIES_NV];
+
+/**
+ * Extract city from address field if city column is empty or contains a zip code
+ */
+function extractCityFromAddress(address: string, cityField: string): string {
+  const trimmedCity = cityField?.trim() || '';
+  const addressTrimmed = address.trim();
+  
+  // Check if city field needs extraction (empty or contains a zip code)
+  const needsExtraction = !trimmedCity || /^\d{5}(-\d{4})?$/.test(trimmedCity);
+  
+  if (!needsExtraction) {
+    return trimmedCity;
+  }
+  
+  // Try to find known city at end of address (sorted by length to match longer names first)
+  const sortedCities = [...ALL_KNOWN_CITIES].sort((a, b) => b.length - a.length);
+  
+  for (const city of sortedCities) {
+    // Match city at end of address, with optional comma/space before
+    const cityPattern = new RegExp(`[,\\s]+${city.replace(/\s+/g, '\\s+')}\\s*$`, 'i');
+    
+    if (cityPattern.test(addressTrimmed)) {
+      console.log(`[extractCityFromAddress] Extracted "${city}" from address "${addressTrimmed.substring(0, 40)}..."`);
+      return city;
+    }
+  }
+  
+  // Fallback: try to extract last word(s) as potential city
+  const parts = addressTrimmed.split(/\s+/);
+  
+  if (parts.length >= 2) {
+    // Try last 2 words first (for cities like "Santa Ana", "Los Alamitos")
+    const last2Words = parts.slice(-2).join(' ');
+    if (/^[A-Z][a-zA-Z]+\s+[A-Z][a-zA-Z]+$/.test(last2Words)) {
+      console.log(`[extractCityFromAddress] Inferred 2-word city "${last2Words}" from address`);
+      return last2Words;
+    }
+    
+    // Try last 1 word (for cities like "Anaheim", "Orange", "Tustin")
+    const lastWord = parts[parts.length - 1];
+    if (/^[A-Z][a-zA-Z]+$/.test(lastWord) && lastWord.length >= 4) {
+      console.log(`[extractCityFromAddress] Inferred 1-word city "${lastWord}" from address`);
+      return lastWord;
+    }
+  }
+  
+  return trimmedCity;
+}
+
 /**
  * Validate that a string looks like a real city name, not a violation description
  * Returns true if the value appears to be a valid city name
@@ -82,8 +155,12 @@ export function detectCsvLocations(csvText: string): CsvDetectionResult {
   let missingLocationRows = 0;
 
   for (const row of rows) {
-    const city = (row.city || "").trim();
+    const rawCity = (row.city || "").trim();
+    const address = (row.address || row.location || row.property_address || "").trim();
     const state = (row.state || "").trim().toUpperCase();
+    
+    // Try to extract city from address if city column is empty or contains a zip code
+    const city = extractCityFromAddress(address, rawCity);
 
     // Validate city and state - reject if they look like violation descriptions
     if (!city || !state || !isValidCityName(city) || !isValidStateCode(state)) {
@@ -140,14 +217,15 @@ export function splitCsvByCity(
   const headerLine = lines[0];
   const dataLines = lines.slice(1);
   
-  // Parse headers to find city/state column indices
+  // Parse headers to find city/state/address column indices
   const headerResult = Papa.parse<string[]>(headerLine, { header: false });
   const headers = (headerResult.data[0] || []).map(h => h.trim().toLowerCase());
   const cityColIndex = headers.findIndex(h => h === 'city');
   const stateColIndex = headers.findIndex(h => h === 'state');
+  const addressColIndex = headers.findIndex(h => h === 'address' || h === 'location' || h === 'property_address');
   
   console.log('[splitCsvByCity] Total lines:', lines.length, 'Data lines:', dataLines.length);
-  console.log('[splitCsvByCity] City column index:', cityColIndex, 'State column index:', stateColIndex);
+  console.log('[splitCsvByCity] City column index:', cityColIndex, 'State column index:', stateColIndex, 'Address column index:', addressColIndex);
   
   // Group original LINE INDICES by city|state
   // This avoids the mismatch between parsed rows (with skipEmptyLines) and original lines
@@ -160,12 +238,16 @@ export function splitCsvByCity(
     // Skip truly empty lines
     if (!line || line.trim() === '') continue;
     
-    // Parse this single line to extract city/state values
+    // Parse this single line to extract city/state/address values
     const rowResult = Papa.parse<string[]>(line, { header: false });
     const values = rowResult.data[0] || [];
     
-    let city = (cityColIndex >= 0 && values[cityColIndex]) ? values[cityColIndex].trim() : '';
+    const rawCity = (cityColIndex >= 0 && values[cityColIndex]) ? values[cityColIndex].trim() : '';
+    const address = (addressColIndex >= 0 && values[addressColIndex]) ? values[addressColIndex].trim() : '';
     let state = (stateColIndex >= 0 && values[stateColIndex]) ? values[stateColIndex].trim().toUpperCase() : '';
+    
+    // Try to extract city from address if city column is empty or contains a zip code
+    let city = extractCityFromAddress(address, rawCity);
 
     // Validate city/state - reject if they look like violation descriptions
     const cityLooksValid = city && isValidCityName(city);

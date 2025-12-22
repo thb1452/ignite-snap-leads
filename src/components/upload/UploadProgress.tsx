@@ -1,13 +1,15 @@
 import { UploadJob } from '@/hooks/useUploadJob';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { CheckCircle2, Loader2, XCircle, Upload } from 'lucide-react';
 
 interface UploadProgressProps {
   job: UploadJob;
+  onReset?: () => void;
 }
 
-export function UploadProgress({ job }: UploadProgressProps) {
+export function UploadProgress({ job, onReset }: UploadProgressProps) {
   const done = job.processed_rows ?? 0;
   const total = job.total_rows ?? 0;
   const pct = total ? Math.round((done / total) * 100) : 0;
@@ -37,6 +39,7 @@ export function UploadProgress({ job }: UploadProgressProps) {
   const isIndeterminateStage = ['QUEUED', 'PARSING', 'DEDUPING', 'CREATING_VIOLATIONS', 'FINALIZING'].includes(job.status);
   const showRowCounts = job.status === 'PROCESSING' && total > 0;
   const showProgress = !['COMPLETE', 'FAILED'].includes(job.status);
+  const isFinished = job.status === 'COMPLETE' || job.status === 'FAILED';
 
   return (
     <Card>
@@ -93,20 +96,38 @@ export function UploadProgress({ job }: UploadProgressProps) {
           )}
 
           {job.status === 'COMPLETE' && (
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Properties Created:</span>
-                <span className="font-medium">{job.properties_created?.toLocaleString()}</span>
+            <div className="space-y-3">
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Properties Created:</span>
+                  <span className="font-medium">{job.properties_created?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Violations Created:</span>
+                  <span className="font-medium">{job.violations_created?.toLocaleString()}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Violations Created:</span>
-                <span className="font-medium">{job.violations_created?.toLocaleString()}</span>
-              </div>
+              {onReset && (
+                <Button onClick={onReset} variant="outline" size="sm" className="w-full">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Start New Upload
+                </Button>
+              )}
             </div>
           )}
 
-          {job.status === 'FAILED' && job.error_message && (
-            <p className="text-sm text-destructive">{job.error_message}</p>
+          {job.status === 'FAILED' && (
+            <div className="space-y-3">
+              {job.error_message && (
+                <p className="text-sm text-destructive">{job.error_message}</p>
+              )}
+              {onReset && (
+                <Button onClick={onReset} variant="outline" size="sm" className="w-full">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Try Again
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </CardContent>

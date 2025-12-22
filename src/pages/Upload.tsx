@@ -506,7 +506,7 @@ export default function Upload() {
           )}
 
           {/* Single job progress */}
-          {job && <UploadProgress job={job} />}
+          {job && <UploadProgress job={job} onReset={resetAll} />}
           
           {/* Multi-job progress for split uploads */}
           {jobIds.length > 0 && <MultiJobProgress stats={multiJobStats} />}

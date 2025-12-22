@@ -25,6 +25,77 @@ const VALID_US_STATES = new Set([
   'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
 ]);
 
+// Known cities for smart extraction from address fields
+const KNOWN_CITIES_CA = [
+  'Anaheim', 'Santa Ana', 'Orange', 'Irvine', 'Huntington Beach',
+  'Costa Mesa', 'Fullerton', 'Garden Grove', 'Tustin', 'Westminster',
+  'Newport Beach', 'Buena Park', 'Lake Forest', 'San Clemente',
+  'Mission Viejo', 'Yorba Linda', 'San Juan Capistrano', 'Laguna Niguel',
+  'La Habra', 'Fountain Valley', 'Placentia', 'Rancho Santa Margarita',
+  'Aliso Viejo', 'Laguna Beach', 'Stanton', 'Cypress', 'Dana Point',
+  'Laguna Hills', 'Seal Beach', 'Brea', 'La Palma', 'Los Alamitos',
+  'Villa Park', 'Midway City', 'Silverado', 'Trabuco Canyon', 'Ladera Ranch',
+  'Coto De Caza', 'Las Flores', 'Rancho Mission Viejo', 'Rossmoor',
+  'Los Angeles', 'San Diego', 'San Francisco', 'San Jose', 'Oakland',
+  'Long Beach', 'Sacramento', 'Fresno', 'Bakersfield', 'Riverside'
+];
+
+const KNOWN_CITIES_NV = [
+  'Carson City', 'Reno', 'Sparks', 'Henderson', 'Las Vegas', 'North Las Vegas',
+  'Elko', 'Boulder City', 'Mesquite', 'Fallon', 'Fernley', 'Winnemucca',
+  'Pahrump', 'Incline Village', 'Minden', 'Gardnerville', 'Dayton', 'Yerington'
+];
+
+const ALL_KNOWN_CITIES = [...KNOWN_CITIES_CA, ...KNOWN_CITIES_NV];
+
+/**
+ * Extract city from address field if city column is empty or contains a zip code
+ */
+function extractCityFromAddress(
+  address: string,
+  cityField: string,
+  stateField: string
+): { cleanAddress: string; extractedCity: string } {
+  const trimmedCity = cityField?.trim() || '';
+  
+  // If city field is valid (not empty, not a zip code), use it
+  if (trimmedCity && !/^\d{5}(-\d{4})?$/.test(trimmedCity)) {
+    return { cleanAddress: address, extractedCity: trimmedCity };
+  }
+  
+  // Try to find known city at end of address
+  const addressTrimmed = address.trim();
+  
+  for (const city of ALL_KNOWN_CITIES) {
+    const cityPattern = new RegExp(`\\b${city}\\s*$`, 'i');
+    
+    if (cityPattern.test(addressTrimmed)) {
+      // Found city at end of address - extract it
+      const cleanAddress = addressTrimmed.replace(cityPattern, '').trim().replace(/,\s*$/, '');
+      console.log(`[process-upload] Extracted city "${city}" from address "${addressTrimmed.substring(0, 50)}..."`);
+      return { cleanAddress, extractedCity: city };
+    }
+  }
+  
+  // Fallback: if city field is a zip code, try to extract last 1-2 words from address
+  if (/^\d{5}(-\d{4})?$/.test(trimmedCity)) {
+    const parts = addressTrimmed.split(/\s+/);
+    if (parts.length >= 3) {
+      // Try last 2 words as potential city name
+      const potentialCity = parts.slice(-2).join(' ');
+      
+      // Verify it looks like a city (starts with capital, not a number, no special chars)
+      if (/^[A-Z][a-zA-Z\s]+$/.test(potentialCity) && !/^\d/.test(potentialCity)) {
+        const cleanAddress = parts.slice(0, -2).join(' ').replace(/,\s*$/, '');
+        console.log(`[process-upload] Inferred city "${potentialCity}" from address end`);
+        return { cleanAddress, extractedCity: potentialCity };
+      }
+    }
+  }
+  
+  return { cleanAddress: address, extractedCity: trimmedCity };
+}
+
 /**
  * Validate that a string looks like a real city name, not a violation description
  */
@@ -218,17 +289,25 @@ async function processUploadJob(jobId: string) {
 
       // Flexible column mapping - support multiple CSV formats
       const caseId = row.case_id || row['case/file id'] || row['file #'] || row.file_number || row.id || row['file number'] || null;
-      const address = row.address || row.location || row.property_address || row['property address'] || '';
+      const rawAddress = row.address || row.location || row.property_address || row['property address'] || '';
       const violationType = row.category || row.violation || row.type || row.violation_type || row['violation type'] || row.violation_category || '';
       const openDate = row.opened_date || row.open_date || row['open date'] || row.date || row.date_opened || null;
       const closeDate = row.close_date || row['close date'] || row.closed_date || row.date_closed || null;
       const description = row.description || row.violation_description || row.notes || row.comments || null;
       
-      // Validate city/state from CSV row - only use if they look valid
-      let rowCity = row.city?.trim() || '';
-      let rowState = row.state?.trim().toUpperCase() || '';
+      // Get raw city/state from CSV
+      let rawCity = row.city?.trim() || '';
+      let rawState = row.state?.trim().toUpperCase() || '';
       
-      // If CSV city/state look invalid (like violation text), use job defaults
+      // Smart city extraction: if city is empty or looks like a zip code, try to extract from address
+      const { cleanAddress, extractedCity } = extractCityFromAddress(rawAddress, rawCity, rawState);
+      const address = cleanAddress;
+      
+      // Use extracted city, fallback to job defaults
+      let rowCity = extractedCity || rawCity;
+      let rowState = rawState;
+      
+      // Validate city/state - only use if they look valid
       const csvCityValid = isValidCityName(rowCity);
       const csvStateValid = isValidStateCode(rowState);
       

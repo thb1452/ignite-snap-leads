@@ -1,8 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const BATCH_SIZE = 100; // Process more properties per invocation
-const PARALLEL_REQUESTS = 10; // Number of concurrent geocoding requests
+// AGGRESSIVE batching for faster processing - 83k+ properties to process
+const BATCH_SIZE = 500; // Process 500 properties per invocation
+const PARALLEL_REQUESTS = 50; // 50 concurrent geocoding requests
+const CONTINUE_THRESHOLD = 100; // Auto-continue if more than 100 remaining
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -283,8 +285,41 @@ serve(async (req: Request) => {
       console.log(`[Geocoding] ℹ️ ${skippedCount} properties skipped (parcel-based locations with no real address)`);
     }
 
+    // Auto-continue if many properties remain (background processing)
+    if ((remaining ?? 0) > CONTINUE_THRESHOLD) {
+      console.log(`[Geocoding] 🔄 ${remaining} properties remaining - auto-continuing in background...`);
+      
+      // Queue the next batch using waitUntil for background processing
+      const selfInvokePromise = (async () => {
+        try {
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          const nextResponse = await fetch(
+            `${Deno.env.get('SUPABASE_URL')}/functions/v1/geocode-properties`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ jobId }),
+            }
+          );
+          console.log(`[Geocoding] Next batch triggered: ${nextResponse.status}`);
+        } catch (err) {
+          console.error('[Geocoding] Failed to trigger next batch:', err);
+        }
+      })();
+      
+      // @ts-ignore - EdgeRuntime.waitUntil is available in Supabase Edge Functions
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+        EdgeRuntime.waitUntil(selfInvokePromise);
+      }
+    }
+
     return new Response(
-      JSON.stringify({ remaining: remaining ?? 0 }),
+      JSON.stringify({ remaining: remaining ?? 0, processed: properties.length, success: successCount, failed: failCount, skipped: skippedCount }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {

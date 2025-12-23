@@ -133,29 +133,34 @@ export default function Upload() {
           });
         }
 
-        // Stagger job creation to prevent database race conditions
-        // Each job queries for existing properties - simultaneous queries can cause duplicates
-        let jobIndex = 0;
-        for (const [key, csvContent] of csvGroups) {
-          const [groupCity, groupState] = key.split('|');
-          const blob = new Blob([csvContent], { type: 'text/csv' });
-          const fileName = `${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
-          const file = new File([blob], fileName, { type: 'text/csv' });
+        // Process jobs in parallel batches for speed
+        const BATCH_SIZE = 10; // Process 10 jobs concurrently
+        const entries = Array.from(csvGroups.entries());
+        
+        for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+          const batch = entries.slice(i, i + BATCH_SIZE);
+          const batchPromises = batch.map(async ([key, csvContent]) => {
+            const [groupCity, groupState] = key.split('|');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const fileName = `${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
+            const file = new File([blob], fileName, { type: 'text/csv' });
 
-          const id = await createUploadJob({
-            file,
-            userId: user.id,
-            city: groupCity,
-            county: county || null,
-            state: groupState
+            return createUploadJob({
+              file,
+              userId: user.id,
+              city: groupCity,
+              county: county || null,
+              state: groupState
+            });
           });
-          createdJobIds.push(id);
-
-          // Stagger by 1.5 seconds between jobs (except last one)
-          if (jobIndex < csvGroups.size - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          const batchIds = await Promise.all(batchPromises);
+          createdJobIds.push(...batchIds);
+          
+          // Small delay between batches to prevent overwhelming the server
+          if (i + BATCH_SIZE < entries.length) {
+            await new Promise(resolve => setTimeout(resolve, 200));
           }
-          jobIndex++;
         }
 
         setJobIds(createdJobIds);
@@ -246,28 +251,33 @@ export default function Upload() {
           });
         }
 
-        // Stagger job creation to prevent database race conditions
-        let jobIndex = 0;
-        for (const [key, csvContent] of csvGroups) {
-          const [groupCity, groupState] = key.split('|');
-          const blob = new Blob([csvContent], { type: 'text/csv' });
-          const fileName = `pasted_${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
-          const file = new File([blob], fileName, { type: 'text/csv' });
+        // Process jobs in parallel batches for speed
+        const BATCH_SIZE = 10;
+        const entries = Array.from(csvGroups.entries());
+        
+        for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+          const batch = entries.slice(i, i + BATCH_SIZE);
+          const batchPromises = batch.map(async ([key, csvContent]) => {
+            const [groupCity, groupState] = key.split('|');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const fileName = `pasted_${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
+            const file = new File([blob], fileName, { type: 'text/csv' });
 
-          const id = await createUploadJob({
-            file,
-            userId: user.id,
-            city: groupCity,
-            county: county || null,
-            state: groupState
+            return createUploadJob({
+              file,
+              userId: user.id,
+              city: groupCity,
+              county: county || null,
+              state: groupState
+            });
           });
-          createdJobIds.push(id);
-
-          // Stagger by 1.5 seconds between jobs (except last one)
-          if (jobIndex < csvGroups.size - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          const batchIds = await Promise.all(batchPromises);
+          createdJobIds.push(...batchIds);
+          
+          if (i + BATCH_SIZE < entries.length) {
+            await new Promise(resolve => setTimeout(resolve, 200));
           }
-          jobIndex++;
         }
 
         setJobIds(createdJobIds);

@@ -10,6 +10,7 @@ export interface GeocodingJob {
   total_properties: number;
   geocoded_count: number;
   failed_count: number;
+  skipped_count: number;  // FIX: Added missing field for parcel-based/ungeocodable addresses
   error_message?: string | null;
   created_at?: string;
   started_at?: string | null;

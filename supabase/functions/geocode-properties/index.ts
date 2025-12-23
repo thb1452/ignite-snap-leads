@@ -22,7 +22,7 @@ async function geocodeAddress(
   state: string,
   zip?: string
 ): Promise<{ latitude: number | null; longitude: number | null; skipped: boolean }> {
-  // Sanitize address - remove Windows line breaks, extra spaces, duplicate city names
+  // STEP 1: Sanitize address - remove Windows line breaks, extra spaces, duplicate city names
   let cleanAddress = (address || '')
     .replace(/_X000D_/g, ' ')  // Remove Windows carriage returns
     .replace(/\s+/g, ' ')       // Collapse multiple spaces
@@ -34,38 +34,54 @@ async function geocodeAddress(
     cleanAddress = cleanAddress.slice(0, -cityUpper.length).trim();
   }
 
+  // STEP 2: Validate address components
   const addressLower = cleanAddress.toLowerCase();
   const cityLower = (city || '').trim().toLowerCase();
 
-  // Skip invalid addresses
-  const invalidPatterns = [
-    'unknown', 'parcel-based location', 'parcel-based', 
-    '?', 'the city of', 'received a call', 'parked on',
-    'regarding', 'neighbor', 'complaint'
-  ];
-  
-  const isInvalid = !cleanAddress || 
-    addressLower === 'unknown' ||
-    !city || cityLower === 'unknown' || 
-    !state ||
-    cleanAddress.length > 100 ||  // Too long = probably not an address
-    cleanAddress.length < 5 ||    // Too short = probably not valid
-    invalidPatterns.some(p => addressLower.includes(p));
+  // Basic validation: missing data or known placeholders
+  if (!cleanAddress || addressLower === 'unknown' ||
+      !city || cityLower === 'unknown' || !state) {
+    console.log(`[Geocoding SKIP] Missing or unknown address data: ${cleanAddress}`);
+    return { latitude: null, longitude: null, skipped: true };
+  }
 
-  if (isInvalid) {
-    console.log(`[Geocoding SKIP] Invalid address: ${cleanAddress.substring(0, 50)}...`);
+  // Length checks - addresses should be reasonable length
+  if (cleanAddress.length > 100 || cleanAddress.length < 5) {
+    console.log(`[Geocoding SKIP] Address length invalid (${cleanAddress.length} chars): ${cleanAddress.substring(0, 50)}...`);
+    return { latitude: null, longitude: null, skipped: true };
+  }
+
+  // STEP 3: Skip parcel-based locations and violation text
+  const invalidPatterns = [
+    'parcel-based location', 'parcel-based', 'parked on',
+    'violation', 'debris', 'trash', 'weeds', 'overgrown',
+    'complaint', 'notice', 'hazard', 'illegal', 'unpermitted',
+    'junk', 'abandoned', 'dumped', 'received a call',
+    'regarding', 'neighbor', 'the city of'
+  ];
+
+  const hasInvalidPattern = invalidPatterns.some(p => addressLower.includes(p) || cityLower.includes(p));
+  if (hasInvalidPattern) {
+    console.log(`[Geocoding SKIP] Address contains invalid text: ${cleanAddress.substring(0, 50)}...`);
+    return { latitude: null, longitude: null, skipped: true };
+  }
+
+  // STEP 4: Skip if address looks malformed (e.g. contains multiple sentences, excessive punctuation)
+  if (cleanAddress.includes(';') || cleanAddress.split('.').length > 2) {
+    console.log(`[Geocoding SKIP] Address appears malformed: ${cleanAddress}`);
     return { latitude: null, longitude: null, skipped: true };
   }
 
   console.log(`[Geocoding] ${cleanAddress}, ${city}, ${state}`);
 
+  // STEP 5: Check for Mapbox API token
   const MAPBOX_TOKEN = Deno.env.get('MAPBOX_ACCESS_TOKEN');
   if (!MAPBOX_TOKEN) {
-    console.error('[Geocoding] MAPBOX_ACCESS_TOKEN not configured');
-    return { latitude: null, longitude: null, skipped: false };
+    console.error('[Geocoding] ⚠️ MAPBOX_ACCESS_TOKEN not configured - skipping all geocoding');
+    return { latitude: null, longitude: null, skipped: true };  // FIX: Mark as skipped, not failed
   }
 
-  // Build full address
+  // STEP 6: Build full address and call Mapbox
   const cleanCity = city.trim();
   const cleanState = state.trim();
   const addressParts = [cleanAddress, cleanCity, cleanState];
@@ -76,7 +92,7 @@ async function geocodeAddress(
 
   try {
     const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(fullAddress)}.json?access_token=${MAPBOX_TOKEN}&country=US&limit=1`;
-    
+
     const response = await fetch(mapboxUrl, {
       signal: AbortSignal.timeout(5000) // 5 second timeout - fail fast
     });
@@ -87,7 +103,7 @@ async function geocodeAddress(
     }
 
     const data = await response.json();
-    
+
     if (data.features && data.features.length > 0) {
       const [lng, lat] = data.features[0].center;
       console.log(`✓ Geocoded: ${fullAddress} -> ${lat}, ${lng}`);

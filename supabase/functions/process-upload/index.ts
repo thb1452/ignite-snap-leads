@@ -5,11 +5,12 @@ import Papa from "https://esm.sh/papaparse@5.4.1";
 // ============================================
 // UPLOAD LIMITS - Change these to adjust capacity
 // Edge functions have ~150MB memory limit, so we must be conservative
+// Statement timeout is typically 30-60s, so keep batches VERY small
 // ============================================
 const MAX_ROWS_PER_UPLOAD = 50000;  // Maximum rows allowed in a single CSV
-const STAGING_BATCH_SIZE = 250;     // Rows per batch for staging inserts (smaller = less memory)
-const PROP_INSERT_BATCH = 50;       // Properties per batch for inserts (very small to prevent timeouts)
-const VIOL_BATCH_SIZE = 100;        // Violations per batch for inserts
+const STAGING_BATCH_SIZE = 100;     // Rows per batch for staging inserts (REDUCED to prevent timeouts)
+const PROP_INSERT_BATCH = 25;       // Properties per batch for inserts (very small to prevent timeouts)
+const VIOL_BATCH_SIZE = 50;         // Violations per batch for inserts (REDUCED)
 const MAX_FILE_SIZE_MB = 15;        // Maximum file size in MB (edge function memory limit)
 
 const corsHeaders = {
@@ -448,10 +449,9 @@ async function processUploadJob(jobId: string) {
     // IMPORTANT: Must paginate to avoid 1000 row default limit
     let stagingData: any[] = [];
     let dedupOffset = 0;
-    const DEDUP_BATCH = 5000;
     
-    // Use smaller batches to avoid Supabase's default 1000 row limit issue
-    const DEDUP_PAGE_SIZE = 1000;
+    // Use smaller batches to avoid Supabase's statement timeout
+    const DEDUP_PAGE_SIZE = 500;  // REDUCED from 1000 to prevent timeouts
     
     while (true) {
       const { data: dedupBatch, error: dedupError } = await supabaseClient
@@ -713,8 +713,9 @@ async function processUploadJob(jobId: string) {
 
     // Insert violations in batches - process in streaming fashion to avoid memory issues
     // Process staging rows in chunks instead of loading all into memory
-    const STAGING_FETCH_BATCH = 500;   // Smaller batches to prevent memory issues
-    const VIOL_INSERT_BATCH = 100;     // Small insert batches for reliability
+    // REDUCED batch sizes to prevent statement timeout errors
+    const STAGING_FETCH_BATCH = 200;   // REDUCED from 500 to prevent timeouts
+    const VIOL_INSERT_BATCH = 25;      // REDUCED from 100 to prevent statement timeouts
     let stagingOffset = 0;
     let violationsCreatedTotal = 0;
     let skippedRows = 0;

@@ -50,6 +50,57 @@ const KNOWN_CITIES_NV = [
 const ALL_KNOWN_CITIES = [...KNOWN_CITIES_CA, ...KNOWN_CITIES_NV];
 
 /**
+ * Sanitize date string before inserting into staging - reject invalid dates
+ * This prevents Postgres errors like "date/time field value out of range"
+ */
+function sanitizeDateString(dateStr: string | null): string | null {
+  if (!dateStr || !dateStr.trim()) return null;
+  
+  const str = dateStr.trim();
+  
+  // Try to parse as ISO date (YYYY-MM-DD) or common date formats
+  // First check for obviously invalid dates like 2025-00-11, 2025-91-30
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10);
+    const day = parseInt(isoMatch[3], 10);
+    
+    // Validate ranges
+    if (year < 1900 || year > 2100) return null;
+    if (month < 1 || month > 12) return null;
+    if (day < 1 || day > 31) return null;
+  }
+  
+  // Also check for MM/DD/YYYY format
+  const usMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (usMatch) {
+    const month = parseInt(usMatch[1], 10);
+    const day = parseInt(usMatch[2], 10);
+    const year = parseInt(usMatch[3], 10);
+    
+    if (month < 1 || month > 12) return null;
+    if (day < 1 || day > 31) return null;
+    if (year < 1900 && year > 99) return null; // Allow 2-digit years
+  }
+  
+  // Try to parse and validate the date
+  try {
+    const parsed = new Date(str);
+    if (isNaN(parsed.getTime())) return null;
+    
+    // Check if date is reasonable (between 1950 and 2100)
+    const year = parsed.getFullYear();
+    if (year < 1950 || year > 2100) return null;
+    
+    // Return original string if valid
+    return str;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Extract city from address field if city column is empty or contains a zip code
  */
 function extractCityFromAddress(
@@ -304,8 +355,11 @@ async function processUploadJob(jobId: string) {
       const caseId = row.case_id || row['case/file id'] || row['file #'] || row.file_number || row.id || row['file number'] || null;
       const rawAddress = row.address || row.location || row.property_address || row['property address'] || '';
       const violationType = row.category || row.violation || row.type || row.violation_type || row['violation type'] || row.violation_category || '';
-      const openDate = row.opened_date || row.open_date || row['open date'] || row.date || row.date_opened || null;
-      const closeDate = row.close_date || row['close date'] || row.closed_date || row.date_closed || null;
+      // Parse dates immediately to catch invalid values before inserting to staging
+      const rawOpenDate = row.opened_date || row.open_date || row['open date'] || row.date || row.date_opened || null;
+      const rawCloseDate = row.close_date || row['close date'] || row.closed_date || row.date_closed || null;
+      const openDate = sanitizeDateString(rawOpenDate);
+      const closeDate = sanitizeDateString(rawCloseDate);
       const description = row.description || row.violation_description || row.notes || row.comments || null;
       
       // Get raw city/state from CSV

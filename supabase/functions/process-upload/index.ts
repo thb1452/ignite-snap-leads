@@ -1,20 +1,162 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import { parse } from "https://deno.land/std@0.168.0/encoding/csv.ts";
+import Papa from "https://esm.sh/papaparse@5.4.1";
 
 // ============================================
 // UPLOAD LIMITS - Change these to adjust capacity
+// Edge functions have ~150MB memory limit, so we must be conservative
 // ============================================
 const MAX_ROWS_PER_UPLOAD = 50000;  // Maximum rows allowed in a single CSV
-const STAGING_BATCH_SIZE = 1000;    // Rows per batch for staging inserts
-const PROP_INSERT_BATCH = 500;      // Properties per batch for inserts
-const VIOL_BATCH_SIZE = 500;        // Violations per batch for inserts
-const MAX_FILE_SIZE_MB = 50;        // Maximum file size in MB
+const STAGING_BATCH_SIZE = 250;     // Rows per batch for staging inserts (smaller = less memory)
+const PROP_INSERT_BATCH = 50;       // Properties per batch for inserts (very small to prevent timeouts)
+const VIOL_BATCH_SIZE = 100;        // Violations per batch for inserts
+const MAX_FILE_SIZE_MB = 15;        // Maximum file size in MB (edge function memory limit)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Valid US state codes (2-letter abbreviations)
+const VALID_US_STATES = new Set([
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+]);
+
+// Known cities for smart extraction from address fields
+const KNOWN_CITIES_CA = [
+  'Anaheim', 'Santa Ana', 'Orange', 'Irvine', 'Huntington Beach',
+  'Costa Mesa', 'Fullerton', 'Garden Grove', 'Tustin', 'Westminster',
+  'Newport Beach', 'Buena Park', 'Lake Forest', 'San Clemente',
+  'Mission Viejo', 'Yorba Linda', 'San Juan Capistrano', 'Laguna Niguel',
+  'La Habra', 'Fountain Valley', 'Placentia', 'Rancho Santa Margarita',
+  'Aliso Viejo', 'Laguna Beach', 'Stanton', 'Cypress', 'Dana Point',
+  'Laguna Hills', 'Seal Beach', 'Brea', 'La Palma', 'Los Alamitos',
+  'Villa Park', 'Midway City', 'Silverado', 'Trabuco Canyon', 'Ladera Ranch',
+  'Coto De Caza', 'Las Flores', 'Rancho Mission Viejo', 'Rossmoor',
+  'Los Angeles', 'San Diego', 'San Francisco', 'San Jose', 'Oakland',
+  'Long Beach', 'Sacramento', 'Fresno', 'Bakersfield', 'Riverside'
+];
+
+const KNOWN_CITIES_NV = [
+  'Carson City', 'Reno', 'Sparks', 'Henderson', 'Las Vegas', 'North Las Vegas',
+  'Elko', 'Boulder City', 'Mesquite', 'Fallon', 'Fernley', 'Winnemucca',
+  'Pahrump', 'Incline Village', 'Minden', 'Gardnerville', 'Dayton', 'Yerington'
+];
+
+const ALL_KNOWN_CITIES = [...KNOWN_CITIES_CA, ...KNOWN_CITIES_NV];
+
+/**
+ * Extract city from address field if city column is empty or contains a zip code
+ */
+function extractCityFromAddress(
+  address: string,
+  cityField: string,
+  stateField: string
+): { cleanAddress: string; extractedCity: string } {
+  const trimmedCity = cityField?.trim() || '';
+  const addressTrimmed = address.trim();
+  
+  // Check if city field needs extraction (empty or contains a zip code)
+  const needsExtraction = !trimmedCity || /^\d{5}(-\d{4})?$/.test(trimmedCity);
+  
+  if (!needsExtraction) {
+    return { cleanAddress: addressTrimmed, extractedCity: trimmedCity };
+  }
+  
+  console.log(`[process-upload] City extraction needed for address: "${addressTrimmed.substring(0, 60)}..." (city field: "${trimmedCity}")`);
+  
+  // Try to find known city at end of address (sorted by length to match longer names first)
+  const sortedCities = [...ALL_KNOWN_CITIES].sort((a, b) => b.length - a.length);
+  
+  for (const city of sortedCities) {
+    // Match city at end of address, with optional comma before
+    const cityPattern = new RegExp(`[,\\s]+${city.replace(/\s+/g, '\\s+')}\\s*$`, 'i');
+    
+    if (cityPattern.test(addressTrimmed)) {
+      // Found city at end of address - extract it
+      const cleanAddress = addressTrimmed.replace(cityPattern, '').trim();
+      console.log(`[process-upload] ✓ Extracted known city "${city}" from address`);
+      return { cleanAddress, extractedCity: city };
+    }
+  }
+  
+  // Fallback: try to extract last word(s) as potential city
+  const parts = addressTrimmed.split(/\s+/);
+  
+  if (parts.length >= 2) {
+    // Try last 2 words first (for cities like "Santa Ana", "Los Alamitos")
+    const last2Words = parts.slice(-2).join(' ');
+    if (/^[A-Z][a-zA-Z]+\s+[A-Z][a-zA-Z]+$/.test(last2Words)) {
+      const cleanAddress = parts.slice(0, -2).join(' ').replace(/,\s*$/, '');
+      console.log(`[process-upload] ✓ Inferred 2-word city "${last2Words}" from address`);
+      return { cleanAddress, extractedCity: last2Words };
+    }
+    
+    // Try last 1 word (for cities like "Anaheim", "Orange", "Tustin")
+    const lastWord = parts[parts.length - 1];
+    if (/^[A-Z][a-zA-Z]+$/.test(lastWord) && lastWord.length >= 4) {
+      const cleanAddress = parts.slice(0, -1).join(' ').replace(/,\s*$/, '');
+      console.log(`[process-upload] ✓ Inferred 1-word city "${lastWord}" from address`);
+      return { cleanAddress, extractedCity: lastWord };
+    }
+  }
+  
+  console.log(`[process-upload] ✗ Could not extract city from address`);
+  return { cleanAddress: addressTrimmed, extractedCity: trimmedCity };
+}
+
+/**
+ * Validate that a string looks like a real city name, not a violation description
+ */
+function isValidCityName(value: string): boolean {
+  if (!value || value.length === 0) return false;
+  if (value.length > 50) return false;
+  
+  // Reject multi-sentence text
+  if (/\.\s+[A-Z]/.test(value)) return false;
+  
+  // Reject violation-like keywords
+  const violationKeywords = [
+    'violation', 'debris', 'trash', 'weeds', 'overgrown', 'illegal',
+    'unpermitted', 'code', 'notice', 'complaint', 'hazard', 'unsafe',
+    'repair', 'maintain', 'fence', 'yard', 'property', 'building',
+    'structure', 'obstruct', 'block', 'parked', 'stored', 'dumped',
+    'please', 'must', 'should', 'shall', 'required', 'notify',
+    'backyard', 'front', 'side', 'rear', 'porch', 'roof', 'window',
+    'vehicle', 'junk', 'abandoned', 'grass', 'tall', 'high', 'fire'
+  ];
+  
+  const lowerValue = value.toLowerCase();
+  for (const keyword of violationKeywords) {
+    if (lowerValue.includes(keyword)) return false;
+  }
+  
+  // Reject common violation punctuation
+  if (value.includes(':') || value.includes(';')) return false;
+  if (value.includes('(') || value.includes(')')) return false;
+  if (value.includes('[') || value.includes(']')) return false;
+  
+  // Reject if starts with numbers/special chars
+  if (/^[\d\-#•]/.test(value)) return false;
+  
+  // City names should be mostly letters/spaces/hyphens
+  if (!/^[A-Za-z\s\-'.]+$/.test(value)) return false;
+  
+  return true;
+}
+
+/**
+ * Validate that a string is a valid 2-letter US state code
+ */
+function isValidStateCode(value: string): boolean {
+  if (!value || value.length === 0) return false;
+  const upperValue = value.trim().toUpperCase();
+  return upperValue.length === 2 && VALID_US_STATES.has(upperValue);
+}
 
 interface CSVRow {
   case_id?: string;
@@ -34,84 +176,35 @@ interface CSVRow {
 }
 
 /**
- * Pre-sanitize CSV text to handle malformed quotes in fields.
- * Municipal data often contains unescaped quotes in inspector notes/descriptions.
- * This function makes the CSV parseable while preserving all content.
+ * Parse CSV using papaparse which properly handles:
+ * - Multi-line quoted fields
+ * - Escaped quotes within fields
+ * - Malformed CSVs from municipal sources
  */
-function sanitizeCsvQuotes(csvText: string): string {
-  const lines = csvText.split(/\r?\n/);
-  const result: string[] = [];
+function parseCSVWithPapaparse(csvText: string): { headers: string[], dataRows: Record<string, any>[] } {
+  console.log('[process-upload] Parsing CSV with papaparse...');
   
-  for (const line of lines) {
-    if (!line.trim()) {
-      result.push(line);
-      continue;
+  const parseResult = Papa.parse(csvText, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (header: string) => header.trim().toLowerCase(),
+    transform: (value: string) => {
+      // Flatten multi-line values by replacing newlines with spaces
+      return value.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
     }
-    
-    // Parse each field, handling quoted and unquoted fields
-    const fields: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    let i = 0;
-    
-    while (i < line.length) {
-      const char = line[i];
-      
-      if (char === '"') {
-        if (!inQuotes && current === '') {
-          // Start of quoted field
-          inQuotes = true;
-          current += char;
-        } else if (inQuotes) {
-          // Check if this is an escaped quote ("") or end of field
-          if (i + 1 < line.length && line[i + 1] === '"') {
-            // Escaped quote - keep both
-            current += '""';
-            i++;
-          } else if (i + 1 >= line.length || line[i + 1] === ',') {
-            // End of quoted field
-            current += char;
-            inQuotes = false;
-          } else {
-            // Bare quote inside quoted field - escape it
-            current += '""';
-          }
-        } else {
-          // Bare quote in unquoted field - this is the problem case
-          // Wrap the entire remaining field content in quotes
-          // Find the next comma (end of field)
-          let fieldEnd = i;
-          while (fieldEnd < line.length && line[fieldEnd] !== ',') {
-            fieldEnd++;
-          }
-          // Get the rest of this field including the quote
-          const restOfField = line.substring(i, fieldEnd);
-          // Escape any quotes and wrap
-          current = '"' + current + restOfField.replace(/"/g, '""') + '"';
-          i = fieldEnd - 1; // Will be incremented at end of loop
-        }
-      } else if (char === ',' && !inQuotes) {
-        // End of field
-        fields.push(current);
-        current = '';
-      } else {
-        current += char;
-      }
-      i++;
-    }
-    
-    // Handle unclosed quotes at end of line
-    if (inQuotes && current.startsWith('"') && !current.endsWith('"')) {
-      current += '"';
-    }
-    
-    // Push last field
-    fields.push(current);
-    
-    result.push(fields.join(','));
+  });
+
+  if (parseResult.errors && parseResult.errors.length > 0) {
+    console.warn('[process-upload] CSV parse warnings:', JSON.stringify(parseResult.errors.slice(0, 10)));
   }
+
+  const headers = parseResult.meta?.fields || [];
+  const dataRows = parseResult.data as Record<string, any>[];
   
-  return result.join('\n');
+  console.log(`[process-upload] Papaparse detected ${headers.length} columns: ${headers.join(', ')}`);
+  console.log(`[process-upload] Parsed ${dataRows.length} rows from CSV`);
+  
+  return { headers, dataRows };
 }
 
 // Background processing function
@@ -168,23 +261,14 @@ async function processUploadJob(jobId: string) {
 
     const rawCsvText = await fileData.text();
     
-    // Pre-sanitize CSV to handle malformed quotes in municipal data
-    console.log(`[process-upload] Sanitizing CSV quotes...`);
-    const csvText = sanitizeCsvQuotes(rawCsvText);
+    // Parse CSV using papaparse (handles multi-line quoted fields properly)
+    const { headers, dataRows: parsedRows } = parseCSVWithPapaparse(rawCsvText);
     
-    // Use proper CSV parser to handle quoted fields with commas
-    const parsedData = parse(csvText, {
-      skipFirstRow: false,
-      strip: true,
-    }) as string[][];
-    
-    if (parsedData.length < 2) {
+    if (parsedRows.length === 0) {
       throw new Error('CSV file is empty or has no data rows');
     }
 
-    const headers = parsedData[0].map(h => h.trim().toLowerCase());
-    const dataRows = parsedData.slice(1);
-    const totalRows = dataRows.length;
+    const totalRows = parsedRows.length;
 
     // Validate row count to prevent memory issues
     if (totalRows > MAX_ROWS_PER_UPLOAD) {
@@ -195,50 +279,88 @@ async function processUploadJob(jobId: string) {
     }
     
     console.log(`[process-upload] CSV Headers: ${JSON.stringify(headers)}`);
-    console.log(`[process-upload] Parsed ${totalRows} rows from CSV (limit: ${MAX_ROWS_PER_UPLOAD})`);
+    console.log(`[process-upload] Processing ${totalRows} rows (limit: ${MAX_ROWS_PER_UPLOAD})`);
 
-    // Update total rows
+    // Update total rows AND set status to PROCESSING immediately so frontend sees progress
     await supabaseClient
       .from('upload_jobs')
-      .update({ total_rows: totalRows })
+      .update({ 
+        total_rows: totalRows,
+        status: 'PROCESSING',
+        processed_rows: 0
+      })
       .eq('id', jobId);
+
+    console.log(`[process-upload] Starting staging inserts for ${totalRows} rows`);
 
     // Parse and insert into staging in batches for memory efficiency
     const stagingRows: any[] = [];
     
-    for (let i = 0; i < dataRows.length; i++) {
-      const values = dataRows[i];
-      const row: any = {};
-      
-      headers.forEach((header, idx) => {
-        row[header] = values[idx]?.trim() || null;
-      });
+    for (let i = 0; i < parsedRows.length; i++) {
+      // papaparse already returns objects with header keys
+      const row = parsedRows[i] as Record<string, any>;
 
       // Flexible column mapping - support multiple CSV formats
       const caseId = row.case_id || row['case/file id'] || row['file #'] || row.file_number || row.id || row['file number'] || null;
-      const address = row.address || row.location || row.property_address || row['property address'] || '';
+      const rawAddress = row.address || row.location || row.property_address || row['property address'] || '';
       const violationType = row.category || row.violation || row.type || row.violation_type || row['violation type'] || row.violation_category || '';
       const openDate = row.opened_date || row.open_date || row['open date'] || row.date || row.date_opened || null;
       const closeDate = row.close_date || row['close date'] || row.closed_date || row.date_closed || null;
       const description = row.description || row.violation_description || row.notes || row.comments || null;
       
+      // Get raw city/state from CSV
+      let rawCity = row.city?.trim() || '';
+      let rawState = row.state?.trim().toUpperCase() || '';
+      
+      // Smart city extraction: if city is empty or looks like a zip code, try to extract from address
+      const { cleanAddress, extractedCity } = extractCityFromAddress(rawAddress, rawCity, rawState);
+      const address = cleanAddress;
+      
+      // Use extracted city, fallback to job defaults
+      let rowCity = extractedCity || rawCity;
+      let rowState = rawState;
+      
+      // Validate city/state - only use if they look valid
+      const csvCityValid = isValidCityName(rowCity);
+      const csvStateValid = isValidStateCode(rowState);
+      
+      const finalCity = csvCityValid ? rowCity : job.city;
+      const finalState = csvStateValid ? rowState : job.state;
+      
+      // Log validation failures for debugging
+      if (!csvCityValid && rowCity) {
+        console.log(`[process-upload] Row ${i + 1}: Invalid city "${rowCity.substring(0, 50)}..." - using job default`);
+      }
+      if (!csvStateValid && rowState) {
+        console.log(`[process-upload] Row ${i + 1}: Invalid state "${rowState}" - using job default`);
+      }
+      
+      // Truncate fields to prevent index size errors (PostgreSQL btree index limit is ~2700 bytes per column)
+      const MAX_ADDRESS_LENGTH = 500;
+      const MAX_DESCRIPTION_LENGTH = 2000;
+      
+      const truncatedAddress = address.length > MAX_ADDRESS_LENGTH ? address.substring(0, MAX_ADDRESS_LENGTH) : address;
+      const truncatedDescription = description && description.length > MAX_DESCRIPTION_LENGTH 
+        ? description.substring(0, MAX_DESCRIPTION_LENGTH) + '...' 
+        : description;
+      
       stagingRows.push({
         job_id: jobId,
         row_num: i + 1,
         case_id: caseId,
-        address: address,
-        city: row.city || job.city,
-        state: row.state?.length === 2 ? row.state : job.state,
+        address: truncatedAddress,
+        city: finalCity,
+        state: finalState,
         zip: row.zip || row.zipcode || row['zip code'] || '',
         violation: violationType,
         status: row.status || 'Open',
         opened_date: openDate,
         last_updated: closeDate || row.last_updated || null,
         jurisdiction_id: job.jurisdiction_id || null,
-        raw_description: description, // Store raw notes for AI processing (INTERNAL ONLY)
+        raw_description: truncatedDescription, // Store raw notes for AI processing (INTERNAL ONLY)
       });
 
-      if (stagingRows.length >= STAGING_BATCH_SIZE || i === dataRows.length - 1) {
+      if (stagingRows.length >= STAGING_BATCH_SIZE || i === parsedRows.length - 1) {
         const { error: insertError } = await supabaseClient
           .from('upload_staging')
           .insert(stagingRows);
@@ -248,14 +370,11 @@ async function processUploadJob(jobId: string) {
           throw insertError;
         }
 
-        // Update progress more frequently
+        // Update progress - keep status as PROCESSING
         const processedCount = i + 1;
         await supabaseClient
           .from('upload_jobs')
-          .update({ 
-            processed_rows: processedCount,
-            status: 'PROCESSING'
-          })
+          .update({ processed_rows: processedCount })
           .eq('id', jobId);
 
         console.log(`[process-upload] Staged ${processedCount} / ${totalRows} rows (${Math.round(processedCount / totalRows * 100)}%)`);
@@ -423,107 +542,84 @@ async function processUploadJob(jobId: string) {
     });
 
     let propertiesCreated = 0;
-    const PROP_INSERT_BATCH = 100;
+    let dbLevelDedupes = 0;
+    const PROP_INSERT_BATCH = 50; // Small batches to prevent memory/timeout issues
 
-    // OPTIMIZED: Pre-fetch existing properties in batch, then only insert truly new ones
+    // SIMPLIFIED: Insert directly and handle duplicates gracefully via ON CONFLICT
+    // Since we already fetched existing properties above, just insert truly new ones
     for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
       const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
       
-      // First, fetch all existing properties that match this batch's addresses AND cities
-      // Use case-insensitive matching via ilike filters
-      const batchAddresses = [...new Set(batch.map(p => p.address.toLowerCase()))];
-      const batchCities = [...new Set(batch.map(p => p.city.toLowerCase()))];
-      
-      // Build OR filter for case-insensitive address matching
-      let existingInBatch: any[] = [];
-      for (const city of batchCities) {
-        const { data: cityProps } = await supabaseClient
-          .from('properties')
-          .select('id, address, city, state, zip')
-          .ilike('city', city);
-        if (cityProps) existingInBatch.push(...cityProps);
-      }
-      
-      // Map existing properties - use lowercase full key for consistent matching
-      const existingInBatchMap = new Map<string, string>();
-      existingInBatch.forEach(prop => {
-        const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
-        existingInBatchMap.set(key, prop.id);
-        existingMap.set(key, prop.id);
-      });
-      
-      // Filter to only truly new properties
-      const trulyNew = batch.filter(p => !existingInBatchMap.has(p.key));
+      // Filter to properties not already in existingMap (already fetched above)
+      const trulyNew = batch.filter(p => !existingMap.has(p.key));
       
       if (trulyNew.length > 0) {
-        const insertData = trulyNew.map(({ key, ...propData }) => propData);
-        
-        const { data: insertedProps, error: insertError } = await supabaseClient
-          .from('properties')
-          .insert(insertData)
-          .select('id, address, city, state, zip');
+        // Insert in smaller sub-batches for reliability
+        const SUB_BATCH = 25;
+        for (let j = 0; j < trulyNew.length; j += SUB_BATCH) {
+          const subBatch = trulyNew.slice(j, j + SUB_BATCH);
+          const insertData = subBatch.map(({ key, ...propData }) => propData);
+          
+          const { data: insertedProps, error: insertError } = await supabaseClient
+            .from('properties')
+            .insert(insertData)
+            .select('id, address, city, state, zip');
 
-        if (insertError) {
-          if (insertError.code === '23505') {
-            // Race condition - refetch all and insert remaining one by one
-            console.log(`[process-upload] Batch race condition, handling ${trulyNew.length} remaining...`);
-            const { data: refetch } = await supabaseClient
-              .from('properties')
-              .select('id, address, city, state, zip')
-              .in('address', trulyNew.map(p => p.address));
-            
-            const refetchMap = new Map<string, string>();
-            (refetch || []).forEach(prop => {
-              const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
-              refetchMap.set(key, prop.id);
-              existingMap.set(key, prop.id);
-            });
-            
-            // Insert remaining that still don't exist
-            for (const prop of trulyNew) {
-              if (!refetchMap.has(prop.key)) {
+          if (insertError) {
+            if (insertError.code === '23505') {
+              // Unique constraint violation - insert one by one
+              console.log(`[process-upload] Handling ${subBatch.length} duplicates one-by-one...`);
+              for (const prop of subBatch) {
                 const { key, ...propData } = prop;
+                
+                // Try to insert, if fails, fetch existing
                 const { data: single, error: singleErr } = await supabaseClient
                   .from('properties')
                   .insert(propData)
-                  .select('id')
+                  .select('id, address, city, state, zip')
                   .maybeSingle();
                 
                 if (single) {
-                  existingMap.set(key, single.id);
+                  const insertedKey = `${single.address}|${single.city}|${single.state}|${single.zip}`.toLowerCase();
+                  existingMap.set(insertedKey, single.id);
                   propertiesCreated++;
                 } else if (singleErr?.code === '23505') {
-                  // Already exists from race - fetch it
-                  const { data: raceP } = await supabaseClient
+                  // Already exists - fetch it
+                  dbLevelDedupes++;
+                  const { data: existing } = await supabaseClient
                     .from('properties')
                     .select('id, address, city, state, zip')
                     .eq('address', propData.address)
                     .eq('city', propData.city)
                     .maybeSingle();
-                  if (raceP) existingMap.set(key, raceP.id);
+                  if (existing) {
+                    const existKey = `${existing.address}|${existing.city}|${existing.state}|${existing.zip}`.toLowerCase();
+                    existingMap.set(existKey, existing.id);
+                  }
                 }
               }
+            } else {
+              console.error('[process-upload] Batch insert error:', insertError);
+              throw insertError;
             }
-          } else {
-            console.error('[process-upload] Batch insert error:', insertError);
-            throw insertError;
-          }
-        } else if (insertedProps) {
-          for (const prop of insertedProps) {
-            const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
-            existingMap.set(key, prop.id);
-            propertiesCreated++;
+          } else if (insertedProps) {
+            for (const prop of insertedProps) {
+              const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+              existingMap.set(key, prop.id);
+              propertiesCreated++;
+            }
           }
         }
       }
 
-      // Update progress
-      await supabaseClient
-        .from('upload_jobs')
-        .update({ status: 'DEDUPING', processed_rows: i + batch.length })
-        .eq('id', jobId);
-
-      console.log(`[process-upload] Properties: ${i + batch.length}/${newProperties.length}, new: ${trulyNew.length}, created: ${propertiesCreated}`);
+      // Update progress less frequently to reduce DB calls
+      if ((i + batch.length) % 200 === 0 || i + batch.length >= newProperties.length) {
+        await supabaseClient
+          .from('upload_jobs')
+          .update({ status: 'DEDUPING', processed_rows: i + batch.length })
+          .eq('id', jobId);
+        console.log(`[process-upload] Properties: ${i + batch.length}/${newProperties.length}, created: ${propertiesCreated}`);
+      }
     }
 
     // Ensure all addresses are mapped - fetch any still missing
@@ -563,8 +659,8 @@ async function processUploadJob(jobId: string) {
 
     // Insert violations in batches - process in streaming fashion to avoid memory issues
     // Process staging rows in chunks instead of loading all into memory
-    const STAGING_FETCH_BATCH = 1000;
-    const VIOL_INSERT_BATCH = 500;
+    const STAGING_FETCH_BATCH = 500;   // Smaller batches to prevent memory issues
+    const VIOL_INSERT_BATCH = 100;     // Small insert batches for reliability
     let stagingOffset = 0;
     let violationsCreatedTotal = 0;
     let skippedRows = 0;
@@ -726,76 +822,71 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] =====================================================`);
 
-    // ===== GENERATE INSIGHTS BEFORE MARKING COMPLETE =====
-    // IMPORTANT: Run insights synchronously so "COMPLETE" status means insights are done
-    // This prevents UI showing "Upload Complete" while insights are still generating
-    console.log(`[process-upload] Generating insights for ${allPropertyIds.length} properties...`);
-
-    let insightsGenerated = 0;
-    if (allPropertyIds.length > 0) {
-      try {
-        const insightsResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-insights`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          },
-          body: JSON.stringify({ propertyIds: allPropertyIds }),
-        });
-
-        if (insightsResponse.ok) {
-          const insightsData = await insightsResponse.json();
-          insightsGenerated = insightsData.processed || 0;
-          const breakdown = insightsData.breakdown || {};
-          console.log(`[process-upload] ✓ Insights generated: ${insightsGenerated} properties`);
-          console.log(`[process-upload]   - AI-generated: ${breakdown.ai_generated || 0}`);
-          console.log(`[process-upload]   - Rule-based: ${breakdown.rule_based || 0}`);
-          console.log(`[process-upload]   - No data: ${breakdown.no_data || 0}`);
-
-          if (breakdown.rule_based > 0) {
-            console.warn(`[process-upload] ⚠️ ${breakdown.rule_based} properties using rule-based insights (LOVABLE_API_KEY may not be configured)`);
-          }
-        } else {
-          const errorText = await insightsResponse.text();
-          console.error(`[process-upload] ✗ Insights generation failed: HTTP ${insightsResponse.status}`);
-          console.error(`[process-upload] Response: ${errorText}`);
-          // Continue - insights are enhancement, not critical for upload success
-        }
-      } catch (insightError) {
-        console.error('[process-upload] ✗ Error during insight generation:', insightError);
-        console.error('[process-upload] Upload will complete but properties may lack AI insights');
-        // Continue - don't fail upload if insights fail
-      }
-    } else {
-      console.log('[process-upload] No properties created, skipping insight generation');
-    }
-
     // Build warnings array for data quality issues
     const warnings: string[] = [];
     if (skippedRows > 0) {
       warnings.push(`${skippedRows} violations could not be matched to properties (orphaned)`);
     }
-    if (insightsGenerated < allPropertyIds.length && allPropertyIds.length > 0) {
-      warnings.push(`Only ${insightsGenerated}/${allPropertyIds.length} properties received insights`);
-    }
 
-    // NOW mark complete - insights are done
-    await supabaseClient
+    // Mark job complete FIRST - insights will run in background
+    const { error: completeError } = await supabaseClient
       .from('upload_jobs')
       .update({
         status: 'COMPLETE',
         finished_at: new Date().toISOString(),
         properties_created: propertiesCreated,
         violations_created: violationsCreatedTotal,
-        rows_skipped: skippedRows,
-        insights_generated: insightsGenerated,
+        total_rows: totalRows,
         warnings: warnings.length > 0 ? warnings : null
       })
       .eq('id', jobId);
+    
+    if (completeError) {
+      console.error('[process-upload] Failed to mark job complete:', completeError);
+      throw new Error(`Failed to update job status: ${completeError.message}`);
+    }
 
     console.log(`[process-upload] Job ${jobId} marked COMPLETE`);
-    console.log(`[process-upload]   • Insights: ${insightsGenerated}/${allPropertyIds.length} generated`);
     console.log(`[process-upload]   • Data quality: ${warnings.length} warning(s)`);
+
+    // ===== GENERATE INSIGHTS IN BACKGROUND =====
+    // Run insights asynchronously so upload completes faster
+    if (allPropertyIds.length > 0) {
+      console.log(`[process-upload] Triggering background insights generation for ${allPropertyIds.length} properties...`);
+      
+      EdgeRuntime.waitUntil(
+        (async () => {
+          try {
+            const insightsResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-insights`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({ propertyIds: allPropertyIds }),
+            });
+
+            if (insightsResponse.ok) {
+              const insightsData = await insightsResponse.json();
+              const insightsGenerated = insightsData.processed || 0;
+              const breakdown = insightsData.breakdown || {};
+              console.log(`[process-upload] ✓ Background insights complete: ${insightsGenerated} properties`);
+              console.log(`[process-upload]   - AI-generated: ${breakdown.ai_generated || 0}`);
+              console.log(`[process-upload]   - Rule-based: ${breakdown.rule_based || 0}`);
+              console.log(`[process-upload]   - No data: ${breakdown.no_data || 0}`);
+            } else {
+              const errorText = await insightsResponse.text();
+              console.error(`[process-upload] ✗ Background insights failed: HTTP ${insightsResponse.status}`);
+              console.error(`[process-upload] Response: ${errorText}`);
+            }
+          } catch (insightError) {
+            console.error('[process-upload] ✗ Error during background insight generation:', insightError);
+          }
+        })()
+      );
+    } else {
+      console.log('[process-upload] No properties created, skipping insight generation');
+    }
 
     // Create geocoding job for properties that need it
     console.log(`[process-upload] Creating geocoding job for newly created properties`);

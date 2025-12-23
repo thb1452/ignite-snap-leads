@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { LeadsMap } from "@/components/leads/LeadsMap";
 import { FilterBar } from "@/components/leads/FilterBar";
 import { FilterControls } from "@/components/leads/FilterControls";
@@ -9,7 +8,7 @@ import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { LocationFilter } from "@/components/leads/LocationFilter";
 import { generateInsights } from "@/services/insights";
@@ -19,42 +18,18 @@ import { useOnboarding } from "@/hooks/useOnboarding";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { useSubscription } from "@/hooks/useSubscription";
 import { exportFilteredCsv } from "@/services/export";
+import { useProperties } from "@/hooks/useProperties";
+import { useMapMarkers } from "@/hooks/useMapMarkers";
 
-interface Violation {
-  id: string;
-  violation_type: string;
-  status: string;
-  opened_date: string | null;
-  days_open: number | null;
-  case_id: string | null;
-  // NOTE: description and raw_description are NEVER included for legal safety
-}
-
-interface Property {
-  id: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  latitude: number | null;
-  longitude: number | null;
-  snap_score: number | null;
-  snap_insight: string | null;
-  photo_url: string | null;
-  updated_at: string | null;
-  violations: Violation[];
-}
+const PAGE_SIZE = 50;
 
 function Leads() {
   const { toast } = useToast();
   const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
   const { plan, checkLimit } = useSubscription();
 
-  // Data state
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
-  const [upgradeLimitType, setUpgradeLimitType] = useState<'csv_export' | 'skip_trace'>('csv_export');
+  // Pagination state
+  const [page, setPage] = useState(1);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -74,124 +49,29 @@ function Leads() {
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradeLimitType, setUpgradeLimitType] = useState<'csv_export' | 'skip_trace'>('csv_export');
 
-  // Fetch properties from database in batches to overcome 1000 row limit
-  async function fetchProperties() {
-    setLoading(true);
-    try {
-      let allProperties: Property[] = [];
-      let from = 0;
-      const batchSize = 1000;
-      let hasMore = true;
+  // Build filters object for the hook
+  const filters = useMemo(() => ({
+    search: searchQuery || undefined,
+    cities: selectedCity ? [selectedCity] : undefined,
+    snapScoreRange: snapScoreMin > 0 ? [snapScoreMin, 100] as [number, number] : undefined,
+  }), [searchQuery, selectedCity, snapScoreMin]);
 
-      while (hasMore) {
-        const { data: batch, error } = await supabase
-          .from('properties')
-          .select(`
-            id,
-            address,
-            city,
-            state,
-            zip,
-            latitude,
-            longitude,
-            snap_score,
-            snap_insight,
-            photo_url,
-            updated_at,
-            jurisdiction_id,
-            violations (
-              id,
-              violation_type,
-              description,
-              status,
-              opened_date,
-              days_open,
-              case_id
-            )
-          `)
-          .order('created_at', { ascending: false })
-          .range(from, from + batchSize - 1);
-
-        if (error) throw error;
-
-        if (batch && batch.length > 0) {
-          allProperties = [...allProperties, ...batch];
-          from += batchSize;
-          hasMore = batch.length === batchSize;
-        } else {
-          hasMore = false;
-        }
-      }
-
-      setProperties(allProperties);
-      
-      toast({
-        title: "Properties Loaded",
-        description: `Loaded ${allProperties.length} properties from database`,
-      });
-    } catch (error) {
-      console.error("Error loading properties:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load properties",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchProperties();
-  }, []);
-
-  // Filter properties
-  const filteredProperties = useMemo(() => {
-    return properties.filter(property => {
-      // Search filter
-      if (searchQuery) {
-        const search = searchQuery.toLowerCase();
-        if (
-          !property.address.toLowerCase().includes(search) &&
-          !property.city.toLowerCase().includes(search) &&
-          !property.zip.includes(search)
-        ) {
-          return false;
-        }
-      }
-
-      // Snap score filter - only filter when threshold is meaningful
-      if (snapScoreMin > 0) {
-        const score = property.snap_score ?? 0;
-        if (score < snapScoreMin) {
-          return false;
-        }
-      }
-
-      // Last seen filter
-      if (lastSeenDays !== null && property.updated_at) {
-        const daysSince = Math.floor(
-          (Date.now() - new Date(property.updated_at).getTime()) / (1000 * 60 * 60 * 24)
-        );
-        if (daysSince > lastSeenDays) {
-          return false;
-        }
-      }
-
-      // City filter (from property data, not jurisdiction)
-      if (selectedCity && property.city !== selectedCity) {
-        return false;
-      }
-
-      // Jurisdiction filter
-      if (selectedJurisdictionId && (property as any).jurisdiction_id !== selectedJurisdictionId) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [properties, searchQuery, snapScoreMin, lastSeenDays, selectedCity, selectedCounty, selectedJurisdictionId]);
+  // Use paginated properties hook for the list
+  const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
+  
+  // Use lightweight markers query for the map (all properties with coords)
+  const { data: mapMarkers = [], error: mapError } = useMapMarkers();
+  
+  // Log any errors
+  if (error) console.error("[Leads] Properties error:", error);
+  if (mapError) console.error("[Leads] Map markers error:", mapError);
+  
+  const properties = data?.data ?? [];
+  const totalCount = data?.total ?? 0;
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const handleClearFilters = () => {
     setSearchQuery("");
@@ -201,6 +81,7 @@ function Leads() {
     setSelectedCounty(null);
     setSelectedSource(null);
     setSelectedJurisdictionId(null);
+    setPage(1);
   };
 
   const handleToggleSelect = (id: string) => {
@@ -211,7 +92,7 @@ function Leads() {
 
   const handleToggleSelectAll = () => {
     setSelectedIds(prev =>
-      prev.length === filteredProperties.length ? [] : filteredProperties.map(p => p.id)
+      prev.length === properties.length ? [] : properties.map(p => p.id)
     );
   };
 
@@ -225,7 +106,6 @@ function Leads() {
       return;
     }
 
-    // Check if user can export
     const canExport = await checkLimit('csv_export');
     if (!canExport) {
       setUpgradeLimitType('csv_export');
@@ -239,7 +119,6 @@ function Leads() {
         description: `Exporting ${selectedIds.length} properties to CSV...`,
       });
 
-      // Use filters from current view
       await exportFilteredCsv({
         city: selectedCity || undefined,
         minScore: snapScoreMin,
@@ -286,8 +165,7 @@ function Leads() {
         description: `Generated insights for ${result.processed} properties`,
       });
 
-      // Refresh properties to show insights
-      await fetchProperties();
+      refetch();
     } catch (error: any) {
       console.error("Insight generation error:", error);
       toast({
@@ -299,6 +177,12 @@ function Leads() {
       setIsGeneratingInsights(false);
     }
   };
+
+  // Map properties to include violations placeholder (they're not fetched in paged query)
+  const mappedProperties = properties.map(p => ({
+    ...p,
+    violations: [] as any[],
+  }));
 
   return (
     <div className="flex flex-col h-screen">
@@ -317,13 +201,13 @@ function Leads() {
 
       <FilterBar
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={(q) => { setSearchQuery(q); setPage(1); }}
         snapScoreMin={snapScoreMin}
         lastSeenDays={lastSeenDays}
         selectedCity={selectedCity}
         selectedCounty={selectedCounty}
         selectedJurisdiction={selectedJurisdictionId}
-        propertyCount={filteredProperties.length}
+        propertyCount={totalCount}
         onClearFilters={handleClearFilters}
       />
       
@@ -332,13 +216,13 @@ function Leads() {
           selectedJurisdiction={selectedJurisdictionId}
           selectedCity={selectedCity}
           selectedCounty={selectedCounty}
-          onJurisdictionChange={setSelectedJurisdictionId}
-          onCityChange={setSelectedCity}
-          onCountyChange={setSelectedCounty}
+          onJurisdictionChange={(j) => { setSelectedJurisdictionId(j); setPage(1); }}
+          onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
+          onCountyChange={(c) => { setSelectedCounty(c); setPage(1); }}
         />
         <FilterControls
           snapScoreMin={snapScoreMin}
-          onSnapScoreChange={setSnapScoreMin}
+          onSnapScoreChange={(v) => { setSnapScoreMin(v); setPage(1); }}
           lastSeenDays={lastSeenDays}
           onLastSeenChange={setLastSeenDays}
           selectedSource={selectedSource}
@@ -370,7 +254,7 @@ function Leads() {
             </Button>
           </div>
           <LeadsMap
-            properties={filteredProperties}
+            properties={mapMarkers}
             onPropertyClick={setSelectedPropertyId}
             selectedPropertyId={selectedPropertyId || undefined}
           />
@@ -379,17 +263,17 @@ function Leads() {
         {/* Property List - Right Side */}
         <div className="w-[40%] flex flex-col relative">
           <div className="flex-1 overflow-hidden">
-            {loading ? (
+            {isLoading ? (
               <div className="p-8 text-center text-muted-foreground">
                 Loading properties...
               </div>
-            ) : filteredProperties.length === 0 ? (
+            ) : properties.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 No properties found
               </div>
             ) : (
               <VirtualizedPropertyList
-                properties={filteredProperties}
+                properties={mappedProperties}
                 selectedIds={selectedIds}
                 onToggleSelect={handleToggleSelect}
                 onPropertyClick={setSelectedPropertyId}
@@ -397,10 +281,37 @@ function Leads() {
             )}
           </div>
 
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-2 border-t bg-background">
+              <span className="text-sm text-muted-foreground">
+                Page {page} of {totalPages} ({totalCount} total)
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
           <BulkActionBar
             selectedCount={selectedIds.length}
-            totalCount={filteredProperties.length}
-            allSelected={selectedIds.length === filteredProperties.length && filteredProperties.length > 0}
+            totalCount={properties.length}
+            allSelected={selectedIds.length === properties.length && properties.length > 0}
             onToggleSelectAll={handleToggleSelectAll}
             onSkipTrace={handleExportCSV}
             onView={() => setShowAddToListDialog(true)}
@@ -411,7 +322,7 @@ function Leads() {
       {/* Property Detail Panel */}
       {selectedPropertyId && (
         <PropertyDetailPanel
-          property={properties.find(p => p.id === selectedPropertyId) || null}
+          property={mappedProperties.find(p => p.id === selectedPropertyId) || null}
           open={!!selectedPropertyId}
           onOpenChange={(open) => !open && setSelectedPropertyId(null)}
         />
@@ -434,7 +345,7 @@ function Leads() {
         open={showBulkDeleteDialog}
         onOpenChange={setShowBulkDeleteDialog}
         onSuccess={() => {
-          fetchProperties();
+          refetch();
           setShowBulkDeleteDialog(false);
         }}
       />

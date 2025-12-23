@@ -6,80 +6,70 @@ import { Phone, Mail, ListChecks, Zap, TrendingUp, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { IntelligenceDashboard } from "@/components/intelligence/IntelligenceDashboard";
 import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
+import { useDashboardStats } from "@/hooks/useIntelligenceDashboard";
 
 export default function Index() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    totalLeads: 0,
+  const { data: dashboardStats, isLoading: statsLoading, error: statsError } = useDashboardStats();
+  
+  const [extraStats, setExtraStats] = useState({
     tracedLeads: 0,
     activeLists: 0,
     outreachToday: 0,
-    hotLeads: 0,
-    avgDaysOpen: 0,
   });
-  const [loading, setLoading] = useState(true);
+  const [extraLoading, setExtraLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardStats();
+    fetchExtraStats();
+    // Safety timeout - if loading takes more than 10s, stop loading
+    const timeout = setTimeout(() => {
+      setExtraLoading(false);
+    }, 10000);
+    return () => clearTimeout(timeout);
   }, []);
 
-  const fetchDashboardStats = async () => {
+  const fetchExtraStats = async () => {
     try {
-      setLoading(true);
+      setExtraLoading(true);
 
-      // Total leads
-      const { count: totalLeads } = await supabase
-        .from("properties")
-        .select("*", { count: "exact", head: true });
-
-      // Traced leads (properties with contacts)
-      const { data: tracedData } = await supabase
+      // Traced leads (count distinct properties with contacts) - use count
+      const { count: tracedLeads, error: tracedError } = await supabase
         .from("property_contacts")
-        .select("property_id");
-      const tracedLeads = new Set(tracedData?.map(c => c.property_id) || []).size;
+        .select("property_id", { count: "exact", head: true });
+
+      if (tracedError) console.error("Error fetching traced leads:", tracedError);
 
       // Active lists
-      const { count: activeLists } = await supabase
+      const { count: activeLists, error: listsError } = await supabase
         .from("lead_lists")
         .select("*", { count: "exact", head: true });
+
+      if (listsError) console.error("Error fetching active lists:", listsError);
 
       // Outreach today
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const { count: outreachToday } = await supabase
+      const { count: outreachToday, error: outreachError } = await supabase
         .from("lead_activity")
         .select("*", { count: "exact", head: true })
         .gte("created_at", today.toISOString());
 
-      // Hot leads (high snap score)
-      const { data: allProperties } = await supabase
-        .from("properties")
-        .select("snap_score, violations(days_open)");
-      
-      const hotLeads = allProperties?.filter(p => (p.snap_score ?? 0) >= 80).length || 0;
-      
-      const daysOpenArray = allProperties?.map(p => {
-        const maxDays = Math.max(...(p.violations?.map((v: any) => v.days_open ?? 0) || [0]));
-        return maxDays;
-      }) || [];
-      const avgDaysOpen = daysOpenArray.length > 0
-        ? Math.round(daysOpenArray.reduce((a, b) => a + b, 0) / daysOpenArray.length)
-        : 0;
+      if (outreachError) console.error("Error fetching outreach:", outreachError);
 
-      setStats({
-        totalLeads: totalLeads ?? 0,
-        tracedLeads,
+      setExtraStats({
+        tracedLeads: tracedLeads ?? 0,
         activeLists: activeLists ?? 0,
         outreachToday: outreachToday ?? 0,
-        hotLeads,
-        avgDaysOpen,
       });
     } catch (error) {
-      console.error("Error fetching dashboard stats:", error);
+      console.error("Error fetching extra stats:", error);
     } finally {
-      setLoading(false);
+      setExtraLoading(false);
     }
   };
+
+  // Only block if BOTH are still loading - show page as soon as one finishes
+  const loading = statsLoading && extraLoading;
 
   if (loading) {
     return (
@@ -88,6 +78,15 @@ export default function Index() {
       </div>
     );
   }
+
+  const stats = {
+    totalLeads: dashboardStats?.total_leads ?? 0,
+    hotLeads: dashboardStats?.hot_leads ?? 0,
+    tracedLeads: extraStats.tracedLeads,
+    activeLists: extraStats.activeLists,
+    outreachToday: extraStats.outreachToday,
+    avgDaysOpen: 0, // This would need a separate efficient query if needed
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -106,7 +105,7 @@ export default function Index() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-emerald-700">{stats.hotLeads}</div>
+            <div className="text-3xl font-bold text-emerald-700">{stats.hotLeads.toLocaleString()}</div>
             <p className="text-xs text-emerald-600 mt-1">SnapScore ≥80</p>
           </CardContent>
         </Card>
@@ -119,7 +118,7 @@ export default function Index() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-ink-900">{stats.totalLeads}</div>
+            <div className="text-3xl font-bold text-ink-900">{stats.totalLeads.toLocaleString()}</div>
             <Button
               variant="link"
               className="text-xs text-brand p-0 h-auto mt-1"
@@ -138,7 +137,7 @@ export default function Index() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-ink-900">{stats.tracedLeads}</div>
+            <div className="text-3xl font-bold text-ink-900">{stats.tracedLeads.toLocaleString()}</div>
             <p className="text-xs text-ink-400 mt-1">Ready to contact</p>
           </CardContent>
         </Card>
@@ -178,13 +177,13 @@ export default function Index() {
         <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-amber-700">Avg Days Open</CardTitle>
+              <CardTitle className="text-sm font-medium text-amber-700">Avg SnapScore</CardTitle>
               <TrendingUp className="h-4 w-4 text-amber-600" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-amber-700">{stats.avgDaysOpen}</div>
-            <p className="text-xs text-amber-600 mt-1">Urgency indicator</p>
+            <div className="text-3xl font-bold text-amber-700">{dashboardStats?.avg_snap_score ?? 0}</div>
+            <p className="text-xs text-amber-600 mt-1">Opportunity indicator</p>
           </CardContent>
         </Card>
       </div>

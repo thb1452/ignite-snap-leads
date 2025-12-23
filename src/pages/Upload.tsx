@@ -25,7 +25,7 @@ import { detectCsvLocations, splitCsvByCity } from '@/utils/csvLocationDetector'
 import { sanitizeFilename } from '@/utils/sanitizeFilename';
 
 const UPLOAD_LIMITS = {
-  MAX_FILE_SIZE_MB: 50,
+  MAX_FILE_SIZE_MB: 15,  // Edge function memory limit requires smaller files
   MAX_ROWS: 50000,
 };
 
@@ -395,11 +395,12 @@ export default function Upload() {
                   
                   <div className="space-y-2">
                     <Label htmlFor="state">State <span className="text-xs text-muted-foreground">(Fallback)</span></Label>
-                    <Select value={state} onValueChange={setState}>
+                    <Select value={state || "none"} onValueChange={(v) => setState(v === "none" ? "" : v)}>
                       <SelectTrigger id="state">
                         <SelectValue placeholder="Select state" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
                         {US_STATES.map((st) => (
                           <SelectItem key={st} value={st}>
                             {st}
@@ -505,7 +506,7 @@ export default function Upload() {
           )}
 
           {/* Single job progress */}
-          {job && <UploadProgress job={job} />}
+          {job && <UploadProgress job={job} onReset={resetAll} />}
           
           {/* Multi-job progress for split uploads */}
           {jobIds.length > 0 && <MultiJobProgress stats={multiJobStats} />}

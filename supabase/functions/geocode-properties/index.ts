@@ -22,48 +22,66 @@ async function geocodeAddress(
   state: string,
   zip?: string
 ): Promise<{ latitude: number | null; longitude: number | null; skipped: boolean }> {
-  console.log(`[Geocoding START] ${address}, ${city}, ${state} ${zip || ''}`);
+  // STEP 1: Sanitize address - remove Windows line breaks, extra spaces, duplicate city names
+  let cleanAddress = (address || '')
+    .replace(/_X000D_/g, ' ')  // Remove Windows carriage returns
+    .replace(/\s+/g, ' ')       // Collapse multiple spaces
+    .trim();
 
-  // Validate address components
-  const addressLower = address?.trim().toLowerCase() || '';
-  const cityLower = city?.trim().toLowerCase() || '';
+  // Remove city name if it appears at the end of address (common CSV issue)
+  const cityUpper = (city || '').toUpperCase().trim();
+  if (cityUpper && cleanAddress.toUpperCase().endsWith(cityUpper)) {
+    cleanAddress = cleanAddress.slice(0, -cityUpper.length).trim();
+  }
+
+  // STEP 2: Validate address components
+  const addressLower = cleanAddress.toLowerCase();
+  const cityLower = (city || '').trim().toLowerCase();
 
   // Basic validation: missing data or known placeholders
-  if (!address || addressLower === 'unknown' ||
-      !city || cityLower === 'unknown' || !state ||
-      addressLower.startsWith('parcel-based location')) {
-    console.log(`[Geocoding SKIP] Invalid or parcel-based address: ${address}`);
+  if (!cleanAddress || addressLower === 'unknown' ||
+      !city || cityLower === 'unknown' || !state) {
+    console.log(`[Geocoding SKIP] Missing or unknown address data: ${cleanAddress}`);
     return { latitude: null, longitude: null, skipped: true };
   }
 
-  // Sanitization: Skip addresses containing violation keywords or garbage
-  const violationKeywords = [
+  // Length checks - addresses should be reasonable length
+  if (cleanAddress.length > 100 || cleanAddress.length < 5) {
+    console.log(`[Geocoding SKIP] Address length invalid (${cleanAddress.length} chars): ${cleanAddress.substring(0, 50)}...`);
+    return { latitude: null, longitude: null, skipped: true };
+  }
+
+  // STEP 3: Skip parcel-based locations and violation text
+  const invalidPatterns = [
+    'parcel-based location', 'parcel-based', 'parked on',
     'violation', 'debris', 'trash', 'weeds', 'overgrown',
     'complaint', 'notice', 'hazard', 'illegal', 'unpermitted',
-    'junk', 'abandoned', 'dumped', '_x000d_', '\\n', '\\r'
+    'junk', 'abandoned', 'dumped', 'received a call',
+    'regarding', 'neighbor', 'the city of'
   ];
 
-  for (const keyword of violationKeywords) {
-    if (addressLower.includes(keyword) || cityLower.includes(keyword)) {
-      console.log(`[Geocoding SKIP] Address contains violation text: ${address}`);
-      return { latitude: null, longitude: null, skipped: true };
-    }
-  }
-
-  // Skip if address looks malformed (e.g. contains multiple sentences, excessive punctuation)
-  if (address.includes(';') || address.split('.').length > 2) {
-    console.log(`[Geocoding SKIP] Address appears malformed: ${address}`);
+  const hasInvalidPattern = invalidPatterns.some(p => addressLower.includes(p) || cityLower.includes(p));
+  if (hasInvalidPattern) {
+    console.log(`[Geocoding SKIP] Address contains invalid text: ${cleanAddress.substring(0, 50)}...`);
     return { latitude: null, longitude: null, skipped: true };
   }
 
+  // STEP 4: Skip if address looks malformed (e.g. contains multiple sentences, excessive punctuation)
+  if (cleanAddress.includes(';') || cleanAddress.split('.').length > 2) {
+    console.log(`[Geocoding SKIP] Address appears malformed: ${cleanAddress}`);
+    return { latitude: null, longitude: null, skipped: true };
+  }
+
+  console.log(`[Geocoding] ${cleanAddress}, ${city}, ${state}`);
+
+  // STEP 5: Check for Mapbox API token
   const MAPBOX_TOKEN = Deno.env.get('MAPBOX_ACCESS_TOKEN');
   if (!MAPBOX_TOKEN) {
     console.error('[Geocoding] ⚠️ MAPBOX_ACCESS_TOKEN not configured - skipping all geocoding');
     return { latitude: null, longitude: null, skipped: true };  // FIX: Mark as skipped, not failed
   }
 
-  // Build full address
-  const cleanAddress = address.trim();
+  // STEP 6: Build full address and call Mapbox
   const cleanCity = city.trim();
   const cleanState = state.trim();
   const addressParts = [cleanAddress, cleanCity, cleanState];
@@ -74,7 +92,7 @@ async function geocodeAddress(
 
   try {
     const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(fullAddress)}.json?access_token=${MAPBOX_TOKEN}&country=US&limit=1`;
-    
+
     const response = await fetch(mapboxUrl, {
       signal: AbortSignal.timeout(5000) // 5 second timeout - fail fast
     });
@@ -85,7 +103,7 @@ async function geocodeAddress(
     }
 
     const data = await response.json();
-    
+
     if (data.features && data.features.length > 0) {
       const [lng, lat] = data.features[0].center;
       console.log(`✓ Geocoded: ${fullAddress} -> ${lat}, ${lng}`);
@@ -269,12 +287,20 @@ serve(async (req: Request) => {
       JSON.stringify({ remaining: remaining ?? 0 }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
-    console.error("[Geocoding] Edge function error:", error);
+  } catch (error: unknown) {
+    // Better error logging
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : typeof error,
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 3).join('\n') : undefined,
+      raw: JSON.stringify(error)
+    };
+    console.error("[Geocoding] Edge function error:", errorDetails);
 
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorDetails.message || "Unknown error",
+        details: errorDetails
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

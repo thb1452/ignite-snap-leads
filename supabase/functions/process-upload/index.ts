@@ -537,11 +537,12 @@ async function processUploadJob(jobId: string) {
       (row.city || job.city || '').toLowerCase().trim()
     ))].filter(c => c);
 
+    // Declare at function scope so it's accessible later for calculating new properties
+    let totalExistingProps = 0;
+
     if (uniqueCities.length > 0) {
       // Fetch existing properties city by city to avoid massive OR queries that timeout
       console.log(`[process-upload] Fetching existing properties from ${uniqueCities.length} cities...`);
-
-      let totalExistingProps = 0;
       
       // Process cities one at a time to prevent query timeout
       for (const city of uniqueCities) {

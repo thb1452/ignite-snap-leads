@@ -525,35 +525,38 @@ async function processUploadJob(jobId: string) {
     ))].filter(c => c);
 
     if (uniqueCities.length > 0) {
-      // Fetch all properties in these cities - more efficient than per-address lookups
-      // PERFORMANCE FIX: Filter by cities in this upload instead of fetching entire database
-      console.log(`[process-upload] Fetching existing properties from ${uniqueCities.length} cities: ${uniqueCities.slice(0, 5).join(', ')}${uniqueCities.length > 5 ? '...' : ''}`);
+      // Fetch existing properties city by city to avoid massive OR queries that timeout
+      console.log(`[process-upload] Fetching existing properties from ${uniqueCities.length} cities...`);
 
-      // Build case-insensitive city filter (OR query for multiple cities)
-      const cityFilters = uniqueCities.map(city => `city.ilike.${city}`).join(',');
+      let totalExistingProps = 0;
+      
+      // Process cities one at a time to prevent query timeout
+      for (const city of uniqueCities) {
+        const { data: cityProps, error: cityError } = await supabaseClient
+          .from('properties')
+          .select('id, address, city, state, zip')
+          .ilike('city', city)
+          .limit(20000);  // Safety limit per city
 
-      const { data: existingProps, error: existingError } = await supabaseClient
-        .from('properties')
-        .select('id, address, city, state, zip')
-        .or(cityFilters)  // Filter to only cities in this upload
-        .limit(50000);  // Safety limit to prevent unbounded queries
+        if (cityError) {
+          console.error(`[process-upload] Error fetching properties for city ${city}:`, cityError);
+          continue;
+        }
 
-      if (existingError) {
-        console.error('[process-upload] Error fetching existing properties:', existingError);
-        // Continue with empty map - will create all as new
+        // Build map with lowercase keys for matching
+        (cityProps || []).forEach(prop => {
+          const addr = (prop.address || '').trim().toLowerCase();
+          const c = (prop.city || '').trim().toLowerCase();
+          const state = (prop.state || '').trim().toLowerCase();
+          const zip = (prop.zip || '').trim().toLowerCase();
+          const key = `${addr}|${c}|${state}|${zip}`;
+          existingMap.set(key, prop.id);
+        });
+
+        totalExistingProps += (cityProps?.length || 0);
       }
 
-      // Build map with lowercase keys for matching
-      (existingProps || []).forEach(prop => {
-        const addr = (prop.address || '').trim().toLowerCase();
-        const city = (prop.city || '').trim().toLowerCase();
-        const state = (prop.state || '').trim().toLowerCase();
-        const zip = (prop.zip || '').trim().toLowerCase();
-        const key = `${addr}|${city}|${state}|${zip}`;
-        existingMap.set(key, prop.id);
-      });
-
-      console.log(`[process-upload] Loaded ${existingProps?.length || 0} existing properties from database`);
+      console.log(`[process-upload] Loaded ${totalExistingProps} existing properties from database`);
     }
 
     console.log(`[process-upload] Found ${existingMap.size} existing properties matching upload addresses`);

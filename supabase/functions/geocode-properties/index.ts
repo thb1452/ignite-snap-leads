@@ -169,11 +169,12 @@ serve(async (req: Request) => {
       );
     }
 
-    // Fetch a batch of properties that still need geocoding
+    // Fetch properties that need geocoding (null coords, but NOT 0,0 which means skipped/failed)
     const { data: properties, error: propsError } = await supabase
       .from("properties")
       .select("id,address,city,state,zip,latitude,longitude")
       .or("latitude.is.null,longitude.is.null")
+      .not("latitude", "eq", 0)  // Exclude already-skipped properties
       .limit(BATCH_SIZE);
 
     if (propsError) throw propsError;
@@ -193,7 +194,8 @@ serve(async (req: Request) => {
     let skippedCount = 0;
 
     // Process properties in parallel batches
-    const updates: Array<{ id: string; latitude: number; longitude: number }> = [];
+    const successUpdates: Array<{ id: string; latitude: number; longitude: number }> = [];
+    const skippedIds: string[] = [];  // Track skipped properties to mark them
 
     for (let i = 0; i < properties.length; i += PARALLEL_REQUESTS) {
       const chunk = properties.slice(i, i + PARALLEL_REQUESTS);
@@ -210,11 +212,14 @@ serve(async (req: Request) => {
           const { propertyId, latitude, longitude, skipped } = result.value;
 
           if (skipped) {
+            skippedIds.push(propertyId);  // Mark for update so they don't get reprocessed
             skippedCount++;
           } else if (latitude != null && longitude != null) {
-            updates.push({ id: propertyId, latitude, longitude });
+            successUpdates.push({ id: propertyId, latitude, longitude });
             successCount++;
           } else {
+            // Failed geocode - also mark so we don't keep retrying
+            skippedIds.push(propertyId);
             failCount++;
           }
         } else {
@@ -226,11 +231,11 @@ serve(async (req: Request) => {
       console.log(`[Geocoding] Processed ${Math.min(i + PARALLEL_REQUESTS, properties.length)}/${properties.length}`);
     }
 
-    // Batch update all successful geocodes
-    if (updates.length > 0) {
-      console.log(`[Geocoding] Batch updating ${updates.length} properties`);
+    // Batch update successful geocodes
+    if (successUpdates.length > 0) {
+      console.log(`[Geocoding] Batch updating ${successUpdates.length} successful geocodes`);
 
-      for (const update of updates) {
+      for (const update of successUpdates) {
         const { error: updateError } = await supabase
           .from("properties")
           .update({
@@ -244,6 +249,29 @@ serve(async (req: Request) => {
           console.error("[Geocoding] Failed to update property", update.id, updateError);
           successCount--;
           failCount++;
+        }
+      }
+    }
+
+    // CRITICAL FIX: Mark skipped/failed properties with 0,0 coords so they don't get reprocessed
+    // This prevents the infinite loop where ungeocodable properties are processed forever
+    if (skippedIds.length > 0) {
+      console.log(`[Geocoding] Marking ${skippedIds.length} skipped/failed properties as processed`);
+      
+      // Update in batches of 50 to avoid timeouts
+      for (let i = 0; i < skippedIds.length; i += 50) {
+        const batch = skippedIds.slice(i, i + 50);
+        const { error: skipError } = await supabase
+          .from("properties")
+          .update({
+            latitude: 0,
+            longitude: 0,
+            // Don't set geom for 0,0 - leave it null to indicate not geocoded
+          })
+          .in("id", batch);
+
+        if (skipError) {
+          console.error("[Geocoding] Failed to mark skipped properties", skipError);
         }
       }
     }
@@ -262,11 +290,12 @@ serve(async (req: Request) => {
       console.error("[Geocoding] Failed updating job counters", jobUpdateError);
     }
 
-    // How many still remain?
+    // How many still remain? (exclude 0,0 which are marked as skipped)
     const { count: remaining, error: remainingError } = await supabase
       .from("properties")
       .select("id", { count: "exact", head: true })
-      .or("latitude.is.null,longitude.is.null");
+      .or("latitude.is.null,longitude.is.null")
+      .not("latitude", "eq", 0);
 
     if (remainingError) throw remainingError;
 

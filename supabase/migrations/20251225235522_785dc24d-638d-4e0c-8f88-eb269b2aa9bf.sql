@@ -1,0 +1,1 @@
+ALTER TABLE public.upload_staging ALTER COLUMN city DROP NOT NULL;

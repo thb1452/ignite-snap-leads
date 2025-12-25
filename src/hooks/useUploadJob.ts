@@ -17,7 +17,10 @@ export interface UploadJob {
 export function useUploadJob(jobId: string | null) {
   const [job, setJob] = useState<UploadJob | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { toast } = useToast();
+  
+  const refresh = () => setRefreshTrigger(prev => prev + 1);
 
   useEffect(() => {
     if (!jobId) {
@@ -75,24 +78,25 @@ export function useUploadJob(jobId: string | null) {
         return;
       }
 
-      setJob(data as UploadJob);
+      console.log('[useUploadJob] Fetched job:', data.id, 'Status:', data.status);
+      
+      // Only update state if status actually changed or we don't have job data yet
+      setJob(prev => {
+        if (!prev || prev.status !== data.status || prev.violations_created !== data.violations_created) {
+          return data as UploadJob;
+        }
+        return prev;
+      });
       setLoading(false);
 
       // Check if stuck and auto-retry
       await checkAndRetryStuckJob(data as UploadJob);
 
-      // Show completion notification
+      // Show completion notification only on status change to COMPLETE
       if (data.status === 'COMPLETE') {
-        toast({
-          title: 'Upload Complete',
-          description: `Created ${data.properties_created} properties and ${data.violations_created} violations`,
-        });
+        console.log('[useUploadJob] Job completed!', data.id);
       } else if (data.status === 'FAILED') {
-        toast({
-          title: 'Upload Failed',
-          description: data.error_message || 'An error occurred',
-          variant: 'destructive',
-        });
+        console.log('[useUploadJob] Job failed!', data.id, data.error_message);
       }
 
       return data;
@@ -146,7 +150,7 @@ export function useUploadJob(jobId: string | null) {
       if (pollInterval) clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
-  }, [jobId, toast]);
+  }, [jobId, toast, refreshTrigger]);
 
-  return { job, loading };
+  return { job, loading, refresh };
 }

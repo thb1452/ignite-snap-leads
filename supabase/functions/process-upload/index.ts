@@ -723,26 +723,41 @@ async function processUploadJob(jobId: string) {
 
     // Insert violations in batches - process in streaming fashion to avoid memory issues
     // Process staging rows in chunks instead of loading all into memory
-    // REDUCED batch sizes to prevent statement timeout errors
-    const STAGING_FETCH_BATCH = 200;   // REDUCED from 500 to prevent timeouts
-    const VIOL_INSERT_BATCH = 25;      // REDUCED from 100 to prevent statement timeouts
+    // CRITICAL: Very small batch sizes to prevent Cloudflare/Supabase 500 errors during large uploads
+    const STAGING_FETCH_BATCH = 100;   // REDUCED from 200 to prevent timeouts
+    const VIOL_INSERT_BATCH = 15;      // REDUCED from 25 to prevent statement timeouts
     let stagingOffset = 0;
     let violationsCreatedTotal = 0;
     let skippedRows = 0;
+    let consecutiveErrors = 0;
+    const MAX_CONSECUTIVE_ERRORS = 3;
 
     console.log(`[process-upload] Starting violation creation (streaming batches of ${STAGING_FETCH_BATCH})...`);
 
     while (true) {
-      // Fetch a batch of staging rows
-      const { data: stagingBatch, error: stagingError } = await supabaseClient
-        .from('upload_staging')
-        .select('*')
-        .eq('job_id', jobId)
-        .order('row_num')
-        .range(stagingOffset, stagingOffset + STAGING_FETCH_BATCH - 1);
+      // Fetch a batch of staging rows with retry logic
+      let stagingBatch: any[] | null = null;
+      let stagingError: any = null;
+      
+      for (let retryAttempt = 0; retryAttempt < 3; retryAttempt++) {
+        const result = await supabaseClient
+          .from('upload_staging')
+          .select('*')
+          .eq('job_id', jobId)
+          .order('row_num')
+          .range(stagingOffset, stagingOffset + STAGING_FETCH_BATCH - 1);
+        
+        stagingBatch = result.data;
+        stagingError = result.error;
+        
+        if (!stagingError) break;
+        
+        console.warn(`[process-upload] Staging fetch retry ${retryAttempt + 1}/3:`, stagingError.message);
+        await new Promise(r => setTimeout(r, 500 * (retryAttempt + 1))); // Exponential backoff
+      }
 
       if (stagingError) {
-        throw new Error(`Failed to fetch staging data: ${stagingError.message}`);
+        throw new Error(`Failed to fetch staging data after retries: ${stagingError.message}`);
       }
 
       if (!stagingBatch || stagingBatch.length === 0) {
@@ -803,17 +818,34 @@ async function processUploadJob(jobId: string) {
         });
       }
 
-      // Insert this batch of violations in sub-batches
+      // Insert this batch of violations in sub-batches with retry logic
       for (let i = 0; i < violations.length; i += VIOL_INSERT_BATCH) {
         const insertBatch = violations.slice(i, i + VIOL_INSERT_BATCH);
+        let insertSuccess = false;
         
-        const { error: violError } = await supabaseClient
-          .from('violations')
-          .insert(insertBatch);
+        for (let retryAttempt = 0; retryAttempt < 3; retryAttempt++) {
+          const { error: violError } = await supabaseClient
+            .from('violations')
+            .insert(insertBatch);
 
-        if (violError) {
-          console.error('[process-upload] Violation insert error:', violError);
-          throw violError;
+          if (!violError) {
+            insertSuccess = true;
+            consecutiveErrors = 0; // Reset on success
+            break;
+          }
+          
+          console.warn(`[process-upload] Violation insert retry ${retryAttempt + 1}/3:`, violError.message);
+          await new Promise(r => setTimeout(r, 500 * (retryAttempt + 1))); // Exponential backoff
+        }
+
+        if (!insertSuccess) {
+          consecutiveErrors++;
+          console.error(`[process-upload] Failed to insert batch after retries (consecutive errors: ${consecutiveErrors})`);
+          
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            throw new Error(`Too many consecutive insert failures (${consecutiveErrors}). Aborting.`);
+          }
+          continue; // Skip this batch but continue trying
         }
 
         violationsCreatedTotal += insertBatch.length;
@@ -836,6 +868,9 @@ async function processUploadJob(jobId: string) {
       if (stagingBatch.length < STAGING_FETCH_BATCH) {
         break;
       }
+      
+      // Small delay between batches to prevent rate limiting
+      await new Promise(r => setTimeout(r, 50));
     }
 
     console.log(`[process-upload] Violation creation complete: ${violationsCreatedTotal} created, ${skippedRows} skipped (no property match)`);

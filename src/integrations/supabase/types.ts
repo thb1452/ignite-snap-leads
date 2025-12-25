@@ -1138,7 +1138,7 @@ export type Database = {
         Row: {
           address: string
           case_id: string | null
-          city: string
+          city: string | null
           created_at: string | null
           error: string | null
           id: string
@@ -1158,7 +1158,7 @@ export type Database = {
         Insert: {
           address: string
           case_id?: string | null
-          city: string
+          city?: string | null
           created_at?: string | null
           error?: string | null
           id?: string
@@ -1178,7 +1178,7 @@ export type Database = {
         Update: {
           address?: string
           case_id?: string | null
-          city?: string
+          city?: string | null
           created_at?: string | null
           error?: string | null
           id?: string

@@ -26,6 +26,35 @@ export function useUploadJob(jobId: string | null) {
     }
 
     let pollInterval: NodeJS.Timeout | null = null;
+    let retryAttempted = false;
+
+    // Check if job is stuck and needs auto-retry
+    const checkAndRetryStuckJob = async (jobData: UploadJob) => {
+      if (retryAttempted) return;
+      
+      const stuckStatuses = ['PARSING', 'PROCESSING', 'DEDUPING', 'CREATING_VIOLATIONS', 'FINALIZING'];
+      if (!stuckStatuses.includes(jobData.status)) return;
+      
+      // If job has been in a processing state for more than 3 minutes, auto-retry
+      const startedAt = jobData.started_at ? new Date(jobData.started_at).getTime() : 0;
+      const stuckThreshold = 3 * 60 * 1000; // 3 minutes
+      
+      if (startedAt && Date.now() - startedAt > stuckThreshold) {
+        retryAttempted = true;
+        console.log('[useUploadJob] Job appears stuck, triggering auto-retry...');
+        
+        try {
+          // Call job monitor to reset stuck jobs
+          await supabase.functions.invoke('job-monitor', {});
+          toast({
+            title: 'Retrying Upload',
+            description: 'Job appeared stuck, automatically restarting...',
+          });
+        } catch (e) {
+          console.error('[useUploadJob] Auto-retry failed:', e);
+        }
+      }
+    };
 
     // Fetch initial job state
     const fetchJob = async () => {
@@ -48,6 +77,9 @@ export function useUploadJob(jobId: string | null) {
 
       setJob(data as UploadJob);
       setLoading(false);
+
+      // Check if stuck and auto-retry
+      await checkAndRetryStuckJob(data as UploadJob);
 
       // Show completion notification
       if (data.status === 'COMPLETE') {

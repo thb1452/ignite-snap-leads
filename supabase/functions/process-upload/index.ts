@@ -660,8 +660,9 @@ async function processUploadJob(jobId: string) {
         const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
         existingMap.set(key, prop.id);
       });
-      propertiesCreated = (allCityProps?.length || 0) - 1000; // Subtract pre-existing
-      console.log(`[process-upload] Mapped ${allCityProps?.length || 0} total properties, ~${propertiesCreated} new`);
+      // Calculate newly created properties = total in DB now - pre-existing before upsert
+      propertiesCreated = Math.max(0, (allCityProps?.length || 0) - totalExistingProps);
+      console.log(`[process-upload] Mapped ${allCityProps?.length || 0} total properties, ${propertiesCreated} new (was ${totalExistingProps} before)`);
     }
 
     // Ensure all addresses are mapped - fetch any still missing

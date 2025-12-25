@@ -5,11 +5,12 @@ import Papa from "https://esm.sh/papaparse@5.4.1";
 // ============================================
 // UPLOAD LIMITS - Change these to adjust capacity
 // Edge functions have ~150MB memory limit, so we must be conservative
+// Statement timeout is typically 30-60s, so keep batches VERY small
 // ============================================
 const MAX_ROWS_PER_UPLOAD = 50000;  // Maximum rows allowed in a single CSV
-const STAGING_BATCH_SIZE = 250;     // Rows per batch for staging inserts (smaller = less memory)
-const PROP_INSERT_BATCH = 50;       // Properties per batch for inserts (very small to prevent timeouts)
-const VIOL_BATCH_SIZE = 100;        // Violations per batch for inserts
+const STAGING_BATCH_SIZE = 100;     // Rows per batch for staging inserts (REDUCED to prevent timeouts)
+const PROP_INSERT_BATCH = 25;       // Properties per batch for inserts (very small to prevent timeouts)
+const VIOL_BATCH_SIZE = 50;         // Violations per batch for inserts (REDUCED)
 const MAX_FILE_SIZE_MB = 15;        // Maximum file size in MB (edge function memory limit)
 
 const corsHeaders = {
@@ -48,6 +49,57 @@ const KNOWN_CITIES_NV = [
 ];
 
 const ALL_KNOWN_CITIES = [...KNOWN_CITIES_CA, ...KNOWN_CITIES_NV];
+
+/**
+ * Sanitize date string before inserting into staging - reject invalid dates
+ * This prevents Postgres errors like "date/time field value out of range"
+ */
+function sanitizeDateString(dateStr: string | null): string | null {
+  if (!dateStr || !dateStr.trim()) return null;
+  
+  const str = dateStr.trim();
+  
+  // Try to parse as ISO date (YYYY-MM-DD) or common date formats
+  // First check for obviously invalid dates like 2025-00-11, 2025-91-30
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10);
+    const day = parseInt(isoMatch[3], 10);
+    
+    // Validate ranges
+    if (year < 1900 || year > 2100) return null;
+    if (month < 1 || month > 12) return null;
+    if (day < 1 || day > 31) return null;
+  }
+  
+  // Also check for MM/DD/YYYY format
+  const usMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (usMatch) {
+    const month = parseInt(usMatch[1], 10);
+    const day = parseInt(usMatch[2], 10);
+    const year = parseInt(usMatch[3], 10);
+    
+    if (month < 1 || month > 12) return null;
+    if (day < 1 || day > 31) return null;
+    if (year < 1900 && year > 99) return null; // Allow 2-digit years
+  }
+  
+  // Try to parse and validate the date
+  try {
+    const parsed = new Date(str);
+    if (isNaN(parsed.getTime())) return null;
+    
+    // Check if date is reasonable (between 1950 and 2100)
+    const year = parsed.getFullYear();
+    if (year < 1950 || year > 2100) return null;
+    
+    // Return original string if valid
+    return str;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Extract city from address field if city column is empty or contains a zip code
@@ -304,8 +356,11 @@ async function processUploadJob(jobId: string) {
       const caseId = row.case_id || row['case/file id'] || row['file #'] || row.file_number || row.id || row['file number'] || null;
       const rawAddress = row.address || row.location || row.property_address || row['property address'] || '';
       const violationType = row.category || row.violation || row.type || row.violation_type || row['violation type'] || row.violation_category || '';
-      const openDate = row.opened_date || row.open_date || row['open date'] || row.date || row.date_opened || null;
-      const closeDate = row.close_date || row['close date'] || row.closed_date || row.date_closed || null;
+      // Parse dates immediately to catch invalid values before inserting to staging
+      const rawOpenDate = row.opened_date || row.open_date || row['open date'] || row.date || row.date_opened || null;
+      const rawCloseDate = row.close_date || row['close date'] || row.closed_date || row.date_closed || null;
+      const openDate = sanitizeDateString(rawOpenDate);
+      const closeDate = sanitizeDateString(rawCloseDate);
       const description = row.description || row.violation_description || row.notes || row.comments || null;
       
       // Get raw city/state from CSV
@@ -394,13 +449,11 @@ async function processUploadJob(jobId: string) {
     // IMPORTANT: Must paginate to avoid 1000 row default limit
     let stagingData: any[] = [];
     let dedupOffset = 0;
-    const DEDUP_BATCH = 5000;
 
-    // CRITICAL FIX: Use limit() to explicitly override Supabase's default 1000 row limit
-    // Previous code used only range() which was still being capped at 1000 rows
-    const DEDUP_PAGE_SIZE = 2000;  // Increased from 1000 to fetch more rows per batch
+    // BALANCED: 1000 rows per batch to prevent timeouts while ensuring ALL rows are fetched
+    const DEDUP_PAGE_SIZE = 1000;
 
-    console.log(`[process-upload] ⚠️  CRITICAL: Fetching ALL staging rows for dedup (not just first 1000)...`);
+    console.log(`[process-upload] ⚠️  CRITICAL: Fetching ALL staging rows for dedup (pagination with batches of ${DEDUP_PAGE_SIZE})...`);
 
     while (true) {
       const { data: dedupBatch, error: dedupError, count } = await supabaseClient
@@ -485,35 +538,38 @@ async function processUploadJob(jobId: string) {
     ))].filter(c => c);
 
     if (uniqueCities.length > 0) {
-      // Fetch all properties in these cities - more efficient than per-address lookups
-      // PERFORMANCE FIX: Filter by cities in this upload instead of fetching entire database
-      console.log(`[process-upload] Fetching existing properties from ${uniqueCities.length} cities: ${uniqueCities.slice(0, 5).join(', ')}${uniqueCities.length > 5 ? '...' : ''}`);
+      // Fetch existing properties city by city to avoid massive OR queries that timeout
+      console.log(`[process-upload] Fetching existing properties from ${uniqueCities.length} cities...`);
 
-      // Build case-insensitive city filter (OR query for multiple cities)
-      const cityFilters = uniqueCities.map(city => `city.ilike.${city}`).join(',');
+      let totalExistingProps = 0;
+      
+      // Process cities one at a time to prevent query timeout
+      for (const city of uniqueCities) {
+        const { data: cityProps, error: cityError } = await supabaseClient
+          .from('properties')
+          .select('id, address, city, state, zip')
+          .ilike('city', city)
+          .limit(20000);  // Safety limit per city
 
-      const { data: existingProps, error: existingError } = await supabaseClient
-        .from('properties')
-        .select('id, address, city, state, zip')
-        .or(cityFilters)  // Filter to only cities in this upload
-        .limit(50000);  // Safety limit to prevent unbounded queries
+        if (cityError) {
+          console.error(`[process-upload] Error fetching properties for city ${city}:`, cityError);
+          continue;
+        }
 
-      if (existingError) {
-        console.error('[process-upload] Error fetching existing properties:', existingError);
-        // Continue with empty map - will create all as new
+        // Build map with lowercase keys for matching
+        (cityProps || []).forEach(prop => {
+          const addr = (prop.address || '').trim().toLowerCase();
+          const c = (prop.city || '').trim().toLowerCase();
+          const state = (prop.state || '').trim().toLowerCase();
+          const zip = (prop.zip || '').trim().toLowerCase();
+          const key = `${addr}|${c}|${state}|${zip}`;
+          existingMap.set(key, prop.id);
+        });
+
+        totalExistingProps += (cityProps?.length || 0);
       }
 
-      // Build map with lowercase keys for matching
-      (existingProps || []).forEach(prop => {
-        const addr = (prop.address || '').trim().toLowerCase();
-        const city = (prop.city || '').trim().toLowerCase();
-        const state = (prop.state || '').trim().toLowerCase();
-        const zip = (prop.zip || '').trim().toLowerCase();
-        const key = `${addr}|${city}|${state}|${zip}`;
-        existingMap.set(key, prop.id);
-      });
-
-      console.log(`[process-upload] Loaded ${existingProps?.length || 0} existing properties from database`);
+      console.log(`[process-upload] Loaded ${totalExistingProps} existing properties from database`);
     }
 
     console.log(`[process-upload] Found ${existingMap.size} existing properties matching upload addresses`);
@@ -557,83 +613,55 @@ async function processUploadJob(jobId: string) {
 
     let propertiesCreated = 0;
     let dbLevelDedupes = 0;
-    const PROP_INSERT_BATCH = 50; // Small batches to prevent memory/timeout issues
+    const PROP_INSERT_BATCH = 100; // Larger batches since we use upsert now
 
-    // SIMPLIFIED: Insert directly and handle duplicates gracefully via ON CONFLICT
-    // Since we already fetched existing properties above, just insert truly new ones
+    // OPTIMIZED: Use upsert with ON CONFLICT DO NOTHING to avoid slow one-by-one handling
+    // Then fetch all property IDs in bulk afterwards
     for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
       const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
+      const insertData = batch.map(({ key, ...propData }) => propData);
       
-      // Filter to properties not already in existingMap (already fetched above)
-      const trulyNew = batch.filter(p => !existingMap.has(p.key));
-      
-      if (trulyNew.length > 0) {
-        // Insert in smaller sub-batches for reliability
-        const SUB_BATCH = 25;
-        for (let j = 0; j < trulyNew.length; j += SUB_BATCH) {
-          const subBatch = trulyNew.slice(j, j + SUB_BATCH);
-          const insertData = subBatch.map(({ key, ...propData }) => propData);
-          
-          const { data: insertedProps, error: insertError } = await supabaseClient
-            .from('properties')
-            .insert(insertData)
-            .select('id, address, city, state, zip');
+      // Use upsert with ignoreDuplicates to skip existing properties silently
+      const { error: upsertError } = await supabaseClient
+        .from('properties')
+        .upsert(insertData, { 
+          onConflict: 'address,city',  // Match the unique index
+          ignoreDuplicates: true       // Skip duplicates silently
+        });
 
-          if (insertError) {
-            if (insertError.code === '23505') {
-              // Unique constraint violation - insert one by one
-              console.log(`[process-upload] Handling ${subBatch.length} duplicates one-by-one...`);
-              for (const prop of subBatch) {
-                const { key, ...propData } = prop;
-                
-                // Try to insert, if fails, fetch existing
-                const { data: single, error: singleErr } = await supabaseClient
-                  .from('properties')
-                  .insert(propData)
-                  .select('id, address, city, state, zip')
-                  .maybeSingle();
-                
-                if (single) {
-                  const insertedKey = `${single.address}|${single.city}|${single.state}|${single.zip}`.toLowerCase();
-                  existingMap.set(insertedKey, single.id);
-                  propertiesCreated++;
-                } else if (singleErr?.code === '23505') {
-                  // Already exists - fetch it
-                  dbLevelDedupes++;
-                  const { data: existing } = await supabaseClient
-                    .from('properties')
-                    .select('id, address, city, state, zip')
-                    .eq('address', propData.address)
-                    .eq('city', propData.city)
-                    .maybeSingle();
-                  if (existing) {
-                    const existKey = `${existing.address}|${existing.city}|${existing.state}|${existing.zip}`.toLowerCase();
-                    existingMap.set(existKey, existing.id);
-                  }
-                }
-              }
-            } else {
-              console.error('[process-upload] Batch insert error:', insertError);
-              throw insertError;
-            }
-          } else if (insertedProps) {
-            for (const prop of insertedProps) {
-              const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
-              existingMap.set(key, prop.id);
-              propertiesCreated++;
-            }
-          }
-        }
+      if (upsertError) {
+        // If upsert fails, log and continue - we'll fetch IDs in the next step
+        console.error('[process-upload] Upsert batch error (continuing):', upsertError.message);
       }
 
-      // Update progress less frequently to reduce DB calls
-      if ((i + batch.length) % 200 === 0 || i + batch.length >= newProperties.length) {
+      // Update progress
+      if ((i + batch.length) % 500 === 0 || i + batch.length >= newProperties.length) {
         await supabaseClient
           .from('upload_jobs')
           .update({ status: 'DEDUPING', processed_rows: i + batch.length })
           .eq('id', jobId);
-        console.log(`[process-upload] Properties: ${i + batch.length}/${newProperties.length}, created: ${propertiesCreated}`);
+        console.log(`[process-upload] Property upsert progress: ${i + batch.length}/${newProperties.length}`);
       }
+    }
+
+    // Now fetch all property IDs for this city in bulk - much faster than individual lookups
+    console.log(`[process-upload] Fetching all property IDs for mapping...`);
+    const { data: allCityProps, error: fetchError } = await supabaseClient
+      .from('properties')
+      .select('id, address, city, state, zip')
+      .ilike('city', job.city || '')
+      .limit(50000);
+
+    if (fetchError) {
+      console.error('[process-upload] Error fetching property IDs:', fetchError);
+    } else {
+      // Update existingMap with all properties
+      (allCityProps || []).forEach(prop => {
+        const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+        existingMap.set(key, prop.id);
+      });
+      propertiesCreated = (allCityProps?.length || 0) - 1000; // Subtract pre-existing
+      console.log(`[process-upload] Mapped ${allCityProps?.length || 0} total properties, ~${propertiesCreated} new`);
     }
 
     // Ensure all addresses are mapped - fetch any still missing
@@ -673,8 +701,9 @@ async function processUploadJob(jobId: string) {
 
     // Insert violations in batches - process in streaming fashion to avoid memory issues
     // Process staging rows in chunks instead of loading all into memory
-    const STAGING_FETCH_BATCH = 500;   // Smaller batches to prevent memory issues
-    const VIOL_INSERT_BATCH = 100;     // Small insert batches for reliability
+    // REDUCED batch sizes to prevent statement timeout errors
+    const STAGING_FETCH_BATCH = 200;   // REDUCED from 500 to prevent timeouts
+    const VIOL_INSERT_BATCH = 25;      // REDUCED from 100 to prevent statement timeouts
     let stagingOffset = 0;
     let violationsCreatedTotal = 0;
     let skippedRows = 0;

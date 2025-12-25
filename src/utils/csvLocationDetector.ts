@@ -61,25 +61,9 @@ function extractCityFromAddress(address: string, cityField: string): string {
     }
   }
   
-  // Fallback: try to extract last word(s) as potential city
-  const parts = addressTrimmed.split(/\s+/);
-  
-  if (parts.length >= 2) {
-    // Try last 2 words first (for cities like "Santa Ana", "Los Alamitos")
-    const last2Words = parts.slice(-2).join(' ');
-    if (/^[A-Z][a-zA-Z]+\s+[A-Z][a-zA-Z]+$/.test(last2Words)) {
-      console.log(`[extractCityFromAddress] Inferred 2-word city "${last2Words}" from address`);
-      return last2Words;
-    }
-    
-    // Try last 1 word (for cities like "Anaheim", "Orange", "Tustin")
-    const lastWord = parts[parts.length - 1];
-    if (/^[A-Z][a-zA-Z]+$/.test(lastWord) && lastWord.length >= 4) {
-      console.log(`[extractCityFromAddress] Inferred 1-word city "${lastWord}" from address`);
-      return lastWord;
-    }
-  }
-  
+  // DO NOT try to infer city from address - this causes street names like 
+  // "Ocotillo Dr", "Jones Ln" to be detected as cities, creating hundreds
+  // of micro-jobs. Users must provide city data via CSV column or fallback field.
   return trimmedCity;
 }
 

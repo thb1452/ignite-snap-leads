@@ -5,12 +5,15 @@ import { sanitizeFilename } from '@/utils/sanitizeFilename';
 interface CreateJobParams {
   file: File;
   userId: string;
-  city: string;
+  city: string | null;  // Can be null for county-scope uploads
   county: string | null;
   state: string;
+  scope?: 'city' | 'county';
 }
 
-export async function createUploadJob({ file, userId, city, county, state }: CreateJobParams): Promise<string> {
+export async function createUploadJob({ file, userId, city, county, state, scope }: CreateJobParams): Promise<string> {
+  // Determine scope automatically if not provided
+  const effectiveScope = scope || (!city && county && state ? 'county' : 'city');
   // 1. Upload file to storage with sanitized filename
   const timestamp = Date.now();
   const sanitizedName = sanitizeFilename(file.name);
@@ -42,9 +45,10 @@ export async function createUploadJob({ file, userId, city, county, state }: Cre
       filename: file.name,
       file_size: file.size,
       status: 'QUEUED',
-      city,
+      city: city || null,
       county,
       state,
+      scope: effectiveScope,
     })
     .select('id')
     .single();

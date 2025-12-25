@@ -579,6 +579,7 @@ export type Database = {
           address: string
           avg_days_open: number | null
           city: string
+          county: string | null
           created_at: string | null
           distress_signals: string[] | null
           escalated: boolean | null
@@ -595,6 +596,7 @@ export type Database = {
           opportunity_class: string | null
           photo_url: string | null
           repeat_offender: boolean | null
+          scope: string | null
           snap_insight: string | null
           snap_score: number | null
           state: string
@@ -607,6 +609,7 @@ export type Database = {
           address: string
           avg_days_open?: number | null
           city: string
+          county?: string | null
           created_at?: string | null
           distress_signals?: string[] | null
           escalated?: boolean | null
@@ -623,6 +626,7 @@ export type Database = {
           opportunity_class?: string | null
           photo_url?: string | null
           repeat_offender?: boolean | null
+          scope?: string | null
           snap_insight?: string | null
           snap_score?: number | null
           state: string
@@ -635,6 +639,7 @@ export type Database = {
           address?: string
           avg_days_open?: number | null
           city?: string
+          county?: string | null
           created_at?: string | null
           distress_signals?: string[] | null
           escalated?: boolean | null
@@ -651,6 +656,7 @@ export type Database = {
           opportunity_class?: string | null
           photo_url?: string | null
           repeat_offender?: boolean | null
+          scope?: string | null
           snap_insight?: string | null
           snap_score?: number | null
           state?: string
@@ -1054,6 +1060,7 @@ export type Database = {
           jurisdiction_id: string | null
           processed_rows: number | null
           properties_created: number | null
+          scope: string | null
           started_at: string | null
           state: string | null
           status: string | null
@@ -1076,6 +1083,7 @@ export type Database = {
           jurisdiction_id?: string | null
           processed_rows?: number | null
           properties_created?: number | null
+          scope?: string | null
           started_at?: string | null
           state?: string | null
           status?: string | null
@@ -1098,6 +1106,7 @@ export type Database = {
           jurisdiction_id?: string | null
           processed_rows?: number | null
           properties_created?: number | null
+          scope?: string | null
           started_at?: string | null
           state?: string | null
           status?: string | null

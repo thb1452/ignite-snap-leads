@@ -175,10 +175,25 @@ export default function Upload() {
         const jobCity = detection?.locations[0]?.city || city || "";
         const jobState = detection?.locations[0]?.state || state || "";
 
-        if (!jobCity || !jobState) {
+        // Allow county-only uploads: need either (city + state) OR (county + state)
+        const hasCity = Boolean(jobCity);
+        const hasCounty = Boolean(county);
+        const hasState = Boolean(jobState);
+
+        if (!hasState) {
+          toast({
+            title: 'State Required',
+            description: 'Please provide a state.',
+            variant: 'destructive',
+          });
+          setUploading(false);
+          return;
+        }
+
+        if (!hasCity && !hasCounty) {
           toast({
             title: 'Location Required',
-            description: 'No location detected in CSV. Please provide fallback city and state.',
+            description: 'No location detected in CSV. Please provide either a city or county.',
             variant: 'destructive',
           });
           setUploading(false);
@@ -188,7 +203,7 @@ export default function Upload() {
         const id = await createUploadJob({ 
           file, 
           userId: user.id, 
-          city: jobCity, 
+          city: jobCity || null, 
           county: county || null, 
           state: jobState 
         });
@@ -291,10 +306,25 @@ export default function Upload() {
         const jobCity = detection?.locations[0]?.city || city || "";
         const jobState = detection?.locations[0]?.state || state || "";
 
-        if (!jobCity || !jobState) {
+        // Allow county-only uploads: need either (city + state) OR (county + state)
+        const hasCity = Boolean(jobCity);
+        const hasCounty = Boolean(county);
+        const hasState = Boolean(jobState);
+
+        if (!hasState) {
+          toast({
+            title: 'State Required',
+            description: 'Please provide a state.',
+            variant: 'destructive',
+          });
+          setUploading(false);
+          return;
+        }
+
+        if (!hasCity && !hasCounty) {
           toast({
             title: 'Location Required',
-            description: 'No location detected. Please provide fallback city and state.',
+            description: 'No location detected. Please provide either a city or county.',
             variant: 'destructive',
           });
           setUploading(false);
@@ -308,7 +338,7 @@ export default function Upload() {
         const id = await createUploadJob({
           file,
           userId: user.id,
-          city: jobCity,
+          city: jobCity || null,
           county: county || null,
           state: jobState
         });

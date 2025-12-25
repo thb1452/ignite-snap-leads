@@ -169,12 +169,13 @@ serve(async (req: Request) => {
       );
     }
 
-    // Fetch properties that need geocoding (null coords, but NOT 0,0 which means skipped/failed)
+    // Fetch properties that need geocoding (null coords)
+    // We exclude properties where latitude = 0 (which means they were already processed but skipped/failed)
+    // NOTE: We need to handle NULL properly - NULL != 0 returns NULL in SQL, not true
     const { data: properties, error: propsError } = await supabase
       .from("properties")
       .select("id,address,city,state,zip,latitude,longitude")
-      .or("latitude.is.null,longitude.is.null")
-      .not("latitude", "eq", 0)  // Exclude already-skipped properties
+      .is("latitude", null)  // Only get properties where latitude IS NULL
       .limit(BATCH_SIZE);
 
     if (propsError) throw propsError;
@@ -290,12 +291,11 @@ serve(async (req: Request) => {
       console.error("[Geocoding] Failed updating job counters", jobUpdateError);
     }
 
-    // How many still remain? (exclude 0,0 which are marked as skipped)
+    // How many still remain? (only count NULL latitudes)
     const { count: remaining, error: remainingError } = await supabase
       .from("properties")
       .select("id", { count: "exact", head: true })
-      .or("latitude.is.null,longitude.is.null")
-      .not("latitude", "eq", 0);
+      .is("latitude", null);
 
     if (remainingError) throw remainingError;
 

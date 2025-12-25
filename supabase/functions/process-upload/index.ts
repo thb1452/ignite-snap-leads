@@ -280,9 +280,22 @@ async function processUploadJob(jobId: string) {
       throw new Error(`Job not found: ${jobError?.message}`);
     }
 
-    if (!job.city || !job.state) {
-      throw new Error('Job missing required location information (city, state)');
+    // Determine scope: if city is missing but county+state are present, it's a county-level upload
+    const isCountyScope = !job.city && job.county && job.state;
+    const isCityScope = job.city && job.state;
+    
+    if (!isCityScope && !isCountyScope) {
+      throw new Error('Job missing required location information. Need either (city + state) or (county + state)');
     }
+    
+    const scope = isCountyScope ? 'county' : 'city';
+    console.log(`[process-upload] Upload scope: ${scope}`);
+    
+    // Update job with scope
+    await supabaseClient
+      .from('upload_jobs')
+      .update({ scope })
+      .eq('id', jobId);
 
     // Validate file size before processing
     const maxBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -591,7 +604,8 @@ async function processUploadJob(jobId: string) {
     }
 
     const newProperties = newAddressEntries.map(([key, row]) => {
-      const city = row.city || job.city;
+      // For county-scope uploads, city might be null or extracted from CSV
+      const propertyCity = row.city || job.city || null;
       const state = row.state || job.state;
       
       // IMPORTANT: Normalize address to UPPERCASE for consistent matching
@@ -601,9 +615,11 @@ async function processUploadJob(jobId: string) {
       return {
         key, // Include key for mapping after insert
         address: normalizedAddress,
-        city: city.trim(),
+        city: propertyCity ? propertyCity.trim() : 'UNINCORPORATED', // Use 'UNINCORPORATED' for county-scope with no city
         state: (state || '').toUpperCase().trim(),
         zip: (row.zip || '').trim(),
+        county: job.county || null,
+        scope: scope,
         latitude: null,
         longitude: null,
         snap_score: null,

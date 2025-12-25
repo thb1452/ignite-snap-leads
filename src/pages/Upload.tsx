@@ -47,7 +47,7 @@ export default function Upload() {
   const [county, setCounty] = useState<string>("");
   const [state, setState] = useState<string>("");
   const [uploadMethod, setUploadMethod] = useState<"file" | "paste">("file");
-  const { job, loading: jobLoading } = useUploadJob(jobId);
+  const { job, loading: jobLoading, refresh: refreshJob } = useUploadJob(jobId);
   const { stats: multiJobStats, loading: multiJobLoading } = useUploadJobs(jobIds);
   
   // CSV detection state
@@ -516,7 +516,7 @@ export default function Upload() {
           )}
 
           {/* Single job progress */}
-          {job && <UploadProgress job={job} onReset={resetAll} />}
+          {job && <UploadProgress job={job} onReset={resetAll} onRefresh={refreshJob} />}
           
           {/* Multi-job progress for split uploads */}
           {jobIds.length > 0 && <MultiJobProgress stats={multiJobStats} />}

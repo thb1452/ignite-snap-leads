@@ -2,14 +2,15 @@ import { UploadJob } from '@/hooks/useUploadJob';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Loader2, XCircle, Upload } from 'lucide-react';
+import { CheckCircle2, Loader2, XCircle, Upload, RefreshCw } from 'lucide-react';
 
 interface UploadProgressProps {
   job: UploadJob;
   onReset?: () => void;
+  onRefresh?: () => void;
 }
 
-export function UploadProgress({ job, onReset }: UploadProgressProps) {
+export function UploadProgress({ job, onReset, onRefresh }: UploadProgressProps) {
   const done = job.processed_rows ?? 0;
   const total = job.total_rows ?? 0;
   const pct = total ? Math.round((done / total) * 100) : 0;
@@ -97,6 +98,15 @@ export function UploadProgress({ job, onReset }: UploadProgressProps) {
               
               {job.status === 'FINALIZING' && (
                 <p className="text-xs text-muted-foreground">Running insights and geocoding...</p>
+              )}
+              
+              {/* Show refresh button if job seems stuck (violations_created matches total but still not complete) */}
+              {job.status === 'CREATING_VIOLATIONS' && job.violations_created && job.total_rows && 
+               job.violations_created >= job.total_rows && onRefresh && (
+                <Button onClick={onRefresh} variant="ghost" size="sm" className="mt-2">
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Refresh Status
+                </Button>
               )}
             </>
           )}

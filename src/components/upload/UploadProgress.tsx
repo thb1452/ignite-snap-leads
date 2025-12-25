@@ -82,11 +82,17 @@ export function UploadProgress({ job, onReset }: UploadProgressProps) {
               )}
               
               {job.status === 'DEDUPING' && (
-                <p className="text-xs text-muted-foreground">Creating properties from {total.toLocaleString()} rows...</p>
+                <p className="text-xs text-muted-foreground">
+                  Creating properties from {total.toLocaleString()} rows... 
+                  {job.properties_created ? ` (${job.properties_created.toLocaleString()} created)` : ''}
+                </p>
               )}
               
               {job.status === 'CREATING_VIOLATIONS' && (
-                <p className="text-xs text-muted-foreground">Creating violation records...</p>
+                <p className="text-xs text-muted-foreground">
+                  Creating violation records... 
+                  {job.violations_created ? `(${job.violations_created.toLocaleString()} of ${total.toLocaleString()})` : ''}
+                </p>
               )}
               
               {job.status === 'FINALIZING' && (

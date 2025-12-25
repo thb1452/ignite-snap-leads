@@ -11,6 +11,7 @@ export function GeocodingProgress() {
   const total = job?.total_properties ?? 0;
   const done = job?.geocoded_count ?? 0;
   const failed = job?.failed_count ?? 0;
+  const skipped = job?.skipped_count ?? 0;
   const status = job?.status ?? "idle";
 
   const isComplete = status === "completed";
@@ -42,17 +43,34 @@ export function GeocodingProgress() {
           
           <Progress value={progress} className="h-2" />
 
-          {failed > 0 && (
-            <div className="flex gap-3 mt-2 text-xs">
+          <div className="flex gap-3 mt-2 text-xs">
+            {skipped > 0 && (
+              <span className="text-muted-foreground">
+                ⊘ {skipped} skipped (no address)
+              </span>
+            )}
+            {failed > 0 && (
               <span className="text-destructive">
                 ✗ {failed} failed
               </span>
-            </div>
+            )}
+          </div>
+
+          {isFailed && job?.error_message && (
+            <p className="text-xs text-destructive mt-2">
+              Error: {job.error_message}
+            </p>
+          )}
+
+          {isFailed && !job?.error_message && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Job failed - this may be from a previous run. Try starting a new geocoding job.
+            </p>
           )}
 
           {error && (
             <p className="text-xs text-destructive mt-2">
-              Error: {error}
+              {error}
             </p>
           )}
         </div>

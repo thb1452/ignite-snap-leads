@@ -449,36 +449,49 @@ async function processUploadJob(jobId: string) {
     // IMPORTANT: Must paginate to avoid 1000 row default limit
     let stagingData: any[] = [];
     let dedupOffset = 0;
-    
-    // Use smaller batches to avoid Supabase's statement timeout
-    const DEDUP_PAGE_SIZE = 500;  // REDUCED from 1000 to prevent timeouts
-    
+
+    // BALANCED: 1000 rows per batch to prevent timeouts while ensuring ALL rows are fetched
+    const DEDUP_PAGE_SIZE = 1000;
+
+    console.log(`[process-upload] ⚠️  CRITICAL: Fetching ALL staging rows for dedup (pagination with batches of ${DEDUP_PAGE_SIZE})...`);
+
     while (true) {
-      const { data: dedupBatch, error: dedupError } = await supabaseClient
+      const { data: dedupBatch, error: dedupError, count } = await supabaseClient
         .from('upload_staging')
-        .select('address, city, state, zip, case_id, row_num, jurisdiction_id')
+        .select('address, city, state, zip, case_id, row_num, jurisdiction_id', { count: 'exact' })
         .eq('job_id', jobId)
         .order('row_num')
         .range(dedupOffset, dedupOffset + DEDUP_PAGE_SIZE - 1);
-      
+
       if (dedupError) {
         throw new Error(`Failed to fetch staging data for dedup: ${dedupError.message}`);
       }
-      
-      if (!dedupBatch || dedupBatch.length === 0) break;
-      
+
+      // Log total count on first iteration to verify we're fetching all rows
+      if (dedupOffset === 0 && count !== null) {
+        console.log(`[process-upload] Total staging rows in database: ${count} (will fetch all in batches of ${DEDUP_PAGE_SIZE})`);
+      }
+
+      if (!dedupBatch || dedupBatch.length === 0) {
+        console.log(`[process-upload] No more staging rows at offset ${dedupOffset}`);
+        break;
+      }
+
       stagingData = stagingData.concat(dedupBatch);
-      console.log(`[process-upload] Dedup fetch: ${stagingData.length} staging rows so far...`);
-      
-      if (dedupBatch.length < DEDUP_PAGE_SIZE) break; // Last batch
+      console.log(`[process-upload] Dedup fetch iteration ${Math.floor(dedupOffset / DEDUP_PAGE_SIZE) + 1}: fetched ${dedupBatch.length} rows, total so far: ${stagingData.length}`);
+
+      if (dedupBatch.length < DEDUP_PAGE_SIZE) {
+        console.log(`[process-upload] Last batch (${dedupBatch.length} < ${DEDUP_PAGE_SIZE}), stopping pagination`);
+        break; // Last batch
+      }
       dedupOffset += DEDUP_PAGE_SIZE;
     }
 
     if (stagingData.length === 0) {
       throw new Error('No staging data found');
     }
-    
-    console.log(`[process-upload] Total staging rows fetched for dedup: ${stagingData.length}`);
+
+    console.log(`[process-upload] ✓ Total staging rows fetched for dedup: ${stagingData.length}`);
 
     // Group by address - for empty addresses, group by case_id to avoid duplicates
     const addressMap = new Map<string, any>();

@@ -40,10 +40,12 @@ export function LocationFilter({
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingCityStates, setLoadingCityStates] = useState(true);
 
-  // Sanitize and validate city names
+  // Sanitize and validate city names - filter out garbage data
   const isValidCity = (city: string): boolean => {
     if (!city || city.trim().length < 2) return false;
+    if (city.trim().length > 30) return false; // City names shouldn't be super long
     if (city.startsWith('#')) return false;
+    if (city.startsWith('1-') || city.startsWith('2-')) return false; // "1- Dump Truck" etc
     if (city.toLowerCase().includes('county')) return false;
     if (/^\d+$/.test(city.trim())) return false;
     if (/\s\d{5}$/.test(city.trim())) return false;
@@ -52,6 +54,13 @@ export function LocationFilter({
     if (city.toLowerCase() === 'unknown') return false;
     if (!/[a-zA-Z]/.test(city)) return false;
     if (/^\d{1,2}[-\/]\d{1,2}/.test(city.trim())) return false;
+    // Filter out sentences/descriptions (contain multiple spaces or common words)
+    if (city.split(' ').length > 4) return false; // City names rarely have 4+ words
+    if (/\b(the|when|there|this|that|with|from|have|will|shall|must)\b/i.test(city)) return false;
+    if (/\b(trailer|truck|vehicle|picture|address|owner|property)\b/i.test(city)) return false;
+    if (/\b(additional|continuing|believe|action|constitute|eyesore)\b/i.test(city)) return false;
+    // Must start with a letter
+    if (!/^[a-zA-Z]/.test(city.trim())) return false;
     return true;
   };
 

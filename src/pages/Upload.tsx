@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload as UploadIcon, FileSpreadsheet, AlertCircle, ClipboardPaste } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Upload as UploadIcon, FileSpreadsheet, AlertCircle, ClipboardPaste, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -112,20 +112,27 @@ export default function Upload() {
   };
 
   const handleConfirmUpload = async () => {
-    if (!user || !pendingCsvData) return;
+    if (!user || !pendingCsvData || !pendingFile) return;
 
-    // Reset old job state before starting new upload
+    // Cache values before resetting state
+    const csvData = pendingCsvData;
+    const file = pendingFile;
+    const currentDetection = detection;
+
+    // Reset old job state and detection BEFORE starting new upload
+    // This allows job progress to show immediately
     setJobId(null);
     setJobIds([]);
+    resetDetection();
     setUploading(true);
 
     try {
       // Check if we should split by city
-      const shouldSplit = detection && detection.locations.length > 1;
+      const shouldSplit = currentDetection && currentDetection.locations.length > 1;
       
       if (shouldSplit) {
         // Multi-city upload - split and create multiple jobs
-        const { csvGroups, skippedRows } = splitCsvByCity(pendingCsvData, city || undefined, state || undefined);
+        const { csvGroups, skippedRows } = splitCsvByCity(csvData, city || undefined, state || undefined);
         const createdJobIds: string[] = [];
 
         // Warn user if rows were skipped
@@ -147,10 +154,10 @@ export default function Upload() {
             const [groupCity, groupState] = key.split('|');
             const blob = new Blob([csvContent], { type: 'text/csv' });
             const fileName = `${sanitizeFilename(groupCity)}_${groupState}_${Date.now()}.csv`;
-            const file = new File([blob], fileName, { type: 'text/csv' });
+            const uploadFile = new File([blob], fileName, { type: 'text/csv' });
 
             return createUploadJob({
-              file,
+              file: uploadFile,
               userId: user.id,
               city: groupCity,
               county: county || null,
@@ -175,9 +182,8 @@ export default function Upload() {
         });
       } else {
         // Single location upload
-        const file = pendingFile!;
-        const jobCity = detection?.locations[0]?.city || city || "";
-        const jobState = detection?.locations[0]?.state || state || "";
+        const jobCity = currentDetection?.locations[0]?.city || city || "";
+        const jobState = currentDetection?.locations[0]?.state || state || "";
 
         // Allow county-only uploads: need either (city + state) OR (county + state)
         const hasCity = Boolean(jobCity);
@@ -217,8 +223,6 @@ export default function Upload() {
           description: 'Your file is being processed',
         });
       }
-
-      resetDetection();
     } catch (error) {
       console.error('Upload error:', error);
       toast({
@@ -251,17 +255,22 @@ export default function Upload() {
   const handleConfirmPasteUpload = async () => {
     if (!user || !pendingCsvData) return;
 
-    // Reset old job state before starting new upload
+    // Cache values before resetting state
+    const csvData = pendingCsvData;
+    const currentDetection = detection;
+
+    // Reset old job state and detection BEFORE starting new upload
     setJobId(null);
     setJobIds([]);
+    resetDetection();
     setUploading(true);
 
     try {
-      const shouldSplit = detection && detection.locations.length > 1;
+      const shouldSplit = currentDetection && currentDetection.locations.length > 1;
 
       if (shouldSplit) {
         // Multi-city upload - split and create multiple jobs
-        const { csvGroups, skippedRows } = splitCsvByCity(pendingCsvData, city || undefined, state || undefined);
+        const { csvGroups, skippedRows } = splitCsvByCity(csvData, city || undefined, state || undefined);
         const createdJobIds: string[] = [];
 
         // Warn user if rows were skipped
@@ -310,8 +319,8 @@ export default function Upload() {
         });
       } else {
         // Single location
-        const jobCity = detection?.locations[0]?.city || city || "";
-        const jobState = detection?.locations[0]?.state || state || "";
+        const jobCity = currentDetection?.locations[0]?.city || city || "";
+        const jobState = currentDetection?.locations[0]?.state || state || "";
 
         // Allow county-only uploads: need either (city + state) OR (county + state)
         const hasCity = Boolean(jobCity);
@@ -339,7 +348,7 @@ export default function Upload() {
         }
 
         const fileName = `pasted_${Date.now()}.csv`;
-        const blob = new Blob([pendingCsvData], { type: 'text/csv' });
+        const blob = new Blob([csvData], { type: 'text/csv' });
         const file = new File([blob], fileName, { type: 'text/csv' });
 
         const id = await createUploadJob({
@@ -355,8 +364,6 @@ export default function Upload() {
           description: 'Your pasted data is being processed',
         });
       }
-
-      resetDetection();
     } catch (error) {
       console.error('Error processing pasted CSV:', error);
       toast({
@@ -548,6 +555,30 @@ export default function Upload() {
                     />
                   </TabsContent>
                 </Tabs>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Loading state while job is being created */}
+          {uploading && !job && jobIds.length === 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium">Upload Progress</CardTitle>
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Creating upload job...</span>
+                    <span className="font-medium">STARTING</span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full w-1/3 bg-primary rounded-full animate-pulse" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Uploading file and starting job...</p>
+                </div>
               </CardContent>
             </Card>
           )}

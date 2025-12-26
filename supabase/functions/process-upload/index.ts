@@ -644,44 +644,63 @@ async function processUploadJob(jobId: string) {
 
     let propertiesCreated = 0;
     let dbLevelDedupes = 0;
-    const PROP_INSERT_BATCH = 500; // Larger batches with upsert - much faster
+    const PROP_INSERT_BATCH = 50; // Smaller batches for more reliable inserts
 
-    // OPTIMIZED: Use upsert with onConflict to skip duplicates instantly
-    // No more individual fallback inserts - duplicates are silently ignored
+    // Use regular insert - the unique index uses LOWER(TRIM(...)) which upsert can't match
+    // Handle duplicates with error catching since the functional index won't work with onConflict
     let insertedCount = 0;
+    
+    console.log(`[process-upload] Inserting ${newProperties.length} new properties in batches of ${PROP_INSERT_BATCH}...`);
     
     for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
       const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
       const insertData = batch.map(({ key, ...propData }) => propData);
       
-      // Use upsert with ignoreDuplicates - duplicates are silently skipped, no errors
+      // Try batch insert first
       const { data: inserted, error: insertError } = await supabaseClient
         .from('properties')
-        .upsert(insertData, { 
-          onConflict: 'address,city,state,zip',  // Must match idx_properties_unique_address
-          ignoreDuplicates: true  // Skip duplicates instead of updating
-        })
+        .insert(insertData)
         .select('id');
 
       if (insertError) {
-        console.error('[process-upload] Upsert batch error:', insertError.message);
-        // Don't fall back to individual inserts - just log and continue
+        // If batch fails (likely due to duplicate), insert one by one
+        if (insertError.message?.includes('duplicate') || insertError.code === '23505') {
+          console.log(`[process-upload] Batch ${Math.floor(i/PROP_INSERT_BATCH)+1} has duplicates, inserting individually...`);
+          for (const prop of insertData) {
+            const { data: singleInsert, error: singleError } = await supabaseClient
+              .from('properties')
+              .insert(prop)
+              .select('id');
+            
+            if (singleError) {
+              if (singleError.message?.includes('duplicate') || singleError.code === '23505') {
+                dbLevelDedupes++;
+              } else {
+                console.error('[process-upload] Single insert error:', singleError.message);
+              }
+            } else if (singleInsert && singleInsert.length > 0) {
+              insertedCount++;
+            }
+          }
+        } else {
+          console.error('[process-upload] Batch insert error:', insertError.message);
+        }
       } else {
         insertedCount += inserted?.length || 0;
       }
 
       // Update progress more frequently for better UX
-      if ((i + batch.length) % 1000 === 0 || i + batch.length >= newProperties.length) {
+      if ((i + batch.length) % 200 === 0 || i + batch.length >= newProperties.length) {
         await supabaseClient
           .from('upload_jobs')
           .update({ status: 'DEDUPING', processed_rows: i + batch.length })
           .eq('id', jobId);
-        console.log(`[process-upload] Property insert progress: ${i + batch.length}/${newProperties.length}, ${insertedCount} new so far`);
+        console.log(`[process-upload] Property insert progress: ${i + batch.length}/${newProperties.length}, ${insertedCount} new, ${dbLevelDedupes} dupes skipped`);
       }
     }
     
     propertiesCreated = insertedCount;
-    console.log(`[process-upload] Direct insert created ${insertedCount} new properties`);
+    console.log(`[process-upload] Property insert complete: ${insertedCount} new, ${dbLevelDedupes} DB-level dedupes`);
 
     // Now fetch all property IDs for this city in bulk - much faster than individual lookups
     // For county-scope: properties have city='UNINCORPORATED', for city-scope use job.city

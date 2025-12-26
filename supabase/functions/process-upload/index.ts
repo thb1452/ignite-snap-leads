@@ -696,11 +696,14 @@ async function processUploadJob(jobId: string) {
     console.log(`[process-upload] Direct insert created ${insertedCount} new properties`);
 
     // Now fetch all property IDs for this city in bulk - much faster than individual lookups
-    console.log(`[process-upload] Fetching all property IDs for mapping...`);
+    // For county-scope: properties have city='UNINCORPORATED', for city-scope use job.city
+    const lookupCity = isCountyScope ? 'UNINCORPORATED' : (job.city || '');
+    console.log(`[process-upload] Fetching all property IDs for mapping (city="${lookupCity}")...`);
     const { data: allCityProps, error: fetchError } = await supabaseClient
       .from('properties')
       .select('id, address, city, state, zip')
-      .ilike('city', job.city || '')
+      .ilike('city', lookupCity)
+      .eq('state', job.state || '')
       .limit(50000);
 
     if (fetchError) {
@@ -802,7 +805,8 @@ async function processUploadJob(jobId: string) {
 
       for (const row of stagingBatch) {
         let addr = row.address?.trim();
-        const city = row.city?.trim() || '';
+        // For county-scope: staging has city=null, but properties have city='UNINCORPORATED'
+        const city = row.city?.trim() || (isCountyScope ? 'UNINCORPORATED' : '');
         const state = row.state?.trim() || '';
         let zip = row.zip?.trim() || '';
         

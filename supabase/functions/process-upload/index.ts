@@ -574,6 +574,9 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Found ${existingMap.size} existing properties matching upload addresses`);
 
+    // Store pre-existing count for accurate properties_created calculation later
+    const preExistingCount = existingMap.size;
+
     // Prepare properties without geocoding (will be done in background)
     // NOTE: Deduplication is enforced at DB level via idx_properties_unique_address unique index
     // This is the SOURCE OF TRUTH for property deduplication - app-level checks are for optimization only
@@ -592,16 +595,16 @@ async function processUploadJob(jobId: string) {
     const newProperties = newAddressEntries.map(([key, row]) => {
       const city = row.city || job.city;
       const state = row.state || job.state;
-      
-      // IMPORTANT: Normalize address to UPPERCASE for consistent matching
-      // This prevents case-sensitivity issues when matching violations to properties
-      const normalizedAddress = (row.address || 'Parcel-Based Location').toUpperCase().trim();
+
+      // IMPORTANT: Normalize address to lowercase for consistent matching
+      // This matches the database functional index which uses LOWER(TRIM(...))
+      const normalizedAddress = (row.address || 'Parcel-Based Location').toLowerCase().trim();
 
       return {
         key, // Include key for mapping after insert
         address: normalizedAddress,
-        city: city.trim(),
-        state: (state || '').toUpperCase().trim(),
+        city: city.trim().toLowerCase(),
+        state: (state || '').trim().toLowerCase(),
         zip: (row.zip || '').trim(),
         latitude: null,
         longitude: null,
@@ -613,36 +616,65 @@ async function processUploadJob(jobId: string) {
 
     let propertiesCreated = 0;
     let dbLevelDedupes = 0;
-    const PROP_INSERT_BATCH = 100; // Larger batches since we use upsert now
+    const PROP_INSERT_BATCH = 50; // Small batches to prevent timeouts
 
-    // OPTIMIZED: Use upsert with ON CONFLICT DO NOTHING to avoid slow one-by-one handling
-    // Then fetch all property IDs in bulk afterwards
+    // Insert properties in batches with duplicate handling
+    // NOTE: Cannot use upsert with onConflict because the unique index is functional: LOWER(TRIM(...))
+    // Supabase upsert only works with direct column constraints, not functional indexes
     for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
       const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
       const insertData = batch.map(({ key, ...propData }) => propData);
-      
-      // Use upsert with ignoreDuplicates to skip existing properties silently
-      const { error: upsertError } = await supabaseClient
-        .from('properties')
-        .upsert(insertData, { 
-          onConflict: 'address,city',  // Match the unique index
-          ignoreDuplicates: true       // Skip duplicates silently
-        });
 
-      if (upsertError) {
-        // If upsert fails, log and continue - we'll fetch IDs in the next step
-        console.error('[process-upload] Upsert batch error (continuing):', upsertError.message);
+      // Try batch insert first
+      const { data: insertedProps, error: insertError } = await supabaseClient
+        .from('properties')
+        .insert(insertData)
+        .select('id, address, city, state, zip');
+
+      if (insertError) {
+        if (insertError.code === '23505') {
+          // Unique constraint violation - batch has duplicates, insert one by one
+          console.log(`[process-upload] Batch has duplicates, inserting one-by-one...`);
+          for (const prop of insertData) {
+            const { data: single, error: singleErr } = await supabaseClient
+              .from('properties')
+              .insert(prop)
+              .select('id, address, city, state, zip')
+              .maybeSingle();
+
+            if (single) {
+              const key = `${single.address}|${single.city}|${single.state}|${single.zip}`.toLowerCase();
+              existingMap.set(key, single.id);
+              propertiesCreated++;
+            } else if (singleErr?.code === '23505') {
+              // Already exists - this is fine
+              dbLevelDedupes++;
+            }
+          }
+        } else {
+          console.error('[process-upload] Insert batch error:', insertError);
+          throw insertError;
+        }
+      } else if (insertedProps) {
+        // Batch insert succeeded - update map and count
+        for (const prop of insertedProps) {
+          const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+          existingMap.set(key, prop.id);
+          propertiesCreated++;
+        }
       }
 
       // Update progress
-      if ((i + batch.length) % 500 === 0 || i + batch.length >= newProperties.length) {
+      if ((i + batch.length) % 200 === 0 || i + batch.length >= newProperties.length) {
         await supabaseClient
           .from('upload_jobs')
           .update({ status: 'DEDUPING', processed_rows: i + batch.length })
           .eq('id', jobId);
-        console.log(`[process-upload] Property upsert progress: ${i + batch.length}/${newProperties.length}`);
+        console.log(`[process-upload] Property insert progress: ${i + batch.length}/${newProperties.length}, created: ${propertiesCreated}, dupes: ${dbLevelDedupes}`);
       }
     }
+
+    console.log(`[process-upload] Property creation complete: ${propertiesCreated} created, ${dbLevelDedupes} duplicates skipped`);
 
     // Now fetch all property IDs for this city in bulk - much faster than individual lookups
     console.log(`[process-upload] Fetching all property IDs for mapping...`);
@@ -655,13 +687,14 @@ async function processUploadJob(jobId: string) {
     if (fetchError) {
       console.error('[process-upload] Error fetching property IDs:', fetchError);
     } else {
-      // Update existingMap with all properties
+      // Update existingMap with all properties for violation linking
       (allCityProps || []).forEach(prop => {
         const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
-        existingMap.set(key, prop.id);
+        if (!existingMap.has(key)) {
+          existingMap.set(key, prop.id);
+        }
       });
-      propertiesCreated = (allCityProps?.length || 0) - 1000; // Subtract pre-existing
-      console.log(`[process-upload] Mapped ${allCityProps?.length || 0} total properties, ~${propertiesCreated} new`);
+      console.log(`[process-upload] Mapped ${existingMap.size} total properties (${propertiesCreated} newly created, ${dbLevelDedupes} duplicates)`);
     }
 
     // Ensure all addresses are mapped - fetch any still missing

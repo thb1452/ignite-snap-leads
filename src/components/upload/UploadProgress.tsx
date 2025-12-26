@@ -92,7 +92,7 @@ export function UploadProgress({ job, onReset, onRefresh }: UploadProgressProps)
               {job.status === 'CREATING_VIOLATIONS' && (
                 <p className="text-xs text-muted-foreground">
                   Creating violation records... 
-                  {job.violations_created ? `(${job.violations_created.toLocaleString()} of ${total.toLocaleString()})` : ''}
+                  {job.violations_created ? `(${job.violations_created.toLocaleString()} created)` : ''}
                 </p>
               )}
               

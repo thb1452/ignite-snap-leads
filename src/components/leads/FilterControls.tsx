@@ -1,6 +1,8 @@
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FilterControlsProps {
   snapScoreMin: number;
@@ -11,6 +13,20 @@ interface FilterControlsProps {
   onSourceChange: (value: string | null) => void;
 }
 
+// Only show clean, categorized violation types
+const VALID_VIOLATION_TYPES = [
+  'Exterior',
+  'Structural', 
+  'Zoning',
+  'Safety',
+  'Utility',
+  'Vacancy',
+  'Fire',
+  'Environmental Nuisance',
+  'Property Maintenance',
+  'Unpermitted Construction',
+];
+
 export function FilterControls({
   snapScoreMin,
   onSnapScoreChange,
@@ -19,8 +35,36 @@ export function FilterControls({
   selectedSource,
   onSourceChange,
 }: FilterControlsProps) {
+  // Fetch actual violation types from database
+  const { data: violationTypes = [] } = useQuery({
+    queryKey: ["violation-types"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("violations")
+        .select("violation_type")
+        .not("violation_type", "is", null)
+        .limit(10000);
+      
+      if (error) throw error;
+      
+      // Count and dedupe
+      const counts = new Map<string, number>();
+      data?.forEach(v => {
+        if (v.violation_type && VALID_VIOLATION_TYPES.includes(v.violation_type)) {
+          counts.set(v.violation_type, (counts.get(v.violation_type) || 0) + 1);
+        }
+      });
+      
+      // Sort by count descending
+      return Array.from(counts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([type, count]) => ({ type, count }));
+    },
+    staleTime: 60000, // Cache for 1 minute
+  });
+
   return (
-    <div className="flex items-center gap-4 p-4 border-b bg-background">
+    <div className="flex items-center gap-4 flex-wrap">
       {/* Score Slider */}
       <div className="flex items-center gap-3 min-w-[200px]">
         <Label className="text-sm font-medium whitespace-nowrap">
@@ -54,22 +98,23 @@ export function FilterControls({
         </Select>
       </div>
 
-      {/* Source Filter */}
+      {/* Violation Type Filter */}
       <div className="flex items-center gap-2">
-        <Label className="text-sm font-medium whitespace-nowrap">Source</Label>
+        <Label className="text-sm font-medium whitespace-nowrap">Violation Type</Label>
         <Select
           value={selectedSource || "all"}
           onValueChange={(value) => onSourceChange(value === "all" ? null : value)}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All sources" />
+            <SelectValue placeholder="All types" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All sources</SelectItem>
-            <SelectItem value="code_violations">Code Violations</SelectItem>
-            <SelectItem value="fsbo">FSBO</SelectItem>
-            <SelectItem value="tax_delinquent">Tax Delinquent</SelectItem>
-            <SelectItem value="pre_foreclosure">Pre-Foreclosure</SelectItem>
+            <SelectItem value="all">All types</SelectItem>
+            {violationTypes.map(({ type, count }) => (
+              <SelectItem key={type} value={type}>
+                {type} ({count.toLocaleString()})
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

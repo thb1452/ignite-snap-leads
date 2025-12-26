@@ -11,7 +11,7 @@ export default function Auth() {
     // Only redirect if user is logged in and roles are loaded
     if (!loading && user && roles.length > 0) {
       if (roles.includes('va')) {
-        navigate('/va-dashboard');
+        navigate('/upload');
       } else if (roles.includes('admin')) {
         navigate('/leads');
       } else {

@@ -7,18 +7,22 @@ import { supabase } from "@/integrations/supabase/client";
 interface LocationFilterProps {
   selectedJurisdiction: string | null;
   selectedCity: string | null;
+  selectedState: string | null;
   selectedCounty: string | null;
   onJurisdictionChange: (value: string | null) => void;
   onCityChange: (value: string | null) => void;
+  onStateChange: (value: string | null) => void;
   onCountyChange: (value: string | null) => void;
 }
 
 export function LocationFilter({
   selectedJurisdiction,
   selectedCity,
+  selectedState,
   selectedCounty,
   onJurisdictionChange,
   onCityChange,
+  onStateChange,
   onCountyChange,
 }: LocationFilterProps) {
   const { data: jurisdictions, isLoading } = useJurisdictions();
@@ -69,7 +73,7 @@ export function LocationFilter({
           setPropertyCities(uniqueCities);
         }
 
-        // Fetch states for "State" dropdown since county data is sparse
+        // Fetch states for "State" dropdown
         const { data: stateData, error: stateError } = await supabase
           .from('properties')
           .select('state')
@@ -103,56 +107,28 @@ export function LocationFilter({
     return Array.from(countySet).sort();
   }, [jurisdictions]);
 
-  // Use states as primary filter if counties are sparse
-  const showStatesInsteadOfCounties = counties.length <= 1 && propertyStates.length > 1;
-
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      {/* State Filter (shown when county data is sparse) */}
-      {showStatesInsteadOfCounties && (
-        <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium whitespace-nowrap">State</Label>
-          <Select
-            value={selectedCounty || "all"}
-            onValueChange={(val) => onCountyChange(val === "all" ? null : val)}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="All" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All States</SelectItem>
-              {propertyStates.map((state) => (
-                <SelectItem key={state} value={state}>
-                  {state}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {/* County Filter (shown when county data is rich) */}
-      {!showStatesInsteadOfCounties && counties.length > 0 && (
-        <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium whitespace-nowrap">County</Label>
-          <Select
-            value={selectedCounty || "all"}
-            onValueChange={(val) => onCountyChange(val === "all" ? null : val)}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="All" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Counties</SelectItem>
-              {counties.map((county) => (
-                <SelectItem key={county} value={county}>
-                  {county}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      {/* State Filter - always show */}
+      <div className="flex items-center gap-2">
+        <Label className="text-sm font-medium whitespace-nowrap">State</Label>
+        <Select
+          value={selectedState || "all"}
+          onValueChange={(val) => onStateChange(val === "all" ? null : val)}
+        >
+          <SelectTrigger className="w-[120px]">
+            <SelectValue placeholder="All States" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All States</SelectItem>
+            {propertyStates.map((state) => (
+              <SelectItem key={state} value={state}>
+                {state}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* City Filter */}
       <div className="flex items-center gap-2">
@@ -162,7 +138,7 @@ export function LocationFilter({
           onValueChange={(val) => onCityChange(val === "all" ? null : val)}
         >
           <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder={loadingData ? "Loading..." : "All"} />
+            <SelectValue placeholder={loadingData ? "Loading..." : "All Cities"} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Cities</SelectItem>
@@ -184,7 +160,7 @@ export function LocationFilter({
             onValueChange={(val) => onJurisdictionChange(val === "all" ? null : val)}
           >
             <SelectTrigger className="w-[170px]">
-              <SelectValue placeholder={isLoading ? "Loading..." : "All"} />
+              <SelectValue placeholder={isLoading ? "Loading..." : "All Jurisdictions"} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Jurisdictions</SelectItem>

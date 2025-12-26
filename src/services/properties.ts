@@ -51,6 +51,21 @@ export async function fetchPropertiesPaged(
         .eq("list_properties.list_id", filters.listId)
     : supabase.from("properties").select("*", { count: "exact" });
 
+  // Filter: state (case-insensitive)
+  if (filters.state) {
+    q = q.ilike("state", filters.state);
+  }
+
+  // Filter: county
+  if (filters.county) {
+    q = q.ilike("county", `%${filters.county}%`);
+  }
+
+  // Filter: jurisdiction
+  if (filters.jurisdictionId) {
+    q = q.eq("jurisdiction_id", filters.jurisdictionId);
+  }
+
   // Filter: cities
   if (filters.cities?.length) q = q.in("city", filters.cities);
 

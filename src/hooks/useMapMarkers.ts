@@ -78,7 +78,9 @@ export function useMapMarkers(filters: LeadFilters = {}) {
   return useQuery({
     queryKey: ["map-markers", filters],
     queryFn: () => fetchFilteredMarkers(filters),
-    staleTime: 30 * 1000, // Cache for 30 seconds (shorter since filters change)
-    retry: 1,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    retry: 2,
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
   });
 }

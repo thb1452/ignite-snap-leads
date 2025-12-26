@@ -40,6 +40,9 @@ export type EmailSendInput = z.infer<typeof EmailSendSchema>;
 export const LeadFiltersSchema = z.object({
   search: z.string().optional(),
   cities: z.array(z.string()).optional(),
+  state: z.string().optional(),
+  county: z.string().optional(),
+  jurisdictionId: z.string().optional(),
   status: z.string().optional(),
   snapScoreRange: z.tuple([z.number(), z.number()]).optional(),
   listId: z.string().optional(),

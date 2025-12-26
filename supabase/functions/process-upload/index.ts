@@ -866,38 +866,52 @@ async function processUploadJob(jobId: string) {
         });
       }
 
-      // Insert this batch of violations in sub-batches with retry logic
+      // Upsert this batch of violations using lifecycle-aware bulk function
+      let violationsInserted = 0;
+      let violationsUpdated = 0;
+      
       for (let i = 0; i < violations.length; i += VIOL_INSERT_BATCH) {
-        const insertBatch = violations.slice(i, i + VIOL_INSERT_BATCH);
-        let insertSuccess = false;
+        const upsertBatch = violations.slice(i, i + VIOL_INSERT_BATCH);
+        let upsertSuccess = false;
         
         for (let retryAttempt = 0; retryAttempt < 3; retryAttempt++) {
-          const { error: violError } = await supabaseClient
-            .from('violations')
-            .insert(insertBatch);
+          // Use bulk_upsert_violations RPC for lifecycle-aware processing
+          const { data: upsertResult, error: violError } = await supabaseClient
+            .rpc('bulk_upsert_violations', {
+              p_violations: upsertBatch
+            });
 
           if (!violError) {
-            insertSuccess = true;
+            upsertSuccess = true;
             consecutiveErrors = 0; // Reset on success
+            
+            // Track lifecycle stats
+            if (upsertResult) {
+              violationsInserted += upsertResult.inserted || 0;
+              violationsUpdated += upsertResult.updated || 0;
+              console.log(`[process-upload] Upsert batch: ${upsertResult.inserted} new, ${upsertResult.updated} updated`);
+            }
             break;
           }
           
-          console.warn(`[process-upload] Violation insert retry ${retryAttempt + 1}/3:`, violError.message);
+          console.warn(`[process-upload] Violation upsert retry ${retryAttempt + 1}/3:`, violError.message);
           await new Promise(r => setTimeout(r, 500 * (retryAttempt + 1))); // Exponential backoff
         }
 
-        if (!insertSuccess) {
+        if (!upsertSuccess) {
           consecutiveErrors++;
-          console.error(`[process-upload] Failed to insert batch after retries (consecutive errors: ${consecutiveErrors})`);
+          console.error(`[process-upload] Failed to upsert batch after retries (consecutive errors: ${consecutiveErrors})`);
           
           if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-            throw new Error(`Too many consecutive insert failures (${consecutiveErrors}). Aborting.`);
+            throw new Error(`Too many consecutive upsert failures (${consecutiveErrors}). Aborting.`);
           }
           continue; // Skip this batch but continue trying
         }
 
-        violationsCreatedTotal += insertBatch.length;
+        violationsCreatedTotal += upsertBatch.length;
       }
+      
+      console.log(`[process-upload] Lifecycle stats: ${violationsInserted} inserted, ${violationsUpdated} updated`);
 
       console.log(`[process-upload] Violations progress: ${violationsCreatedTotal} created, ${skippedRows} skipped`);
 

@@ -12,8 +12,8 @@ export interface MapMarker {
   state: string;
 }
 
-const BATCH_SIZE = 1000;
-const MAX_MARKERS = 10000; // Limit total markers for performance
+const BATCH_SIZE = 2000;
+const MAX_MARKERS = 200000; // Allow all properties to be shown
 
 async function fetchFilteredMarkers(filters: LeadFilters): Promise<MapMarker[]> {
   console.log("[useMapMarkers] Fetching markers with filters:", filters);

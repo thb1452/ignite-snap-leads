@@ -2,7 +2,8 @@ import { UploadJob } from '@/hooks/useUploadJob';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Loader2, XCircle, Upload, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Loader2, XCircle, Upload, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface UploadProgressProps {
   job: UploadJob;
@@ -122,6 +123,38 @@ export function UploadProgress({ job, onReset, onRefresh }: UploadProgressProps)
                   <span className="text-muted-foreground">Violations Created:</span>
                   <span className="font-medium">{job.violations_created?.toLocaleString()}</span>
                 </div>
+                
+                {/* Bad Addresses Warning */}
+                {job.bad_addresses && job.bad_addresses > 0 && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex justify-between items-center text-amber-600 cursor-help">
+                          <span className="flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Bad Addresses:
+                          </span>
+                          <span className="font-medium">{job.bad_addresses.toLocaleString()}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs">
+                        <p className="text-xs font-medium mb-1">Rows with invalid/missing addresses:</p>
+                        {job.bad_address_samples && job.bad_address_samples.length > 0 ? (
+                          <ul className="text-xs space-y-0.5">
+                            {job.bad_address_samples.slice(0, 5).map((sample, i) => (
+                              <li key={i} className="truncate text-muted-foreground">• {sample || '(empty)'}</li>
+                            ))}
+                            {job.bad_addresses > 5 && (
+                              <li className="text-muted-foreground">...and {job.bad_addresses - 5} more</li>
+                            )}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No address samples available</p>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
               {onReset && (
                 <Button onClick={onReset} variant="outline" size="sm" className="w-full">

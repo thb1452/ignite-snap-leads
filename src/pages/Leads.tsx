@@ -66,8 +66,8 @@ function Leads() {
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
   
-  // Use lightweight markers query for the map (all properties with coords)
-  const { data: mapMarkers = [], error: mapError } = useMapMarkers();
+  // Use lightweight markers query for the map (filtered same as list)
+  const { data: mapMarkers = [], error: mapError } = useMapMarkers(filters);
   
   // Log any errors
   if (error) console.error("[Leads] Properties error:", error);

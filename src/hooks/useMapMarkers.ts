@@ -12,16 +12,16 @@ export interface MapMarker {
   state: string;
 }
 
-const BATCH_SIZE = 2000;
-const MAX_MARKERS = 200000; // Allow all properties to be shown
+const BATCH_SIZE = 1000; // Supabase default limit
+const MAX_MARKERS = 200000;
 
 async function fetchFilteredMarkers(filters: LeadFilters): Promise<MapMarker[]> {
   console.log("[useMapMarkers] Fetching markers with filters:", filters);
   const allMarkers: MapMarker[] = [];
   let offset = 0;
-  let hasMore = true;
+  let keepFetching = true;
 
-  while (hasMore && allMarkers.length < MAX_MARKERS) {
+  while (keepFetching && allMarkers.length < MAX_MARKERS) {
     let query = supabase
       .from("properties")
       .select("id, latitude, longitude, snap_score, address, city, state")
@@ -60,13 +60,15 @@ async function fetchFilteredMarkers(filters: LeadFilters): Promise<MapMarker[]> 
       throw error;
     }
 
-    if (data && data.length > 0) {
+    const batchCount = data?.length ?? 0;
+    if (batchCount > 0) {
       allMarkers.push(...(data as MapMarker[]));
+      console.log("[useMapMarkers] Fetched batch:", batchCount, "total so far:", allMarkers.length);
       offset += BATCH_SIZE;
-      hasMore = data.length === BATCH_SIZE;
-      console.log("[useMapMarkers] Fetched batch, total so far:", allMarkers.length);
+      // Continue if we got a full batch (there might be more)
+      keepFetching = batchCount >= BATCH_SIZE;
     } else {
-      hasMore = false;
+      keepFetching = false;
     }
   }
 

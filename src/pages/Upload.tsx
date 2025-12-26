@@ -17,6 +17,7 @@ import { MultiJobProgress } from '@/components/upload/MultiJobProgress';
 import { PasteCsvUpload } from '@/components/upload/PasteCsvUpload';
 import { GeocodingProgress } from '@/components/geocoding/GeocodingProgress';
 import { CsvLocationDetector, type CsvDetectionResult } from '@/components/upload/CsvLocationDetector';
+import { RecentUploads } from '@/components/upload/RecentUploads';
 import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { startGeocodingJob } from '@/services/geocoding';
@@ -575,6 +576,9 @@ export default function Upload() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Recent Uploads */}
+          <RecentUploads />
 
           <Alert>
             <AlertCircle className="h-4 w-4" />

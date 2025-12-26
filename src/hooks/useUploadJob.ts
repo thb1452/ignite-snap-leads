@@ -12,6 +12,8 @@ export interface UploadJob {
   error_message: string | null;
   started_at: string | null;
   finished_at: string | null;
+  bad_addresses: number | null;
+  bad_address_samples: string[] | null;
 }
 
 export function useUploadJob(jobId: string | null) {

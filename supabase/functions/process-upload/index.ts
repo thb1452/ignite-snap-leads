@@ -529,8 +529,28 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] ✓ Total staging rows fetched for dedup: ${stagingData.length}`);
 
+    // BAD ADDRESS DETECTION - patterns that indicate unusable addresses
+    const BAD_ADDRESS_PATTERNS = [
+      /^parcel[- ]?based\s+location/i,
+      /^unknown\s+location/i,
+      /^no\s+address/i,
+      /^n\/a$/i,
+      /^tbd$/i,
+      /^pending$/i,
+      /^\d+$/,  // Just numbers
+      /^[a-z]$/i,  // Single letter
+    ];
+    
+    const isBadAddress = (addr: string): boolean => {
+      if (!addr || addr.trim().length < 5) return true;
+      return BAD_ADDRESS_PATTERNS.some(pattern => pattern.test(addr.trim()));
+    };
+
     // Group by address - for empty addresses, group by case_id to avoid duplicates
     const addressMap = new Map<string, any>();
+    let badAddressCount = 0;
+    const badAddressSamples: string[] = [];
+    
     stagingData.forEach(row => {
       let addr = row.address?.trim();
       // For county-scope: city is null, use 'UNINCORPORATED' for grouping key
@@ -538,8 +558,18 @@ async function processUploadJob(jobId: string) {
       const state = row.state?.trim() || job.state;
       let zip = row.zip?.trim() || '';
       
-      // If address is empty, group by parcel number (case_id)
-      if (!addr || addr === '') {
+      // Check if this is a bad/invalid address
+      const originalAddr = addr;
+      const isBad = isBadAddress(addr || '');
+      
+      // If address is empty or bad, group by parcel number (case_id)
+      if (!addr || addr === '' || isBad) {
+        badAddressCount++;
+        // Store sample of bad addresses (max 10)
+        if (badAddressSamples.length < 10 && originalAddr && originalAddr.trim()) {
+          badAddressSamples.push(originalAddr.substring(0, 100));
+        }
+        
         if (row.case_id && row.case_id.trim() !== '') {
           // Use parcel number to create ONE property per unique case_id
           addr = `Parcel-Based Location (Parcel ${row.case_id.trim()})`;
@@ -563,7 +593,19 @@ async function processUploadJob(jobId: string) {
       }
     });
 
-    console.log(`[process-upload] Found ${addressMap.size} unique addresses`);
+    // Update job with bad address count
+    if (badAddressCount > 0) {
+      console.log(`[process-upload] ⚠️ Found ${badAddressCount} rows with bad/missing addresses`);
+      await supabaseClient
+        .from('upload_jobs')
+        .update({ 
+          bad_addresses: badAddressCount,
+          bad_address_samples: badAddressSamples
+        })
+        .eq('id', jobId);
+    }
+
+    console.log(`[process-upload] Found ${addressMap.size} unique addresses (${badAddressCount} rows had bad addresses)`);
 
     // Check existing properties - need case-insensitive match since index uses lower(TRIM())
     const uniqueAddresses = Array.from(addressMap.keys());

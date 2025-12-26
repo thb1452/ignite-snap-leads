@@ -1049,6 +1049,8 @@ export type Database = {
       }
       upload_jobs: {
         Row: {
+          bad_address_samples: Json | null
+          bad_addresses: number | null
           city: string | null
           county: string | null
           created_at: string
@@ -1072,6 +1074,8 @@ export type Database = {
           warnings: Json | null
         }
         Insert: {
+          bad_address_samples?: Json | null
+          bad_addresses?: number | null
           city?: string | null
           county?: string | null
           created_at?: string
@@ -1095,6 +1099,8 @@ export type Database = {
           warnings?: Json | null
         }
         Update: {
+          bad_address_samples?: Json | null
+          bad_addresses?: number | null
           city?: string | null
           county?: string | null
           created_at?: string

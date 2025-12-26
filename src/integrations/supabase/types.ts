@@ -1306,41 +1306,56 @@ export type Database = {
       violations: {
         Row: {
           case_id: string | null
+          closed_at: string | null
           created_at: string | null
           days_open: number | null
           description: string | null
+          first_seen_at: string | null
           id: string
+          last_seen_at: string | null
           last_updated: string | null
           opened_date: string | null
+          previous_status: string | null
           property_id: string | null
           raw_description: string | null
           status: string
+          status_changed_at: string | null
           violation_type: string
         }
         Insert: {
           case_id?: string | null
+          closed_at?: string | null
           created_at?: string | null
           days_open?: number | null
           description?: string | null
+          first_seen_at?: string | null
           id?: string
+          last_seen_at?: string | null
           last_updated?: string | null
           opened_date?: string | null
+          previous_status?: string | null
           property_id?: string | null
           raw_description?: string | null
           status: string
+          status_changed_at?: string | null
           violation_type: string
         }
         Update: {
           case_id?: string | null
+          closed_at?: string | null
           created_at?: string | null
           days_open?: number | null
           description?: string | null
+          first_seen_at?: string | null
           id?: string
+          last_seen_at?: string | null
           last_updated?: string | null
           opened_date?: string | null
+          previous_status?: string | null
           property_id?: string | null
           raw_description?: string | null
           status?: string
+          status_changed_at?: string | null
           violation_type?: string
         }
         Relationships: [

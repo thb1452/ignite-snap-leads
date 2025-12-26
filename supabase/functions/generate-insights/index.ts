@@ -320,12 +320,14 @@ serve(async (req) => {
 
 // Aggregate violation data at property level
 function aggregatePropertyIntelligence(violations: Violation[]): PropertyIntelligence {
-  const openStatuses = ['open', 'pending', 'active', 'unresolved'];
   const escalatedStatuses = ['board', 'legal', 'court', 'condemned', 'prosecution'];
   
+  // LIFECYCLE-AWARE: Only count violations with status = 'Open' as active
+  // This ensures closed violations don't inflate distress signals
   const openViolations = violations.filter(v => {
-    const status = (v.status || '').toLowerCase();
-    return openStatuses.some(s => status.includes(s)) || !status.includes('closed');
+    const status = (v.status || '').toLowerCase().trim();
+    // Only 'open' status counts as active - closed, resolved, abated, etc. are historical
+    return status === 'open';
   });
   
   const dates = violations
@@ -359,7 +361,7 @@ function aggregatePropertyIntelligence(violations: Violation[]): PropertyIntelli
   };
 }
 
-// SNAP SCORING ENGINE v2.0
+// SNAP SCORING ENGINE v2.0 - LIFECYCLE-AWARE
 function calculateSnapScoreV2(
   violations: Violation[],
   classified: ViolationWithSeverity[],
@@ -376,8 +378,18 @@ function calculateSnapScoreV2(
     vacancyScore: 0,
   };
   
-  // 1. TIME PRESSURE (Max 30 points) - +3 points per month open
-  const maxDaysOpen = Math.max(...violations.map(v => v.days_open || 0), 0);
+  // LIFECYCLE-AWARE: Filter to only OPEN violations for active distress scoring
+  const openViolations = violations.filter(v => 
+    (v.status || '').toLowerCase().trim() === 'open'
+  );
+  const openClassified = classified.filter(c => 
+    (c.original.status || '').toLowerCase().trim() === 'open'
+  );
+  
+  // 1. TIME PRESSURE (Max 30 points) - only count OPEN violations
+  const maxDaysOpen = openViolations.length > 0 
+    ? Math.max(...openViolations.map(v => v.days_open || 0), 0)
+    : 0;
   const monthsOpen = Math.floor(maxDaysOpen / 30);
   components.timeScore = Math.min(30, monthsOpen * 3);
   score += components.timeScore;
@@ -386,19 +398,18 @@ function calculateSnapScoreV2(
     signals.push('chronic_neglect');
   }
   
-  // 2. SEVERITY MATRIX (Max 40 points)
-  const severityPoints = { severe: 40, moderate: 15, minor: 5 };
-  const severeCount = classified.filter(v => v.severity === 'severe').length;
-  const moderateCount = classified.filter(v => v.severity === 'moderate').length;
-  const minorCount = classified.filter(v => v.severity === 'minor').length;
+  // 2. SEVERITY MATRIX (Max 40 points) - only count OPEN violations
+  const severeCount = openClassified.filter(v => v.severity === 'severe').length;
+  const moderateCount = openClassified.filter(v => v.severity === 'moderate').length;
+  const minorCount = openClassified.filter(v => v.severity === 'minor').length;
   
   // First severe issue: full points, additional: diminishing returns
   if (severeCount > 0) {
     components.severityScore += 40 + Math.min((severeCount - 1) * 10, 20);
     
     // Check specific severe categories
-    const hasFire = classified.some(v => v.severity === 'severe' && v.category === 'Fire');
-    const hasStructural = classified.some(v => v.severity === 'severe' && v.category === 'Structural');
+    const hasFire = openClassified.some(v => v.severity === 'severe' && v.category === 'Fire');
+    const hasStructural = openClassified.some(v => v.severity === 'severe' && v.category === 'Structural');
     if (hasFire) signals.push('fire_damage');
     if (hasStructural) signals.push('structural_issues');
   }
@@ -407,7 +418,8 @@ function calculateSnapScoreV2(
   components.severityScore += Math.min(minorCount * 5, 10);
   score += Math.min(components.severityScore, 60); // Cap severity contribution
   
-  // 3. REPEAT OFFENDER BONUS (Max 25 points)
+  // 3. REPEAT OFFENDER BONUS (Max 25 points) - based on history (all violations)
+  // Historical pattern still matters even if current violations are closed
   if (intelligence.repeat_offender) {
     if (violations.length >= 5) {
       components.repeatScore = 25;
@@ -422,20 +434,20 @@ function calculateSnapScoreV2(
   }
   score += components.repeatScore;
   
-  // 4. MULTI-DEPARTMENT ENFORCEMENT (Max 25 points)
-  const uniqueCategories = [...new Set(classified.map(v => v.category))];
-  if (uniqueCategories.length >= 3) {
+  // 4. MULTI-DEPARTMENT ENFORCEMENT (Max 25 points) - only count OPEN violations
+  const openCategories = [...new Set(openClassified.map(v => v.category))];
+  if (openCategories.length >= 3) {
     components.multiDeptScore = 25;
     signals.push('coordinated_enforcement');
-  } else if (intelligence.multi_department) {
+  } else if (openCategories.length >= 2) {
     components.multiDeptScore = 15;
     signals.push('multi_department');
   }
   score += components.multiDeptScore;
   
-  // 5. STATUS ESCALATION (Max 30 points)
+  // 5. STATUS ESCALATION (Max 30 points) - still matters if actively escalated
   if (intelligence.escalated) {
-    const statuses = violations.map(v => (v.status || '').toLowerCase());
+    const statuses = openViolations.map(v => (v.status || '').toLowerCase());
     
     if (statuses.some(s => s.includes('condemned') || s.includes('prosecution'))) {
       components.escalationScore = 30;
@@ -445,12 +457,14 @@ function calculateSnapScoreV2(
       components.escalationScore = 15;
     }
     
-    signals.push('legal_escalation');
+    if (components.escalationScore > 0) {
+      signals.push('legal_escalation');
+    }
   }
   score += components.escalationScore;
   
-  // 6. ABANDONMENT/VACANCY SIGNALS (Max 25 points)
-  const hasVacancySignals = classified.some(v => 
+  // 6. ABANDONMENT/VACANCY SIGNALS (Max 25 points) - only count OPEN violations
+  const hasVacancySignals = openClassified.some(v => 
     v.category === 'Vacancy' ||
     (v.original.violation_type || '').toLowerCase().includes('vacant') ||
     (v.original.violation_type || '').toLowerCase().includes('abandon') ||
@@ -464,10 +478,16 @@ function calculateSnapScoreV2(
   }
   score += components.vacancyScore;
   
-  // Check for utility issues in descriptions
-  const hasUtilityIssues = classified.some(v => v.category === 'Utility');
+  // Check for utility issues in descriptions - only OPEN violations
+  const hasUtilityIssues = openClassified.some(v => v.category === 'Utility');
   if (hasUtilityIssues) {
     signals.push('utility_issues');
+  }
+  
+  // If no open violations remain, significantly reduce score (property resolved)
+  if (openViolations.length === 0 && violations.length > 0) {
+    // Historical violations exist but all are closed - low distress
+    score = Math.min(score, 20); // Cap at 20 for properties with only historical issues
   }
   
   // Cap at 100

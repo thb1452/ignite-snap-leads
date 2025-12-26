@@ -1617,6 +1617,7 @@ export type Database = {
             }
             Returns: string
           }
+      bulk_upsert_violations: { Args: { p_violations: Json }; Returns: Json }
       consume_credit: { Args: { p_user_id: string }; Returns: number }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:

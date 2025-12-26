@@ -113,6 +113,9 @@ export default function Upload() {
   const handleConfirmUpload = async () => {
     if (!user || !pendingCsvData) return;
 
+    // Reset old job state before starting new upload
+    setJobId(null);
+    setJobIds([]);
     setUploading(true);
 
     try {
@@ -247,6 +250,9 @@ export default function Upload() {
   const handleConfirmPasteUpload = async () => {
     if (!user || !pendingCsvData) return;
 
+    // Reset old job state before starting new upload
+    setJobId(null);
+    setJobIds([]);
     setUploading(true);
 
     try {

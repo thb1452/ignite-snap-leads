@@ -358,10 +358,19 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Starting staging inserts for ${totalRows} rows`);
 
-    // Parse and insert into staging in batches for memory efficiency
-    const stagingRows: any[] = [];
-    
-    for (let i = 0; i < parsedRows.length; i++) {
+    // IDEMPOTENCY CHECK: Skip staging if rows already exist (prevents duplicates on retry)
+    const { count: existingStagingCount } = await supabaseClient
+      .from('upload_staging')
+      .select('*', { count: 'exact', head: true })
+      .eq('job_id', jobId);
+
+    if (existingStagingCount && existingStagingCount > 0) {
+      console.log(`[process-upload] ⚠️ Staging already has ${existingStagingCount} rows - skipping insert phase (idempotency)`);
+    } else {
+      // Parse and insert into staging in batches for memory efficiency
+      const stagingRows: any[] = [];
+      
+      for (let i = 0; i < parsedRows.length; i++) {
       // papaparse already returns objects with header keys
       const row = parsedRows[i] as Record<string, any>;
 
@@ -462,6 +471,7 @@ async function processUploadJob(jobId: string) {
         stagingRows.length = 0;
       }
     }
+    } // End of idempotency else block
 
     // Update status to DEDUPING
     await supabaseClient

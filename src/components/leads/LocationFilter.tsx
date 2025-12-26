@@ -28,7 +28,8 @@ export function LocationFilter({
   const { data: jurisdictions, isLoading } = useJurisdictions();
   const [propertyCities, setPropertyCities] = useState<string[]>([]);
   const [propertyStates, setPropertyStates] = useState<string[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
+  const [loadingStates, setLoadingStates] = useState(true);
+  const [loadingCities, setLoadingCities] = useState(false);
 
   // Sanitize and validate city names
   const isValidCity = (city: string): boolean => {
@@ -40,6 +41,10 @@ export function LocationFilter({
     if (/^#?[A-Z]?\d*$/i.test(city.trim())) return false;
     if (city.startsWith('##')) return false;
     if (city.toLowerCase() === 'unknown') return false;
+    // Additional validation: must contain at least one letter
+    if (!/[a-zA-Z]/.test(city)) return false;
+    // Reject if it looks like a date or number sequence
+    if (/^\d{1,2}[-\/]\d{1,2}/.test(city.trim())) return false;
     return true;
   };
 
@@ -51,29 +56,11 @@ export function LocationFilter({
       .join(' ');
   };
 
-  // Fetch distinct cities and states directly from properties table
+  // Fetch states once on mount
   useEffect(() => {
-    async function fetchLocationData() {
-      setLoadingData(true);
+    async function fetchStates() {
+      setLoadingStates(true);
       try {
-        // Fetch cities - get all and dedupe in JS to avoid 1000 limit issues
-        const { data: cityData, error: cityError } = await supabase
-          .from('properties')
-          .select('city')
-          .not('city', 'is', null)
-          .limit(10000);
-        
-        if (!cityError && cityData) {
-          const validCities = cityData
-            .map(p => p.city)
-            .filter((city): city is string => Boolean(city) && isValidCity(city))
-            .map(normalizeCity);
-          
-          const uniqueCities = [...new Set(validCities)].sort();
-          setPropertyCities(uniqueCities);
-        }
-
-        // Fetch states for "State" dropdown
         const { data: stateData, error: stateError } = await supabase
           .from('properties')
           .select('state')
@@ -89,13 +76,60 @@ export function LocationFilter({
           setPropertyStates(uniqueStates);
         }
       } catch (e) {
-        console.error('Error fetching location data:', e);
+        console.error('Error fetching states:', e);
       } finally {
-        setLoadingData(false);
+        setLoadingStates(false);
       }
     }
-    fetchLocationData();
+    fetchStates();
   }, []);
+
+  // Fetch cities based on selected state (or all if no state selected)
+  useEffect(() => {
+    async function fetchCities() {
+      setLoadingCities(true);
+      try {
+        let query = supabase
+          .from('properties')
+          .select('city')
+          .not('city', 'is', null);
+        
+        // Filter by state if selected
+        if (selectedState) {
+          query = query.ilike('state', selectedState);
+        }
+        
+        const { data: cityData, error: cityError } = await query.limit(10000);
+        
+        if (!cityError && cityData) {
+          const validCities = cityData
+            .map(p => p.city)
+            .filter((city): city is string => Boolean(city) && isValidCity(city))
+            .map(normalizeCity);
+          
+          const uniqueCities = [...new Set(validCities)].sort();
+          setPropertyCities(uniqueCities);
+        }
+      } catch (e) {
+        console.error('Error fetching cities:', e);
+      } finally {
+        setLoadingCities(false);
+      }
+    }
+    fetchCities();
+  }, [selectedState]); // Re-fetch when state changes
+
+  // Clear city selection when state changes (if city is not in the new state's cities)
+  useEffect(() => {
+    if (selectedCity && propertyCities.length > 0) {
+      const cityExists = propertyCities.some(
+        c => c.toLowerCase() === selectedCity.toLowerCase()
+      );
+      if (!cityExists) {
+        onCityChange(null);
+      }
+    }
+  }, [propertyCities, selectedCity, onCityChange]);
 
   // Extract counties from jurisdictions (if available)
   const counties = useMemo(() => {
@@ -138,7 +172,7 @@ export function LocationFilter({
           onValueChange={(val) => onCityChange(val === "all" ? null : val)}
         >
           <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder={loadingData ? "Loading..." : "All Cities"} />
+            <SelectValue placeholder={loadingCities ? "Loading..." : "All Cities"} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Cities</SelectItem>

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { LeadFilters } from "@/schemas";
 
 export interface MapMarker {
   id: string;
@@ -7,22 +8,50 @@ export interface MapMarker {
   longitude: number;
   snap_score: number | null;
   address: string;
+  city: string;
+  state: string;
 }
 
-const BATCH_SIZE = 1000;
+const BATCH_SIZE = 1000; // Supabase default limit
+const MAX_MARKERS = 200000;
 
-async function fetchAllMarkers(): Promise<MapMarker[]> {
-  console.log("[useMapMarkers] Fetching all map markers in batches...");
+async function fetchFilteredMarkers(filters: LeadFilters): Promise<MapMarker[]> {
+  console.log("[useMapMarkers] Fetching markers with filters:", filters);
   const allMarkers: MapMarker[] = [];
   let offset = 0;
-  let hasMore = true;
+  let keepFetching = true;
 
-  while (hasMore) {
-    const { data, error } = await supabase
+  while (keepFetching && allMarkers.length < MAX_MARKERS) {
+    let query = supabase
       .from("properties")
-      .select("id, latitude, longitude, snap_score, address")
+      .select("id, latitude, longitude, snap_score, address, city, state")
       .not("latitude", "is", null)
-      .not("longitude", "is", null)
+      .not("longitude", "is", null);
+
+    // Apply filters
+    if (filters.state) {
+      query = query.ilike("state", filters.state);
+    }
+
+    if (filters.cities?.length) {
+      query = query.in("city", filters.cities);
+    }
+
+    if (filters.snapScoreRange) {
+      const [min, max] = filters.snapScoreRange;
+      query = query.gte("snap_score", min).lte("snap_score", max);
+    }
+
+    if (filters.search) {
+      const s = filters.search.trim();
+      query = query.or(`address.ilike.%${s}%,city.ilike.%${s}%,zip.ilike.%${s}%`);
+    }
+
+    if (filters.jurisdictionId) {
+      query = query.eq("jurisdiction_id", filters.jurisdictionId);
+    }
+
+    const { data, error } = await query
       .order("snap_score", { ascending: false, nullsFirst: false })
       .range(offset, offset + BATCH_SIZE - 1);
 
@@ -31,13 +60,15 @@ async function fetchAllMarkers(): Promise<MapMarker[]> {
       throw error;
     }
 
-    if (data && data.length > 0) {
+    const batchCount = data?.length ?? 0;
+    if (batchCount > 0) {
       allMarkers.push(...(data as MapMarker[]));
+      console.log("[useMapMarkers] Fetched batch:", batchCount, "total so far:", allMarkers.length);
       offset += BATCH_SIZE;
-      hasMore = data.length === BATCH_SIZE;
-      console.log("[useMapMarkers] Fetched batch, total so far:", allMarkers.length);
+      // Continue if we got a full batch (there might be more)
+      keepFetching = batchCount >= BATCH_SIZE;
     } else {
-      hasMore = false;
+      keepFetching = false;
     }
   }
 
@@ -45,11 +76,13 @@ async function fetchAllMarkers(): Promise<MapMarker[]> {
   return allMarkers;
 }
 
-export function useMapMarkers() {
+export function useMapMarkers(filters: LeadFilters = {}) {
   return useQuery({
-    queryKey: ["map-markers"],
-    queryFn: fetchAllMarkers,
+    queryKey: ["map-markers", filters],
+    queryFn: () => fetchFilteredMarkers(filters),
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    retry: 1,
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    retry: 2,
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
   });
 }

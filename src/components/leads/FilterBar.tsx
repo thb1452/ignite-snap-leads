@@ -9,6 +9,7 @@ interface FilterBarProps {
   snapScoreMin: number;
   lastSeenDays: number | null;
   selectedCity: string | null;
+  selectedState: string | null;
   selectedCounty: string | null;
   selectedJurisdiction: string | null;
   propertyCount: number;
@@ -21,13 +22,14 @@ export function FilterBar({
   snapScoreMin,
   lastSeenDays,
   selectedCity,
+  selectedState,
   selectedCounty,
   selectedJurisdiction,
   propertyCount,
   onClearFilters
 }: FilterBarProps) {
   const hasActiveFilters = snapScoreMin > 0 || lastSeenDays !== null || 
-    selectedCity !== null || selectedCounty !== null || selectedJurisdiction !== null;
+    selectedCity !== null || selectedState !== null || selectedCounty !== null || selectedJurisdiction !== null;
 
   return (
     <div className="flex items-center gap-4 p-4 border-b bg-background">
@@ -50,6 +52,11 @@ export function FilterBar({
         {lastSeenDays !== null && (
           <Badge variant="secondary" className="gap-1">
             ≤ {lastSeenDays} days
+          </Badge>
+        )}
+        {selectedState && (
+          <Badge variant="secondary">
+            {selectedState}
           </Badge>
         )}
         {selectedCounty && (

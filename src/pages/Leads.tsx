@@ -36,6 +36,7 @@ function Leads() {
   const [snapScoreMin, setSnapScoreMin] = useState(0);
   const [lastSeenDays, setLastSeenDays] = useState<number | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedState, setSelectedState] = useState<string | null>(null);
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<string | null>(null);
@@ -56,14 +57,17 @@ function Leads() {
   const filters = useMemo(() => ({
     search: searchQuery || undefined,
     cities: selectedCity ? [selectedCity] : undefined,
+    state: selectedState || undefined,
+    county: selectedCounty || undefined,
+    jurisdictionId: selectedJurisdictionId || undefined,
     snapScoreRange: snapScoreMin > 0 ? [snapScoreMin, 100] as [number, number] : undefined,
-  }), [searchQuery, selectedCity, snapScoreMin]);
+  }), [searchQuery, selectedCity, selectedState, selectedCounty, selectedJurisdictionId, snapScoreMin]);
 
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
   
-  // Use lightweight markers query for the map (all properties with coords)
-  const { data: mapMarkers = [], error: mapError } = useMapMarkers();
+  // Use lightweight markers query for the map (filtered same as list)
+  const { data: mapMarkers = [], error: mapError } = useMapMarkers(filters);
   
   // Log any errors
   if (error) console.error("[Leads] Properties error:", error);
@@ -78,6 +82,7 @@ function Leads() {
     setSnapScoreMin(0);
     setLastSeenDays(null);
     setSelectedCity(null);
+    setSelectedState(null);
     setSelectedCounty(null);
     setSelectedSource(null);
     setSelectedJurisdictionId(null);
@@ -205,6 +210,7 @@ function Leads() {
         snapScoreMin={snapScoreMin}
         lastSeenDays={lastSeenDays}
         selectedCity={selectedCity}
+        selectedState={selectedState}
         selectedCounty={selectedCounty}
         selectedJurisdiction={selectedJurisdictionId}
         propertyCount={totalCount}
@@ -215,9 +221,11 @@ function Leads() {
         <LocationFilter
           selectedJurisdiction={selectedJurisdictionId}
           selectedCity={selectedCity}
+          selectedState={selectedState}
           selectedCounty={selectedCounty}
           onJurisdictionChange={(j) => { setSelectedJurisdictionId(j); setPage(1); }}
           onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
+          onStateChange={(s) => { setSelectedState(s); setPage(1); }}
           onCountyChange={(c) => { setSelectedCounty(c); setPage(1); }}
         />
         <FilterControls

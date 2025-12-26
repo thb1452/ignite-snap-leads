@@ -380,27 +380,40 @@ async function processUploadJob(jobId: string) {
       let rawCity = row.city?.trim() || '';
       let rawState = row.state?.trim().toUpperCase() || '';
       
-      // Smart city extraction: if city is empty or looks like a zip code, try to extract from address
-      const { cleanAddress, extractedCity } = extractCityFromAddress(rawAddress, rawCity, rawState);
-      const address = cleanAddress;
+      let address = rawAddress;
+      let finalCity: string | null = null;
+      let finalState = job.state;
       
-      // Use extracted city, fallback to job defaults
-      let rowCity = extractedCity || rawCity;
-      let rowState = rawState;
-      
-      // Validate city/state - only use if they look valid
-      const csvCityValid = isValidCityName(rowCity);
-      const csvStateValid = isValidStateCode(rowState);
-      
-      const finalCity = csvCityValid ? rowCity : job.city;
-      const finalState = csvStateValid ? rowState : job.state;
-      
-      // Log validation failures for debugging
-      if (!csvCityValid && rowCity) {
-        console.log(`[process-upload] Row ${i + 1}: Invalid city "${rowCity.substring(0, 50)}..." - using job default`);
-      }
-      if (!csvStateValid && rowState) {
-        console.log(`[process-upload] Row ${i + 1}: Invalid state "${rowState}" - using job default`);
+      // For COUNTY-SCOPE uploads: skip city extraction entirely, just store null
+      // For CITY-SCOPE uploads: attempt smart city extraction
+      if (isCountyScope) {
+        // County scope: use raw address as-is, no city required
+        address = rawAddress.trim();
+        finalCity = null; // Will be handled as 'UNINCORPORATED' during property creation
+        finalState = job.state || '';
+      } else {
+        // City scope: attempt smart city extraction
+        const { cleanAddress, extractedCity } = extractCityFromAddress(rawAddress, rawCity, rawState);
+        address = cleanAddress;
+        
+        // Use extracted city, fallback to job defaults
+        let rowCity = extractedCity || rawCity;
+        let rowState = rawState;
+        
+        // Validate city/state - only use if they look valid
+        const csvCityValid = isValidCityName(rowCity);
+        const csvStateValid = isValidStateCode(rowState);
+        
+        finalCity = csvCityValid ? rowCity : job.city;
+        finalState = csvStateValid ? rowState : job.state || '';
+        
+        // Log validation failures for debugging
+        if (!csvCityValid && rowCity) {
+          console.log(`[process-upload] Row ${i + 1}: Invalid city "${rowCity.substring(0, 50)}..." - using job default`);
+        }
+        if (!csvStateValid && rowState) {
+          console.log(`[process-upload] Row ${i + 1}: Invalid state "${rowState}" - using job default`);
+        }
       }
       
       // Truncate fields to prevent index size errors (PostgreSQL btree index limit is ~2700 bytes per column)
@@ -417,7 +430,7 @@ async function processUploadJob(jobId: string) {
         row_num: i + 1,
         case_id: caseId,
         address: truncatedAddress,
-        city: finalCity,
+        city: finalCity, // null for county-scope, valid city for city-scope
         state: finalState,
         zip: row.zip || row.zipcode || row['zip code'] || '',
         violation: violationType,
@@ -510,7 +523,8 @@ async function processUploadJob(jobId: string) {
     const addressMap = new Map<string, any>();
     stagingData.forEach(row => {
       let addr = row.address?.trim();
-      const city = row.city?.trim() || job.city;
+      // For county-scope: city is null, use 'UNINCORPORATED' for grouping key
+      const city = row.city?.trim() || (isCountyScope ? 'UNINCORPORATED' : job.city) || 'UNINCORPORATED';
       const state = row.state?.trim() || job.state;
       let zip = row.zip?.trim() || '';
       

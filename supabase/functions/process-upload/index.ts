@@ -5,12 +5,12 @@ import Papa from "https://esm.sh/papaparse@5.4.1";
 // ============================================
 // UPLOAD LIMITS - Change these to adjust capacity
 // Edge functions have ~150MB memory limit, so we must be conservative
-// Statement timeout is typically 30-60s, so keep batches VERY small
+// Statement timeout is typically 10-15s on free tier, so keep batches VERY small
 // ============================================
 const MAX_ROWS_PER_UPLOAD = 50000;  // Maximum rows allowed in a single CSV
-const STAGING_BATCH_SIZE = 500;     // Rows per batch for staging inserts (INCREASED for speed)
-const PROP_INSERT_BATCH = 100;      // Properties per batch for inserts (INCREASED for speed)
-const VIOL_BATCH_SIZE = 100;        // Violations per batch for inserts (INCREASED for speed)
+const STAGING_BATCH_SIZE = 100;     // Rows per batch for staging inserts (REDUCED to avoid timeout)
+const PROP_INSERT_BATCH = 50;       // Properties per batch for inserts
+const VIOL_BATCH_SIZE = 50;         // Violations per batch for inserts
 const MAX_FILE_SIZE_MB = 15;        // Maximum file size in MB (edge function memory limit)
 
 const corsHeaders = {
@@ -358,16 +358,106 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Starting staging inserts for ${totalRows} rows`);
 
-    // IDEMPOTENCY CHECK: Skip staging if rows already exist (prevents duplicates on retry)
+    // RESUME SUPPORT: Check how many rows are already staged
     const { count: existingStagingCount } = await supabaseClient
       .from('upload_staging')
       .select('*', { count: 'exact', head: true })
       .eq('job_id', jobId);
 
-    if (existingStagingCount && existingStagingCount > 0) {
-      console.log(`[process-upload] ⚠️ Staging already has ${existingStagingCount} rows - skipping insert phase (idempotency)`);
+    const stagingResumeFrom = existingStagingCount || 0;
+    
+    if (stagingResumeFrom >= totalRows) {
+      console.log(`[process-upload] ⚠️ Staging already complete (${stagingResumeFrom} rows) - skipping insert phase`);
+    } else if (stagingResumeFrom > 0) {
+      console.log(`[process-upload] RESUME: Staging has ${stagingResumeFrom} rows, resuming from row ${stagingResumeFrom + 1}`);
+      
+      // Resume staging from where we left off
+      const stagingRows: any[] = [];
+      
+      for (let i = stagingResumeFrom; i < parsedRows.length; i++) {
+        const row = parsedRows[i] as Record<string, any>;
+
+        // Flexible column mapping - support multiple CSV formats
+        const caseId = row.case_id || row['case/file id'] || row['file #'] || row.file_number || row.id || row['file number'] || null;
+        const rawAddress = row.address || row.location || row.property_address || row['property address'] || '';
+        const violationType = row.category || row.violation || row.type || row.violation_type || row['violation type'] || row.violation_category || '';
+        const rawOpenDate = row.opened_date || row.open_date || row['open date'] || row.date || row.date_opened || null;
+        const rawCloseDate = row.close_date || row['close date'] || row.closed_date || row.date_closed || null;
+        const openDate = sanitizeDateString(rawOpenDate);
+        const closeDate = sanitizeDateString(rawCloseDate);
+        const description = row.description || row.violation_description || row.notes || row.comments || null;
+        
+        let rawCity = row.city?.trim() || '';
+        let rawState = row.state?.trim().toUpperCase() || '';
+        
+        let address = rawAddress;
+        let finalCity: string | null = null;
+        let finalState = job.state;
+        
+        if (isCountyScope) {
+          address = rawAddress.trim();
+          finalCity = null;
+          finalState = job.state || '';
+        } else {
+          const { cleanAddress, extractedCity } = extractCityFromAddress(rawAddress, rawCity, rawState);
+          address = cleanAddress;
+          
+          let rowCity = extractedCity || rawCity;
+          let rowState = rawState;
+          
+          const csvCityValid = isValidCityName(rowCity);
+          const csvStateValid = isValidStateCode(rowState);
+          
+          finalCity = csvCityValid ? rowCity : job.city;
+          finalState = csvStateValid ? rowState : job.state || '';
+        }
+        
+        const MAX_ADDRESS_LENGTH = 500;
+        const MAX_DESCRIPTION_LENGTH = 2000;
+        
+        const truncatedAddress = address.length > MAX_ADDRESS_LENGTH ? address.substring(0, MAX_ADDRESS_LENGTH) : address;
+        const truncatedDescription = description && description.length > MAX_DESCRIPTION_LENGTH 
+          ? description.substring(0, MAX_DESCRIPTION_LENGTH) + '...' 
+          : description;
+        
+        stagingRows.push({
+          job_id: jobId,
+          row_num: i + 1,
+          case_id: caseId,
+          address: truncatedAddress,
+          city: finalCity,
+          state: finalState,
+          zip: row.zip || row.zipcode || row['zip code'] || '',
+          violation: violationType,
+          status: row.status || 'Open',
+          opened_date: openDate,
+          last_updated: closeDate || row.last_updated || null,
+          jurisdiction_id: job.jurisdiction_id || null,
+          raw_description: truncatedDescription,
+        });
+
+        if (stagingRows.length >= STAGING_BATCH_SIZE || i === parsedRows.length - 1) {
+          const { error: insertError } = await supabaseClient
+            .from('upload_staging')
+            .insert(stagingRows);
+
+          if (insertError) {
+            console.error('[process-upload] Staging insert error:', insertError);
+            throw insertError;
+          }
+
+          const processedCount = i + 1;
+          await supabaseClient
+            .from('upload_jobs')
+            .update({ processed_rows: processedCount })
+            .eq('id', jobId);
+
+          console.log(`[process-upload] RESUME staged ${processedCount} / ${totalRows} rows (${Math.round(processedCount / totalRows * 100)}%)`);
+          stagingRows.length = 0;
+        }
+      }
     } else {
-      // Parse and insert into staging in batches for memory efficiency
+      // Fresh start - no staging rows yet
       const stagingRows: any[] = [];
       
       for (let i = 0; i < parsedRows.length; i++) {
@@ -471,7 +561,7 @@ async function processUploadJob(jobId: string) {
         stagingRows.length = 0;
       }
     }
-    } // End of idempotency else block
+    } // End of fresh start block
 
     // ===== RESUME SUPPORT: Check if we can skip DEDUPING =====
     // Re-fetch job to get latest values (status may have changed during prior runs)

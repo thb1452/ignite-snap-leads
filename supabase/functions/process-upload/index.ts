@@ -550,35 +550,27 @@ async function processUploadJob(jobId: string) {
     const addressMap = new Map<string, any>();
     let badAddressCount = 0;
     const badAddressSamples: string[] = [];
+    const badAddressRowNums: number[] = []; // Track row numbers to skip during violation creation
     
     stagingData.forEach(row => {
-      let addr = row.address?.trim();
+      const addr = row.address?.trim();
       // For county-scope: city is null, use 'UNINCORPORATED' for grouping key
       const city = row.city?.trim() || (isCountyScope ? 'UNINCORPORATED' : job.city) || 'UNINCORPORATED';
       const state = row.state?.trim() || job.state;
-      let zip = row.zip?.trim() || '';
+      const zip = row.zip?.trim() || '';
       
-      // Check if this is a bad/invalid address
-      const originalAddr = addr;
+      // Check if this is a bad/invalid address - SKIP these entirely
       const isBad = isBadAddress(addr || '');
       
-      // If address is empty or bad, group by parcel number (case_id)
       if (!addr || addr === '' || isBad) {
         badAddressCount++;
         // Store sample of bad addresses (max 10)
-        if (badAddressSamples.length < 10 && originalAddr && originalAddr.trim()) {
-          badAddressSamples.push(originalAddr.substring(0, 100));
+        if (badAddressSamples.length < 10) {
+          badAddressSamples.push(addr ? addr.substring(0, 100) : '(empty)');
         }
-        
-        if (row.case_id && row.case_id.trim() !== '') {
-          // Use parcel number to create ONE property per unique case_id
-          addr = `Parcel-Based Location (Parcel ${row.case_id.trim()})`;
-          zip = ''; // Normalize zip for parcel-based locations
-        } else {
-          // If no case_id either, create one property for all unknown parcels
-          addr = `Parcel-Based Location (Unknown Parcel)`;
-          zip = '';
-        }
+        // Track row number to skip during violation creation
+        badAddressRowNums.push(row.row_num);
+        return; // SKIP - don't create property for bad addresses
       }
       
       const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
@@ -595,7 +587,7 @@ async function processUploadJob(jobId: string) {
 
     // Update job with bad address count
     if (badAddressCount > 0) {
-      console.log(`[process-upload] ⚠️ Found ${badAddressCount} rows with bad/missing addresses`);
+      console.log(`[process-upload] ⚠️ SKIPPING ${badAddressCount} rows with bad/missing addresses (won't create properties or violations)`);
       await supabaseClient
         .from('upload_jobs')
         .update({ 
@@ -605,7 +597,7 @@ async function processUploadJob(jobId: string) {
         .eq('id', jobId);
     }
 
-    console.log(`[process-upload] Found ${addressMap.size} unique addresses (${badAddressCount} rows had bad addresses)`);
+    console.log(`[process-upload] Found ${addressMap.size} valid unique addresses (skipped ${badAddressCount} bad address rows)`);
 
     // Check existing properties - need case-insensitive match since index uses lower(TRIM())
     const uniqueAddresses = Array.from(addressMap.keys());
@@ -870,20 +862,16 @@ async function processUploadJob(jobId: string) {
       const violations: any[] = [];
 
       for (const row of stagingBatch) {
-        let addr = row.address?.trim();
+        const addr = row.address?.trim();
         // For county-scope: staging has city=null, but properties have city='UNINCORPORATED'
         const city = row.city?.trim() || (isCountyScope ? 'UNINCORPORATED' : '');
         const state = row.state?.trim() || '';
-        let zip = row.zip?.trim() || '';
+        const zip = row.zip?.trim() || '';
         
-        // Match the parcel-based location format from property creation
-        if (!addr || addr === '') {
-          if (row.case_id && row.case_id.trim() !== '') {
-            addr = `Parcel-Based Location (Parcel ${row.case_id.trim()})`;
-          } else {
-            addr = `Parcel-Based Location (Unknown Parcel)`;
-          }
-          zip = '';
+        // SKIP rows with bad/missing addresses - no property was created for them
+        if (!addr || addr === '' || isBadAddress(addr)) {
+          skippedRows++;
+          continue;
         }
         
         const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();

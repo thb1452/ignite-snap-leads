@@ -8,9 +8,9 @@ import Papa from "https://esm.sh/papaparse@5.4.1";
 // Statement timeout is typically 30-60s, so keep batches VERY small
 // ============================================
 const MAX_ROWS_PER_UPLOAD = 50000;  // Maximum rows allowed in a single CSV
-const STAGING_BATCH_SIZE = 100;     // Rows per batch for staging inserts (REDUCED to prevent timeouts)
-const PROP_INSERT_BATCH = 25;       // Properties per batch for inserts (very small to prevent timeouts)
-const VIOL_BATCH_SIZE = 50;         // Violations per batch for inserts (REDUCED)
+const STAGING_BATCH_SIZE = 500;     // Rows per batch for staging inserts (INCREASED for speed)
+const PROP_INSERT_BATCH = 100;      // Properties per batch for inserts (INCREASED for speed)
+const VIOL_BATCH_SIZE = 100;        // Violations per batch for inserts (INCREASED for speed)
 const MAX_FILE_SIZE_MB = 15;        // Maximum file size in MB (edge function memory limit)
 
 const corsHeaders = {
@@ -473,6 +473,149 @@ async function processUploadJob(jobId: string) {
     }
     } // End of idempotency else block
 
+    // ===== RESUME SUPPORT: Check if we can skip DEDUPING =====
+    // Re-fetch job to get latest values (status may have changed during prior runs)
+    const { data: freshJob } = await supabaseClient
+      .from('upload_jobs')
+      .select('violations_created, properties_created')
+      .eq('id', jobId)
+      .single();
+    
+    const resumeViolations = freshJob?.violations_created || 0;
+    const resumeProperties = freshJob?.properties_created || 0;
+    console.log(`[process-upload] Resume check: violations_created=${resumeViolations}, properties_created=${resumeProperties}`);
+    
+    // If job has violations_created > 0, we can skip property creation and resume violations
+    const canSkipDedup = resumeViolations > 0 && resumeProperties > 0;
+    
+    if (canSkipDedup) {
+      console.log(`[process-upload] RESUME DETECTED: Skipping DEDUPING, jumping straight to violations (${job.properties_created} properties already created)`);
+      
+      // We need to rebuild the existingMap by fetching all properties for this city/county
+      const lookupCity = job.city || 'san antonio'; // Fallback for county scope
+      const { data: existingProps } = await supabaseClient
+        .from('properties')
+        .select('id, address, city, state, zip')
+        .ilike('city', `%${lookupCity}%`)
+        .limit(50000);
+      
+      const existingMap = new Map<string, string>();
+      (existingProps || []).forEach(prop => {
+        const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
+        existingMap.set(key, prop.id);
+      });
+      
+      console.log(`[process-upload] Loaded ${existingMap.size} existing properties for violation linking`);
+      
+      // Jump directly to violations phase
+      goto_violations: {
+        // Insert violations in batches - OPTIMIZED for speed
+        const STAGING_FETCH_BATCH = 500;
+        const VIOL_INSERT_BATCH = 50;
+        
+        const existingViolationsCreated = job.violations_created || 0;
+        let stagingOffset = existingViolationsCreated;
+        let violationsCreatedTotal = existingViolationsCreated;
+        
+        console.log(`[process-upload] RESUMING violations from offset ${stagingOffset}...`);
+        
+        let skippedRows = 0;
+        let consecutiveErrors = 0;
+        const MAX_CONSECUTIVE_ERRORS = 3;
+
+        while (true) {
+          const { data: stagingBatch, error: stagingError } = await supabaseClient
+            .from('upload_staging')
+            .select('*')
+            .eq('job_id', jobId)
+            .order('row_num')
+            .range(stagingOffset, stagingOffset + STAGING_FETCH_BATCH - 1);
+
+          if (stagingError) {
+            throw new Error(`Failed to fetch staging: ${stagingError.message}`);
+          }
+
+          if (!stagingBatch || stagingBatch.length === 0) {
+            console.log(`[process-upload] No more staging rows at offset ${stagingOffset}`);
+            break;
+          }
+
+          console.log(`[process-upload] Processing staging batch: offset=${stagingOffset}, count=${stagingBatch.length}`);
+
+          const violations: any[] = [];
+          for (const row of stagingBatch) {
+            const key = `${row.address}|${row.city || 'unincorporated'}|${row.state}|${row.zip || ''}`.toLowerCase();
+            const propertyId = existingMap.get(key);
+
+            if (!propertyId) {
+              skippedRows++;
+              continue;
+            }
+
+            const openedDate = row.opened_date ? new Date(row.opened_date) : null;
+
+            violations.push({
+              property_id: propertyId,
+              case_id: row.case_id,
+              violation_type: row.violation || 'General',
+              description: row.raw_description,
+              raw_description: row.raw_description,
+              status: row.status || 'Open',
+              opened_date: openedDate ? openedDate.toISOString().split('T')[0] : null,
+            });
+          }
+
+          // Upsert violations
+          for (let i = 0; i < violations.length; i += VIOL_INSERT_BATCH) {
+            const upsertBatch = violations.slice(i, i + VIOL_INSERT_BATCH);
+            const { error: violError } = await supabaseClient
+              .rpc('bulk_upsert_violations', { p_violations: upsertBatch });
+
+            if (violError) {
+              console.error(`[process-upload] Violation upsert error:`, violError.message);
+              consecutiveErrors++;
+              if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+                throw new Error(`Too many consecutive errors`);
+              }
+            } else {
+              consecutiveErrors = 0;
+            }
+          }
+
+          violationsCreatedTotal += violations.length;
+          console.log(`[process-upload] Violations progress: ${violationsCreatedTotal} created, ${skippedRows} skipped`);
+
+          await supabaseClient
+            .from('upload_jobs')
+            .update({ violations_created: violationsCreatedTotal })
+            .eq('id', jobId);
+
+          stagingOffset += STAGING_FETCH_BATCH;
+          if (stagingBatch.length < STAGING_FETCH_BATCH) break;
+        }
+
+        console.log(`[process-upload] RESUME complete: ${violationsCreatedTotal} violations`);
+
+        // Mark complete
+        await supabaseClient
+          .from('upload_jobs')
+          .update({
+            status: 'COMPLETE',
+            violations_created: violationsCreatedTotal,
+            finished_at: new Date().toISOString()
+          })
+          .eq('id', jobId);
+
+        return new Response(JSON.stringify({
+          success: true,
+          jobId,
+          propertiesCreated: job.properties_created,
+          violationsCreated: violationsCreatedTotal,
+          resumed: true
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+
     // Update status to DEDUPING
     await supabaseClient
       .from('upload_jobs')
@@ -814,9 +957,9 @@ async function processUploadJob(jobId: string) {
 
     // Insert violations in batches - process in streaming fashion to avoid memory issues
     // Process staging rows in chunks instead of loading all into memory
-    // CRITICAL: Very small batch sizes to prevent Cloudflare/Supabase 500 errors during large uploads
-    const STAGING_FETCH_BATCH = 100;   // REDUCED from 200 to prevent timeouts
-    const VIOL_INSERT_BATCH = 15;      // REDUCED from 25 to prevent statement timeouts
+    // OPTIMIZED: Larger batches for faster processing
+    const STAGING_FETCH_BATCH = 500;   // INCREASED for speed
+    const VIOL_INSERT_BATCH = 50;      // INCREASED for speed
     
     // ===== RESUME SUPPORT =====
     // Check if this is a resume of a previously interrupted job

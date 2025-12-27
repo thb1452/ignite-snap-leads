@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     // 1. Find stuck upload jobs (in progress but no update for threshold time)
     const { data: stuckUploadJobs, error: uploadError } = await supabaseClient
       .from('upload_jobs')
-      .select('id, status, updated_at, user_id')
+      .select('id, status, updated_at, user_id, violations_created, properties_created')
       .in('status', ['PARSING', 'PROCESSING', 'DEDUPING', 'CREATING_VIOLATIONS', 'FINALIZING'])
       .lt('updated_at', new Date(Date.now() - UPLOAD_STUCK_THRESHOLD_SECONDS * 1000).toISOString());
 
@@ -39,11 +39,14 @@ Deno.serve(async (req) => {
       console.log(`[job-monitor] Found ${stuckUploadJobs.length} stuck upload jobs`);
       
       for (const job of stuckUploadJobs) {
-        // Reset to QUEUED so it gets reprocessed
+        // For jobs that were already creating violations, preserve their status so they resume properly
+        const preserveStatus = (job.status === 'CREATING_VIOLATIONS' && (job.violations_created || 0) > 0);
+        
+        // Reset to QUEUED (or preserved status) so it gets reprocessed
         const { error: resetError } = await supabaseClient
           .from('upload_jobs')
           .update({ 
-            status: 'QUEUED', 
+            status: preserveStatus ? 'CREATING_VIOLATIONS' : 'QUEUED', 
             started_at: null,
             error_message: null,
             updated_at: new Date().toISOString()

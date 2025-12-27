@@ -14,6 +14,14 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
     
+    // Safety timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('[useAuth] Loading timeout reached, forcing complete');
+        setLoading(false);
+      }
+    }, 5000);
+    
     // Get initial session and roles
     const initializeAuth = async () => {
       try {
@@ -52,6 +60,7 @@ export function useAuth() {
         setRoles([]);
       } finally {
         if (mounted) {
+          clearTimeout(loadingTimeout);
           setLoading(false);
         }
       }
@@ -91,6 +100,7 @@ export function useAuth() {
 
     return () => {
       mounted = false;
+      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
   }, []);

@@ -1658,6 +1658,17 @@ export type Database = {
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      fn_bulk_insert_properties: {
+        Args: { p_properties: Json }
+        Returns: {
+          address: string
+          city: string
+          property_id: string
+          state: string
+          was_created: boolean
+          zip: string
+        }[]
+      }
       fn_bulk_run_inc: {
         Args: { p_field: string; p_run_id: string }
         Returns: undefined

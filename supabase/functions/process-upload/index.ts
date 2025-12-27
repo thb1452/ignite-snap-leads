@@ -924,62 +924,52 @@ async function processUploadJob(jobId: string) {
 
     let propertiesCreated = 0;
     let dbLevelDedupes = 0;
-    const PROP_INSERT_BATCH = 50; // Small batches to prevent timeouts
+    const PROP_INSERT_BATCH = 200; // Larger batch - RPC handles duplicates efficiently
 
-    // Insert properties in batches with duplicate handling
-    // NOTE: Cannot use upsert with onConflict because the unique index is functional: LOWER(TRIM(...))
-    // Supabase upsert only works with direct column constraints, not functional indexes
-    console.log(`[process-upload] Inserting ${newProperties.length} new properties in batches of ${PROP_INSERT_BATCH}...`);
+    // Use the bulk insert RPC function for much faster duplicate handling
+    // This function checks for existing properties first and only inserts new ones
+    console.log(`[process-upload] Inserting ${newProperties.length} new properties using bulk RPC in batches of ${PROP_INSERT_BATCH}...`);
 
     for (let i = 0; i < newProperties.length; i += PROP_INSERT_BATCH) {
       const batch = newProperties.slice(i, i + PROP_INSERT_BATCH);
-      const insertData = batch.map(({ key, ...propData }) => propData);
+      const rpcPayload = batch.map(({ key, ...propData }) => ({
+        ...propData,
+        county: propData.county || null,
+        scope: propData.scope || 'city',
+        jurisdiction_id: propData.jurisdiction_id || null
+      }));
 
-      // Try batch insert first
-      const { data: insertedProps, error: insertError } = await supabaseClient
-        .from('properties')
-        .insert(insertData)
-        .select('id, address, city, state, zip');
+      // Call the RPC function for bulk insert with duplicate handling
+      const { data: rpcResult, error: rpcError } = await supabaseClient
+        .rpc('fn_bulk_insert_properties', { p_properties: rpcPayload });
 
-      if (insertError) {
-        if (insertError.code === '23505') {
-          // Unique constraint violation - batch has duplicates, insert one by one
-          console.log(`[process-upload] Batch has duplicates, inserting one-by-one...`);
-          for (const prop of insertData) {
-            const { data: single, error: singleErr } = await supabaseClient
-              .from('properties')
-              .insert(prop)
-              .select('id, address, city, state, zip')
-              .maybeSingle();
+      if (rpcError) {
+        console.error('[process-upload] Bulk insert RPC error:', rpcError);
+        throw rpcError;
+      }
 
-            if (single) {
-              const key = `${single.address}|${single.city}|${single.state}|${single.zip}`.toLowerCase();
-              existingMap.set(key, single.id);
-              propertiesCreated++;
-            } else if (singleErr?.code === '23505') {
-              // Already exists - this is fine
-              dbLevelDedupes++;
-            }
+      // Process results - add all to existingMap (both created and existing)
+      if (rpcResult) {
+        for (const row of rpcResult) {
+          const key = `${row.address}|${row.city}|${row.state}|${row.zip}`.toLowerCase();
+          if (row.property_id) {
+            existingMap.set(key, row.property_id);
           }
-        } else {
-          console.error('[process-upload] Insert batch error:', insertError);
-          throw insertError;
-        }
-      } else if (insertedProps) {
-        // Batch insert succeeded - update map and count
-        for (const prop of insertedProps) {
-          const key = `${prop.address}|${prop.city}|${prop.state}|${prop.zip}`.toLowerCase();
-          existingMap.set(key, prop.id);
-          propertiesCreated++;
+          if (row.was_created) {
+            propertiesCreated++;
+          } else {
+            dbLevelDedupes++;
+          }
         }
       }
 
-      // Update progress
-      if ((i + batch.length) % 200 === 0 || i + batch.length >= newProperties.length) {
-        await supabaseClient
-          .from('upload_jobs')
-          .update({ status: 'DEDUPING', processed_rows: i + batch.length })
-          .eq('id', jobId);
+      // Update progress every batch
+      await supabaseClient
+        .from('upload_jobs')
+        .update({ status: 'DEDUPING', processed_rows: i + batch.length })
+        .eq('id', jobId);
+      
+      if ((i + batch.length) % 400 === 0 || i + batch.length >= newProperties.length) {
         console.log(`[process-upload] Property insert progress: ${i + batch.length}/${newProperties.length}, created: ${propertiesCreated}, dupes: ${dbLevelDedupes}`);
       }
     }

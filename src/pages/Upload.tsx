@@ -51,15 +51,17 @@ export default function Upload() {
   const { job, loading: jobLoading, refresh: refreshJob } = useUploadJob(jobId);
   const { stats: multiJobStats, loading: multiJobLoading } = useUploadJobs(jobIds);
   
-  // CSV detection state
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  // CSV detection state - now supports multiple files
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingCsvData, setPendingCsvData] = useState<string | null>(null);
   const [detection, setDetection] = useState<CsvDetectionResult | null>(null);
+  const [multiFileMode, setMultiFileMode] = useState(false);
 
   const resetDetection = () => {
-    setPendingFile(null);
+    setPendingFiles([]);
     setPendingCsvData(null);
     setDetection(null);
+    setMultiFileMode(false);
   };
   
   const resetAll = () => {
@@ -67,14 +69,6 @@ export default function Upload() {
     setJobId(null);
     setJobIds([]);
   };
-
-  const processFileForDetection = useCallback(async (file: File) => {
-    const text = await file.text();
-    const detected = detectCsvLocations(text);
-    setDetection(detected);
-    setPendingFile(file);
-    setPendingCsvData(text);
-  }, []);
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (!user) {
@@ -86,66 +80,176 @@ export default function Upload() {
       return;
     }
 
-    const file = acceptedFiles[0];
-    if (!file) return;
+    // Filter valid CSV files
+    const validFiles: File[] = [];
+    const invalidFiles: string[] = [];
+    const oversizedFiles: string[] = [];
 
-    if (!file.name.endsWith('.csv')) {
-      toast({
-        title: 'Invalid File',
-        description: 'Please upload a CSV file',
-        variant: 'destructive',
-      });
-      return;
+    for (const file of acceptedFiles) {
+      if (!file.name.endsWith('.csv')) {
+        invalidFiles.push(file.name);
+        continue;
+      }
+      if (file.size > UPLOAD_LIMITS.MAX_FILE_SIZE_MB * 1024 * 1024) {
+        oversizedFiles.push(file.name);
+        continue;
+      }
+      validFiles.push(file);
     }
 
-    if (file.size > UPLOAD_LIMITS.MAX_FILE_SIZE_MB * 1024 * 1024) {
+    if (invalidFiles.length > 0) {
       toast({
-        title: 'File Too Large',
-        description: `File must be less than ${UPLOAD_LIMITS.MAX_FILE_SIZE_MB}MB`,
+        title: 'Invalid Files Skipped',
+        description: `${invalidFiles.length} non-CSV file(s) skipped`,
         variant: 'destructive',
       });
-      return;
     }
 
-    // Detect locations first
-    await processFileForDetection(file);
+    if (oversizedFiles.length > 0) {
+      toast({
+        title: 'Oversized Files Skipped',
+        description: `${oversizedFiles.length} file(s) over ${UPLOAD_LIMITS.MAX_FILE_SIZE_MB}MB skipped`,
+        variant: 'destructive',
+      });
+    }
+
+    if (validFiles.length === 0) return;
+
+    // Multi-file mode: skip detection, go straight to upload
+    if (validFiles.length > 1) {
+      setMultiFileMode(true);
+      setPendingFiles(validFiles);
+      // Create a summary detection for display
+      setDetection({
+        locations: validFiles.map(f => ({
+          city: f.name.split('_')[0] || 'Unknown',
+          state: '',
+          count: 0
+        })),
+        missingLocationRows: 0,
+        totalRows: validFiles.length,
+        uniqueStates: [],
+        uniqueCities: validFiles.map(f => f.name.split('_')[0] || 'Unknown')
+      });
+    } else {
+      // Single file: detect locations
+      const file = validFiles[0];
+      const text = await file.text();
+      const detected = detectCsvLocations(text);
+      setDetection(detected);
+      setPendingFiles([file]);
+      setPendingCsvData(text);
+      setMultiFileMode(false);
+    }
   };
 
   const handleConfirmUpload = async () => {
-    if (!user || !pendingCsvData || !pendingFile) return;
+    if (!user) return;
 
-    // Cache values before resetting state
+    // Multi-file mode: process all files directly
+    if (multiFileMode && pendingFiles.length > 1) {
+      const files = [...pendingFiles];
+      
+      setJobId(null);
+      setJobIds([]);
+      resetDetection();
+      setUploading(true);
+
+      try {
+        const createdJobIds: string[] = [];
+        const BATCH_SIZE = 5; // Process 5 files concurrently
+
+        for (let i = 0; i < files.length; i += BATCH_SIZE) {
+          const batch = files.slice(i, i + BATCH_SIZE);
+          const batchPromises = batch.map(async (file) => {
+            // Try to extract city/state from filename (e.g., "CityName_ST_Violations.csv")
+            const nameParts = file.name.replace('.csv', '').split(/[_\s-]+/);
+            let fileCity = '';
+            let fileState = '';
+            
+            // Look for state code in filename
+            for (const part of nameParts) {
+              if (US_STATES.includes(part.toUpperCase())) {
+                fileState = part.toUpperCase();
+              }
+            }
+            
+            // First part is usually the city
+            if (nameParts.length > 0 && !US_STATES.includes(nameParts[0].toUpperCase())) {
+              fileCity = nameParts[0];
+            }
+
+            // Read file and detect locations if not found in filename
+            const text = await file.text();
+            const detected = detectCsvLocations(text);
+            
+            const jobCity = fileCity || detected.locations[0]?.city || city || '';
+            const jobState = fileState || detected.locations[0]?.state || state || '';
+
+            return createUploadJob({
+              file,
+              userId: user.id,
+              city: jobCity || null,
+              county: county || null,
+              state: jobState
+            });
+          });
+
+          const batchIds = await Promise.all(batchPromises);
+          createdJobIds.push(...batchIds);
+
+          // Update UI with progress
+          if (i + BATCH_SIZE < files.length) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        }
+
+        setJobIds(createdJobIds);
+        toast({
+          title: 'Upload Started',
+          description: `Processing ${createdJobIds.length} files`,
+        });
+      } catch (error) {
+        console.error('Multi-file upload error:', error);
+        toast({
+          title: 'Upload Failed',
+          description: error instanceof Error ? error.message : 'Failed to upload files',
+          variant: 'destructive',
+        });
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
+
+    // Single file mode with CSV data
+    if (!pendingCsvData || pendingFiles.length === 0) return;
+
     const csvData = pendingCsvData;
-    const file = pendingFile;
+    const file = pendingFiles[0];
     const currentDetection = detection;
 
-    // Reset old job state and detection BEFORE starting new upload
-    // This allows job progress to show immediately
     setJobId(null);
     setJobIds([]);
     resetDetection();
     setUploading(true);
 
     try {
-      // Check if we should split by city
       const shouldSplit = currentDetection && currentDetection.locations.length > 1;
       
       if (shouldSplit) {
-        // Multi-city upload - split and create multiple jobs
         const { csvGroups, skippedRows } = splitCsvByCity(csvData, city || undefined, state || undefined);
         const createdJobIds: string[] = [];
 
-        // Warn user if rows were skipped
         if (skippedRows > 0) {
           toast({
             title: 'Warning: Some Rows Skipped',
-            description: `${skippedRows} row(s) dropped due to missing city/state. Use fallback fields if your CSV lacks location data.`,
+            description: `${skippedRows} row(s) dropped due to missing city/state.`,
             variant: 'destructive',
           });
         }
 
-        // Process jobs in parallel batches for speed
-        const BATCH_SIZE = 10; // Process 10 jobs concurrently
+        const BATCH_SIZE = 10;
         const entries = Array.from(csvGroups.entries());
         
         for (let i = 0; i < entries.length; i += BATCH_SIZE) {
@@ -168,24 +272,21 @@ export default function Upload() {
           const batchIds = await Promise.all(batchPromises);
           createdJobIds.push(...batchIds);
           
-          // Small delay between batches to prevent overwhelming the server
           if (i + BATCH_SIZE < entries.length) {
             await new Promise(resolve => setTimeout(resolve, 200));
           }
         }
 
         setJobIds(createdJobIds);
-        setJobId(null); // Use multi-job tracking instead
+        setJobId(null);
         toast({
           title: 'Upload Started',
-          description: `Created ${createdJobIds.length} ingest jobs for ${csvGroups.size} locations (staggered to prevent conflicts)`,
+          description: `Created ${createdJobIds.length} ingest jobs`,
         });
       } else {
-        // Single location upload
         const jobCity = currentDetection?.locations[0]?.city || city || "";
         const jobState = currentDetection?.locations[0]?.state || state || "";
 
-        // Allow county-only uploads: need either (city + state) OR (county + state)
         const hasCity = Boolean(jobCity);
         const hasCounty = Boolean(county);
         const hasState = Boolean(jobState);
@@ -203,7 +304,7 @@ export default function Upload() {
         if (!hasCity && !hasCounty) {
           toast({
             title: 'Location Required',
-            description: 'No location detected in CSV. Please provide either a city or county.',
+            description: 'No location detected. Please provide either a city or county.',
             variant: 'destructive',
           });
           setUploading(false);
@@ -249,7 +350,7 @@ export default function Upload() {
     const detected = detectCsvLocations(csvData);
     setDetection(detected);
     setPendingCsvData(csvData);
-    setPendingFile(null);
+    setPendingFiles([]);
   };
 
   const handleConfirmPasteUpload = async () => {
@@ -395,7 +496,7 @@ export default function Upload() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'text/csv': ['.csv'] },
-    maxFiles: 1,
+    multiple: true,  // Allow multiple files
     disabled: uploading || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null) || multiJobStats.isProcessing,
   });
 
@@ -474,6 +575,8 @@ export default function Upload() {
               detection={detection} 
               fallbackCity={city}
               fallbackState={state}
+              multiFileMode={multiFileMode}
+              fileCount={pendingFiles.length}
             />
           )}
 
@@ -481,12 +584,14 @@ export default function Upload() {
           {hasDetection && (
             <div className="flex gap-3">
               <Button 
-                onClick={pendingFile ? handleConfirmUpload : handleConfirmPasteUpload}
+                onClick={pendingFiles.length > 0 ? handleConfirmUpload : handleConfirmPasteUpload}
                 disabled={uploading}
                 className="flex-1"
                 size="lg"
               >
-                {uploading ? 'Processing...' : `Start Ingest${detection.locations.length > 1 ? ` (${detection.locations.length} Jobs)` : ''}`}
+                {uploading ? 'Processing...' : multiFileMode 
+                  ? `Start Ingest (${pendingFiles.length} Files)` 
+                  : `Start Ingest${detection.locations.length > 1 ? ` (${detection.locations.length} Jobs)` : ''}`}
               </Button>
               <Button 
                 onClick={resetDetection}
@@ -536,14 +641,14 @@ export default function Upload() {
                       <input {...getInputProps()} />
                       <UploadIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                       <p className="text-lg font-medium mb-2">
-                        {isDragActive ? 'Drop the file here' : 'Drag & drop a CSV file'}
+                        {isDragActive ? 'Drop the files here' : 'Drag & drop CSV files'}
                       </p>
                       <p className="text-sm text-muted-foreground mb-4">
-                        {isDragActive ? '' : 'or click to browse'}
+                        {isDragActive ? '' : 'or click to browse (select multiple files)'}
                       </p>
                       <Button variant="outline" disabled={uploading || isJobActive}>
                         <FileSpreadsheet className="mr-2 h-4 w-4" />
-                        Select CSV File
+                        Select CSV Files
                       </Button>
                     </div>
                   </TabsContent>

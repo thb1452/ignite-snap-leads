@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 // Thresholds for detecting stuck jobs
-const UPLOAD_STUCK_THRESHOLD_SECONDS = 180;  // 3 minutes without progress = stuck
+const UPLOAD_STUCK_THRESHOLD_SECONDS = 60;  // 1 minute without progress = stuck (reduced for faster resume)
 const GEOCODING_STUCK_THRESHOLD_SECONDS = 300;  // 5 minutes without progress = stuck
 
 Deno.serve(async (req) => {

@@ -817,13 +817,27 @@ async function processUploadJob(jobId: string) {
     // CRITICAL: Very small batch sizes to prevent Cloudflare/Supabase 500 errors during large uploads
     const STAGING_FETCH_BATCH = 100;   // REDUCED from 200 to prevent timeouts
     const VIOL_INSERT_BATCH = 15;      // REDUCED from 25 to prevent statement timeouts
+    
+    // ===== RESUME SUPPORT =====
+    // Check if this is a resume of a previously interrupted job
+    // If violations_created > 0, we can skip already-processed staging rows
+    const existingViolationsCreated = job.violations_created || 0;
     let stagingOffset = 0;
     let violationsCreatedTotal = 0;
+    
+    if (existingViolationsCreated > 0) {
+      // Resume from where we left off - estimate offset based on violations created
+      // Each staging row typically creates 1 violation, so offset ≈ violations_created
+      stagingOffset = existingViolationsCreated;
+      violationsCreatedTotal = existingViolationsCreated;
+      console.log(`[process-upload] RESUMING from offset ${stagingOffset} (${existingViolationsCreated} violations already created)`);
+    }
+    
     let skippedRows = 0;
     let consecutiveErrors = 0;
     const MAX_CONSECUTIVE_ERRORS = 3;
 
-    console.log(`[process-upload] Starting violation creation (streaming batches of ${STAGING_FETCH_BATCH})...`);
+    console.log(`[process-upload] Starting violation creation (streaming batches of ${STAGING_FETCH_BATCH}, offset: ${stagingOffset})...`);
 
     while (true) {
       // Fetch a batch of staging rows with retry logic

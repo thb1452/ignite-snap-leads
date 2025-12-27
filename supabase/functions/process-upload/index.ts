@@ -977,12 +977,13 @@ async function processUploadJob(jobId: string) {
     // Now fetch all property IDs for this city in bulk - much faster than individual lookups
     // For county-scope: properties have city='unincorporated', for city-scope use job.city (lowercase)
     const lookupCity = isCountyScope ? 'unincorporated' : (job.city || '').toLowerCase();
-    console.log(`[process-upload] Fetching all property IDs for mapping (city="${lookupCity}")...`);
+    const lookupState = (job.state || '').toLowerCase();
+    console.log(`[process-upload] Fetching all property IDs for mapping (city="${lookupCity}", state="${lookupState}")...`);
     const { data: allCityProps, error: fetchError } = await supabaseClient
       .from('properties')
       .select('id, address, city, state, zip')
       .ilike('city', lookupCity)
-      .eq('state', job.state || '')
+      .ilike('state', lookupState)
       .limit(50000);
 
     if (fetchError) {

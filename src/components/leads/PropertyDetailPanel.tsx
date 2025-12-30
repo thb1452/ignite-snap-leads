@@ -87,22 +87,33 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
       setActivities([]);
       setPropertyLists([]);
       setContacts([]);
-      
+
       // Fetch violations from database
       const fetchViolations = async () => {
         setIsLoadingViolations(true);
+        console.log("[PropertyDetailPanel] Fetching violations for property:", property.id);
+
         try {
           const { data, error } = await supabase
             .from('violations')
-            .select('id, violation_type, status, opened_date, days_open, case_id')
+            .select('id, violation_type, status, opened_date, days_open, case_id, property_id')
             .eq('property_id', property.id)
             .order('opened_date', { ascending: false });
 
           if (error) {
             console.error("[PropertyDetailPanel] Error fetching violations:", error);
+            console.error("[PropertyDetailPanel] Error details:", {
+              message: error.message,
+              code: error.code,
+              details: error.details,
+              hint: error.hint
+            });
             setViolations([]);
           } else {
-            console.log("[PropertyDetailPanel] Fetched violations:", data?.length);
+            console.log(`[PropertyDetailPanel] ✓ Fetched ${data?.length || 0} violations for property ${property.id}`);
+            if (data && data.length > 0) {
+              console.log("[PropertyDetailPanel] Sample violation:", data[0]);
+            }
             setViolations(data || []);
           }
         } catch (err) {
@@ -321,16 +332,28 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               transition={{ delay: 0.15 }}
               className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-5 md:p-6"
             >
-              <div className="text-sm font-medium mb-4 text-ink-700 font-ui">Violations</div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm font-medium text-ink-700 font-ui">Violations</div>
+                {violations.length > 0 && (
+                  <span className="text-xs text-ink-400">{violations.length} total</span>
+                )}
+              </div>
               {isLoadingViolations ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin text-ink-400" />
                   <span className="ml-2 text-sm text-ink-400">Loading violations...</span>
                 </div>
-              ) : violations.length === 0 && !snapScore ? (
-                <p className="text-sm text-ink-400 text-center py-4">No violations recorded</p>
-              ) : violations.length === 0 && snapScore ? (
-                <p className="text-sm text-ink-400 text-center py-4">Violation details not available</p>
+              ) : violations.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-sm text-ink-500 mb-1">
+                    {snapScore ? "No violation records found" : "No violations recorded"}
+                  </p>
+                  <p className="text-xs text-ink-400">
+                    {snapScore
+                      ? "This property has a SnapScore but detailed violation records are not available in the database."
+                      : "Check the browser console for any errors."}
+                  </p>
+                </div>
               ) : (
                 <ol className="relative border-s border-slate-200 ml-3 space-y-4">
                   {violations.map((v) => {
@@ -340,13 +363,13 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                         {v.status || "Unknown"}
                       </span>
                     );
-                    
+
                     return (
                       <li key={v.id} className="ms-4">
                         <div className={`absolute -left-1.5 mt-1 h-3 w-3 rounded-full ${statusStyle.dot}`} />
                         <div className="rounded-xl border p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="font-medium text-ink-800">{v.violation_type || "Unknown"}</div>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="font-medium text-ink-800 text-sm">{v.violation_type || "Unknown"}</div>
                             {statusStyle.tooltip ? (
                               <TooltipProvider>
                                 <Tooltip>
@@ -361,8 +384,11 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                             ) : statusBadge}
                           </div>
                           {/* NOTE: Raw violation descriptions are NEVER shown to users for legal safety */}
+                          {v.case_id && (
+                            <p className="text-xs text-ink-400 mt-1">Case: {v.case_id}</p>
+                          )}
                           <p className="text-xs text-ink-400 mt-1">
-                            Opened {formatDate(v.opened_date)} • {v.days_open ?? 0} days
+                            Opened {formatDate(v.opened_date)} • {v.days_open ?? 0} days open
                           </p>
                         </div>
                       </li>

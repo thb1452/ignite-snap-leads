@@ -4,7 +4,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ExternalLink, MapPin, Mail, Clock } from "lucide-react";
+import { ExternalLink, MapPin, Mail, Clock, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { ActivityTimeline } from "./ActivityTimeline";
@@ -13,6 +13,7 @@ import { mockSkipTrace } from "@/services/mockData";
 import { formatDistanceToNow, format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Violation {
   id: string;
@@ -75,16 +76,48 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     postal_code: "",
     owner_name: ""
   });
+  const [violations, setViolations] = useState<Violation[]>([]);
+  const [isLoadingViolations, setIsLoadingViolations] = useState(false);
   const { toast } = useToast();
 
+  // Fetch violations when property changes
   useEffect(() => {
     if (property && open) {
-      // Demo mode - no backend fetches
+      // Reset state
       setActivities([]);
       setPropertyLists([]);
       setContacts([]);
+      
+      // Fetch violations from database
+      const fetchViolations = async () => {
+        setIsLoadingViolations(true);
+        try {
+          const { data, error } = await supabase
+            .from('violations')
+            .select('id, violation_type, status, opened_date, days_open, case_id')
+            .eq('property_id', property.id)
+            .order('opened_date', { ascending: false });
+
+          if (error) {
+            console.error("[PropertyDetailPanel] Error fetching violations:", error);
+            setViolations([]);
+          } else {
+            console.log("[PropertyDetailPanel] Fetched violations:", data?.length);
+            setViolations(data || []);
+          }
+        } catch (err) {
+          console.error("[PropertyDetailPanel] Exception fetching violations:", err);
+          setViolations([]);
+        } finally {
+          setIsLoadingViolations(false);
+        }
+      };
+
+      fetchViolations();
+    } else {
+      setViolations([]);
     }
-  }, [property, open]);
+  }, [property?.id, open]);
 
   if (!property) return null;
 
@@ -171,7 +204,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     ? `https://www.google.com/maps?q=${property.latitude},${property.longitude}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip}`)}`;
 
-  const hasMultipleViolations = property.violations.length >= 3;
+  const hasMultipleViolations = violations.length >= 3;
   const snapScore = property.snap_score;
   const credits = 100; // Demo mode - fake credits
   const hasContacts = contacts.length > 0;
@@ -289,11 +322,18 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-5 md:p-6"
             >
               <div className="text-sm font-medium mb-4 text-ink-700 font-ui">Violations</div>
-              {property.violations.length === 0 ? (
+              {isLoadingViolations ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-ink-400" />
+                  <span className="ml-2 text-sm text-ink-400">Loading violations...</span>
+                </div>
+              ) : violations.length === 0 && !snapScore ? (
                 <p className="text-sm text-ink-400 text-center py-4">No violations recorded</p>
+              ) : violations.length === 0 && snapScore ? (
+                <p className="text-sm text-ink-400 text-center py-4">Violation details not available</p>
               ) : (
                 <ol className="relative border-s border-slate-200 ml-3 space-y-4">
-                  {property.violations.map((v) => {
+                  {violations.map((v) => {
                     const statusStyle = getViolationStatusStyle(v.status);
                     const statusBadge = (
                       <span className={`px-2 py-0.5 rounded-full text-xs ${statusStyle.badge}`}>
@@ -322,7 +362,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                           </div>
                           {/* NOTE: Raw violation descriptions are NEVER shown to users for legal safety */}
                           <p className="text-xs text-ink-400 mt-1">
-                            Opened {formatDate(v.opened_date)} • {v.days_open} days
+                            Opened {formatDate(v.opened_date)} • {v.days_open ?? 0} days
                           </p>
                         </div>
                       </li>

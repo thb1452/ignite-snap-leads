@@ -7,8 +7,6 @@ import { Input } from "@/components/ui/input";
 import { ExternalLink, MapPin, Mail, Clock, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
-import { ActivityTimeline } from "./ActivityTimeline";
-import { StatusSelector } from "./StatusSelector";
 import { mockSkipTrace } from "@/services/mockData";
 import { formatDistanceToNow, format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -40,15 +38,6 @@ interface PropertyWithViolations {
   violations: Violation[];
 }
 
-interface LeadActivity {
-  id: string;
-  property_id: string;
-  status: string;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 interface PropertyList {
   id: string;
   list_id: string;
@@ -62,10 +51,8 @@ interface PropertyDetailPanelProps {
 }
 
 export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDetailPanelProps) {
-  const [activities, setActivities] = useState<LeadActivity[]>([]);
   const [propertyLists, setPropertyLists] = useState<PropertyList[]>([]);
   const [addToListOpen, setAddToListOpen] = useState(false);
-  const [isLogging, setIsLogging] = useState(false);
   const [isTracing, setIsTracing] = useState(false);
   const [contacts, setContacts] = useState<any[]>([]);
   const [showRetryDialog, setShowRetryDialog] = useState(false);
@@ -84,25 +71,35 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   useEffect(() => {
     if (property && open) {
       // Reset state
-      setActivities([]);
       setPropertyLists([]);
       setContacts([]);
-      
+
       // Fetch violations from database
       const fetchViolations = async () => {
         setIsLoadingViolations(true);
+        console.log("[PropertyDetailPanel] Fetching violations for property:", property.id);
+
         try {
           const { data, error } = await supabase
             .from('violations')
-            .select('id, violation_type, status, opened_date, days_open, case_id')
+            .select('id, violation_type, status, opened_date, days_open, case_id, property_id')
             .eq('property_id', property.id)
             .order('opened_date', { ascending: false });
 
           if (error) {
             console.error("[PropertyDetailPanel] Error fetching violations:", error);
+            console.error("[PropertyDetailPanel] Error details:", {
+              message: error.message,
+              code: error.code,
+              details: error.details,
+              hint: error.hint
+            });
             setViolations([]);
           } else {
-            console.log("[PropertyDetailPanel] Fetched violations:", data?.length);
+            console.log(`[PropertyDetailPanel] ✓ Fetched ${data?.length || 0} violations for property ${property.id}`);
+            if (data && data.length > 0) {
+              console.log("[PropertyDetailPanel] Sample violation:", data[0]);
+            }
             setViolations(data || []);
           }
         } catch (err) {
@@ -120,32 +117,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   }, [property?.id, open]);
 
   if (!property) return null;
-
-  const logActivity = async (status: string, notes?: string) => {
-    if (!property) return;
-    
-    setIsLogging(true);
-    try {
-      // Demo mode - simulate activity logging
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      toast({
-        title: "Demo Mode",
-        description: `Activity logged: ${status}`,
-      });
-    } catch (error) {
-      console.error("Error logging activity:", error);
-      toast({
-        title: "Error",
-        description: "Failed to log activity",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLogging(false);
-    }
-  };
-
-  // Demo mode - no fetch functions needed
 
   const handleSkipTrace = async (overrides?: any) => {
     if (!property) return;
@@ -321,16 +292,28 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               transition={{ delay: 0.15 }}
               className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-5 md:p-6"
             >
-              <div className="text-sm font-medium mb-4 text-ink-700 font-ui">Violations</div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm font-medium text-ink-700 font-ui">Violations</div>
+                {violations.length > 0 && (
+                  <span className="text-xs text-ink-400">{violations.length} total</span>
+                )}
+              </div>
               {isLoadingViolations ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin text-ink-400" />
                   <span className="ml-2 text-sm text-ink-400">Loading violations...</span>
                 </div>
-              ) : violations.length === 0 && !snapScore ? (
-                <p className="text-sm text-ink-400 text-center py-4">No violations recorded</p>
-              ) : violations.length === 0 && snapScore ? (
-                <p className="text-sm text-ink-400 text-center py-4">Violation details not available</p>
+              ) : violations.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-sm text-ink-500 mb-1">
+                    {snapScore ? "No violation records found" : "No violations recorded"}
+                  </p>
+                  <p className="text-xs text-ink-400">
+                    {snapScore
+                      ? "This property has a SnapScore but detailed violation records are not available in the database."
+                      : "Check the browser console for any errors."}
+                  </p>
+                </div>
               ) : (
                 <ol className="relative border-s border-slate-200 ml-3 space-y-4">
                   {violations.map((v) => {
@@ -340,13 +323,13 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                         {v.status || "Unknown"}
                       </span>
                     );
-                    
+
                     return (
                       <li key={v.id} className="ms-4">
                         <div className={`absolute -left-1.5 mt-1 h-3 w-3 rounded-full ${statusStyle.dot}`} />
                         <div className="rounded-xl border p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="font-medium text-ink-800">{v.violation_type || "Unknown"}</div>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="font-medium text-ink-800 text-sm">{v.violation_type || "Unknown"}</div>
                             {statusStyle.tooltip ? (
                               <TooltipProvider>
                                 <Tooltip>
@@ -361,8 +344,11 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                             ) : statusBadge}
                           </div>
                           {/* NOTE: Raw violation descriptions are NEVER shown to users for legal safety */}
+                          {v.case_id && (
+                            <p className="text-xs text-ink-400 mt-1">Case: {v.case_id}</p>
+                          )}
                           <p className="text-xs text-ink-400 mt-1">
-                            Opened {formatDate(v.opened_date)} • {v.days_open ?? 0} days
+                            Opened {formatDate(v.opened_date)} • {v.days_open ?? 0} days open
                           </p>
                         </div>
                       </li>
@@ -372,28 +358,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               )}
             </motion.section>
 
-            {/* Activity Timeline */}
-            <motion.section
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <ActivityTimeline activities={activities} />
-            </motion.section>
 
-            {/* Status Selector */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-              className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-5"
-            >
-              <div className="text-sm font-medium mb-3 text-ink-700 font-ui">Quick Status Update</div>
-              <StatusSelector
-                onSelect={(status) => logActivity(status)}
-                disabled={isLogging}
-              />
-            </motion.div>
 
             <a
               href={googleMapsUrl}
@@ -431,13 +396,11 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                   <Button
                     className="rounded-xl px-4 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 flex-1 transition-all"
                     onClick={() => {
-                      logActivity("SMS Sent");
                       toast({
                         title: "Demo Mode",
                         description: "Text message sent to owner",
                       });
                     }}
-                    disabled={isLogging}
                   >
                     <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -447,13 +410,11 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                   <Button
                     className="rounded-xl px-4 py-2.5 bg-blue-600 text-white hover:bg-blue-700 flex-1 transition-all"
                     onClick={() => {
-                      logActivity("Call Made");
                       toast({
                         title: "Demo Mode",
                         description: "Calling owner...",
                       });
                     }}
-                    disabled={isLogging}
                   >
                     <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -464,13 +425,11 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 <Button
                   className="rounded-xl px-4 py-2.5 bg-ink-900 text-white hover:bg-ink-700 w-full transition-all"
                   onClick={() => {
-                    logActivity("Email Sent");
                     toast({
                       title: "Demo Mode",
                       description: "Email sent to owner",
                     });
                   }}
-                  disabled={isLogging}
                 >
                   <Mail className="h-4 w-4 mr-2" />
                   Send Email

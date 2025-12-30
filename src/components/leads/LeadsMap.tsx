@@ -161,17 +161,42 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
       if (markersRef.current.length > 0) {
         const group = L.featureGroup(markersRef.current);
         const bounds = group.getBounds();
-        
-        // Calculate appropriate zoom based on bounds size
-        mapRef.current.fitBounds(bounds.pad(0.1), {
-          maxZoom: 15, // Don't zoom in too close even for single property
-        });
-        
-        // Ensure we don't zoom out too far for readability
-        const currentZoom = mapRef.current.getZoom();
-        if (currentZoom < 4) {
-          mapRef.current.setZoom(4);
+
+        // Calculate geographic spread to determine appropriate zoom
+        const latSpread = bounds.getNorth() - bounds.getSouth();
+        const lngSpread = bounds.getEast() - bounds.getWest();
+
+        // Determine max zoom based on geographic spread
+        let maxZoom = 15;
+        let minZoom = 4; // USA-wide default minimum
+
+        if (latSpread < 0.5 && lngSpread < 0.5) {
+          // Very small area (single city/neighborhood) - zoom in close
+          maxZoom = 13;
+          minZoom = 11;
+        } else if (latSpread < 2 && lngSpread < 2) {
+          // City-level spread
+          maxZoom = 11;
+          minZoom = 9;
+        } else if (latSpread < 5 && lngSpread < 5) {
+          // County/metro area spread
+          maxZoom = 9;
+          minZoom = 7;
+        } else if (latSpread < 10 && lngSpread < 10) {
+          // State-level spread
+          maxZoom = 7;
+          minZoom = 5;
+        } else {
+          // Multi-state or national spread - USA-wide view
+          maxZoom = 5;
+          minZoom = 4;
         }
+
+        // Fit bounds with calculated zoom constraints
+        mapRef.current.fitBounds(bounds.pad(0.1), {
+          maxZoom: maxZoom,
+          minZoom: minZoom,
+        });
       } else {
         // No markers - reset to USA-wide view
         mapRef.current.setView(USA_CENTER, USA_ZOOM);
@@ -279,15 +304,36 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
         const bounds = L.latLngBounds(
           validProperties.map(p => [p.latitude!, p.longitude!] as L.LatLngTuple)
         );
-        mapRef.current.fitBounds(bounds.pad(0.1), {
-          maxZoom: 15,
-        });
-        
-        // Ensure we don't zoom out too far for readability
-        const currentZoom = mapRef.current.getZoom();
-        if (currentZoom < 4) {
-          mapRef.current.setZoom(4);
+
+        // Calculate geographic spread to determine appropriate zoom
+        const latSpread = bounds.getNorth() - bounds.getSouth();
+        const lngSpread = bounds.getEast() - bounds.getWest();
+
+        // Determine max zoom based on geographic spread
+        let maxZoom = 15;
+        let minZoom = 4;
+
+        if (latSpread < 0.5 && lngSpread < 0.5) {
+          maxZoom = 13;
+          minZoom = 11;
+        } else if (latSpread < 2 && lngSpread < 2) {
+          maxZoom = 11;
+          minZoom = 9;
+        } else if (latSpread < 5 && lngSpread < 5) {
+          maxZoom = 9;
+          minZoom = 7;
+        } else if (latSpread < 10 && lngSpread < 10) {
+          maxZoom = 7;
+          minZoom = 5;
+        } else {
+          maxZoom = 5;
+          minZoom = 4;
         }
+
+        mapRef.current.fitBounds(bounds.pad(0.1), {
+          maxZoom: maxZoom,
+          minZoom: minZoom,
+        });
       } else {
         // No valid properties - reset to USA-wide view
         mapRef.current.setView(USA_CENTER, USA_ZOOM);

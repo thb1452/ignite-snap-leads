@@ -80,17 +80,16 @@ export function FilterBar({
         <span className="text-sm font-medium whitespace-nowrap">
           {propertyCount.toLocaleString()} Properties
         </span>
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClearFilters}
-            className="gap-2"
-          >
-            <X className="h-4 w-4" />
-            Reset All
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          className="gap-2"
+        >
+          <X className="h-4 w-4" />
+          Clear all filters
+        </Button>
       </div>
     </div>
   );

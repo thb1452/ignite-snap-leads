@@ -94,10 +94,10 @@ export function PropertyCard({
         <div className="flex-1 min-w-0 max-w-full">
           <div className="flex items-start justify-between gap-3 mb-2">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-base leading-tight">
+              <h3 className="font-semibold text-base leading-tight break-words">
                 {property.address}
               </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5 break-words">
                 {property.city}, {property.state} {property.zip}
               </p>
             </div>

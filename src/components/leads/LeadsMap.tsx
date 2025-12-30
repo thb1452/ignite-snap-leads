@@ -37,11 +37,18 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
     return "#4A90E2"; // Blue (Low Distress)
   };
 
+  // USA center coordinates and default zoom
+  const USA_CENTER: L.LatLngTuple = [39.8283, -98.5795];
+  const USA_ZOOM = 4;
+
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Initialize map - will be fitted to bounds once markers are added
-    mapRef.current = L.map(mapContainerRef.current).setView([32.7355, -96.2743], 13); // Terrell, TX default
+    // Initialize map with USA-wide view
+    mapRef.current = L.map(mapContainerRef.current, {
+      minZoom: 3,
+      maxZoom: 18,
+    }).setView(USA_CENTER, USA_ZOOM);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -141,14 +148,26 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
 
       mapRef.current.addLayer(markerClusterGroupRef.current);
 
-      // Fit bounds if we have markers
+      // Fit bounds if we have markers, with smart zoom levels
       if (markersRef.current.length > 0) {
         const group = L.featureGroup(markersRef.current);
-        mapRef.current.fitBounds(group.getBounds().pad(0.1));
+        const bounds = group.getBounds();
+        
+        // Calculate appropriate zoom based on bounds size
+        mapRef.current.fitBounds(bounds.pad(0.1), {
+          maxZoom: 15, // Don't zoom in too close even for single property
+        });
+        
+        // Ensure we don't zoom out too far for readability
+        const currentZoom = mapRef.current.getZoom();
+        if (currentZoom < 4) {
+          mapRef.current.setZoom(4);
+        }
+      } else {
+        // No markers - reset to USA-wide view
+        mapRef.current.setView(USA_CENTER, USA_ZOOM);
       }
     } else {
-      // Heatmap mode - use gradient circles with blur effect
-      heatLayerRef.current = L.layerGroup();
       
       // Sort by score so higher scores render on top
       const sortedProperties = [...properties]
@@ -235,13 +254,24 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
 
       mapRef.current.addLayer(heatLayerRef.current);
       
-      // Fit bounds to show all heat points
+      // Fit bounds to show all heat points with smart zoom
       const validProperties = properties.filter(p => p.latitude && p.longitude);
       if (validProperties.length > 0) {
         const bounds = L.latLngBounds(
           validProperties.map(p => [p.latitude!, p.longitude!] as L.LatLngTuple)
         );
-        mapRef.current.fitBounds(bounds.pad(0.1));
+        mapRef.current.fitBounds(bounds.pad(0.1), {
+          maxZoom: 15,
+        });
+        
+        // Ensure we don't zoom out too far for readability
+        const currentZoom = mapRef.current.getZoom();
+        if (currentZoom < 4) {
+          mapRef.current.setZoom(4);
+        }
+      } else {
+        // No properties - reset to USA-wide view
+        mapRef.current.setView(USA_CENTER, USA_ZOOM);
       }
     }
   }, [properties, onPropertyClick, viewMode]);

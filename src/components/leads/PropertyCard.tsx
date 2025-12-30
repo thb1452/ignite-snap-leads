@@ -23,6 +23,7 @@ interface PropertyCardProps {
     address: string;
     city: string;
     state: string;
+    zip: string;
     snap_score: number | null;
     snap_insight: string | null;
     updated_at: string | null;
@@ -93,11 +94,11 @@ export function PropertyCard({
         <div className="flex-1 min-w-0 max-w-full">
           <div className="flex items-start justify-between gap-3 mb-2">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-base truncate">
+              <h3 className="font-semibold text-base leading-tight">
                 {property.address}
               </h3>
-              <p className="text-xs text-muted-foreground">
-                {property.city}, {property.state}
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {property.city}, {property.state} {property.zip}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">

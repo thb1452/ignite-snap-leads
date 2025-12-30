@@ -7,8 +7,6 @@ import { Input } from "@/components/ui/input";
 import { ExternalLink, MapPin, Mail, Clock, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
-import { ActivityTimeline } from "./ActivityTimeline";
-import { StatusSelector } from "./StatusSelector";
 import { mockSkipTrace } from "@/services/mockData";
 import { formatDistanceToNow, format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -40,15 +38,6 @@ interface PropertyWithViolations {
   violations: Violation[];
 }
 
-interface LeadActivity {
-  id: string;
-  property_id: string;
-  status: string;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 interface PropertyList {
   id: string;
   list_id: string;
@@ -62,10 +51,8 @@ interface PropertyDetailPanelProps {
 }
 
 export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDetailPanelProps) {
-  const [activities, setActivities] = useState<LeadActivity[]>([]);
   const [propertyLists, setPropertyLists] = useState<PropertyList[]>([]);
   const [addToListOpen, setAddToListOpen] = useState(false);
-  const [isLogging, setIsLogging] = useState(false);
   const [isTracing, setIsTracing] = useState(false);
   const [contacts, setContacts] = useState<any[]>([]);
   const [showRetryDialog, setShowRetryDialog] = useState(false);
@@ -84,7 +71,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   useEffect(() => {
     if (property && open) {
       // Reset state
-      setActivities([]);
       setPropertyLists([]);
       setContacts([]);
 
@@ -131,32 +117,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   }, [property?.id, open]);
 
   if (!property) return null;
-
-  const logActivity = async (status: string, notes?: string) => {
-    if (!property) return;
-    
-    setIsLogging(true);
-    try {
-      // Demo mode - simulate activity logging
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      toast({
-        title: "Demo Mode",
-        description: `Activity logged: ${status}`,
-      });
-    } catch (error) {
-      console.error("Error logging activity:", error);
-      toast({
-        title: "Error",
-        description: "Failed to log activity",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLogging(false);
-    }
-  };
-
-  // Demo mode - no fetch functions needed
 
   const handleSkipTrace = async (overrides?: any) => {
     if (!property) return;
@@ -398,28 +358,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               )}
             </motion.section>
 
-            {/* Activity Timeline */}
-            <motion.section
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <ActivityTimeline activities={activities} />
-            </motion.section>
 
-            {/* Status Selector */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-              className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-5"
-            >
-              <div className="text-sm font-medium mb-3 text-ink-700 font-ui">Quick Status Update</div>
-              <StatusSelector
-                onSelect={(status) => logActivity(status)}
-                disabled={isLogging}
-              />
-            </motion.div>
 
             <a
               href={googleMapsUrl}
@@ -457,13 +396,11 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                   <Button
                     className="rounded-xl px-4 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 flex-1 transition-all"
                     onClick={() => {
-                      logActivity("SMS Sent");
                       toast({
                         title: "Demo Mode",
                         description: "Text message sent to owner",
                       });
                     }}
-                    disabled={isLogging}
                   >
                     <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -473,13 +410,11 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                   <Button
                     className="rounded-xl px-4 py-2.5 bg-blue-600 text-white hover:bg-blue-700 flex-1 transition-all"
                     onClick={() => {
-                      logActivity("Call Made");
                       toast({
                         title: "Demo Mode",
                         description: "Calling owner...",
                       });
                     }}
-                    disabled={isLogging}
                   >
                     <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -490,13 +425,11 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 <Button
                   className="rounded-xl px-4 py-2.5 bg-ink-900 text-white hover:bg-ink-700 w-full transition-all"
                   onClick={() => {
-                    logActivity("Email Sent");
                     toast({
                       title: "Demo Mode",
                       description: "Email sent to owner",
                     });
                   }}
-                  disabled={isLogging}
                 >
                   <Mail className="h-4 w-4 mr-2" />
                   Send Email

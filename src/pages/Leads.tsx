@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { LeadsMap } from "@/components/leads/LeadsMap";
 import { FilterBar } from "@/components/leads/FilterBar";
@@ -43,6 +43,12 @@ function Leads() {
   
   // Demo credits hook
   const { isDemoMode, isAdmin } = useDemoCredits();
+
+  // CRITICAL FIX: Clear city selection when state changes
+  useEffect(() => {
+    console.log("[Leads] State changed to:", selectedState, "- Clearing city selection");
+    setSelectedCity(null);
+  }, [selectedState]);
 
   // UI state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

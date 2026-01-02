@@ -66,8 +66,15 @@ export async function fetchPropertiesPaged(
     q = q.eq("jurisdiction_id", filters.jurisdictionId);
   }
 
-  // Filter: cities
-  if (filters.cities?.length) q = q.in("city", filters.cities);
+  // Filter: cities (case-insensitive to handle Tampa vs TAMPA vs tampa)
+  if (filters.cities?.length === 1) {
+    // Single city - use case-insensitive match
+    q = q.ilike("city", filters.cities[0]);
+  } else if (filters.cities && filters.cities.length > 1) {
+    // Multiple cities - use OR with case-insensitive matches
+    const orFilters = filters.cities.map(city => `city.ilike.${city}`).join(',');
+    q = q.or(orFilters);
+  }
 
   // Filter: search (search across ALL relevant fields)
   if (filters.search) {

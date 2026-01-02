@@ -140,6 +140,22 @@ async function fetchPropertiesPagedLegacy(
     q = q.contains("violation_types", [filters.violationType]);
   }
 
+  // Pressure level filters
+  if (filters.openViolationsOnly) {
+    console.log("[fetchPropertiesPaged] Applying openViolationsOnly filter");
+    q = q.gt("open_violations", 0);
+  }
+
+  if (filters.multipleViolationsOnly) {
+    console.log("[fetchPropertiesPaged] Applying multipleViolationsOnly filter");
+    q = q.gt("total_violations", 1);
+  }
+
+  if (filters.repeatOffenderOnly) {
+    console.log("[fetchPropertiesPaged] Applying repeatOffenderOnly filter");
+    q = q.eq("repeat_offender", true);
+  }
+
   // Sort and paginate
   q = q.order("snap_score", { ascending: false, nullsFirst: false }).range(from, to);
 

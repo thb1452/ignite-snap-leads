@@ -70,15 +70,44 @@ function extractCityFromAddress(address: string, cityField: string): string {
 /**
  * Validate that a string looks like a real city name, not a violation description
  * Returns true if the value appears to be a valid city name
+ * ENHANCED validation to catch street addresses, field headers, and garbage data
  */
 function isValidCityName(value: string): boolean {
   if (!value || value.length === 0) return false;
-
-  // Reject if it's too long (cities are rarely over 50 chars)
   if (value.length > 50) return false;
+  if (value.length < 2) return false;
+
+  const trimmed = value.trim();
+  if (trimmed.length < 2) return false;
+
+  // CRITICAL: Reject street addresses (contain numbers + street suffixes)
+  if (/\d+\s+(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|ct|court|way|pl|place|pkwy|parkway|cir|circle)/i.test(value)) {
+    return false;
+  }
+
+  // Reject if starts with numbers (street addresses, zip codes, case numbers)
+  if (/^\d/.test(trimmed)) return false;
+
+  // Reject dates (MM/DD/YYYY, YYYY-MM-DD)
+  if (/\d{1,2}\/\d{1,2}\/\d{2,4}/.test(value)) return false;
+  if (/\d{4}-\d{2}-\d{2}/.test(value)) return false;
+
+  // Reject zip codes (5 or 9 digits)
+  if (/^\d{5}(-\d{4})?$/.test(value)) return false;
 
   // Reject if it contains multiple sentences (periods followed by space/capital letter)
   if (/\.\s+[A-Z]/.test(value)) return false;
+
+  // Reject field headers
+  const fieldHeaders = [
+    'property address', 'case number', 'file number', 'violation type',
+    'description', 'location', 'address', 'city', 'status',
+    'date opened', 'date closed', 'opened date', 'closed date'
+  ];
+  const lowerValue = value.toLowerCase().trim();
+  for (const header of fieldHeaders) {
+    if (lowerValue === header || lowerValue.includes(header)) return false;
+  }
 
   // Reject if it contains violation-like keywords
   const violationKeywords = [
@@ -93,7 +122,6 @@ function isValidCityName(value: string): boolean {
     'hurricane', 'storm', 'flood', 'damage', 'broken', 'missing'
   ];
 
-  const lowerValue = value.toLowerCase();
   for (const keyword of violationKeywords) {
     if (lowerValue.includes(keyword)) return false;
   }
@@ -102,12 +130,23 @@ function isValidCityName(value: string): boolean {
   if (value.includes(':') || value.includes(';')) return false;
   if (value.includes('(') || value.includes(')')) return false;
   if (value.includes('[') || value.includes(']')) return false;
+  if (value.includes('#') || value.includes('@')) return false;
+  if (value.includes('*') || value.includes('&')) return false;
 
   // Reject if it starts with numbers or special chars (like "1.", "2-3", etc.)
-  if (/^[\d\-#]/.test(value)) return false;
+  if (/^[\d\-#•@*&]/.test(value)) return false;
 
   // City names should primarily contain letters, spaces, hyphens, and apostrophes
   if (!/^[A-Za-z\s\-'.]+$/.test(value)) return false;
+
+  // Reject if it's just one or two characters (too short for a real city)
+  if (trimmed.length < 3 && !['NY', 'LA', 'SF', 'DC'].includes(trimmed.toUpperCase())) {
+    return false;
+  }
+
+  // Reject if contains more than 4 words (likely a description or address)
+  const wordCount = trimmed.split(/\s+/).length;
+  if (wordCount > 4) return false;
 
   return true;
 }

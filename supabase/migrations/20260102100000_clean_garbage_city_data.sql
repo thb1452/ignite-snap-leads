@@ -167,3 +167,23 @@ END $$;
 
 -- Add a comment for documentation
 COMMENT ON COLUMN properties.city IS 'City name - cleaned of garbage data from CSV imports (street addresses, violation descriptions, field headers removed)';
+
+-- ===================================================================
+-- Refresh materialized views to reflect cleaned data
+-- ===================================================================
+-- The materialized views mv_distinct_states and mv_distinct_cities
+-- were created with garbage data. Refresh them after cleanup.
+
+DO $$
+BEGIN
+  -- Check if materialized views exist before refreshing
+  IF EXISTS (SELECT 1 FROM pg_matviews WHERE matviewname = 'mv_distinct_states') THEN
+    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_distinct_states;
+    RAISE NOTICE 'Refreshed mv_distinct_states after cleanup';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM pg_matviews WHERE matviewname = 'mv_distinct_cities') THEN
+    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_distinct_cities;
+    RAISE NOTICE 'Refreshed mv_distinct_cities after cleanup';
+  END IF;
+END $$;

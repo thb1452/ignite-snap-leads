@@ -75,14 +75,20 @@ function Leads() {
   }, [snapScoreMin, lastSeenDays, selectedCity, selectedState, selectedCounty, selectedJurisdictionId, selectedSource]);
 
   // Build filters object for the hook
-  const filters = useMemo(() => ({
-    search: searchQuery || undefined,
-    cities: selectedCity ? [selectedCity] : undefined,
-    state: selectedState || undefined,
-    county: selectedCounty || undefined,
-    jurisdictionId: selectedJurisdictionId || undefined,
-    snapScoreRange: snapScoreMin > 0 ? [snapScoreMin, 100] as [number, number] : undefined,
-  }), [searchQuery, selectedCity, selectedState, selectedCounty, selectedJurisdictionId, snapScoreMin]);
+  const filters = useMemo(() => {
+    const f = {
+      search: searchQuery || undefined,
+      cities: selectedCity ? [selectedCity] : undefined,
+      state: selectedState || undefined,
+      county: selectedCounty || undefined,
+      jurisdictionId: selectedJurisdictionId || undefined,
+      snapScoreRange: snapScoreMin > 0 ? [snapScoreMin, 100] as [number, number] : undefined,
+      lastSeenDays: lastSeenDays || undefined,
+      violationType: selectedSource || undefined,
+    };
+    console.log("[Leads] Filter state changed:", JSON.stringify(f, null, 2));
+    return f;
+  }, [searchQuery, selectedCity, selectedState, selectedCounty, selectedJurisdictionId, snapScoreMin, lastSeenDays, selectedSource]);
 
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);

@@ -1,48 +1,56 @@
 import { useState } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SlidersHorizontal, X } from "lucide-react";
-import { LocationFilter } from "./LocationFilter";
-import { FilterControls } from "./FilterControls";
+import { EnforcementAreaFilter } from "./EnforcementAreaFilter";
+import { EnforcementSignalsFilter } from "./EnforcementSignalsFilter";
+import { PressureLevelFilter } from "./PressureLevelFilter";
+import { ScoreAndTimeFilter } from "./ScoreAndTimeFilter";
 
 interface MobileFilterSheetProps {
-  // Location filter props
-  selectedJurisdiction: string | null;
+  // Enforcement area props
   selectedCity: string | null;
   selectedState: string | null;
-  selectedCounty: string | null;
-  onJurisdictionChange: (value: string | null) => void;
   onCityChange: (value: string | null) => void;
   onStateChange: (value: string | null) => void;
-  onCountyChange: (value: string | null) => void;
-  // Filter controls props
+  // Score and time props
   snapScoreMin: number;
   onSnapScoreChange: (value: number) => void;
   lastSeenDays: number | null;
   onLastSeenChange: (value: number | null) => void;
-  selectedSource: string | null;
-  onSourceChange: (value: string | null) => void;
+  // Enforcement signals props
+  selectedSignal: string | null;
+  onSignalChange: (value: string | null) => void;
+  // Pressure level props
+  openViolationsOnly: boolean;
+  onOpenViolationsChange: (value: boolean) => void;
+  multipleViolationsOnly: boolean;
+  onMultipleViolationsChange: (value: boolean) => void;
+  repeatOffenderOnly: boolean;
+  onRepeatOffenderChange: (value: boolean) => void;
   // General
   onClearFilters: () => void;
   activeFilterCount: number;
 }
 
 export function MobileFilterSheet({
-  selectedJurisdiction,
   selectedCity,
   selectedState,
-  selectedCounty,
-  onJurisdictionChange,
   onCityChange,
   onStateChange,
-  onCountyChange,
   snapScoreMin,
   onSnapScoreChange,
   lastSeenDays,
   onLastSeenChange,
-  selectedSource,
-  onSourceChange,
+  selectedSignal,
+  onSignalChange,
+  openViolationsOnly,
+  onOpenViolationsChange,
+  multipleViolationsOnly,
+  onMultipleViolationsChange,
+  repeatOffenderOnly,
+  onRepeatOffenderChange,
   onClearFilters,
   activeFilterCount,
 }: MobileFilterSheetProps) {
@@ -61,9 +69,14 @@ export function MobileFilterSheet({
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="bottom" className="h-[80vh] max-h-[80vh] rounded-t-2xl flex flex-col p-0">
+      <SheetContent side="bottom" className="h-[85vh] max-h-[85vh] rounded-t-2xl flex flex-col p-0">
         <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b shrink-0">
-          <SheetTitle className="text-lg font-semibold">Filters</SheetTitle>
+          <div>
+            <SheetTitle className="text-lg font-semibold">Filters</SheetTitle>
+            <SheetDescription className="text-xs text-muted-foreground">
+              Filter properties by enforcement area and signals
+            </SheetDescription>
+          </div>
           {activeFilterCount > 0 && (
             <Button
               variant="ghost"
@@ -79,41 +92,44 @@ export function MobileFilterSheet({
         
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* Location Filters */}
+          {/* Enforcement Area */}
+          <EnforcementAreaFilter
+            selectedCity={selectedCity}
+            selectedState={selectedState}
+            onCityChange={onCityChange}
+            onStateChange={onStateChange}
+          />
+
+          {/* Score and Time Filters */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Location
+              Score & Recency
             </h3>
-            <div className="space-y-3">
-              <LocationFilter
-                selectedJurisdiction={selectedJurisdiction}
-                selectedCity={selectedCity}
-                selectedState={selectedState}
-                selectedCounty={selectedCounty}
-                onJurisdictionChange={onJurisdictionChange}
-                onCityChange={onCityChange}
-                onStateChange={onStateChange}
-                onCountyChange={onCountyChange}
-              />
-            </div>
+            <ScoreAndTimeFilter
+              snapScoreMin={snapScoreMin}
+              onSnapScoreChange={onSnapScoreChange}
+              lastSeenDays={lastSeenDays}
+              onLastSeenChange={onLastSeenChange}
+            />
           </div>
 
-          {/* Other Filters */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Property Filters
-            </h3>
-            <div className="space-y-3">
-              <FilterControls
-                snapScoreMin={snapScoreMin}
-                onSnapScoreChange={onSnapScoreChange}
-                lastSeenDays={lastSeenDays}
-                onLastSeenChange={onLastSeenChange}
-                selectedSource={selectedSource}
-                onSourceChange={onSourceChange}
-              />
-            </div>
-          </div>
+          {/* Enforcement Signals */}
+          <EnforcementSignalsFilter
+            selectedSignal={selectedSignal}
+            onSignalChange={onSignalChange}
+            selectedState={selectedState}
+            selectedCity={selectedCity}
+          />
+
+          {/* Pressure Level */}
+          <PressureLevelFilter
+            openViolationsOnly={openViolationsOnly}
+            onOpenViolationsChange={onOpenViolationsChange}
+            multipleViolationsOnly={multipleViolationsOnly}
+            onMultipleViolationsChange={onMultipleViolationsChange}
+            repeatOffenderOnly={repeatOffenderOnly}
+            onRepeatOffenderChange={onRepeatOffenderChange}
+          />
         </div>
 
         {/* Fixed Apply Button at bottom */}

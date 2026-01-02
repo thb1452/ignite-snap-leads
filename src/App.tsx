@@ -29,11 +29,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={
-            <RoleProtectedRoute allowedRoles={['admin']} redirectTo="/va-dashboard">
-              <Leads />
-            </RoleProtectedRoute>
-          } />
+          <Route path="/" element={<Leads />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/upload" element={

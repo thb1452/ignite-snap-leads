@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 interface FilterBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
-  snapScoreMin: number;
   lastSeenDays: number | null;
   selectedCity: string | null;
   selectedState: string | null;
@@ -21,7 +20,6 @@ interface FilterBarProps {
 export function FilterBar({
   searchQuery,
   onSearchChange,
-  snapScoreMin,
   lastSeenDays,
   selectedCity,
   selectedState,
@@ -32,7 +30,7 @@ export function FilterBar({
   propertyCount,
   onClearFilters
 }: FilterBarProps) {
-  const hasActiveFilters = snapScoreMin > 0 || lastSeenDays !== null || 
+  const hasActiveFilters = lastSeenDays !== null ||
     selectedCity !== null || selectedState !== null || selectedSignal !== null ||
     openViolationsOnly || multipleViolationsOnly || repeatOffenderOnly;
 
@@ -60,13 +58,8 @@ export function FilterBar({
             {selectedCity}
           </Badge>
         )}
-        
-        {/* Score and time badges */}
-        {snapScoreMin > 0 && (
-          <Badge variant="secondary" className="gap-1">
-            Score ≥ {snapScoreMin}
-          </Badge>
-        )}
+
+        {/* Time badge */}
         {lastSeenDays !== null && (
           <Badge variant="secondary" className="gap-1">
             ≤ {lastSeenDays} days

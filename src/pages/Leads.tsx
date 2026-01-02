@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { LeadsMap } from "@/components/leads/LeadsMap";
 import { FilterBar } from "@/components/leads/FilterBar";
-import { FilterControls } from "@/components/leads/FilterControls";
 import { BulkActionBar } from "@/components/leads/BulkActionBar";
 import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { MobilePropertyDetailSheet } from "@/components/leads/MobilePropertyDetailSheet";
@@ -13,7 +12,10 @@ import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
 import { Trash2, ChevronLeft, ChevronRight, Search, X, Map, List } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
-import { LocationFilter } from "@/components/leads/LocationFilter";
+import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
+import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
+import { PressureLevelFilter } from "@/components/leads/PressureLevelFilter";
+import { ScoreAndTimeFilter } from "@/components/leads/ScoreAndTimeFilter";
 import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
@@ -36,15 +38,22 @@ function Leads() {
   // Pagination state
   const [page, setPage] = useState(1);
 
-  // Filter state
+  // Enforcement Area filter state
   const [searchQuery, setSearchQuery] = useState("");
-  const [snapScoreMin, setSnapScoreMin] = useState(0);
-  const [lastSeenDays, setLastSeenDays] = useState<number | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<string | null>(null);
-  const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
-  const [selectedSource, setSelectedSource] = useState<string | null>(null);
-  const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<string | null>(null);
+  
+  // Score and time filter state
+  const [snapScoreMin, setSnapScoreMin] = useState(0);
+  const [lastSeenDays, setLastSeenDays] = useState<number | null>(null);
+  
+  // Enforcement signals filter state
+  const [selectedSignal, setSelectedSignal] = useState<string | null>(null);
+  
+  // Pressure level filter state
+  const [openViolationsOnly, setOpenViolationsOnly] = useState(false);
+  const [multipleViolationsOnly, setMultipleViolationsOnly] = useState(false);
+  const [repeatOffenderOnly, setRepeatOffenderOnly] = useState(false);
   
   // Mobile view state
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
@@ -68,11 +77,12 @@ function Leads() {
     if (lastSeenDays !== null) count++;
     if (selectedCity) count++;
     if (selectedState) count++;
-    if (selectedCounty) count++;
-    if (selectedJurisdictionId) count++;
-    if (selectedSource) count++;
+    if (selectedSignal) count++;
+    if (openViolationsOnly) count++;
+    if (multipleViolationsOnly) count++;
+    if (repeatOffenderOnly) count++;
     return count;
-  }, [snapScoreMin, lastSeenDays, selectedCity, selectedState, selectedCounty, selectedJurisdictionId, selectedSource]);
+  }, [snapScoreMin, lastSeenDays, selectedCity, selectedState, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly]);
 
   // Build filters object for the hook - only include truthy values
   const filters = useMemo(() => {
@@ -81,15 +91,18 @@ function Leads() {
     if (searchQuery?.trim()) f.search = searchQuery.trim();
     if (selectedCity) f.cities = [selectedCity];
     if (selectedState) f.state = selectedState;
-    if (selectedCounty) f.county = selectedCounty;
-    if (selectedJurisdictionId) f.jurisdictionId = selectedJurisdictionId;
     if (snapScoreMin > 0) f.snapScoreRange = [snapScoreMin, 100] as [number, number];
     if (lastSeenDays !== null && lastSeenDays > 0) f.lastSeenDays = lastSeenDays;
-    if (selectedSource) f.violationType = selectedSource;
+    if (selectedSignal) f.violationType = selectedSignal;
+    
+    // Pressure level filters
+    if (openViolationsOnly) f.openViolationsOnly = true;
+    if (multipleViolationsOnly) f.multipleViolationsOnly = true;
+    if (repeatOffenderOnly) f.repeatOffenderOnly = true;
     
     console.log("[Leads] Active filters:", JSON.stringify(f));
     return f;
-  }, [searchQuery, selectedCity, selectedState, selectedCounty, selectedJurisdictionId, snapScoreMin, lastSeenDays, selectedSource]);
+  }, [searchQuery, selectedCity, selectedState, snapScoreMin, lastSeenDays, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly]);
 
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
@@ -111,9 +124,10 @@ function Leads() {
     setLastSeenDays(null);
     setSelectedCity(null);
     setSelectedState(null);
-    setSelectedCounty(null);
-    setSelectedSource(null);
-    setSelectedJurisdictionId(null);
+    setSelectedSignal(null);
+    setOpenViolationsOnly(false);
+    setMultipleViolationsOnly(false);
+    setRepeatOffenderOnly(false);
     setPage(1);
   };
 
@@ -155,7 +169,6 @@ function Leads() {
       await exportFilteredCsv({
         city: selectedCity || undefined,
         minScore: snapScoreMin,
-        jurisdictionId: selectedJurisdictionId || undefined,
       });
 
       toast({
@@ -234,7 +247,7 @@ function Leads() {
         currentPlan={plan?.name}
       />
 
-      {/* DESKTOP: Original Filter Bar */}
+      {/* DESKTOP: Filter Bar */}
       <div className="hidden md:block">
         <FilterBar
           searchQuery={searchQuery}
@@ -243,30 +256,52 @@ function Leads() {
           lastSeenDays={lastSeenDays}
           selectedCity={selectedCity}
           selectedState={selectedState}
-          selectedCounty={selectedCounty}
-          selectedJurisdiction={selectedJurisdictionId}
+          selectedSignal={selectedSignal}
+          openViolationsOnly={openViolationsOnly}
+          multipleViolationsOnly={multipleViolationsOnly}
+          repeatOffenderOnly={repeatOffenderOnly}
           propertyCount={totalCount}
           onClearFilters={handleClearFilters}
         />
         
-        <div className="flex flex-wrap gap-4 px-4 py-3 border-b bg-background">
-          <LocationFilter
-            selectedJurisdiction={selectedJurisdictionId}
+        <div className="flex flex-wrap gap-6 px-4 py-4 border-b bg-background">
+          {/* Enforcement Area */}
+          <EnforcementAreaFilter
             selectedCity={selectedCity}
             selectedState={selectedState}
-            selectedCounty={selectedCounty}
-            onJurisdictionChange={(j) => { setSelectedJurisdictionId(j); setPage(1); }}
             onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
             onStateChange={(s) => { setSelectedState(s); setPage(1); }}
-            onCountyChange={(c) => { setSelectedCounty(c); setPage(1); }}
           />
-          <FilterControls
-            snapScoreMin={snapScoreMin}
-            onSnapScoreChange={(v) => { setSnapScoreMin(v); setPage(1); }}
-            lastSeenDays={lastSeenDays}
-            onLastSeenChange={setLastSeenDays}
-            selectedSource={selectedSource}
-            onSourceChange={setSelectedSource}
+          
+          {/* Score and Time */}
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Score & Recency
+            </span>
+            <ScoreAndTimeFilter
+              snapScoreMin={snapScoreMin}
+              onSnapScoreChange={(v) => { setSnapScoreMin(v); setPage(1); }}
+              lastSeenDays={lastSeenDays}
+              onLastSeenChange={setLastSeenDays}
+            />
+          </div>
+          
+          {/* Enforcement Signals */}
+          <EnforcementSignalsFilter
+            selectedSignal={selectedSignal}
+            onSignalChange={setSelectedSignal}
+            selectedState={selectedState}
+            selectedCity={selectedCity}
+          />
+          
+          {/* Pressure Level */}
+          <PressureLevelFilter
+            openViolationsOnly={openViolationsOnly}
+            onOpenViolationsChange={setOpenViolationsOnly}
+            multipleViolationsOnly={multipleViolationsOnly}
+            onMultipleViolationsChange={setMultipleViolationsOnly}
+            repeatOffenderOnly={repeatOffenderOnly}
+            onRepeatOffenderChange={setRepeatOffenderOnly}
           />
         </div>
       </div>
@@ -294,20 +329,22 @@ function Leads() {
             )}
           </div>
           <MobileFilterSheet
-            selectedJurisdiction={selectedJurisdictionId}
             selectedCity={selectedCity}
             selectedState={selectedState}
-            selectedCounty={selectedCounty}
-            onJurisdictionChange={(j) => { setSelectedJurisdictionId(j); setPage(1); }}
             onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
             onStateChange={(s) => { setSelectedState(s); setPage(1); }}
-            onCountyChange={(c) => { setSelectedCounty(c); setPage(1); }}
             snapScoreMin={snapScoreMin}
             onSnapScoreChange={(v) => { setSnapScoreMin(v); setPage(1); }}
             lastSeenDays={lastSeenDays}
             onLastSeenChange={setLastSeenDays}
-            selectedSource={selectedSource}
-            onSourceChange={setSelectedSource}
+            selectedSignal={selectedSignal}
+            onSignalChange={setSelectedSignal}
+            openViolationsOnly={openViolationsOnly}
+            onOpenViolationsChange={setOpenViolationsOnly}
+            multipleViolationsOnly={multipleViolationsOnly}
+            onMultipleViolationsChange={setMultipleViolationsOnly}
+            repeatOffenderOnly={repeatOffenderOnly}
+            onRepeatOffenderChange={setRepeatOffenderOnly}
             onClearFilters={handleClearFilters}
             activeFilterCount={activeFilterCount}
           />

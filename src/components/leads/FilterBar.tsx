@@ -10,8 +10,10 @@ interface FilterBarProps {
   lastSeenDays: number | null;
   selectedCity: string | null;
   selectedState: string | null;
-  selectedCounty: string | null;
-  selectedJurisdiction: string | null;
+  selectedSignal: string | null;
+  openViolationsOnly: boolean;
+  multipleViolationsOnly: boolean;
+  repeatOffenderOnly: boolean;
   propertyCount: number;
   onClearFilters: () => void;
 }
@@ -23,13 +25,16 @@ export function FilterBar({
   lastSeenDays,
   selectedCity,
   selectedState,
-  selectedCounty,
-  selectedJurisdiction,
+  selectedSignal,
+  openViolationsOnly,
+  multipleViolationsOnly,
+  repeatOffenderOnly,
   propertyCount,
   onClearFilters
 }: FilterBarProps) {
   const hasActiveFilters = snapScoreMin > 0 || lastSeenDays !== null || 
-    selectedCity !== null || selectedState !== null || selectedCounty !== null || selectedJurisdiction !== null;
+    selectedCity !== null || selectedState !== null || selectedSignal !== null ||
+    openViolationsOnly || multipleViolationsOnly || repeatOffenderOnly;
 
   return (
     <div className="flex items-center gap-4 p-4 border-b bg-background">
@@ -43,7 +48,20 @@ export function FilterBar({
         />
       </div>
 
-      <div className="flex items-center gap-2 flex-1">
+      <div className="flex items-center gap-2 flex-1 flex-wrap">
+        {/* Enforcement Area badges */}
+        {selectedState && (
+          <Badge variant="secondary">
+            {selectedState}
+          </Badge>
+        )}
+        {selectedCity && (
+          <Badge variant="secondary">
+            {selectedCity}
+          </Badge>
+        )}
+        
+        {/* Score and time badges */}
         {snapScoreMin > 0 && (
           <Badge variant="secondary" className="gap-1">
             Score ≥ {snapScoreMin}
@@ -54,24 +72,28 @@ export function FilterBar({
             ≤ {lastSeenDays} days
           </Badge>
         )}
-        {selectedState && (
-          <Badge variant="secondary">
-            {selectedState}
-          </Badge>
-        )}
-        {selectedCounty && (
-          <Badge variant="secondary">
-            {selectedCounty} County
-          </Badge>
-        )}
-        {selectedCity && (
-          <Badge variant="secondary">
-            {selectedCity}
-          </Badge>
-        )}
-        {selectedJurisdiction && (
+        
+        {/* Signal badge */}
+        {selectedSignal && (
           <Badge variant="outline">
-            Jurisdiction
+            {selectedSignal}
+          </Badge>
+        )}
+        
+        {/* Pressure level badges */}
+        {openViolationsOnly && (
+          <Badge variant="destructive" className="gap-1">
+            Open Only
+          </Badge>
+        )}
+        {multipleViolationsOnly && (
+          <Badge variant="destructive" className="gap-1">
+            Multiple
+          </Badge>
+        )}
+        {repeatOffenderOnly && (
+          <Badge variant="destructive" className="gap-1">
+            Repeat
           </Badge>
         )}
       </div>

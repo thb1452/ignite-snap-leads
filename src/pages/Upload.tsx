@@ -496,7 +496,7 @@ export default function Upload() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'text/csv': ['.csv'] },
-    multiple: true,  // Allow multiple files
+    multiple: false,  // Single file only
     disabled: uploading || (job?.status !== 'COMPLETE' && job?.status !== 'FAILED' && job !== null) || multiJobStats.isProcessing,
   });
 
@@ -641,14 +641,14 @@ export default function Upload() {
                       <input {...getInputProps()} />
                       <UploadIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                       <p className="text-lg font-medium mb-2">
-                        {isDragActive ? 'Drop the files here' : 'Drag & drop CSV files'}
+                        {isDragActive ? 'Drop the file here' : 'Drag & drop a CSV file'}
                       </p>
                       <p className="text-sm text-muted-foreground mb-4">
-                        {isDragActive ? '' : 'or click to browse (select multiple files)'}
+                        {isDragActive ? '' : 'or click to browse'}
                       </p>
                       <Button variant="outline" disabled={uploading || isJobActive}>
                         <FileSpreadsheet className="mr-2 h-4 w-4" />
-                        Select CSV Files
+                        Select CSV File
                       </Button>
                     </div>
                   </TabsContent>

@@ -69,17 +69,31 @@ export async function fetchPropertiesPaged(
   // Filter: cities
   if (filters.cities?.length) q = q.in("city", filters.cities);
 
-  // Filter: search (server-side best effort)
+  // Filter: search (search across ALL relevant fields)
   if (filters.search) {
     const s = filters.search.trim();
-    // You can add a text index and use ilike for simple cases
-    q = q.or(`address.ilike.%${s}%,city.ilike.%${s}%,zip.ilike.%${s}%`);
+    // Search across address, city, state, county, and zip
+    q = q.or(`address.ilike.%${s}%,city.ilike.%${s}%,state.ilike.%${s}%,county.ilike.%${s}%,zip.ilike.%${s}%`);
   }
 
   // Filter: snap score
   if (filters.snapScoreRange) {
     const [min, max] = filters.snapScoreRange;
     q = q.gte("snap_score", min).lte("snap_score", max);
+  }
+
+  // Filter: last seen (updated_at within X days)
+  if (filters.lastSeenDays) {
+    const daysAgo = new Date();
+    daysAgo.setDate(daysAgo.getDate() - filters.lastSeenDays);
+    q = q.gte("updated_at", daysAgo.toISOString());
+  }
+
+  // Filter: violation type
+  if (filters.violationType) {
+    // This requires a join with violations table - will implement via subquery
+    // For now, we'll need to add this to the properties table or use a different approach
+    console.warn("[fetchPropertiesPaged] violationType filter not yet fully implemented");
   }
 
   // Sort by snap_score desc (as your UI shows)

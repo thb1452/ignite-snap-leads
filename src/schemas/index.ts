@@ -46,5 +46,7 @@ export const LeadFiltersSchema = z.object({
   status: z.string().optional(),
   snapScoreRange: z.tuple([z.number(), z.number()]).optional(),
   listId: z.string().optional(),
+  lastSeenDays: z.number().optional(),
+  violationType: z.string().optional(),
 });
 export type LeadFilters = z.infer<typeof LeadFiltersSchema>;

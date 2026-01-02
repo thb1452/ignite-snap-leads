@@ -61,7 +61,9 @@ function Leads() {
     county: selectedCounty || undefined,
     jurisdictionId: selectedJurisdictionId || undefined,
     snapScoreRange: snapScoreMin > 0 ? [snapScoreMin, 100] as [number, number] : undefined,
-  }), [searchQuery, selectedCity, selectedState, selectedCounty, selectedJurisdictionId, snapScoreMin]);
+    lastSeenDays: lastSeenDays || undefined,
+    violationType: selectedSource || undefined,
+  }), [searchQuery, selectedCity, selectedState, selectedCounty, selectedJurisdictionId, snapScoreMin, lastSeenDays, selectedSource]);
 
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);

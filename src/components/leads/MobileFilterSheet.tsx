@@ -61,8 +61,8 @@ export function MobileFilterSheet({
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl px-4 pt-4 pb-8">
-        <SheetHeader className="flex flex-row items-center justify-between pb-4 border-b">
+      <SheetContent side="bottom" className="h-[80vh] max-h-[80vh] rounded-t-2xl flex flex-col p-0">
+        <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b shrink-0">
           <SheetTitle className="text-lg font-semibold">Filters</SheetTitle>
           {activeFilterCount > 0 && (
             <Button
@@ -77,13 +77,14 @@ export function MobileFilterSheet({
           )}
         </SheetHeader>
         
-        <div className="overflow-y-auto flex-1 py-6 space-y-6">
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
           {/* Location Filters */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Location
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <LocationFilter
                 selectedJurisdiction={selectedJurisdiction}
                 selectedCity={selectedCity}
@@ -98,11 +99,11 @@ export function MobileFilterSheet({
           </div>
 
           {/* Other Filters */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Property Filters
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <FilterControls
                 snapScoreMin={snapScoreMin}
                 onSnapScoreChange={onSnapScoreChange}
@@ -115,8 +116,8 @@ export function MobileFilterSheet({
           </div>
         </div>
 
-        {/* Apply Button */}
-        <div className="pt-4 border-t mt-auto">
+        {/* Fixed Apply Button at bottom */}
+        <div className="shrink-0 px-4 py-4 border-t bg-background">
           <Button 
             className="w-full h-12 text-base font-medium" 
             onClick={() => setOpen(false)}

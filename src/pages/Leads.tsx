@@ -74,19 +74,20 @@ function Leads() {
     return count;
   }, [snapScoreMin, lastSeenDays, selectedCity, selectedState, selectedCounty, selectedJurisdictionId, selectedSource]);
 
-  // Build filters object for the hook
+  // Build filters object for the hook - only include truthy values
   const filters = useMemo(() => {
-    const f = {
-      search: searchQuery || undefined,
-      cities: selectedCity ? [selectedCity] : undefined,
-      state: selectedState || undefined,
-      county: selectedCounty || undefined,
-      jurisdictionId: selectedJurisdictionId || undefined,
-      snapScoreRange: snapScoreMin > 0 ? [snapScoreMin, 100] as [number, number] : undefined,
-      lastSeenDays: lastSeenDays || undefined,
-      violationType: selectedSource || undefined,
-    };
-    console.log("[Leads] Filter state changed:", JSON.stringify(f, null, 2));
+    const f: Record<string, unknown> = {};
+    
+    if (searchQuery?.trim()) f.search = searchQuery.trim();
+    if (selectedCity) f.cities = [selectedCity];
+    if (selectedState) f.state = selectedState;
+    if (selectedCounty) f.county = selectedCounty;
+    if (selectedJurisdictionId) f.jurisdictionId = selectedJurisdictionId;
+    if (snapScoreMin > 0) f.snapScoreRange = [snapScoreMin, 100] as [number, number];
+    if (lastSeenDays !== null && lastSeenDays > 0) f.lastSeenDays = lastSeenDays;
+    if (selectedSource) f.violationType = selectedSource;
+    
+    console.log("[Leads] Active filters:", JSON.stringify(f));
     return f;
   }, [searchQuery, selectedCity, selectedState, selectedCounty, selectedJurisdictionId, snapScoreMin, lastSeenDays, selectedSource]);
 

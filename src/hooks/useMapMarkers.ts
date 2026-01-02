@@ -15,8 +15,24 @@ export interface MapMarker {
 const BATCH_SIZE = 1000; // Supabase default limit
 const MAX_MARKERS = 200000;
 
-async function fetchFilteredMarkers(filters: LeadFilters): Promise<MapMarker[]> {
-  console.log("[useMapMarkers] Fetching markers with filters:", JSON.stringify(filters, null, 2));
+// Clean filter object by removing undefined/null values
+function cleanFilters(filters: LeadFilters): LeadFilters {
+  if (!filters || typeof filters !== 'object') return {};
+  
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(filters)) {
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    cleaned[key] = value;
+  }
+  
+  return cleaned as LeadFilters;
+}
+
+async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[]> {
+  const filters = cleanFilters(rawFilters);
+  console.log("[useMapMarkers] Fetching markers with filters:", JSON.stringify(filters));
   const allMarkers: MapMarker[] = [];
   let offset = 0;
   let keepFetching = true;

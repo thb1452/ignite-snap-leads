@@ -1425,6 +1425,19 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_distinct_cities: {
+        Row: {
+          city: string | null
+          state: string | null
+        }
+        Relationships: []
+      }
+      mv_distinct_states: {
+        Row: {
+          state: string | null
+        }
+        Relationships: []
+      }
       v_hot_properties: {
         Row: {
           address: string | null

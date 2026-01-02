@@ -32,78 +32,36 @@ export function EnforcementSignalsFilter({
   selectedState,
   selectedCity,
 }: EnforcementSignalsFilterProps) {
-  // Fetch violation types with SCOPED counts based on enforcement area
+  // Fetch violation types with SCOPED counts using server-side RPC
   const { data: signalTypes = [], isLoading } = useQuery({
     queryKey: ["enforcement-signals", selectedState, selectedCity],
     queryFn: async () => {
-      // Build query to get violations scoped to enforcement area
-      let query = supabase
-        .from("violations")
-        .select(`
-          violation_type,
-          property:properties!inner(id, state, city)
-        `)
-        .not("violation_type", "is", null);
-      
-      // The inner join with properties allows us to filter by state/city
-      // We need to use a different approach since Supabase doesn't support
-      // complex joins with filters in a single query easily
-      
-      // Instead, fetch violations and filter in memory for now
-      // This is more accurate than trying to do a complex join
-      const { data: violationsData, error } = await supabase
-        .from("violations")
-        .select("violation_type, property_id")
-        .not("violation_type", "is", null);
-      
-      if (error) throw error;
-      
-      // If we have area filters, we need to get property IDs that match
-      let validPropertyIds: Set<string> | null = null;
-      
-      if (selectedState || selectedCity) {
-        let propQuery = supabase
-          .from("properties")
-          .select("id");
-        
-        if (selectedState) {
-          propQuery = propQuery.ilike("state", selectedState);
-        }
-        if (selectedCity) {
-          propQuery = propQuery.ilike("city", selectedCity);
-        }
-        
-        const { data: propData, error: propError } = await propQuery;
-        if (propError) throw propError;
-        
-        validPropertyIds = new Set(propData?.map(p => p.id) || []);
-      }
-      
-      // Count violations, filtering by property IDs if we have area filters
-      const counts = new Map<string, number>();
-      violationsData?.forEach(v => {
-        if (v.violation_type && VALID_SIGNAL_TYPES.includes(v.violation_type)) {
-          // If we have property filters, check if this violation's property is in the set
-          if (validPropertyIds !== null) {
-            if (v.property_id && validPropertyIds.has(v.property_id)) {
-              counts.set(v.violation_type, (counts.get(v.violation_type) || 0) + 1);
-            }
-          } else {
-            // No area filter, count all
-            counts.set(v.violation_type, (counts.get(v.violation_type) || 0) + 1);
-          }
-        }
+      // Call the RPC function for server-side computation
+      const { data, error } = await supabase.rpc("fn_violation_counts_by_area", {
+        p_state: selectedState || null,
+        p_city: selectedCity || null,
       });
-      
-      // Sort by count descending
-      return Array.from(counts.entries())
-        .sort((a, b) => b[1] - a[1])
-        .map(([type, count]) => ({ type, count }));
+
+      if (error) {
+        console.error("[EnforcementSignalsFilter] RPC error:", error);
+        throw error;
+      }
+
+      // Filter to only valid signal types and format response
+      const results = (data || [])
+        .filter((row: { violation_type: string; count: number }) => 
+          VALID_SIGNAL_TYPES.includes(row.violation_type)
+        )
+        .map((row: { violation_type: string; count: number }) => ({
+          type: row.violation_type,
+          count: row.count,
+        }));
+
+      console.log("[EnforcementSignalsFilter] Server-side counts:", results.length, "types");
+      return results;
     },
     staleTime: 30000, // Cache for 30 seconds
   });
-
-  const hasAreaFilter = selectedState || selectedCity;
 
   return (
     <div className="flex flex-col gap-3">

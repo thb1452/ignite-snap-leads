@@ -195,7 +195,6 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
         // Fit bounds with calculated zoom constraints
         mapRef.current.fitBounds(bounds.pad(0.1), {
           maxZoom: maxZoom,
-          minZoom: minZoom,
         });
       } else {
         // No markers - reset to USA-wide view
@@ -332,7 +331,6 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
 
         mapRef.current.fitBounds(bounds.pad(0.1), {
           maxZoom: maxZoom,
-          minZoom: minZoom,
         });
       } else {
         // No valid properties - reset to USA-wide view

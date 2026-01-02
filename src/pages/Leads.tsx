@@ -1,16 +1,21 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { LeadsMap } from "@/components/leads/LeadsMap";
 import { FilterBar } from "@/components/leads/FilterBar";
-import { FilterControls } from "@/components/leads/FilterControls";
 import { BulkActionBar } from "@/components/leads/BulkActionBar";
 import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
+import { MobilePropertyDetailSheet } from "@/components/leads/MobilePropertyDetailSheet";
+import { MobileFilterSheet } from "@/components/leads/MobileFilterSheet";
+import { MobilePropertyCard } from "@/components/leads/MobilePropertyCard";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
-import { Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash2, ChevronLeft, ChevronRight, Search, X, Map, List } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
-import { LocationFilter } from "@/components/leads/LocationFilter";
+import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
+import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
+import { PressureLevelFilter } from "@/components/leads/PressureLevelFilter";
+import { ScoreAndTimeFilter } from "@/components/leads/ScoreAndTimeFilter";
 import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
@@ -20,6 +25,8 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { exportFilteredCsv } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
 import { useMapMarkers } from "@/hooks/useMapMarkers";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const PAGE_SIZE = 50;
 
@@ -31,24 +38,28 @@ function Leads() {
   // Pagination state
   const [page, setPage] = useState(1);
 
-  // Filter state
+  // Enforcement Area filter state
   const [searchQuery, setSearchQuery] = useState("");
-  const [snapScoreMin, setSnapScoreMin] = useState(0);
-  const [lastSeenDays, setLastSeenDays] = useState<number | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<string | null>(null);
-  const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
-  const [selectedSource, setSelectedSource] = useState<string | null>(null);
-  const [selectedJurisdictionId, setSelectedJurisdictionId] = useState<string | null>(null);
+  
+  // Score and time filter state
+  const [snapScoreMin, setSnapScoreMin] = useState(0);
+  const [lastSeenDays, setLastSeenDays] = useState<number | null>(null);
+  
+  // Enforcement signals filter state
+  const [selectedSignal, setSelectedSignal] = useState<string | null>(null);
+  
+  // Pressure level filter state
+  const [openViolationsOnly, setOpenViolationsOnly] = useState(false);
+  const [multipleViolationsOnly, setMultipleViolationsOnly] = useState(false);
+  const [repeatOffenderOnly, setRepeatOffenderOnly] = useState(false);
+  
+  // Mobile view state
+  const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   
   // Demo credits hook
   const { isDemoMode, isAdmin } = useDemoCredits();
-
-  // CRITICAL FIX: Clear city selection when state changes
-  useEffect(() => {
-    console.log("[Leads] State changed to:", selectedState, "- Clearing city selection");
-    setSelectedCity(null);
-  }, [selectedState]);
 
   // UI state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -59,17 +70,39 @@ function Leads() {
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeLimitType, setUpgradeLimitType] = useState<'csv_export' | 'skip_trace'>('csv_export');
 
-  // Build filters object for the hook
-  const filters = useMemo(() => ({
-    search: searchQuery || undefined,
-    cities: selectedCity ? [selectedCity] : undefined,
-    state: selectedState || undefined,
-    county: selectedCounty || undefined,
-    jurisdictionId: selectedJurisdictionId || undefined,
-    snapScoreRange: snapScoreMin > 0 ? [snapScoreMin, 100] as [number, number] : undefined,
-    lastSeenDays: lastSeenDays || undefined,
-    violationType: selectedSource || undefined,
-  }), [searchQuery, selectedCity, selectedState, selectedCounty, selectedJurisdictionId, snapScoreMin, lastSeenDays, selectedSource]);
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (snapScoreMin > 0) count++;
+    if (lastSeenDays !== null) count++;
+    if (selectedCity) count++;
+    if (selectedState) count++;
+    if (selectedSignal) count++;
+    if (openViolationsOnly) count++;
+    if (multipleViolationsOnly) count++;
+    if (repeatOffenderOnly) count++;
+    return count;
+  }, [snapScoreMin, lastSeenDays, selectedCity, selectedState, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly]);
+
+  // Build filters object for the hook - only include truthy values
+  const filters = useMemo(() => {
+    const f: Record<string, unknown> = {};
+    
+    if (searchQuery?.trim()) f.search = searchQuery.trim();
+    if (selectedCity) f.cities = [selectedCity];
+    if (selectedState) f.state = selectedState;
+    if (snapScoreMin > 0) f.snapScoreRange = [snapScoreMin, 100] as [number, number];
+    if (lastSeenDays !== null && lastSeenDays > 0) f.lastSeenDays = lastSeenDays;
+    if (selectedSignal) f.violationType = selectedSignal;
+    
+    // Pressure level filters
+    if (openViolationsOnly) f.openViolationsOnly = true;
+    if (multipleViolationsOnly) f.multipleViolationsOnly = true;
+    if (repeatOffenderOnly) f.repeatOffenderOnly = true;
+    
+    console.log("[Leads] Active filters:", JSON.stringify(f));
+    return f;
+  }, [searchQuery, selectedCity, selectedState, snapScoreMin, lastSeenDays, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly]);
 
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
@@ -91,9 +124,10 @@ function Leads() {
     setLastSeenDays(null);
     setSelectedCity(null);
     setSelectedState(null);
-    setSelectedCounty(null);
-    setSelectedSource(null);
-    setSelectedJurisdictionId(null);
+    setSelectedSignal(null);
+    setOpenViolationsOnly(false);
+    setMultipleViolationsOnly(false);
+    setRepeatOffenderOnly(false);
     setPage(1);
   };
 
@@ -135,7 +169,6 @@ function Leads() {
       await exportFilteredCsv({
         city: selectedCity || undefined,
         minScore: snapScoreMin,
-        jurisdictionId: selectedJurisdictionId || undefined,
       });
 
       toast({
@@ -197,6 +230,8 @@ function Leads() {
     violations: [] as any[],
   }));
 
+  const selectedProperty = mappedProperties.find(p => p.id === selectedPropertyId) || null;
+
   return (
     <div className="flex flex-col h-screen">
       <OnboardingFlow
@@ -212,41 +247,139 @@ function Leads() {
         currentPlan={plan?.name}
       />
 
-      <FilterBar
-        searchQuery={searchQuery}
-        onSearchChange={(q) => { setSearchQuery(q); setPage(1); }}
-        snapScoreMin={snapScoreMin}
-        lastSeenDays={lastSeenDays}
-        selectedCity={selectedCity}
-        selectedState={selectedState}
-        selectedCounty={selectedCounty}
-        selectedJurisdiction={selectedJurisdictionId}
-        propertyCount={totalCount}
-        onClearFilters={handleClearFilters}
-      />
-      
-      <div className="flex flex-wrap gap-4 px-4 py-3 border-b bg-background">
-        <LocationFilter
-          selectedJurisdiction={selectedJurisdictionId}
+      {/* DESKTOP: Filter Bar */}
+      <div className="hidden md:block">
+        <FilterBar
+          searchQuery={searchQuery}
+          onSearchChange={(q) => { setSearchQuery(q); setPage(1); }}
+          snapScoreMin={snapScoreMin}
+          lastSeenDays={lastSeenDays}
           selectedCity={selectedCity}
           selectedState={selectedState}
-          selectedCounty={selectedCounty}
-          onJurisdictionChange={(j) => { setSelectedJurisdictionId(j); setPage(1); }}
-          onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
-          onStateChange={(s) => { setSelectedState(s); setPage(1); }}
-          onCountyChange={(c) => { setSelectedCounty(c); setPage(1); }}
+          selectedSignal={selectedSignal}
+          openViolationsOnly={openViolationsOnly}
+          multipleViolationsOnly={multipleViolationsOnly}
+          repeatOffenderOnly={repeatOffenderOnly}
+          propertyCount={totalCount}
+          onClearFilters={handleClearFilters}
         />
-        <FilterControls
-          snapScoreMin={snapScoreMin}
-          onSnapScoreChange={(v) => { setSnapScoreMin(v); setPage(1); }}
-          lastSeenDays={lastSeenDays}
-          onLastSeenChange={setLastSeenDays}
-          selectedSource={selectedSource}
-          onSourceChange={setSelectedSource}
-        />
+        
+        <div className="flex flex-wrap gap-6 px-4 py-4 border-b bg-background">
+          {/* Enforcement Area */}
+          <EnforcementAreaFilter
+            selectedCity={selectedCity}
+            selectedState={selectedState}
+            onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
+            onStateChange={(s) => { setSelectedState(s); setPage(1); }}
+          />
+          
+          {/* Score and Time */}
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Score & Recency
+            </span>
+            <ScoreAndTimeFilter
+              snapScoreMin={snapScoreMin}
+              onSnapScoreChange={(v) => { setSnapScoreMin(v); setPage(1); }}
+              lastSeenDays={lastSeenDays}
+              onLastSeenChange={setLastSeenDays}
+            />
+          </div>
+          
+          {/* Enforcement Signals */}
+          <EnforcementSignalsFilter
+            selectedSignal={selectedSignal}
+            onSignalChange={setSelectedSignal}
+            selectedState={selectedState}
+            selectedCity={selectedCity}
+          />
+          
+          {/* Pressure Level */}
+          <PressureLevelFilter
+            openViolationsOnly={openViolationsOnly}
+            onOpenViolationsChange={setOpenViolationsOnly}
+            multipleViolationsOnly={multipleViolationsOnly}
+            onMultipleViolationsChange={setMultipleViolationsOnly}
+            repeatOffenderOnly={repeatOffenderOnly}
+            onRepeatOffenderChange={setRepeatOffenderOnly}
+          />
+        </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      {/* MOBILE: Compact Header with Search + Filters */}
+      <div className="md:hidden border-b bg-background">
+        <div className="flex items-center gap-2 p-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              className="pl-9 h-10"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <MobileFilterSheet
+            selectedCity={selectedCity}
+            selectedState={selectedState}
+            onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
+            onStateChange={(s) => { setSelectedState(s); setPage(1); }}
+            snapScoreMin={snapScoreMin}
+            onSnapScoreChange={(v) => { setSnapScoreMin(v); setPage(1); }}
+            lastSeenDays={lastSeenDays}
+            onLastSeenChange={setLastSeenDays}
+            selectedSignal={selectedSignal}
+            onSignalChange={setSelectedSignal}
+            openViolationsOnly={openViolationsOnly}
+            onOpenViolationsChange={setOpenViolationsOnly}
+            multipleViolationsOnly={multipleViolationsOnly}
+            onMultipleViolationsChange={setMultipleViolationsOnly}
+            repeatOffenderOnly={repeatOffenderOnly}
+            onRepeatOffenderChange={setRepeatOffenderOnly}
+            onClearFilters={handleClearFilters}
+            activeFilterCount={activeFilterCount}
+          />
+        </div>
+        
+        {/* Property count + View Toggle */}
+        <div className="flex items-center justify-between px-3 pb-3">
+          <span className="text-sm font-medium text-muted-foreground">
+            {totalCount.toLocaleString()} properties
+          </span>
+          <div className="flex bg-muted rounded-lg p-0.5">
+            <Button
+              variant={mobileView === 'list' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-8 px-3 rounded-md"
+              onClick={() => setMobileView('list')}
+            >
+              <List className="h-4 w-4 mr-1" />
+              List
+            </Button>
+            <Button
+              variant={mobileView === 'map' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-8 px-3 rounded-md"
+              onClick={() => setMobileView('map')}
+            >
+              <Map className="h-4 w-4 mr-1" />
+              Map
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* DESKTOP: Side-by-side layout */}
+      <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Map - Left Side */}
         <div className="w-[60%] border-r relative">
           <div className="absolute top-4 right-4 z-[1001] flex gap-2">
@@ -358,14 +491,95 @@ function Leads() {
         </div>
       </div>
 
-      {/* Property Detail Panel */}
-      {selectedPropertyId && (
-        <PropertyDetailPanel
-          property={mappedProperties.find(p => p.id === selectedPropertyId) || null}
+      {/* MOBILE: Stacked layout */}
+      <div className="md:hidden flex-1 flex flex-col overflow-hidden">
+        {mobileView === 'map' ? (
+          /* Map View - Full height */
+          <div className="flex-1 relative">
+            <LeadsMap
+              properties={mapMarkers}
+              onPropertyClick={setSelectedPropertyId}
+              selectedPropertyId={selectedPropertyId || undefined}
+            />
+          </div>
+        ) : (
+          /* List View */
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {isLoading ? (
+              <div className="p-8 text-center text-muted-foreground">
+                Loading properties...
+              </div>
+            ) : properties.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                No properties found
+              </div>
+            ) : (
+              <ScrollArea className="flex-1">
+                <div className="divide-y">
+                  {mappedProperties.map((property) => (
+                    <MobilePropertyCard
+                      key={property.id}
+                      property={property}
+                      isSelected={selectedIds.includes(property.id)}
+                      onToggleSelect={handleToggleSelect}
+                      onClick={() => setSelectedPropertyId(property.id)}
+                    />
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+
+            {/* Mobile Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t bg-background">
+                <span className="text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 min-h-[44px] px-4"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 min-h-[44px] px-4"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* DESKTOP: Property Detail Panel (Sidebar) */}
+      <div className="hidden md:block">
+        {selectedPropertyId && (
+          <PropertyDetailPanel
+            property={selectedProperty}
+            open={!!selectedPropertyId}
+            onOpenChange={(open) => !open && setSelectedPropertyId(null)}
+          />
+        )}
+      </div>
+
+      {/* MOBILE: Property Detail Sheet (Full-screen from bottom) */}
+      <div className="md:hidden">
+        <MobilePropertyDetailSheet
+          property={selectedProperty}
           open={!!selectedPropertyId}
           onOpenChange={(open) => !open && setSelectedPropertyId(null)}
         />
-      )}
+      </div>
 
       {/* Add to List Dialog */}
       <AddToListDialog

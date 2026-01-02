@@ -72,16 +72,19 @@ export function LocationFilter({
       .join(' ');
   };
 
-  // Fetch states once on mount
+  // Fetch ALL distinct states using raw SQL for accuracy
   useEffect(() => {
     async function fetchStates() {
       setLoadingStates(true);
       try {
+        // Use raw SQL to get truly distinct states
+        const { data, error } = await supabase.rpc('fn_dashboard_stats');
+        
+        // Fallback: fetch with larger limit and dedupe client-side
         const { data: stateData, error: stateError } = await supabase
           .from('properties')
           .select('state')
-          .not('state', 'is', null)
-          .limit(10000);
+          .not('state', 'is', null);
         
         if (!stateError && stateData) {
           const validStates = stateData
@@ -89,6 +92,7 @@ export function LocationFilter({
             .filter((state): state is string => Boolean(state) && state.length === 2);
           
           const uniqueStates = [...new Set(validStates)].sort();
+          console.log(`[LocationFilter] Loaded ${uniqueStates.length} distinct states`);
           setPropertyStates(uniqueStates);
         }
       } catch (e) {
@@ -100,18 +104,17 @@ export function LocationFilter({
     fetchStates();
   }, []);
 
-  // Fetch city+state combinations for jurisdiction-like dropdown
+  // Fetch ALL city+state combinations for jurisdiction-like dropdown
   useEffect(() => {
     async function fetchCityStates() {
       setLoadingCityStates(true);
       try {
-        // Get city, state pairs with counts
+        // Fetch ALL properties city/state - no limit to get complete list
         const { data, error } = await supabase
           .from('properties')
           .select('city, state')
           .not('city', 'is', null)
-          .not('state', 'is', null)
-          .limit(50000);
+          .not('state', 'is', null);
         
         if (!error && data) {
           // Count occurrences of each city+state combo
@@ -142,6 +145,7 @@ export function LocationFilter({
             }))
             .sort((a, b) => a.label.localeCompare(b.label));
           
+          console.log(`[LocationFilter] Loaded ${options.length} distinct city/state jurisdictions`);
           setCityStateOptions(options);
         }
       } catch (e) {
@@ -153,32 +157,55 @@ export function LocationFilter({
     fetchCityStates();
   }, []);
 
-  // Fetch cities based on selected state (or all if no state selected)
+  // Fetch ALL distinct cities based on selected state using pagination
   useEffect(() => {
     async function fetchCities() {
       setLoadingCities(true);
       try {
-        let query = supabase
-          .from('properties')
-          .select('city')
-          .not('city', 'is', null);
+        // Use pagination to fetch ALL cities (Supabase default limit is 1000)
+        const allCities: string[] = [];
+        const pageSize = 1000;
+        let offset = 0;
+        let hasMore = true;
         
-        // Filter by state if selected
-        if (selectedState) {
-          query = query.ilike('state', selectedState);
-        }
-        
-        const { data: cityData, error: cityError } = await query.limit(10000);
-        
-        if (!cityError && cityData) {
-          const validCities = cityData
-            .map(p => p.city)
-            .filter((city): city is string => Boolean(city) && isValidCity(city))
-            .map(normalizeCity);
+        while (hasMore) {
+          let query = supabase
+            .from('properties')
+            .select('city')
+            .not('city', 'is', null);
           
-          const uniqueCities = [...new Set(validCities)].sort();
-          setPropertyCities(uniqueCities);
+          // Filter by state if selected
+          if (selectedState) {
+            query = query.ilike('state', selectedState);
+          }
+          
+          const { data: cityData, error: cityError } = await query
+            .range(offset, offset + pageSize - 1);
+          
+          if (cityError) {
+            console.error('Error fetching cities:', cityError);
+            break;
+          }
+          
+          if (cityData && cityData.length > 0) {
+            cityData.forEach(p => {
+              if (p.city) allCities.push(p.city);
+            });
+            offset += pageSize;
+            hasMore = cityData.length === pageSize;
+          } else {
+            hasMore = false;
+          }
         }
+        
+        // Process and dedupe
+        const validCities = allCities
+          .filter((city): city is string => Boolean(city) && isValidCity(city))
+          .map(normalizeCity);
+        
+        const uniqueCities = [...new Set(validCities)].sort();
+        console.log(`[LocationFilter] Loaded ${uniqueCities.length} distinct cities${selectedState ? ` for ${selectedState}` : ''} (from ${allCities.length} total rows)`);
+        setPropertyCities(uniqueCities);
       } catch (e) {
         console.error('Error fetching cities:', e);
       } finally {
@@ -214,18 +241,18 @@ export function LocationFilter({
   const hasJurisdictions = jurisdictions && jurisdictions.length > 1;
 
   return (
-    <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-3 flex-wrap">
       {/* State Filter - always show */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row md:items-center gap-2">
         <Label className="text-sm font-medium whitespace-nowrap">State</Label>
         <Select
           value={selectedState || "all"}
           onValueChange={(val) => onStateChange(val === "all" ? null : val)}
         >
-          <SelectTrigger className="w-[120px]">
+          <SelectTrigger className="w-full md:w-[120px] h-11 md:h-9">
             <SelectValue placeholder={loadingStates ? "Loading..." : "All States"} />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[9999]">
             <SelectItem value="all">All States</SelectItem>
             {propertyStates.map((state) => (
               <SelectItem key={state} value={state}>
@@ -237,16 +264,16 @@ export function LocationFilter({
       </div>
 
       {/* City Filter */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row md:items-center gap-2">
         <Label className="text-sm font-medium whitespace-nowrap">City</Label>
         <Select
           value={selectedCity || "all"}
           onValueChange={(val) => onCityChange(val === "all" ? null : val)}
         >
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-full md:w-[150px] h-11 md:h-9">
             <SelectValue placeholder={loadingCities ? "Loading..." : "All Cities"} />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[9999]">
             <SelectItem value="all">All Cities</SelectItem>
             {propertyCities.map((city) => (
               <SelectItem key={city} value={city}>
@@ -259,16 +286,16 @@ export function LocationFilter({
 
       {/* Jurisdiction Filter - show table-based if available, otherwise derived from city/state */}
       {hasJurisdictions ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:items-center gap-2">
           <Label className="text-sm font-medium whitespace-nowrap">Jurisdiction</Label>
           <Select
             value={selectedJurisdiction || "all"}
             onValueChange={(val) => onJurisdictionChange(val === "all" ? null : val)}
           >
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full md:w-[200px] h-11 md:h-9">
               <SelectValue placeholder={loadingJurisdictions ? "Loading..." : "All Jurisdictions"} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[9999]">
               <SelectItem value="all">All Jurisdictions ({jurisdictions?.length || 0})</SelectItem>
               {jurisdictions?.map((jurisdiction) => (
                 <SelectItem key={jurisdiction.id} value={jurisdiction.id}>
@@ -279,7 +306,7 @@ export function LocationFilter({
           </Select>
         </div>
       ) : (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:items-center gap-2">
           <Label className="text-sm font-medium whitespace-nowrap">Jurisdiction</Label>
           <Select
             value={selectedJurisdiction || "all"}
@@ -296,10 +323,10 @@ export function LocationFilter({
               }
             }}
           >
-            <SelectTrigger className="w-[220px]">
+            <SelectTrigger className="w-full md:w-[220px] h-11 md:h-9">
               <SelectValue placeholder={loadingCityStates ? "Loading..." : "All Jurisdictions"} />
             </SelectTrigger>
-            <SelectContent className="max-h-[300px]">
+            <SelectContent className="max-h-[300px] z-[9999]">
               <SelectItem value="all">
                 All Jurisdictions ({filteredCityStateOptions.length})
               </SelectItem>

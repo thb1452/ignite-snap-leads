@@ -36,7 +36,7 @@ const ONBOARDING_STEPS = [
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-              <span>AI-powered scoring identifies motivated sellers automatically</span>
+              <span>AI-powered scoring identifies properties with <strong>high likelihood</strong> of motivated sellers</span>
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
@@ -53,11 +53,11 @@ const ONBOARDING_STEPS = [
     content: (
       <div className="space-y-4">
         <p className="text-ink-700">
-          Every property gets a <strong>SnapScore</strong> from 0-100 that answers one question:
+          Every property gets a <strong>SnapScore</strong> from 0-100—a probabilistic indicator that answers:
         </p>
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-sm font-medium text-amber-900">
-            "If I spend my time here, am I more likely than average to find a motivated seller?"
+            "Based on enforcement signals, what's the likelihood this property has a motivated seller?"
           </p>
         </div>
 
@@ -67,7 +67,7 @@ const ONBOARDING_STEPS = [
             <div className="flex-1">
               <h4 className="font-semibold text-sm text-ink-900">Distressed</h4>
               <p className="text-xs text-ink-600">
-                Severe violations, chronic neglect, legal escalation. High probability of motivated seller.
+                Severe signals, chronic neglect indicators, legal escalation. Higher likelihood of motivated seller.
               </p>
             </div>
           </div>
@@ -77,7 +77,7 @@ const ONBOARDING_STEPS = [
             <div className="flex-1">
               <h4 className="font-semibold text-sm text-ink-900">Value-Add</h4>
               <p className="text-xs text-ink-600">
-                Moderate violations. Owner may be open to negotiation.
+                Moderate signals. Indicators suggest owner may be open to negotiation.
               </p>
             </div>
           </div>
@@ -116,8 +116,8 @@ const ONBOARDING_STEPS = [
               <h4 className="font-semibold text-sm text-green-900">Example SnapInsight</h4>
             </div>
             <p className="text-sm text-green-800 italic">
-              "Extended non-compliance period (180+ days) with structural concerns. Owner capacity constraints
-              suggest strong negotiation leverage."
+              "Extended non-compliance period (180+ days) with structural indicators suggests owner capacity constraints
+              and may indicate negotiation opportunity."
             </p>
             <p className="text-xs text-green-700 mt-2">
               ✓ Focuses on property condition and owner situation
@@ -284,6 +284,16 @@ const ONBOARDING_STEPS = [
           <p className="text-sm text-green-800">
             You now have access to distress signals that other investors won't see until properties hit
             foreclosure lists or MLS. Use this asymmetric information wisely.
+          </p>
+        </div>
+
+        {/* Disclaimers */}
+        <div className="mt-6 pt-4 border-t border-slate-200 space-y-2">
+          <p className="text-xs text-ink-500">
+            SnapInsights and SnapScore are probabilistic interpretations of public enforcement signals, not statements of fact or allegations about property owners.
+          </p>
+          <p className="text-xs text-ink-500">
+            Snap is designed for real estate investment analysis and does not provide consumer credit, tenant screening, or eligibility determinations.
           </p>
         </div>
       </div>

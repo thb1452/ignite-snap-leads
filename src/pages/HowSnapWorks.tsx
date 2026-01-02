@@ -52,14 +52,14 @@ export default function HowSnapWorks() {
               Understanding SnapScore
             </CardTitle>
             <CardDescription>
-              SnapScore is a weighted probability indicator of legal, financial, and physical distress
+              SnapScore is a probabilistic indicator of owner motivation likelihood based on enforcement signals
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
               <p className="text-ink-700">
-                SnapScore answers one question: <strong>"If I spend my time here, am I more likely than average
-                to find a motivated seller?"</strong>
+                SnapScore answers one question: <strong>"Based on enforcement signals, what's the likelihood
+                this property has a motivated seller?"</strong>
               </p>
               <p className="text-sm text-ink-600">
                 It's derived from violation age, repeat offenses, severity class, structural risk, fire risk,
@@ -74,10 +74,10 @@ export default function HowSnapWorks() {
                 <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
                   <Badge className="bg-score-red text-score-red-foreground mt-1">70-100</Badge>
                   <div>
-                    <h4 className="font-semibold text-ink-900">Distressed (High Opportunity)</h4>
+                    <h4 className="font-semibold text-ink-900">Distressed (High Opportunity Likelihood)</h4>
                     <p className="text-sm text-ink-600">
-                      Severe violations, chronic neglect, legal escalation, or multi-system failures.
-                      Owner likely facing financial pressure or capacity constraints.
+                      Severe signals, chronic neglect indicators, legal escalation, or multi-system concerns.
+                      Historically correlated with higher likelihood of owner motivation.
                     </p>
                   </div>
                 </div>
@@ -85,10 +85,10 @@ export default function HowSnapWorks() {
                 <div className="flex items-start gap-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
                   <Badge className="bg-score-orange text-score-orange-foreground mt-1">40-69</Badge>
                   <div>
-                    <h4 className="font-semibold text-ink-900">Value-Add (Moderate Opportunity)</h4>
+                    <h4 className="font-semibold text-ink-900">Value-Add (Moderate Opportunity Likelihood)</h4>
                     <p className="text-sm text-ink-600">
-                      Moderate violations or deferred maintenance patterns. Owner may be open to negotiation
-                      but not under immediate pressure.
+                      Moderate signals or deferred maintenance indicators. May suggest owner openness
+                      to negotiation.
                     </p>
                   </div>
                 </div>
@@ -112,7 +112,7 @@ export default function HowSnapWorks() {
                 <div className="p-3 border rounded-lg">
                   <h4 className="font-medium text-sm text-ink-900 mb-1">Time Pressure (Max 30pts)</h4>
                   <p className="text-xs text-ink-600">
-                    +3 points per month open. Extended non-compliance suggests owner capacity constraints.
+                    +3 points per month open. Extended non-compliance may indicate owner capacity constraints.
                   </p>
                 </div>
                 <div className="p-3 border rounded-lg">
@@ -136,7 +136,7 @@ export default function HowSnapWorks() {
                 <div className="p-3 border rounded-lg">
                   <h4 className="font-medium text-sm text-ink-900 mb-1">Legal Escalation (Max 30pts)</h4>
                   <p className="text-xs text-ink-600">
-                    Cases escalated to legal proceedings indicate financial pressure on owner.
+                    Cases escalated to legal proceedings may indicate financial pressure on owner.
                   </p>
                 </div>
                 <div className="p-3 border rounded-lg">
@@ -158,7 +158,7 @@ export default function HowSnapWorks() {
               Understanding SnapInsight
             </CardTitle>
             <CardDescription>
-              Investor-safe interpretation of property condition
+              Probabilistic investor-focused interpretation of property condition
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -172,7 +172,7 @@ export default function HowSnapWorks() {
                 <h4 className="font-semibold text-sm text-green-900 mb-2">✓ Good SnapInsight Example</h4>
                 <p className="text-sm text-green-800 italic">
                   "Property shows prolonged exterior compliance issues, suggesting deferred maintenance and
-                  possible owner neglect."
+                  may indicate owner capacity constraints."
                 </p>
                 <p className="text-xs text-green-700 mt-2">
                   Focuses on observable condition and owner situation.
@@ -300,7 +300,17 @@ export default function HowSnapWorks() {
                 Snap converts municipal enforcement pressure into investor opportunity intelligence.
               </p>
               <p className="text-sm text-ink-700 mt-2">
-                This is asymmetric information. This is where real money lives.
+                This is asymmetric information. This is where real opportunities may exist.
+              </p>
+            </div>
+
+            {/* Disclaimers */}
+            <div className="mt-6 pt-4 border-t space-y-2">
+              <p className="text-xs text-ink-500">
+                SnapInsights and SnapScore are probabilistic interpretations of public enforcement signals, not statements of fact or allegations about property owners.
+              </p>
+              <p className="text-xs text-ink-500">
+                Snap is designed for real estate investment analysis and does not provide consumer credit, tenant screening, or eligibility determinations.
               </p>
             </div>
           </CardContent>

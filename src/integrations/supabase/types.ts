@@ -1425,6 +1425,19 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_distinct_cities: {
+        Row: {
+          city: string | null
+          state: string | null
+        }
+        Relationships: []
+      }
+      mv_distinct_states: {
+        Row: {
+          state: string | null
+        }
+        Relationships: []
+      }
       v_hot_properties: {
         Row: {
           address: string | null
@@ -1682,6 +1695,18 @@ export type Database = {
         Returns: number
       }
       fn_dashboard_stats: { Args: never; Returns: Json }
+      fn_distinct_cities: {
+        Args: { p_state?: string }
+        Returns: {
+          city: string
+        }[]
+      }
+      fn_distinct_states: {
+        Args: never
+        Returns: {
+          state: string
+        }[]
+      }
       fn_job_status: { Args: { p_job_id: string }; Returns: Json }
       fn_jurisdiction_stats: {
         Args: never
@@ -1714,6 +1739,18 @@ export type Database = {
           p_score_gte?: number
           p_south: number
           p_west: number
+        }
+        Returns: Json
+      }
+      fn_properties_paged: {
+        Args: {
+          p_city?: string
+          p_page?: number
+          p_page_size?: number
+          p_search?: string
+          p_snap_max?: number
+          p_snap_min?: number
+          p_state?: string
         }
         Returns: Json
       }

@@ -40,36 +40,64 @@ export async function fetchPropertiesPaged(
   pageSize: number,
   filters: LeadFilters
 ) {
+  console.log("[fetchPropertiesPaged] Filters received:", JSON.stringify(filters, null, 2));
+
+  // For list filtering, we still need to use the old query pattern
+  if (filters.listId) {
+    return fetchPropertiesPagedLegacy(page, pageSize, filters);
+  }
+
+  // Use the optimized RPC function for fast queries
+  const { data, error } = await supabase.rpc("fn_properties_paged", {
+    p_page: page,
+    p_page_size: pageSize,
+    p_state: filters.state || null,
+    p_city: filters.cities?.length === 1 ? filters.cities[0] : null,
+    p_search: filters.search || null,
+    p_snap_min: filters.snapScoreRange?.[0] ?? null,
+    p_snap_max: filters.snapScoreRange?.[1] ?? null,
+  });
+
+  if (error) {
+    console.error("[fetchPropertiesPaged] RPC error:", error);
+    throw error;
+  }
+
+  const result = data as { data: any[]; total: number; page: number; pageSize: number };
+  console.log("[fetchPropertiesPaged] Results:", result.data?.length, "properties, total:", result.total);
+  
+  return { data: result.data ?? [], total: result.total ?? 0 };
+}
+
+// Legacy function for complex filters (list filtering, multi-city, etc.)
+async function fetchPropertiesPagedLegacy(
+  page: number,
+  pageSize: number,
+  filters: LeadFilters
+) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  // Debug logging
-  console.log("[fetchPropertiesPaged] Filters received:", JSON.stringify(filters, null, 2));
-
-  // Base query
+  // Base query - use estimated count for performance
   let q = filters.listId
     ? supabase
         .from("properties")
-        .select("*, list_properties!inner(list_id)", { count: "exact" })
+        .select("*, list_properties!inner(list_id)", { count: "estimated" })
         .eq("list_properties.list_id", filters.listId)
-    : supabase.from("properties").select("*", { count: "exact" });
+    : supabase.from("properties").select("*", { count: "estimated" });
 
   // Filter: state (case-insensitive)
   if (filters.state) {
-    console.log("[fetchPropertiesPaged] Applying state filter:", filters.state);
     q = q.ilike("state", filters.state);
   }
 
   // Filter: county
   if (filters.county) {
-    console.log("[fetchPropertiesPaged] Applying county filter:", filters.county);
     q = q.ilike("county", `%${filters.county}%`);
   }
 
   // Filter: jurisdiction (could be UUID or city|state format)
   if (filters.jurisdictionId) {
-    console.log("[fetchPropertiesPaged] Applying jurisdiction filter:", filters.jurisdictionId);
-    // Check if it's a city|state format
     if (filters.jurisdictionId.includes('|')) {
       const [city, state] = filters.jurisdictionId.split('|');
       q = q.ilike("city", city).ilike("state", state);
@@ -78,60 +106,25 @@ export async function fetchPropertiesPaged(
     }
   }
 
-  // Filter: cities (CRITICAL FIX: case-insensitive to handle Tampa vs TAMPA vs tampa)
+  // Filter: cities
   if (filters.cities?.length) {
-    console.log("[fetchPropertiesPaged] Applying cities filter:", filters.cities);
     if (filters.cities.length === 1) {
-      // Single city - use case-insensitive match (fixes Tampa vs TAMPA bug)
       q = q.ilike("city", filters.cities[0]);
     } else {
-      // Multiple cities - use OR with case-insensitive matches
       const orFilters = filters.cities.map(city => `city.ilike.${city}`).join(',');
       q = q.or(orFilters);
     }
   }
 
-  // Filter: search across multiple columns (address, city, state, county, zip)
+  // Filter: search across multiple columns
   if (filters.search) {
-    let s = filters.search.trim();
-    console.log("[fetchPropertiesPaged] Applying search filter:", s);
-
-    // Expand common city abbreviations for better matching
-    const abbreviations: Record<string, string> = {
-      'ft': 'fort',
-      'st': 'saint',
-      'mt': 'mount',
-      'pt': 'port',
-      'n': 'north',
-      's': 'south',
-      'e': 'east',
-      'w': 'west',
-    };
-
-    // Check if search starts with a known abbreviation
-    const firstWord = s.split(/\s+/)[0].toLowerCase();
-    const expansion = abbreviations[firstWord];
-
-    if (expansion) {
-      // Search for both the abbreviation and the expanded form
-      const expandedSearch = s.replace(new RegExp(`^${firstWord}`, 'i'), expansion);
-      console.log("[fetchPropertiesPaged] Expanded search:", expandedSearch);
-
-      // Search with both original and expanded terms
-      q = q.or(
-        `address.ilike.%${s}%,city.ilike.%${s}%,state.ilike.%${s}%,county.ilike.%${s}%,zip.ilike.%${s}%,` +
-        `address.ilike.%${expandedSearch}%,city.ilike.%${expandedSearch}%,county.ilike.%${expandedSearch}%`
-      );
-    } else {
-      // Standard search
-      q = q.or(`address.ilike.%${s}%,city.ilike.%${s}%,state.ilike.%${s}%,county.ilike.%${s}%,zip.ilike.%${s}%`);
-    }
+    const s = filters.search.trim();
+    q = q.or(`address.ilike.%${s}%,city.ilike.%${s}%,state.ilike.%${s}%,county.ilike.%${s}%,zip.ilike.%${s}%`);
   }
 
   // Filter: snap score
   if (filters.snapScoreRange) {
     const [min, max] = filters.snapScoreRange;
-    console.log("[fetchPropertiesPaged] Applying snap_score filter:", min, "-", max);
     q = q.gte("snap_score", min).lte("snap_score", max);
   }
 
@@ -139,14 +132,11 @@ export async function fetchPropertiesPaged(
   if (filters.lastSeenDays) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - filters.lastSeenDays);
-    const cutoffIso = cutoffDate.toISOString();
-    console.log("[fetchPropertiesPaged] Applying lastSeenDays filter:", filters.lastSeenDays, "days, cutoff:", cutoffIso);
-    q = q.gte("updated_at", cutoffIso);
+    q = q.gte("updated_at", cutoffDate.toISOString());
   }
 
-  // Filter: violation type (using the violation_types array on properties)
+  // Filter: violation type
   if (filters.violationType) {
-    console.log("[fetchPropertiesPaged] Applying violationType filter:", filters.violationType);
     q = q.contains("violation_types", [filters.violationType]);
   }
 
@@ -166,17 +156,15 @@ export async function fetchPropertiesPaged(
     q = q.eq("repeat_offender", true);
   }
 
-  // Sort by snap_score desc (as your UI shows)
+  // Sort and paginate
   q = q.order("snap_score", { ascending: false, nullsFirst: false }).range(from, to);
 
-  console.log("[fetchPropertiesPaged] Executing query...");
   const { data, error, count } = await q;
   
   if (error) {
-    console.error("[fetchPropertiesPaged] Query error:", error);
+    console.error("[fetchPropertiesPagedLegacy] Query error:", error);
     throw error;
   }
   
-  console.log("[fetchPropertiesPaged] Results:", data?.length, "properties, total:", count);
   return { data: data ?? [], total: count ?? 0 };
 }

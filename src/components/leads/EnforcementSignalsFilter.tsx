@@ -12,20 +12,6 @@ interface EnforcementSignalsFilterProps {
   selectedCity: string | null;
 }
 
-// Valid enforcement signal types
-const VALID_SIGNAL_TYPES = [
-  'Exterior',
-  'Structural', 
-  'Zoning',
-  'Safety',
-  'Utility',
-  'Vacancy',
-  'Fire',
-  'Environmental Nuisance',
-  'Property Maintenance',
-  'Unpermitted Construction',
-];
-
 export function EnforcementSignalsFilter({
   selectedSignal,
   onSignalChange,
@@ -47,17 +33,18 @@ export function EnforcementSignalsFilter({
         throw error;
       }
 
-      // Filter to only valid signal types and format response
+      // Return all signal types, sorted by count descending
       const results = (data || [])
         .filter((row: { violation_type: string; count: number }) => 
-          VALID_SIGNAL_TYPES.includes(row.violation_type)
+          row.violation_type && row.violation_type.trim() !== ''
         )
         .map((row: { violation_type: string; count: number }) => ({
           type: row.violation_type,
           count: row.count,
-        }));
+        }))
+        .sort((a, b) => b.count - a.count);
 
-      console.log("[EnforcementSignalsFilter] Server-side counts:", results.length, "types");
+      console.log("[EnforcementSignalsFilter] Dynamic signal types:", results.length, "types");
       return results;
     },
     staleTime: 30000, // Cache for 30 seconds

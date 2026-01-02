@@ -23,23 +23,30 @@ export function EnforcementAreaFilter({
 
   // Sanitize and validate city names - filter out garbage data
   const isValidCity = (city: string): boolean => {
-    if (!city || city.trim().length < 2) return false;
-    if (city.trim().length > 30) return false;
-    if (city.startsWith('#')) return false;
-    if (city.startsWith('1-') || city.startsWith('2-')) return false;
-    if (city.toLowerCase().includes('county')) return false;
-    if (/^\d+$/.test(city.trim())) return false;
-    if (/\s\d{5}$/.test(city.trim())) return false;
-    if (/^#?[A-Z]?\d*$/i.test(city.trim())) return false;
-    if (city.startsWith('##')) return false;
-    if (city.toLowerCase() === 'unknown') return false;
-    if (!/[a-zA-Z]/.test(city)) return false;
-    if (/^\d{1,2}[-\/]\d{1,2}/.test(city.trim())) return false;
-    if (city.split(' ').length > 4) return false;
-    if (/\b(the|when|there|this|that|with|from|have|will|shall|must)\b/i.test(city)) return false;
-    if (/\b(trailer|truck|vehicle|picture|address|owner|property)\b/i.test(city)) return false;
-    if (/\b(additional|continuing|believe|action|constitute|eyesore)\b/i.test(city)) return false;
-    if (!/^[a-zA-Z]/.test(city.trim())) return false;
+    const trimmed = city.trim();
+    // Basic length: at least 2 chars, max 50 (relaxed from 30)
+    if (!trimmed || trimmed.length < 2) return false;
+    if (trimmed.length > 50) return false;
+    // Must start with a letter
+    if (!/^[a-zA-Z]/.test(trimmed)) return false;
+    // Must contain at least one letter
+    if (!/[a-zA-Z]/.test(trimmed)) return false;
+    // Block pure numbers
+    if (/^\d+$/.test(trimmed)) return false;
+    // Block zip codes at end (e.g., "Miami 33139")
+    if (/\s\d{5}$/.test(trimmed)) return false;
+    // Block dates (e.g., "1/15", "01-20")
+    if (/^\d{1,2}[-\/]\d{1,2}/.test(trimmed)) return false;
+    // Block hashtag prefixes or unit numbers
+    if (/^#/.test(trimmed)) return false;
+    // Block "county" references
+    if (trimmed.toLowerCase().includes('county')) return false;
+    // Block "unknown"
+    if (trimmed.toLowerCase() === 'unknown') return false;
+    // Block sentence-like content (relaxed: 6+ words instead of 4)
+    if (trimmed.split(/\s+/).length > 6) return false;
+    // Block common description words (obvious garbage)
+    if (/\b(trailer|truck|vehicle|picture|address|owner|property|additional|continuing|believe|action|constitute|eyesore)\b/i.test(trimmed)) return false;
     return true;
   };
 

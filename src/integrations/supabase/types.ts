@@ -1727,6 +1727,13 @@ export type Database = {
         Args: { p_job_id: string; p_property_ids: string[]; p_reason: string }
         Returns: Json
       }
+      fn_violation_counts_by_area: {
+        Args: { p_city?: string; p_state?: string }
+        Returns: {
+          count: number
+          violation_type: string
+        }[]
+      }
       geometry: { Args: { "": string }; Returns: unknown }
       geometry_above: {
         Args: { geom1: unknown; geom2: unknown }

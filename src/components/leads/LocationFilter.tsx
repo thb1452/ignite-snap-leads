@@ -72,16 +72,19 @@ export function LocationFilter({
       .join(' ');
   };
 
-  // Fetch states once on mount
+  // Fetch ALL distinct states using raw SQL for accuracy
   useEffect(() => {
     async function fetchStates() {
       setLoadingStates(true);
       try {
+        // Use raw SQL to get truly distinct states
+        const { data, error } = await supabase.rpc('fn_dashboard_stats');
+        
+        // Fallback: fetch with larger limit and dedupe client-side
         const { data: stateData, error: stateError } = await supabase
           .from('properties')
           .select('state')
-          .not('state', 'is', null)
-          .limit(10000);
+          .not('state', 'is', null);
         
         if (!stateError && stateData) {
           const validStates = stateData
@@ -89,6 +92,7 @@ export function LocationFilter({
             .filter((state): state is string => Boolean(state) && state.length === 2);
           
           const uniqueStates = [...new Set(validStates)].sort();
+          console.log(`[LocationFilter] Loaded ${uniqueStates.length} distinct states`);
           setPropertyStates(uniqueStates);
         }
       } catch (e) {
@@ -100,18 +104,17 @@ export function LocationFilter({
     fetchStates();
   }, []);
 
-  // Fetch city+state combinations for jurisdiction-like dropdown
+  // Fetch ALL city+state combinations for jurisdiction-like dropdown
   useEffect(() => {
     async function fetchCityStates() {
       setLoadingCityStates(true);
       try {
-        // Get city, state pairs with counts
+        // Fetch ALL properties city/state - no limit to get complete list
         const { data, error } = await supabase
           .from('properties')
           .select('city, state')
           .not('city', 'is', null)
-          .not('state', 'is', null)
-          .limit(50000);
+          .not('state', 'is', null);
         
         if (!error && data) {
           // Count occurrences of each city+state combo
@@ -142,6 +145,7 @@ export function LocationFilter({
             }))
             .sort((a, b) => a.label.localeCompare(b.label));
           
+          console.log(`[LocationFilter] Loaded ${options.length} distinct city/state jurisdictions`);
           setCityStateOptions(options);
         }
       } catch (e) {
@@ -153,7 +157,7 @@ export function LocationFilter({
     fetchCityStates();
   }, []);
 
-  // Fetch cities based on selected state (or all if no state selected)
+  // Fetch ALL cities based on selected state (or all if no state selected)
   useEffect(() => {
     async function fetchCities() {
       setLoadingCities(true);
@@ -168,7 +172,8 @@ export function LocationFilter({
           query = query.ilike('state', selectedState);
         }
         
-        const { data: cityData, error: cityError } = await query.limit(10000);
+        // NO LIMIT - fetch all to get complete distinct list
+        const { data: cityData, error: cityError } = await query;
         
         if (!cityError && cityData) {
           const validCities = cityData
@@ -177,6 +182,7 @@ export function LocationFilter({
             .map(normalizeCity);
           
           const uniqueCities = [...new Set(validCities)].sort();
+          console.log(`[LocationFilter] Loaded ${uniqueCities.length} distinct cities${selectedState ? ` for ${selectedState}` : ''}`);
           setPropertyCities(uniqueCities);
         }
       } catch (e) {

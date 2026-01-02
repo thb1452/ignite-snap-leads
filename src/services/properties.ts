@@ -42,12 +42,21 @@ export async function fetchPropertiesPaged(
 ) {
   console.log("[fetchPropertiesPaged] Filters received:", JSON.stringify(filters, null, 2));
 
-  // For list filtering, we still need to use the old query pattern
-  if (filters.listId) {
+  // Use legacy path for complex filters that RPC doesn't support
+  const needsLegacyPath =
+    filters.listId ||
+    filters.violationType ||
+    filters.lastSeenDays ||
+    filters.openViolationsOnly ||
+    filters.multipleViolationsOnly ||
+    filters.repeatOffenderOnly;
+
+  if (needsLegacyPath) {
+    console.log("[fetchPropertiesPaged] Using legacy path for advanced filters");
     return fetchPropertiesPagedLegacy(page, pageSize, filters);
   }
 
-  // Use the optimized RPC function for fast queries
+  // Use the optimized RPC function for fast queries (basic filters only)
   const { data, error } = await supabase.rpc("fn_properties_paged", {
     p_page: page,
     p_page_size: pageSize,

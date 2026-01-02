@@ -157,34 +157,55 @@ export function LocationFilter({
     fetchCityStates();
   }, []);
 
-  // Fetch ALL cities based on selected state (or all if no state selected)
+  // Fetch ALL distinct cities based on selected state using pagination
   useEffect(() => {
     async function fetchCities() {
       setLoadingCities(true);
       try {
-        let query = supabase
-          .from('properties')
-          .select('city')
-          .not('city', 'is', null);
+        // Use pagination to fetch ALL cities (Supabase default limit is 1000)
+        const allCities: string[] = [];
+        const pageSize = 1000;
+        let offset = 0;
+        let hasMore = true;
         
-        // Filter by state if selected
-        if (selectedState) {
-          query = query.ilike('state', selectedState);
-        }
-        
-        // NO LIMIT - fetch all to get complete distinct list
-        const { data: cityData, error: cityError } = await query;
-        
-        if (!cityError && cityData) {
-          const validCities = cityData
-            .map(p => p.city)
-            .filter((city): city is string => Boolean(city) && isValidCity(city))
-            .map(normalizeCity);
+        while (hasMore) {
+          let query = supabase
+            .from('properties')
+            .select('city')
+            .not('city', 'is', null);
           
-          const uniqueCities = [...new Set(validCities)].sort();
-          console.log(`[LocationFilter] Loaded ${uniqueCities.length} distinct cities${selectedState ? ` for ${selectedState}` : ''}`);
-          setPropertyCities(uniqueCities);
+          // Filter by state if selected
+          if (selectedState) {
+            query = query.ilike('state', selectedState);
+          }
+          
+          const { data: cityData, error: cityError } = await query
+            .range(offset, offset + pageSize - 1);
+          
+          if (cityError) {
+            console.error('Error fetching cities:', cityError);
+            break;
+          }
+          
+          if (cityData && cityData.length > 0) {
+            cityData.forEach(p => {
+              if (p.city) allCities.push(p.city);
+            });
+            offset += pageSize;
+            hasMore = cityData.length === pageSize;
+          } else {
+            hasMore = false;
+          }
         }
+        
+        // Process and dedupe
+        const validCities = allCities
+          .filter((city): city is string => Boolean(city) && isValidCity(city))
+          .map(normalizeCity);
+        
+        const uniqueCities = [...new Set(validCities)].sort();
+        console.log(`[LocationFilter] Loaded ${uniqueCities.length} distinct cities${selectedState ? ` for ${selectedState}` : ''} (from ${allCities.length} total rows)`);
+        setPropertyCities(uniqueCities);
       } catch (e) {
         console.error('Error fetching cities:', e);
       } finally {

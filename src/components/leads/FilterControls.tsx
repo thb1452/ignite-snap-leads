@@ -1,12 +1,9 @@
-import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface FilterControlsProps {
-  snapScoreMin: number;
-  onSnapScoreChange: (value: number) => void;
   lastSeenDays: number | null;
   onLastSeenChange: (value: number | null) => void;
   selectedSource: string | null;
@@ -28,8 +25,6 @@ const VALID_VIOLATION_TYPES = [
 ];
 
 export function FilterControls({
-  snapScoreMin,
-  onSnapScoreChange,
   lastSeenDays,
   onLastSeenChange,
   selectedSource,
@@ -65,20 +60,6 @@ export function FilterControls({
 
   return (
     <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-4 flex-wrap">
-      {/* Score Slider */}
-      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 md:min-w-[200px]">
-        <Label className="text-sm font-medium whitespace-nowrap">
-          Score ≥ {snapScoreMin}
-        </Label>
-        <Slider
-          value={[snapScoreMin]}
-          onValueChange={([value]) => onSnapScoreChange(value)}
-          max={100}
-          step={5}
-          className="flex-1 min-w-[150px]"
-        />
-      </div>
-
       {/* Last Seen Dropdown */}
       <div className="flex flex-col md:flex-row md:items-center gap-2">
         <Label className="text-sm font-medium whitespace-nowrap">Last seen</Label>

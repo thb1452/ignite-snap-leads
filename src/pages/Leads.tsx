@@ -15,7 +15,7 @@ import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyL
 import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
 import { PressureLevelFilter } from "@/components/leads/PressureLevelFilter";
-import { ScoreAndTimeFilter } from "@/components/leads/ScoreAndTimeFilter";
+import { TimeFilter } from "@/components/leads/ScoreAndTimeFilter";
 import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
@@ -42,9 +42,8 @@ function Leads() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<string | null>(null);
-  
-  // Score and time filter state
-  const [snapScoreMin, setSnapScoreMin] = useState(0);
+
+  // Time filter state
   const [lastSeenDays, setLastSeenDays] = useState<number | null>(null);
   
   // Enforcement signals filter state
@@ -73,7 +72,6 @@ function Leads() {
   // Count active filters
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (snapScoreMin > 0) count++;
     if (lastSeenDays !== null) count++;
     if (selectedCity) count++;
     if (selectedState) count++;
@@ -82,27 +80,26 @@ function Leads() {
     if (multipleViolationsOnly) count++;
     if (repeatOffenderOnly) count++;
     return count;
-  }, [snapScoreMin, lastSeenDays, selectedCity, selectedState, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly]);
+  }, [lastSeenDays, selectedCity, selectedState, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly]);
 
   // Build filters object for the hook - only include truthy values
   const filters = useMemo(() => {
     const f: Record<string, unknown> = {};
-    
+
     if (searchQuery?.trim()) f.search = searchQuery.trim();
     if (selectedCity) f.cities = [selectedCity];
     if (selectedState) f.state = selectedState;
-    if (snapScoreMin > 0) f.snapScoreRange = [snapScoreMin, 100] as [number, number];
     if (lastSeenDays !== null && lastSeenDays > 0) f.lastSeenDays = lastSeenDays;
     if (selectedSignal) f.violationType = selectedSignal;
-    
+
     // Pressure level filters
     if (openViolationsOnly) f.openViolationsOnly = true;
     if (multipleViolationsOnly) f.multipleViolationsOnly = true;
     if (repeatOffenderOnly) f.repeatOffenderOnly = true;
-    
+
     console.log("[Leads] Active filters:", JSON.stringify(f));
     return f;
-  }, [searchQuery, selectedCity, selectedState, snapScoreMin, lastSeenDays, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly]);
+  }, [searchQuery, selectedCity, selectedState, lastSeenDays, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly]);
 
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
@@ -120,7 +117,6 @@ function Leads() {
 
   const handleClearFilters = () => {
     setSearchQuery("");
-    setSnapScoreMin(0);
     setLastSeenDays(null);
     setSelectedCity(null);
     setSelectedState(null);
@@ -168,7 +164,7 @@ function Leads() {
 
       await exportFilteredCsv({
         city: selectedCity || undefined,
-        minScore: snapScoreMin,
+        minScore: 0,
       });
 
       toast({
@@ -252,7 +248,6 @@ function Leads() {
         <FilterBar
           searchQuery={searchQuery}
           onSearchChange={(q) => { setSearchQuery(q); setPage(1); }}
-          snapScoreMin={snapScoreMin}
           lastSeenDays={lastSeenDays}
           selectedCity={selectedCity}
           selectedState={selectedState}
@@ -273,14 +268,12 @@ function Leads() {
             onStateChange={(s) => { setSelectedState(s); setPage(1); }}
           />
           
-          {/* Score and Time */}
+          {/* Date Range */}
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Score & Recency
+              Date Range
             </span>
-            <ScoreAndTimeFilter
-              snapScoreMin={snapScoreMin}
-              onSnapScoreChange={(v) => { setSnapScoreMin(v); setPage(1); }}
+            <TimeFilter
               lastSeenDays={lastSeenDays}
               onLastSeenChange={setLastSeenDays}
             />
@@ -333,8 +326,6 @@ function Leads() {
             selectedState={selectedState}
             onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
             onStateChange={(s) => { setSelectedState(s); setPage(1); }}
-            snapScoreMin={snapScoreMin}
-            onSnapScoreChange={(v) => { setSnapScoreMin(v); setPage(1); }}
             lastSeenDays={lastSeenDays}
             onLastSeenChange={setLastSeenDays}
             selectedSignal={selectedSignal}

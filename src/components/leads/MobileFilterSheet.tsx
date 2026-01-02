@@ -6,7 +6,7 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { EnforcementAreaFilter } from "./EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "./EnforcementSignalsFilter";
 import { PressureLevelFilter } from "./PressureLevelFilter";
-import { ScoreAndTimeFilter } from "./ScoreAndTimeFilter";
+import { TimeFilter } from "./ScoreAndTimeFilter";
 
 interface MobileFilterSheetProps {
   // Enforcement area props
@@ -14,9 +14,7 @@ interface MobileFilterSheetProps {
   selectedState: string | null;
   onCityChange: (value: string | null) => void;
   onStateChange: (value: string | null) => void;
-  // Score and time props
-  snapScoreMin: number;
-  onSnapScoreChange: (value: number) => void;
+  // Time props
   lastSeenDays: number | null;
   onLastSeenChange: (value: number | null) => void;
   // Enforcement signals props
@@ -39,8 +37,6 @@ export function MobileFilterSheet({
   selectedState,
   onCityChange,
   onStateChange,
-  snapScoreMin,
-  onSnapScoreChange,
   lastSeenDays,
   onLastSeenChange,
   selectedSignal,
@@ -100,14 +96,12 @@ export function MobileFilterSheet({
             onStateChange={onStateChange}
           />
 
-          {/* Score and Time Filters */}
+          {/* Time Filters */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Score & Recency
+              Date Range
             </h3>
-            <ScoreAndTimeFilter
-              snapScoreMin={snapScoreMin}
-              onSnapScoreChange={onSnapScoreChange}
+            <TimeFilter
               lastSeenDays={lastSeenDays}
               onLastSeenChange={onLastSeenChange}
             />

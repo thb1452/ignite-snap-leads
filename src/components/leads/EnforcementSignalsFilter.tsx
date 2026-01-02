@@ -72,7 +72,7 @@ export function EnforcementSignalsFilter({
         {/* Scope disclaimer */}
         <p className="text-xs text-muted-foreground flex items-center gap-1">
           <AlertCircle className="h-3 w-3" />
-          Counts reflect violations within the selected enforcement area.
+          Signal counts reflect total violations within the selected enforcement area, not unique properties.
         </p>
       </div>
       

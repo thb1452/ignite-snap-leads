@@ -64,9 +64,9 @@ export function FilterControls({
   });
 
   return (
-    <div className="flex items-center gap-4 flex-wrap">
+    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-4 flex-wrap">
       {/* Score Slider */}
-      <div className="flex items-center gap-3 min-w-[200px]">
+      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 md:min-w-[200px]">
         <Label className="text-sm font-medium whitespace-nowrap">
           Score ≥ {snapScoreMin}
         </Label>
@@ -75,21 +75,21 @@ export function FilterControls({
           onValueChange={([value]) => onSnapScoreChange(value)}
           max={100}
           step={5}
-          className="flex-1"
+          className="flex-1 min-w-[150px]"
         />
       </div>
 
       {/* Last Seen Dropdown */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row md:items-center gap-2">
         <Label className="text-sm font-medium whitespace-nowrap">Last seen</Label>
         <Select
           value={lastSeenDays?.toString() || "all"}
           onValueChange={(value) => onLastSeenChange(value === "all" ? null : parseInt(value))}
         >
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-full md:w-[140px] h-11 md:h-9">
             <SelectValue placeholder="All time" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[9999]">
             <SelectItem value="all">All time</SelectItem>
             <SelectItem value="7">≤ 7 days</SelectItem>
             <SelectItem value="30">≤ 30 days</SelectItem>
@@ -99,16 +99,16 @@ export function FilterControls({
       </div>
 
       {/* Violation Type Filter */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row md:items-center gap-2">
         <Label className="text-sm font-medium whitespace-nowrap">Violation Type</Label>
         <Select
           value={selectedSource || "all"}
           onValueChange={(value) => onSourceChange(value === "all" ? null : value)}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full md:w-[180px] h-11 md:h-9">
             <SelectValue placeholder="All types" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[9999]">
             <SelectItem value="all">All types</SelectItem>
             {violationTypes.map(({ type, count }) => (
               <SelectItem key={type} value={type}>

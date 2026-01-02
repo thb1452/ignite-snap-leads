@@ -214,18 +214,18 @@ export function LocationFilter({
   const hasJurisdictions = jurisdictions && jurisdictions.length > 1;
 
   return (
-    <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-3 flex-wrap">
       {/* State Filter - always show */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row md:items-center gap-2">
         <Label className="text-sm font-medium whitespace-nowrap">State</Label>
         <Select
           value={selectedState || "all"}
           onValueChange={(val) => onStateChange(val === "all" ? null : val)}
         >
-          <SelectTrigger className="w-[120px]">
+          <SelectTrigger className="w-full md:w-[120px] h-11 md:h-9">
             <SelectValue placeholder={loadingStates ? "Loading..." : "All States"} />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[9999]">
             <SelectItem value="all">All States</SelectItem>
             {propertyStates.map((state) => (
               <SelectItem key={state} value={state}>
@@ -237,16 +237,16 @@ export function LocationFilter({
       </div>
 
       {/* City Filter */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row md:items-center gap-2">
         <Label className="text-sm font-medium whitespace-nowrap">City</Label>
         <Select
           value={selectedCity || "all"}
           onValueChange={(val) => onCityChange(val === "all" ? null : val)}
         >
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-full md:w-[150px] h-11 md:h-9">
             <SelectValue placeholder={loadingCities ? "Loading..." : "All Cities"} />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[9999]">
             <SelectItem value="all">All Cities</SelectItem>
             {propertyCities.map((city) => (
               <SelectItem key={city} value={city}>
@@ -259,16 +259,16 @@ export function LocationFilter({
 
       {/* Jurisdiction Filter - show table-based if available, otherwise derived from city/state */}
       {hasJurisdictions ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:items-center gap-2">
           <Label className="text-sm font-medium whitespace-nowrap">Jurisdiction</Label>
           <Select
             value={selectedJurisdiction || "all"}
             onValueChange={(val) => onJurisdictionChange(val === "all" ? null : val)}
           >
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full md:w-[200px] h-11 md:h-9">
               <SelectValue placeholder={loadingJurisdictions ? "Loading..." : "All Jurisdictions"} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[9999]">
               <SelectItem value="all">All Jurisdictions ({jurisdictions?.length || 0})</SelectItem>
               {jurisdictions?.map((jurisdiction) => (
                 <SelectItem key={jurisdiction.id} value={jurisdiction.id}>
@@ -279,7 +279,7 @@ export function LocationFilter({
           </Select>
         </div>
       ) : (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:items-center gap-2">
           <Label className="text-sm font-medium whitespace-nowrap">Jurisdiction</Label>
           <Select
             value={selectedJurisdiction || "all"}
@@ -296,10 +296,10 @@ export function LocationFilter({
               }
             }}
           >
-            <SelectTrigger className="w-[220px]">
+            <SelectTrigger className="w-full md:w-[220px] h-11 md:h-9">
               <SelectValue placeholder={loadingCityStates ? "Loading..." : "All Jurisdictions"} />
             </SelectTrigger>
-            <SelectContent className="max-h-[300px]">
+            <SelectContent className="max-h-[300px] z-[9999]">
               <SelectItem value="all">
                 All Jurisdictions ({filteredCityStateOptions.length})
               </SelectItem>

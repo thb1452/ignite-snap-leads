@@ -1682,6 +1682,18 @@ export type Database = {
         Returns: number
       }
       fn_dashboard_stats: { Args: never; Returns: Json }
+      fn_distinct_cities: {
+        Args: { p_state?: string }
+        Returns: {
+          city: string
+        }[]
+      }
+      fn_distinct_states: {
+        Args: never
+        Returns: {
+          state: string
+        }[]
+      }
       fn_job_status: { Args: { p_job_id: string }; Returns: Json }
       fn_jurisdiction_stats: {
         Args: never

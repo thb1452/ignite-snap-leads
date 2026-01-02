@@ -1,6 +1,6 @@
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EnforcementAreaFilterProps {
@@ -21,62 +21,21 @@ export function EnforcementAreaFilter({
   const [loadingStates, setLoadingStates] = useState(true);
   const [loadingCities, setLoadingCities] = useState(false);
 
-  // Sanitize and validate city names - filter out garbage data
-  const isValidCity = (city: string): boolean => {
-    const trimmed = city.trim();
-    // Basic length: at least 2 chars, max 50 (relaxed from 30)
-    if (!trimmed || trimmed.length < 2) return false;
-    if (trimmed.length > 50) return false;
-    // Must start with a letter
-    if (!/^[a-zA-Z]/.test(trimmed)) return false;
-    // Must contain at least one letter
-    if (!/[a-zA-Z]/.test(trimmed)) return false;
-    // Block pure numbers
-    if (/^\d+$/.test(trimmed)) return false;
-    // Block zip codes at end (e.g., "Miami 33139")
-    if (/\s\d{5}$/.test(trimmed)) return false;
-    // Block dates (e.g., "1/15", "01-20")
-    if (/^\d{1,2}[-\/]\d{1,2}/.test(trimmed)) return false;
-    // Block hashtag prefixes or unit numbers
-    if (/^#/.test(trimmed)) return false;
-    // Block "county" references
-    if (trimmed.toLowerCase().includes('county')) return false;
-    // Block "unknown"
-    if (trimmed.toLowerCase() === 'unknown') return false;
-    // Block sentence-like content (relaxed: 6+ words instead of 4)
-    if (trimmed.split(/\s+/).length > 6) return false;
-    // Block common description words (obvious garbage)
-    if (/\b(trailer|truck|vehicle|picture|address|owner|property|additional|continuing|believe|action|constitute|eyesore)\b/i.test(trimmed)) return false;
-    return true;
-  };
-
-  // Normalize city name for consistent display
-  const normalizeCity = (city: string): string => {
-    return city.trim()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  };
-
-  // Fetch ALL distinct states
+  // Fetch distinct states using database function (instant, no pagination)
   useEffect(() => {
     async function fetchStates() {
       setLoadingStates(true);
       try {
-        const { data: stateData, error: stateError } = await supabase
-          .from('properties')
-          .select('state')
-          .not('state', 'is', null);
+        const { data, error } = await supabase.rpc('fn_distinct_states');
         
-        if (!stateError && stateData) {
-          const validStates = stateData
-            .map(p => p.state?.toUpperCase())
-            .filter((state): state is string => Boolean(state) && state.length === 2);
-          
-          const uniqueStates = [...new Set(validStates)].sort();
-          console.log(`[EnforcementAreaFilter] Loaded ${uniqueStates.length} distinct states`);
-          setPropertyStates(uniqueStates);
+        if (error) {
+          console.error('Error fetching states:', error);
+          return;
         }
+        
+        const states = (data as { state: string }[] | null)?.map(r => r.state).filter(Boolean) || [];
+        console.log(`[EnforcementAreaFilter] Loaded ${states.length} distinct states`);
+        setPropertyStates(states);
       } catch (e) {
         console.error('Error fetching states:', e);
       } finally {
@@ -86,54 +45,23 @@ export function EnforcementAreaFilter({
     fetchStates();
   }, []);
 
-  // Fetch ALL cities based on selected state using pagination
+  // Fetch distinct cities using database function (instant, no pagination)
   useEffect(() => {
     async function fetchCities() {
       setLoadingCities(true);
       try {
-        // Use pagination to fetch ALL cities (Supabase default limit is 1000)
-        const allCities: string[] = [];
-        const pageSize = 1000;
-        let offset = 0;
-        let hasMore = true;
+        const { data, error } = await supabase.rpc('fn_distinct_cities', {
+          p_state: selectedState || null
+        });
         
-        while (hasMore) {
-          let query = supabase
-            .from('properties')
-            .select('city')
-            .not('city', 'is', null);
-          
-          if (selectedState) {
-            query = query.ilike('state', selectedState);
-          }
-          
-          const { data: cityData, error: cityError } = await query
-            .range(offset, offset + pageSize - 1);
-          
-          if (cityError) {
-            console.error('Error fetching cities:', cityError);
-            break;
-          }
-          
-          if (cityData && cityData.length > 0) {
-            cityData.forEach(p => {
-              if (p.city) allCities.push(p.city);
-            });
-            offset += pageSize;
-            hasMore = cityData.length === pageSize;
-          } else {
-            hasMore = false;
-          }
+        if (error) {
+          console.error('Error fetching cities:', error);
+          return;
         }
         
-        // Process and dedupe
-        const validCities = allCities
-          .filter((city): city is string => Boolean(city) && isValidCity(city))
-          .map(normalizeCity);
-        
-        const uniqueCities = [...new Set(validCities)].sort();
-        console.log(`[EnforcementAreaFilter] Loaded ${uniqueCities.length} distinct cities${selectedState ? ` for ${selectedState}` : ''} (from ${allCities.length} total rows)`);
-        setPropertyCities(uniqueCities);
+        const cities = (data as { city: string }[] | null)?.map(r => r.city).filter(Boolean) || [];
+        console.log(`[EnforcementAreaFilter] Loaded ${cities.length} distinct cities${selectedState ? ` for ${selectedState}` : ''}`);
+        setPropertyCities(cities);
       } catch (e) {
         console.error('Error fetching cities:', e);
       } finally {
@@ -143,23 +71,19 @@ export function EnforcementAreaFilter({
     fetchCities();
   }, [selectedState]);
 
-  // Only clear city when STATE changes (not when city list updates)
-  // This prevents the bug where selecting a city resets it
+  // Clear city when state changes if city doesn't exist in new state
   useEffect(() => {
-    // When state changes, check if selected city is valid for new state
-    // But only do this AFTER cities are loaded AND only if state actually changed
     if (selectedCity && !loadingCities && propertyCities.length > 0) {
       const cityExists = propertyCities.some(
         c => c.toLowerCase() === selectedCity.toLowerCase()
       );
-      // Only clear if city doesn't exist in the FULLY loaded list
       if (!cityExists) {
-        console.log(`[EnforcementAreaFilter] City "${selectedCity}" not found in ${propertyCities.length} cities for state ${selectedState}, clearing`);
+        console.log(`[EnforcementAreaFilter] City "${selectedCity}" not found for state ${selectedState}, clearing`);
         onCityChange(null);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedState]); // Only run when STATE changes, not when propertyCities updates
+  }, [selectedState]);
 
   return (
     <div className="flex flex-col gap-3">

@@ -48,5 +48,8 @@ export const LeadFiltersSchema = z.object({
   listId: z.string().optional(),
   lastSeenDays: z.number().optional(), // Filter by updated_at within X days
   violationType: z.string().optional(), // Filter by violation type
+  openViolationsOnly: z.boolean().optional(), // Filter by open violations
+  multipleViolationsOnly: z.boolean().optional(), // Filter by multiple violations
+  repeatOffenderOnly: z.boolean().optional(), // Filter by repeat offenders
 });
 export type LeadFilters = z.infer<typeof LeadFiltersSchema>;

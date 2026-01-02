@@ -86,10 +86,39 @@ export async function fetchPropertiesPaged(
 
   // Filter: search across multiple columns (address, city, state, county, zip)
   if (filters.search) {
-    const s = filters.search.trim();
+    let s = filters.search.trim();
     console.log("[fetchPropertiesPaged] Applying search filter:", s);
-    // Search across address, city, state, county, zip
-    q = q.or(`address.ilike.%${s}%,city.ilike.%${s}%,state.ilike.%${s}%,county.ilike.%${s}%,zip.ilike.%${s}%`);
+    
+    // Expand common city abbreviations for better matching
+    const abbreviations: Record<string, string> = {
+      'ft': 'fort',
+      'st': 'saint',
+      'mt': 'mount',
+      'pt': 'port',
+      'n': 'north',
+      's': 'south',
+      'e': 'east',
+      'w': 'west',
+    };
+    
+    // Check if search starts with a known abbreviation
+    const firstWord = s.split(/\s+/)[0].toLowerCase();
+    const expansion = abbreviations[firstWord];
+    
+    if (expansion) {
+      // Search for both the abbreviation and the expanded form
+      const expandedSearch = s.replace(new RegExp(`^${firstWord}`, 'i'), expansion);
+      console.log("[fetchPropertiesPaged] Expanded search:", expandedSearch);
+      
+      // Search with both original and expanded terms
+      q = q.or(
+        `address.ilike.%${s}%,city.ilike.%${s}%,state.ilike.%${s}%,county.ilike.%${s}%,zip.ilike.%${s}%,` +
+        `address.ilike.%${expandedSearch}%,city.ilike.%${expandedSearch}%,county.ilike.%${expandedSearch}%`
+      );
+    } else {
+      // Standard search
+      q = q.or(`address.ilike.%${s}%,city.ilike.%${s}%,state.ilike.%${s}%,county.ilike.%${s}%,zip.ilike.%${s}%`);
+    }
   }
 
   // Filter: snap score

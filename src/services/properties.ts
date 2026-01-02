@@ -78,17 +78,24 @@ export async function fetchPropertiesPaged(
     }
   }
 
-  // Filter: cities
+  // Filter: cities (CRITICAL FIX: case-insensitive to handle Tampa vs TAMPA vs tampa)
   if (filters.cities?.length) {
     console.log("[fetchPropertiesPaged] Applying cities filter:", filters.cities);
-    q = q.in("city", filters.cities);
+    if (filters.cities.length === 1) {
+      // Single city - use case-insensitive match (fixes Tampa vs TAMPA bug)
+      q = q.ilike("city", filters.cities[0]);
+    } else {
+      // Multiple cities - use OR with case-insensitive matches
+      const orFilters = filters.cities.map(city => `city.ilike.${city}`).join(',');
+      q = q.or(orFilters);
+    }
   }
 
   // Filter: search across multiple columns (address, city, state, county, zip)
   if (filters.search) {
     let s = filters.search.trim();
     console.log("[fetchPropertiesPaged] Applying search filter:", s);
-    
+
     // Expand common city abbreviations for better matching
     const abbreviations: Record<string, string> = {
       'ft': 'fort',
@@ -100,16 +107,16 @@ export async function fetchPropertiesPaged(
       'e': 'east',
       'w': 'west',
     };
-    
+
     // Check if search starts with a known abbreviation
     const firstWord = s.split(/\s+/)[0].toLowerCase();
     const expansion = abbreviations[firstWord];
-    
+
     if (expansion) {
       // Search for both the abbreviation and the expanded form
       const expandedSearch = s.replace(new RegExp(`^${firstWord}`, 'i'), expansion);
       console.log("[fetchPropertiesPaged] Expanded search:", expandedSearch);
-      
+
       // Search with both original and expanded terms
       q = q.or(
         `address.ilike.%${s}%,city.ilike.%${s}%,state.ilike.%${s}%,county.ilike.%${s}%,zip.ilike.%${s}%,` +

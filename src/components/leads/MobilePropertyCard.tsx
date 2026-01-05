@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
+import { MessageSquare, ChevronDown, ChevronUp, AlertTriangle, Flame } from "lucide-react";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 import { SkipTraceChip } from "./SkipTraceChip";
 
@@ -24,6 +24,9 @@ interface MobilePropertyCardProps {
     snap_insight: string | null;
     updated_at: string | null;
     violations?: Violation[];
+    total_violations?: number | null;
+    open_violations?: number | null;
+    violation_types?: string[] | null;
   };
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
@@ -83,6 +86,30 @@ export function MobilePropertyCard({
           <p className="text-sm text-muted-foreground mt-0.5">
             {property.city}, {property.state} {property.zip}
           </p>
+
+          {/* Violation Density Indicators */}
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            {(property.total_violations || property.open_violations) && (
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-xs font-medium text-foreground">
+                  {property.open_violations ?? 0} open
+                  {property.total_violations && property.total_violations > (property.open_violations ?? 0) && (
+                    <span className="text-muted-foreground"> / {property.total_violations} total</span>
+                  )}
+                </span>
+              </div>
+            )}
+            {property.violation_types && property.violation_types.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <Flame className="h-3.5 w-3.5 text-orange-500" />
+                <span className="text-xs text-muted-foreground">
+                  {property.violation_types.slice(0, 2).join(", ")}
+                  {property.violation_types.length > 2 && ` +${property.violation_types.length - 2}`}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Skip Trace Status */}
           <div className="mt-2">

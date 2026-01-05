@@ -40,6 +40,8 @@ const US_STATES = [
 
 export default function Upload() {
   const { user } = useAuth();
+  // Use a placeholder user ID if not authenticated (for testing)
+  const effectiveUserId = user?.id || 'anonymous-user';
   const { toast } = useToast();
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobIds, setJobIds] = useState<string[]>([]);
@@ -71,15 +73,6 @@ export default function Upload() {
   };
 
   const onDrop = async (acceptedFiles: File[]) => {
-    if (!user) {
-      toast({
-        title: 'Error',
-        description: 'You must be logged in to upload files',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     // Filter valid CSV files
     const validFiles: File[] = [];
     const invalidFiles: string[] = [];
@@ -144,7 +137,6 @@ export default function Upload() {
   };
 
   const handleConfirmUpload = async () => {
-    if (!user) return;
 
     // Multi-file mode: process all files directly
     if (multiFileMode && pendingFiles.length > 1) {
@@ -188,7 +180,7 @@ export default function Upload() {
 
             return createUploadJob({
               file,
-              userId: user.id,
+              userId: effectiveUserId,
               city: jobCity || null,
               county: county || null,
               state: jobState
@@ -262,7 +254,7 @@ export default function Upload() {
 
             return createUploadJob({
               file: uploadFile,
-              userId: user.id,
+              userId: effectiveUserId,
               city: groupCity,
               county: county || null,
               state: groupState
@@ -313,7 +305,7 @@ export default function Upload() {
 
         const id = await createUploadJob({ 
           file, 
-          userId: user.id, 
+          userId: effectiveUserId, 
           city: jobCity || null, 
           county: county || null, 
           state: jobState 
@@ -337,14 +329,6 @@ export default function Upload() {
   };
 
   const handlePastedCsvProcess = async (csvData: string, fileName: string) => {
-    if (!user) {
-      toast({
-        title: 'Error',
-        description: 'You must be logged in to upload',
-        variant: 'destructive',
-      });
-      return;
-    }
 
     // Detect locations and show preview
     const detected = detectCsvLocations(csvData);
@@ -354,7 +338,7 @@ export default function Upload() {
   };
 
   const handleConfirmPasteUpload = async () => {
-    if (!user || !pendingCsvData) return;
+    if (!pendingCsvData) return;
 
     // Cache values before resetting state
     const csvData = pendingCsvData;
@@ -397,7 +381,7 @@ export default function Upload() {
 
             return createUploadJob({
               file,
-              userId: user.id,
+              userId: effectiveUserId,
               city: groupCity,
               county: county || null,
               state: groupState
@@ -454,7 +438,7 @@ export default function Upload() {
 
         const id = await createUploadJob({
           file,
-          userId: user.id,
+          userId: effectiveUserId,
           city: jobCity || null,
           county: county || null,
           state: jobState

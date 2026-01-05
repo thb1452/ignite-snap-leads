@@ -587,6 +587,7 @@ export type Database = {
           id: string
           jurisdiction_id: string | null
           last_analyzed_at: string | null
+          last_enforcement_date: string | null
           latitude: number | null
           longitude: number | null
           multi_department: boolean | null
@@ -617,6 +618,7 @@ export type Database = {
           id?: string
           jurisdiction_id?: string | null
           last_analyzed_at?: string | null
+          last_enforcement_date?: string | null
           latitude?: number | null
           longitude?: number | null
           multi_department?: boolean | null
@@ -647,6 +649,7 @@ export type Database = {
           id?: string
           jurisdiction_id?: string | null
           last_analyzed_at?: string | null
+          last_enforcement_date?: string | null
           latitude?: number | null
           longitude?: number | null
           multi_department?: boolean | null

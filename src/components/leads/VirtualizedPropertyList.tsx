@@ -19,6 +19,9 @@ interface Property {
   snap_insight: string | null;
   updated_at: string | null;
   violations?: Violation[];
+  total_violations?: number | null;
+  open_violations?: number | null;
+  violation_types?: string[] | null;
 }
 
 interface VirtualizedPropertyListProps {

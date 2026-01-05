@@ -1,16 +1,19 @@
 project_id = "ojyxblegxpdgaqiscxpz"
 
+# Security: Enable JWT verification for all authenticated functions
+# Functions should use Supabase's built-in JWT verification rather than manual auth checks
+
 [functions.geocode-properties]
-verify_jwt = false
+verify_jwt = true
 
 [functions.process-upload]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-insights]
-verify_jwt = false
+verify_jwt = true
 
 [functions.export-csv]
-verify_jwt = false
+verify_jwt = true
 
 [functions.job-monitor]
-verify_jwt = false
+verify_jwt = true

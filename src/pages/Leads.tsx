@@ -275,14 +275,14 @@ function Leads() {
             </span>
             <TimeFilter
               lastSeenDays={lastSeenDays}
-              onLastSeenChange={setLastSeenDays}
+              onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
             />
           </div>
           
           {/* Enforcement Signals */}
           <EnforcementSignalsFilter
             selectedSignal={selectedSignal}
-            onSignalChange={setSelectedSignal}
+            onSignalChange={(v) => { setSelectedSignal(v); setPage(1); }}
             selectedState={selectedState}
             selectedCity={selectedCity}
           />
@@ -290,11 +290,11 @@ function Leads() {
           {/* Pressure Level */}
           <PressureLevelFilter
             openViolationsOnly={openViolationsOnly}
-            onOpenViolationsChange={setOpenViolationsOnly}
+            onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
             multipleViolationsOnly={multipleViolationsOnly}
-            onMultipleViolationsChange={setMultipleViolationsOnly}
+            onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
             repeatOffenderOnly={repeatOffenderOnly}
-            onRepeatOffenderChange={setRepeatOffenderOnly}
+            onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
           />
         </div>
       </div>
@@ -327,15 +327,15 @@ function Leads() {
             onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
             onStateChange={(s) => { setSelectedState(s); setPage(1); }}
             lastSeenDays={lastSeenDays}
-            onLastSeenChange={setLastSeenDays}
+            onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
             selectedSignal={selectedSignal}
-            onSignalChange={setSelectedSignal}
+            onSignalChange={(v) => { setSelectedSignal(v); setPage(1); }}
             openViolationsOnly={openViolationsOnly}
-            onOpenViolationsChange={setOpenViolationsOnly}
+            onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
             multipleViolationsOnly={multipleViolationsOnly}
-            onMultipleViolationsChange={setMultipleViolationsOnly}
+            onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
             repeatOffenderOnly={repeatOffenderOnly}
-            onRepeatOffenderChange={setRepeatOffenderOnly}
+            onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
             onClearFilters={handleClearFilters}
             activeFilterCount={activeFilterCount}
           />

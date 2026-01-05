@@ -228,10 +228,13 @@ function Leads() {
   };
 
   // Map properties to include violations placeholder (they're not fetched in paged query)
-  const mappedProperties = properties.map(p => ({
-    ...p,
-    violations: [] as any[],
-  }));
+  const mappedProperties = useMemo(() =>
+    properties.map(p => ({
+      ...p,
+      violations: [] as any[],
+    })),
+    [properties]
+  );
 
   // Fetch violations when in violation view mode
   const propertyIds = properties.map(p => p.id);
@@ -245,7 +248,7 @@ function Leads() {
         .in("property_id", propertyIds)
         .order("property_id")
         .order("opened_date", { ascending: false });
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -255,9 +258,9 @@ function Leads() {
   // Map violations with property data for violation view
   const violationsWithProperty = useMemo(() => {
     if (viewMode !== 'violation') return [];
-    
+
     const propertyMap = new Map(properties.map(p => [p.id, p]));
-    
+
     return violationsData.map(v => ({
       ...v,
       property: propertyMap.get(v.property_id) || {
@@ -271,7 +274,11 @@ function Leads() {
     }));
   }, [violationsData, properties, viewMode]);
 
-  const selectedProperty = mappedProperties.find(p => p.id === selectedPropertyId) || null;
+  // Keep performance optimization with useMemo
+  const selectedProperty = useMemo(() =>
+    mappedProperties.find(p => p.id === selectedPropertyId) || null,
+    [mappedProperties, selectedPropertyId]
+  );
 
   return (
     <div className="flex flex-col h-screen">

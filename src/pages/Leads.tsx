@@ -221,12 +221,18 @@ function Leads() {
   };
 
   // Map properties to include violations placeholder (they're not fetched in paged query)
-  const mappedProperties = properties.map(p => ({
-    ...p,
-    violations: [] as any[],
-  }));
+  const mappedProperties = useMemo(() =>
+    properties.map(p => ({
+      ...p,
+      violations: [] as any[],
+    })),
+    [properties]
+  );
 
-  const selectedProperty = mappedProperties.find(p => p.id === selectedPropertyId) || null;
+  const selectedProperty = useMemo(() =>
+    mappedProperties.find(p => p.id === selectedPropertyId) || null,
+    [mappedProperties, selectedPropertyId]
+  );
 
   return (
     <div className="flex flex-col h-screen">

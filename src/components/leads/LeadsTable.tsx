@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -58,17 +57,22 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
   const { toast } = useToast();
   const { data: credits } = useUserCredits();
 
-  const scoreClass = (n: number | null) => {
+  const scoreClass = useCallback((n: number | null) => {
     if (!n) return 'bg-slate-100 text-ink-600 border border-slate-200';
     if (n >= 75) return 'bg-score-red text-score-red-foreground border border-score-red/30';
     if (n >= 50) return 'bg-score-orange text-score-orange-foreground border border-score-orange/30';
     if (n >= 25) return 'bg-score-yellow text-score-yellow-foreground border border-score-yellow/30';
     return 'bg-score-blue text-score-blue-foreground border border-score-blue/30';
-  };
+  }, []);
 
-  const computeSnapInsight = (property: PropertyWithViolations) => {
+  const getMaxDaysOpen = useCallback((violations: Violation[]) => {
+    if (violations.length === 0) return 0;
+    return Math.max(...violations.map(v => v.days_open ?? 0));
+  }, []);
+
+  const computeSnapInsight = useCallback((property: PropertyWithViolations) => {
     if (property.snap_insight) return property.snap_insight;
-    
+
     // Fallback: compute from available data
     const bits: string[] = [];
     const daysOpen = getMaxDaysOpen(property.violations);
@@ -79,14 +83,9 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
     }
     if ((property.snap_score ?? 0) >= 80) bits.push("High SnapScore");
     return bits.length > 0 ? bits.join(" • ") : "Recent activity";
-  };
+  }, [getMaxDaysOpen]);
 
-  const getMaxDaysOpen = (violations: Violation[]) => {
-    if (violations.length === 0) return 0;
-    return Math.max(...violations.map(v => v.days_open ?? 0));
-  };
-
-  const handleSkipTrace = async (property: PropertyWithViolations, e: React.MouseEvent) => {
+  const handleSkipTrace = useCallback(async (property: PropertyWithViolations, e: React.MouseEvent) => {
     e.stopPropagation();
     
     console.log("[LeadsTable] Skip trace clicked for property:", property.id);
@@ -127,32 +126,32 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
     } finally {
       setLoadingSkipTrace(prev => ({ ...prev, [property.id]: false }));
     }
-  };
+  }, [toast, credits, propertyContacts]);
 
-  const getReachability = (propertyId: string) => {
+  const getReachability = useCallback((propertyId: string) => {
     const count = propertyContacts[propertyId];
     if (count === undefined) return { text: "Not traced", color: "bg-slate-300" };
     if (count > 0) return { text: `Numbers found (${count})`, color: "bg-emerald-400" };
     return { text: "No numbers", color: "bg-amber-400" };
-  };
+  }, [propertyContacts]);
 
-  const handleSelectAll = (checked: boolean) => {
+  const handleSelectAll = useCallback((checked: boolean) => {
     if (!onSelectionChange) return;
     if (checked) {
       onSelectionChange(properties.map(p => p.id));
     } else {
       onSelectionChange([]);
     }
-  };
+  }, [onSelectionChange, properties]);
 
-  const handleSelectOne = (propertyId: string, checked: boolean) => {
+  const handleSelectOne = useCallback((propertyId: string, checked: boolean) => {
     if (!onSelectionChange) return;
     if (checked) {
       onSelectionChange([...selectedIds, propertyId]);
     } else {
       onSelectionChange(selectedIds.filter(id => id !== propertyId));
     }
-  };
+  }, [onSelectionChange, selectedIds]);
 
   return (
     <>
@@ -197,12 +196,9 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
                 const currentCredits = credits ?? 0;
 
                 return (
-                  <motion.tr
+                  <tr
                     key={property.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.15, delay: index * 0.02 }}
-                    className="h-16 odd:bg-white even:bg-slate-50/40 hover:bg-slate-50 transition-all cursor-pointer group"
+                    className="h-16 odd:bg-white even:bg-slate-50/40 hover:bg-slate-50 transition-colors cursor-pointer group"
                     onClick={() => setSelectedProperty(property)}
                   >
                     {onSelectionChange && (
@@ -278,7 +274,7 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
                         </Button>
                       )}
                     </td>
-                  </motion.tr>
+                  </tr>
                 );
               })}
             </tbody>

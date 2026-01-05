@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -118,16 +118,16 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   if (!property) return null;
 
-  const handleSkipTrace = async (overrides?: any) => {
+  const handleSkipTrace = useCallback(async (overrides?: any) => {
     if (!property) return;
 
     console.log("[PropertyDetailPanel] Demo skip trace for property:", property.id);
-    
+
     setIsTracing(true);
     try {
       // Use mock skip trace
       const result = await mockSkipTrace(property.id);
-      
+
       if (result.success && result.contacts) {
         setContacts(result.contacts);
         toast({
@@ -153,29 +153,32 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     } finally {
       setIsTracing(false);
     }
-  };
+  }, [property, toast]);
 
-  const getScoreClass = (n: number | null) => {
+  const getScoreClass = useCallback((n: number | null) => {
     if (!n) return 'bg-slate-100 text-ink-600 border border-slate-200';
     if (n >= 80) return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
     if (n >= 50) return 'bg-amber-50 text-amber-700 border border-amber-200';
     return 'bg-slate-100 text-ink-600 border border-slate-200';
-  };
+  }, []);
 
-  const formatDate = (dateString: string | null) => {
+  const formatDate = useCallback((dateString: string | null) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
     });
-  };
+  }, []);
 
-  const googleMapsUrl = property.latitude && property.longitude
-    ? `https://www.google.com/maps?q=${property.latitude},${property.longitude}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip}`)}`;
+  const googleMapsUrl = useMemo(() =>
+    property.latitude && property.longitude
+      ? `https://www.google.com/maps?q=${property.latitude},${property.longitude}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip}`)}`,
+    [property.latitude, property.longitude, property.address, property.city, property.state, property.zip]
+  );
 
-  const hasMultipleViolations = violations.length >= 3;
+  const hasMultipleViolations = useMemo(() => violations.length >= 3, [violations.length]);
   const snapScore = property.snap_score;
   const credits = 100; // Demo mode - fake credits
   const hasContacts = contacts.length > 0;
@@ -183,7 +186,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[600px] overflow-hidden p-0 flex flex-col z-[2000] snap-drawer">
+      <SheetContent className="w-full sm:max-w-[600px] p-0 flex flex-col z-[2000] snap-drawer">
         <motion.div
           initial={{ x: 24, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}

@@ -10,8 +10,10 @@ import { MobilePropertyCard } from "@/components/leads/MobilePropertyCard";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
-import { Trash2, ChevronLeft, ChevronRight, Search, X, Map, List } from "lucide-react";
+import { Trash2, ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
+import { ViolationListView } from "@/components/leads/ViolationListView";
+import { ViewModeToggle, type ViewMode } from "@/components/leads/ViewModeToggle";
 import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
 import { PressureLevelFilter } from "@/components/leads/PressureLevelFilter";
@@ -25,6 +27,8 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { exportFilteredCsv } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
 import { useMapMarkers } from "@/hooks/useMapMarkers";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -56,6 +60,9 @@ function Leads() {
   
   // Mobile view state
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
+  
+  // View mode state (property vs violation)
+  const [viewMode, setViewMode] = useState<ViewMode>('property');
   
   // Demo credits hook
   const { isDemoMode, isAdmin } = useDemoCredits();
@@ -226,6 +233,44 @@ function Leads() {
     violations: [] as any[],
   }));
 
+  // Fetch violations when in violation view mode
+  const propertyIds = properties.map(p => p.id);
+  const { data: violationsData = [] } = useQuery({
+    queryKey: ["violations-for-properties", propertyIds, viewMode],
+    enabled: viewMode === 'violation' && propertyIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("violations")
+        .select("id, violation_type, status, opened_date, property_id, case_id, description")
+        .in("property_id", propertyIds)
+        .order("property_id")
+        .order("opened_date", { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 30000,
+  });
+
+  // Map violations with property data for violation view
+  const violationsWithProperty = useMemo(() => {
+    if (viewMode !== 'violation') return [];
+    
+    const propertyMap = new Map(properties.map(p => [p.id, p]));
+    
+    return violationsData.map(v => ({
+      ...v,
+      property: propertyMap.get(v.property_id) || {
+        id: v.property_id,
+        address: 'Unknown',
+        city: '',
+        state: '',
+        zip: '',
+        snap_score: null,
+      }
+    }));
+  }, [violationsData, properties, viewMode]);
+
   const selectedProperty = mappedProperties.find(p => p.id === selectedPropertyId) || null;
 
   return (
@@ -362,7 +407,7 @@ function Leads() {
               className="h-8 px-3 rounded-md"
               onClick={() => setMobileView('map')}
             >
-              <Map className="h-4 w-4 mr-1" />
+              <MapIcon className="h-4 w-4 mr-1" />
               Map
             </Button>
           </div>
@@ -402,14 +447,19 @@ function Leads() {
 
         {/* Property List - Right Side */}
         <div className="w-[40%] flex flex-col relative">
-          {/* Export Button Above List */}
+          {/* Header with View Mode Toggle and Export */}
           {properties.length > 0 && (
-            <div className="px-4 py-2 border-b bg-background flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                {selectedIds.length > 0
-                  ? `${selectedIds.length} selected`
-                  : `${totalCount} properties`}
-              </span>
+            <div className="px-4 py-2 border-b bg-background flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">
+                  {selectedIds.length > 0
+                    ? `${selectedIds.length} selected`
+                    : viewMode === 'violation'
+                    ? `${violationsWithProperty.length} violations`
+                    : `${totalCount} properties`}
+                </span>
+                <ViewModeToggle value={viewMode} onChange={setViewMode} />
+              </div>
               <Button
                 onClick={handleExportCSV}
                 disabled={selectedIds.length === 0}
@@ -420,7 +470,7 @@ function Leads() {
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Export to CSV
+                Export
               </Button>
             </div>
           )}
@@ -434,6 +484,11 @@ function Leads() {
               <div className="p-8 text-center text-muted-foreground">
                 No properties found
               </div>
+            ) : viewMode === 'violation' ? (
+              <ViolationListView
+                violations={violationsWithProperty}
+                onPropertyClick={setSelectedPropertyId}
+              />
             ) : (
               <VirtualizedPropertyList
                 properties={mappedProperties}

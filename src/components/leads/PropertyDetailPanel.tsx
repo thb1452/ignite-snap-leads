@@ -231,7 +231,10 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           </div>
 
           {/* Main Content - Scrollable */}
-          <div className="flex-1 overflow-y-auto p-5 md:p-6 space-y-6">
+          <div 
+            className="flex-1 overflow-y-auto p-5 md:p-6 space-y-6 overscroll-contain touch-pan-y"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
             {/* Property Image */}
             {property.photo_url ? (
               <div className="aspect-[16/9] rounded-xl overflow-hidden bg-slate-100">

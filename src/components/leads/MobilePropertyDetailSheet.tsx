@@ -138,7 +138,10 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
         </div>
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+        <div 
+          className="flex-1 overflow-y-auto px-5 py-5 space-y-5 overscroll-contain touch-pan-y"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           {/* Property Image */}
           {property.photo_url ? (
             <div className="aspect-video rounded-xl overflow-hidden bg-muted">

@@ -186,7 +186,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[600px] h-screen max-h-screen p-0 flex flex-col z-[2000] snap-drawer">
+      <SheetContent className="w-full sm:max-w-[600px] h-screen max-h-screen p-0 flex flex-col z-[2000] snap-drawer overflow-hidden [&>button]:hidden">
         <motion.div
           initial={{ x: 24, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -195,7 +195,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           className="h-full flex flex-col"
         >
           {/* Hero Header */}
-          <div className="p-5 md:p-6 border-b bg-white/90 backdrop-blur">
+          <div className="p-5 md:p-6 border-b bg-white/90 backdrop-blur flex-shrink-0">
             <div className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -232,7 +232,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
           {/* Main Content - Scrollable */}
           <div 
-            className="flex-1 overflow-y-auto p-5 md:p-6 space-y-6 overscroll-contain touch-pan-y"
+            className="flex-1 min-h-0 overflow-y-auto p-5 md:p-6 space-y-6 overscroll-contain"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
             {/* Property Image */}
@@ -379,7 +379,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           </div>
 
           {/* Sticky Action Footer */}
-          <div className="border-t p-4 md:p-5 bg-white sticky bottom-0 space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+          <div className="border-t p-4 md:p-5 bg-white sticky bottom-0 space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)] flex-shrink-0">
             {notTraced && (
               <div className="mb-3 flex gap-3 items-center">
                 <Button

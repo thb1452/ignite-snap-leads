@@ -115,6 +115,27 @@ serve(async (req) => {
 
     console.log(`[backfill] Processing ${properties.length} properties...`);
 
+    // OPTIMIZATION: Batch fetch all violations for this batch of properties to avoid N+1 queries
+    const propertyIds = properties.map(p => p.id);
+    const { data: allViolations, error: violError } = await supabase
+      .from("violations")
+      .select("property_id, violation_type, status, opened_date, case_id")
+      .in("property_id", propertyIds);
+
+    if (violError) {
+      console.error(`[backfill] Error fetching violations:`, violError);
+      throw violError;
+    }
+
+    // Group violations by property_id for efficient lookup
+    const violationsByProperty = new Map<string, any[]>();
+    for (const violation of allViolations || []) {
+      if (!violationsByProperty.has(violation.property_id)) {
+        violationsByProperty.set(violation.property_id, []);
+      }
+      violationsByProperty.get(violation.property_id)!.push(violation);
+    }
+
     let updated = 0;
     let skipped = 0;
     let errors = 0;
@@ -123,20 +144,11 @@ serve(async (req) => {
     // Process each property
     for (const property of properties) {
       try {
-        // Fetch all violations for this property
-        const { data: violations, error: violError } = await supabase
-          .from("violations")
-          .select("violation_type, status, opened_date, case_id")
-          .eq("property_id", property.id);
-
-        if (violError) {
-          console.error(`[backfill] Error fetching violations for ${property.id}:`, violError);
-          errors++;
-          continue;
-        }
+        // Get violations for this property from the batch-fetched data
+        const violations = violationsByProperty.get(property.id) || [];
 
         // Skip if no violations
-        if (!violations || violations.length === 0) {
+        if (violations.length === 0) {
           skipped++;
           continue;
         }

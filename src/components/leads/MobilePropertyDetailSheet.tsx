@@ -95,22 +95,20 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="bottom" 
-        className="h-[90vh] rounded-t-3xl p-0 flex flex-col overflow-hidden [&>button]:hidden"
+        className="h-[90vh] rounded-t-3xl p-0 flex flex-col overflow-hidden [&>button.absolute.right-4]:hidden"
       >
-        {/* Drag Handle */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+        {/* Drag Handle + Close Button Row */}
+        <div className="relative flex justify-center pt-3 pb-1 flex-shrink-0">
           <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 right-3 h-10 w-10 rounded-full"
+            onClick={() => onOpenChange(false)}
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
-
-        {/* Close Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-3 right-3 h-10 w-10 rounded-full z-10"
-          onClick={() => onOpenChange(false)}
-        >
-          <X className="h-5 w-5" />
-        </Button>
 
         {/* Header */}
         <div className="px-5 pt-2 pb-4 border-b flex-shrink-0">

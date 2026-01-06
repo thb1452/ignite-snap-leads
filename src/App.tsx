@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
 import Upload from "./pages/Upload";
 import Leads from "./pages/Leads";
+import Landing from "./pages/Landing";
 import { Lists } from "./pages/Lists";
 import { Settings } from "./pages/Settings";
 import JobDetail from "./pages/JobDetail";
@@ -29,10 +30,15 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Leads />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/upload" element={<Upload />} />
+          <Route path="/app" element={
+            <RoleProtectedRoute allowedRoles={['admin']}>
+              <Leads />
+            </RoleProtectedRoute>
+          } />
           <Route path="/leads" element={
             <RoleProtectedRoute allowedRoles={['admin']}>
               <Leads />

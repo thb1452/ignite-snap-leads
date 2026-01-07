@@ -192,7 +192,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 24, opacity: 0 }}
           transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
-          className="h-full flex flex-col"
+          className="h-full flex flex-col overflow-hidden"
         >
           {/* Hero Header with Close Button */}
           <div className="p-5 md:p-6 border-b bg-white/90 backdrop-blur flex-shrink-0">

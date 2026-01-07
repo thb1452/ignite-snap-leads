@@ -95,10 +95,10 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="bottom" 
-        className="h-[90vh] rounded-t-3xl p-0 flex flex-col overflow-hidden"
+        className="!h-[90vh] rounded-t-3xl p-0 flex flex-col"
       >
         {/* Drag Handle */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+        <div className="flex justify-center pt-3 pb-1 shrink-0">
           <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
         </div>
 
@@ -113,7 +113,7 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
         </button>
 
         {/* Header */}
-        <div className="px-5 pt-2 pb-4 border-b flex-shrink-0">
+        <div className="px-5 pt-2 pb-4 border-b shrink-0">
           <div className="flex items-start gap-3 pr-10">
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-semibold text-foreground leading-tight">
@@ -139,8 +139,8 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
 
         {/* Content - Scrollable */}
         <div 
-          className="flex-1 overflow-y-scroll px-5 py-5 space-y-5 overscroll-contain touch-pan-y"
-          style={{ WebkitOverflowScrolling: 'touch', minHeight: 0 }}
+          className="flex-1 overflow-y-auto px-5 py-5 space-y-5 overscroll-contain min-h-0"
+          style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {/* Property Image */}
           {property.photo_url ? (
@@ -235,7 +235,7 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
         </div>
 
         {/* Action Footer - Sticky */}
-        <div className="border-t p-4 bg-background space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)] flex-shrink-0">
+        <div className="border-t p-4 bg-background space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)] shrink-0">
           <div className="flex gap-3">
             <Button
               className="flex-1 h-12 text-base gap-2"

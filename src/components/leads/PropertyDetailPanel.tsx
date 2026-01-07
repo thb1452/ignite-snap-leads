@@ -4,7 +4,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ExternalLink, MapPin, Mail, Clock, Loader2 } from "lucide-react";
+import { ExternalLink, MapPin, Mail, Clock, Loader2, X, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { mockSkipTrace } from "@/services/mockData";
@@ -194,8 +194,29 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
           className="h-full flex flex-col"
         >
-          {/* Hero Header */}
+          {/* Hero Header with Close Button */}
           <div className="p-5 md:p-6 border-b bg-white/90 backdrop-blur flex-shrink-0">
+            {/* Close/Back Button */}
+            <div className="flex items-center justify-between mb-3">
+              <button
+                type="button"
+                aria-label="Close property details"
+                onClick={() => onOpenChange(false)}
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors -ml-1 py-1"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back to leads</span>
+              </button>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => onOpenChange(false)}
+                className="h-8 w-8 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            
             <div className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">

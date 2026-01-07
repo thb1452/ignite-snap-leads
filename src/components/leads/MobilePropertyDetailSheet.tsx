@@ -95,53 +95,54 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="bottom" 
-        className="!h-[90vh] rounded-t-3xl p-0 flex flex-col"
+        className="h-[90vh] !max-h-[90vh] rounded-t-3xl p-0 overflow-hidden"
       >
-        {/* Drag Handle */}
-        <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
-        </div>
-
-        {/* Close Button - positioned absolutely */}
-        <button
-          type="button"
-          aria-label="Close"
-          className="absolute top-3 right-3 h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 border shadow-sm"
-          onClick={() => onOpenChange(false)}
-        >
-          <X className="h-5 w-5" />
-        </button>
-
-        {/* Header */}
-        <div className="px-5 pt-2 pb-4 border-b shrink-0">
-          <div className="flex items-start gap-3 pr-10">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-semibold text-foreground leading-tight">
-                {property.address}
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                {property.city}, {property.state} {property.zip}
-              </p>
-              {property.updated_at && (
-                <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  <span>
-                    Updated {formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })}
-                  </span>
-                </div>
-              )}
-            </div>
-            <Badge className={`${getScoreColor(property.snap_score)} text-base font-bold px-3 py-1.5 shrink-0`}>
-              {property.snap_score || 0}
-            </Badge>
+        <div className="flex flex-col h-full">
+          {/* Drag Handle */}
+          <div className="flex justify-center pt-3 pb-1 shrink-0">
+            <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
           </div>
-        </div>
 
-        {/* Content - Scrollable */}
-        <div 
-          className="flex-1 overflow-y-auto px-5 py-5 space-y-5 overscroll-contain min-h-0"
-          style={{ WebkitOverflowScrolling: 'touch' }}
-        >
+          {/* Close Button - positioned absolutely */}
+          <button
+            type="button"
+            aria-label="Close"
+            className="absolute top-3 right-3 h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 border shadow-sm"
+            onClick={() => onOpenChange(false)}
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          {/* Header */}
+          <div className="px-5 pt-2 pb-4 border-b shrink-0">
+            <div className="flex items-start gap-3 pr-10">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-semibold text-foreground leading-tight">
+                  {property.address}
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {property.city}, {property.state} {property.zip}
+                </p>
+                {property.updated_at && (
+                  <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    <span>
+                      Updated {formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <Badge className={`${getScoreColor(property.snap_score)} text-base font-bold px-3 py-1.5 shrink-0`}>
+                {property.snap_score || 0}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Content - Scrollable */}
+          <div 
+            className="flex-1 overflow-y-auto px-5 py-5 space-y-5 overscroll-contain"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
           {/* Property Image */}
           {property.photo_url ? (
             <div className="aspect-video rounded-xl overflow-hidden bg-muted">
@@ -232,36 +233,37 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
             View on Google Maps
             <ExternalLink className="h-3 w-3" />
           </a>
-        </div>
+          </div>
 
-        {/* Action Footer - Sticky */}
-        <div className="border-t p-4 bg-background space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)] shrink-0">
-          <div className="flex gap-3">
-            <Button
-              className="flex-1 h-12 text-base gap-2"
-              onClick={() => {
-                toast({
-                  title: "Demo Mode",
-                  description: "Text message sent to owner",
-                });
-              }}
-            >
-              <MessageSquare className="h-5 w-5" />
-              Text Owner
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 h-12 text-base gap-2"
-              onClick={() => {
-                toast({
-                  title: "Demo Mode",
-                  description: "Calling owner...",
-                });
-              }}
-            >
-              <Phone className="h-5 w-5" />
-              Call Owner
-            </Button>
+          {/* Action Footer - Sticky */}
+          <div className="border-t p-4 bg-background space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)] shrink-0">
+            <div className="flex gap-3">
+              <Button
+                className="flex-1 h-12 text-base gap-2"
+                onClick={() => {
+                  toast({
+                    title: "Demo Mode",
+                    description: "Text message sent to owner",
+                  });
+                }}
+              >
+                <MessageSquare className="h-5 w-5" />
+                Text Owner
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 h-12 text-base gap-2"
+                onClick={() => {
+                  toast({
+                    title: "Demo Mode",
+                    description: "Calling owner...",
+                  });
+                }}
+              >
+                <Phone className="h-5 w-5" />
+                Call Owner
+              </Button>
+            </div>
           </div>
         </div>
       </SheetContent>

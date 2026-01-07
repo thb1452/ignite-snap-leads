@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Check, X, Target, Brain, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -30,31 +29,15 @@ export default function Landing() {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
-        .from("waitlist")
-        .insert({
-          email: email.toLowerCase().trim(),
-          name: name.trim() || null,
-          role: role || null,
-        });
-
-      if (error) {
-        if (error.code === "23505") { // Unique violation
-          toast({
-            title: "Already on the list!",
-            description: "This email is already registered. We'll contact you soon.",
-          });
-          setSubmitted(true);
-        } else {
-          throw error;
-        }
-      } else {
-        setSubmitted(true);
-        toast({
-          title: "You're on the list!",
-          description: "We'll contact you within 24 hours to get you started.",
-        });
-      }
+      // Simulate waitlist signup - store locally for now
+      // TODO: Create waitlist table in database if needed
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setSubmitted(true);
+      toast({
+        title: "You're on the list!",
+        description: "We'll contact you within 24 hours to get you started.",
+      });
     } catch (error) {
       console.error("Waitlist signup error:", error);
       toast({

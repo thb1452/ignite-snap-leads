@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { LeadsMap } from "@/components/leads/LeadsMap";
 import { FilterBar } from "@/components/leads/FilterBar";
 import { BulkActionBar } from "@/components/leads/BulkActionBar";
@@ -30,12 +31,12 @@ import { useMapMarkers } from "@/hooks/useMapMarkers";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const PAGE_SIZE = 50;
 
 function Leads() {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
   const { plan, checkLimit } = useSubscription();
 
@@ -614,25 +615,22 @@ function Leads() {
         )}
       </div>
 
-      {/* DESKTOP: Property Detail Panel (Sidebar) */}
-      <div className="hidden md:block">
-        {selectedPropertyId && (
-          <PropertyDetailPanel
-            property={selectedProperty}
-            open={!!selectedPropertyId}
-            onOpenChange={(open) => !open && setSelectedPropertyId(null)}
-          />
-        )}
-      </div>
-
-      {/* MOBILE: Property Detail Sheet (Full-screen from bottom) */}
-      <div className="md:hidden">
+      {/* Property Detail - Desktop uses Panel, Mobile uses Sheet */}
+      {selectedPropertyId && !isMobile && (
+        <PropertyDetailPanel
+          property={selectedProperty}
+          open={!!selectedPropertyId}
+          onOpenChange={(open) => !open && setSelectedPropertyId(null)}
+        />
+      )}
+      
+      {selectedPropertyId && isMobile && (
         <MobilePropertyDetailSheet
           property={selectedProperty}
           open={!!selectedPropertyId}
           onOpenChange={(open) => !open && setSelectedPropertyId(null)}
         />
-      </div>
+      )}
 
       {/* Add to List Dialog */}
       <AddToListDialog

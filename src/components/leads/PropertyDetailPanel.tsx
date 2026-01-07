@@ -186,13 +186,13 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[600px] h-screen max-h-screen p-0 flex flex-col z-[2000] snap-drawer [&>button]:hidden">
+      <SheetContent className="w-full sm:max-w-[600px] h-screen max-h-screen p-0 flex flex-col overflow-hidden z-[2000] snap-drawer [&>button]:hidden">
         <motion.div
           initial={{ x: 24, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 24, opacity: 0 }}
           transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
-          className="h-full flex flex-col overflow-hidden"
+          className="h-full flex flex-col"
         >
           {/* Hero Header with Close Button */}
           <div className="p-5 md:p-6 border-b bg-white/90 backdrop-blur flex-shrink-0">

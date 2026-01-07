@@ -186,16 +186,16 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[600px] h-screen max-h-screen p-0 flex flex-col overflow-hidden z-[2000] snap-drawer [&>button]:hidden">
+      <SheetContent className="w-full sm:max-w-[600px] h-[100dvh] max-h-[100dvh] p-0 flex flex-col z-[2000] snap-drawer [&>button]:hidden">
         <motion.div
           initial={{ x: 24, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 24, opacity: 0 }}
           transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
-          className="h-full flex flex-col"
+          className="h-full flex flex-col min-h-0"
         >
           {/* Hero Header with Close Button */}
-          <div className="p-5 md:p-6 border-b bg-white/90 backdrop-blur flex-shrink-0">
+          <div className="p-5 md:p-6 border-b bg-white/90 backdrop-blur flex-none">
             {/* Close/Back Button */}
             <div className="flex items-center justify-between mb-3">
               <button
@@ -252,10 +252,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           </div>
 
           {/* Main Content - Scrollable */}
-          <div 
-            className="flex-1 min-h-0 overflow-y-auto p-5 md:p-6 space-y-6 overscroll-contain"
-            style={{ WebkitOverflowScrolling: 'touch' }}
-          >
+          <div className="flex-1 min-h-0 overflow-y-auto p-5 md:p-6 space-y-6 overscroll-contain touch-pan-y">
             {/* Property Image */}
             {property.photo_url ? (
               <div className="aspect-[16/9] rounded-xl overflow-hidden bg-slate-100">

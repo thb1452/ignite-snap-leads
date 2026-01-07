@@ -150,7 +150,7 @@ export function RecentUploads() {
                   {upload.status === 'COMPLETE' && (
                     <>
                       <span>•</span>
-                      <span>{upload.properties_created ?? 0} props</span>
+                      <span>{upload.properties_created ?? 0} new props</span>
                       <span>•</span>
                       <span>{upload.violations_created ?? 0} violations</span>
                     </>

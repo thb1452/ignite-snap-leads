@@ -139,8 +139,8 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
 
         {/* Content - Scrollable */}
         <div 
-          className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5 overscroll-contain"
-          style={{ WebkitOverflowScrolling: 'touch' }}
+          className="flex-1 overflow-y-scroll px-5 py-5 space-y-5 overscroll-contain touch-pan-y"
+          style={{ WebkitOverflowScrolling: 'touch', minHeight: 0 }}
         >
           {/* Property Image */}
           {property.photo_url ? (

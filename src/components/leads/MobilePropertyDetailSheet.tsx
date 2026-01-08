@@ -8,6 +8,7 @@ import { formatDistanceToNow, format } from "date-fns";
 import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
 import { supabase } from "@/integrations/supabase/client";
 import { formatViolationType } from "@/utils/formatViolationType";
+import { formatAddress, formatCity } from "@/utils/formatAddress";
 
 interface Violation {
   id: string;
@@ -117,10 +118,10 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
             <div className="flex items-start gap-3 pr-10">
               <div className="flex-1 min-w-0">
                 <h2 className="text-xl font-semibold text-foreground leading-tight">
-                  {property.address}
+                  {formatAddress(property.address)}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {property.city}, {property.state} {property.zip}
+                  {formatCity(property.city)}, {property.state} {property.zip}
                 </p>
                 {property.updated_at && (
                   <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">

@@ -10,6 +10,7 @@ import { SkipTraceChip } from "./SkipTraceChip";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
 import { formatViolationType } from "@/utils/formatViolationType";
+import { formatAddress, formatCity } from "@/utils/formatAddress";
 
 interface Violation {
   id: string;
@@ -100,10 +101,10 @@ export function PropertyCard({
           <div className="flex items-start justify-between gap-3 mb-2">
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-base leading-tight break-words">
-                {property.address}
+                {formatAddress(property.address)}
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5 break-words">
-                {property.city}, {property.state} {property.zip}
+                {formatCity(property.city)}, {property.state} {property.zip}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">

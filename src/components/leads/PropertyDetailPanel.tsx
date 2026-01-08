@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
 import { supabase } from "@/integrations/supabase/client";
 import { formatViolationType } from "@/utils/formatViolationType";
+import { formatAddress, formatCity } from "@/utils/formatAddress";
 
 interface Violation {
   id: string;
@@ -222,10 +223,10 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <h2 className="text-xl md:text-2xl font-semibold text-ink-900 font-display truncate">
-                    {property.address}
+                    {formatAddress(property.address)}
                   </h2>
                   <p className="text-sm text-ink-400 font-ui mt-1">
-                    {property.city}, {property.state} {property.zip}
+                    {formatCity(property.city)}, {property.state} {property.zip}
                   </p>
                   {/* Last Snap Update Timestamp */}
                   {property.updated_at && (

@@ -6,6 +6,7 @@ import { MessageSquare, ChevronDown, ChevronUp, AlertTriangle, Flame } from "luc
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 import { SkipTraceChip } from "./SkipTraceChip";
 import { formatViolationType } from "@/utils/formatViolationType";
+import { formatAddress, formatCity } from "@/utils/formatAddress";
 interface Violation {
   id: string;
   violation_type: string;
@@ -81,10 +82,10 @@ export function MobilePropertyCard({
         <div className="flex-1 min-w-0">
           {/* Address - Full width, no truncation */}
           <h3 className="font-semibold text-base leading-snug text-foreground">
-            {property.address}
+            {formatAddress(property.address)}
           </h3>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {property.city}, {property.state} {property.zip}
+            {formatCity(property.city)}, {property.state} {property.zip}
           </p>
 
           {/* Violation Density Indicators */}

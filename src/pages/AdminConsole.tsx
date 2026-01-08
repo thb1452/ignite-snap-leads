@@ -13,6 +13,7 @@ import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useAdminJurisdictions } from "@/hooks/useAdminJurisdictions";
 import * as AdminAPI from "@/services/adminApi";
 import { supabase } from "@/integrations/supabase/client";
+import { BatchInsightsButton } from "@/components/intelligence/BatchInsightsButton";
 import { 
   Users, 
   Upload, 
@@ -291,6 +292,9 @@ function SystemOverviewTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* Batch Insights Generation */}
+      <BatchInsightsButton />
     </div>
   );
 }

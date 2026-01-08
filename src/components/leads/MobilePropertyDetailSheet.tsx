@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
 import { supabase } from "@/integrations/supabase/client";
+import { formatViolationType } from "@/utils/formatViolationType";
 
 interface Violation {
   id: string;
@@ -196,13 +197,13 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {violations.slice(0, 5).map((v) => {
+                  {violations.slice(0, 4).map((v) => {
                     const statusStyle = getViolationStatusStyle(v.status);
                     return (
                       <div key={v.id} className="p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="font-medium text-sm text-foreground">
-                            {v.violation_type || "Unknown"}
+                            {formatViolationType(v.violation_type)}
                           </span>
                           <Badge variant="outline" className={`text-xs ${statusStyle.badge}`}>
                             {v.status || "Unknown"}
@@ -214,9 +215,9 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
                       </div>
                     );
                   })}
-                  {violations.length > 5 && (
+                  {violations.length > 4 && (
                     <p className="text-xs text-muted-foreground text-center pt-2">
-                      +{violations.length - 5} more violations
+                      +{violations.length - 4} more violations
                     </p>
                   )}
                 </div>

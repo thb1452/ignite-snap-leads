@@ -52,8 +52,8 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Premium Navigation Bar */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 supports-[backdrop-filter]:bg-white/55 border-b border-slate-200/70">
+      {/* Premium Navigation Bar - with safe area for mobile browsers */}
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 supports-[backdrop-filter]:bg-white/55 border-b border-slate-200/70 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto max-w-[1400px] px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <LogoWordmark className="text-[18px] leading-none" />

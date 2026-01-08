@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LeadsMap } from "@/components/leads/LeadsMap";
@@ -44,7 +44,8 @@ function Leads() {
   const [page, setPage] = useState(1);
 
   // Enforcement Area filter state
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // Immediate input value
+  const [searchQuery, setSearchQuery] = useState(""); // Debounced value for API
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<string | null>(null);
 
@@ -68,7 +69,16 @@ function Leads() {
   // Demo credits hook
   const { isDemoMode, isAdmin } = useDemoCredits();
 
-  // UI state
+  // Debounce search input (300ms delay)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== searchQuery) {
+        setSearchQuery(searchInput);
+        setPage(1);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, searchQuery]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
@@ -124,6 +134,7 @@ function Leads() {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const handleClearFilters = () => {
+    setSearchInput("");
     setSearchQuery("");
     setLastSeenDays(null);
     setSelectedCity(null);
@@ -299,8 +310,8 @@ function Leads() {
       {/* DESKTOP: Filter Bar */}
       <div className="hidden md:block">
         <FilterBar
-          searchQuery={searchQuery}
-          onSearchChange={(q) => { setSearchQuery(q); setPage(1); }}
+          searchQuery={searchInput}
+          onSearchChange={setSearchInput}
           lastSeenDays={lastSeenDays}
           selectedCity={selectedCity}
           selectedState={selectedState}
@@ -359,16 +370,16 @@ function Leads() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="pl-9 h-10"
             />
-            {searchQuery && (
+            {searchInput && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                onClick={() => setSearchQuery("")}
+                onClick={() => { setSearchInput(""); setSearchQuery(""); }}
               >
                 <X className="h-4 w-4" />
               </Button>

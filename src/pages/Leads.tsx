@@ -594,6 +594,32 @@ function Leads() {
               </div>
             )}
 
+            {/* Mobile Bulk Action Bar - Show when items selected */}
+            {selectedIds.length > 0 && (
+              <div className="border-t bg-background/95 backdrop-blur p-3 flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">
+                  {selectedIds.length} selected
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleExportCSV}
+                    size="sm"
+                    className="h-10"
+                  >
+                    Export CSV
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10"
+                    onClick={() => setShowAddToListDialog(true)}
+                  >
+                    Add to List
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Mobile Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t bg-background">
@@ -640,6 +666,10 @@ function Leads() {
           property={selectedProperty}
           open={!!selectedPropertyId}
           onOpenChange={(open) => !open && setSelectedPropertyId(null)}
+          onAddToList={(propertyId) => {
+            setSelectedIds([propertyId]);
+            setShowAddToListDialog(true);
+          }}
         />
       )}
 

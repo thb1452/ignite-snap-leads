@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, MapPin, ExternalLink, Clock, Loader2, MessageSquare, Phone } from "lucide-react";
+import { X, MapPin, ExternalLink, Clock, Loader2, MessageSquare, Phone, ListPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
@@ -38,9 +38,10 @@ interface MobilePropertyDetailSheetProps {
   property: PropertyWithViolations | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onAddToList?: (propertyId: string) => void;
 }
 
-export function MobilePropertyDetailSheet({ property, open, onOpenChange }: MobilePropertyDetailSheetProps) {
+export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddToList }: MobilePropertyDetailSheetProps) {
   const [violations, setViolations] = useState<Violation[]>([]);
   const [isLoadingViolations, setIsLoadingViolations] = useState(false);
   const { toast } = useToast();
@@ -267,6 +268,19 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange }: Mobi
                 Call Owner
               </Button>
             </div>
+            {onAddToList && (
+              <Button
+                variant="secondary"
+                className="w-full h-12 text-base gap-2"
+                onClick={() => {
+                  onAddToList(property.id);
+                  onOpenChange(false);
+                }}
+              >
+                <ListPlus className="h-5 w-5" />
+                Add to List
+              </Button>
+            )}
           </div>
         </div>
       </SheetContent>

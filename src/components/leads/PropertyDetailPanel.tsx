@@ -12,6 +12,7 @@ import { formatDistanceToNow, format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
 import { supabase } from "@/integrations/supabase/client";
+import { formatViolationType } from "@/utils/formatViolationType";
 
 interface Violation {
   id: string;
@@ -353,7 +354,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                         <div className={`absolute -left-1.5 mt-1 h-3 w-3 rounded-full ${statusStyle.dot}`} />
                         <div className="rounded-xl border p-3">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="font-medium text-ink-800 text-sm">{v.violation_type || "Unknown"}</div>
+                            <div className="font-medium text-ink-800 text-sm">{formatViolationType(v.violation_type)}</div>
                             {statusStyle.tooltip ? (
                               <TooltipProvider>
                                 <Tooltip>

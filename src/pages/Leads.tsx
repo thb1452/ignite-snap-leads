@@ -182,8 +182,7 @@ function Leads() {
       });
 
       await exportFilteredCsv({
-        city: selectedCity || undefined,
-        minScore: 0,
+        propertyIds: selectedIds,
       });
 
       toast({

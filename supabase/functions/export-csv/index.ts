@@ -30,6 +30,8 @@ serve(async (req) => {
     const minScore = url.searchParams.get('minScore');
     const maxScore = url.searchParams.get('maxScore');
     const jurisdictionId = url.searchParams.get('jurisdictionId');
+    const propertyIdsParam = url.searchParams.get('propertyIds');
+    const propertyIds = propertyIdsParam ? propertyIdsParam.split(',').filter(id => id.trim()) : null;
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
@@ -110,18 +112,22 @@ serve(async (req) => {
         )
       `);
 
-    // Apply filters
-    if (city) {
-      query = query.eq('city', city);
-    }
-    if (jurisdictionId) {
-      query = query.eq('jurisdiction_id', jurisdictionId);
-    }
-    if (minScore) {
-      query = query.gte('snap_score', parseInt(minScore));
-    }
-    if (maxScore) {
-      query = query.lte('snap_score', parseInt(maxScore));
+    // Apply filters - propertyIds takes priority
+    if (propertyIds && propertyIds.length > 0) {
+      query = query.in('id', propertyIds);
+    } else {
+      if (city) {
+        query = query.eq('city', city);
+      }
+      if (jurisdictionId) {
+        query = query.eq('jurisdiction_id', jurisdictionId);
+      }
+      if (minScore) {
+        query = query.gte('snap_score', parseInt(minScore));
+      }
+      if (maxScore) {
+        query = query.lte('snap_score', parseInt(maxScore));
+      }
     }
 
     // Order by snap_score descending (highest motivation first)

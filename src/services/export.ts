@@ -5,6 +5,7 @@ interface ExportParams {
   minScore?: number;
   maxScore?: number;
   jurisdictionId?: string;
+  propertyIds?: string[];
 }
 
 export async function exportFilteredCsv(params: ExportParams) {
@@ -14,6 +15,7 @@ export async function exportFilteredCsv(params: ExportParams) {
   if (params.minScore != null) qs.set("minScore", String(params.minScore));
   if (params.maxScore != null) qs.set("maxScore", String(params.maxScore));
   if (params.jurisdictionId) qs.set("jurisdictionId", params.jurisdictionId);
+  if (params.propertyIds?.length) qs.set("propertyIds", params.propertyIds.join(","));
 
   // Get user session token for authenticated request
   const { data } = await supabase.auth.getSession();

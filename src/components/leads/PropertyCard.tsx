@@ -9,6 +9,7 @@ import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 import { SkipTraceChip } from "./SkipTraceChip";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
+import { formatViolationType } from "@/utils/formatViolationType";
 
 interface Violation {
   id: string;
@@ -138,7 +139,7 @@ export function PropertyCard({
               <div className="flex items-center gap-1.5">
                 <Flame className="h-3.5 w-3.5 text-orange-500" />
                 <span className="text-xs text-muted-foreground">
-                  {property.violation_types.slice(0, 2).join(", ")}
+                  {property.violation_types.slice(0, 2).map(formatViolationType).join(", ")}
                   {property.violation_types.length > 2 && ` +${property.violation_types.length - 2}`}
                 </span>
               </div>
@@ -149,7 +150,7 @@ export function PropertyCard({
           {mostRecentViolation && (
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="text-xs font-medium text-foreground">
-                Latest: {mostRecentViolation.violation_type || "Unknown"}
+                Latest: {formatViolationType(mostRecentViolation.violation_type)}
               </span>
               <span className="text-xs text-muted-foreground">•</span>
               {(() => {

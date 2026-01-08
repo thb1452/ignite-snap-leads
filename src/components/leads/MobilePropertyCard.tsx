@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { MessageSquare, ChevronDown, ChevronUp, AlertTriangle, Flame } from "lucide-react";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 import { SkipTraceChip } from "./SkipTraceChip";
-
+import { formatViolationType } from "@/utils/formatViolationType";
 interface Violation {
   id: string;
   violation_type: string;
@@ -104,7 +104,7 @@ export function MobilePropertyCard({
               <div className="flex items-center gap-1.5">
                 <Flame className="h-3.5 w-3.5 text-orange-500" />
                 <span className="text-xs text-muted-foreground">
-                  {property.violation_types.slice(0, 2).join(", ")}
+                  {property.violation_types.slice(0, 2).map(formatViolationType).join(", ")}
                   {property.violation_types.length > 2 && ` +${property.violation_types.length - 2}`}
                 </span>
               </div>

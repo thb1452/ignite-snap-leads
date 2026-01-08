@@ -66,30 +66,31 @@ serve(async (req) => {
     }
     const user = authData.user;
 
-    // ---- Check Usage Limit ----
-    const { data: canExport, error: limitError } = await supabase.rpc('check_usage_limit', {
-      _event_type: 'csv_export',
-      _quantity: 1
-    });
+    // ---- Check Usage Limit (optional - skip if function doesn't exist) ----
+    try {
+      const { data: canExport, error: limitError } = await supabase.rpc('check_usage_limit', {
+        _event_type: 'csv_export',
+        _quantity: 1
+      });
 
-    if (limitError) {
-      console.error('[export-csv] Error checking limit:', limitError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to check usage limits' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!canExport) {
-      console.log('[export-csv] User hit export limit:', user.id);
-      return new Response(
-        JSON.stringify({
-          error: 'CSV export limit reached',
-          code: 'EXPORT_LIMIT_EXCEEDED',
-          message: 'You have reached your monthly CSV export limit. Please upgrade your plan to continue exporting.'
-        }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Only block if we got a valid false response (limit exceeded)
+      if (!limitError && canExport === false) {
+        console.log('[export-csv] User hit export limit:', user.id);
+        return new Response(
+          JSON.stringify({
+            error: 'CSV export limit reached',
+            code: 'EXPORT_LIMIT_EXCEEDED',
+            message: 'You have reached your monthly CSV export limit. Please upgrade your plan to continue exporting.'
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (limitError) {
+        console.log('[export-csv] Usage limit check skipped (function may not exist):', limitError.message);
+      }
+    } catch (e) {
+      console.log('[export-csv] Usage limit check skipped:', e.message);
     }
 
     // Build query - ONLY select clean fields
@@ -147,7 +148,7 @@ serve(async (req) => {
       offset += BATCH_SIZE;
     }
 
-    console.log(`[export-csv] Exporting ${allData.length} properties`);
+    console.log(`[export-csv] Exporting ${allData.length} properties for user ${user.id}`);
 
     // Flatten data for CSV - one row per property with primary violation info
     const csvRows: string[] = [];
@@ -193,21 +194,20 @@ serve(async (req) => {
 
     const csvContent = csvRows.join('\n');
 
-    // ---- Record Usage Event ----
-    const { error: recordError } = await supabase.rpc('record_usage_event', {
-      _event_type: 'csv_export',
-      _resource_type: 'property',
-      _resource_id: null,
-      _quantity: 1,
-      _metadata: {
-        filters: { city, minScore, maxScore, jurisdictionId },
-        row_count: csvRows.length - 1 // Subtract header row
-      }
-    });
-
-    if (recordError) {
-      console.error('[export-csv] Error recording usage:', recordError);
-      // Don't fail the export if recording fails
+    // ---- Record Usage Event (optional - skip if function doesn't exist) ----
+    try {
+      await supabase.rpc('record_usage_event', {
+        _event_type: 'csv_export',
+        _resource_type: 'property',
+        _resource_id: null,
+        _quantity: 1,
+        _metadata: {
+          filters: { city, minScore, maxScore, jurisdictionId },
+          row_count: csvRows.length - 1 // Subtract header row
+        }
+      });
+    } catch (e) {
+      console.log('[export-csv] Usage recording skipped:', e.message);
     }
 
     return new Response(csvContent, {

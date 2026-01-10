@@ -115,9 +115,23 @@ export function UploadProgress({ job, onReset, onRefresh }: UploadProgressProps)
           {job.status === 'COMPLETE' && (
             <div className="space-y-3">
               <div className="space-y-1 text-sm">
+                {/* Properties Summary - show new + existing */}
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Properties Created:</span>
-                  <span className="font-medium">{job.properties_created?.toLocaleString()}</span>
+                  <span className="text-muted-foreground">Properties:</span>
+                  <span className="font-medium">
+                    {job.properties_created ? (
+                      <>
+                        <span className="text-green-600">{job.properties_created.toLocaleString()} new</span>
+                        {job.properties_matched && job.properties_matched > 0 && (
+                          <span className="text-muted-foreground"> + {job.properties_matched.toLocaleString()} existing</span>
+                        )}
+                      </>
+                    ) : job.properties_matched && job.properties_matched > 0 ? (
+                      <span className="text-muted-foreground">{job.properties_matched.toLocaleString()} existing (all deduplicated)</span>
+                    ) : (
+                      '0'
+                    )}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Violations Created:</span>

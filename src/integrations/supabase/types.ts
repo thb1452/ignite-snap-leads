@@ -1065,6 +1065,7 @@ export type Database = {
           jurisdiction_id: string | null
           processed_rows: number | null
           properties_created: number | null
+          properties_matched: number | null
           scope: string | null
           started_at: string | null
           state: string | null
@@ -1090,6 +1091,7 @@ export type Database = {
           jurisdiction_id?: string | null
           processed_rows?: number | null
           properties_created?: number | null
+          properties_matched?: number | null
           scope?: string | null
           started_at?: string | null
           state?: string | null
@@ -1115,6 +1117,7 @@ export type Database = {
           jurisdiction_id?: string | null
           processed_rows?: number | null
           properties_created?: number | null
+          properties_matched?: number | null
           scope?: string | null
           started_at?: string | null
           state?: string | null

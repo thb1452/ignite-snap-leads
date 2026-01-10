@@ -1440,12 +1440,16 @@ async function processUploadJob(jobId: string) {
     }
 
     // Mark job complete FIRST - insights will run in background
+    // Calculate properties_matched: total unique addresses - newly created = matched to existing
+    const propertiesMatched = addressMap.size - propertiesCreated - badAddressCount;
+    
     const { error: completeError } = await supabaseClient
       .from('upload_jobs')
       .update({
         status: 'COMPLETE',
         finished_at: new Date().toISOString(),
         properties_created: propertiesCreated,
+        properties_matched: propertiesMatched > 0 ? propertiesMatched : 0,
         violations_created: violationsCreatedTotal,
         total_rows: totalRows,
         warnings: warnings.length > 0 ? warnings : null

@@ -8,6 +8,7 @@ export interface UploadJob {
   total_rows: number | null;
   processed_rows: number | null;
   properties_created: number | null;
+  properties_matched: number | null;
   violations_created: number | null;
   error_message: string | null;
   started_at: string | null;
@@ -132,9 +133,16 @@ export function useUploadJob(jobId: string | null) {
           // Show completion notification
           if (payload.new.status === 'COMPLETE') {
             if (pollInterval) clearInterval(pollInterval);
+            const newProps = payload.new.properties_created || 0;
+            const matchedProps = payload.new.properties_matched || 0;
+            const propsDesc = newProps > 0 
+              ? `${newProps} new${matchedProps > 0 ? ` + ${matchedProps} existing` : ''} properties`
+              : matchedProps > 0 
+                ? `${matchedProps} existing properties (all deduplicated)` 
+                : '0 properties';
             toast({
               title: 'Upload Complete',
-              description: `Created ${payload.new.properties_created} properties and ${payload.new.violations_created} violations`,
+              description: `${propsDesc} and ${payload.new.violations_created} violations`,
             });
           } else if (payload.new.status === 'FAILED') {
             if (pollInterval) clearInterval(pollInterval);

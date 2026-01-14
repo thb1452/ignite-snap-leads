@@ -29,7 +29,9 @@ export function RoleProtectedRoute({
     return <Navigate to="/auth" replace />;
   }
 
-  const hasRequiredRole = allowedRoles.some(role => hasRole(role));
+  // Admins can access everything
+  const isAdmin = hasRole('admin');
+  const hasRequiredRole = isAdmin || allowedRoles.some(role => hasRole(role));
 
   if (!hasRequiredRole) {
     // Prevent redirect loops - if already on the redirect target, show access denied

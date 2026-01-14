@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Search, 
   FileText, 
@@ -19,7 +21,12 @@ import {
   ExternalLink,
   ChevronDown,
   Send,
-  Calendar
+  Calendar,
+  ClipboardList,
+  MessageSquare,
+  CheckCircle,
+  Clock,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useFoiaCounties, useVAStats, CountyWithStats } from '@/hooks/useFoiaCounties';
@@ -114,6 +121,7 @@ export default function VAWorkspace() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showHelpModal, setShowHelpModal] = useState(false);
   
   const { data: stats, isLoading: statsLoading } = useVAStats();
   const { data: counties, isLoading: countiesLoading } = useFoiaCounties({
@@ -295,13 +303,198 @@ export default function VAWorkspace() {
                 View Templates
               </Link>
             </Button>
-            <Button variant="ghost">
+            <Button variant="ghost" onClick={() => setShowHelpModal(true)}>
               <HelpCircle className="h-4 w-4 mr-2" />
               Help & Guidelines
             </Button>
           </CardContent>
         </Card>
       </div>
+      
+      {/* Help Modal */}
+      <Dialog open={showHelpModal} onOpenChange={setShowHelpModal}>
+        <DialogContent className="max-w-2xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <BookOpen className="h-5 w-5" />
+              VA Workspace Guide
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[60vh] pr-4">
+            <div className="space-y-6 py-4">
+              {/* Section 1 */}
+              <section>
+                <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+                  <ClipboardList className="h-5 w-5 text-primary" />
+                  Daily Workflow
+                </h3>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Start your day by checking "Priority Tasks" - focus on 🔥 Urgent items first
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Work through counties in order: Urgent → Important → Routine
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Log every FOIA request immediately after sending it
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Add notes to counties about portal quirks or response patterns
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Update county status as soon as you receive responses
+                  </li>
+                </ul>
+              </section>
+              
+              {/* Section 2 */}
+              <section>
+                <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Using Templates
+                </h3>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Click "View Templates" to access pre-written FOIA requests
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Choose the template that matches your county's state
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Click "View & Copy" to copy template to clipboard
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Replace [COUNTY NAME] and [STATE] with actual county/state name
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Paste into the FOIA portal and submit
+                  </li>
+                </ul>
+              </section>
+              
+              {/* Section 3 */}
+              <section>
+                <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+                  <Send className="h-5 w-5 text-primary" />
+                  Logging Requests
+                </h3>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Go to county detail page
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Click "Log New Request"
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Enter: request date, method (email/web form/mail), years requested
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Add any notes about the request
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Click "Log Request" - this updates the county status to "Pending"
+                  </li>
+                </ul>
+              </section>
+              
+              {/* Section 4 */}
+              <section>
+                <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+                  <Clock className="h-5 w-5 text-primary" />
+                  Following Up
+                </h3>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    If no response after 30 days, check the portal again
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Update county status based on response:
+                  </li>
+                  <li className="ml-6 space-y-1">
+                    <p><CheckCircle className="inline h-4 w-4 text-green-500 mr-1" /> <strong>Fulfilled</strong> - data received and ready to clean</p>
+                    <p><span className="text-red-500 mr-1">✕</span> <strong>Declined</strong> - county refused to provide data</p>
+                    <p><span className="text-orange-500 mr-1">$</span> <strong>Invoice Required</strong> - they want payment first</p>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Add notes about what happened
+                  </li>
+                </ul>
+              </section>
+              
+              {/* Section 5 */}
+              <section>
+                <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+                  <MessageSquare className="h-5 w-5 text-primary" />
+                  County Notes Best Practices
+                </h3>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Document portal preferences (email vs web form)
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Note typical response times
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Record any special requirements (date formats, etc.)
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Flag difficult portals or helpful contacts
+                  </li>
+                </ul>
+              </section>
+              
+              {/* Section 6 */}
+              <section>
+                <h3 className="flex items-center gap-2 font-semibold text-lg mb-3">
+                  <HelpCircle className="h-5 w-5 text-primary" />
+                  Getting Help
+                </h3>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    If a portal is confusing, add detailed notes and ask admin for help
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    If invoice is required, update status and notify admin
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    If county declines, document reason in notes
+                  </li>
+                </ul>
+              </section>
+            </div>
+          </ScrollArea>
+          <div className="pt-4 border-t">
+            <Button onClick={() => setShowHelpModal(false)} className="w-full">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

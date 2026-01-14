@@ -33,9 +33,9 @@ export function AppLayout({ children }: AppLayoutProps) {
     { name: "Jobs", path: "/jobs" },
   ] : [];
 
-  // VA-specific nav items
-  const vaNavItems = isVA ? [
-    { name: "VA Dashboard", path: "/va-dashboard" },
+  // VA-specific nav items (also visible to admin)
+  const vaNavItems = (isVA || isAdmin) ? [
+    { name: "VA Workspace", path: "/va-workspace" },
   ] : [];
 
   // Admin-specific nav items

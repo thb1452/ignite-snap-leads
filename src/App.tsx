@@ -14,7 +14,12 @@ import JobDetail from "./pages/JobDetail";
 import Jobs from "./pages/Jobs";
 import UploadJobDetail from "./pages/UploadJobDetail";
 import VADashboard from "./pages/VADashboard";
+import VAWorkspace from "./pages/VAWorkspace";
+import VACountyDetail from "./pages/VACountyDetail";
+import VATemplates from "./pages/VATemplates";
 import AdminConsole from "./pages/AdminConsole";
+import AdminImportCounties from "./pages/AdminImportCounties";
+import AdminAssignCounties from "./pages/AdminAssignCounties";
 import ResetPassword from "./pages/ResetPassword";
 import HowSnapWorks from "./pages/HowSnapWorks";
 import Pricing from "./pages/Pricing";
@@ -69,14 +74,41 @@ const App = () => (
               <UploadJobDetail />
             </RoleProtectedRoute>
           } />
+          {/* VA Routes */}
           <Route path="/va-dashboard" element={
             <RoleProtectedRoute allowedRoles={['va', 'admin']}>
               <VADashboard />
             </RoleProtectedRoute>
           } />
+          <Route path="/va-workspace" element={
+            <RoleProtectedRoute allowedRoles={['va', 'admin']}>
+              <VAWorkspace />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/va-workspace/county/:id" element={
+            <RoleProtectedRoute allowedRoles={['va', 'admin']}>
+              <VACountyDetail />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/va-workspace/templates" element={
+            <RoleProtectedRoute allowedRoles={['va', 'admin']}>
+              <VATemplates />
+            </RoleProtectedRoute>
+          } />
+          {/* Admin Routes */}
           <Route path="/admin-console" element={
             <RoleProtectedRoute allowedRoles={['admin']}>
               <AdminConsole />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/admin/import-counties" element={
+            <RoleProtectedRoute allowedRoles={['admin']}>
+              <AdminImportCounties />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/admin/assign-counties" element={
+            <RoleProtectedRoute allowedRoles={['admin']}>
+              <AdminAssignCounties />
             </RoleProtectedRoute>
           } />
           <Route path="/how-snap-works" element={

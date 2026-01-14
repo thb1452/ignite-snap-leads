@@ -146,10 +146,14 @@ export type Database = {
           assigned_to: string | null
           county_name: string
           created_at: string | null
+          foia_portal_url: string | null
           foia_status: string | null
           id: string
+          last_request_date: string | null
           last_upload_date: string | null
           list_count: number | null
+          notes: string | null
+          portal_type: string | null
           state: string
           updated_at: string | null
           upload_status: string | null
@@ -158,10 +162,14 @@ export type Database = {
           assigned_to?: string | null
           county_name: string
           created_at?: string | null
+          foia_portal_url?: string | null
           foia_status?: string | null
           id?: string
+          last_request_date?: string | null
           last_upload_date?: string | null
           list_count?: number | null
+          notes?: string | null
+          portal_type?: string | null
           state: string
           updated_at?: string | null
           upload_status?: string | null
@@ -170,10 +178,14 @@ export type Database = {
           assigned_to?: string | null
           county_name?: string
           created_at?: string | null
+          foia_portal_url?: string | null
           foia_status?: string | null
           id?: string
+          last_request_date?: string | null
           last_upload_date?: string | null
           list_count?: number | null
+          notes?: string | null
+          portal_type?: string | null
           state?: string
           updated_at?: string | null
           upload_status?: string | null
@@ -322,6 +334,89 @@ export type Database = {
           ts?: string
           type?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      foia_requests: {
+        Row: {
+          county_id: string | null
+          created_at: string | null
+          data_years_requested: string | null
+          id: string
+          invoice_amount: number | null
+          invoice_paid: boolean | null
+          notes: string | null
+          request_date: string
+          request_method: string | null
+          requested_by: string
+          response_date: string | null
+          status: string | null
+        }
+        Insert: {
+          county_id?: string | null
+          created_at?: string | null
+          data_years_requested?: string | null
+          id?: string
+          invoice_amount?: number | null
+          invoice_paid?: boolean | null
+          notes?: string | null
+          request_date?: string
+          request_method?: string | null
+          requested_by: string
+          response_date?: string | null
+          status?: string | null
+        }
+        Update: {
+          county_id?: string | null
+          created_at?: string | null
+          data_years_requested?: string | null
+          id?: string
+          invoice_amount?: number | null
+          invoice_paid?: boolean | null
+          notes?: string | null
+          request_date?: string
+          request_method?: string | null
+          requested_by?: string
+          response_date?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foia_requests_county_id_fkey"
+            columns: ["county_id"]
+            isOneToOne: false
+            referencedRelation: "counties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      foia_templates: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          state: string | null
+          success_rate: number | null
+          template_text: string
+          use_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          state?: string | null
+          success_rate?: number | null
+          template_text: string
+          use_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          state?: string | null
+          success_rate?: number | null
+          template_text?: string
+          use_count?: number | null
         }
         Relationships: []
       }

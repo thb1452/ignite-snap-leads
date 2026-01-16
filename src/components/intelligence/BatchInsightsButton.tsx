@@ -14,14 +14,22 @@ import { useQueryClient } from "@tanstack/react-query";
 export function BatchInsightsButton() {
   const [progress, setProgress] = useState<BatchRescoreProgress | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [missingCount, setMissingCount] = useState<number | null>(null);
+  const [stats, setStats] = useState<{ total: number; hasInsight: number; missing: number } | null>(null);
   const queryClient = useQueryClient();
 
   const handleFetchCount = async () => {
     try {
       setIsLoading(true);
-      const count = await countPropertiesMissingInsights();
-      setMissingCount(count);
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { count: total } = await supabase.from("properties").select("id", { count: "exact", head: true });
+      const { count: hasInsight } = await supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_insight", "is", null);
+      const totalCount = total ?? 0;
+      const insightCount = hasInsight ?? 0;
+      setStats({ 
+        total: totalCount, 
+        hasInsight: insightCount, 
+        missing: totalCount - insightCount 
+      });
     } catch (error) {
       toast.error("Failed to fetch count");
     } finally {
@@ -45,8 +53,10 @@ export function BatchInsightsButton() {
         queryClient.invalidateQueries({ queryKey: ["hot-properties"] });
         queryClient.invalidateQueries({ queryKey: ["jurisdiction-stats"] });
         queryClient.invalidateQueries({ queryKey: ["properties"] });
-        // Update the count
-        setMissingCount(0);
+        // Update the stats
+        if (stats) {
+          setStats({ ...stats, hasInsight: stats.total, missing: 0 });
+        }
       }
     } catch (error) {
       toast.error("Insight generation failed");
@@ -71,7 +81,7 @@ export function BatchInsightsButton() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {missingCount === null ? (
+        {stats === null ? (
           <Button 
             onClick={handleFetchCount} 
             disabled={isLoading}
@@ -83,17 +93,32 @@ export function BatchInsightsButton() {
             ) : (
               <Lightbulb className="h-4 w-4 mr-2" />
             )}
-            Check Missing Insights
+            Check Insight Stats
           </Button>
-        ) : missingCount === 0 ? (
+        ) : stats.missing === 0 ? (
           <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
             <CheckCircle className="h-4 w-4" />
             All properties have insights!
           </div>
         ) : (
           <>
-            <div className="text-sm text-muted-foreground">
-              Found <span className="font-semibold text-amber-500">{missingCount.toLocaleString()}</span> properties missing insights
+            <div className="text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total properties:</span>
+                <span className="font-semibold">{stats.total.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Have insights:</span>
+                <span className="font-semibold text-green-600">{stats.hasInsight.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Missing insights:</span>
+                <span className="font-semibold text-amber-500">{stats.missing.toLocaleString()}</span>
+              </div>
+              <Progress value={(stats.hasInsight / stats.total) * 100} className="h-2 mt-2" />
+              <div className="text-xs text-muted-foreground text-center">
+                {Math.round((stats.hasInsight / stats.total) * 100)}% have insights
+              </div>
             </div>
 
             {progress?.status === 'running' && (
@@ -139,8 +164,8 @@ export function BatchInsightsButton() {
             </Button>
             
             <p className="text-xs text-muted-foreground">
-              ⚠️ This will process {missingCount.toLocaleString()} properties in batches of 100. 
-              Estimated time: ~{Math.ceil(missingCount / 100 * 3)} seconds.
+              ⚠️ This will process {stats.missing.toLocaleString()} properties in batches of 100. 
+              Estimated time: ~{Math.ceil(stats.missing / 100 * 3)} seconds.
             </p>
           </>
         )}

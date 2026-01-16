@@ -93,8 +93,8 @@ export function EnforcementSignalsFilter({
         propertyCount: propertyCountByType[row.violation_type] || 0,
       }));
 
-      // Sort by violation count descending
-      results.sort((a, b) => b.violationCount - a.violationCount);
+      // Sort by PROPERTY COUNT descending - users want properties, not violations
+      results.sort((a, b) => b.propertyCount - a.propertyCount);
 
       console.log("[EnforcementSignalsFilter] Signal types:", results.length);
       return results;
@@ -106,28 +106,28 @@ export function EnforcementSignalsFilter({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          Active Enforcement Signals
+          Violation Type
         </Label>
         <p className="text-xs text-muted-foreground flex items-center gap-1">
           <AlertCircle className="h-3 w-3" />
-          Counts: violations / unique properties
+          Properties with this violation type
         </p>
       </div>
       
       <div className="flex flex-col md:flex-row md:items-center gap-2">
-        <Label className="text-sm font-medium whitespace-nowrap">Signal Type</Label>
+        <Label className="text-sm font-medium whitespace-nowrap">Type</Label>
         <Select
           value={selectedSignal || "all"}
           onValueChange={(value) => onSignalChange(value === "all" ? null : value)}
         >
-          <SelectTrigger className="w-full md:w-[320px] h-11 md:h-9">
-            <SelectValue placeholder={isLoading ? "Loading..." : "All signals"} />
+          <SelectTrigger className="w-full md:w-[280px] h-11 md:h-9">
+            <SelectValue placeholder={isLoading ? "Loading..." : "All types"} />
           </SelectTrigger>
-          <SelectContent className="z-[9999] max-w-[400px]">
-            <SelectItem value="all">All signals</SelectItem>
-            {signalTypes.map(({ type, violationCount, propertyCount }) => (
+          <SelectContent className="z-[9999] max-w-[350px]">
+            <SelectItem value="all">All types</SelectItem>
+            {signalTypes.map(({ type, propertyCount }) => (
               <SelectItem key={type} value={type}>
-                {type} — {violationCount.toLocaleString()} / {propertyCount.toLocaleString()}
+                {type} — {propertyCount.toLocaleString()} properties
               </SelectItem>
             ))}
           </SelectContent>

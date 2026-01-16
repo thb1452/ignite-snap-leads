@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { LeadFilters } from "@/schemas";
+import { getCategoryById } from "@/utils/violationCategoryMapper";
 
 export interface BBoxFilters {
   bbox?: [number, number, number, number]; // [west, south, east, north]
@@ -144,9 +145,22 @@ async function fetchPropertiesPagedLegacy(
     q = q.gte("updated_at", cutoffDate.toISOString());
   }
 
-  // Filter: violation type
+  // Filter: violation type (by category ID or raw type)
   if (filters.violationType) {
-    q = q.contains("violation_types", [filters.violationType]);
+    const category = getCategoryById(filters.violationType);
+    if (category) {
+      // Use overlaps operator to check if violation_types array overlaps with category keywords
+      // This uses PostgreSQL's && operator which is efficient with GIN indexes
+      console.log("[fetchPropertiesPagedLegacy] Filtering by category:", category.label);
+      // Take top keywords most likely to match (avoid IPMC codes, use descriptive terms)
+      const keywordsToMatch = category.keywords
+        .filter(kw => !kw.match(/^\d/)) // Filter out code numbers like "304.2"
+        .slice(0, 5);
+      q = q.overlaps("violation_types", keywordsToMatch);
+    } else {
+      // Raw violation type string - use contains for exact match
+      q = q.contains("violation_types", [filters.violationType]);
+    }
   }
 
   // Pressure level filters

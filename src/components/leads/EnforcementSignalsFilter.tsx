@@ -2,20 +2,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertCircle } from "lucide-react";
+import { Home } from "lucide-react";
+import { aggregateByCategory, VIOLATION_CATEGORIES } from "@/utils/violationCategoryMapper";
 
 interface EnforcementSignalsFilterProps {
   selectedSignal: string | null;
   onSignalChange: (value: string | null) => void;
-  // Enforcement area context for scoped counts
   selectedState: string | null;
   selectedCity: string | null;
-}
-
-interface SignalTypeWithCounts {
-  type: string;
-  violationCount: number;
-  propertyCount: number;
 }
 
 export function EnforcementSignalsFilter({
@@ -24,11 +18,11 @@ export function EnforcementSignalsFilter({
   selectedState,
   selectedCity,
 }: EnforcementSignalsFilterProps) {
-  // Fetch violation types with SCOPED counts
-  const { data: signalTypes = [], isLoading } = useQuery({
-    queryKey: ["enforcement-signals-v3", selectedState, selectedCity],
+  // Fetch violation types and aggregate into user-friendly categories
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey: ["violation-categories", selectedState, selectedCity],
     queryFn: async () => {
-      // Call the RPC function for violation counts
+      // Get violation counts from RPC
       const { data: violationData, error: violationError } = await supabase.rpc("fn_violation_counts_by_area", {
         p_state: selectedState || null,
         p_city: selectedCity || null,
@@ -44,11 +38,9 @@ export function EnforcementSignalsFilter({
         (row: { violation_type: string }) => row.violation_type && row.violation_type.trim() !== ''
       );
 
-      // Get unique property counts for each type using a single aggregated query
-      // We query properties with violation_types array and count unique properties per type
+      // Get property counts per violation type
       const typeList = validTypes.map((r: { violation_type: string }) => r.violation_type);
       
-      // Build a query to count properties per violation type
       let propertyQuery = supabase
         .from("properties")
         .select("id, violation_types");
@@ -60,16 +52,15 @@ export function EnforcementSignalsFilter({
         propertyQuery = propertyQuery.ilike("city", selectedCity);
       }
       
-      // Get properties with violation types
       const { data: propertyData, error: propertyError } = await propertyQuery
         .not("violation_types", "is", null)
-        .limit(10000); // Reasonable limit for counting
+        .limit(10000);
       
       if (propertyError) {
         console.error("[EnforcementSignalsFilter] Property query error:", propertyError);
       }
 
-      // Count properties per violation type client-side
+      // Count properties per violation type
       const propertyCountByType: Record<string, number> = {};
       for (const type of typeList) {
         propertyCountByType[type] = 0;
@@ -86,48 +77,47 @@ export function EnforcementSignalsFilter({
         }
       }
 
-      // Combine results
-      const results: SignalTypeWithCounts[] = validTypes.map((row: { violation_type: string; count: number }) => ({
+      // Build raw types array
+      const rawTypes = validTypes.map((row: { violation_type: string }) => ({
         type: row.violation_type,
-        violationCount: row.count,
         propertyCount: propertyCountByType[row.violation_type] || 0,
       }));
 
-      // Sort by PROPERTY COUNT descending - users want properties, not violations
-      results.sort((a, b) => b.propertyCount - a.propertyCount);
-
-      console.log("[EnforcementSignalsFilter] Signal types:", results.length);
-      return results;
+      // Aggregate into user-friendly categories
+      const aggregated = aggregateByCategory(rawTypes);
+      
+      console.log("[EnforcementSignalsFilter] Categories:", aggregated.length, aggregated);
+      return aggregated;
     },
-    staleTime: 60000, // Cache for 60 seconds
+    staleTime: 60000,
   });
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          Violation Type
+          Issue Type
         </Label>
         <p className="text-xs text-muted-foreground flex items-center gap-1">
-          <AlertCircle className="h-3 w-3" />
-          Properties with this violation type
+          <Home className="h-3 w-3" />
+          Properties with these issues
         </p>
       </div>
       
       <div className="flex flex-col md:flex-row md:items-center gap-2">
-        <Label className="text-sm font-medium whitespace-nowrap">Type</Label>
+        <Label className="text-sm font-medium whitespace-nowrap">Category</Label>
         <Select
           value={selectedSignal || "all"}
           onValueChange={(value) => onSignalChange(value === "all" ? null : value)}
         >
-          <SelectTrigger className="w-full md:w-[280px] h-11 md:h-9">
-            <SelectValue placeholder={isLoading ? "Loading..." : "All types"} />
+          <SelectTrigger className="w-full md:w-[240px] h-11 md:h-9">
+            <SelectValue placeholder={isLoading ? "Loading..." : "All issues"} />
           </SelectTrigger>
-          <SelectContent className="z-[9999] max-w-[350px]">
-            <SelectItem value="all">All types</SelectItem>
-            {signalTypes.map(({ type, propertyCount }) => (
-              <SelectItem key={type} value={type}>
-                {type} — {propertyCount.toLocaleString()} properties
+          <SelectContent className="z-[9999]">
+            <SelectItem value="all">All issues</SelectItem>
+            {categories.map(({ categoryId, label, propertyCount }) => (
+              <SelectItem key={categoryId} value={categoryId}>
+                {label} — {propertyCount.toLocaleString()}
               </SelectItem>
             ))}
           </SelectContent>

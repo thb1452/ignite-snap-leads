@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { LeadFilters } from "@/schemas";
+import { getCategoryById } from "@/utils/violationCategoryMapper";
 
 export interface MapMarker {
   id: string;
@@ -85,9 +86,18 @@ async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[
       query = query.gte("updated_at", cutoffDate.toISOString());
     }
 
-    // Violation type filter
+    // Violation type filter (by category ID or raw type)
     if (filters.violationType) {
-      query = query.contains("violation_types", [filters.violationType]);
+      const category = getCategoryById(filters.violationType);
+      if (category) {
+        // Use overlaps to check if any category keywords match
+        const keywordsToMatch = category.keywords
+          .filter(kw => !kw.match(/^\d/))
+          .slice(0, 5);
+        query = query.overlaps("violation_types", keywordsToMatch);
+      } else {
+        query = query.contains("violation_types", [filters.violationType]);
+      }
     }
 
     const { data, error } = await query

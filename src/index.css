@@ -112,6 +112,20 @@ All colors MUST be HSL.
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
+  /* Landing page specific theme */
+  .landing-theme {
+    /* Color palette from spec */
+    --landing-primary: 214 55% 23%; /* #1A365D Deep Navy */
+    --landing-secondary: 213 22% 26%; /* #2D3748 Charcoal */
+    --landing-accent: 175 55% 46%; /* #38B2AC Teal */
+    --landing-success: 145 63% 42%; /* #48BB78 Green */
+    --landing-warning: 28 87% 57%; /* #ED8936 Orange */
+    --landing-bg: 215 39% 7%; /* #0D1117 Near Black */
+    --landing-surface: 213 22% 26%; /* #2D3748 Card backgrounds */
+    --landing-text: 210 60% 98%; /* #F7FAFC Off-white */
+    --landing-text-muted: 214 20% 69%; /* #A0AEC0 Muted gray */
+  }
 }
 
 @layer base {

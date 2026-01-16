@@ -1,407 +1,1107 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { Check, X, Target, Brain, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
+import { 
+  Target, 
+  Clock, 
+  Map, 
+  Phone, 
+  ArrowRight, 
+  Check, 
+  X, 
+  ChevronDown,
+  Lock,
+  Users,
+  TrendingUp,
+  AlertTriangle,
+  BarChart3,
+  Filter,
+  Download,
+  Building2,
+  Search,
+  Zap
+} from "lucide-react";
+import { motion, useInView, AnimatePresence } from "framer-motion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+
+// Animated counter component
+function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number; suffix?: string; duration?: number }) {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true });
+  
+  useEffect(() => {
+    if (!isInView) return;
+    
+    let startTime: number;
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      setCount(Math.floor(progress * end));
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+    requestAnimationFrame(animate);
+  }, [isInView, end, duration]);
+  
+  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
+}
+
+// Scarcity badge component
+function ScarcityBadge() {
+  const spotsLeft = 423; // This would come from database
+  
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-landing-warning/20 border border-landing-warning/40 text-landing-warning animate-glow-pulse"
+    >
+      <Lock className="w-4 h-4" />
+      <span className="text-sm font-medium">{spotsLeft} of 500 spots left</span>
+    </motion.div>
+  );
+}
 
 export default function Landing() {
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [role, setRole] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const { toast } = useToast();
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const pricing = {
+    starter: { monthly: 119, annual: 99 },
+    professional: { monthly: 249, annual: 199 },
+    enterprise: { monthly: 499, annual: 399 },
+  };
 
-    if (!email) {
-      toast({
-        title: "Email required",
-        description: "Please enter your email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      // Simulate waitlist signup - store locally for now
-      // TODO: Create waitlist table in database if needed
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setSubmitted(true);
-      toast({
-        title: "You're on the list!",
-        description: "We'll contact you within 24 hours to get you started.",
-      });
-    } catch (error) {
-      console.error("Waitlist signup error:", error);
-      toast({
-        title: "Something went wrong",
-        description: "Please try again or email us directly.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    setMobileMenuOpen(false);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-landing-bg text-landing-text overflow-x-hidden">
       {/* Navigation */}
-      <nav className="border-b border-gray-800 bg-gray-950/50 backdrop-blur-sm sticky top-0 z-50">
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-landing-surface/50 bg-landing-bg/80 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            {/* TODO: Add Snap Ignite logo here */}
-            <span className="text-2xl font-bold">
-              <span className="text-blue-500">SNAP</span>
-              <span className="text-white"> IGNITE</span>
+            <span className="text-2xl font-bold tracking-tight">
+              <span className="text-landing-accent">SNAP</span>
+              <span className="text-landing-text"> IGNITE</span>
             </span>
           </div>
+          
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-8">
+            <button onClick={() => scrollToSection('features')} className="text-landing-text-muted hover:text-landing-text transition">
+              Features
+            </button>
+            <button onClick={() => scrollToSection('how-it-works')} className="text-landing-text-muted hover:text-landing-text transition">
+              How It Works
+            </button>
+            <button onClick={() => scrollToSection('pricing')} className="text-landing-text-muted hover:text-landing-text transition">
+              Pricing
+            </button>
+            <button onClick={() => scrollToSection('faq')} className="text-landing-text-muted hover:text-landing-text transition">
+              FAQ
+            </button>
+          </div>
+
           <div className="flex items-center gap-4">
-            <Link to="/pricing">
-              <Button variant="ghost" className="text-gray-300 hover:text-white">
-                Pricing
-              </Button>
-            </Link>
-            <Link to="/auth">
-              <Button variant="outline" className="border-gray-700 hover:bg-gray-800">
+            <Link to="/auth" className="hidden md:block">
+              <Button variant="ghost" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface/50">
                 Sign In
               </Button>
             </Link>
+            <Button 
+              onClick={() => scrollToSection('pricing')}
+              className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
+            >
+              See Plans
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 md:py-32">
-        <div className="max-w-5xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
-            Stop chasing owners who{" "}
-            <span className="text-blue-500">aren't under real pressure</span>
-          </h1>
-          <p className="text-xl md:text-2xl text-gray-400 mb-8 max-w-3xl mx-auto">
-            Snap shows you which properties cities are actively squeezing — before owners are forced to act.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <a href="#early-access" className="w-full sm:w-auto">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white text-lg px-8 py-6 w-full">
-                Get Early Access - $119/month
-              </Button>
-            </a>
-          </div>
-          <p className="text-sm text-gray-500 mt-4">
-            First 100 customers only
-          </p>
-
-          {/* TODO: Add screenshot of property map or SnapScore interface here */}
-          <div className="mt-16 rounded-lg border border-gray-800 bg-gray-900/50 p-8 text-gray-500">
-            <div className="aspect-video flex items-center justify-center">
-              [Product Screenshot: Property Map with SnapScore Highlighting]
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* One-Liner Differentiation */}
-      <section className="bg-gray-900/50 border-y border-gray-800 py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-8">
-              Other platforms show property data.{" "}
-              <span className="text-blue-500">Snap shows enforcement pressure.</span>
-            </h2>
-            <div className="grid md:grid-cols-2 gap-8 mt-12">
-              <div className="text-left p-6 rounded-lg border border-gray-800 bg-gray-950/50">
-                <h3 className="text-lg font-semibold text-gray-400 mb-3">What Others Do</h3>
-                <ul className="space-y-2 text-gray-500">
-                  <li>• Static property attributes</li>
-                  <li>• Owner contact info</li>
-                  <li>• Marketing automation tools</li>
-                  <li>• You guess who's motivated</li>
-                </ul>
-              </div>
-              <div className="text-left p-6 rounded-lg border border-blue-500/50 bg-blue-950/20">
-                <h3 className="text-lg font-semibold text-blue-400 mb-3">What Snap Does</h3>
-                <ul className="space-y-2 text-gray-300">
-                  <li>• Tracks government enforcement behavior</li>
-                  <li>• Converts violations to pressure scores</li>
-                  <li>• Detects escalation patterns</li>
-                  <li>• Shows you who's under real pressure</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
-            How It Works
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center p-8 rounded-lg border border-gray-800 bg-gray-900/30">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500/10 text-blue-500 mb-6">
-                <Target className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold mb-3">Track Enforcement Behavior</h3>
-              <p className="text-gray-400">
-                Live municipal enforcement data from hundreds of counties
-              </p>
-            </div>
-            <div className="text-center p-8 rounded-lg border border-gray-800 bg-gray-900/30">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500/10 text-blue-500 mb-6">
-                <Brain className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold mb-3">AI Pressure Scoring</h3>
-              <p className="text-gray-400">
-                SnapScore™ ranks properties by enforcement pressure intensity
-              </p>
-            </div>
-            <div className="text-center p-8 rounded-lg border border-gray-800 bg-gray-900/30">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500/10 text-blue-500 mb-6">
-                <TrendingUp className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold mb-3">Focus Where It Matters</h3>
-              <p className="text-gray-400">
-                See escalation patterns and repeat violations — not just property attributes
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* What Snap Does */}
-      <section className="bg-gray-900/50 py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-              What Snap Does
-            </h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              {[
-                "Tracks government enforcement behavior in real-time",
-                "Converts violations into pressure scores (SnapScore™)",
-                "Detects escalation patterns, not just distress signals",
-                "Shows when pressure is increasing",
-                "Filters by violation type, enforcement dates, repeat offenders",
-                "Covers hundreds of counties across major U.S. markets"
-              ].map((feature, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-4 rounded-lg border border-gray-800 bg-gray-950/50">
-                  <Check className="w-6 h-6 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-300">{feature}</span>
+      <section className="relative min-h-screen pt-24 pb-20 flex items-center overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-landing-primary/20 via-landing-bg to-landing-bg" />
+        <div className="absolute top-1/4 right-0 w-[600px] h-[600px] bg-landing-accent/5 rounded-full blur-3xl" />
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid lg:grid-cols-5 gap-12 items-center">
+            {/* Left side - Copy (60%) */}
+            <div className="lg:col-span-3 space-y-8">
+              <ScarcityBadge />
+              
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-landing-accent font-semibold tracking-wide uppercase text-sm"
+              >
+                Enforcement Intelligence Platform
+              </motion.p>
+              
+              <motion.h1 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight"
+              >
+                Know Which Properties Are Under Pressure—
+                <span className="text-landing-accent">Before Anyone Else</span>
+              </motion.h1>
+              
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-xl text-landing-text-muted max-w-2xl"
+              >
+                Track code violations, water shutoffs, and escalation patterns across 900+ counties. 
+                Our SnapScore AI ranks seller motivation so you contact the right properties at the right time.
+              </motion.p>
+              
+              {/* Key Stats Row */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="flex flex-wrap gap-8 py-6"
+              >
+                <div>
+                  <div className="text-3xl md:text-4xl font-bold text-landing-accent">
+                    <AnimatedCounter end={270000} suffix="+" />
+                  </div>
+                  <div className="text-landing-text-muted text-sm">Properties Tracked</div>
                 </div>
-              ))}
+                <div>
+                  <div className="text-3xl md:text-4xl font-bold text-landing-accent">
+                    <AnimatedCounter end={900} suffix="+" />
+                  </div>
+                  <div className="text-landing-text-muted text-sm">Counties Covered</div>
+                </div>
+                <div>
+                  <div className="text-3xl md:text-4xl font-bold text-landing-accent">
+                    <AnimatedCounter end={16000} suffix="+" />
+                  </div>
+                  <div className="text-landing-text-muted text-sm">Weekly Updates</div>
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="flex flex-col sm:flex-row gap-4"
+              >
+                <Button 
+                  size="lg"
+                  onClick={() => scrollToSection('pricing')}
+                  className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6"
+                >
+                  See Available Plans
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </motion.div>
+              
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="text-landing-text-muted text-sm flex items-center gap-2"
+              >
+                <Lock className="w-4 h-4" />
+                Limited to 500 operators. No credit card required to view pricing.
+              </motion.p>
+              
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+                className="text-landing-text-muted text-xs"
+              >
+                Trusted by wholesalers, flippers, and acquisition teams nationwide
+              </motion.p>
             </div>
+            
+            {/* Right side - Dashboard mockup (40%) */}
+            <motion.div 
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4, duration: 0.8 }}
+              className="lg:col-span-2 relative"
+            >
+              <div className="relative bg-landing-surface/80 rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-landing-accent/10 to-transparent" />
+                <div className="p-6 space-y-4">
+                  {/* Mock dashboard header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full bg-red-500" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                    </div>
+                    <div className="text-xs text-landing-text-muted">Intelligence Dashboard</div>
+                  </div>
+                  
+                  {/* Mock map area */}
+                  <div className="bg-landing-bg/50 rounded-lg h-48 relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-50">
+                      {/* Simulated map pins */}
+                      {[...Array(12)].map((_, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.8 + i * 0.1 }}
+                          className="absolute w-3 h-3 rounded-full bg-landing-accent"
+                          style={{
+                            left: `${20 + Math.random() * 60}%`,
+                            top: `${20 + Math.random() * 60}%`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <div className="absolute bottom-2 left-2 text-xs text-landing-text-muted">
+                      Live enforcement data
+                    </div>
+                  </div>
+                  
+                  {/* Mock property cards */}
+                  <div className="space-y-2">
+                    {[
+                      { address: "1247 Oak St", score: 87, type: "Code Violation" },
+                      { address: "892 Pine Ave", score: 72, type: "Water Shutoff" },
+                      { address: "3456 Elm Rd", score: 65, type: "Multiple Violations" },
+                    ].map((property, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 1 + i * 0.2 }}
+                        className="bg-landing-bg/30 rounded-lg p-3 flex items-center justify-between"
+                      >
+                        <div>
+                          <div className="text-sm font-medium">{property.address}</div>
+                          <div className="text-xs text-landing-text-muted">{property.type}</div>
+                        </div>
+                        <div className={`text-lg font-bold ${
+                          property.score >= 75 ? 'text-red-400' : 
+                          property.score >= 50 ? 'text-orange-400' : 'text-yellow-400'
+                        }`}>
+                          {property.score}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Floating glow effect */}
+              <div className="absolute -inset-4 bg-landing-accent/10 rounded-3xl blur-2xl -z-10 animate-pulse-soft" />
+            </motion.div>
           </div>
         </div>
+        
+        {/* Scroll indicator */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.5 }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2"
+        >
+          <motion.div
+            animate={{ y: [0, 10, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <ChevronDown className="w-8 h-8 text-landing-text-muted" />
+          </motion.div>
+        </motion.div>
       </section>
 
-      {/* Social Proof */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="p-6">
-              <div className="text-4xl font-bold text-blue-500 mb-2">220,000+</div>
-              <div className="text-gray-400">Properties Tracked</div>
-            </div>
-            <div className="p-6">
-              <div className="text-4xl font-bold text-blue-500 mb-2">100s</div>
-              <div className="text-gray-400">Counties Covered</div>
-            </div>
-            <div className="p-6">
-              <div className="text-4xl font-bold text-blue-500 mb-2">Live</div>
-              <div className="text-gray-400">Municipal Data</div>
-            </div>
-          </div>
-          <p className="text-gray-500 mt-8 italic">
-            Built using live municipal enforcement data
-          </p>
-        </div>
-      </section>
-
-      {/* Qualification Section */}
-      <section className="bg-gray-900/50 py-20">
+      {/* Problem Agitation Section */}
+      <section className="py-24 bg-landing-surface/30">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* NOT for you */}
-              <div className="p-8 rounded-lg border border-red-900/50 bg-red-950/20">
-                <h3 className="text-2xl font-bold mb-6 text-red-400">Snap is NOT for you if:</h3>
-                <ul className="space-y-4">
-                  {[
-                    "You're a beginner looking for guaranteed deals",
-                    "You think Zillow is \"good enough\"",
-                    "You want 10,000 generic names to cold call"
-                  ].map((item, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-400">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* IS for you */}
-              <div className="p-8 rounded-lg border border-blue-500/50 bg-blue-950/20">
-                <h3 className="text-2xl font-bold mb-6 text-blue-400">Snap IS for you if:</h3>
-                <ul className="space-y-4">
-                  {[
-                    "You're done chasing dead-end cold call lists",
-                    "You want real seller distress, not surface data",
-                    "You're ready for accuracy and high-signal leads",
-                    "You understand leverage and want to focus where pressure is real"
-                  ].map((item, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-300">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+          <div className="max-w-4xl mx-auto text-center mb-16">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold mb-4"
+            >
+              The Problem With "Motivated Seller" Lists
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-xl text-landing-text-muted"
+            >
+              Everyone's working the same stale data. Here's what that costs you:
+            </motion.p>
           </div>
+          
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {[
+              {
+                icon: Users,
+                title: "Same Lists, Same Competition",
+                description: "By the time a property hits your lead list, it's already been called 47 times. You're not finding deals—you're racing against everyone else who bought the same data."
+              },
+              {
+                icon: Clock,
+                title: "Timing Blindness",
+                description: "Traditional filters show you distress signals from months ago. The motivated seller who was desperate last month? Already sold. The one getting desperate now? Invisible to your current tools."
+              },
+              {
+                icon: Phone,
+                title: "Volume Over Intelligence",
+                description: "The current playbook: blast through more calls, send more mailers, hope something sticks. It's exhausting, expensive, and your competition does the exact same thing."
+              }
+            ].map((problem, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-landing-bg/50 border border-landing-surface rounded-xl p-8"
+              >
+                <div className="w-14 h-14 rounded-lg bg-red-500/10 flex items-center justify-center mb-6">
+                  <problem.icon className="w-7 h-7 text-red-400" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">{problem.title}</h3>
+                <p className="text-landing-text-muted">{problem.description}</p>
+              </motion.div>
+            ))}
+          </div>
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="max-w-3xl mx-auto text-center mt-16 p-8 bg-landing-primary/20 border border-landing-primary/30 rounded-xl"
+          >
+            <p className="text-xl text-landing-text">
+              What if you could see which properties are under pressure <span className="text-landing-accent font-semibold">RIGHT NOW</span>—before the motivation peaks and everyone else notices?
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Solution Section */}
+      <section id="features" className="py-24">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center mb-16">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold mb-4"
+            >
+              Enforcement Intelligence That Finds Motivated Sellers <span className="text-landing-accent">First</span>
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-xl text-landing-text-muted"
+            >
+              Snap Ignite tracks municipal pressure signals most platforms completely miss—code violations, escalating fines, water shutoffs, and compliance deadlines. We don't just show you distress. We show you timing.
+            </motion.p>
+          </div>
+          
+          {/* Core Features */}
+          <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
+            {[
+              {
+                icon: Target,
+                title: "SnapScore AI Motivation Ranking",
+                description: "Not all violations are equal. Our AI analyzes violation type, escalation velocity, fine accumulation, and timeline pressure to rank properties by actual seller motivation—not just distress indicators.",
+                highlight: true
+              },
+              {
+                icon: BarChart3,
+                title: "The 30-Day Window",
+                description: "While competitors refresh monthly (or slower), Snap Ignite delivers 16,000+ new property updates every week. You see escalation patterns as they develop—catching the critical window when sellers shift from \"annoyed\" to \"motivated.\""
+              },
+              {
+                icon: Map,
+                title: "Multiple Pressure Signals, One View",
+                description: "Code violations. Water shutoffs. Accumulating fines. Compliance deadlines. We aggregate enforcement data from 900+ counties so you see the full picture of municipal pressure on any property."
+              }
+            ].map((feature, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className={`bg-landing-surface/50 border rounded-xl p-8 ${
+                  feature.highlight ? 'border-landing-accent/50 ring-2 ring-landing-accent/20' : 'border-landing-surface'
+                }`}
+              >
+                <div className={`w-14 h-14 rounded-lg flex items-center justify-center mb-6 ${
+                  feature.highlight ? 'bg-landing-accent/20' : 'bg-landing-accent/10'
+                }`}>
+                  <feature.icon className="w-7 h-7 text-landing-accent" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
+                <p className="text-landing-text-muted">{feature.description}</p>
+              </motion.div>
+            ))}
+          </div>
+          
+          {/* Supporting Features Pills */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex flex-wrap justify-center gap-3 max-w-4xl mx-auto"
+          >
+            {[
+              { icon: Filter, label: "Violation Type Filtering" },
+              { icon: Download, label: "Export to CSV" },
+              { icon: Building2, label: "County-Level Coverage" },
+              { icon: Users, label: "Owner Information" },
+              { icon: Search, label: "Saved Searches" },
+              { icon: Users, label: "Team Collaboration" }
+            ].map((pill, i) => (
+              <div 
+                key={i}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-landing-surface border border-landing-surface text-sm"
+              >
+                <Check className="w-4 h-4 text-landing-accent" />
+                {pill.label}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section id="how-it-works" className="py-24 bg-landing-surface/30">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center mb-16">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold mb-4"
+            >
+              From Intelligence to Offer in <span className="text-landing-accent">Minutes</span>
+            </motion.h2>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {[
+              {
+                step: "01",
+                title: "Filter by Your Criteria",
+                description: "Select your target counties, violation types, and SnapScore threshold. Build lists based on the specific pressure signals that indicate motivation in your market."
+              },
+              {
+                step: "02",
+                title: "Identify High-Priority Properties",
+                description: "SnapScore AI ranks every property by motivation timing. Focus on the properties most likely to sell NOW—not the ones that were motivated six months ago."
+              },
+              {
+                step: "03",
+                title: "Move Before Competition",
+                description: "Export your targeted list and make contact while the pressure is fresh. You're not cold calling—you're reaching out at the exact moment sellers need a solution."
+              }
+            ].map((step, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.15 }}
+                className="relative"
+              >
+                {i < 2 && (
+                  <div className="hidden md:block absolute top-12 right-0 w-full h-0.5 bg-gradient-to-r from-landing-accent/50 to-transparent translate-x-1/2" />
+                )}
+                <div className="bg-landing-bg/50 border border-landing-surface rounded-xl p-8 relative">
+                  <div className="text-5xl font-bold text-landing-accent/20 absolute top-4 right-4">
+                    {step.step}
+                  </div>
+                  <div className="w-12 h-12 rounded-full bg-landing-accent flex items-center justify-center text-landing-bg font-bold text-xl mb-6">
+                    {step.step}
+                  </div>
+                  <h3 className="text-xl font-bold mb-3">{step.title}</h3>
+                  <p className="text-landing-text-muted">{step.description}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Who It's For Section */}
+      <section className="py-24">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center mb-16">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold mb-4"
+            >
+              Snap Ignite Isn't For Everyone
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-xl text-landing-text-muted"
+            >
+              We built this for serious operators who understand that better intelligence beats higher volume. Here's how to know if it's right for you:
+            </motion.p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* Built For You */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="bg-landing-accent/10 border border-landing-accent/30 rounded-xl p-8"
+            >
+              <h3 className="text-2xl font-bold mb-6 text-landing-accent flex items-center gap-2">
+                <Check className="w-6 h-6" />
+                Built For You If...
+              </h3>
+              <ul className="space-y-4">
+                {[
+                  "You value timing over volume—you'd rather contact 50 motivated sellers than cold call 500 random leads",
+                  "You're tired of competing on who can make the most dials and want an actual information advantage",
+                  "You operate in markets where enforcement activity creates real seller pressure",
+                  "You're willing to invest in intelligence, not just data",
+                  "You understand that exclusivity (our 500-user cap) protects your competitive advantage"
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <Check className="w-5 h-5 text-landing-accent flex-shrink-0 mt-0.5" />
+                    <span className="text-landing-text">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+            
+            {/* Not For You */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="bg-red-500/10 border border-red-500/30 rounded-xl p-8"
+            >
+              <h3 className="text-2xl font-bold mb-6 text-red-400 flex items-center gap-2">
+                <X className="w-6 h-6" />
+                Not the Right Fit If...
+              </h3>
+              <ul className="space-y-4">
+                {[
+                  "You're brand new to real estate investing and need basic education first",
+                  "Your strategy is pure volume—blast through thousands of calls regardless of quality",
+                  "You're looking for the cheapest possible data source",
+                  "You need comprehensive CRM, dialer, and marketing tools in one platform",
+                  "You're not comfortable with a tool that requires some learning curve"
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <span className="text-landing-text-muted">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </div>
+          
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center text-landing-text-muted mt-12 max-w-2xl mx-auto"
+          >
+            Still not sure? Our Starter plan at $119/month lets you test the intelligence advantage with 5 counties and 2,500 monthly exports. No annual commitment required.
+          </motion.p>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-24 bg-landing-surface/30">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center mb-12">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold mb-4"
+            >
+              Simple, Transparent Pricing
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-xl text-landing-text-muted mb-8"
+            >
+              No hidden fees. No per-record charges. No surprises.
+            </motion.p>
+            
+            {/* Billing Toggle */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="inline-flex items-center gap-4 p-1 bg-landing-surface rounded-lg"
+            >
+              <button
+                onClick={() => setBillingCycle('monthly')}
+                className={`px-4 py-2 rounded-md transition ${
+                  billingCycle === 'monthly' 
+                    ? 'bg-landing-accent text-landing-bg' 
+                    : 'text-landing-text-muted hover:text-landing-text'
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBillingCycle('annual')}
+                className={`px-4 py-2 rounded-md transition flex items-center gap-2 ${
+                  billingCycle === 'annual' 
+                    ? 'bg-landing-accent text-landing-bg' 
+                    : 'text-landing-text-muted hover:text-landing-text'
+                }`}
+              >
+                Annual
+                <span className="text-xs px-2 py-0.5 rounded-full bg-landing-success/20 text-landing-success">
+                  Save 20%
+                </span>
+              </button>
+            </motion.div>
+          </div>
+          
+          {/* Pricing Cards */}
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
+            {[
+              {
+                name: "Starter",
+                price: pricing.starter[billingCycle],
+                description: "For focused local operators",
+                features: [
+                  "2,500 monthly exports",
+                  "5 county coverage (you choose)",
+                  "Basic SnapScore filtering",
+                  "Weekly data refresh",
+                  "1 user seat",
+                  "Email support"
+                ],
+                highlighted: false
+              },
+              {
+                name: "Professional",
+                price: pricing.professional[billingCycle],
+                description: "For growing acquisition operations",
+                features: [
+                  "10,000 monthly exports",
+                  "25 county coverage",
+                  "Advanced SnapScore filters",
+                  "Violation type filtering",
+                  "Rolling 30-day intelligence",
+                  "3 user seats",
+                  "Priority email support"
+                ],
+                highlighted: true,
+                badge: "Most Popular"
+              },
+              {
+                name: "Enterprise",
+                price: pricing.enterprise[billingCycle],
+                description: "For serious multi-market teams",
+                features: [
+                  "25,000 monthly exports",
+                  "All 900+ counties",
+                  "Full SnapScore AI suite",
+                  "Escalation pattern alerts",
+                  "API access (coming soon)",
+                  "10 user seats",
+                  "Dedicated account manager"
+                ],
+                highlighted: false
+              }
+            ].map((plan, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className={`relative rounded-xl p-8 ${
+                  plan.highlighted 
+                    ? 'bg-landing-bg border-2 border-landing-accent shadow-lg shadow-landing-accent/20 scale-105' 
+                    : 'bg-landing-bg/50 border border-landing-surface'
+                }`}
+              >
+                {plan.badge && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-landing-accent text-landing-bg text-sm font-semibold rounded-full">
+                    {plan.badge}
+                  </div>
+                )}
+                
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                  <div className="mb-2">
+                    <span className="text-4xl font-bold">${plan.price}</span>
+                    <span className="text-landing-text-muted">/month</span>
+                  </div>
+                  {billingCycle === 'annual' && (
+                    <p className="text-sm text-landing-text-muted">billed annually</p>
+                  )}
+                  <p className="text-landing-text-muted mt-2">{plan.description}</p>
+                </div>
+                
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature, j) => (
+                    <li key={j} className="flex items-start gap-2 text-sm">
+                      <Check className="w-4 h-4 text-landing-accent flex-shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                
+                <Link to="/auth">
+                  <Button 
+                    className={`w-full ${
+                      plan.highlighted 
+                        ? 'bg-landing-accent hover:bg-landing-accent/90 text-landing-bg' 
+                        : 'bg-landing-surface hover:bg-landing-surface/80 text-landing-text border border-landing-surface'
+                    }`}
+                  >
+                    Get Started
+                  </Button>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+          
+          {/* Scarcity Reminder */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center"
+          >
+            <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-landing-warning/10 border border-landing-warning/30 text-landing-warning">
+              <Lock className="w-5 h-5" />
+              <span className="font-medium">Limited to 500 total users to protect data advantage</span>
+            </div>
+          </motion.div>
+          
+          {/* Money-Back Guarantee */}
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center text-landing-text-muted mt-8"
+          >
+            Not seeing value in the first 30 days? We'll refund your first month, no questions asked.
+          </motion.p>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-24">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center mb-16">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold mb-4"
+            >
+              What Operators Are Saying
+            </motion.h2>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-12">
+            {[
+              {
+                initials: "JM",
+                name: "Jake M.",
+                role: "Wholesaler, Phoenix AZ",
+                quote: "Found 3 deals in my first 6 weeks that I never would have seen with PropStream. The SnapScore ranking is the difference—I'm not guessing anymore, I know which owners are actually motivated.",
+                result: "3 deals closed in 6 weeks"
+              },
+              {
+                initials: "SR",
+                name: "Sarah R.",
+                role: "Acquisition Manager, Southeast Portfolio",
+                quote: "We switched from BatchLeads and the data freshness is night and day. Seeing violation escalation patterns before they peak gives us a real timing advantage in competitive markets.",
+                result: "40% improvement in contact-to-contract rate"
+              },
+              {
+                initials: "MT",
+                name: "Marcus T.",
+                role: "Fix & Flip Investor, Dallas-Fort Worth",
+                quote: "I was skeptical about another data tool, but the enforcement focus is different. Water shutoff data alone has surfaced properties no one else was calling on.",
+                result: "First deal paid for 2 years of subscription"
+              }
+            ].map((testimonial, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-landing-surface/50 border border-landing-surface rounded-xl p-8"
+              >
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-landing-accent/20 flex items-center justify-center text-landing-accent font-bold">
+                    {testimonial.initials}
+                  </div>
+                  <div>
+                    <div className="font-semibold">{testimonial.name}</div>
+                    <div className="text-sm text-landing-text-muted">{testimonial.role}</div>
+                  </div>
+                </div>
+                <blockquote className="text-landing-text-muted mb-4 italic">
+                  "{testimonial.quote}"
+                </blockquote>
+                <div className="text-landing-accent font-semibold text-sm">
+                  {testimonial.result}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+          
+          {/* Stats Bar */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex flex-wrap justify-center gap-12 py-8 border-y border-landing-surface"
+          >
+            <div className="text-center">
+              <div className="text-3xl font-bold text-landing-accent">87</div>
+              <div className="text-landing-text-muted text-sm">Active Users</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-landing-accent">$2.4M+</div>
+              <div className="text-landing-text-muted text-sm">in Deals Closed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-landing-accent">4.8/5</div>
+              <div className="text-landing-text-muted text-sm">User Rating</div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
       {/* FAQ Section */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            Key Details
-          </h2>
-          <div className="space-y-6">
-            <div className="p-6 rounded-lg border border-gray-800 bg-gray-900/30">
-              <h3 className="text-xl font-semibold mb-3 text-blue-400">How often is data updated?</h3>
-              <p className="text-gray-400">
-                Data refreshed on a rolling basis, typically every 30–90 days depending on jurisdiction.
-                Snap reflects the most recent enforcement data available.
-              </p>
-            </div>
-            <div className="p-6 rounded-lg border border-gray-800 bg-gray-900/30">
-              <h3 className="text-xl font-semibold mb-3 text-blue-400">What markets are covered?</h3>
-              <p className="text-gray-400">
-                Hundreds of counties across major U.S. markets including Florida, Texas, Ohio, Georgia,
-                Arizona, and more. New jurisdictions added regularly.
-              </p>
-            </div>
-            <div className="p-6 rounded-lg border border-gray-800 bg-gray-900/30">
-              <h3 className="text-xl font-semibold mb-3 text-blue-400">Does Snap include skip tracing?</h3>
-              <p className="text-gray-400">
-                Snap focuses on identifying pressure. Owner contact info can be added via export or
-                third-party services.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing & Email Capture */}
-      <section id="early-access" className="bg-gradient-to-b from-blue-950/20 to-transparent py-20">
+      <section id="faq" className="py-24 bg-landing-surface/30">
         <div className="container mx-auto px-4">
-          <div className="max-w-xl mx-auto">
-            {!submitted ? (
-              <div className="p-8 rounded-lg border border-blue-500/50 bg-gray-900/50 backdrop-blur">
-                <div className="text-center mb-8">
-                  <h2 className="text-3xl md:text-4xl font-bold mb-4">Early Access</h2>
-                  <div className="text-5xl font-bold text-blue-500 mb-2">$119<span className="text-2xl text-gray-400">/month</span></div>
-                  <p className="text-gray-400 mb-1">First 100 customers only</p>
-                  <p className="text-sm text-gray-500">No contracts, cancel anytime</p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Input
-                      type="email"
-                      placeholder="Your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="bg-gray-950 border-gray-700 text-white"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      type="text"
-                      placeholder="Your name (optional)"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="bg-gray-950 border-gray-700 text-white"
-                    />
-                  </div>
-                  <div>
-                    <Select value={role} onValueChange={setRole}>
-                      <SelectTrigger className="bg-gray-950 border-gray-700 text-white">
-                        <SelectValue placeholder="I am a..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="wholesaler">Wholesaler</SelectItem>
-                        <SelectItem value="investor">Investor</SelectItem>
-                        <SelectItem value="agent">Real Estate Agent</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    type="submit"
-                    size="lg"
-                    disabled={isSubmitting}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+          <div className="max-w-3xl mx-auto">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold text-center mb-12"
+            >
+              Frequently Asked Questions
+            </motion.h2>
+            
+            <Accordion type="single" collapsible className="space-y-4">
+              {[
+                {
+                  question: "How is Snap Ignite different from PropStream or BatchLeads?",
+                  answer: "PropStream and BatchLeads are lead list tools that pull from the same public records everyone else uses. Snap Ignite is an enforcement intelligence platform—we specifically track code violations, water shutoffs, fines, and compliance deadlines that indicate real-time seller pressure. Our SnapScore AI doesn't just show you distressed properties; it ranks them by motivation timing so you know WHO to call and WHEN."
+                },
+                {
+                  question: "Why the 500-user limit?",
+                  answer: "The value of intelligence decreases when everyone has it. If 5,000 investors all see the same \"hot\" properties, you're back to competing on call volume. We cap access at 500 users to ensure the intelligence advantage stays valuable for those who have it. Once we hit 500, we'll open a waitlist for future spots."
+                },
+                {
+                  question: "What counties do you cover?",
+                  answer: "We currently cover 900+ counties across the United States, focusing on markets with active enforcement and investor activity. Coverage is expanding monthly. Enterprise users get access to all available counties; Starter and Professional users select their priority markets."
+                },
+                {
+                  question: "How fresh is the data?",
+                  answer: "We process 16,000+ new property updates every week. Most enforcement data appears in Snap Ignite within 7-14 days of the violation being recorded—compared to 30-90 days (or longer) with traditional data providers."
+                },
+                {
+                  question: "Do you include owner contact information?",
+                  answer: "Yes, we include available owner information with property records. For skip tracing beyond basic records, we recommend pairing Snap Ignite with a dedicated skip tracing service—we focus on intelligence, not trying to be an all-in-one platform."
+                },
+                {
+                  question: "Can I cancel anytime?",
+                  answer: "Monthly plans can be cancelled anytime—no long-term commitment required. Annual plans are billed upfront for the full year at a 20% discount. We don't do contracts or cancellation fees."
+                },
+                {
+                  question: "Is there a free trial?",
+                  answer: "We don't offer a free trial because our data has real value and we protect it for paying users. However, our Starter plan at $119/month is designed as a low-risk way to test the platform, and we offer a 30-day money-back guarantee if you don't see value."
+                }
+              ].map((faq, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05 }}
+                >
+                  <AccordionItem 
+                    value={`item-${i}`} 
+                    className="bg-landing-bg/50 border border-landing-surface rounded-lg px-6 data-[state=open]:border-landing-accent/50"
                   >
-                    {isSubmitting ? "Submitting..." : "Get Early Access"}
-                  </Button>
-                </form>
-              </div>
-            ) : (
-              <div className="p-8 rounded-lg border border-green-500/50 bg-gray-900/50 backdrop-blur text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 text-green-500 mb-4">
-                  <Check className="w-8 h-8" />
-                </div>
-                <h3 className="text-2xl font-bold mb-2">You're on the list!</h3>
-                <p className="text-gray-400">
-                  We'll contact you within 24 hours to get you started.
-                </p>
-              </div>
-            )}
+                    <AccordionTrigger className="text-left font-semibold hover:text-landing-accent py-6">
+                      {faq.question}
+                    </AccordionTrigger>
+                    <AccordionContent className="text-landing-text-muted pb-6">
+                      {faq.answer}
+                    </AccordionContent>
+                  </AccordionItem>
+                </motion.div>
+              ))}
+            </Accordion>
           </div>
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <h2 className="text-3xl md:text-4xl font-bold mb-6">
-          Start Closing Deals Based on Real Pressure
-        </h2>
-        <a href="#early-access">
-          <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white text-lg px-8 py-6">
-            Get Early Access - $119/month
-          </Button>
-        </a>
+      {/* Final CTA Section */}
+      <section className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-t from-landing-accent/10 to-transparent" />
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-3xl mx-auto text-center">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-5xl font-bold mb-6"
+            >
+              Ready to See Properties Before the Competition?
+            </motion.h2>
+            
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-xl text-landing-text-muted mb-8"
+            >
+              Join 87 operators already using enforcement intelligence to find motivated sellers first.
+            </motion.p>
+            
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-landing-warning/10 border border-landing-warning/30 text-landing-warning mb-8"
+            >
+              <Lock className="w-5 h-5" />
+              <span className="font-medium">423 of 500 spots remaining. Once we hit capacity, new users join the waitlist.</span>
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+            >
+              <Button 
+                size="lg"
+                onClick={() => scrollToSection('pricing')}
+                className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-12 py-6"
+              >
+                Choose Your Plan
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </motion.div>
+            
+            <motion.p 
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4 }}
+              className="text-landing-text-muted mt-6"
+            >
+              Questions? Email us at <a href="mailto:support@snapignite.com" className="text-landing-accent hover:underline">support@snapignite.com</a>
+            </motion.p>
+          </div>
+        </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 bg-gray-950 py-12">
+      <footer className="py-12 border-t border-landing-surface bg-landing-bg">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="text-gray-500 text-sm">
-              © 2026 Snap Ignite. All rights reserved.
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <span className="text-xl font-bold tracking-tight">
+                <span className="text-landing-accent">SNAP</span>
+                <span className="text-landing-text"> IGNITE</span>
+              </span>
+              <p className="text-landing-text-muted text-sm mt-4">
+                Enforcement intelligence for real estate investors.
+              </p>
             </div>
-            <div className="flex gap-6 text-sm">
-              <Link to="/pricing" className="text-gray-400 hover:text-white">
-                Pricing
+            
+            <div>
+              <h4 className="font-semibold mb-4">Product</h4>
+              <ul className="space-y-2 text-sm text-landing-text-muted">
+                <li><button onClick={() => scrollToSection('features')} className="hover:text-landing-text transition">Features</button></li>
+                <li><button onClick={() => scrollToSection('pricing')} className="hover:text-landing-text transition">Pricing</button></li>
+                <li><button onClick={() => scrollToSection('faq')} className="hover:text-landing-text transition">FAQ</button></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">Company</h4>
+              <ul className="space-y-2 text-sm text-landing-text-muted">
+                <li><a href="#" className="hover:text-landing-text transition">About</a></li>
+                <li><a href="mailto:support@snapignite.com" className="hover:text-landing-text transition">Contact</a></li>
+                <li><a href="#" className="hover:text-landing-text transition">Blog</a></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">Legal</h4>
+              <ul className="space-y-2 text-sm text-landing-text-muted">
+                <li><a href="#" className="hover:text-landing-text transition">Privacy Policy</a></li>
+                <li><a href="#" className="hover:text-landing-text transition">Terms of Service</a></li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="pt-8 border-t border-landing-surface flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-landing-text-muted text-sm">
+              © 2026 Snap Ignite. All rights reserved.
+            </p>
+            <div className="flex items-center gap-4">
+              <Link to="/auth">
+                <Button variant="ghost" size="sm" className="text-landing-text-muted hover:text-landing-text">
+                  Sign In
+                </Button>
               </Link>
-              <Link to="/how-snap-works" className="text-gray-400 hover:text-white">
-                How It Works
-              </Link>
-              <Link to="/auth" className="text-gray-400 hover:text-white">
-                Sign In
-              </Link>
+              <Button 
+                size="sm"
+                onClick={() => scrollToSection('pricing')}
+                className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
+              >
+                Get Started
+              </Button>
             </div>
           </div>
         </div>

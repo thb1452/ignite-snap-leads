@@ -100,6 +100,7 @@ serve(async (req) => {
 
     let updated = 0;
     let skipped = 0;
+    let insightsGenerated = 0;
     const updates: any[] = [];
 
     // Process each property
@@ -114,15 +115,19 @@ serve(async (req) => {
       // Calculate new score with freshness boost
       const { score, signals, components, opportunityClass } = calculateSnapScore(violations);
       
+      // Generate text insight from signals (rule-based, no AI needed)
+      const insight = generateInsightFromSignals(signals, violations, opportunityClass);
+      
       // Prepare update
       updates.push({
         id: property.id,
         snap_score: score,
+        snap_insight: insight,
         distress_signals: signals,
         opportunity_class: opportunityClass,
         total_violations: violations.length,
         open_violations: violations.filter(v => v.status?.toLowerCase() === 'open').length,
-        updated_at: new Date().toISOString()
+        last_analyzed_at: new Date().toISOString()
       });
     }
 
@@ -138,11 +143,12 @@ serve(async (req) => {
             .from("properties")
             .update({
               snap_score: update.snap_score,
+              snap_insight: update.snap_insight,
               distress_signals: update.distress_signals,
               opportunity_class: update.opportunity_class,
               total_violations: update.total_violations,
               open_violations: update.open_violations,
-              updated_at: update.updated_at
+              last_analyzed_at: update.last_analyzed_at
             })
             .eq("id", update.id);
 
@@ -356,4 +362,66 @@ function calculateSnapScore(violations: any[]): {
   }
 
   return { score, signals, components, opportunityClass };
+}
+
+/**
+ * Generate text insight from signals (rule-based, no AI)
+ */
+function generateInsightFromSignals(
+  signals: string[], 
+  violations: any[],
+  opportunityClass: string
+): string {
+  const parts: string[] = [];
+  
+  // Get violation count
+  const openCount = violations.filter(v => v.status?.toLowerCase() === 'open').length;
+  const totalCount = violations.length;
+  
+  // Build insight based on signals
+  if (signals.includes('hot_enforcement')) {
+    parts.push('Recent enforcement activity within last 7 days');
+  } else if (signals.includes('recent_enforcement')) {
+    parts.push('Enforcement activity within last 30 days');
+  }
+  
+  if (signals.includes('severe_violations')) {
+    parts.push('structural or safety-related issues detected');
+  }
+  
+  if (signals.includes('chronic_violations') || signals.includes('aged_violations')) {
+    parts.push('prolonged non-compliance pattern');
+  }
+  
+  if (signals.includes('vacancy_indicator')) {
+    parts.push('possible vacancy or abandonment');
+  }
+  
+  if (signals.includes('multi_department')) {
+    parts.push('multiple enforcement categories');
+  }
+  
+  if (signals.includes('repeat_offender') || signals.includes('high_volume')) {
+    parts.push('repeat violation history');
+  }
+  
+  // Build final insight
+  let insight = '';
+  
+  if (parts.length === 0) {
+    insight = `Property has ${openCount} open violation${openCount !== 1 ? 's' : ''} of ${totalCount} total on record.`;
+  } else {
+    const conditionText = parts.slice(0, 2).join(', ');
+    
+    if (opportunityClass === 'distressed') {
+      insight = `${conditionText}. High distress signals indicate potential motivated seller opportunity.`;
+    } else if (opportunityClass === 'value_add') {
+      insight = `${conditionText}. Moderate distress signals suggest value-add potential.`;
+    } else {
+      insight = `${conditionText}. Property worth monitoring for future opportunities.`;
+    }
+  }
+  
+  // Ensure max 280 chars
+  return insight.slice(0, 280);
 }

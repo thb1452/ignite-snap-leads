@@ -11,13 +11,17 @@ export function BatchRescoreButton() {
   const [progress, setProgress] = useState<BatchRescoreProgress | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [propertyCount, setPropertyCount] = useState<number | null>(null);
+  const [scoredCount, setScoredCount] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const handleFetchCount = async () => {
     try {
       setIsLoading(true);
-      const ids = await getAllPropertyIds();
-      setPropertyCount(ids.length);
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { count: total } = await supabase.from("properties").select("id", { count: "exact", head: true });
+      const { count: scored } = await supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_score", "is", null);
+      setPropertyCount(total ?? 0);
+      setScoredCount(scored ?? 0);
     } catch (error) {
       toast.error("Failed to fetch property count");
     } finally {
@@ -81,8 +85,23 @@ export function BatchRescoreButton() {
           </Button>
         ) : (
           <>
-            <div className="text-sm text-muted-foreground">
-              Found <span className="font-semibold text-foreground">{propertyCount.toLocaleString()}</span> properties to re-score
+            <div className="text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total properties:</span>
+                <span className="font-semibold">{propertyCount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Already scored:</span>
+                <span className="font-semibold text-green-600">{scoredCount?.toLocaleString() ?? 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Need scoring:</span>
+                <span className="font-semibold text-amber-500">{((propertyCount ?? 0) - (scoredCount ?? 0)).toLocaleString()}</span>
+              </div>
+              <Progress value={((scoredCount ?? 0) / (propertyCount ?? 1)) * 100} className="h-2 mt-2" />
+              <div className="text-xs text-muted-foreground text-center">
+                {Math.round(((scoredCount ?? 0) / (propertyCount ?? 1)) * 100)}% scored (bulk-rescore running in background)
+              </div>
             </div>
 
             {progress?.status === 'running' && (

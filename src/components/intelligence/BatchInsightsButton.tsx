@@ -15,7 +15,6 @@ export function BatchInsightsButton() {
   const [progress, setProgress] = useState<BatchRescoreProgress | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [missingCount, setMissingCount] = useState<number | null>(null);
-  const [scoredCount, setScoredCount] = useState<{ total: number; scored: number } | null>(null);
   const queryClient = useQueryClient();
 
   const handleFetchCount = async () => {
@@ -23,12 +22,6 @@ export function BatchInsightsButton() {
       setIsLoading(true);
       const count = await countPropertiesMissingInsights();
       setMissingCount(count);
-      
-      // Also fetch score stats
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { count: total } = await supabase.from("properties").select("id", { count: "exact", head: true });
-      const { count: scored } = await supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_score", "is", null);
-      setScoredCount({ total: total ?? 0, scored: scored ?? 0 });
     } catch (error) {
       toast.error("Failed to fetch count");
     } finally {
@@ -99,19 +92,8 @@ export function BatchInsightsButton() {
           </div>
         ) : (
           <>
-            {scoredCount && (
-              <div className="text-sm text-muted-foreground mb-2 p-2 bg-muted/50 rounded">
-                <div className="flex justify-between">
-                  <span>Re-scored:</span>
-                  <span className="font-semibold">{scoredCount.scored.toLocaleString()} / {scoredCount.total.toLocaleString()}</span>
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  ({Math.round((scoredCount.scored / scoredCount.total) * 100)}% complete - bulk-rescore running in background)
-                </div>
-              </div>
-            )}
             <div className="text-sm text-muted-foreground">
-              Found <span className="font-semibold text-amber-500">{missingCount.toLocaleString()}</span> properties missing <strong>text insights</strong>
+              Found <span className="font-semibold text-amber-500">{missingCount.toLocaleString()}</span> properties missing insights
             </div>
 
             {progress?.status === 'running' && (

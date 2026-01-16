@@ -22,7 +22,7 @@ export function EnforcementSignalsFilter({
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["violation-categories", selectedState, selectedCity],
     queryFn: async () => {
-      // Get violation counts from RPC
+      // Get violation counts from RPC - this already has the correct counts!
       const { data: violationData, error: violationError } = await supabase.rpc("fn_violation_counts_by_area", {
         p_state: selectedState || null,
         p_city: selectedCity || null,
@@ -33,55 +33,15 @@ export function EnforcementSignalsFilter({
         throw violationError;
       }
 
-      // Filter out empty types
-      const validTypes = (violationData || []).filter(
-        (row: { violation_type: string }) => row.violation_type && row.violation_type.trim() !== ''
-      );
-
-      // Get property counts per violation type
-      const typeList = validTypes.map((r: { violation_type: string }) => r.violation_type);
-      
-      let propertyQuery = supabase
-        .from("properties")
-        .select("id, violation_types");
-      
-      if (selectedState) {
-        propertyQuery = propertyQuery.ilike("state", selectedState);
-      }
-      if (selectedCity) {
-        propertyQuery = propertyQuery.ilike("city", selectedCity);
-      }
-      
-      const { data: propertyData, error: propertyError } = await propertyQuery
-        .not("violation_types", "is", null)
-        .limit(10000);
-      
-      if (propertyError) {
-        console.error("[EnforcementSignalsFilter] Property query error:", propertyError);
-      }
-
-      // Count properties per violation type
-      const propertyCountByType: Record<string, number> = {};
-      for (const type of typeList) {
-        propertyCountByType[type] = 0;
-      }
-      
-      for (const prop of (propertyData || [])) {
-        const types = prop.violation_types as string[] | null;
-        if (types) {
-          for (const type of types) {
-            if (propertyCountByType[type] !== undefined) {
-              propertyCountByType[type]++;
-            }
-          }
-        }
-      }
-
-      // Build raw types array
-      const rawTypes = validTypes.map((row: { violation_type: string }) => ({
-        type: row.violation_type,
-        propertyCount: propertyCountByType[row.violation_type] || 0,
-      }));
+      // Filter out empty types and use the RPC counts directly
+      const rawTypes = (violationData || [])
+        .filter((row: { violation_type: string; count: number }) => 
+          row.violation_type && row.violation_type.trim() !== ''
+        )
+        .map((row: { violation_type: string; count: number }) => ({
+          type: row.violation_type,
+          propertyCount: row.count,
+        }));
 
       // Aggregate into user-friendly categories
       const aggregated = aggregateByCategory(rawTypes);

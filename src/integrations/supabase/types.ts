@@ -280,6 +280,75 @@ export type Database = {
           },
         ]
       }
+      email_analytics: {
+        Row: {
+          clicked_at: string | null
+          email_subject: string | null
+          email_type: string
+          id: string
+          new_violations_count: number | null
+          opened_at: string | null
+          properties_featured: number | null
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          clicked_at?: string | null
+          email_subject?: string | null
+          email_type: string
+          id?: string
+          new_violations_count?: number | null
+          opened_at?: string | null
+          properties_featured?: number | null
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          clicked_at?: string | null
+          email_subject?: string | null
+          email_type?: string
+          id?: string
+          new_violations_count?: number | null
+          opened_at?: string | null
+          properties_featured?: number | null
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_preferences: {
+        Row: {
+          created_at: string
+          digest_day: number
+          digest_hour: number
+          id: string
+          timezone: string
+          updated_at: string
+          user_id: string
+          weekly_digest_enabled: boolean
+        }
+        Insert: {
+          created_at?: string
+          digest_day?: number
+          digest_hour?: number
+          id?: string
+          timezone?: string
+          updated_at?: string
+          user_id: string
+          weekly_digest_enabled?: boolean
+        }
+        Update: {
+          created_at?: string
+          digest_day?: number
+          digest_hour?: number
+          id?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+          weekly_digest_enabled?: boolean
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           content: string

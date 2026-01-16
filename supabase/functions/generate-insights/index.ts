@@ -376,6 +376,7 @@ function calculateSnapScoreV2(
     multiDeptScore: 0,
     escalationScore: 0,
     vacancyScore: 0,
+    freshnessBoost: 0,
   };
   
   // LIFECYCLE-AWARE: Filter to only OPEN violations for active distress scoring
@@ -489,6 +490,35 @@ function calculateSnapScoreV2(
     // Historical violations exist but all are closed - low distress
     score = Math.min(score, 20); // Cap at 20 for properties with only historical issues
   }
+  
+  // 7. FRESHNESS BOOST (Max 40 points) - Recent enforcement = motivated seller NOW
+  // Properties with recent violations should rank higher than stale high-count properties
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  
+  // Check for violations in the last 7 days (based on opened_date or last_updated)
+  const hasViolationLast7Days = violations.some(v => {
+    const violationDate = v.opened_date ? new Date(v.opened_date) : 
+                          v.last_updated ? new Date(v.last_updated) : null;
+    return violationDate && violationDate >= sevenDaysAgo;
+  });
+  
+  // Check for violations in the last 8-30 days
+  const hasViolationLast30Days = !hasViolationLast7Days && violations.some(v => {
+    const violationDate = v.opened_date ? new Date(v.opened_date) : 
+                          v.last_updated ? new Date(v.last_updated) : null;
+    return violationDate && violationDate >= thirtyDaysAgo && violationDate < sevenDaysAgo;
+  });
+  
+  if (hasViolationLast7Days) {
+    components.freshnessBoost = 40;
+    signals.push('hot_enforcement');
+  } else if (hasViolationLast30Days) {
+    components.freshnessBoost = 20;
+    signals.push('recent_enforcement');
+  }
+  score += components.freshnessBoost;
   
   // Cap at 100
   const finalScore = Math.min(100, Math.max(0, score));

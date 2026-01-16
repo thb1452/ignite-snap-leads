@@ -14,6 +14,7 @@ import { useAdminJurisdictions } from "@/hooks/useAdminJurisdictions";
 import * as AdminAPI from "@/services/adminApi";
 import { supabase } from "@/integrations/supabase/client";
 import { BatchInsightsButton } from "@/components/intelligence/BatchInsightsButton";
+import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
 import { 
   Users, 
   Upload, 
@@ -293,8 +294,11 @@ function SystemOverviewTab({
         </CardContent>
       </Card>
 
-      {/* Batch Insights Generation */}
-      <BatchInsightsButton />
+      {/* Intelligence Engine Tools */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <BatchRescoreButton />
+        <BatchInsightsButton />
+      </div>
     </div>
   );
 }

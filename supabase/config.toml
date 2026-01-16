@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.job-monitor]
 verify_jwt = true
+
+[functions.weekly-digest]
+verify_jwt = false

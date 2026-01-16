@@ -2,6 +2,7 @@ import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
 
 interface FilterBarProps {
   searchQuery: string;
@@ -92,9 +93,7 @@ export function FilterBar({
       </div>
 
       <div className="flex items-center gap-4">
-        <span className="text-sm font-medium whitespace-nowrap">
-          {propertyCount.toLocaleString()} Properties
-        </span>
+        <FreshnessIndicator />
         <Button
           variant="ghost"
           size="sm"

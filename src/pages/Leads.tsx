@@ -23,6 +23,7 @@ import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { useSubscription } from "@/hooks/useSubscription";
 import { exportFilteredCsv } from "@/services/export";
@@ -404,11 +405,9 @@ function Leads() {
           />
         </div>
         
-        {/* Property count + View Toggle */}
+        {/* Freshness indicator + View Toggle */}
         <div className="flex items-center justify-between px-3 pb-3">
-          <span className="text-sm font-medium text-muted-foreground">
-            {totalCount.toLocaleString()} properties
-          </span>
+          <FreshnessIndicator />
           <div className="flex bg-muted rounded-lg p-0.5">
             <Button
               variant={mobileView === 'list' ? 'secondary' : 'ghost'}

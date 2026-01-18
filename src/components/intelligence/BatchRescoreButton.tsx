@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { RefreshCw, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
-import { batchRescoreAllProperties, BatchRescoreProgress, getAllPropertyIds } from "@/services/batchRescore";
+import { RefreshCw, CheckCircle, AlertCircle, Sparkles, AlertTriangle } from "lucide-react";
+import { batchRescoreAllProperties, BatchRescoreProgress, countPropertiesWithOutdatedLanguage, batchRefreshOutdatedInsights } from "@/services/batchRescore";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -12,16 +12,22 @@ export function BatchRescoreButton() {
   const [isLoading, setIsLoading] = useState(false);
   const [propertyCount, setPropertyCount] = useState<number | null>(null);
   const [scoredCount, setScoredCount] = useState<number | null>(null);
+  const [outdatedCount, setOutdatedCount] = useState<number | null>(null);
+  const [refreshMode, setRefreshMode] = useState<'all' | 'outdated' | null>(null);
   const queryClient = useQueryClient();
 
   const handleFetchCount = async () => {
     try {
       setIsLoading(true);
       const { supabase } = await import("@/integrations/supabase/client");
-      const { count: total } = await supabase.from("properties").select("id", { count: "exact", head: true });
-      const { count: scored } = await supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_score", "is", null);
-      setPropertyCount(total ?? 0);
-      setScoredCount(scored ?? 0);
+      const [totalRes, scoredRes, outdatedRes] = await Promise.all([
+        supabase.from("properties").select("id", { count: "exact", head: true }),
+        supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_score", "is", null),
+        countPropertiesWithOutdatedLanguage()
+      ]);
+      setPropertyCount(totalRes.count ?? 0);
+      setScoredCount(scoredRes.count ?? 0);
+      setOutdatedCount(outdatedRes);
     } catch (error) {
       toast.error("Failed to fetch property count");
     } finally {
@@ -32,6 +38,7 @@ export function BatchRescoreButton() {
   const handleRescore = async () => {
     try {
       setIsLoading(true);
+      setRefreshMode('all');
       toast.info("Starting server-side batch re-scoring...");
 
       // Call the bulk-rescore edge function which auto-continues on the server
@@ -58,11 +65,7 @@ export function BatchRescoreButton() {
             status: 'complete',
           });
         }
-        // Invalidate all intelligence queries
-        queryClient.invalidateQueries({ queryKey: ["opportunity-funnel"] });
-        queryClient.invalidateQueries({ queryKey: ["hot-properties"] });
-        queryClient.invalidateQueries({ queryKey: ["jurisdiction-stats"] });
-        queryClient.invalidateQueries({ queryKey: ["properties"] });
+        invalidateQueries();
       }
     } catch (error) {
       console.error("Batch re-scoring failed:", error);
@@ -70,6 +73,37 @@ export function BatchRescoreButton() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRefreshOutdated = async () => {
+    try {
+      setIsLoading(true);
+      setRefreshMode('outdated');
+      toast.info("Refreshing insights with outdated language...");
+
+      const result = await batchRefreshOutdatedInsights((prog) => {
+        setProgress(prog);
+      });
+      
+      if (result.success) {
+        toast.success(`Refreshed ${result.processed.toLocaleString()} property insights!`);
+        setOutdatedCount(0);
+        invalidateQueries();
+      }
+    } catch (error) {
+      console.error("Refresh outdated failed:", error);
+      toast.error("Refresh failed: " + (error instanceof Error ? error.message : "Unknown error"));
+    } finally {
+      setIsLoading(false);
+      setRefreshMode(null);
+    }
+  };
+
+  const invalidateQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["opportunity-funnel"] });
+    queryClient.invalidateQueries({ queryKey: ["hot-properties"] });
+    queryClient.invalidateQueries({ queryKey: ["jurisdiction-stats"] });
+    queryClient.invalidateQueries({ queryKey: ["properties"] });
   };
 
   const progressPercent = progress 
@@ -117,6 +151,15 @@ export function BatchRescoreButton() {
                 <span className="text-muted-foreground">Need scoring:</span>
                 <span className="font-semibold text-amber-500">{((propertyCount ?? 0) - (scoredCount ?? 0)).toLocaleString()}</span>
               </div>
+              {outdatedCount !== null && outdatedCount > 0 && (
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-orange-500" />
+                    Outdated language:
+                  </span>
+                  <span className="font-semibold text-orange-500">{outdatedCount.toLocaleString()}</span>
+                </div>
+              )}
               <Progress value={((scoredCount ?? 0) / (propertyCount ?? 1)) * 100} className="h-2 mt-2" />
               <div className="text-xs text-muted-foreground text-center">
                 {Math.round(((scoredCount ?? 0) / (propertyCount ?? 1)) * 100)}% scored
@@ -136,7 +179,7 @@ export function BatchRescoreButton() {
             {progress?.status === 'complete' && (
               <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
                 <CheckCircle className="h-4 w-4" />
-                Re-scoring complete! Processed {progress.processed.toLocaleString()} properties.
+                {refreshMode === 'outdated' ? 'Insight refresh complete!' : 'Re-scoring complete!'} Processed {progress.processed.toLocaleString()} properties.
               </div>
             )}
 
@@ -147,23 +190,46 @@ export function BatchRescoreButton() {
               </div>
             )}
 
-            <Button 
-              onClick={handleRescore} 
-              disabled={isLoading || progress?.status === 'running'}
-              className="w-full"
-            >
-              {progress?.status === 'running' ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Re-Scoring... {progressPercent}%
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Re-Score All Properties
-                </>
+            <div className="flex flex-col gap-2">
+              {outdatedCount !== null && outdatedCount > 0 && (
+                <Button 
+                  onClick={handleRefreshOutdated} 
+                  disabled={isLoading || progress?.status === 'running'}
+                  variant="secondary"
+                  className="w-full"
+                >
+                  {refreshMode === 'outdated' && progress?.status === 'running' ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Refreshing... {progressPercent}%
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Refresh {outdatedCount.toLocaleString()} Outdated Insights
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+              
+              <Button 
+                onClick={handleRescore} 
+                disabled={isLoading || progress?.status === 'running'}
+                className="w-full"
+              >
+                {refreshMode === 'all' && progress?.status === 'running' ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Re-Scoring... {progressPercent}%
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Re-Score All Properties
+                  </>
+                )}
+              </Button>
+            </div>
           </>
         )}
       </CardContent>

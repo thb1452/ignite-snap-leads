@@ -81,6 +81,146 @@ export async function getPropertiesMissingInsights(): Promise<string[]> {
 }
 
 /**
+ * Fetches property IDs with outdated investor language in snap_insight
+ */
+export async function getPropertiesWithOutdatedLanguage(): Promise<string[]> {
+  const allIds: string[] = [];
+  const batchSize = 1000;
+  let offset = 0;
+  let hasMore = true;
+
+  // Keywords that indicate old investor-focused language
+  const outdatedTerms = [
+    'opportunity', 'acquisition', 'value-add', 'value add',
+    'investor', 'deal', 'upside', 'profit', 'financial strain',
+    'financial pressure', 'buying', 'purchase'
+  ];
+
+  while (hasMore) {
+    // Build OR conditions for each term
+    let query = supabase
+      .from("properties")
+      .select("id")
+      .not("snap_insight", "is", null);
+
+    // Use ilike for case-insensitive matching on any term
+    const orConditions = outdatedTerms.map(term => `snap_insight.ilike.%${term}%`).join(',');
+    query = query.or(orConditions);
+
+    const { data, error } = await query.range(offset, offset + batchSize - 1);
+
+    if (error) {
+      console.error("Error fetching properties with outdated language:", error);
+      throw error;
+    }
+
+    if (data && data.length > 0) {
+      allIds.push(...data.map(p => p.id));
+      offset += batchSize;
+      hasMore = data.length === batchSize;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return allIds;
+}
+
+/**
+ * Count properties with outdated investor language (faster than fetching all IDs)
+ */
+export async function countPropertiesWithOutdatedLanguage(): Promise<number> {
+  const outdatedTerms = [
+    'opportunity', 'acquisition', 'value-add', 'value add',
+    'investor', 'deal', 'upside', 'profit', 'financial strain',
+    'financial pressure', 'buying', 'purchase'
+  ];
+
+  let query = supabase
+    .from("properties")
+    .select("id", { count: "exact", head: true })
+    .not("snap_insight", "is", null);
+
+  const orConditions = outdatedTerms.map(term => `snap_insight.ilike.%${term}%`).join(',');
+  query = query.or(orConditions);
+
+  const { count, error } = await query;
+
+  if (error) {
+    console.error("Error counting properties with outdated language:", error);
+    throw error;
+  }
+
+  return count ?? 0;
+}
+
+/**
+ * Re-generates insights for properties with outdated investor language
+ */
+export async function batchRefreshOutdatedInsights(
+  onProgress?: ProgressCallback
+): Promise<{ success: boolean; processed: number; total: number }> {
+  // Get only property IDs with outdated language
+  const propertyIds = await getPropertiesWithOutdatedLanguage();
+  
+  if (propertyIds.length === 0) {
+    return { success: true, processed: 0, total: 0 };
+  }
+
+  const totalBatches = Math.ceil(propertyIds.length / BATCH_SIZE);
+  let processed = 0;
+
+  const progress: BatchRescoreProgress = {
+    totalProperties: propertyIds.length,
+    processed: 0,
+    currentBatch: 0,
+    totalBatches,
+    status: 'running',
+  };
+
+  onProgress?.(progress);
+
+  try {
+    for (let i = 0; i < propertyIds.length; i += BATCH_SIZE) {
+      const batch = propertyIds.slice(i, i + BATCH_SIZE);
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+
+      console.log(`[RefreshOutdated] Processing batch ${batchNumber}/${totalBatches} (${batch.length} properties)`);
+
+      progress.currentBatch = batchNumber;
+      onProgress?.(progress);
+
+      try {
+        const result = await callFn("generate-insights", { propertyIds: batch });
+        processed += (result as any)?.processed ?? batch.length;
+      } catch (batchError) {
+        console.error(`[RefreshOutdated] Batch ${batchNumber} error:`, batchError);
+        // Continue with next batch even if one fails
+      }
+
+      progress.processed = processed;
+      onProgress?.(progress);
+
+      // Delay between batches to avoid rate limits
+      if (i + BATCH_SIZE < propertyIds.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+    }
+
+    progress.status = 'complete';
+    onProgress?.(progress);
+
+    return { success: true, processed, total: propertyIds.length };
+  } catch (error) {
+    console.error("[RefreshOutdated] Error:", error);
+    progress.status = 'error';
+    progress.error = error instanceof Error ? error.message : 'Unknown error';
+    onProgress?.(progress);
+    throw error;
+  }
+}
+
+/**
  * Count properties missing insights (faster than fetching all IDs)
  */
 export async function countPropertiesMissingInsights(): Promise<number> {

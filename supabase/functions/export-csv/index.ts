@@ -69,33 +69,37 @@ serve(async (req) => {
     const user = authData.user;
 
     // ---- Check and Reserve Usage (atomic operation) ----
-    let usageConsumed = false;
-    try {
-      const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
-        p_usage_type: 'exports',
-        p_amount: 1
-      });
+    // CRITICAL: Block export if usage tracking fails to prevent free exports during outages
+    const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
+      p_usage_type: 'exports',
+      p_amount: 1
+    });
 
-      if (usageError) {
-        console.log('[export-csv] Usage check failed:', usageError.message);
-        // Continue - don't block export if usage tracking fails
-      } else if (usageResult && usageResult.allowed === false) {
-        console.log('[export-csv] User hit export limit:', user.id);
-        return new Response(
-          JSON.stringify({
-            error: 'CSV export limit reached',
-            code: 'EXPORT_LIMIT_EXCEEDED',
-            message: usageResult.message || 'You have reached your monthly CSV export limit. Please upgrade your plan to continue exporting.'
-          }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      } else if (usageResult && usageResult.allowed === true) {
-        usageConsumed = true;
-        console.log('[export-csv] Usage consumed for user:', user.id, 'remaining:', usageResult.remaining);
-      }
-    } catch (e) {
-      console.log('[export-csv] Usage check skipped:', e.message);
+    if (usageError) {
+      console.error('[export-csv] Usage tracking failed:', usageError.message);
+      return new Response(
+        JSON.stringify({
+          error: 'Export temporarily unavailable',
+          code: 'USAGE_TRACKING_ERROR',
+          message: 'Unable to process export at this time. Please try again.'
+        }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+    
+    if (usageResult && usageResult.allowed === false) {
+      console.log('[export-csv] User hit export limit:', user.id);
+      return new Response(
+        JSON.stringify({
+          error: 'CSV export limit reached',
+          code: 'EXPORT_LIMIT_EXCEEDED',
+          message: usageResult.message || 'You have reached your monthly CSV export limit. Please upgrade your plan to continue exporting.'
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log('[export-csv] Usage consumed for user:', user.id, 'remaining:', usageResult?.remaining);
 
     // Build query - ONLY select clean fields
     let query = supabase
@@ -209,8 +213,7 @@ serve(async (req) => {
 
     const csvContent = csvRows.join('\n');
 
-    // Note: Usage already consumed atomically at start via fn_consume_usage
-    console.log('[export-csv] Export complete, rows:', csvRows.length - 1, 'usage_tracked:', usageConsumed);
+    console.log('[export-csv] Export complete, rows:', csvRows.length - 1);
 
     return new Response(csvContent, {
       headers: {

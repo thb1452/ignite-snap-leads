@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCw, CheckCircle, AlertCircle, Sparkles, AlertTriangle } from "lucide-react";
-import { batchRescoreAllProperties, BatchRescoreProgress, countPropertiesWithOutdatedLanguage, batchRefreshOutdatedInsights } from "@/services/batchRescore";
+import { BatchRescoreProgress, countPropertiesWithOutdatedLanguage } from "@/services/batchRescore";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -87,16 +87,16 @@ export function BatchRescoreButton() {
       
       if (result.success) {
         if (result.auto_continuing) {
-          toast.success(`Started! Refreshing ${result.progress?.total?.toLocaleString()} properties with outdated language. This runs server-side and will continue automatically.`);
+          toast.success(`Started! Refreshing ${result.progress?.total?.toLocaleString()} properties. Runs server-side automatically.`);
           setProgress({
             totalProperties: result.progress?.total ?? outdatedCount ?? 0,
-            processed: result.processed ?? 0,
-            currentBatch: 1,
+            processed: result.progress?.current ?? 0,
+            currentBatch: Math.ceil((result.progress?.current ?? 0) / 50),
             totalBatches: Math.ceil((result.progress?.total ?? 0) / 50),
             status: 'running',
           });
-        } else {
-          toast.success(`All ${result.progress?.total?.toLocaleString() ?? 0} outdated insights refreshed!`);
+        } else if (result.complete) {
+          toast.success(`All outdated insights refreshed!`);
           setProgress({
             totalProperties: result.progress?.total ?? 0,
             processed: result.progress?.total ?? 0,
@@ -106,7 +106,7 @@ export function BatchRescoreButton() {
           });
           setOutdatedCount(0);
         }
-        invalidateQueries();
+        // Don't invalidate queries while running - causes page refresh issues
       }
     } catch (error) {
       console.error("Refresh outdated failed:", error);

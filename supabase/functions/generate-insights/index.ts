@@ -633,6 +633,7 @@ function classifyViolation(violation: Violation): ViolationWithSeverity {
 }
 
 // Generate context-aware insight based on detected signals
+// Uses neutral compliance/enforcement language - NO investor/opportunity language
 function generateSignalBasedInsight(
   signals: string[],
   intelligence: PropertyIntelligence,
@@ -642,44 +643,44 @@ function generateSignalBasedInsight(
   
   // Time pressure context
   if (signals.includes('chronic_neglect')) {
-    insights.push('Extended non-compliance period (180+ days) suggests owner capacity constraints');
+    insights.push('High enforcement persistence: 180+ days of unresolved violations');
   }
   
   // Repeat offender context
   if (signals.includes('chronic_offender')) {
-    insights.push('Pattern of repeat violations indicates systemic property management challenges');
+    insights.push('Recurring compliance failures indicate systemic maintenance issues');
   } else if (signals.includes('repeat_violations')) {
-    insights.push('Multiple violations noted on property');
+    insights.push('Multiple enforcement actions recorded on property');
   }
   
   // Multi-department context
   if (signals.includes('coordinated_enforcement')) {
-    insights.push('Multiple city departments involved - signals serious property deterioration');
+    insights.push('Multi-department enforcement activity signals significant property deterioration');
   } else if (signals.includes('multi_department')) {
-    insights.push('Cross-department enforcement activity detected');
+    insights.push('Cross-department compliance issues detected');
   }
   
   // Legal escalation context
   if (signals.includes('legal_escalation')) {
-    insights.push('Case escalated to legal proceedings - owner may face financial pressure');
+    insights.push('Enforcement escalation in progress');
   }
   
   // Vacancy context
   if (signals.includes('vacancy_indicators')) {
-    insights.push('Vacancy and abandonment signals present - potential acquisition opportunity');
+    insights.push('Indicators of vacancy or abandonment present');
   }
   
   // Fire/Structural
   if (signals.includes('fire_damage')) {
-    insights.push('Fire-related damage requires immediate capital investment');
+    insights.push('Fire-related damage documented in enforcement records');
   }
   if (signals.includes('structural_issues')) {
-    insights.push('Structural concerns identified requiring remediation');
+    insights.push('Structural concerns identified in compliance review');
   }
   
   // Utility issues
   if (signals.includes('utility_issues')) {
-    insights.push('Building system failures detected');
+    insights.push('Building system failures noted');
   }
   
   // Default based on severity
@@ -688,13 +689,13 @@ function generateSignalBasedInsight(
     const moderateCount = classified.filter(v => v.severity === 'moderate').length;
     
     if (severeCount > 0) {
-      insights.push('Critical property conditions require investor attention');
+      insights.push('Critical compliance issues requiring remediation');
     } else if (moderateCount > 0) {
-      insights.push('Property shows deferred maintenance patterns');
+      insights.push('Multiple unresolved maintenance issues on record');
     } else if (intelligence.total_violations > 0) {
-      insights.push('Minor exterior maintenance items noted. Value-add opportunity potential.');
+      insights.push('Minor exterior maintenance items noted in enforcement records');
     } else {
-      insights.push('Property condition requires further assessment.');
+      insights.push('Limited enforcement activity on file');
     }
   }
   

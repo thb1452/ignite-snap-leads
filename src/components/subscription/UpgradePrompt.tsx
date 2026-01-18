@@ -7,18 +7,18 @@ import { useNavigate } from "react-router-dom";
 interface UpgradePromptProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  limitType: 'csv_export' | 'skip_trace' | 'bulk_sms' | 'bulk_mail' | 'api_access';
+  limitType: 'exports' | 'skip_traces' | 'bulk_sms' | 'bulk_mail' | 'api_access';
   currentPlan?: string;
 }
 
 const LIMIT_MESSAGES = {
-  csv_export: {
+  exports: {
     title: "CSV Export Limit Reached",
     description: "You've used all your CSV exports for this billing period.",
     icon: TrendingUp,
     color: "text-blue-500",
   },
-  skip_trace: {
+  skip_traces: {
     title: "Skip Trace Limit Reached",
     description: "You've used all your skip trace credits for this billing period.",
     icon: Zap,
@@ -47,37 +47,39 @@ const LIMIT_MESSAGES = {
 const PLAN_FEATURES = {
   starter: {
     name: "Starter",
-    price: "$39/mo",
+    price: "$119/mo",
     badge: "",
     features: [
-      "Up to 3 jurisdictions",
-      "5,000 records per month",
-      "10 CSV exports/month",
-      "50 skip trace credits/month",
+      "5 county coverage",
+      "2,500 monthly exports",
+      "100 skip trace credits/month",
+      "Basic SnapScore filtering",
+      "Weekly data refresh",
     ],
   },
-  pro: {
-    name: "Pro",
-    price: "$89/mo",
+  professional: {
+    name: "Professional",
+    price: "$249/mo",
     features: [
-      "Up to 10 jurisdictions",
-      "25,000 records per month",
-      "50 CSV exports/month",
-      "250 skip trace credits/month",
-      "Bulk SMS campaigns",
+      "25 county coverage",
+      "10,000 monthly exports",
+      "500 skip trace credits/month",
+      "Advanced SnapScore filters",
+      "Violation type filtering",
+      "Rolling 30-day intelligence",
     ],
     badge: "Popular",
   },
-  elite: {
-    name: "Elite",
-    price: "$199/mo",
+  enterprise: {
+    name: "Enterprise",
+    price: "$499/mo",
     features: [
-      "Unlimited jurisdictions",
-      "100,000 records per month",
-      "Unlimited CSV exports",
-      "1,000 skip trace credits/month",
-      "Bulk SMS & Mail campaigns",
-      "API access",
+      "All 900+ counties",
+      "25,000 monthly exports",
+      "2,000 skip trace credits/month",
+      "Full SnapScore AI suite",
+      "Escalation pattern alerts",
+      "API access (coming soon)",
     ],
     badge: "Best Value",
   },
@@ -100,9 +102,9 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
 
   // Determine which plans to show based on current plan
   const availablePlans = currentPlan === 'starter'
-    ? ['pro', 'elite']
-    : currentPlan === 'pro'
-    ? ['elite']
+    ? ['professional', 'enterprise']
+    : currentPlan === 'professional'
+    ? ['enterprise']
     : [];
 
   return (

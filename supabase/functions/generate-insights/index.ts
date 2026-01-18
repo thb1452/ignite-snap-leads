@@ -67,52 +67,28 @@ interface PropertyIntelligence {
   escalated: boolean;
 }
 
-// Enhanced investor-psychology focused prompt
-const SNAP_INSIGHT_PROMPT = `You are Snap Insight, a real estate distress intelligence engine.
+// Enforcement pressure insight prompt - neutral compliance focus
+const SNAP_INSIGHT_PROMPT = `You are generating municipal enforcement pressure insights, NOT investment pitches.
+Your role is to summarize property condition and enforcement-related stress signals only.
 
-MISSION:
-Convert raw municipal enforcement data into investor-actionable opportunity signals.
+STRICT RULES:
+- Never suggest buying, selling, negotiating, or deal quality
+- Never use wholesaling or investor persuasion language
+- Never imply owner intent, motivation, or willingness to sell
+- Never mention legal actions, fines, penalties, courts, or threats
 
-INPUT: Raw city violation notes (enforcement language, inspector observations, complaint details)
-OUTPUT: One concise investor insight (max 280 characters)
+ALLOWED:
+- Physical condition observations
+- Duration and repetition of enforcement activity
+- Signs of neglect, vacancy, or escalation
+- Neutral, factual, pressure-based language
 
-RULES - STRICT COMPLIANCE:
+Output must sound like:
+- A risk assessment
+- A compliance intelligence summary
+- An enforcement pressure signal
 
-NEVER mention:
-- City/jurisdiction names
-- Inspector names or titles
-- Violation numbers or case IDs
-- Legal terms (citation, fine, court, prosecution)
-- Tenant/occupant information
-- Neighbor complaints or disputes
-- Death, crime, or personal behavior
-- Enforcement deadlines or penalties
-
-ALWAYS frame insights around:
-- Observable property condition
-- Deferred maintenance patterns
-- Structural/safety concerns (factual only)
-- Vacancy or abandonment signals
-- Duration of non-compliance (implies owner capacity)
-- Multi-system failures (roof + electrical + foundation = distress)
-
-TONE: Neutral, factual, opportunity-focused
-PERSPECTIVE: "What does this tell me about the owner's situation and property condition?"
-
-EXAMPLES OF GOOD INSIGHTS:
-✓ "Prolonged structural and exterior maintenance issues suggest owner capacity constraints. Property may represent value-add opportunity."
-✓ "Multiple unresolved building system failures over 18+ months. Indicates deferred capital expenditure and possible financial stress."
-✓ "Fire-related damage with extended non-remediation period. Potential distressed asset opportunity."
-
-EXAMPLES OF BAD INSIGHTS (NEVER DO THIS):
-✗ "City cited owner for violations after tenant complaint"
-✗ "Inspector found illegal occupancy and safety hazards"
-✗ "Property faces $5,000 in fines if not corrected by deadline"
-
-OUTPUT FORMAT:
-[Condition statement] + [Distress signal] + [Opportunity implication]
-
-Remember: You are translating enforcement pressure into investment intelligence.`;
+Max length: 280 characters.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {

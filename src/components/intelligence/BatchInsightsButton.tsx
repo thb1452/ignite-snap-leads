@@ -40,14 +40,32 @@ export function BatchInsightsButton() {
   const handleGenerateInsights = async () => {
     try {
       setIsLoading(true);
-      toast.info("Starting bulk insight generation...");
+      toast.info("Starting server-side insight generation...");
 
-      const result = await batchGenerateMissingInsights((p) => {
-        setProgress(p);
-      });
-
+      // Call the bulk-rescore edge function which handles everything server-side
+      const { callFn } = await import("@/integrations/http/functions");
+      const result = await callFn("bulk-rescore", { offset: 0 });
+      
       if (result.success) {
-        toast.success(`Generated insights for ${result.processed.toLocaleString()} properties!`);
+        if (result.auto_continuing) {
+          toast.success(`Started! Processing ${result.progress?.total?.toLocaleString()} properties. This runs server-side and will continue automatically.`);
+          setProgress({
+            totalProperties: result.progress?.total ?? stats?.total ?? 0,
+            processed: result.processed ?? 0,
+            currentBatch: 1,
+            totalBatches: Math.ceil((result.progress?.total ?? 0) / 50),
+            status: 'running',
+          });
+        } else {
+          toast.success(`Generated insights for ${result.processed?.toLocaleString()} properties!`);
+          setProgress({
+            totalProperties: result.progress?.total ?? 0,
+            processed: result.progress?.total ?? 0,
+            currentBatch: 1,
+            totalBatches: 1,
+            status: 'complete',
+          });
+        }
         // Invalidate all intelligence queries
         queryClient.invalidateQueries({ queryKey: ["opportunity-funnel"] });
         queryClient.invalidateQueries({ queryKey: ["hot-properties"] });
@@ -59,7 +77,8 @@ export function BatchInsightsButton() {
         }
       }
     } catch (error) {
-      toast.error("Insight generation failed");
+      console.error("Insight generation failed:", error);
+      toast.error("Insight generation failed: " + (error instanceof Error ? error.message : "Unknown error"));
     } finally {
       setIsLoading(false);
     }

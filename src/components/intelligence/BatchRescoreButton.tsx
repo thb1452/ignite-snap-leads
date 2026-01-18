@@ -32,14 +32,32 @@ export function BatchRescoreButton() {
   const handleRescore = async () => {
     try {
       setIsLoading(true);
-      toast.info("Starting batch re-scoring...");
+      toast.info("Starting server-side batch re-scoring...");
 
-      const result = await batchRescoreAllProperties((p) => {
-        setProgress(p);
-      });
-
+      // Call the bulk-rescore edge function which auto-continues on the server
+      const { callFn } = await import("@/integrations/http/functions");
+      const result = await callFn("bulk-rescore", { offset: 0 });
+      
       if (result.success) {
-        toast.success(`Re-scored ${result.processed} properties!`);
+        if (result.auto_continuing) {
+          toast.success(`Started! Processing ${result.progress?.total?.toLocaleString()} properties. This runs server-side and will continue automatically.`);
+          setProgress({
+            totalProperties: result.progress?.total ?? propertyCount ?? 0,
+            processed: result.processed ?? 0,
+            currentBatch: 1,
+            totalBatches: Math.ceil((result.progress?.total ?? 0) / 50),
+            status: 'running',
+          });
+        } else {
+          toast.success(`Re-scored ${result.processed} properties!`);
+          setProgress({
+            totalProperties: result.progress?.total ?? 0,
+            processed: result.progress?.total ?? 0,
+            currentBatch: 1,
+            totalBatches: 1,
+            status: 'complete',
+          });
+        }
         // Invalidate all intelligence queries
         queryClient.invalidateQueries({ queryKey: ["opportunity-funnel"] });
         queryClient.invalidateQueries({ queryKey: ["hot-properties"] });
@@ -47,7 +65,8 @@ export function BatchRescoreButton() {
         queryClient.invalidateQueries({ queryKey: ["properties"] });
       }
     } catch (error) {
-      toast.error("Batch re-scoring failed");
+      console.error("Batch re-scoring failed:", error);
+      toast.error("Batch re-scoring failed: " + (error instanceof Error ? error.message : "Unknown error"));
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +119,7 @@ export function BatchRescoreButton() {
               </div>
               <Progress value={((scoredCount ?? 0) / (propertyCount ?? 1)) * 100} className="h-2 mt-2" />
               <div className="text-xs text-muted-foreground text-center">
-                {Math.round(((scoredCount ?? 0) / (propertyCount ?? 1)) * 100)}% scored (bulk-rescore running in background)
+                {Math.round(((scoredCount ?? 0) / (propertyCount ?? 1)) * 100)}% scored
               </div>
             </div>
 

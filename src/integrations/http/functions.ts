@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export async function callFn<T = any>(
-  name: "skiptrace" | "sms-send" | "email-send" | "export-csv" | "generate-insights" | "geocode-properties" | "process-upload",
+  name: "skiptrace" | "sms-send" | "email-send" | "export-csv" | "generate-insights" | "geocode-properties" | "process-upload" | "bulk-rescore",
   payload?: unknown,
   init?: RequestInit
 ): Promise<T> {

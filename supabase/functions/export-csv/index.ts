@@ -199,20 +199,15 @@ serve(async (req) => {
 
     const csvContent = csvRows.join('\n');
 
-    // ---- Record Usage Event (optional - skip if function doesn't exist) ----
+    // ---- Increment Usage Counter ----
     try {
-      await supabase.rpc('record_usage_event', {
-        _event_type: 'csv_export',
-        _resource_type: 'property',
-        _resource_id: null,
-        _quantity: 1,
-        _metadata: {
-          filters: { city, minScore, maxScore, jurisdictionId },
-          row_count: csvRows.length - 1 // Subtract header row
-        }
+      await supabase.rpc('fn_increment_usage', {
+        p_usage_type: 'exports',
+        p_amount: 1
       });
+      console.log('[export-csv] Usage incremented for user:', user.id);
     } catch (e) {
-      console.log('[export-csv] Usage recording skipped:', e.message);
+      console.log('[export-csv] Usage tracking skipped:', e.message);
     }
 
     return new Response(csvContent, {

@@ -1,66 +1,18 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  SubscriptionPlan,
+  UserSubscription,
+  UsageTracking,
+  LimitCheckResult,
+  UsageType,
+  PlanTierName,
+} from "@/types/subscription";
 
-export interface SubscriptionPlan {
-  id: string;
-  name: string;
-  display_name: string;
-  description: string | null;
-  price_monthly_cents: number;
-  price_annual_cents: number;
-  max_monthly_exports: number;
-  max_counties: number;
-  max_user_seats: number;
-  max_skip_traces_per_month: number;
-  has_advanced_filters: boolean;
-  has_violation_filtering: boolean;
-  has_rolling_intelligence: boolean;
-  has_escalation_alerts: boolean;
-  has_api_access: boolean;
-  has_dedicated_manager: boolean;
-  features: string[];
-}
-
-export interface UserSubscription {
-  subscription_id: string;
-  user_id: string;
-  plan_id: string;
-  plan_name: string;
-  display_name: string;
-  status: string;
-  current_period_start: string | null;
-  current_period_end: string | null;
-  max_monthly_exports: number;
-  max_counties: number;
-  max_user_seats: number;
-  max_skip_traces_per_month: number;
-  has_advanced_filters: boolean;
-  has_violation_filtering: boolean;
-  has_rolling_intelligence: boolean;
-  has_escalation_alerts: boolean;
-  has_api_access: boolean;
-  stripe_subscription_id: string | null;
-}
-
-export interface UsageTracking {
-  exports_count: number;
-  skip_traces_count: number;
-  api_calls_count: number;
-  period_start: string;
-  period_end: string;
-}
-
-export interface LimitCheckResult {
-  allowed: boolean;
-  reason?: string;
-  message?: string;
-  current?: number;
-  limit?: number;
-  remaining?: number;
-  plan_name?: string;
-}
+// Re-export types for convenience
+export type { SubscriptionPlan, UserSubscription, UsageTracking, LimitCheckResult, UsageType };
 
 // Fetch user's active subscription
 async function fetchSubscription(userId: string): Promise<UserSubscription | null> {
@@ -75,7 +27,11 @@ async function fetchSubscription(userId: string): Promise<UserSubscription | nul
   
   // RPC returns an array, get the first item
   if (Array.isArray(data) && data.length > 0) {
-    return data[0] as UserSubscription;
+    const row = data[0];
+    return {
+      ...row,
+      plan_name: row.plan_name as PlanTierName,
+    } as UserSubscription;
   }
   
   return null;
@@ -101,7 +57,7 @@ async function fetchUsage(userId: string): Promise<UsageTracking | null> {
 
 // Check subscription limit
 async function checkLimit(
-  usageType: 'exports' | 'skip_traces',
+  usageType: UsageType,
   amount: number = 1
 ): Promise<LimitCheckResult> {
   const { data, error } = await supabase.rpc('fn_check_subscription_limit', {
@@ -123,7 +79,7 @@ async function checkLimit(
 
 // Increment usage counter
 async function incrementUsage(
-  usageType: 'exports' | 'skip_traces' | 'api_calls',
+  usageType: UsageType,
   amount: number = 1
 ): Promise<boolean> {
   const { data, error } = await supabase.rpc('fn_increment_usage', {
@@ -189,9 +145,9 @@ export function useSubscription() {
     features: []
   } : null;
 
-  // Check if user can perform action
+  // Check if user can perform action (exports and skip_traces only - these have counters)
   const checkSubscriptionLimit = useCallback(async (
-    usageType: 'exports' | 'skip_traces',
+    usageType: UsageType,
     amount: number = 1
   ): Promise<LimitCheckResult> => {
     if (!user?.id) {
@@ -206,7 +162,7 @@ export function useSubscription() {
 
   // Increment usage and invalidate cache
   const trackUsage = useCallback(async (
-    usageType: 'exports' | 'skip_traces' | 'api_calls',
+    usageType: UsageType,
     amount: number = 1
   ): Promise<boolean> => {
     const success = await incrementUsage(usageType, amount);
@@ -216,29 +172,30 @@ export function useSubscription() {
     return success;
   }, [user?.id, queryClient]);
 
-  // Usage percentage calculations
-  const getUsagePercentage = useCallback((type: 'exports' | 'skip_traces'): number => {
+  // Usage percentage calculations - returns null for unlimited plans
+  const getUsagePercentage = useCallback((type: 'exports' | 'skip_traces'): number | null => {
     if (!plan || !usage) return 0;
 
     if (type === 'exports') {
-      if (plan.max_monthly_exports === -1) return 0; // Unlimited
+      if (plan.max_monthly_exports === -1) return null; // Unlimited
       return (usage.exports_count / plan.max_monthly_exports) * 100;
     } else if (type === 'skip_traces') {
-      if (plan.max_skip_traces_per_month === -1) return 0;
+      if (plan.max_skip_traces_per_month === -1) return null;
       return (usage.skip_traces_count / plan.max_skip_traces_per_month) * 100;
     }
 
     return 0;
   }, [plan, usage]);
 
-  const getRemainingCount = useCallback((type: 'exports' | 'skip_traces'): number => {
+  // Returns null for unlimited plans
+  const getRemainingCount = useCallback((type: 'exports' | 'skip_traces'): number | null => {
     if (!plan || !usage) return 0;
 
     if (type === 'exports') {
-      if (plan.max_monthly_exports === -1) return Infinity;
+      if (plan.max_monthly_exports === -1) return null; // Unlimited
       return Math.max(0, plan.max_monthly_exports - usage.exports_count);
     } else if (type === 'skip_traces') {
-      if (plan.max_skip_traces_per_month === -1) return Infinity;
+      if (plan.max_skip_traces_per_month === -1) return null;
       return Math.max(0, plan.max_skip_traces_per_month - usage.skip_traces_count);
     }
 
@@ -249,7 +206,7 @@ export function useSubscription() {
     if (!plan || !usage) return false;
 
     if (type === 'exports') {
-      if (plan.max_monthly_exports === -1) return false;
+      if (plan.max_monthly_exports === -1) return false; // Unlimited never at limit
       return usage.exports_count >= plan.max_monthly_exports;
     } else if (type === 'skip_traces') {
       if (plan.max_skip_traces_per_month === -1) return false;

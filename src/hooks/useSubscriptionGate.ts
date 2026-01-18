@@ -1,8 +1,7 @@
 import { useState, useCallback } from "react";
 import { useSubscription, LimitCheckResult } from "./useSubscription";
 import { useToast } from "./use-toast";
-
-type UsageType = 'exports' | 'skip_traces';
+import type { UsageType, FeatureType } from "@/types/subscription";
 
 interface UseSubscriptionGateOptions {
   onLimitExceeded?: (result: LimitCheckResult) => void;
@@ -85,22 +84,24 @@ export function useSubscriptionGate(options: UseSubscriptionGateOptions = {}) {
       await trackUsage(usageType, amount);
       
       return { success: true, result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: message };
     }
   }, [canPerformAction, trackUsage]);
 
   /**
    * Get remaining count for a usage type
+   * Returns null for unlimited plans
    */
-  const getRemaining = useCallback((usageType: UsageType): number => {
+  const getRemaining = useCallback((usageType: UsageType): number | null => {
     if (!plan || !usage) return 0;
     
     if (usageType === 'exports') {
-      if (plan.max_monthly_exports === -1) return Infinity;
+      if (plan.max_monthly_exports === -1) return null; // Unlimited
       return Math.max(0, plan.max_monthly_exports - usage.exports_count);
     } else if (usageType === 'skip_traces') {
-      if (plan.max_skip_traces_per_month === -1) return Infinity;
+      if (plan.max_skip_traces_per_month === -1) return null; // Unlimited
       return Math.max(0, plan.max_skip_traces_per_month - usage.skip_traces_count);
     }
     
@@ -109,14 +110,9 @@ export function useSubscriptionGate(options: UseSubscriptionGateOptions = {}) {
 
   /**
    * Check if feature is available on current plan
+   * Features are booleans, not counters
    */
-  const hasFeature = useCallback((feature: 
-    'advanced_filters' | 
-    'violation_filtering' | 
-    'rolling_intelligence' | 
-    'escalation_alerts' | 
-    'api_access'
-  ): boolean => {
+  const hasFeature = useCallback((feature: FeatureType): boolean => {
     if (!plan) return false;
     
     switch (feature) {

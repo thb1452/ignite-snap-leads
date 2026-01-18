@@ -68,30 +68,33 @@ serve(async (req) => {
     }
     const user = authData.user;
 
-    // ---- Check Usage Limit ----
+    // ---- Check and Reserve Usage (atomic operation) ----
+    let usageConsumed = false;
     try {
-      const { data: limitResult, error: limitError } = await supabase.rpc('fn_check_subscription_limit', {
+      const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
         p_usage_type: 'exports',
         p_amount: 1
       });
 
-      if (!limitError && limitResult && limitResult.allowed === false) {
+      if (usageError) {
+        console.log('[export-csv] Usage check failed:', usageError.message);
+        // Continue - don't block export if usage tracking fails
+      } else if (usageResult && usageResult.allowed === false) {
         console.log('[export-csv] User hit export limit:', user.id);
         return new Response(
           JSON.stringify({
             error: 'CSV export limit reached',
             code: 'EXPORT_LIMIT_EXCEEDED',
-            message: limitResult.message || 'You have reached your monthly CSV export limit. Please upgrade your plan to continue exporting.'
+            message: usageResult.message || 'You have reached your monthly CSV export limit. Please upgrade your plan to continue exporting.'
           }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
-      }
-      
-      if (limitError) {
-        console.log('[export-csv] Usage limit check skipped:', limitError.message);
+      } else if (usageResult && usageResult.allowed === true) {
+        usageConsumed = true;
+        console.log('[export-csv] Usage consumed for user:', user.id, 'remaining:', usageResult.remaining);
       }
     } catch (e) {
-      console.log('[export-csv] Usage limit check skipped:', e.message);
+      console.log('[export-csv] Usage check skipped:', e.message);
     }
 
     // Build query - ONLY select clean fields
@@ -132,12 +135,13 @@ serve(async (req) => {
     // Order by snap_score descending (highest motivation first)
     query = query.order('snap_score', { ascending: false, nullsFirst: false });
 
-    // Paginate to get all data
+    // Paginate to get data with hard limit to prevent OOM
+    const MAX_EXPORT_ROWS = 50000; // Hard limit to prevent memory issues
     let allData: any[] = [];
     let offset = 0;
     const BATCH_SIZE = 1000;
 
-    while (true) {
+    while (allData.length < MAX_EXPORT_ROWS) {
       const { data, error } = await query.range(offset, offset + BATCH_SIZE - 1);
       
       if (error) {
@@ -151,6 +155,12 @@ serve(async (req) => {
       
       if (data.length < BATCH_SIZE) break;
       offset += BATCH_SIZE;
+    }
+    
+    // Truncate if we hit the limit
+    if (allData.length > MAX_EXPORT_ROWS) {
+      console.log(`[export-csv] Truncating export from ${allData.length} to ${MAX_EXPORT_ROWS} rows`);
+      allData = allData.slice(0, MAX_EXPORT_ROWS);
     }
 
     console.log(`[export-csv] Exporting ${allData.length} properties for user ${user.id}`);
@@ -199,16 +209,8 @@ serve(async (req) => {
 
     const csvContent = csvRows.join('\n');
 
-    // ---- Increment Usage Counter ----
-    try {
-      await supabase.rpc('fn_increment_usage', {
-        p_usage_type: 'exports',
-        p_amount: 1
-      });
-      console.log('[export-csv] Usage incremented for user:', user.id);
-    } catch (e) {
-      console.log('[export-csv] Usage tracking skipped:', e.message);
-    }
+    // Note: Usage already consumed atomically at start via fn_consume_usage
+    console.log('[export-csv] Export complete, rows:', csvRows.length - 1, 'usage_tracked:', usageConsumed);
 
     return new Response(csvContent, {
       headers: {

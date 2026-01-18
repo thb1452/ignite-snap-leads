@@ -2029,6 +2029,10 @@ export type Database = {
         Args: { p_meta?: Json; p_reason: string }
         Returns: number
       }
+      fn_consume_usage: {
+        Args: { p_amount?: number; p_usage_type: string }
+        Returns: Json
+      }
       fn_dashboard_stats: { Args: never; Returns: Json }
       fn_distinct_cities: {
         Args: { p_state?: string }

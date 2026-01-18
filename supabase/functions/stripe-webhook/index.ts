@@ -1,5 +1,6 @@
 // Supabase Edge Function: Stripe Webhook Handler
 // Route: POST /stripe-webhook (called by Stripe)
+// Features: Idempotency tracking to prevent duplicate processing
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
@@ -44,6 +45,37 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     console.log("[webhook] Received event:", event.type, event.id);
+
+    // ---- Idempotency Check ----
+    // Check if we've already processed this event
+    const { data: existingEvent } = await supabase
+      .from("webhook_events")
+      .select("id")
+      .eq("event_id", event.id)
+      .maybeSingle();
+
+    if (existingEvent) {
+      console.log("[webhook] Event already processed, skipping:", event.id);
+      return new Response(JSON.stringify({ received: true, skipped: true }), { status: 200 });
+    }
+
+    // Record event before processing (prevents race conditions)
+    const { error: insertError } = await supabase
+      .from("webhook_events")
+      .insert({
+        event_id: event.id,
+        event_type: event.type,
+        payload: event.data.object
+      });
+
+    if (insertError) {
+      // Unique constraint violation means another request is processing
+      if (insertError.code === "23505") {
+        console.log("[webhook] Event being processed by another request:", event.id);
+        return new Response(JSON.stringify({ received: true, skipped: true }), { status: 200 });
+      }
+      console.error("[webhook] Failed to record event:", insertError);
+    }
 
     // ---- Handle Event ----
     switch (event.type) {

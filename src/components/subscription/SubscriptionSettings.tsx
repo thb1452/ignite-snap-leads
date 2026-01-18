@@ -22,14 +22,14 @@ const PLAN_CONFIGS = {
     color: "text-green-500",
     gradient: "from-green-500/10 to-green-500/5",
   },
-  pro: {
-    name: "Pro",
+  professional: {
+    name: "Professional",
     icon: Sparkles,
     color: "text-purple-500",
     gradient: "from-purple-500/10 to-purple-500/5",
   },
-  elite: {
-    name: "Elite",
+  enterprise: {
+    name: "Enterprise",
     icon: Crown,
     color: "text-amber-500",
     gradient: "from-amber-500/10 to-amber-500/5",
@@ -66,9 +66,9 @@ export function SubscriptionSettings() {
     }
   });
 
-  const handleUpgrade = async (planId: string) => {
+  const handleUpgrade = async (tierName: string) => {
     try {
-      setCheckoutLoading(planId);
+      setCheckoutLoading(tierName);
 
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
@@ -85,7 +85,7 @@ export function SubscriptionSettings() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ plan_id: planId }),
+          body: JSON.stringify({ tier_name: tierName, billing_cycle: 'monthly' }),
         }
       );
 
@@ -160,15 +160,15 @@ export function SubscriptionSettings() {
   const planConfig = plan ? PLAN_CONFIGS[plan.name as keyof typeof PLAN_CONFIGS] : null;
   const PlanIcon = planConfig?.icon || Zap;
 
-  const csvExportsUsed = usage?.csv_exports_count || 0;
-  const csvExportsLimit = plan?.max_csv_exports_per_month || 0;
+  const csvExportsUsed = usage?.exports_count || 0;
+  const csvExportsLimit = plan?.max_monthly_exports || 0;
   const csvExportsPercent = csvExportsLimit === -1 ? 0 : Math.min(100, (csvExportsUsed / Math.max(1, csvExportsLimit)) * 100);
 
-  const skipTracesUsed = usage?.skip_traces_used || 0;
-  const skipTracesLimit = plan?.skip_trace_credits_per_month || 0;
+  const skipTracesUsed = usage?.skip_traces_count || 0;
+  const skipTracesLimit = plan?.max_skip_traces_per_month || 0;
   const skipTracesPercent = Math.min(100, (skipTracesUsed / Math.max(1, skipTracesLimit)) * 100);
 
-  const periodEnd = subscription?.period_end ? new Date(subscription.period_end) : null;
+  const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;
   const daysUntilRenewal = periodEnd ? Math.ceil((periodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
 
   return (
@@ -265,54 +265,55 @@ export function SubscriptionSettings() {
       )}
 
       {/* Upgrade Options */}
-      {plan && plan.name !== 'elite' && (
+      {plan && plan.name !== 'enterprise' && (
         <div>
           <h3 className="text-lg font-semibold text-ink-900 mb-4">Upgrade Your Plan</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {plan.name === 'free_trial' || plan.name === 'starter' ? (
+            {(plan.name === 'free_trial' || plan.name === 'starter') && (
               <UpgradePlanCard
-                name="Pro"
-                price="$89/mo"
+                name="Professional"
+                price="$249/mo"
                 features={[
-                  "Up to 10 jurisdictions",
-                  "25,000 records per month",
-                  "50 CSV exports/month",
-                  "250 skip trace credits/month",
-                  "Bulk SMS campaigns",
+                  "25 county coverage",
+                  "10,000 monthly exports",
+                  "500 skip trace credits/month",
+                  "Advanced SnapScore filters",
+                  "Violation type filtering",
+                  "Rolling 30-day intelligence",
                 ]}
                 badge="Popular"
-                onUpgrade={() => handleUpgrade('pro-plan-id')}
-                loading={checkoutLoading === 'pro-plan-id'}
+                onUpgrade={() => handleUpgrade('professional')}
+                loading={checkoutLoading === 'professional'}
               />
-            ) : null}
+            )}
 
-            {plan.name !== 'elite' && (
+            {plan.name !== 'enterprise' && (
               <UpgradePlanCard
-                name="Elite"
-                price="$199/mo"
+                name="Enterprise"
+                price="$499/mo"
                 features={[
-                  "Unlimited jurisdictions",
-                  "100,000 records per month",
-                  "Unlimited CSV exports",
-                  "1,000 skip trace credits/month",
-                  "Bulk SMS & Mail campaigns",
-                  "API access",
+                  "All 900+ counties",
+                  "25,000 monthly exports",
+                  "2,000 skip trace credits/month",
+                  "Full SnapScore AI suite",
+                  "Escalation pattern alerts",
+                  "API access (coming soon)",
                 ]}
                 badge="Best Value"
-                onUpgrade={() => handleUpgrade('elite-plan-id')}
-                loading={checkoutLoading === 'elite-plan-id'}
+                onUpgrade={() => handleUpgrade('enterprise')}
+                loading={checkoutLoading === 'enterprise'}
               />
             )}
           </div>
         </div>
       )}
 
-      {plan && plan.name === 'elite' && (
+      {plan && plan.name === 'enterprise' && (
         <Card>
           <CardContent className="py-8 text-center">
             <Crown className="h-12 w-12 text-amber-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-ink-900 mb-2">
-              You're on the Elite Plan!
+              You're on the Enterprise Plan!
             </h3>
             <p className="text-ink-600 text-sm">
               You have access to all features and maximum limits. Need custom solutions?{" "}

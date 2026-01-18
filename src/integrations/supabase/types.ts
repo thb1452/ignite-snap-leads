@@ -1173,6 +1173,114 @@ export type Database = {
           },
         ]
       }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_name: string
+          features: Json | null
+          has_advanced_filters: boolean
+          has_api_access: boolean
+          has_dedicated_manager: boolean
+          has_escalation_alerts: boolean
+          has_rolling_intelligence: boolean
+          has_violation_filtering: boolean
+          id: string
+          is_active: boolean
+          max_counties: number
+          max_monthly_exports: number
+          max_skip_traces_per_month: number
+          max_user_seats: number
+          name: string
+          price_annual_cents: number
+          price_monthly_cents: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_name: string
+          features?: Json | null
+          has_advanced_filters?: boolean
+          has_api_access?: boolean
+          has_dedicated_manager?: boolean
+          has_escalation_alerts?: boolean
+          has_rolling_intelligence?: boolean
+          has_violation_filtering?: boolean
+          id?: string
+          is_active?: boolean
+          max_counties?: number
+          max_monthly_exports?: number
+          max_skip_traces_per_month?: number
+          max_user_seats?: number
+          name: string
+          price_annual_cents?: number
+          price_monthly_cents?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          features?: Json | null
+          has_advanced_filters?: boolean
+          has_api_access?: boolean
+          has_dedicated_manager?: boolean
+          has_escalation_alerts?: boolean
+          has_rolling_intelligence?: boolean
+          has_violation_filtering?: boolean
+          id?: string
+          is_active?: boolean
+          max_counties?: number
+          max_monthly_exports?: number
+          max_skip_traces_per_month?: number
+          max_user_seats?: number
+          name?: string
+          price_annual_cents?: number
+          price_monthly_cents?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscription_usage: {
+        Row: {
+          api_calls_count: number
+          created_at: string
+          exports_count: number
+          id: string
+          period_end: string
+          period_start: string
+          skip_traces_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_calls_count?: number
+          created_at?: string
+          exports_count?: number
+          id?: string
+          period_end: string
+          period_start: string
+          skip_traces_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_calls_count?: number
+          created_at?: string
+          exports_count?: number
+          id?: string
+          period_end?: string
+          period_start?: string
+          skip_traces_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       upload_history: {
         Row: {
           county_id: string | null
@@ -1478,6 +1586,59 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          cancel_at: string | null
+          cancelled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          plan_id: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       violations: {
         Row: {
@@ -1860,6 +2021,10 @@ export type Database = {
         Args: { p_job_id: string; p_property_ids: string[] }
         Returns: Json
       }
+      fn_check_subscription_limit: {
+        Args: { p_amount?: number; p_usage_type: string; p_user_id?: string }
+        Returns: Json
+      }
       fn_consume_credit: {
         Args: { p_meta?: Json; p_reason: string }
         Returns: number
@@ -1876,6 +2041,43 @@ export type Database = {
         Returns: {
           state: string
         }[]
+      }
+      fn_get_current_usage: {
+        Args: { p_user_id?: string }
+        Returns: {
+          api_calls_count: number
+          exports_count: number
+          period_end: string
+          period_start: string
+          skip_traces_count: number
+        }[]
+      }
+      fn_get_user_subscription: {
+        Args: { p_user_id?: string }
+        Returns: {
+          current_period_end: string
+          current_period_start: string
+          display_name: string
+          has_advanced_filters: boolean
+          has_api_access: boolean
+          has_escalation_alerts: boolean
+          has_rolling_intelligence: boolean
+          has_violation_filtering: boolean
+          max_counties: number
+          max_monthly_exports: number
+          max_skip_traces_per_month: number
+          max_user_seats: number
+          plan_id: string
+          plan_name: string
+          status: string
+          stripe_subscription_id: string
+          subscription_id: string
+          user_id: string
+        }[]
+      }
+      fn_increment_usage: {
+        Args: { p_amount?: number; p_usage_type: string; p_user_id?: string }
+        Returns: boolean
       }
       fn_job_status: { Args: { p_job_id: string }; Returns: Json }
       fn_jurisdiction_stats: {

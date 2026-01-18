@@ -86,7 +86,7 @@ function Leads() {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
-  const [upgradeLimitType, setUpgradeLimitType] = useState<'csv_export' | 'skip_trace'>('csv_export');
+  const [upgradeLimitType, setUpgradeLimitType] = useState<'exports' | 'skip_traces' | 'bulk_sms' | 'bulk_mail' | 'api_access'>('exports');
 
   // Count active filters
   const activeFilterCount = useMemo(() => {
@@ -169,9 +169,9 @@ function Leads() {
       return;
     }
 
-    const canExport = await checkLimit('csv_export');
+    const canExport = await checkLimit('exports');
     if (!canExport) {
-      setUpgradeLimitType('csv_export');
+      setUpgradeLimitType('exports');
       setShowUpgradePrompt(true);
       return;
     }
@@ -196,7 +196,7 @@ function Leads() {
       console.error('[Leads] Export error:', error);
 
       if (error.message === 'EXPORT_LIMIT_EXCEEDED') {
-        setUpgradeLimitType('csv_export');
+        setUpgradeLimitType('exports');
         setShowUpgradePrompt(true);
         return;
       }

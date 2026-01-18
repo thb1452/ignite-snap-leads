@@ -344,7 +344,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // ---- Consume credit only after success ----
     const { error: creditError } = await supabase.rpc("fn_consume_credit", {
-      p_reason: "skip_trace",
+      p_reason: "skip_traces",
       p_meta: { property_id, address: fullAddress },
     });
     if (creditError) {
@@ -352,22 +352,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // Don't fail the whole request; return ok with a warning
     }
 
-    // ---- Record Usage Event ----
-    const { error: recordError } = await supabase.rpc('record_usage_event', {
-      _event_type: 'skip_trace',
-      _resource_type: 'property',
-      _resource_id: property_id,
-      _quantity: 1,
-      _metadata: {
-        address: fullAddress,
-        contacts_found: contacts.length,
-        source: batchDataBase.toLowerCase().includes("sandbox") ? "sandbox" : "production"
-      }
+    // ---- Increment Usage Counter ----
+    const { error: usageError } = await supabase.rpc('fn_increment_usage', {
+      p_usage_type: 'skip_traces',
+      p_amount: 1
     });
 
-    if (recordError) {
-      console.error('[skiptrace] Error recording usage:', recordError);
-      // Don't fail the request if recording fails
+    if (usageError) {
+      console.error('[skiptrace] Error incrementing usage:', usageError);
+      // Don't fail the request if tracking fails
+    } else {
+      console.log('[skiptrace] Usage incremented for user');
     }
 
     const resp: ApiOk = { ok: true, contacts, raw_data: raw };

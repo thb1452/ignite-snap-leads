@@ -79,15 +79,33 @@ export function BatchRescoreButton() {
     try {
       setIsLoading(true);
       setRefreshMode('outdated');
-      toast.info("Refreshing insights with outdated language...");
+      toast.info("Starting server-side refresh of outdated insights...");
 
-      const result = await batchRefreshOutdatedInsights((prog) => {
-        setProgress(prog);
-      });
+      // Call the server-side edge function which auto-continues
+      const { callFn } = await import("@/integrations/http/functions");
+      const result = await callFn("refresh-outdated-insights", { offset: 0, autoResume: true });
       
       if (result.success) {
-        toast.success(`Refreshed ${result.processed.toLocaleString()} property insights!`);
-        setOutdatedCount(0);
+        if (result.auto_continuing) {
+          toast.success(`Started! Refreshing ${result.progress?.total?.toLocaleString()} properties with outdated language. This runs server-side and will continue automatically.`);
+          setProgress({
+            totalProperties: result.progress?.total ?? outdatedCount ?? 0,
+            processed: result.processed ?? 0,
+            currentBatch: 1,
+            totalBatches: Math.ceil((result.progress?.total ?? 0) / 50),
+            status: 'running',
+          });
+        } else {
+          toast.success(`All ${result.progress?.total?.toLocaleString() ?? 0} outdated insights refreshed!`);
+          setProgress({
+            totalProperties: result.progress?.total ?? 0,
+            processed: result.progress?.total ?? 0,
+            currentBatch: 1,
+            totalBatches: 1,
+            status: 'complete',
+          });
+          setOutdatedCount(0);
+        }
         invalidateQueries();
       }
     } catch (error) {
@@ -95,7 +113,6 @@ export function BatchRescoreButton() {
       toast.error("Refresh failed: " + (error instanceof Error ? error.message : "Unknown error"));
     } finally {
       setIsLoading(false);
-      setRefreshMode(null);
     }
   };
 

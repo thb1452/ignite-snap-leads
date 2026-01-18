@@ -108,8 +108,11 @@ serve(async (req) => {
     console.log(`[bulk-rescore] Batch complete: ${insightResult.processed} processed in ${elapsed}ms`);
     console.log(`[bulk-rescore] Progress: ${progress}% (${nextOffset}/${totalCount})`);
 
-    // Auto-continue: Fire and forget the next batch
-    if (!isComplete && !dryRun) {
+    // PAUSED: Auto-continue disabled by admin request
+    // To resume: set autoResume = true below
+    const autoResume = false;
+    
+    if (!isComplete && !dryRun && autoResume) {
       // Small delay to avoid overwhelming the AI API
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -124,6 +127,8 @@ serve(async (req) => {
       }).catch(err => console.error('[bulk-rescore] Failed to trigger next batch:', err));
       
       console.log(`[bulk-rescore] Auto-triggered next batch at offset ${nextOffset}`);
+    } else if (!isComplete && !autoResume) {
+      console.log(`[bulk-rescore] PAUSED - auto-continue disabled. Resume by setting autoResume = true`);
     }
 
     return new Response(

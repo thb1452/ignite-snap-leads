@@ -135,17 +135,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const overrides = body.overrides ?? null;
 
     // ---- Check Usage Limit ----
-    const { data: canSkipTrace, error: limitError } = await supabase.rpc('check_usage_limit', {
-      _event_type: 'skip_trace',
-      _quantity: 1
+    const { data: limitResult, error: limitError } = await supabase.rpc('fn_check_subscription_limit', {
+      p_usage_type: 'skip_traces',
+      p_amount: 1
     });
 
     if (limitError) {
       console.error('[skiptrace] Error checking limit:', limitError);
-      // Continue anyway - backward compatibility (limits are optional)
-    } else if (!canSkipTrace) {
+      // Continue anyway - backward compatibility
+    } else if (limitResult && limitResult.allowed === false) {
       console.log('[skiptrace] User hit skip trace limit:', user.id);
-      const err: ApiError = { ok: false, error: 'Skip trace limit reached. Please upgrade your plan to continue.' };
+      const err: ApiError = { ok: false, error: limitResult.message || 'Skip trace limit reached. Please upgrade your plan to continue.' };
       return new Response(JSON.stringify(err), { status: 403, headers });
     }
 

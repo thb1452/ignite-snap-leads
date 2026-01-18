@@ -3,15 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Sparkles, TrendingUp, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import type { LimitType, PlanTierName } from "@/types/subscription";
 
 interface UpgradePromptProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  limitType: 'exports' | 'skip_traces' | 'bulk_sms' | 'bulk_mail' | 'api_access';
-  currentPlan?: string;
+  limitType: LimitType;
+  currentPlan?: PlanTierName;
 }
 
-const LIMIT_MESSAGES = {
+// Messages for usage limits (counters)
+const LIMIT_MESSAGES: Record<LimitType, { title: string; description: string; icon: typeof TrendingUp; color: string }> = {
   exports: {
     title: "CSV Export Limit Reached",
     description: "You've used all your CSV exports for this billing period.",
@@ -24,21 +26,40 @@ const LIMIT_MESSAGES = {
     icon: Zap,
     color: "text-amber-500",
   },
-  bulk_sms: {
-    title: "Bulk SMS Not Available",
-    description: "Bulk SMS campaigns are available on Pro and Elite plans.",
+  api_calls: {
+    title: "API Call Limit Reached",
+    description: "You've used all your API calls for this billing period.",
     icon: Sparkles,
     color: "text-purple-500",
   },
-  bulk_mail: {
-    title: "Bulk Mail Not Available",
-    description: "Bulk mail campaigns are available on Elite plans.",
+  // Feature-based limits (booleans)
+  advanced_filters: {
+    title: "Advanced Filters Not Available",
+    description: "Advanced filtering is available on Professional and Enterprise plans.",
+    icon: Sparkles,
+    color: "text-purple-500",
+  },
+  violation_filtering: {
+    title: "Violation Filtering Not Available",
+    description: "Violation type filtering is available on Professional and Enterprise plans.",
+    icon: Sparkles,
+    color: "text-purple-500",
+  },
+  rolling_intelligence: {
+    title: "Rolling Intelligence Not Available",
+    description: "30-day rolling intelligence is available on Professional and Enterprise plans.",
+    icon: Sparkles,
+    color: "text-purple-500",
+  },
+  escalation_alerts: {
+    title: "Escalation Alerts Not Available",
+    description: "Escalation pattern alerts are available on Enterprise plans.",
     icon: Sparkles,
     color: "text-purple-500",
   },
   api_access: {
     title: "API Access Not Available",
-    description: "API access is available on Elite plans only.",
+    description: "API access is available on Enterprise plans only.",
     icon: Sparkles,
     color: "text-purple-500",
   },

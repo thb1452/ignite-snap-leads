@@ -68,28 +68,27 @@ serve(async (req) => {
     }
     const user = authData.user;
 
-    // ---- Check Usage Limit (optional - skip if function doesn't exist) ----
+    // ---- Check Usage Limit ----
     try {
-      const { data: canExport, error: limitError } = await supabase.rpc('check_usage_limit', {
-        _event_type: 'csv_export',
-        _quantity: 1
+      const { data: limitResult, error: limitError } = await supabase.rpc('fn_check_subscription_limit', {
+        p_usage_type: 'exports',
+        p_amount: 1
       });
 
-      // Only block if we got a valid false response (limit exceeded)
-      if (!limitError && canExport === false) {
+      if (!limitError && limitResult && limitResult.allowed === false) {
         console.log('[export-csv] User hit export limit:', user.id);
         return new Response(
           JSON.stringify({
             error: 'CSV export limit reached',
             code: 'EXPORT_LIMIT_EXCEEDED',
-            message: 'You have reached your monthly CSV export limit. Please upgrade your plan to continue exporting.'
+            message: limitResult.message || 'You have reached your monthly CSV export limit. Please upgrade your plan to continue exporting.'
           }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
       if (limitError) {
-        console.log('[export-csv] Usage limit check skipped (function may not exist):', limitError.message);
+        console.log('[export-csv] Usage limit check skipped:', limitError.message);
       }
     } catch (e) {
       console.log('[export-csv] Usage limit check skipped:', e.message);

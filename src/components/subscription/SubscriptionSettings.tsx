@@ -269,7 +269,7 @@ export function SubscriptionSettings() {
         <div>
           <h3 className="text-lg font-semibold text-ink-900 mb-4">Upgrade Your Plan</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(plan.name === 'free_trial' || plan.name === 'starter') && (
+            {plan.name === 'starter' && (
               <UpgradePlanCard
                 name="Professional"
                 price="$249/mo"
@@ -287,7 +287,7 @@ export function SubscriptionSettings() {
               />
             )}
 
-            {plan.name !== 'enterprise' && (
+            {(plan.name === 'starter' || plan.name === 'professional') && (
               <UpgradePlanCard
                 name="Enterprise"
                 price="$499/mo"

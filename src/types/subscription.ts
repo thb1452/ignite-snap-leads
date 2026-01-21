@@ -2,13 +2,13 @@
  * Canonical subscription types - the single source of truth
  * 
  * RULES:
- * - UsageType = counters (exports, skip_traces, api_calls)
+ * - UsageType = counters (exports, api_calls)
  * - FeatureType = booleans (advanced_filters, api_access, etc.)
  * - Never mix them
  */
 
 // Usage types are things we count and limit
-export type UsageType = 'exports' | 'skip_traces' | 'api_calls';
+export type UsageType = 'exports' | 'api_calls';
 
 // Feature types are plan capabilities (boolean flags)
 export type FeatureType = 
@@ -34,7 +34,6 @@ export interface SubscriptionPlan {
   max_monthly_exports: number;
   max_counties: number;
   max_user_seats: number;
-  max_skip_traces_per_month: number;
   has_advanced_filters: boolean;
   has_violation_filtering: boolean;
   has_rolling_intelligence: boolean;
@@ -56,7 +55,6 @@ export interface UserSubscription {
   max_monthly_exports: number;
   max_counties: number;
   max_user_seats: number;
-  max_skip_traces_per_month: number;
   has_advanced_filters: boolean;
   has_violation_filtering: boolean;
   has_rolling_intelligence: boolean;
@@ -67,7 +65,6 @@ export interface UserSubscription {
 
 export interface UsageTracking {
   exports_count: number;
-  skip_traces_count: number;
   api_calls_count: number;
   period_start: string;
   period_end: string;

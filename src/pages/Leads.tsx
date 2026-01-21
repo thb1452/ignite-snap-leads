@@ -96,7 +96,7 @@ function Leads() {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
-  const [upgradeLimitType, setUpgradeLimitType] = useState<'exports' | 'skip_traces'>('exports');
+  const [upgradeLimitType, setUpgradeLimitType] = useState<'exports'>('exports');
 
   // Count active filters
   const activeFilterCount = useMemo(() => {

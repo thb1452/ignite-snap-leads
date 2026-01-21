@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Sparkles, TrendingUp, Zap } from "lucide-react";
+import { CheckCircle2, Sparkles, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { LimitType, PlanTierName } from "@/types/subscription";
 
@@ -19,12 +19,6 @@ const LIMIT_MESSAGES: Record<LimitType, { title: string; description: string; ic
     description: "You've used all your CSV exports for this billing period.",
     icon: TrendingUp,
     color: "text-blue-500",
-  },
-  skip_traces: {
-    title: "Skip Trace Limit Reached",
-    description: "You've used all your skip trace credits for this billing period.",
-    icon: Zap,
-    color: "text-amber-500",
   },
   api_calls: {
     title: "API Call Limit Reached",
@@ -73,7 +67,6 @@ const PLAN_FEATURES = {
     features: [
       "5 county coverage",
       "2,500 monthly exports",
-      "100 skip trace credits/month",
       "Basic SnapScore filtering",
       "Weekly data refresh",
     ],
@@ -84,7 +77,6 @@ const PLAN_FEATURES = {
     features: [
       "25 county coverage",
       "10,000 monthly exports",
-      "500 skip trace credits/month",
       "Advanced SnapScore filters",
       "Violation type filtering",
       "Rolling 30-day intelligence",
@@ -97,7 +89,6 @@ const PLAN_FEATURES = {
     features: [
       "All 900+ counties",
       "25,000 monthly exports",
-      "2,000 skip trace credits/month",
       "Full SnapScore AI suite",
       "Escalation pattern alerts",
       "API access (coming soon)",

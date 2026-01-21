@@ -1807,6 +1807,32 @@ export type Database = {
           state: string | null
           total_violations: number | null
         }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          distress_signals?: string[] | null
+          escalated?: boolean | null
+          id?: string | null
+          multi_department?: boolean | null
+          oldest_violation_date?: string | null
+          snap_insight?: string | null
+          snap_score?: number | null
+          state?: string | null
+          total_violations?: number | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          distress_signals?: string[] | null
+          escalated?: boolean | null
+          id?: string | null
+          multi_department?: boolean | null
+          oldest_violation_date?: string | null
+          snap_insight?: string | null
+          snap_score?: number | null
+          state?: string | null
+          total_violations?: number | null
+        }
         Relationships: []
       }
       v_jurisdiction_stats: {

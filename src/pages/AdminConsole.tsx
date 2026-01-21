@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useAdminJurisdictions } from "@/hooks/useAdminJurisdictions";
 import * as AdminAPI from "@/services/adminApi";
 import { supabase } from "@/integrations/supabase/client";
+import { useSubscription } from "@/hooks/useSubscription";
+import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { BatchInsightsButton } from "@/components/intelligence/BatchInsightsButton";
 import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
 import { 
@@ -531,6 +533,21 @@ function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'va' | 'user'>('user');
   const [inviting, setInviting] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  
+  // Subscription check for user seats
+  const { plan, hasActiveSubscription } = useSubscription();
+  
+  // Count current users (active + pending invitations count toward seat limit)
+  const currentUserCount = useMemo(() => {
+    if (!users) return 0;
+    // Count active users and pending invitations
+    return users.filter(u => u.status === 'Active' || u.status === 'Invited' || u.status === 'pending').length;
+  }, [users]);
+  
+  const maxSeats = plan?.max_user_seats ?? 1;
+  const seatsRemaining = maxSeats === -1 ? null : Math.max(0, maxSeats - currentUserCount);
+  const isAtSeatLimit = maxSeats !== -1 && currentUserCount >= maxSeats;
 
   const mockUsers = [
     {
@@ -583,6 +600,12 @@ function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
   const handleInvite = async () => {
     if (!inviteEmail || !inviteEmail.includes('@')) {
       toast.error('Please enter a valid email address');
+      return;
+    }
+
+    // Check seat limit before inviting
+    if (isAtSeatLimit) {
+      setShowUpgradePrompt(true);
       return;
     }
 
@@ -649,16 +672,31 @@ function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
 
   return (
     <div className="space-y-4">
+      {/* Upgrade Prompt for Seat Limit */}
+      <UpgradePrompt
+        open={showUpgradePrompt}
+        onOpenChange={setShowUpgradePrompt}
+        limitType="exports"
+        currentPlan={plan?.name}
+      />
+      
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">User Management</h2>
-        <Button 
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => setInviteDialogOpen(true)}
-        >
-          <UserPlus className="h-4 w-4 mr-2" />
-          Invite User
-        </Button>
+        <div className="flex items-center gap-3">
+          {seatsRemaining !== null && (
+            <Badge variant={isAtSeatLimit ? "destructive" : "secondary"}>
+              {seatsRemaining} seat{seatsRemaining !== 1 ? 's' : ''} remaining
+            </Badge>
+          )}
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => isAtSeatLimit ? setShowUpgradePrompt(true) : setInviteDialogOpen(true)}
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Invite User
+          </Button>
+        </div>
       </div>
 
       {/* Invite User Dialog */}

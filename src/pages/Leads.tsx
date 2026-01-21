@@ -11,6 +11,7 @@ import { MobilePropertyCard } from "@/components/leads/MobilePropertyCard";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Trash2, ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { ViolationListView } from "@/components/leads/ViolationListView";
@@ -26,6 +27,7 @@ import { useOnboarding } from "@/hooks/useOnboarding";
 import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
 import { exportFilteredCsv } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
 import { useMapMarkers } from "@/hooks/useMapMarkers";
@@ -40,6 +42,7 @@ function Leads() {
   const isMobile = useIsMobile();
   const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
   const { plan, checkLimit } = useSubscription();
+  const { hasFeature } = useSubscriptionGate({ showToast: false });
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -66,6 +69,13 @@ function Leads() {
   
   // View mode state (property vs violation)
   const [viewMode, setViewMode] = useState<ViewMode>('property');
+  
+  // Upgrade prompt state for gated features
+  const [upgradePromptType, setUpgradePromptType] = useState<'advanced_filters' | 'violation_filtering' | null>(null);
+  
+  // Check if user has access to advanced filters
+  const hasAdvancedFilters = hasFeature('advanced_filters');
+  const hasViolationFiltering = hasFeature('violation_filtering');
   
   // Demo credits hook
   const { isDemoMode, isAdmin } = useDemoCredits();
@@ -343,23 +353,59 @@ function Leads() {
             />
           </div>
           
-          {/* Enforcement Signals */}
-          <EnforcementSignalsFilter
-            selectedSignal={selectedSignal}
-            onSignalChange={(v) => { setSelectedSignal(v); setPage(1); }}
-            selectedState={selectedState}
-            selectedCity={selectedCity}
-          />
+          {/* Enforcement Signals - Gated behind advanced_filters */}
+          {hasAdvancedFilters ? (
+            <EnforcementSignalsFilter
+              selectedSignal={selectedSignal}
+              onSignalChange={(v) => { setSelectedSignal(v); setPage(1); }}
+              selectedState={selectedState}
+              selectedCity={selectedCity}
+            />
+          ) : (
+            <div 
+              className="opacity-50 cursor-pointer relative group"
+              onClick={() => setUpgradePromptType('advanced_filters')}
+            >
+              <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-lg z-10 flex items-center justify-center">
+                <Badge variant="secondary" className="text-xs">Pro Feature</Badge>
+              </div>
+              <EnforcementSignalsFilter
+                selectedSignal={null}
+                onSignalChange={() => {}}
+                selectedState={selectedState}
+                selectedCity={selectedCity}
+              />
+            </div>
+          )}
           
-          {/* Pressure Level */}
-          <PressureLevelFilter
-            openViolationsOnly={openViolationsOnly}
-            onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
-            multipleViolationsOnly={multipleViolationsOnly}
-            onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
-            repeatOffenderOnly={repeatOffenderOnly}
-            onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
-          />
+          {/* Pressure Level - Gated behind advanced_filters */}
+          {hasAdvancedFilters ? (
+            <PressureLevelFilter
+              openViolationsOnly={openViolationsOnly}
+              onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
+              multipleViolationsOnly={multipleViolationsOnly}
+              onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
+              repeatOffenderOnly={repeatOffenderOnly}
+              onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
+            />
+          ) : (
+            <div 
+              className="opacity-50 cursor-pointer relative group"
+              onClick={() => setUpgradePromptType('advanced_filters')}
+            >
+              <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-lg z-10 flex items-center justify-center">
+                <Badge variant="secondary" className="text-xs">Pro Feature</Badge>
+              </div>
+              <PressureLevelFilter
+                openViolationsOnly={false}
+                onOpenViolationsChange={() => {}}
+                multipleViolationsOnly={false}
+                onMultipleViolationsChange={() => {}}
+                repeatOffenderOnly={false}
+                onRepeatOffenderChange={() => {}}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -687,6 +733,13 @@ function Leads() {
           refetch();
           setShowBulkDeleteDialog(false);
         }}
+      />
+
+      {/* Upgrade Prompt for Gated Features */}
+      <UpgradePrompt
+        open={!!upgradePromptType}
+        onOpenChange={(open) => !open && setUpgradePromptType(null)}
+        limitType={upgradePromptType || 'advanced_filters'}
       />
     </div>
   );

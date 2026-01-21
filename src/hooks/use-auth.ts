@@ -107,9 +107,14 @@ export function useAuth() {
 
   const signUp = async (email: string, password: string, fullName: string, inviteToken?: string) => {
     try {
+      const redirectUrl = `${window.location.origin}/`;
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: redirectUrl
+        }
       });
 
       if (error) throw error;

@@ -43,11 +43,6 @@ export default function AdminAssignCounties() {
   const [stateAssignModal, setStateAssignModal] = useState<{ open: boolean; state: string }>({ open: false, state: '' });
   const [stateAssignVa, setStateAssignVa] = useState<string>('');
   
-  // Calculate how many currently unassigned counties are selected
-  const selectedUnassignedCount = filteredCounties?.filter(
-    c => selectedCounties.has(c.id) && !c.assigned_to
-  ).length || 0;
-  
   // Get unique states
   const states = [...new Set(counties?.map(c => c.state) || [])].sort();
   
@@ -60,6 +55,11 @@ export default function AdminAssignCounties() {
     if (vaFilter !== 'all' && vaFilter !== 'unassigned' && c.assigned_to !== vaFilter) return false;
     return true;
   }) || [];
+  
+  // Calculate how many currently unassigned counties are selected
+  const selectedUnassignedCount = filteredCounties.filter(
+    c => selectedCounties.has(c.id) && !c.assigned_to
+  ).length;
   
   const handleSelectAll = () => {
     if (selectedCounties.size === filteredCounties.length) {
@@ -111,13 +111,25 @@ export default function AdminAssignCounties() {
     if (!vas?.length || !counties?.length) return;
     
     const unassigned = counties.filter(c => !c.assigned_to);
+    
+    // Check county limits before balancing
+    if (countyLimits && !countyLimits.isUnlimited && !countyLimits.canAssign(unassigned.length)) {
+      toast({ 
+        title: 'County limit exceeded', 
+        description: `Cannot assign ${unassigned.length} counties. Only ${countyLimits.remaining} slots available. Upgrade your plan to continue.`,
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     const perVa = Math.ceil(unassigned.length / vas.length);
     
     let index = 0;
     for (const va of vas) {
       const batch = unassigned.slice(index, index + perVa);
       if (batch.length > 0) {
-        assignCounty.mutate({ countyIds: batch.map(c => c.id), vaId: va.id });
+        // Skip limit check in individual mutations since we checked upfront
+        assignCounty.mutate({ countyIds: batch.map(c => c.id), vaId: va.id, skipLimitCheck: true });
       }
       index += perVa;
     }
@@ -139,6 +151,40 @@ export default function AdminAssignCounties() {
           title="Assign Counties to VAs" 
           description="Manage county assignments for your virtual assistants"
         />
+        
+        {/* County Limit Usage Indicator */}
+        {countyLimits && !countyLimits.isUnlimited && (
+          <Card className="mt-4">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">County Usage</span>
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {countyLimits.currentCount} / {countyLimits.maxAllowed} counties assigned
+                </span>
+              </div>
+              <Progress 
+                value={(countyLimits.currentCount / countyLimits.maxAllowed) * 100} 
+                className="h-2"
+              />
+              {countyLimits.isAtLimit && (
+                <Alert variant="destructive" className="mt-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    You've reached your county limit. Upgrade your plan to assign more counties.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {!countyLimits.isAtLimit && countyLimits.remaining <= 5 && (
+                <p className="text-xs text-amber-500 mt-2">
+                  {countyLimits.remaining} county slots remaining
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
         
         <div className="grid lg:grid-cols-[300px_1fr] gap-6 mt-6">
           {/* VA Sidebar */}
@@ -184,10 +230,29 @@ export default function AdminAssignCounties() {
                   variant="outline" 
                   className="w-full"
                   onClick={handleBalanceWorkload}
+                  disabled={countyLimits?.isAtLimit}
                 >
                   <Shuffle className="h-4 w-4 mr-2" />
                   Balance Workload
                 </Button>
+                
+                {/* Limit indicator in sidebar */}
+                {countyLimits && !countyLimits.isUnlimited && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs text-muted-foreground mb-1">
+                      County Limit
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Progress 
+                        value={(countyLimits.currentCount / countyLimits.maxAllowed) * 100} 
+                        className="h-1.5 flex-1"
+                      />
+                      <span className="text-xs font-medium">
+                        {countyLimits.currentCount}/{countyLimits.maxAllowed}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -247,24 +312,49 @@ export default function AdminAssignCounties() {
               
               {/* Bulk Actions */}
               {selectedCounties.size > 0 && (
-                <div className="flex items-center gap-4 mt-4 p-3 bg-muted rounded-lg">
-                  <span className="font-medium">{selectedCounties.size} selected</span>
-                  <Select value={bulkVaId} onValueChange={setBulkVaId}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Assign to VA" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassign">Unassign</SelectItem>
-                      {vas?.map(va => (
-                        <SelectItem key={va.id} value={va.id}>
-                          {va.full_name || va.email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button onClick={handleBulkAssign} disabled={!bulkVaId}>
-                    Apply
-                  </Button>
+                <div className="flex flex-col gap-3 mt-4 p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <span className="font-medium">{selectedCounties.size} selected</span>
+                    {selectedUnassignedCount > 0 && countyLimits && !countyLimits.isUnlimited && (
+                      <span className="text-sm text-muted-foreground">
+                        ({selectedUnassignedCount} unassigned will count against limit)
+                      </span>
+                    )}
+                    <Select value={bulkVaId} onValueChange={setBulkVaId}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Assign to VA" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassign">Unassign</SelectItem>
+                        {vas?.map(va => (
+                          <SelectItem key={va.id} value={va.id}>
+                            {va.full_name || va.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      onClick={handleBulkAssign} 
+                      disabled={!bulkVaId || (bulkVaId !== 'unassign' && countyLimits?.isAtLimit && selectedUnassignedCount > 0)}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                  {/* Limit warning for bulk assign */}
+                  {bulkVaId && bulkVaId !== 'unassign' && countyLimits && !countyLimits.isUnlimited && selectedUnassignedCount > 0 && (
+                    !countyLimits.canAssign(selectedUnassignedCount) ? (
+                      <Alert variant="destructive" className="py-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          Cannot assign {selectedUnassignedCount} new counties. Only {countyLimits.remaining} slots remaining.
+                        </AlertDescription>
+                      </Alert>
+                    ) : countyLimits.remaining - selectedUnassignedCount <= 3 && (
+                      <p className="text-xs text-amber-500">
+                        This will leave only {countyLimits.remaining - selectedUnassignedCount} county slots remaining.
+                      </p>
+                    )
+                  )}
                 </div>
               )}
             </CardHeader>

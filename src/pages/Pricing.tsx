@@ -16,74 +16,67 @@ interface PricingTier {
   description: string;
   features: string[];
   max_jurisdictions: number;
-  max_monthly_records: number;
-  skip_trace_credits_per_month: number;
+  max_monthly_exports: number;
   icon: any;
   popular?: boolean;
 }
 
-// Hardcoded pricing tiers since the table doesn't exist yet
+// Hardcoded pricing tiers matching database plans
 const PRICING_TIERS: PricingTier[] = [
   {
     id: 'starter',
     name: 'starter',
     display_name: 'Starter',
-    price_monthly_cents: 12900,
-    price_annual_cents_with_discount: 124000,
+    price_monthly_cents: 11900,
+    price_annual_cents_with_discount: 114000,
     description: 'Perfect for investors getting started with distressed properties',
     features: [
       'Up to 3 jurisdictions',
-      '500 property records/month',
-      '50 skip trace credits/month',
+      '2,500 CSV exports/month',
       'Basic property intelligence',
       'Email support',
     ],
     max_jurisdictions: 3,
-    max_monthly_records: 500,
-    skip_trace_credits_per_month: 50,
+    max_monthly_exports: 2500,
     icon: Zap,
     popular: false,
   },
   {
-    id: 'pro',
-    name: 'pro',
-    display_name: 'Pro',
+    id: 'professional',
+    name: 'professional',
+    display_name: 'Professional',
     price_monthly_cents: 24900,
     price_annual_cents_with_discount: 239000,
     description: 'For serious investors who want to dominate their markets',
     features: [
       'Up to 10 jurisdictions',
-      '2,000 property records/month',
-      '200 skip trace credits/month',
+      '10,000 CSV exports/month',
       'Advanced Snap Score filtering',
-      'CSV exports',
+      'Escalation alerts',
       'Priority support',
     ],
     max_jurisdictions: 10,
-    max_monthly_records: 2000,
-    skip_trace_credits_per_month: 200,
+    max_monthly_exports: 10000,
     icon: TrendingUp,
     popular: true,
   },
   {
-    id: 'elite',
-    name: 'elite',
-    display_name: 'Elite',
+    id: 'enterprise',
+    name: 'enterprise',
+    display_name: 'Enterprise',
     price_monthly_cents: 49900,
     price_annual_cents_with_discount: 479000,
     description: 'Enterprise-grade intelligence for power users and teams',
     features: [
       'Unlimited jurisdictions',
-      'Unlimited property records',
-      '1,000 skip trace credits/month',
+      '25,000 CSV exports/month',
       'API access',
-      'Bulk SMS & mail campaigns',
+      'Rolling intelligence updates',
       'Dedicated account manager',
       'Custom integrations',
     ],
     max_jurisdictions: -1,
-    max_monthly_records: -1,
-    skip_trace_credits_per_month: 1000,
+    max_monthly_exports: 25000,
     icon: Building2,
     popular: false,
   },
@@ -332,12 +325,12 @@ export default function Pricing() {
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">What's included in skip trace credits?</CardTitle>
+                <CardTitle className="text-lg">What are CSV exports?</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Skip trace credits give you owner phone numbers and emails for each property. Each property you trace uses 1 credit.
-                  Additional credits available at $0.10/record (vs PropStream's $0.12/record).
+                  CSV exports let you download property data for use in your own systems, mail campaigns, or CRM.
+                  Each export counts toward your monthly limit based on your plan tier.
                 </p>
               </CardContent>
             </Card>

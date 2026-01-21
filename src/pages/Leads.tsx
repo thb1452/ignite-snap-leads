@@ -34,6 +34,7 @@ import { useMapMarkers } from "@/hooks/useMapMarkers";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
+import { ExportQuotaDisplay } from "@/components/leads/ExportQuotaDisplay";
 
 const PAGE_SIZE = 50;
 
@@ -512,29 +513,32 @@ function Leads() {
         <div className="w-[40%] flex flex-col relative">
           {/* Header with View Mode Toggle and Export */}
           {properties.length > 0 && (
-            <div className="px-4 py-2 border-b bg-background flex items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">
-                  {selectedIds.length > 0
-                    ? `${selectedIds.length} selected`
-                    : viewMode === 'violation'
-                    ? `${violationsWithProperty.length} violations`
-                    : `${totalCount} properties`}
-                </span>
-                <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            <div className="px-4 py-2 border-b bg-background flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    {selectedIds.length > 0
+                      ? `${selectedIds.length} selected`
+                      : viewMode === 'violation'
+                      ? `${violationsWithProperty.length} violations`
+                      : `${totalCount} properties`}
+                  </span>
+                  <ViewModeToggle value={viewMode} onChange={setViewMode} />
+                </div>
+                <Button
+                  onClick={handleExportCSV}
+                  disabled={selectedIds.length === 0}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export
+                </Button>
               </div>
-              <Button
-                onClick={handleExportCSV}
-                disabled={selectedIds.length === 0}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export
-              </Button>
+              <ExportQuotaDisplay />
             </div>
           )}
 

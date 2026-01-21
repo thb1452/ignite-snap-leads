@@ -2,12 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { ExternalLink, MapPin, Mail, Clock, Loader2, X, ArrowLeft } from "lucide-react";
+import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
-import { mockSkipTrace } from "@/services/mockData";
 import { formatDistanceToNow, format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
@@ -55,16 +52,6 @@ interface PropertyDetailPanelProps {
 export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDetailPanelProps) {
   const [propertyLists, setPropertyLists] = useState<PropertyList[]>([]);
   const [addToListOpen, setAddToListOpen] = useState(false);
-  const [isTracing, setIsTracing] = useState(false);
-  const [contacts, setContacts] = useState<any[]>([]);
-  const [showRetryDialog, setShowRetryDialog] = useState(false);
-  const [retryForm, setRetryForm] = useState({
-    address_line: "",
-    city: "",
-    state: "",
-    postal_code: "",
-    owner_name: ""
-  });
   const [violations, setViolations] = useState<Violation[]>([]);
   const [isLoadingViolations, setIsLoadingViolations] = useState(false);
   const { toast } = useToast();
@@ -74,7 +61,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     if (property && open) {
       // Reset state
       setPropertyLists([]);
-      setContacts([]);
 
       // Fetch violations from database
       const fetchViolations = async () => {
@@ -120,43 +106,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   if (!property) return null;
 
-  const handleSkipTrace = useCallback(async (overrides?: any) => {
-    if (!property) return;
-
-    console.log("[PropertyDetailPanel] Demo skip trace for property:", property.id);
-
-    setIsTracing(true);
-    try {
-      // Use mock skip trace
-      const result = await mockSkipTrace(property.id);
-
-      if (result.success && result.contacts) {
-        setContacts(result.contacts);
-        toast({
-          title: "Demo Mode",
-          description: `Found ${result.contacts.length} contact(s)`,
-        });
-        setShowRetryDialog(false);
-      }
-    } catch (error: any) {
-      console.log("[PropertyDetailPanel] No contacts found in demo");
-      setRetryForm({
-        address_line: property.address,
-        city: property.city,
-        state: property.state,
-        postal_code: property.zip,
-        owner_name: ""
-      });
-      setShowRetryDialog(true);
-      toast({
-        title: "Demo Mode",
-        description: "No contacts found - try alternate search",
-      });
-    } finally {
-      setIsTracing(false);
-    }
-  }, [property, toast]);
-
   const getScoreClass = useCallback((n: number | null) => {
     if (!n) return 'bg-slate-100 text-ink-600 border border-slate-200';
     if (n >= 80) return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
@@ -182,9 +131,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
   const hasMultipleViolations = useMemo(() => violations.length >= 3, [violations.length]);
   const snapScore = property.snap_score;
-  const credits = 100; // Demo mode - fake credits
-  const hasContacts = contacts.length > 0;
-  const notTraced = contacts.length === 0;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -400,153 +346,36 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
           {/* Sticky Action Footer */}
           <div className="border-t p-4 md:p-5 bg-white sticky bottom-0 space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)] flex-shrink-0">
-            {notTraced && (
-              <div className="mb-3 flex gap-3 items-center">
-                <Button
-                  onClick={handleSkipTrace}
-                  disabled={isTracing || credits <= 0}
-                  className="rounded-xl px-5 py-2.5 bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-40"
-                >
-                  {isTracing ? "Tracing..." : "Skip Trace"}
-                </Button>
-                {credits <= 0 && (
-                  <span className="text-sm text-ink-500">
-                    0 credits – Buy Credits to enable
-                  </span>
-                )}
-              </div>
-            )}
-            {hasContacts && (
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <Button
-                    className="rounded-xl px-4 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 flex-1 transition-all"
-                    onClick={() => {
-                      toast({
-                        title: "Demo Mode",
-                        description: "Text message sent to owner",
-                      });
-                    }}
-                  >
-                    <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                    </svg>
-                    Text Owner
-                  </Button>
-                  <Button
-                    className="rounded-xl px-4 py-2.5 bg-blue-600 text-white hover:bg-blue-700 flex-1 transition-all"
-                    onClick={() => {
-                      toast({
-                        title: "Demo Mode",
-                        description: "Calling owner...",
-                      });
-                    }}
-                  >
-                    <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    Call Owner
-                  </Button>
-                </div>
-                <Button
-                  className="rounded-xl px-4 py-2.5 bg-ink-900 text-white hover:bg-ink-700 w-full transition-all"
-                  onClick={() => {
-                    toast({
-                      title: "Demo Mode",
-                      description: "Email sent to owner",
-                    });
-                  }}
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Email
-                </Button>
-              </div>
-            )}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setAddToListOpen(true)}
+                className="flex-1"
+              >
+                Add to List
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  toast({
+                    title: "Export Started",
+                    description: "Property data will be included in your next export.",
+                  });
+                }}
+                className="flex-1 gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+            </div>
           </div>
-
-          <AddToListDialog
-            open={addToListOpen}
-            onOpenChange={setAddToListOpen}
-            propertyIds={[property.id]}
-            userLists={[]}
-            onSuccess={() => {
-              toast({
-                title: "Demo Mode",
-                description: "List updated successfully",
-              });
-            }}
-          />
-
-          {/* Retry Skip Trace Dialog */}
-          <Dialog open={showRetryDialog} onOpenChange={setShowRetryDialog}>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Try Alternate Address</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Address Line</label>
-                  <Input
-                    value={retryForm.address_line}
-                    onChange={(e) => setRetryForm({ ...retryForm, address_line: e.target.value })}
-                    placeholder="123 Main St, Unit 4B"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">City</label>
-                    <Input
-                      value={retryForm.city}
-                      onChange={(e) => setRetryForm({ ...retryForm, city: e.target.value })}
-                      placeholder="Springfield"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">State</label>
-                    <Input
-                      value={retryForm.state}
-                      onChange={(e) => setRetryForm({ ...retryForm, state: e.target.value })}
-                      placeholder="IL"
-                      maxLength={2}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Postal Code</label>
-                  <Input
-                    value={retryForm.postal_code}
-                    onChange={(e) => setRetryForm({ ...retryForm, postal_code: e.target.value })}
-                    placeholder="62701"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Owner Name (Optional)</label>
-                  <Input
-                    value={retryForm.owner_name}
-                    onChange={(e) => setRetryForm({ ...retryForm, owner_name: e.target.value })}
-                    placeholder="John Doe"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowRetryDialog(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => handleSkipTrace(retryForm)}
-                  disabled={isTracing}
-                  className="flex-1"
-                >
-                  {isTracing ? "Retrying..." : "Retry Skip Trace"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
         </motion.div>
+
+        <AddToListDialog
+          open={addToListOpen}
+          onOpenChange={setAddToListOpen}
+          propertyIds={[property.id]}
+        />
       </SheetContent>
     </Sheet>
   );

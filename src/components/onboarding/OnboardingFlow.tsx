@@ -182,9 +182,9 @@ const ONBOARDING_STEPS = [
               3
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-ink-900">Skip Trace & Export</h4>
+              <h4 className="font-semibold text-sm text-ink-900">Build Lists & Export</h4>
               <p className="text-xs text-ink-600">
-                Run skip trace to find owner contact info. Export high-value lists for your calling campaigns.
+                Add high-value properties to lists. Export your curated leads for your outreach campaigns.
               </p>
             </div>
           </div>

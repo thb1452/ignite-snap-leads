@@ -37,18 +37,33 @@ export interface JobResult {
 
 export async function getJob(jobId: string): Promise<Job> {
   const { data, error } = await supabase
-    .from('skiptrace_jobs')
+    .from('upload_jobs')
     .select('*')
     .eq('id', jobId)
     .single();
 
   if (error) throw error;
-  return data as unknown as Job;
+  
+  // Map upload_jobs to Job interface
+  return {
+    id: data.id,
+    user_id: data.user_id,
+    status: data.status as Job['status'],
+    counts: {
+      total: data.total_rows ?? 0,
+      succeeded: data.processed_rows ?? 0,
+      failed: data.failed_rows ?? 0,
+    },
+    started_at: data.started_at,
+    finished_at: data.finished_at,
+    created_at: data.created_at,
+    property_ids: [],
+    job_key: null,
+  };
 }
 
 export async function getJobEvents(jobId: string): Promise<JobEvent[]> {
-  // For now, we'll construct events from the job data
-  // Later, this can pull from an events table if we implement one
+  // Construct events from job data
   const job = await getJob(jobId);
   
   const events: JobEvent[] = [];
@@ -70,12 +85,12 @@ export async function getJobEvents(jobId: string): Promise<JobEvent[]> {
   }
   
   if (job.finished_at) {
-    const refunded = job.counts.failed;
-    if (refunded > 0) {
+    const failed = job.counts.failed;
+    if (failed > 0) {
       events.push({
-        type: 'job_refunded',
+        type: 'job_failed_rows',
         timestamp: job.finished_at,
-        payload: { job_id: job.id, count: refunded }
+        payload: { job_id: job.id, count: failed }
       });
     }
     
@@ -102,19 +117,8 @@ export async function getJobResults(
   const pageSize = 50;
   const offset = (page - 1) * pageSize;
 
-  // Get the job to access property_ids
-  const { data: job } = await supabase
-    .from('skiptrace_jobs')
-    .select('property_ids')
-    .eq('id', jobId)
-    .single();
-
-  if (!job || !job.property_ids) {
-    return { items: [], total: 0 };
-  }
-
-  // Fetch properties and their contacts
-  let query = supabase
+  // Get properties from this upload job
+  const { data: properties, error } = await supabase
     .from('properties')
     .select(`
       id,
@@ -122,56 +126,34 @@ export async function getJobResults(
       city,
       state,
       zip,
-      snap_score
+      snap_score,
+      updated_at
     `)
-    .in('id', job.property_ids)
+    .eq('upload_job_id', jobId)
     .order('snap_score', { ascending: false, nullsFirst: false })
     .range(offset, offset + pageSize - 1);
 
-  const { data: properties, error } = await query;
-  
   if (error) throw error;
 
-  // Fetch contacts for these properties
-  const propertyIds = properties?.map(p => p.id) ?? [];
-  const { data: contacts } = await supabase
-    .from('property_contacts')
-    .select('property_id, phone, email')
-    .in('property_id', propertyIds);
-
-  // Group contacts by property
-  const contactsByProperty = (contacts ?? []).reduce((acc, contact) => {
-    if (!acc[contact.property_id]) {
-      acc[contact.property_id] = { phones: 0, emails: 0 };
-    }
-    if (contact.phone) acc[contact.property_id].phones++;
-    if (contact.email) acc[contact.property_id].emails++;
-    return acc;
-  }, {} as Record<string, { phones: number; emails: number }>);
+  // Get total count
+  const { count } = await supabase
+    .from('properties')
+    .select('*', { count: 'exact', head: true })
+    .eq('upload_job_id', jobId);
 
   // Map properties to results
-  const items: JobResult[] = (properties ?? []).map(prop => {
-    const contactStats = contactsByProperty[prop.id] || { phones: 0, emails: 0 };
-    const hasContacts = contactStats.phones > 0 || contactStats.emails > 0;
-    
-    let resultStatus: JobResult['status'] = 'no_match';
-    if (hasContacts) {
-      resultStatus = 'success';
-    }
-
-    return {
-      property_id: prop.id,
-      address: prop.address,
-      city: prop.city,
-      state: prop.state,
-      zip: prop.zip,
-      snap_score: prop.snap_score,
-      status: resultStatus,
-      phones_found: contactStats.phones,
-      emails_found: contactStats.emails,
-      updated_at: new Date().toISOString(),
-    };
-  });
+  const items: JobResult[] = (properties ?? []).map(prop => ({
+    property_id: prop.id,
+    address: prop.address,
+    city: prop.city,
+    state: prop.state,
+    zip: prop.zip,
+    snap_score: prop.snap_score,
+    status: prop.snap_score ? 'success' : 'no_match',
+    phones_found: 0,
+    emails_found: 0,
+    updated_at: prop.updated_at ?? new Date().toISOString(),
+  }));
 
   // Filter by status if specified
   const filteredItems = status && status !== 'all' 
@@ -180,7 +162,7 @@ export async function getJobResults(
 
   return {
     items: filteredItems,
-    total: job.property_ids.length,
+    total: count ?? 0,
   };
 }
 
@@ -195,19 +177,9 @@ export async function getJobLedger(jobId: string) {
   return data ?? [];
 }
 
-export async function rerunFailedJob(jobId: string) {
-  const { data, error } = await supabase.functions.invoke('rerun-failed', {
-    body: { job_id: jobId },
-  });
-
-  if (error) throw error;
-  if (!data?.ok) throw new Error(data?.error || 'Failed to rerun job');
-  return data;
-}
-
 export async function exportJobCSV(jobId: string) {
-  // Get all success results
-  const { data: results, error } = await supabase
+  // Get all properties from this job
+  const { data: properties, error } = await supabase
     .from('properties')
     .select(`
       id,
@@ -217,46 +189,19 @@ export async function exportJobCSV(jobId: string) {
       zip,
       snap_score
     `)
-    .in('id', (await getJob(jobId)).property_ids);
+    .eq('upload_job_id', jobId);
 
   if (error) throw error;
 
-  // Get contacts for these properties
-  const propertyIds = results?.map(r => r.id) ?? [];
-  const { data: contacts } = await supabase
-    .from('property_contacts')
-    .select('property_id, phone, email, name')
-    .in('property_id', propertyIds);
-
-  // Group contacts by property
-  const contactsByProp = (contacts ?? []).reduce((acc, c) => {
-    if (!acc[c.property_id]) acc[c.property_id] = [];
-    acc[c.property_id].push(c);
-    return acc;
-  }, {} as Record<string, any[]>);
-
-  // Filter to only properties with contacts
-  const successResults = (results ?? []).filter(r => contactsByProp[r.id]?.length > 0);
-
   // Build CSV
-  const headers = ['Address', 'City', 'State', 'Zip', 'Snap Score', 'Phones', 'Emails', 'Contact Names'];
-  const rows = successResults.map(r => {
-    const contacts = contactsByProp[r.id] || [];
-    const phones = contacts.map(c => c.phone).filter(Boolean).join('; ');
-    const emails = contacts.map(c => c.email).filter(Boolean).join('; ');
-    const names = contacts.map(c => c.name).filter(Boolean).join('; ');
-    
-    return [
-      r.address,
-      r.city,
-      r.state,
-      r.zip,
-      r.snap_score || '',
-      phones,
-      emails,
-      names,
-    ];
-  });
+  const headers = ['Address', 'City', 'State', 'Zip', 'Snap Score'];
+  const rows = (properties ?? []).map(r => [
+    r.address,
+    r.city,
+    r.state,
+    r.zip,
+    r.snap_score || '',
+  ]);
 
   const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
   

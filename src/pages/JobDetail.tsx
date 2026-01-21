@@ -37,7 +37,7 @@ export default function JobDetail() {
         {
           event: '*',
           schema: 'public',
-          table: 'skiptrace_jobs',
+          table: 'upload_jobs',
           filter: `id=eq.${id}`,
         },
         (payload) => {
@@ -113,7 +113,7 @@ export default function JobDetail() {
       <div className="p-4 md:p-6">
         <div className="text-center py-12">
           <h2 className="text-2xl font-semibold mb-2">Job not found</h2>
-          <p className="text-muted-foreground">This skip trace job doesn't exist or you don't have access to it.</p>
+          <p className="text-muted-foreground">This job doesn't exist or you don't have access to it.</p>
         </div>
       </div>
     );
@@ -128,9 +128,9 @@ export default function JobDetail() {
       <div className="grid gap-4 md:grid-cols-3">
         <JobProgress job={job} />
         <JobStatCard 
-          title="Refunds" 
+          title="Failed" 
           value={job.counts?.failed ?? 0} 
-          hint="No match + vendor errors"
+          hint="Properties that could not be processed"
           variant="warning"
         />
         <JobDuration job={job} />

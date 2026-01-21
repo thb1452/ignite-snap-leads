@@ -39,15 +39,21 @@ async function fetchSubscription(userId: string): Promise<UserSubscription | nul
 
 // Fetch current usage
 async function fetchUsage(userId: string): Promise<UsageTracking | null> {
-  const { data, error } = await supabase.rpc('fn_get_current_usage', {
+  const { data, error } = await supabase.rpc('fn_get_current_usage' as any, {
     p_user_id: userId
-  });
+  }) as { data: UsageTracking | UsageTracking[] | null; error: any };
   
   if (error) {
     console.error('Error fetching usage:', error);
     return null;
   }
   
+  // RPC now returns jsonb directly (not an array)
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    return data as UsageTracking;
+  }
+  
+  // Legacy: RPC might return array in some cases
   if (Array.isArray(data) && data.length > 0) {
     return data[0] as UsageTracking;
   }

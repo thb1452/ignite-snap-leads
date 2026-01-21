@@ -8,17 +8,18 @@
 
 ## Executive Summary
 
-**CRITICAL VULNERABILITIES FOUND: 5**
+**CRITICAL VULNERABILITIES FOUND: 6**
 **HIGH SEVERITY: 8**
 **MEDIUM SEVERITY: 6**
 **LOW SEVERITY: 4**
 
 This system has **SEVERE SUBSCRIPTION BYPASS VULNERABILITIES** that allow users to extract unlimited data without paying. The primary revenue protection mechanism is fundamentally broken.
 
-### Top 3 Showstoppers
+### Top 4 Showstoppers
 1. **Direct property data exfiltration** - 200K records accessible without limits via map markers
 2. **Race condition in usage tracking** - concurrent requests bypass atomic check-and-increment
 3. **Missing backend enforcement** - frontend hooks can be bypassed entirely
+4. **County assignment bypass** - admins can assign 900+ counties on Starter plan (5 county limit)
 
 ---
 
@@ -500,6 +501,153 @@ ALTER TABLE subscription_usage ADD COLUMN uploads_count INTEGER NOT NULL DEFAULT
 UPDATE subscription_plans SET max_uploads_per_month = 10 WHERE name = 'starter';
 UPDATE subscription_plans SET max_uploads_per_month = 50 WHERE name = 'professional';
 UPDATE subscription_plans SET max_uploads_per_month = -1 WHERE name = 'enterprise'; -- unlimited
+```
+
+---
+
+### 🔴 CRITICAL-6: County Assignment Limits Not Enforced
+**Files:**
+- `supabase/migrations/20260114142348_fb9288a1-9afd-482a-8aea-abdcb086c156.sql:80-83`
+- `src/hooks/useCountyLimits.ts:57-60`
+**Severity:** CRITICAL
+**Impact:** Admins bypass subscription limits, use all 900+ counties on Starter plan
+
+**The Problem:**
+```sql
+-- Counties RLS policy allows admin full access with NO limit checking
+CREATE POLICY "Admins can manage all counties" ON public.counties
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin')
+  );
+  -- ☠️ NO CHECK of max_counties subscription limit!
+```
+
+Combined with frontend-only validation:
+```typescript
+// src/hooks/useCountyLimits.ts - Client-side check (easily bypassed)
+const canAssign = (count: number) => {
+  if (isUnlimited) return true;
+  return currentCount + count <= maxAllowed;  // ← FRONTEND ONLY!
+};
+```
+
+**Attack Vector:**
+```javascript
+// In browser console or direct API call:
+await supabase
+  .from('counties')
+  .update({ assigned_to: 'my-va-user-id' })
+  .eq('id', 'county-123');
+
+// Repeat 900 times - bypass Starter plan's 5-county limit
+```
+
+**Business Impact:**
+- **Revenue Loss:** Starter plan ($119/mo, 5 counties) users can assign all 900+ counties
+- **Value:** Enterprise plan ($499/mo, unlimited counties) has no differentiation
+- **Cost:** 900 counties × $0.10/county/month = $90/mo additional cost per abuse user
+
+**Root Cause:**
+1. `fn_check_county_limit()` function exists but is NEVER called by RLS policy
+2. Frontend hook calls it, but admins can bypass frontend entirely
+3. RLS policy only checks role, not subscription limits
+
+**Fix Required:**
+
+**Option A: Database Trigger (Recommended - Truly Atomic)**
+```sql
+-- Add trigger to enforce county limits on assignment changes
+CREATE OR REPLACE FUNCTION public.fn_enforce_county_assignment_limit()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_check_result jsonb;
+  v_user_id uuid;
+BEGIN
+  -- Only check if assignment is being added (not removed)
+  IF NEW.assigned_to IS NOT NULL AND OLD.assigned_to IS NULL THEN
+    -- Get the user making the change
+    v_user_id := auth.uid();
+
+    -- Check if assignment would exceed limit
+    v_check_result := fn_check_county_limit(1);
+
+    IF NOT (v_check_result->>'allowed')::boolean THEN
+      RAISE EXCEPTION 'County assignment limit exceeded: %', v_check_result->>'message'
+        USING ERRCODE = 'check_violation',
+              HINT = 'Upgrade your plan to assign more counties';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- Attach trigger to counties table
+CREATE TRIGGER enforce_county_assignment_limit
+  BEFORE UPDATE ON public.counties
+  FOR EACH ROW
+  WHEN (NEW.assigned_to IS DISTINCT FROM OLD.assigned_to)
+  EXECUTE FUNCTION fn_enforce_county_assignment_limit();
+```
+
+**Option B: RLS Policy with Limit Check (Simpler but Less Reliable)**
+```sql
+-- Modify RLS policy to include limit check
+DROP POLICY "Admins can manage all counties" ON public.counties;
+
+CREATE POLICY "Admins can manage counties within subscription limits"
+  ON public.counties
+  FOR UPDATE
+  USING (
+    -- Must be admin
+    EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin')
+    AND
+    -- Must be within county limit (or removing assignment)
+    (
+      -- Removing assignment (setting to NULL) - always allowed
+      assigned_to IS NULL
+      OR
+      -- Adding assignment - check limit
+      (fn_check_county_limit(1)->>'allowed')::boolean = true
+    )
+  );
+```
+
+**Note:** Option A (trigger) is more reliable because:
+1. Triggers run BEFORE the update, so they can block invalid changes
+2. RLS policies are evaluated per-row, which can have subtle edge cases
+3. Triggers provide better error messages to users
+
+**Additional Required Changes:**
+```sql
+-- Add unique constraint to prevent multiple assignments to same user
+ALTER TABLE counties
+  ADD CONSTRAINT unique_county_assignment
+  UNIQUE (id, assigned_to);
+
+-- Add index for performance
+CREATE INDEX idx_counties_assigned_to
+  ON counties(assigned_to)
+  WHERE assigned_to IS NOT NULL;
+```
+
+**Testing:**
+```bash
+# Test 1: Verify starter plan limited to 5 counties
+psql> SELECT COUNT(*) FROM counties WHERE assigned_to IS NOT NULL;
+# Should return 5
+
+# Test 2: Attempt to assign 6th county
+UPDATE counties SET assigned_to = 'user-id' WHERE id = 'new-county';
+# Should fail with: "County assignment limit exceeded"
+
+# Test 3: Verify enterprise plan unlimited
+UPDATE subscription_plans SET max_counties = -1 WHERE name = 'enterprise';
+# Should now allow unlimited assignments
 ```
 
 ---
@@ -1035,7 +1183,8 @@ ALTER TABLE properties
 1. **CRITICAL-1:** Add usage tracking to map markers hook
 2. **CRITICAL-2:** Fix fn_consume_usage race condition with atomic SELECT FOR UPDATE
 3. **CRITICAL-4:** Restrict properties table RLS - force edge function access
-4. **HIGH-4:** Add subscription status check to RLS policies
+4. **CRITICAL-6:** Add county assignment trigger to enforce subscription limits
+5. **HIGH-4:** Add subscription status check to RLS policies
 
 ### Urgent (Deploy Within 1 Week)
 5. **CRITICAL-3:** Remove separate check/increment from frontend
@@ -1066,12 +1215,14 @@ ALTER TABLE properties
 1. Disable direct property queries in RLS
 2. Deploy atomic fn_consume_usage_v2
 3. Add map markers usage tracking
-4. Deploy rate limiting
+4. Add county assignment enforcement trigger
+5. Deploy rate limiting
 
 **Success Criteria:**
 - No data exfiltration possible without payment
 - No race condition exploits
 - All usage tracked
+- County limits enforced at database level
 
 ### Phase 2: Subscription Enforcement (Week 2)
 **Goal:** Enforce all limits consistently

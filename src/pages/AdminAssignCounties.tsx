@@ -11,9 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Search, Users, CheckSquare, Shuffle, Map } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowLeft, Search, Users, CheckSquare, Shuffle, Map, AlertTriangle, TrendingUp } from 'lucide-react';
 import { useFoiaCounties, useAssignCounty, CountyWithStats } from '@/hooks/useFoiaCounties';
 import { useVAList, VAUser } from '@/hooks/useVAList';
+import { useCountyLimits } from '@/hooks/useCountyLimits';
 import { useToast } from '@/hooks/use-toast';
 
 const statusColors: Record<string, string> = {
@@ -28,6 +31,7 @@ export default function AdminAssignCounties() {
   const { toast } = useToast();
   const { data: counties, isLoading: countiesLoading } = useFoiaCounties();
   const { data: vas, isLoading: vasLoading } = useVAList();
+  const { data: countyLimits, isLoading: limitsLoading } = useCountyLimits();
   const assignCounty = useAssignCounty();
   
   const [search, setSearch] = useState('');
@@ -38,6 +42,11 @@ export default function AdminAssignCounties() {
   const [bulkVaId, setBulkVaId] = useState<string>('');
   const [stateAssignModal, setStateAssignModal] = useState<{ open: boolean; state: string }>({ open: false, state: '' });
   const [stateAssignVa, setStateAssignVa] = useState<string>('');
+  
+  // Calculate how many currently unassigned counties are selected
+  const selectedUnassignedCount = filteredCounties?.filter(
+    c => selectedCounties.has(c.id) && !c.assigned_to
+  ).length || 0;
   
   // Get unique states
   const states = [...new Set(counties?.map(c => c.state) || [])].sort();

@@ -55,20 +55,20 @@ export function JobTimeline({ events, job }: JobTimelineProps) {
                   {new Date(event.timestamp).toLocaleString()}
                 </p>
                 
-                {event.type === 'job_refunded' && event.payload.count && (
+                {event.type === 'job_refunded' && (event.payload as { count?: number }).count && (
                   <p className="text-sm text-yellow-600 mt-2">
-                    {event.payload.count} credits refunded for failed properties
+                    {(event.payload as { count: number }).count} credits refunded for failed properties
                   </p>
                 )}
                 
                 {event.type === 'job_done' && (
                   <div className="text-sm mt-2 space-y-1">
                     <p className="text-green-600">
-                      ✓ {event.payload.succeeded} successful
+                      ✓ {(event.payload as { succeeded: number }).succeeded} successful
                     </p>
-                    {event.payload.failed > 0 && (
+                    {((event.payload as { failed?: number }).failed ?? 0) > 0 && (
                       <p className="text-muted-foreground">
-                        {event.payload.failed} no match or failed
+                        {(event.payload as { failed: number }).failed} no match or failed
                       </p>
                     )}
                   </div>

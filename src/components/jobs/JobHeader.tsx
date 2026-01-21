@@ -1,9 +1,8 @@
-import { ArrowLeft, Download, RefreshCw } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Job, rerunFailedJob, exportJobCSV } from "@/services/jobs";
-import { useMutation } from "@tanstack/react-query";
+import { Job, exportJobCSV } from "@/services/jobs";
 import { useToast } from "@/hooks/use-toast";
 
 const STATUS_MAP = {
@@ -23,25 +22,6 @@ export function JobHeader({ job }: JobHeaderProps) {
   const { toast } = useToast();
   const statusInfo = STATUS_MAP[job.status];
   const jobNumber = job.id.slice(0, 8).toUpperCase();
-  const hasFailed = (job.counts?.failed ?? 0) > 0;
-
-  const rerunMutation = useMutation({
-    mutationFn: () => rerunFailedJob(job.id),
-    onSuccess: (data) => {
-      toast({
-        title: "Job created",
-        description: `Re-running ${data.total} failed properties`,
-      });
-      navigate(`/jobs/${data.job_id}`);
-    },
-    onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: "Failed to create job",
-        description: error.message,
-      });
-    },
-  });
 
   const handleExport = async () => {
     try {
@@ -85,19 +65,6 @@ export function JobHeader({ job }: JobHeaderProps) {
       </div>
 
       <div className="flex gap-2">
-        {hasFailed && job.finished_at && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-2"
-            onClick={() => rerunMutation.mutate()}
-            disabled={rerunMutation.isPending}
-          >
-            <RefreshCw className="h-4 w-4" />
-            Re-run Failed ({job.counts.failed})
-          </Button>
-        )}
-        
         <Button 
           variant="outline" 
           size="sm" 

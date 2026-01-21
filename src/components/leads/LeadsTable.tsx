@@ -4,9 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Checkbox } from "@/components/ui/checkbox";
 import { Lightbulb } from "lucide-react";
 import { PropertyDetailPanel } from "./PropertyDetailPanel";
-import { runSkipTrace } from "@/services/skiptrace";
 import { useToast } from "@/hooks/use-toast";
-import { useUserCredits } from "@/hooks/useUserProfile";
 
 interface Violation {
   id: string;
@@ -52,10 +50,7 @@ interface LeadsTableProps {
 
 export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: LeadsTableProps) {
   const [selectedProperty, setSelectedProperty] = useState<PropertyWithViolations | null>(null);
-  const [loadingSkipTrace, setLoadingSkipTrace] = useState<Record<string, boolean>>({});
-  const [propertyContacts, setPropertyContacts] = useState<Record<string, number>>({});
   const { toast } = useToast();
-  const { data: credits } = useUserCredits();
 
   const scoreClass = useCallback((n: number | null) => {
     if (!n) return 'bg-slate-100 text-ink-600 border border-slate-200';
@@ -84,56 +79,6 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
     if ((property.snap_score ?? 0) >= 80) bits.push("High SnapScore");
     return bits.length > 0 ? bits.join(" • ") : "Recent activity";
   }, [getMaxDaysOpen]);
-
-  const handleSkipTrace = useCallback(async (property: PropertyWithViolations, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    console.log("[LeadsTable] Skip trace clicked for property:", property.id);
-    
-    const currentCredits = credits ?? 0;
-    console.log("[LeadsTable] Credits available:", credits);
-    
-    if (currentCredits <= 0) {
-      toast({
-        title: "No credits",
-        description: "0 credits – Buy Credits to enable skip tracing",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoadingSkipTrace(prev => ({ ...prev, [property.id]: true }));
-    
-    try {
-      const res = await runSkipTrace(property.id);
-      const found = res.contacts?.length ?? 0;
-      
-      console.log("[LeadsTable] Skip trace complete. Found contacts:", found);
-      
-      setPropertyContacts(prev => ({ ...prev, [property.id]: found }));
-      
-      toast({
-        title: found ? `Found ${found} contact(s)` : "No numbers found",
-        description: found ? "Contact information retrieved successfully" : "No numbers found — try alternate address or owner search",
-      });
-    } catch (error: any) {
-      console.error("[LeadsTable] Skip trace error:", error);
-      toast({
-        title: "Skip trace failed",
-        description: error.message || "An error occurred",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingSkipTrace(prev => ({ ...prev, [property.id]: false }));
-    }
-  }, [toast, credits, propertyContacts]);
-
-  const getReachability = useCallback((propertyId: string) => {
-    const count = propertyContacts[propertyId];
-    if (count === undefined) return { text: "Not traced", color: "bg-slate-300" };
-    if (count > 0) return { text: `Numbers found (${count})`, color: "bg-emerald-400" };
-    return { text: "No numbers", color: "bg-amber-400" };
-  }, [propertyContacts]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (!onSelectionChange) return;
@@ -176,7 +121,6 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
                 <th className="py-3 px-4 text-left w-28">Distress</th>
                 <th className="py-3 px-4 text-left w-64">Address</th>
                 <th className="py-3 px-4 text-left w-24">Days Open</th>
-                <th className="py-3 px-4 text-left w-28">Reachability</th>
                 <th className="py-3 px-4 text-left">
                   <span className="inline-flex items-center gap-1 normal-case">
                     <Lightbulb className="h-3.5 w-3.5" />
@@ -187,13 +131,9 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {properties.map((property, index) => {
+              {properties.map((property) => {
                 const daysOpen = getMaxDaysOpen(property.violations);
                 const snapInsight = computeSnapInsight(property);
-                const reachability = getReachability(property.id);
-                const isTracing = loadingSkipTrace[property.id] ?? false;
-                const notTraced = propertyContacts[property.id] === undefined;
-                const currentCredits = credits ?? 0;
 
                 return (
                   <tr
@@ -232,12 +172,6 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="text-xs text-ink-400 flex items-center gap-1">
-                        <span className={`h-1.5 w-1.5 rounded-full ${reachability.color}`} />
-                        {reachability.text}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-sm text-ink-700 line-clamp-1 cursor-help block max-w-md">
@@ -250,29 +184,17 @@ export function LeadsTable({ properties, selectedIds = [], onSelectionChange }: 
                       </Tooltip>
                     </td>
                     <td className="py-3 px-4 text-right pr-6">
-                      {notTraced ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => handleSkipTrace(property, e)}
-                          disabled={isTracing || currentCredits <= 0}
-                          className="text-brand hover:text-brand/80 hover:bg-brand/5 transition-all opacity-0 group-hover:opacity-100 text-xs font-medium disabled:opacity-40"
-                        >
-                          {isTracing ? "Tracing..." : "Skip Trace"}
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedProperty(property);
-                          }}
-                          className="text-brand hover:text-brand/80 hover:bg-brand/5 transition-all opacity-0 group-hover:opacity-100 text-xs font-medium"
-                        >
-                          Contact
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProperty(property);
+                        }}
+                        className="text-brand hover:text-brand/80 hover:bg-brand/5 transition-all opacity-0 group-hover:opacity-100 text-xs font-medium"
+                      >
+                        View Details
+                      </Button>
                     </td>
                   </tr>
                 );

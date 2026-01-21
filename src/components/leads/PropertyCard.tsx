@@ -6,7 +6,6 @@ import { MessageSquare, ChevronDown, ChevronUp, RefreshCw, AlertTriangle, Flame 
 import { differenceInDays, differenceInHours, format } from "date-fns";
 import { PropertyContactChips } from "./PropertyContactChips";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
-import { SkipTraceChip } from "./SkipTraceChip";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
 import { formatViolationType } from "@/utils/formatViolationType";
@@ -108,10 +107,12 @@ export function PropertyCard({
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <SkipTraceChip
-                phoneCount={contacts.filter(c => c.phone).length}
-                emailCount={contacts.filter(c => c.email).length}
-              />
+              {/* Contact indicator */}
+              {(hasPhone || hasEmail) && (
+                <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                  {hasPhone && hasEmail ? "📞✉️" : hasPhone ? "📞" : "✉️"}
+                </Badge>
+              )}
               <Badge
                 className={`${getScoreColor(property.snap_score)} text-white`}
               >
@@ -235,11 +236,11 @@ export function PropertyCard({
               className="gap-2 text-primary -ml-2"
               onClick={(e) => {
                 e.stopPropagation();
-                // TODO: Implement text owner action
+                // TODO: Implement contact action
               }}
             >
               <MessageSquare className="h-4 w-4" />
-              Text owner
+              Contact owner
             </Button>
           </div>
         </div>

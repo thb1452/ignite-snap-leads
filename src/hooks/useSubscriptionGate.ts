@@ -98,11 +98,8 @@ export function useSubscriptionGate(options: UseSubscriptionGateOptions = {}) {
     if (!plan || !usage) return 0;
     
     if (usageType === 'exports') {
-      if (plan.max_monthly_exports === -1) return null; // Unlimited
+      if (plan.max_monthly_exports === -1) return null;
       return Math.max(0, plan.max_monthly_exports - usage.exports_count);
-    } else if (usageType === 'skip_traces') {
-      if (plan.max_skip_traces_per_month === -1) return null; // Unlimited
-      return Math.max(0, plan.max_skip_traces_per_month - usage.skip_traces_count);
     }
     
     return 0;

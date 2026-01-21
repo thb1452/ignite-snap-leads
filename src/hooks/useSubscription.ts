@@ -130,12 +130,11 @@ export function useSubscription() {
     name: subscription.plan_name,
     display_name: subscription.display_name,
     description: null,
-    price_monthly_cents: 0, // Not needed for display
+    price_monthly_cents: 0,
     price_annual_cents: 0,
     max_monthly_exports: subscription.max_monthly_exports,
     max_counties: subscription.max_counties,
     max_user_seats: subscription.max_user_seats,
-    max_skip_traces_per_month: subscription.max_skip_traces_per_month,
     has_advanced_filters: subscription.has_advanced_filters,
     has_violation_filtering: subscription.has_violation_filtering,
     has_rolling_intelligence: subscription.has_rolling_intelligence,
@@ -145,7 +144,7 @@ export function useSubscription() {
     features: []
   } : null;
 
-  // Check if user can perform action (exports and skip_traces only - these have counters)
+  // Check if user can perform action
   const checkSubscriptionLimit = useCallback(async (
     usageType: UsageType,
     amount: number = 1
@@ -172,48 +171,24 @@ export function useSubscription() {
     return success;
   }, [user?.id, queryClient]);
 
-  // Usage percentage calculations - returns null for unlimited plans
-  const getUsagePercentage = useCallback((type: 'exports' | 'skip_traces'): number | null => {
+  // Usage percentage calculations
+  const getUsagePercentage = useCallback((type: 'exports'): number | null => {
     if (!plan || !usage) return 0;
-
-    if (type === 'exports') {
-      if (plan.max_monthly_exports === -1) return null; // Unlimited
-      return (usage.exports_count / plan.max_monthly_exports) * 100;
-    } else if (type === 'skip_traces') {
-      if (plan.max_skip_traces_per_month === -1) return null;
-      return (usage.skip_traces_count / plan.max_skip_traces_per_month) * 100;
-    }
-
-    return 0;
+    if (plan.max_monthly_exports === -1) return null;
+    return (usage.exports_count / plan.max_monthly_exports) * 100;
   }, [plan, usage]);
 
   // Returns null for unlimited plans
-  const getRemainingCount = useCallback((type: 'exports' | 'skip_traces'): number | null => {
+  const getRemainingCount = useCallback((type: 'exports'): number | null => {
     if (!plan || !usage) return 0;
-
-    if (type === 'exports') {
-      if (plan.max_monthly_exports === -1) return null; // Unlimited
-      return Math.max(0, plan.max_monthly_exports - usage.exports_count);
-    } else if (type === 'skip_traces') {
-      if (plan.max_skip_traces_per_month === -1) return null;
-      return Math.max(0, plan.max_skip_traces_per_month - usage.skip_traces_count);
-    }
-
-    return 0;
+    if (plan.max_monthly_exports === -1) return null;
+    return Math.max(0, plan.max_monthly_exports - usage.exports_count);
   }, [plan, usage]);
 
-  const isAtLimit = useCallback((type: 'exports' | 'skip_traces'): boolean => {
+  const isAtLimit = useCallback((type: 'exports'): boolean => {
     if (!plan || !usage) return false;
-
-    if (type === 'exports') {
-      if (plan.max_monthly_exports === -1) return false; // Unlimited never at limit
-      return usage.exports_count >= plan.max_monthly_exports;
-    } else if (type === 'skip_traces') {
-      if (plan.max_skip_traces_per_month === -1) return false;
-      return usage.skip_traces_count >= plan.max_skip_traces_per_month;
-    }
-
-    return false;
+    if (plan.max_monthly_exports === -1) return false;
+    return usage.exports_count >= plan.max_monthly_exports;
   }, [plan, usage]);
 
   // Refetch both subscription and usage

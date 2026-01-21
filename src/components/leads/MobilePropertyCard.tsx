@@ -3,10 +3,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, ChevronDown, ChevronUp, AlertTriangle, Flame } from "lucide-react";
-import { usePropertyContacts } from "@/hooks/usePropertyContacts";
-import { SkipTraceChip } from "./SkipTraceChip";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+
 interface Violation {
   id: string;
   violation_type: string;
@@ -40,7 +39,6 @@ export function MobilePropertyCard({
   onToggleSelect,
   onClick
 }: MobilePropertyCardProps) {
-  const { data: contacts = [] } = usePropertyContacts(property.id);
   const [insightExpanded, setInsightExpanded] = useState(false);
   
   const getScoreColor = (score: number | null) => {
@@ -112,14 +110,6 @@ export function MobilePropertyCard({
             )}
           </div>
 
-          {/* Skip Trace Status */}
-          <div className="mt-2">
-            <SkipTraceChip
-              phoneCount={contacts.filter(c => c.phone).length}
-              emailCount={contacts.filter(c => c.email).length}
-            />
-          </div>
-
           {/* AI Insight - Collapsible */}
           <div className="mt-3">
             <p className={`text-sm text-muted-foreground leading-relaxed ${!insightExpanded && shouldShowExpand ? 'line-clamp-2' : ''}`}>
@@ -151,11 +141,11 @@ export function MobilePropertyCard({
             className="mt-3 h-11 min-h-[44px] gap-2 w-full sm:w-auto"
             onClick={(e) => {
               e.stopPropagation();
-              // TODO: Implement text owner action
+              // TODO: Implement contact action
             }}
           >
             <MessageSquare className="h-4 w-4" />
-            Text Owner
+            Contact Owner
           </Button>
         </div>
       </div>

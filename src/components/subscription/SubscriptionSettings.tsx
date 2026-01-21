@@ -164,9 +164,7 @@ export function SubscriptionSettings() {
   const csvExportsLimit = plan?.max_monthly_exports || 0;
   const csvExportsPercent = csvExportsLimit === -1 ? 0 : Math.min(100, (csvExportsUsed / Math.max(1, csvExportsLimit)) * 100);
 
-  const skipTracesUsed = usage?.skip_traces_count || 0;
-  const skipTracesLimit = plan?.max_skip_traces_per_month || 0;
-  const skipTracesPercent = Math.min(100, (skipTracesUsed / Math.max(1, skipTracesLimit)) * 100);
+  // Skip traces removed - feature no longer available
 
   const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;
   const daysUntilRenewal = periodEnd ? Math.ceil((periodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;

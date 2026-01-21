@@ -24,10 +24,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Eye, Download, Zap } from "lucide-react";
+import { Plus, Trash2, Eye, Download } from "lucide-react";
 import { LeadsTable } from "@/components/leads/LeadsTable";
-import { runSkipTrace } from "@/services/skiptrace";
-import { useUserCredits } from "@/hooks/useUserProfile";
 
 interface LeadList {
   id: string;
@@ -80,10 +78,7 @@ export function Lists() {
   const [listToDelete, setListToDelete] = useState<LeadList | null>(null);
   const [newListName, setNewListName] = useState("");
   const [loading, setLoading] = useState(true);
-  const [bulkTracing, setBulkTracing] = useState(false);
-  const [traceProgress, setTraceProgress] = useState({ current: 0, total: 0 });
   const { toast } = useToast();
-  const { data: credits } = useUserCredits();
 
   useEffect(() => {
     fetchLists();
@@ -283,73 +278,6 @@ export function Lists() {
     }
   };
 
-  const handleBulkSkipTrace = async () => {
-    const currentCredits = credits ?? 0;
-    if (currentCredits <= 0) {
-      toast({
-        title: "No credits",
-        description: "You need credits to skip trace. Buy credits to continue.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Get untraced properties (no contacts in property_contacts)
-    const { data: contactData } = await supabase
-      .from("property_contacts")
-      .select("property_id")
-      .in("property_id", listProperties.map(p => p.id));
-
-    const tracedIds = new Set((contactData || []).map(c => c.property_id));
-    const untracedProperties = listProperties.filter(p => !tracedIds.has(p.id));
-
-    if (untracedProperties.length === 0) {
-      toast({
-        title: "All traced",
-        description: "All properties in this list have already been traced.",
-      });
-      return;
-    }
-
-    setBulkTracing(true);
-    setTraceProgress({ current: 0, total: untracedProperties.length });
-
-    let success = 0;
-    let failed = 0;
-
-    for (let i = 0; i < untracedProperties.length; i++) {
-      const property = untracedProperties[i];
-      
-      try {
-        await runSkipTrace(property.id);
-        success++;
-      } catch (error: any) {
-        console.error(`Failed to trace ${property.address}:`, error);
-        failed++;
-      }
-
-      setTraceProgress({ current: i + 1, total: untracedProperties.length });
-
-      // Delay between calls to avoid rate limiting
-      if (i < untracedProperties.length - 1) {
-        await new Promise(r => setTimeout(r, 500));
-      }
-    }
-
-    setBulkTracing(false);
-    setTraceProgress({ current: 0, total: 0 });
-
-    toast({
-      title: "Bulk skip trace complete",
-      description: `${success} traced successfully, ${failed} failed`,
-    });
-
-    // Refresh the list
-    if (selectedList) {
-      handleViewList(selectedList);
-    }
-  };
-
   const handleExportCSV = () => {
     const properties = selectedList ? listProperties : [];
     
@@ -420,13 +348,6 @@ export function Lists() {
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
-              </Button>
-              <Button
-                onClick={handleBulkSkipTrace}
-                disabled={bulkTracing || listProperties.length === 0 || (credits ?? 0) <= 0}
-              >
-                <Zap className="h-4 w-4 mr-2" />
-                {bulkTracing ? `Tracing ${traceProgress.current}/${traceProgress.total}...` : "Skip Trace All"}
               </Button>
             </div>
           </div>
@@ -499,6 +420,9 @@ export function Lists() {
                         {list.property_count} {list.property_count === 1 ? "property" : "properties"}
                       </Badge>
                     </div>
+                    <p className="text-sm text-muted-foreground">
+                      Created {new Date(list.created_at).toLocaleDateString()}
+                    </p>
                     <Button
                       variant="outline"
                       className="w-full"
@@ -521,22 +445,17 @@ export function Lists() {
           <DialogHeader>
             <DialogTitle>Create New List</DialogTitle>
             <DialogDescription>
-              Give your list a name to help organize your leads
+              Give your list a name to start organizing your leads
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="list-name">List Name</Label>
               <Input
                 id="list-name"
-                placeholder="e.g., High Priority Leads"
                 value={newListName}
                 onChange={(e) => setNewListName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleCreateList();
-                  }
-                }}
+                placeholder="e.g., High Priority, Q1 Targets"
               />
             </div>
           </div>
@@ -544,9 +463,7 @@ export function Lists() {
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateList} disabled={!newListName.trim()}>
-              Create List
-            </Button>
+            <Button onClick={handleCreateList}>Create List</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -558,11 +475,15 @@ export function Lists() {
             <AlertDialogTitle>Delete List</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{listToDelete?.name}"? This action cannot be undone.
+              The properties will not be deleted, only removed from this list.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteList} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDeleteList}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -571,3 +492,5 @@ export function Lists() {
     </div>
   );
 }
+
+export default Lists;

@@ -2072,10 +2072,19 @@ export type Database = {
         Returns: Json
       }
       fn_check_county_limit: { Args: { p_amount?: number }; Returns: Json }
-      fn_check_subscription_limit: {
-        Args: { p_amount?: number; p_usage_type: string; p_user_id?: string }
-        Returns: Json
-      }
+      fn_check_subscription_limit:
+        | {
+            Args: {
+              p_amount?: number
+              p_usage_type: string
+              p_user_id?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: { p_amount?: number; p_usage_type: string; p_user_id: string }
+            Returns: Json
+          }
       fn_consume_credit: {
         Args: { p_meta?: Json; p_reason: string }
         Returns: number
@@ -2097,16 +2106,7 @@ export type Database = {
           state: string
         }[]
       }
-      fn_get_current_usage: {
-        Args: { p_user_id?: string }
-        Returns: {
-          api_calls_count: number
-          exports_count: number
-          period_end: string
-          period_start: string
-          skip_traces_count: number
-        }[]
-      }
+      fn_get_current_usage: { Args: { p_user_id: string }; Returns: Json }
       fn_get_user_subscription: {
         Args: { p_user_id?: string }
         Returns: {
@@ -2130,10 +2130,19 @@ export type Database = {
           user_id: string
         }[]
       }
-      fn_increment_usage: {
-        Args: { p_amount?: number; p_usage_type: string; p_user_id?: string }
-        Returns: boolean
-      }
+      fn_increment_usage:
+        | {
+            Args: {
+              p_amount?: number
+              p_usage_type: string
+              p_user_id?: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: { p_amount?: number; p_usage_type: string; p_user_id: string }
+            Returns: boolean
+          }
       fn_job_status: { Args: { p_job_id: string }; Returns: Json }
       fn_jurisdiction_stats: {
         Args: never

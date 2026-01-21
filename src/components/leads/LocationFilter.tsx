@@ -3,6 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useJurisdictions } from "@/hooks/useJurisdictions";
 import { useMemo, useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCity } from "@/utils/formatAddress";
 
 interface LocationFilterProps {
   selectedJurisdiction: string | null;
@@ -64,13 +65,10 @@ export function LocationFilter({
     return true;
   };
 
-  // Normalize city name for consistent display
-  const normalizeCity = (city: string): string => {
-    return city.trim()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  };
+  // Normalize city name using shared utility for consistency
+  const normalizeCity = useCallback((city: string): string => {
+    return formatCity(city.trim());
+  }, []);
 
   // Fetch ALL distinct states using raw SQL for accuracy
   useEffect(() => {

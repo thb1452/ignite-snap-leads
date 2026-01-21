@@ -1,0 +1,43 @@
+Category,Item,Description,Notes
+Product Overview,Name,Snap Ignite,Real estate lead generation platform
+Product Overview,Core Function,Transforms municipal code violations into scored investment opportunities,SnapScore algorithm
+Product Overview,Target Users,Real estate investors,Primary location: Texas
+Product Overview,Primary Workflow,CSV upload → AI scoring → Map filtering → CSV export,End-to-end lead pipeline
+
+Tech Stack,Frontend,React 18 + TypeScript + Vite,Single-page application
+Tech Stack,Styling,Tailwind CSS + shadcn/ui,Component library
+Tech Stack,State Management,TanStack Query,Server state caching
+Tech Stack,Maps,Leaflet + react-leaflet,Geospatial visualization
+Tech Stack,Backend,Supabase (Postgres 15),Lovable Cloud
+Tech Stack,Edge Functions,17 Deno functions,Serverless backend logic
+Tech Stack,Auth,Supabase Auth,Email-based authentication
+
+Core Features,CSV Upload,Bulk violation data import,Auto-cleaning and deduplication
+Core Features,SnapScore,AI-powered property scoring (0-100),Investment opportunity ranking
+Core Features,Property Map,Geospatial lead visualization,Cluster markers + filters
+Core Features,AI Insights,GPT-generated property analysis,Per-property intelligence
+Core Features,CSV Export,Filtered lead export,Usage-limited by subscription
+Core Features,Subscription Tiers,Starter / Professional / Enterprise,Stripe integration
+
+Database Tables,properties,Core property records,Address + coordinates + scores
+Database Tables,violations,Code violation records,Linked to properties
+Database Tables,jurisdictions,Geographic enforcement areas,City/county boundaries
+Database Tables,user_subscriptions,Plan assignments,Stripe sync
+Database Tables,subscription_usage,Export/API tracking,Billing period aligned
+Database Tables,upload_jobs,CSV processing jobs,Status + progress tracking
+
+Edge Functions,export-csv,Filtered CSV generation,Usage enforcement
+Edge Functions,process-upload,CSV parsing + ingestion,Staging → production
+Edge Functions,geocode-properties,Address → lat/lng,Batch geocoding
+Edge Functions,generate-insights,AI property analysis,OpenAI integration
+Edge Functions,bulk-rescore,Mass SnapScore recalc,Batch processing
+Edge Functions,stripe-webhook,Subscription lifecycle,Payment events
+Edge Functions,create-checkout-session,Stripe Checkout,Plan upgrades
+
+Subscription Plans,Starter,$119/month,2500 exports + 5 counties
+Subscription Plans,Professional,$249/month,10000 exports + 25 counties + advanced filters
+Subscription Plans,Enterprise,$499/month,Unlimited + API access + dedicated manager
+
+Security,RLS Policies,Row-level security on all tables,User data isolation
+Security,Auth Required,All data access requires authentication,Supabase Auth
+Security,Export Limits,Atomic usage tracking,Prevents quota bypass

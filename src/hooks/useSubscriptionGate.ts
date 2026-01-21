@@ -10,7 +10,7 @@ interface UseSubscriptionGateOptions {
 
 /**
  * Hook for gating actions behind subscription limits
- * Use this before performing exports, skip traces, or other limited actions
+ * Use this before performing exports or other limited actions
  */
 export function useSubscriptionGate(options: UseSubscriptionGateOptions = {}) {
   const { showToast = true, onLimitExceeded } = options;

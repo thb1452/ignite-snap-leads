@@ -105,27 +105,3 @@ export function generateMockProperties(count: number = 40) {
   
   return properties;
 }
-
-// Mock function for skip trace
-export async function mockSkipTrace(propertyId: string) {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // 70% chance of finding contacts
-  if (Math.random() > 0.3) {
-    return {
-      success: true,
-      contacts: [
-        {
-          id: `contact-${propertyId}-1`,
-          name: `Owner ${Math.floor(Math.random() * 1000)}`,
-          phone: `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-          email: `owner${Math.floor(Math.random() * 1000)}@example.com`,
-          source: "Public Records"
-        }
-      ]
-    };
-  } else {
-    throw new Error("No contacts found");
-  }
-}

@@ -164,8 +164,6 @@ export function SubscriptionSettings() {
   const csvExportsLimit = plan?.max_monthly_exports || 0;
   const csvExportsPercent = csvExportsLimit === -1 ? 0 : Math.min(100, (csvExportsUsed / Math.max(1, csvExportsLimit)) * 100);
 
-  // Skip traces removed - feature no longer available
-
   const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;
   const daysUntilRenewal = periodEnd ? Math.ceil((periodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
 
@@ -264,7 +262,6 @@ export function SubscriptionSettings() {
                 features={[
                   "25 county coverage",
                   "10,000 monthly exports",
-                  "500 skip trace credits/month",
                   "Advanced SnapScore filters",
                   "Violation type filtering",
                   "Rolling 30-day intelligence",
@@ -282,7 +279,6 @@ export function SubscriptionSettings() {
                 features={[
                   "All 900+ counties",
                   "25,000 monthly exports",
-                  "2,000 skip trace credits/month",
                   "Full SnapScore AI suite",
                   "Escalation pattern alerts",
                   "API access (coming soon)",

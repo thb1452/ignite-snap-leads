@@ -13,13 +13,6 @@ export const PropertyContactSchema = z.object({
 });
 export type PropertyContact = z.infer<typeof PropertyContactSchema>;
 
-/** Skip trace result */
-export const SkipTraceResponseSchema = z.object({
-  ok: z.literal(true),
-  contacts: z.array(PropertyContactSchema),
-});
-export type SkipTraceResponse = z.infer<typeof SkipTraceResponseSchema>;
-
 /** SMS send */
 export const SMSSendSchema = z.object({
   to: z.string().min(8, "Phone required"),

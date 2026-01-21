@@ -2093,6 +2093,10 @@ export type Database = {
         Args: { p_amount?: number; p_usage_type: string }
         Returns: Json
       }
+      fn_consume_usage_atomic: {
+        Args: { p_amount?: number; p_usage_type: string }
+        Returns: Json
+      }
       fn_dashboard_stats: { Args: never; Returns: Json }
       fn_distinct_cities: {
         Args: { p_state?: string }
@@ -2165,19 +2169,32 @@ export type Database = {
           property_count: number
         }[]
       }
-      fn_properties_by_bbox: {
-        Args: {
-          p_east: number
-          p_last_seen_lte?: number
-          p_limit?: number
-          p_north: number
-          p_offset?: number
-          p_score_gte?: number
-          p_south: number
-          p_west: number
-        }
-        Returns: Json
-      }
+      fn_properties_by_bbox:
+        | {
+            Args: {
+              p_last_seen_after?: string
+              p_max_lat: number
+              p_max_lng: number
+              p_min_lat: number
+              p_min_lng: number
+              p_score_min?: number
+              p_source?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_east: number
+              p_last_seen_lte?: number
+              p_limit?: number
+              p_north: number
+              p_offset?: number
+              p_score_gte?: number
+              p_south: number
+              p_west: number
+            }
+            Returns: Json
+          }
       fn_properties_paged: {
         Args: {
           p_city?: string

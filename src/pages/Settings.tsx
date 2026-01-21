@@ -2,14 +2,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Building2, CreditCard, User, Crown, Settings as SettingsIcon } from 'lucide-react';
+import { Building2, CreditCard, User, Crown, Settings as SettingsIcon, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
 import { SubscriptionSettings } from '@/components/subscription/SubscriptionSettings';
+import { EmailPreferencesCard } from '@/components/settings/EmailPreferencesCard';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { useAuth } from '@/hooks/use-auth';
 
 export function Settings() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const activeTab = searchParams.get('tab') || 'organization';
@@ -36,7 +39,7 @@ export function Settings() {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5">
             <TabsTrigger value="organization" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">Organization</span>
@@ -44,6 +47,10 @@ export function Settings() {
             <TabsTrigger value="subscription" className="flex items-center gap-2">
               <Crown className="h-4 w-4" />
               <span className="hidden sm:inline">Subscription</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">Notifications</span>
             </TabsTrigger>
             <TabsTrigger value="credits" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -58,6 +65,11 @@ export function Settings() {
           {/* Subscription Tab */}
           <TabsContent value="subscription">
             <SubscriptionSettings />
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <EmailPreferencesCard />
           </TabsContent>
 
           {/* Organization Tab */}

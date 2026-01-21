@@ -2071,6 +2071,7 @@ export type Database = {
         Args: { p_job_id: string; p_property_ids: string[] }
         Returns: Json
       }
+      fn_check_county_limit: { Args: { p_amount?: number }; Returns: Json }
       fn_check_subscription_limit: {
         Args: { p_amount?: number; p_usage_type: string; p_user_id?: string }
         Returns: Json

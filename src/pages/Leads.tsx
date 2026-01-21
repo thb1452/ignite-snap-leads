@@ -453,7 +453,7 @@ function Leads() {
         </div>
         
         {/* Freshness indicator + View Toggle */}
-        <div className="flex items-center justify-between px-3 pb-3">
+        <div className="flex items-center justify-between px-3 pb-2">
           <FreshnessIndicator />
           <div className="flex bg-muted rounded-lg p-0.5">
             <Button
@@ -475,6 +475,11 @@ function Leads() {
               Map
             </Button>
           </div>
+        </div>
+        
+        {/* Export Quota for Mobile */}
+        <div className="px-3 pb-3">
+          <ExportQuotaDisplay />
         </div>
       </div>
 

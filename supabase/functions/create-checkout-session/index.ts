@@ -73,24 +73,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // ---- Get Plan ----
-    const { data: plan, error: planError } = await supabase
-      .from("subscription_plans")
-      .select("*")
-      .eq("name", tier_name)
-      .single();
+    // ---- Stripe Price IDs (monthly) ----
+    const STRIPE_PRICE_IDS: Record<string, string> = {
+      starter: "price_1SrpjRBg6vwuzzF00PoWxiH0",      // $119/mo
+      professional: "price_1SrpqDBg6vwuzzF0hhQOlyKx", // $249/mo
+      enterprise: "price_1Srps9Bg6vwuzzF0Hd0yY9RV",   // $499/mo
+    };
 
-    if (planError || !plan) {
+    const priceId = STRIPE_PRICE_IDS[tier_name.toLowerCase()];
+    if (!priceId) {
       return new Response(
-        JSON.stringify({ error: "Plan not found" }),
-        { status: 404, headers }
+        JSON.stringify({ error: `Unknown plan: ${tier_name}` }),
+        { status: 400, headers }
       );
     }
 
-    // Calculate price based on billing cycle
-    const priceAmount = billing_cycle === "annual"
-      ? Math.round(plan.price_monthly_cents * 12 * 0.8) // 20% discount for annual
-      : plan.price_monthly_cents;
+    // ---- Get Plan from DB for metadata ----
+    const { data: plan } = await supabase
+      .from("subscription_plans")
+      .select("id, display_name")
+      .eq("name", tier_name)
+      .single();
 
     // ---- Get or Create Stripe Customer ----
     const { data: existingSubscription } = await supabase
@@ -102,49 +105,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let customerId = existingSubscription?.stripe_customer_id;
 
     if (!customerId) {
-      // Create new Stripe customer
       const customer = await stripe.customers.create({
         email: user.email,
-        metadata: {
-          supabase_user_id: user.id,
-        },
+        metadata: { supabase_user_id: user.id },
       });
       customerId = customer.id;
       console.log("[checkout] Created Stripe customer:", customerId);
     }
 
-    // ---- Create Checkout Session ----
+    // ---- Create Checkout Session with real Stripe Price ----
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: plan.display_name,
-              description: plan.description,
-            },
-            recurring: {
-              interval: billing_cycle === "annual" ? "year" : "month",
-            },
-            unit_amount: priceAmount,
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
       success_url: `${appUrl}/leads?checkout=success`,
       cancel_url: `${appUrl}/pricing?canceled=true`,
       metadata: {
         user_id: user.id,
-        plan_id: plan.id,
+        plan_id: plan?.id ?? tier_name,
         billing_cycle: billing_cycle,
       },
       subscription_data: {
         metadata: {
           user_id: user.id,
-          plan_id: plan.id,
+          plan_id: plan?.id ?? tier_name,
           billing_cycle: billing_cycle,
         },
       },

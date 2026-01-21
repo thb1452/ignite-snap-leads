@@ -130,7 +130,47 @@ export function useAssignCounty() {
   const { toast } = useToast();
   
   return useMutation({
-    mutationFn: async ({ countyIds, vaId }: { countyIds: string[]; vaId: string | null }) => {
+    mutationFn: async ({ 
+      countyIds, 
+      vaId,
+      skipLimitCheck = false 
+    }: { 
+      countyIds: string[]; 
+      vaId: string | null;
+      skipLimitCheck?: boolean;
+    }) => {
+      // Only check limits when assigning (not unassigning)
+      if (vaId && !skipLimitCheck) {
+        // Count how many NEW counties we're adding
+        // (counties that don't already have an assigned_to value)
+        const { data: currentlyUnassigned, error: checkError } = await supabase
+          .from('counties')
+          .select('id')
+          .in('id', countyIds)
+          .is('assigned_to', null);
+        
+        if (checkError) throw checkError;
+        
+        const newAssignments = currentlyUnassigned?.length || 0;
+        
+        if (newAssignments > 0) {
+          // Check limit via RPC
+          const { data: limitCheck, error: limitError } = await supabase
+            .rpc('fn_check_county_limit', { p_amount: newAssignments });
+          
+          if (limitError) {
+            // If the function doesn't exist, skip the check (graceful degradation)
+            if (!limitError.message?.includes('function') && !limitError.message?.includes('does not exist')) {
+              throw limitError;
+            }
+          }
+          
+          if (limitCheck && limitCheck.allowed === false) {
+            throw new Error(limitCheck.message || 'County assignment limit reached. Please upgrade your plan.');
+          }
+        }
+      }
+      
       const { error } = await supabase
         .from('counties')
         .update({ assigned_to: vaId, updated_at: new Date().toISOString() })
@@ -140,6 +180,8 @@ export function useAssignCounty() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['foia-counties'] });
+      queryClient.invalidateQueries({ queryKey: ['county-assignment-count'] });
+      queryClient.invalidateQueries({ queryKey: ['va-list'] });
       toast({ title: 'Counties assigned', description: 'Assignment updated successfully.' });
     },
     onError: (error) => {

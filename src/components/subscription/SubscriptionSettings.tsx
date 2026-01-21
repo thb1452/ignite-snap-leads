@@ -234,16 +234,6 @@ export function SubscriptionSettings() {
                 )}
               </div>
 
-              {/* Skip Traces */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-ink-600">Skip Trace Credits</span>
-                  <span className="font-medium text-ink-900">
-                    {skipTracesUsed} / {skipTracesLimit}
-                  </span>
-                </div>
-                <Progress value={skipTracesPercent} className="h-2" />
-              </div>
             </div>
 
             {/* Features */}

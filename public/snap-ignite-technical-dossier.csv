@@ -1,0 +1,317 @@
+Section,Category,Item,Value,Notes
+=== 1. SUPABASE SETUP ===,,,,
+
+TABLE SCHEMAS,properties,id,"uuid NOT NULL DEFAULT gen_random_uuid()",Primary key
+TABLE SCHEMAS,properties,address,"text NOT NULL",
+TABLE SCHEMAS,properties,city,"text NOT NULL",
+TABLE SCHEMAS,properties,state,"text NOT NULL",
+TABLE SCHEMAS,properties,zip,"text NOT NULL",
+TABLE SCHEMAS,properties,latitude,"numeric NULL",PostGIS coordinate
+TABLE SCHEMAS,properties,longitude,"numeric NULL",PostGIS coordinate
+TABLE SCHEMAS,properties,geom,"geography NULL",PostGIS geometry column
+TABLE SCHEMAS,properties,snap_score,"integer NULL",AI-generated score 0-100
+TABLE SCHEMAS,properties,snap_insight,"text NULL",AI-generated analysis
+TABLE SCHEMAS,properties,jurisdiction_id,"uuid NULL",FK to jurisdictions
+TABLE SCHEMAS,properties,total_violations,"integer DEFAULT 0",Aggregate counter
+TABLE SCHEMAS,properties,open_violations,"integer DEFAULT 0",Aggregate counter
+TABLE SCHEMAS,properties,oldest_violation_date,"date NULL",Aggregate
+TABLE SCHEMAS,properties,newest_violation_date,"date NULL",Aggregate
+TABLE SCHEMAS,properties,avg_days_open,"integer DEFAULT 0",Aggregate
+TABLE SCHEMAS,properties,violation_types,"text[] DEFAULT '{}'",Array of types
+TABLE SCHEMAS,properties,repeat_offender,"boolean DEFAULT false",Pressure signal
+TABLE SCHEMAS,properties,multi_department,"boolean DEFAULT false",Pressure signal
+TABLE SCHEMAS,properties,escalated,"boolean DEFAULT false",Pressure signal
+TABLE SCHEMAS,properties,distress_signals,"text[] DEFAULT '{}'",Array of signals
+TABLE SCHEMAS,properties,opportunity_class,"text DEFAULT 'watch'","Values: watch, emerging, hot, critical"
+TABLE SCHEMAS,properties,scope,"text DEFAULT 'city'","Values: city, county"
+TABLE SCHEMAS,properties,county,"text NULL",
+TABLE SCHEMAS,properties,last_enforcement_date,"timestamptz NULL",
+TABLE SCHEMAS,properties,last_analyzed_at,"timestamptz NULL",
+TABLE SCHEMAS,properties,photo_url,"text NULL",
+TABLE SCHEMAS,properties,created_at,"timestamp DEFAULT now()",
+TABLE SCHEMAS,properties,updated_at,"timestamp DEFAULT now()",
+
+TABLE SCHEMAS,violations,id,"uuid NOT NULL DEFAULT gen_random_uuid()",Primary key
+TABLE SCHEMAS,violations,property_id,"uuid NULL",FK to properties
+TABLE SCHEMAS,violations,case_id,"text NULL",External case number
+TABLE SCHEMAS,violations,violation_type,"text NOT NULL",Normalized type
+TABLE SCHEMAS,violations,description,"text NULL",Public description
+TABLE SCHEMAS,violations,raw_description,"text NULL",PRIVATE - never exported
+TABLE SCHEMAS,violations,status,"text NOT NULL","Values: open, closed, pending"
+TABLE SCHEMAS,violations,previous_status,"text NULL",For change tracking
+TABLE SCHEMAS,violations,opened_date,"date NULL",
+TABLE SCHEMAS,violations,closed_at,"date NULL",
+TABLE SCHEMAS,violations,last_updated,"date NULL",
+TABLE SCHEMAS,violations,days_open,"integer NULL",Calculated
+TABLE SCHEMAS,violations,status_changed_at,"timestamptz NULL",
+TABLE SCHEMAS,violations,first_seen_at,"timestamptz DEFAULT now()",
+TABLE SCHEMAS,violations,last_seen_at,"timestamptz DEFAULT now()",
+TABLE SCHEMAS,violations,created_at,"timestamp DEFAULT now()",
+
+TABLE SCHEMAS,user_subscriptions,id,"uuid NOT NULL DEFAULT gen_random_uuid()",Primary key
+TABLE SCHEMAS,user_subscriptions,user_id,"uuid NOT NULL",FK to auth.users
+TABLE SCHEMAS,user_subscriptions,plan_id,"uuid NOT NULL",FK to subscription_plans
+TABLE SCHEMAS,user_subscriptions,status,"text NOT NULL DEFAULT 'active'","Values: active, cancelled, past_due, unpaid"
+TABLE SCHEMAS,user_subscriptions,stripe_customer_id,"text NULL",Stripe customer ID
+TABLE SCHEMAS,user_subscriptions,stripe_subscription_id,"text NULL",Stripe subscription ID
+TABLE SCHEMAS,user_subscriptions,current_period_start,"timestamptz NULL",Billing period start
+TABLE SCHEMAS,user_subscriptions,current_period_end,"timestamptz NULL",Billing period end
+TABLE SCHEMAS,user_subscriptions,cancel_at,"timestamptz NULL",Scheduled cancellation
+TABLE SCHEMAS,user_subscriptions,cancelled_at,"timestamptz NULL",Actual cancellation
+TABLE SCHEMAS,user_subscriptions,created_at,"timestamptz DEFAULT now()",
+TABLE SCHEMAS,user_subscriptions,updated_at,"timestamptz DEFAULT now()",
+
+TABLE SCHEMAS,subscription_usage,id,"uuid NOT NULL DEFAULT gen_random_uuid()",Primary key
+TABLE SCHEMAS,subscription_usage,user_id,"uuid NOT NULL",FK to auth.users
+TABLE SCHEMAS,subscription_usage,period_start,"date NOT NULL",Billing period start
+TABLE SCHEMAS,subscription_usage,period_end,"date NOT NULL",Billing period end
+TABLE SCHEMAS,subscription_usage,exports_count,"integer DEFAULT 0",Usage counter
+TABLE SCHEMAS,subscription_usage,api_calls_count,"integer DEFAULT 0",Usage counter
+TABLE SCHEMAS,subscription_usage,skip_traces_count,"integer DEFAULT 0",Usage counter
+TABLE SCHEMAS,subscription_usage,created_at,"timestamptz DEFAULT now()",
+TABLE SCHEMAS,subscription_usage,updated_at,"timestamptz DEFAULT now()",
+
+TABLE SCHEMAS,upload_jobs,id,"uuid NOT NULL DEFAULT gen_random_uuid()",Primary key
+TABLE SCHEMAS,upload_jobs,user_id,"uuid NOT NULL",FK to auth.users
+TABLE SCHEMAS,upload_jobs,storage_path,"text NOT NULL",Supabase storage path
+TABLE SCHEMAS,upload_jobs,filename,"text NOT NULL",Original filename
+TABLE SCHEMAS,upload_jobs,file_size,"integer NOT NULL",Bytes
+TABLE SCHEMAS,upload_jobs,status,"text DEFAULT 'QUEUED'","Values: QUEUED, PROCESSING, COMPLETED, FAILED"
+TABLE SCHEMAS,upload_jobs,total_rows,"integer NULL",
+TABLE SCHEMAS,upload_jobs,processed_rows,"integer DEFAULT 0",
+TABLE SCHEMAS,upload_jobs,properties_created,"integer DEFAULT 0",
+TABLE SCHEMAS,upload_jobs,properties_matched,"integer DEFAULT 0",Existing properties updated
+TABLE SCHEMAS,upload_jobs,violations_created,"integer DEFAULT 0",
+TABLE SCHEMAS,upload_jobs,bad_addresses,"integer DEFAULT 0",
+TABLE SCHEMAS,upload_jobs,bad_address_samples,"jsonb DEFAULT '[]'",
+TABLE SCHEMAS,upload_jobs,warnings,"jsonb DEFAULT '[]'",
+TABLE SCHEMAS,upload_jobs,error_message,"text NULL",
+TABLE SCHEMAS,upload_jobs,jurisdiction_id,"uuid NULL",FK to jurisdictions
+TABLE SCHEMAS,upload_jobs,city,"text NULL",
+TABLE SCHEMAS,upload_jobs,county,"text NULL",
+TABLE SCHEMAS,upload_jobs,state,"text NULL",
+TABLE SCHEMAS,upload_jobs,scope,"text DEFAULT 'city'",
+TABLE SCHEMAS,upload_jobs,started_at,"timestamptz NULL",
+TABLE SCHEMAS,upload_jobs,finished_at,"timestamptz NULL",
+TABLE SCHEMAS,upload_jobs,created_at,"timestamptz DEFAULT now()",
+TABLE SCHEMAS,upload_jobs,updated_at,"timestamptz DEFAULT now()",
+
+INDEXES,properties,properties_pkey,"UNIQUE btree (id)",Primary key
+INDEXES,properties,idx_properties_unique_address,"UNIQUE btree (lower(trim(address)), lower(trim(city)), lower(trim(state)), lower(trim(zip)))",CRITICAL - deduplication
+INDEXES,properties,idx_properties_snap_score,"btree (snap_score)",Performance
+INDEXES,properties,idx_properties_snap_score_desc,"btree (snap_score DESC NULLS LAST)",Sorting
+INDEXES,properties,idx_properties_city,"btree (city)",Filter performance
+INDEXES,properties,idx_properties_city_lower,"btree (lower(city))",Case-insensitive
+INDEXES,properties,idx_properties_state_lower,"btree (lower(state))",Case-insensitive
+INDEXES,properties,idx_properties_address_city,"btree (lower(address), lower(city))",Search
+INDEXES,properties,idx_properties_geom,"gist (geom)",PostGIS spatial
+INDEXES,properties,idx_properties_jurisdiction_id,"btree (jurisdiction_id)",FK lookup
+INDEXES,properties,idx_properties_jurisdiction_score,"btree (jurisdiction_id, snap_score DESC)",Combined filter+sort
+INDEXES,properties,idx_properties_opportunity_class,"btree (opportunity_class)",Filter
+INDEXES,properties,idx_properties_open_violations,"btree (open_violations) WHERE open_violations > 0",Partial index
+INDEXES,properties,idx_properties_repeat_offender,"btree (repeat_offender) WHERE repeat_offender = true",Partial index
+INDEXES,properties,idx_properties_total_violations,"btree (total_violations) WHERE total_violations > 0",Partial index
+INDEXES,properties,idx_properties_updated_at,"btree (updated_at)",
+INDEXES,properties,idx_properties_last_enforcement_date,"btree (last_enforcement_date DESC NULLS LAST)",
+
+INDEXES,subscription_usage,subscription_usage_pkey,"UNIQUE btree (id)",Primary key
+INDEXES,subscription_usage,unique_user_period,"UNIQUE btree (user_id, period_start)",One record per billing period
+INDEXES,subscription_usage,idx_subscription_usage_user_period,"btree (user_id, period_start)",Lookup
+
+INDEXES,user_subscriptions,user_subscriptions_pkey,"UNIQUE btree (id)",Primary key
+INDEXES,user_subscriptions,idx_user_subscriptions_user_id,"btree (user_id)",FK lookup
+INDEXES,user_subscriptions,idx_user_subscriptions_status,"btree (status)",Filter
+INDEXES,user_subscriptions,idx_user_subscriptions_stripe_sub,"btree (stripe_subscription_id)",Webhook lookup
+
+INDEXES,upload_jobs,upload_jobs_pkey,"UNIQUE btree (id)",Primary key
+INDEXES,upload_jobs,idx_upload_jobs_user_id,"btree (user_id)",FK lookup
+INDEXES,upload_jobs,idx_upload_jobs_status,"btree (status)",Filter
+INDEXES,upload_jobs,idx_upload_jobs_jurisdiction_id,"btree (jurisdiction_id)",FK lookup
+
+RLS POLICIES,properties,properties_select_auth,"SELECT WHERE auth.uid() IS NOT NULL",Authenticated users can read all properties
+RLS POLICIES,properties,Authenticated users can insert properties,"INSERT WITH CHECK auth.uid() IS NOT NULL",Authenticated users can insert
+RLS POLICIES,properties,Authenticated users can delete properties,"DELETE WHERE auth.uid() IS NOT NULL",Authenticated users can delete
+RLS POLICIES,properties,MISSING UPDATE POLICY,"⚠️ NO UPDATE POLICY EXISTS",Properties cannot be updated via RLS
+
+RLS POLICIES,violations,violations_select_auth,"SELECT WHERE auth.uid() IS NOT NULL",Authenticated users can read
+RLS POLICIES,violations,Authenticated users can insert violations,"INSERT WITH CHECK auth.uid() IS NOT NULL",
+RLS POLICIES,violations,Authenticated users can delete violations,"DELETE WHERE auth.uid() IS NOT NULL",
+RLS POLICIES,violations,MISSING UPDATE POLICY,"⚠️ NO UPDATE POLICY EXISTS",Violations cannot be updated via RLS
+
+RLS POLICIES,user_subscriptions,Users can view their own subscriptions,"SELECT WHERE user_id = auth.uid()",User isolation
+RLS POLICIES,user_subscriptions,Service role manages subscriptions,"ALL WHERE JWT role = service_role",Backend-only writes
+
+RLS POLICIES,upload_jobs,Users can view own upload jobs,"SELECT WHERE user_id = auth.uid()",User isolation
+RLS POLICIES,upload_jobs,Users can create own upload jobs,"INSERT WITH CHECK user_id = auth.uid()",
+RLS POLICIES,upload_jobs,Users can update own upload jobs,"UPDATE WHERE user_id = auth.uid()",
+RLS POLICIES,upload_jobs,MISSING DELETE POLICY,"⚠️ NO DELETE POLICY EXISTS",Jobs cannot be deleted
+
+=== 2. EDGE FUNCTIONS ===,,,,
+
+EDGE FUNCTIONS,export-csv,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,export-csv,JWT Required,true,
+EDGE FUNCTIONS,export-csv,Usage Check,"YES - calls fn_consume_usage('exports', 1)",
+EDGE FUNCTIONS,export-csv,Description,"Generates filtered CSV with usage enforcement",
+
+EDGE FUNCTIONS,process-upload,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,process-upload,JWT Required,true,
+EDGE FUNCTIONS,process-upload,Usage Check,No,
+EDGE FUNCTIONS,process-upload,Description,"CSV parsing, staging, deduplication, property/violation creation",
+
+EDGE FUNCTIONS,geocode-properties,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,geocode-properties,JWT Required,true,
+EDGE FUNCTIONS,geocode-properties,Usage Check,No,
+EDGE FUNCTIONS,geocode-properties,Description,"Mapbox geocoding with batch processing",
+
+EDGE FUNCTIONS,generate-insights,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,generate-insights,JWT Required,true,
+EDGE FUNCTIONS,generate-insights,Usage Check,No,
+EDGE FUNCTIONS,generate-insights,Description,"AI property analysis and SnapScore calculation",
+
+EDGE FUNCTIONS,bulk-rescore,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,bulk-rescore,JWT Required,true,
+EDGE FUNCTIONS,bulk-rescore,Usage Check,No,
+EDGE FUNCTIONS,bulk-rescore,Description,"Batch SnapScore recalculation",
+
+EDGE FUNCTIONS,stripe-webhook,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,stripe-webhook,JWT Required,false,Public endpoint (Stripe signs)
+EDGE FUNCTIONS,stripe-webhook,Usage Check,No,
+EDGE FUNCTIONS,stripe-webhook,Description,"Handles subscription lifecycle events",
+
+EDGE FUNCTIONS,create-checkout-session,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,create-checkout-session,JWT Required,true,
+EDGE FUNCTIONS,create-checkout-session,Usage Check,No,
+EDGE FUNCTIONS,create-checkout-session,Description,"Creates Stripe checkout for plan upgrades",
+
+EDGE FUNCTIONS,create-portal-session,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,create-portal-session,JWT Required,true,
+EDGE FUNCTIONS,create-portal-session,Usage Check,No,
+EDGE FUNCTIONS,create-portal-session,Description,"Opens Stripe customer portal",
+
+EDGE FUNCTIONS,bulk-delete-properties,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,bulk-delete-properties,JWT Required,true,
+EDGE FUNCTIONS,bulk-delete-properties,Usage Check,No,
+EDGE FUNCTIONS,bulk-delete-properties,Description,"Batch property deletion",
+
+EDGE FUNCTIONS,delete-upload-job,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,delete-upload-job,JWT Required,true,
+EDGE FUNCTIONS,delete-upload-job,Usage Check,No,
+EDGE FUNCTIONS,delete-upload-job,Description,"Deletes upload job and related data",
+
+EDGE FUNCTIONS,reprocess-upload-job,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,reprocess-upload-job,JWT Required,true,
+EDGE FUNCTIONS,reprocess-upload-job,Usage Check,No,
+EDGE FUNCTIONS,reprocess-upload-job,Description,"Retries failed upload processing",
+
+EDGE FUNCTIONS,job-monitor,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,job-monitor,JWT Required,true,
+EDGE FUNCTIONS,job-monitor,Usage Check,No,
+EDGE FUNCTIONS,job-monitor,Description,"Returns job status/progress",
+
+EDGE FUNCTIONS,refresh-outdated-insights,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,refresh-outdated-insights,JWT Required,true,
+EDGE FUNCTIONS,refresh-outdated-insights,Usage Check,No,
+EDGE FUNCTIONS,refresh-outdated-insights,Description,"Refreshes stale AI insights",
+
+EDGE FUNCTIONS,send-user-invitation,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,send-user-invitation,JWT Required,true,
+EDGE FUNCTIONS,send-user-invitation,Usage Check,No,
+EDGE FUNCTIONS,send-user-invitation,Description,"Sends team invitation emails",
+
+EDGE FUNCTIONS,weekly-digest,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,weekly-digest,JWT Required,false,Cron-triggered
+EDGE FUNCTIONS,weekly-digest,Usage Check,No,
+EDGE FUNCTIONS,weekly-digest,Description,"Sends weekly email digests",
+
+EDGE FUNCTIONS,backfill-property-aggregates,Status,DEPLOYED,✅ Live
+EDGE FUNCTIONS,backfill-property-aggregates,JWT Required,true,
+EDGE FUNCTIONS,backfill-property-aggregates,Usage Check,No,
+EDGE FUNCTIONS,backfill-property-aggregates,Description,"Recalculates property aggregate columns",
+
+DATABASE FUNCTIONS,fn_consume_usage,Purpose,"Atomic usage check + increment",Race-condition fixed
+DATABASE FUNCTIONS,fn_consume_usage,Location,"public schema, SECURITY DEFINER",
+DATABASE FUNCTIONS,fn_consume_usage,Called By,"export-csv edge function",
+
+DATABASE FUNCTIONS,fn_check_subscription_limit,Purpose,"Check if usage allowed before consuming",Two versions exist (overloaded)
+DATABASE FUNCTIONS,fn_check_subscription_limit,Returns,"jsonb with allowed, current, limit, remaining, plan_name",
+
+DATABASE FUNCTIONS,fn_increment_usage,Purpose,"Increment usage counter atomically",
+DATABASE FUNCTIONS,fn_increment_usage,Location,"public schema",
+
+DATABASE FUNCTIONS,fn_get_current_usage,Purpose,"Get current billing period usage",Returns jsonb
+DATABASE FUNCTIONS,fn_get_current_usage,Fields,"exports_count, api_calls_count, skip_traces_count, period_start, period_end",
+
+DATABASE FUNCTIONS,fn_get_user_subscription,Purpose,"Get active subscription with plan details",Joins user_subscriptions + subscription_plans
+
+DATABASE FUNCTIONS,fn_properties_paged,Purpose,"Optimized paginated property query",Avoids complex Supabase query builder
+DATABASE FUNCTIONS,fn_properties_by_bbox,Purpose,"Spatial query for map view",Uses PostGIS
+
+=== 3. FRONTEND - MAP COMPONENT ===,,,,
+
+MAP LOADING,Method,"OPTION A - Direct Supabase","src/services/properties.ts",
+MAP LOADING,Function,"fetchPropertiesPaged()",Uses supabase.rpc('fn_properties_paged') or direct query
+MAP LOADING,Security,"RLS protected - requires auth.uid() IS NOT NULL",All queries go through Supabase client with user JWT
+MAP LOADING,Path,"Component → useProperties hook → fetchPropertiesPaged() → supabase.rpc()",
+MAP LOADING,Note,"NOT using edge function for property reads",Direct client-to-database pattern
+
+CODE EXAMPLE,fetchPropertiesPaged,"const { data, error } = await supabase.rpc('fn_properties_paged', { p_page, p_page_size, p_state, p_city, p_search, p_snap_min, p_snap_max });",Lines 61-69 in src/services/properties.ts
+CODE EXAMPLE,Legacy Path,"Uses supabase.from('properties').select('*') with query builder",For complex filters (list, violation type, etc.)
+
+=== 4. SUBSCRIPTION LOGIC ===,,,,
+
+SUBSCRIPTION TRACKING,Table,user_subscriptions,Linked to Stripe via stripe_subscription_id
+SUBSCRIPTION TRACKING,Plan Lookup,subscription_plans table,"Defines limits: max_monthly_exports, max_counties, etc."
+SUBSCRIPTION TRACKING,Usage Tracking,subscription_usage table,"Counters: exports_count, api_calls_count, skip_traces_count"
+SUBSCRIPTION TRACKING,Billing Period,"current_period_start/end in user_subscriptions","Usage resets when period changes"
+
+LIMIT CHECK FLOW,Step 1,"Frontend calls export-csv edge function",
+LIMIT CHECK FLOW,Step 2,"Edge function calls fn_consume_usage('exports', 1)",
+LIMIT CHECK FLOW,Step 3,"fn_consume_usage calls fn_check_subscription_limit",
+LIMIT CHECK FLOW,Step 4,"If allowed, fn_consume_usage calls fn_increment_usage",
+LIMIT CHECK FLOW,Step 5,"Returns jsonb with allowed/current/limit/remaining",
+LIMIT CHECK FLOW,Location,"ALL usage enforcement is in PostgreSQL functions",SECURITY DEFINER functions
+
+CURRENT CODE,Frontend Hook,"src/hooks/useSubscription.ts",Fetches subscription + usage via RPC
+CURRENT CODE,Frontend Gate,"src/hooks/useSubscriptionGate.ts","Wraps actions with limit checks"
+CURRENT CODE,Edge Function,"supabase/functions/export-csv",Calls fn_consume_usage before export
+
+=== 5. DEPLOYMENT PROCESS ===,,,,
+
+DEPLOYMENT,Platform,"Lovable Cloud (Supabase managed)",No manual supabase CLI needed
+DEPLOYMENT,Edge Functions,"Auto-deployed on code push",Lovable deploys automatically
+DEPLOYMENT,Migrations,"Via Lovable migration tool",supabase--migration creates + applies
+DEPLOYMENT,Staging/Prod,"PRODUCTION ONLY",No staging environment
+DEPLOYMENT,Database,"Managed Supabase Postgres",Project ID: ojyxblegxpdgaqiscxpz
+
+=== 6. CURRENT STATE ===,,,,
+
+DATA VOLUME,Properties,271937,~272K properties
+DATA VOLUME,Violations,362543,~363K violations
+DATA VOLUME,Upload Jobs,3299,~3.3K upload jobs
+DATA VOLUME,Subscriptions,1,One active subscription
+
+LAUNCH STATUS,Stage,PRE-LAUNCH / EARLY TESTING,Can break things temporarily
+LAUNCH STATUS,Real Users,Minimal,"Appears to be testing phase"
+
+STRIPE STATUS,Integration,CONFIGURED,"Stripe price IDs in create-checkout-session"
+STRIPE STATUS,Webhook,DEPLOYED,"stripe-webhook function exists"
+STRIPE STATUS,Price IDs,Hardcoded,"starter=$119, professional=$249, enterprise=$499"
+STRIPE STATUS,Current Subscription,"1 active, no stripe_subscription_id","Manually created for testing"
+
+CURRENT SUBSCRIPTION,User ID,99902a84-3ebf-4f8e-b63a-7185663d761c,
+CURRENT SUBSCRIPTION,Plan ID,bdac430f-129b-449e-97fd-cb17e29896fb,
+CURRENT SUBSCRIPTION,Status,active,
+CURRENT SUBSCRIPTION,Stripe IDs,NULL,"Not from Stripe - manually inserted"
+CURRENT SUBSCRIPTION,Period,"2026-01-21 to 2126-01-21","100 year period (test data)"
+
+USAGE TRACKING,Current Usage Records,0,No subscription_usage rows exist
+USAGE TRACKING,Note,"Usage records created on first fn_increment_usage call",
+
+=== SECURITY NOTES ===,,,,
+
+SECURITY,Properties RLS,"⚠️ All authenticated users can read ALL properties",Not user-isolated
+SECURITY,Properties UPDATE,"⚠️ No UPDATE policy - updates may fail via client",
+SECURITY,Violations RLS,"⚠️ All authenticated users can read ALL violations",Not user-isolated
+SECURITY,Edge Functions,"✅ JWT verification enabled on all except webhooks/cron",
+SECURITY,Usage Enforcement,"✅ Atomic PostgreSQL functions prevent race conditions",
+SECURITY,Stripe Webhooks,"✅ Signature verification + idempotency tracking",

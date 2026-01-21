@@ -2172,6 +2172,16 @@ export type Database = {
       fn_properties_by_bbox:
         | {
             Args: {
+              p_limit?: number
+              p_max_lat: number
+              p_max_lng: number
+              p_min_lat: number
+              p_min_lng: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
               p_last_seen_after?: string
               p_max_lat: number
               p_max_lng: number

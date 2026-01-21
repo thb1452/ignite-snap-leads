@@ -1,5 +1,19 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// Map upload_jobs status to Job status
+function mapUploadStatus(status: string): 'queued' | 'processing' | 'partial' | 'completed' | 'failed' {
+  const statusMap: Record<string, 'queued' | 'processing' | 'partial' | 'completed' | 'failed'> = {
+    'QUEUED': 'queued',
+    'PARSING': 'processing',
+    'PROCESSING': 'processing',
+    'DEDUPING': 'processing',
+    'FINALIZING': 'processing',
+    'COMPLETE': 'completed',
+    'FAILED': 'failed',
+  };
+  return statusMap[status] || 'queued';
+}
+
 export interface Job {
   id: string;
   user_id: string;
@@ -19,7 +33,7 @@ export interface Job {
 export interface JobEvent {
   type: string;
   timestamp: string;
-  payload: any;
+  payload: Record<string, unknown>;
 }
 
 export interface JobResult {
@@ -35,6 +49,16 @@ export interface JobResult {
   updated_at: string;
 }
 
+interface PropertyRow {
+  id: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  snap_score: number | null;
+  updated_at: string | null;
+}
+
 export async function getJob(jobId: string): Promise<Job> {
   const { data, error } = await supabase
     .from('upload_jobs')
@@ -45,14 +69,18 @@ export async function getJob(jobId: string): Promise<Job> {
   if (error) throw error;
   
   // Map upload_jobs to Job interface
+  const total = data.total_rows ?? 0;
+  const processed = data.processed_rows ?? 0;
+  const failed = data.status === 'FAILED' ? (total - processed) : 0;
+  
   return {
     id: data.id,
     user_id: data.user_id,
-    status: data.status as Job['status'],
+    status: mapUploadStatus(data.status),
     counts: {
-      total: data.total_rows ?? 0,
-      succeeded: data.processed_rows ?? 0,
-      failed: data.failed_rows ?? 0,
+      total,
+      succeeded: processed,
+      failed,
     },
     started_at: data.started_at,
     finished_at: data.finished_at,
@@ -63,7 +91,6 @@ export async function getJob(jobId: string): Promise<Job> {
 }
 
 export async function getJobEvents(jobId: string): Promise<JobEvent[]> {
-  // Construct events from job data
   const job = await getJob(jobId);
   
   const events: JobEvent[] = [];
@@ -113,56 +140,52 @@ export async function getJobResults(
   jobId: string, 
   options: { page: number; status?: string }
 ): Promise<{ items: JobResult[]; total: number }> {
-  const { page, status } = options;
+  const { page, status: filterStatus } = options;
   const pageSize = 50;
   const offset = (page - 1) * pageSize;
 
-  // Get properties from this upload job
-  const { data: properties, error } = await supabase
+  // Use any cast to avoid deep type instantiation issues with Supabase generated types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from('properties')
-    .select(`
-      id,
-      address,
-      city,
-      state,
-      zip,
-      snap_score,
-      updated_at
-    `)
+    .select('id, address, city, state, zip, snap_score, updated_at')
     .eq('upload_job_id', jobId)
-    .order('snap_score', { ascending: false, nullsFirst: false })
+    .order('snap_score', { ascending: false })
     .range(offset, offset + pageSize - 1);
 
   if (error) throw error;
 
+  const properties = (data ?? []) as PropertyRow[];
+
   // Get total count
-  const { count } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { count } = await (supabase as any)
     .from('properties')
     .select('*', { count: 'exact', head: true })
     .eq('upload_job_id', jobId);
 
   // Map properties to results
-  const items: JobResult[] = (properties ?? []).map(prop => ({
+  const items: JobResult[] = properties.map(prop => ({
     property_id: prop.id,
     address: prop.address,
     city: prop.city,
     state: prop.state,
     zip: prop.zip,
     snap_score: prop.snap_score,
-    status: prop.snap_score ? 'success' : 'no_match',
+    status: (prop.snap_score ? 'success' : 'no_match') as JobResult['status'],
     phones_found: 0,
     emails_found: 0,
     updated_at: prop.updated_at ?? new Date().toISOString(),
   }));
 
   // Filter by status if specified
-  const filteredItems = status && status !== 'all' 
-    ? items.filter(item => item.status === status)
+  const filteredItems = filterStatus && filterStatus !== 'all' 
+    ? items.filter(item => item.status === filterStatus)
     : items;
 
   return {
     items: filteredItems,
-    total: count ?? 0,
+    total: (count as number) ?? 0,
   };
 }
 
@@ -178,24 +201,19 @@ export async function getJobLedger(jobId: string) {
 }
 
 export async function exportJobCSV(jobId: string) {
-  // Get all properties from this job
-  const { data: properties, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: properties, error } = await (supabase as any)
     .from('properties')
-    .select(`
-      id,
-      address,
-      city,
-      state,
-      zip,
-      snap_score
-    `)
+    .select('id, address, city, state, zip, snap_score')
     .eq('upload_job_id', jobId);
 
   if (error) throw error;
 
+  const propList = (properties ?? []) as PropertyRow[];
+
   // Build CSV
   const headers = ['Address', 'City', 'State', 'Zip', 'Snap Score'];
-  const rows = (properties ?? []).map(r => [
+  const rows = propList.map(r => [
     r.address,
     r.city,
     r.state,

@@ -18,5 +18,39 @@ verify_jwt = true
 [functions.job-monitor]
 verify_jwt = true
 
+[functions.bulk-delete-properties]
+verify_jwt = true
+
+[functions.bulk-rescore]
+verify_jwt = true
+
+[functions.create-checkout-session]
+verify_jwt = true
+
+[functions.create-portal-session]
+verify_jwt = true
+
+[functions.delete-upload-job]
+verify_jwt = true
+
+[functions.refresh-outdated-insights]
+verify_jwt = true
+
+[functions.reprocess-upload-job]
+verify_jwt = true
+
+[functions.rerun-failed]
+verify_jwt = true
+
+[functions.send-user-invitation]
+verify_jwt = true
+
+[functions.backfill-property-aggregates]
+verify_jwt = true
+
+# Public endpoints - no JWT required
 [functions.weekly-digest]
+verify_jwt = false
+
+[functions.stripe-webhook]
 verify_jwt = false

@@ -181,10 +181,12 @@ export function AuthForm() {
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {showTabs && (
-            <TabsList className="grid w-full grid-cols-2 mx-6">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
+            <div className="px-6 pb-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="signin">Sign In</TabsTrigger>
+                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              </TabsList>
+            </div>
           )}
           
           <TabsContent value="signin">

@@ -45,12 +45,21 @@ export default function Auth() {
         const checkoutUrl = data?.checkout_url || data?.url;
         if (checkoutUrl) {
           console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
-          window.location.href = checkoutUrl;
+          // Use multiple redirect methods for better mobile support
+          try {
+            window.location.replace(checkoutUrl);
+          } catch {
+            window.location.href = checkoutUrl;
+          }
         } else {
-          console.error('[Auth] No checkout URL returned');
+          console.error('[Auth] No checkout URL returned:', data);
           setCheckoutError('Checkout unavailable. Please try again from the pricing page.');
           setRedirectingToCheckout(false);
         }
+      }).catch((err) => {
+        console.error('[Auth] Checkout network error:', err);
+        setCheckoutError('Network error. Please check your connection and try again.');
+        setRedirectingToCheckout(false);
       });
       
       return; // Don't do any other redirects while checkout is in progress
@@ -82,14 +91,15 @@ export default function Auth() {
     );
   }
 
-  // Show loading while redirecting to checkout
+  // Show "redirecting to checkout" message while Stripe session is being created
   if (redirectingToCheckout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-          <p className="text-muted-foreground">Setting up your subscription...</p>
-          <p className="text-xs text-muted-foreground">Redirecting to secure checkout...</p>
+        <div className="text-center space-y-4 p-8">
+          <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
+          <h2 className="text-lg font-semibold text-foreground">Setting up your subscription...</h2>
+          <p className="text-sm text-muted-foreground">Redirecting to secure checkout...</p>
+          <p className="text-xs text-muted-foreground mt-4">If you're not redirected in 5 seconds, <a href="/pricing" className="text-primary underline">click here</a>.</p>
         </div>
       </div>
     );

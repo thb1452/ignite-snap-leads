@@ -113,7 +113,7 @@ export default function Landing() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link to="/auth?mode=signin" className="hidden md:block">
+            <Link to="/auth?mode=signin">
               <Button variant="ghost" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface/50">
                 Sign In
               </Button>

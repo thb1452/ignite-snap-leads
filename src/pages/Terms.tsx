@@ -172,8 +172,15 @@ export default function Terms() {
           </section>
         </div>
 
-        <div className="mt-16 pt-8 border-t text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Snap Intelligence LLC. All rights reserved.
+        <div className="mt-16 pt-8 border-t">
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground mb-4">
+            <Link to="/privacy" className="hover:text-foreground transition">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-foreground transition">Terms of Service</Link>
+            <a href="mailto:support@snapignite.com" className="hover:text-foreground transition">Contact</a>
+          </div>
+          <p className="text-center text-sm text-muted-foreground">
+            © {new Date().getFullYear()} Snap Intelligence LLC. All rights reserved.
+          </p>
         </div>
       </div>
     </div>

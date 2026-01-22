@@ -1079,7 +1079,7 @@ export default function Landing() {
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-sm text-landing-text-muted">
-                <li><a href="#" className="hover:text-landing-text transition">Privacy Policy</a></li>
+                <li><Link to="/privacy" className="hover:text-landing-text transition">Privacy Policy</Link></li>
                 <li><a href="#" className="hover:text-landing-text transition">Terms of Service</a></li>
               </ul>
             </div>

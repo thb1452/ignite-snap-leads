@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FolderOpen, Settings as SettingsIcon } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserCredits } from "@/hooks/useUserProfile";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -86,11 +86,15 @@ export function AppLayout({ children }: AppLayoutProps) {
             >
               Buy Credits
             </Button>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleSignOut}
-              className="h-8 w-8 rounded-full bg-gradient-to-br from-brand/20 to-brand/40 hover:from-brand/30 hover:to-brand/50 transition-all"
-              title="Sign Out"
-            />
+              className="h-8 px-3 text-sm text-ink-500 hover:text-ink-900"
+            >
+              <LogOut className="h-4 w-4 mr-1.5" />
+              Sign Out
+            </Button>
           </div>
         </div>
       </header>

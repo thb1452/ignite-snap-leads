@@ -77,14 +77,14 @@ export function AppLayout({ children }: AppLayoutProps) {
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-ink-700 font-ui">
-              {credits ?? 0} credits
-            </span>
             <Button
+              variant="ghost"
               size="sm"
-              className="px-3 py-1.5 text-sm rounded-xl bg-brand text-white hover:bg-brand/90"
+              onClick={handleSignOut}
+              className="h-8 px-3 text-sm text-ink-500 hover:text-ink-900"
             >
-              Buy Credits
+              <LogOut className="h-4 w-4 mr-1.5" />
+              Sign Out
             </Button>
             <Button
               variant="ghost"

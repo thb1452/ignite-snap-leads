@@ -47,19 +47,24 @@ export function AuthForm() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   
-  // Determine initial tab based on mode param, invite token, or default to signin
-  const getInitialTab = () => {
+  // Determine tab based on mode param, invite token, or default to signin
+  const getTargetTab = () => {
     if (inviteToken) return 'signup';
     if (mode === 'signup') return 'signup';
     if (mode === 'signin') return 'signin';
     return 'signin'; // default
   };
   
-  const [activeTab, setActiveTab] = useState(getInitialTab());
+  const [activeTab, setActiveTab] = useState(getTargetTab());
   const { signIn, signUp, resetPassword } = useAuth();
   
   // Hide tabs when mode is explicitly set (cleaner UX)
   const showTabs = !mode && !inviteToken;
+
+  // Update active tab when URL params change
+  useEffect(() => {
+    setActiveTab(getTargetTab());
+  }, [mode, inviteToken]);
 
   const signInForm = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
@@ -92,10 +97,17 @@ export function AuthForm() {
   };
 
   const handleSignUp = async (data: SignUpFormData) => {
+    console.log('[AuthForm] handleSignUp called with:', { email: data.email, fullName: data.fullName });
     setIsLoading(true);
-    // Pass invite token to signUp if present
-    await signUp(data.email, data.password, data.fullName, inviteToken || undefined);
-    setIsLoading(false);
+    try {
+      // Pass invite token to signUp if present
+      const result = await signUp(data.email, data.password, data.fullName, inviteToken || undefined);
+      console.log('[AuthForm] signUp result:', result);
+    } catch (err) {
+      console.error('[AuthForm] signUp error:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResetPassword = async () => {

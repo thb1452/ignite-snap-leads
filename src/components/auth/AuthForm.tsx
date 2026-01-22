@@ -341,7 +341,12 @@ export function AuthForm() {
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col gap-3">
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isLoading}
+                  onClick={() => console.log('[AuthForm] Button clicked, form valid:', signUpForm.formState.isValid, 'errors:', signUpForm.formState.errors)}
+                >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {inviteToken 
                     ? 'Accept Invitation & Create Account' 

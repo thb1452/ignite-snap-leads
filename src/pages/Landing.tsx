@@ -113,7 +113,7 @@ export default function Landing() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link to="/auth" className="hidden md:block">
+            <Link to="/auth?mode=signin" className="hidden md:block">
               <Button variant="ghost" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface/50">
                 Sign In
               </Button>
@@ -783,7 +783,7 @@ export default function Landing() {
                   ))}
                 </ul>
                 
-                <Link to="/auth">
+                <Link to={`/auth?mode=signup&plan=${plan.name.toLowerCase()}`}>
                   <Button 
                     className={`w-full ${
                       plan.highlighted 

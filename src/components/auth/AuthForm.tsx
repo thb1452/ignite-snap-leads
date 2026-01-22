@@ -24,16 +24,42 @@ const signUpSchema = signInSchema.extend({
 type SignInFormData = z.infer<typeof signInSchema>;
 type SignUpFormData = z.infer<typeof signUpSchema>;
 
+const PLAN_DISPLAY_NAMES: Record<string, string> = {
+  starter: 'Starter',
+  professional: 'Professional', 
+  enterprise: 'Enterprise',
+};
+
+const PLAN_PRICES: Record<string, string> = {
+  starter: '$119',
+  professional: '$249',
+  enterprise: '$499',
+};
+
 export function AuthForm() {
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('invite');
   const inviteEmail = searchParams.get('email');
+  const mode = searchParams.get('mode'); // 'signin' or 'signup'
+  const selectedPlan = searchParams.get('plan'); // 'starter', 'professional', 'enterprise'
   
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-  const [activeTab, setActiveTab] = useState(inviteToken ? 'signup' : 'signin');
+  
+  // Determine initial tab based on mode param, invite token, or default to signin
+  const getInitialTab = () => {
+    if (inviteToken) return 'signup';
+    if (mode === 'signup') return 'signup';
+    if (mode === 'signin') return 'signin';
+    return 'signin'; // default
+  };
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab());
   const { signIn, signUp, resetPassword } = useAuth();
+  
+  // Hide tabs when mode is explicitly set (cleaner UX)
+  const showTabs = !mode && !inviteToken;
 
   const signInForm = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
@@ -81,18 +107,51 @@ export function AuthForm() {
     setResetEmail('');
   };
 
+  // Get the title and description based on context
+  const getHeaderContent = () => {
+    if (inviteToken) {
+      return {
+        title: "You're Invited!",
+        description: "Create your account to join the team."
+      };
+    }
+    if (mode === 'signup' && selectedPlan) {
+      const planName = PLAN_DISPLAY_NAMES[selectedPlan] || selectedPlan;
+      const planPrice = PLAN_PRICES[selectedPlan] || '';
+      return {
+        title: `Get Started with ${planName}`,
+        description: `Create your account to start your ${planName} plan${planPrice ? ` at ${planPrice}/month` : ''}.`
+      };
+    }
+    if (mode === 'signup') {
+      return {
+        title: "Create Your Account",
+        description: "Sign up to access enforcement intelligence."
+      };
+    }
+    if (mode === 'signin') {
+      return {
+        title: "Welcome Back",
+        description: "Sign in to your Snap Ignite account."
+      };
+    }
+    return {
+      title: "Snap Ignite",
+      description: "Access your violation leads dashboard."
+    };
+  };
+
+  const headerContent = getHeaderContent();
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
       <Card className="w-full max-w-md shadow-[var(--shadow-elegant)]">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold bg-[var(--gradient-primary)] bg-clip-text text-transparent">
-            Snap Ignite Demo
+            {headerContent.title}
           </CardTitle>
           <CardDescription>
-            {inviteToken 
-              ? "You've been invited! Create your account below."
-              : "Access your violation leads dashboard"
-            }
+            {headerContent.description}
           </CardDescription>
         </CardHeader>
 
@@ -106,12 +165,27 @@ export function AuthForm() {
             </Alert>
           </div>
         )}
+
+        {selectedPlan && mode === 'signup' && (
+          <div className="px-6 pb-2">
+            <Alert className="bg-brand/10 border-brand/20">
+              <AlertDescription className="text-center">
+                <span className="font-semibold text-brand">{PLAN_DISPLAY_NAMES[selectedPlan]}</span>
+                {PLAN_PRICES[selectedPlan] && (
+                  <span className="text-muted-foreground"> • {PLAN_PRICES[selectedPlan]}/month</span>
+                )}
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mx-6">
-            <TabsTrigger value="signin">Sign In</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
+          {showTabs && (
+            <TabsList className="grid w-full grid-cols-2 mx-6">
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+          )}
           
           <TabsContent value="signin">
             {showForgotPassword ? (
@@ -188,11 +262,19 @@ export function AuthForm() {
                     Forgot password?
                   </button>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="flex flex-col gap-3">
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign In
                   </Button>
+                  {mode === 'signin' && (
+                    <p className="text-xs text-center text-muted-foreground">
+                      Don't have an account?{' '}
+                      <a href="/auth?mode=signup" className="text-brand hover:underline">
+                        Sign up
+                      </a>
+                    </p>
+                  )}
                 </CardFooter>
               </form>
             )}
@@ -244,11 +326,24 @@ export function AuthForm() {
                   )}
                 </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex flex-col gap-3">
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {inviteToken ? 'Accept Invitation & Create Account' : 'Create Account'}
+                  {inviteToken 
+                    ? 'Accept Invitation & Create Account' 
+                    : selectedPlan 
+                      ? `Start ${PLAN_DISPLAY_NAMES[selectedPlan] || 'Your'} Plan`
+                      : 'Create Account'
+                  }
                 </Button>
+                {mode === 'signup' && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    Already have an account?{' '}
+                    <a href="/auth?mode=signin" className="text-brand hover:underline">
+                      Sign in
+                    </a>
+                  </p>
+                )}
               </CardFooter>
             </form>
           </TabsContent>

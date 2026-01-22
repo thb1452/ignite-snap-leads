@@ -167,6 +167,61 @@ export function SubscriptionSettings() {
   const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;
   const daysUntilRenewal = periodEnd ? Math.ceil((periodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
 
+  // No subscription state - show call to action
+  if (!subscription || !plan) {
+    return (
+      <div className="space-y-6">
+        <Card className="border-2 border-dashed border-muted-foreground/30">
+          <CardContent className="py-12 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
+              <Zap className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              No Active Subscription
+            </h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              Choose a plan to unlock enforcement intelligence and start finding motivated sellers.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button 
+                onClick={() => handleUpgrade('starter')}
+                variant="outline"
+                disabled={checkoutLoading === 'starter'}
+              >
+                {checkoutLoading === 'starter' ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Starter - $119/mo
+              </Button>
+              <Button 
+                onClick={() => handleUpgrade('professional')}
+                disabled={checkoutLoading === 'professional'}
+                className="bg-brand hover:bg-brand/90"
+              >
+                {checkoutLoading === 'professional' ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                Professional - $249/mo
+              </Button>
+              <Button 
+                onClick={() => handleUpgrade('enterprise')}
+                variant="outline"
+                disabled={checkoutLoading === 'enterprise'}
+              >
+                {checkoutLoading === 'enterprise' ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Enterprise - $499/mo
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Current Plan */}

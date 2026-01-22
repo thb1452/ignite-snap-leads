@@ -23,6 +23,7 @@ import AdminAssignCounties from "./pages/AdminAssignCounties";
 import ResetPassword from "./pages/ResetPassword";
 import HowSnapWorks from "./pages/HowSnapWorks";
 import Pricing from "./pages/Pricing";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 
@@ -121,6 +122,7 @@ const App = () => (
             </ProtectedRoute>
           } />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/privacy" element={<Privacy />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

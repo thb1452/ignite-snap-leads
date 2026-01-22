@@ -1190,6 +1190,7 @@ export type Database = {
           max_counties: number
           max_monthly_exports: number
           max_skip_traces_per_month: number
+          max_states: number | null
           max_user_seats: number
           name: string
           price_annual_cents: number
@@ -1213,6 +1214,7 @@ export type Database = {
           max_counties?: number
           max_monthly_exports?: number
           max_skip_traces_per_month?: number
+          max_states?: number | null
           max_user_seats?: number
           name: string
           price_annual_cents?: number
@@ -1236,6 +1238,7 @@ export type Database = {
           max_counties?: number
           max_monthly_exports?: number
           max_skip_traces_per_month?: number
+          max_states?: number | null
           max_user_seats?: number
           name?: string
           price_annual_cents?: number
@@ -1502,6 +1505,27 @@ export type Database = {
             referencedColumns: ["jurisdiction_id"]
           },
         ]
+      }
+      user_allowed_states: {
+        Row: {
+          created_at: string
+          id: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_invitations: {
         Row: {
@@ -2111,6 +2135,10 @@ export type Database = {
         }[]
       }
       fn_get_current_usage: { Args: { p_user_id: string }; Returns: Json }
+      fn_get_user_allowed_states: {
+        Args: { p_user_id?: string }
+        Returns: string[]
+      }
       fn_get_user_subscription: {
         Args: { p_user_id?: string }
         Returns: {
@@ -2227,6 +2255,8 @@ export type Database = {
         Args: { p_job_id: string; p_property_ids: string[]; p_reason: string }
         Returns: Json
       }
+      fn_update_user_states: { Args: { p_states: string[] }; Returns: Json }
+      fn_user_needs_state_selection: { Args: never; Returns: boolean }
       fn_violation_counts_by_area: {
         Args: { p_city?: string; p_state?: string }
         Returns: {

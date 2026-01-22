@@ -23,11 +23,13 @@ import { TimeFilter } from "@/components/leads/ScoreAndTimeFilter";
 import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
+import { StateSelectionModal } from "@/components/onboarding/StateSelectionModal";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
+import { useUserAllowedStates } from "@/hooks/useUserAllowedStates";
 import { exportFilteredCsv } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
 import { useMapMarkers } from "@/hooks/useMapMarkers";
@@ -44,7 +46,21 @@ function Leads() {
   const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
   const { plan, checkLimit } = useSubscription();
   const { hasFeature } = useSubscriptionGate({ showToast: false });
-
+  const { needsStateSelection, isLoading: isLoadingStates, refetch: refetchStates } = useUserAllowedStates();
+  
+  // State selection modal
+  const [showStateSelection, setShowStateSelection] = useState(false);
+  
+  // Show state selection modal when user hasn't selected states
+  useEffect(() => {
+    if (!isLoadingStates && needsStateSelection) {
+      // Small delay for better UX
+      const timer = setTimeout(() => {
+        setShowStateSelection(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [needsStateSelection, isLoadingStates]);
   // Pagination state
   const [page, setPage] = useState(1);
 
@@ -309,6 +325,15 @@ function Leads() {
         open={showOnboarding}
         onOpenChange={setShowOnboarding}
         onComplete={markOnboardingComplete}
+      />
+      
+      <StateSelectionModal
+        open={showStateSelection}
+        onOpenChange={setShowStateSelection}
+        onComplete={() => {
+          setShowStateSelection(false);
+          refetchStates();
+        }}
       />
 
       <UpgradePrompt

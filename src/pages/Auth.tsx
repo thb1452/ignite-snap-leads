@@ -21,12 +21,12 @@ export default function Auth() {
     // Not logged in - show auth form
     if (!user) return;
 
-    // CRITICAL: If user signed up with a plan, ALWAYS redirect to Stripe checkout first
-    // Do NOT let them access the app without paying
+    // CRITICAL: If user has a plan selected, ALWAYS redirect to Stripe checkout first
+    // This handles both fresh signups AND already-logged-in users clicking pricing buttons
     if (selectedPlan && !redirectingToCheckout) {
       setRedirectingToCheckout(true);
       
-      console.log('[Auth] User signed up with plan:', selectedPlan, '- redirecting to Stripe checkout');
+      console.log('[Auth] User with plan:', selectedPlan, '- redirecting to Stripe checkout');
       
       // Call Stripe checkout
       supabase.functions.invoke('create-checkout-session', {
@@ -57,18 +57,18 @@ export default function Auth() {
     }
 
     // For non-payment flows (no selectedPlan), do normal role-based redirect
-    if (roles.length > 0) {
+    // Only redirect if NOT in signup mode (let them complete signup first)
+    if (!mode && roles.length > 0) {
       if (roles.includes('va')) {
         navigate('/upload');
       } else if (roles.includes('admin')) {
         navigate('/leads');
       } else {
-        // For users with just 'user' role, send to settings 
-        // They'll see the subscription upgrade options there
-        navigate('/settings');
+        // For users with just 'user' role, send to leads (main app)
+        navigate('/leads');
       }
     }
-  }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout]);
+  }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode]);
 
   // Show loading while checking auth or redirecting to checkout
   if (loading) {

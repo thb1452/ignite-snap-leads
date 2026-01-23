@@ -9,7 +9,6 @@ export default function CheckoutSuccess() {
   const { user, loading: authLoading } = useAuth();
   const { plan, refetch, hasActiveSubscription } = useSubscription();
   const [pollingCount, setPollingCount] = useState(0);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [shouldRedirect, setShouldRedirect] = useState(false);
 
   // Set the pending flag immediately on mount
@@ -22,10 +21,9 @@ export default function CheckoutSuccess() {
   useEffect(() => {
     if (authLoading || !user) return;
 
-    // If we have an active subscription, show success and redirect
+    // If we have an active subscription, redirect
     if (hasActiveSubscription && plan?.name) {
       console.log('[CheckoutSuccess] Subscription confirmed:', plan.name);
-      setShowSuccess(true);
       setShouldRedirect(true);
       return;
     }
@@ -43,7 +41,6 @@ export default function CheckoutSuccess() {
     // After 15 seconds, redirect anyway - webhook might be delayed
     // The RoleProtectedRoute will continue polling
     console.log('[CheckoutSuccess] Max polls reached, redirecting anyway');
-    setShowSuccess(true);
     setShouldRedirect(true);
   }, [user, authLoading, plan, pollingCount, refetch, hasActiveSubscription]);
 
@@ -74,29 +71,22 @@ export default function CheckoutSuccess() {
     );
   }
 
+  // ALWAYS show "Payment Successful" since user is coming FROM Stripe
+  // They've already paid - we're just waiting for webhook confirmation
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
       <div className="text-center space-y-6 max-w-md">
-        {showSuccess ? (
-          <>
-            <div className="w-20 h-20 mx-auto rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">Payment Successful!</h1>
-            <p className="text-muted-foreground">
-              Thank you for subscribing to Snap Ignite. Redirecting to your dashboard...
-            </p>
-            <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary" />
-          </>
-        ) : (
-          <>
-            <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-            <h1 className="text-xl font-semibold text-foreground">Processing your payment...</h1>
-            <p className="text-sm text-muted-foreground">
-              Please wait while we confirm your subscription. ({pollingCount}/15)
-            </p>
-          </>
-        )}
+        <div className="w-20 h-20 mx-auto rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+          <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
+        </div>
+        <h1 className="text-2xl font-bold text-foreground">Payment Successful!</h1>
+        <p className="text-muted-foreground">
+          Activating your subscription...
+        </p>
+        <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+        <p className="text-xs text-muted-foreground">
+          This usually takes just a few seconds.
+        </p>
       </div>
     </div>
   );

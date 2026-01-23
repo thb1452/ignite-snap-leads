@@ -83,20 +83,30 @@ const PRICING_TIERS: PricingTier[] = [
 ];
 
 export default function Pricing() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [loading, setLoading] = useState<string | null>(null);
 
   const handleSelectPlan = async (tier: PricingTier) => {
+    // CRITICAL: Wait for auth to finish loading before making decisions
+    // This prevents false positives from stale sessions
+    if (authLoading) {
+      console.log('[Pricing] Auth still loading, waiting...');
+      return;
+    }
+    
     // CRITICAL: Require authentication BEFORE creating Stripe checkout
     // Anonymous users cannot have payments processed
     if (!user) {
+      console.log('[Pricing] No user, redirecting to signup with plan:', tier.name);
       // Store plan selection and redirect to auth with plan parameter
       // After signup, Auth.tsx will redirect to Stripe checkout
       navigate(`/auth?mode=signup&plan=${tier.name}`);
       return;
     }
+    
+    console.log('[Pricing] User authenticated, creating checkout for:', tier.name);
 
     setLoading(tier.name);
 

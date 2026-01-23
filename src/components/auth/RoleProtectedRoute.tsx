@@ -13,7 +13,7 @@ interface RoleProtectedRouteProps {
 export function RoleProtectedRoute({ 
   children, 
   allowedRoles,
-  redirectTo = '/va-dashboard'
+  redirectTo = '/leads'
 }: RoleProtectedRouteProps) {
   const { user, roles, loading, hasRole } = useAuth();
   const { plan, loading: subLoading, hasActiveSubscription, refetch } = useSubscription();
@@ -112,16 +112,17 @@ export function RoleProtectedRoute({
   // After 20s of polling, hasGivenUp is true - we trust they paid
   const grantAccessFromPayment = justPaid && (hasPaidSubscription || hasGivenUp);
 
+  // PAID USERS: Anyone with an active subscription can access admin-level routes
+  // This is because paying customers should have full platform access
+  if (hasPaidSubscription || grantAccessFromPayment) {
+    console.log('[RoleProtectedRoute] Granting access - paid user:', { hasPaidSubscription, grantAccessFromPayment });
+    return <>{children}</>;
+  }
+
   if (!hasRequiredRole) {
-    // If user has an active subscription OR just paid, grant admin access
-    if ((hasPaidSubscription || grantAccessFromPayment) && allowedRoles.includes('admin')) {
-      console.log('[RoleProtectedRoute] Granting access - paid user:', { hasPaidSubscription, grantAccessFromPayment });
-      return <>{children}</>;
-    }
-    
     // If user only has 'user' role and NO subscription AND didn't just pay
     // This is a new signup who hasn't completed payment
-    if (hasRole('user') && roles.length === 1 && !hasPaidSubscription && !justPaid) {
+    if (hasRole('user') && !hasPaidSubscription && !justPaid) {
       return (
         <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-4">
           <h1 className="text-2xl font-bold text-foreground">Welcome to Snap Ignite!</h1>

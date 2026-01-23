@@ -35,11 +35,18 @@ export function useProperties(page: number, pageSize: number, filters: unknown) 
     queryFn: async () => {
       console.log("[useProperties] Fetching page", page, "with filters:", JSON.stringify(parsed));
       const result = await fetchPropertiesPaged(page, pageSize, parsed);
-      console.log("[useProperties] Fetched", result.data?.length, "properties, total:", result.total);
+      console.log("[useProperties] Fetched", result.data?.length, "properties, total:", result.total, "dataTier:", result.dataTier);
       return result;
     },
     placeholderData: (prev) => prev,
     retry: 1,
     staleTime: 30000,
   });
+}
+
+// Export type for components that need it
+export interface PropertiesResult {
+  data: any[];
+  total: number;
+  dataTier: string | null;
 }

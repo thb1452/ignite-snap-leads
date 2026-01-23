@@ -18,8 +18,10 @@ export default function CheckoutSuccess() {
     // If we have an active plan (not null/undefined), show success and redirect
     if (plan && plan.name) {
       setShowSuccess(true);
+      // Set flag so RoleProtectedRoute knows user just paid
+      sessionStorage.setItem('snap_checkout_pending', 'true');
       const timer = setTimeout(() => {
-        navigate('/leads', { replace: true });
+        navigate('/leads?checkout=success', { replace: true });
       }, 2000);
       return () => clearTimeout(timer);
     }
@@ -36,8 +38,9 @@ export default function CheckoutSuccess() {
     // After 10 seconds, redirect anyway - webhook might be delayed
     // User can still access the app since payment is confirmed by Stripe
     setShowSuccess(true);
+    sessionStorage.setItem('snap_checkout_pending', 'true');
     const timer = setTimeout(() => {
-      navigate('/leads', { replace: true });
+      navigate('/leads?checkout=success', { replace: true });
     }, 2000);
     return () => clearTimeout(timer);
   }, [user, authLoading, plan, pollingCount, refetch, navigate]);

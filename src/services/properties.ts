@@ -73,10 +73,11 @@ export async function fetchPropertiesPaged(
     throw error;
   }
 
-  const result = data as { data: any[]; total: number; page: number; pageSize: number };
-  console.log("[fetchPropertiesPaged] Results:", result.data?.length, "properties, total:", result.total);
+  // RPC returns { items, total, page, page_size } - NOT { data }
+  const result = data as { items: any[]; total: number; page: number; page_size: number; allowed_states?: string[]; has_state_filter?: boolean; has_subscription?: boolean };
+  console.log("[fetchPropertiesPaged] Results:", result.items?.length, "properties, total:", result.total, "has_subscription:", result.has_subscription, "allowed_states:", result.allowed_states);
   
-  return { data: result.data ?? [], total: result.total ?? 0 };
+  return { data: result.items ?? [], total: result.total ?? 0 };
 }
 
 // Legacy function for complex filters (list filtering, multi-city, etc.)

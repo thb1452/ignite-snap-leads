@@ -58,12 +58,21 @@ export function MobilePropertyCard({
       className="relative bg-background border-b p-4 active:bg-accent/50 transition-colors"
       onClick={onClick}
     >
-      {/* SnapScore Badge - Top Right */}
-      <Badge
-        className={`absolute top-3 right-3 ${getScoreColor(property.snap_score)} text-sm font-bold px-2.5 py-1`}
-      >
-        {property.snap_score || 0}
-      </Badge>
+      {/* Badges - Top Right */}
+      <div className="absolute top-3 right-3 flex items-center gap-1.5">
+        {/* Water shutoff indicator */}
+        {property.enforcement_type === 'water_shutoff' && (
+          <Badge variant="outline" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200 px-1.5 py-0.5">
+            💧
+          </Badge>
+        )}
+        {/* SnapScore Badge */}
+        <Badge
+          className={`${getScoreColor(property.snap_score)} text-sm font-bold px-2.5 py-1`}
+        >
+          {property.snap_score || 0}
+        </Badge>
+      </div>
 
       <div className="flex items-start gap-3 pr-14">
         {/* Checkbox - Large tap target */}

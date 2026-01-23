@@ -15,18 +15,23 @@ export default function Auth() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'redirectingToCheckout:', redirectingToCheckout);
+    
     // Wait for auth loading to complete
     if (loading) return;
     
     // Not logged in - show auth form
-    if (!user) return;
+    if (!user) {
+      console.log('[Auth] No user, showing auth form');
+      return;
+    }
 
     // CRITICAL: If user has a plan selected, ALWAYS redirect to Stripe checkout first
     // This handles both fresh signups AND already-logged-in users clicking pricing buttons
     if (selectedPlan && !redirectingToCheckout) {
       setRedirectingToCheckout(true);
       
-      console.log('[Auth] User with plan:', selectedPlan, '- redirecting to Stripe checkout');
+      console.log('[Auth] User authenticated with plan:', selectedPlan, '- creating Stripe checkout session');
       
       // Call Stripe checkout
       supabase.functions.invoke('create-checkout-session', {
@@ -35,6 +40,8 @@ export default function Auth() {
           billing_cycle: 'monthly'
         }
       }).then(({ data, error }) => {
+        console.log('[Auth] Stripe response:', { data, error });
+        
         if (error) {
           console.error('[Auth] Checkout error:', error);
           setCheckoutError('Failed to start checkout. Please try again from the pricing page.');
@@ -66,8 +73,9 @@ export default function Auth() {
     }
 
     // For non-payment flows (no selectedPlan), do normal role-based redirect
-    // Only redirect if NOT in signup mode (let them complete signup first)
-    if (!mode && roles.length > 0) {
+    // Skip if we're showing the signup form with mode param
+    if (!mode && !selectedPlan && roles.length > 0) {
+      console.log('[Auth] No plan selected, doing role-based redirect. Roles:', roles);
       if (roles.includes('va')) {
         navigate('/upload');
       } else if (roles.includes('admin')) {

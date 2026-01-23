@@ -17,7 +17,7 @@ export default function Auth() {
   const [showAccountChoice, setShowAccountChoice] = useState(false);
 
   useEffect(() => {
-    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice);
+    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'mode:', mode, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice);
     
     // Wait for auth loading to complete
     if (loading) return;
@@ -28,25 +28,23 @@ export default function Auth() {
       return;
     }
 
-    // If user is logged in AND has a plan selected, show choice dialog
-    // Let them choose: continue with current account OR create new account
-    if (selectedPlan && !redirectingToCheckout && !showAccountChoice) {
+    // User is logged in! 
+    // CRITICAL FIX: Only show Stripe choice if user explicitly came from pricing (mode=signup + plan)
+    // If they're just logging in normally (no mode param), go straight to dashboard
+    const isFromPricing = mode === 'signup' && selectedPlan;
+    
+    if (isFromPricing && !redirectingToCheckout && !showAccountChoice) {
+      console.log('[Auth] User came from pricing with plan:', selectedPlan);
       setShowAccountChoice(true);
       return;
     }
 
-    // For non-payment flows (no selectedPlan), do normal role-based redirect
-    // Skip if we're showing the signup form with mode param
-    if (!mode && !selectedPlan && roles.length > 0) {
-      console.log('[Auth] No plan selected, doing role-based redirect. Roles:', roles);
-      // For new users without a special role, always go to leads
-      // Only VA-specific users go to VA dashboard
-      if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
-        navigate('/va-dashboard');
-      } else {
-        // Default: send everyone to leads (main app)
-        navigate('/leads');
-      }
+    // Normal login - go to dashboard immediately
+    console.log('[Auth] Normal login, redirecting to leads. Roles:', roles);
+    if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
+      navigate('/va-dashboard');
+    } else {
+      navigate('/leads');
     }
   }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice]);
 

@@ -24,25 +24,21 @@ export function RoleProtectedRoute({
   const [pollCount, setPollCount] = useState(0);
   const [hasGivenUp, setHasGivenUp] = useState(false);
   
-  // Check if user just came from checkout
+  // Check if user just came from checkout - ONLY trust URL param, NOT sessionStorage
+  // The sessionStorage flag caused issues where normal logins showed "Payment Successful"
   const checkoutSuccess = searchParams.get('checkout') === 'success';
-  const pendingFlag = typeof window !== 'undefined' 
-    ? sessionStorage.getItem('snap_checkout_pending') === 'true'
-    : false;
-  const justPaid = checkoutSuccess || pendingFlag;
+  
+  // CRITICAL: Only consider "justPaid" if the checkout param is in the URL
+  // Once they navigate away from /leads?checkout=success, they should NOT see payment screen again
+  const justPaid = checkoutSuccess;
 
-  // Derived state
+  // Derived state - only poll if we have the URL param AND no subscription yet
   const isPolling = justPaid && !hasActiveSubscription && !hasGivenUp && pollCount < 20;
   
   // Poll for subscription when user just paid but subscription not yet showing
   useEffect(() => {
-    // Only poll if we need to
+    // Only poll if we have the checkout URL param AND user is logged in AND no subscription yet
     if (!loading && !subLoading && user && justPaid && !hasActiveSubscription && !hasGivenUp) {
-      // Set the pending flag if we're on checkout success
-      if (checkoutSuccess) {
-        sessionStorage.setItem('snap_checkout_pending', 'true');
-      }
-      
       if (pollCount < 20) { // Poll for up to 20 seconds
         const timer = setTimeout(() => {
           console.log('[RoleProtectedRoute] Polling for subscription... attempt', pollCount + 1);
@@ -56,15 +52,7 @@ export function RoleProtectedRoute({
         setHasGivenUp(true);
       }
     }
-  }, [loading, subLoading, user, justPaid, hasActiveSubscription, pollCount, refetch, hasGivenUp, checkoutSuccess]);
-  
-  // Clear pending flag when subscription is confirmed
-  useEffect(() => {
-    if (hasActiveSubscription && pendingFlag) {
-      console.log('[RoleProtectedRoute] Subscription confirmed, clearing pending flag');
-      sessionStorage.removeItem('snap_checkout_pending');
-    }
-  }, [hasActiveSubscription, pendingFlag]);
+  }, [loading, subLoading, user, justPaid, hasActiveSubscription, pollCount, refetch, hasGivenUp]);
 
   // Wait for auth and subscription to load
   if (loading || subLoading) {

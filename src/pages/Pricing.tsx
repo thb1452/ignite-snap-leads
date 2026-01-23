@@ -89,9 +89,12 @@ export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
 
   const handleSelectPlan = async (tier: PricingTier) => {
+    // CRITICAL: Require authentication BEFORE creating Stripe checkout
+    // Anonymous users cannot have payments processed
     if (!user) {
-      navigate("/leads");
-      toast.error("Please sign in to select a plan");
+      // Store plan selection and redirect to auth with plan parameter
+      // After signup, Auth.tsx will redirect to Stripe checkout
+      navigate(`/auth?mode=signup&plan=${tier.name}`);
       return;
     }
 

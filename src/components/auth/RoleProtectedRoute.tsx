@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect, useCallback } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -15,7 +15,7 @@ export function RoleProtectedRoute({
   allowedRoles,
   redirectTo = '/leads'
 }: RoleProtectedRouteProps) {
-  const { user, roles, loading, hasRole } = useAuth();
+  const { user, loading, hasRole } = useAuth();
   const { plan, loading: subLoading, hasActiveSubscription, refetch } = useSubscription();
   const location = useLocation();
   const [searchParams] = useSearchParams();

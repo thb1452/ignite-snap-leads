@@ -1,5 +1,5 @@
 import { ReactNode, useState, useEffect } from 'react';
-import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Loader2, CheckCircle2 } from 'lucide-react';
@@ -19,27 +19,42 @@ export function RoleProtectedRoute({
   const { plan, loading: subLoading, hasActiveSubscription, refetch } = useSubscription();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   
   // Track subscription polling state
   const [pollCount, setPollCount] = useState(0);
   const [hasGivenUp, setHasGivenUp] = useState(false);
+  const [checkoutProcessed, setCheckoutProcessed] = useState(false);
   
-  // Check if user just came from checkout - ONLY trust URL param, NOT sessionStorage
-  // The sessionStorage flag caused issues where normal logins showed "Payment Successful"
+  // Check if user just came from checkout - ONLY trust URL param
   const checkoutSuccess = searchParams.get('checkout') === 'success';
   
-  // CRITICAL: Only consider "justPaid" if the checkout param is in the URL
-  // Once they navigate away from /leads?checkout=success, they should NOT see payment screen again
-  const justPaid = checkoutSuccess;
+  // Only consider "justPaid" if checkout param is present AND we haven't processed it yet
+  const justPaid = checkoutSuccess && !checkoutProcessed;
 
-  // Derived state - only poll if we have the URL param AND no subscription yet
-  const isPolling = justPaid && !hasActiveSubscription && !hasGivenUp && pollCount < 20;
+  // Clear the checkout param from URL after detecting it (prevents re-triggering on refresh)
+  useEffect(() => {
+    if (checkoutSuccess && !checkoutProcessed) {
+      // Mark as processed so we don't keep polling
+      setCheckoutProcessed(true);
+      
+      // Remove the checkout param from URL to prevent re-triggering
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('checkout');
+      const newUrl = newParams.toString() 
+        ? `${location.pathname}?${newParams.toString()}`
+        : location.pathname;
+      navigate(newUrl, { replace: true });
+    }
+  }, [checkoutSuccess, checkoutProcessed, searchParams, location.pathname, navigate]);
+
+  // Derived state - only poll if we detected checkout AND no subscription yet
+  const isPolling = checkoutProcessed && !hasActiveSubscription && !hasGivenUp && pollCount < 20;
   
   // Poll for subscription when user just paid but subscription not yet showing
   useEffect(() => {
-    // Only poll if we have the checkout URL param AND user is logged in AND no subscription yet
-    if (!loading && !subLoading && user && justPaid && !hasActiveSubscription && !hasGivenUp) {
-      if (pollCount < 20) { // Poll for up to 20 seconds
+    if (!loading && !subLoading && user && checkoutProcessed && !hasActiveSubscription && !hasGivenUp) {
+      if (pollCount < 20) {
         const timer = setTimeout(() => {
           console.log('[RoleProtectedRoute] Polling for subscription... attempt', pollCount + 1);
           refetch();
@@ -47,12 +62,11 @@ export function RoleProtectedRoute({
         }, 1000);
         return () => clearTimeout(timer);
       } else {
-        // After 20s, give up polling but STILL grant access
         console.log('[RoleProtectedRoute] Max polls reached, granting access anyway');
         setHasGivenUp(true);
       }
     }
-  }, [loading, subLoading, user, justPaid, hasActiveSubscription, pollCount, refetch, hasGivenUp]);
+  }, [loading, subLoading, user, checkoutProcessed, hasActiveSubscription, pollCount, refetch, hasGivenUp]);
 
   // Wait for auth and subscription to load
   if (loading || subLoading) {
@@ -96,21 +110,20 @@ export function RoleProtectedRoute({
   // Check if user has an active subscription (paid user)
   const hasPaidSubscription = hasActiveSubscription && plan?.name;
   
-  // CRITICAL: Grant access if user just paid, even if webhook hasn't processed yet
+  // CRITICAL: Grant access if user just paid (checkoutProcessed), even if webhook hasn't processed yet
   // After 20s of polling, hasGivenUp is true - we trust they paid
-  const grantAccessFromPayment = justPaid && (hasPaidSubscription || hasGivenUp);
+  const grantAccessFromPayment = checkoutProcessed && (hasPaidSubscription || hasGivenUp);
 
   // PAID USERS: Anyone with an active subscription can access admin-level routes
-  // This is because paying customers should have full platform access
   if (hasPaidSubscription || grantAccessFromPayment) {
     console.log('[RoleProtectedRoute] Granting access - paid user:', { hasPaidSubscription, grantAccessFromPayment });
     return <>{children}</>;
   }
 
   if (!hasRequiredRole) {
-    // If user only has 'user' role and NO subscription AND didn't just pay
+    // If user only has 'user' role and NO subscription AND didn't just complete checkout
     // This is a new signup who hasn't completed payment
-    if (hasRole('user') && !hasPaidSubscription && !justPaid) {
+    if (hasRole('user') && !hasPaidSubscription && !checkoutProcessed) {
       return (
         <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-4">
           <h1 className="text-2xl font-bold text-foreground">Welcome to Snap Ignite!</h1>

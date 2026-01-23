@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { LeadFilters } from "@/schemas";
-import { getCategoryById } from "@/utils/violationCategoryMapper";
 
 export interface MapMarker {
   id: string;
@@ -13,8 +12,7 @@ export interface MapMarker {
   state: string;
 }
 
-const BATCH_SIZE = 1000; // Supabase default limit
-const MAX_MARKERS = 200000;
+const MAX_MARKERS = 50000;
 
 // Clean filter object by removing undefined/null values
 function cleanFilters(filters: LeadFilters): LeadFilters {
@@ -34,95 +32,34 @@ function cleanFilters(filters: LeadFilters): LeadFilters {
 async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[]> {
   const filters = cleanFilters(rawFilters);
   console.log("[useMapMarkers] Fetching markers with filters:", JSON.stringify(filters));
-  const allMarkers: MapMarker[] = [];
-  let offset = 0;
-  let keepFetching = true;
 
-  while (keepFetching && allMarkers.length < MAX_MARKERS) {
-    let query = supabase
-      .from("properties")
-      .select("id, latitude, longitude, snap_score, address, city, state")
-      .not("latitude", "is", null)
-      .not("longitude", "is", null);
+  // Use the new RPC function that respects user_allowed_states
+  const { data, error } = await supabase.rpc("fn_map_markers", {
+    p_state: filters.state || null,
+    p_city: filters.cities?.length === 1 ? filters.cities[0] : null,
+    p_search: filters.search || null,
+    p_snap_min: filters.snapScoreRange?.[0] ?? null,
+    p_snap_max: filters.snapScoreRange?.[1] ?? null,
+    p_limit: MAX_MARKERS,
+  });
 
-    // Apply filters
-    if (filters.state) {
-      query = query.ilike("state", filters.state);
-    }
-
-    if (filters.county) {
-      query = query.ilike("county", `%${filters.county}%`);
-    }
-
-    if (filters.cities?.length) {
-      query = query.in("city", filters.cities);
-    }
-
-    if (filters.snapScoreRange) {
-      const [min, max] = filters.snapScoreRange;
-      query = query.gte("snap_score", min).lte("snap_score", max);
-    }
-
-    // Search across multiple columns
-    if (filters.search) {
-      const s = filters.search.trim();
-      query = query.or(`address.ilike.%${s}%,city.ilike.%${s}%,state.ilike.%${s}%,county.ilike.%${s}%,zip.ilike.%${s}%`);
-    }
-
-    // Jurisdiction filter (could be UUID or city|state format)
-    if (filters.jurisdictionId) {
-      if (filters.jurisdictionId.includes('|')) {
-        const [city, state] = filters.jurisdictionId.split('|');
-        query = query.ilike("city", city).ilike("state", state);
-      } else {
-        query = query.eq("jurisdiction_id", filters.jurisdictionId);
-      }
-    }
-
-    // Last seen days filter
-    if (filters.lastSeenDays) {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - filters.lastSeenDays);
-      query = query.gte("updated_at", cutoffDate.toISOString());
-    }
-
-    // Violation type filter (by category ID or raw type)
-    if (filters.violationType) {
-      const category = getCategoryById(filters.violationType);
-      if (category) {
-        // Use overlaps to check if any category keywords match
-        const keywordsToMatch = category.keywords
-          .filter(kw => !kw.match(/^\d/))
-          .slice(0, 5);
-        query = query.overlaps("violation_types", keywordsToMatch);
-      } else {
-        query = query.contains("violation_types", [filters.violationType]);
-      }
-    }
-
-    const { data, error } = await query
-      .order("snap_score", { ascending: false, nullsFirst: false })
-      .range(offset, offset + BATCH_SIZE - 1);
-
-    if (error) {
-      console.error("[useMapMarkers] Error fetching batch at offset", offset, error);
-      throw error;
-    }
-
-    const batchCount = data?.length ?? 0;
-    if (batchCount > 0) {
-      allMarkers.push(...(data as MapMarker[]));
-      console.log("[useMapMarkers] Fetched batch:", batchCount, "total so far:", allMarkers.length);
-      offset += BATCH_SIZE;
-      // Continue if we got a full batch (there might be more)
-      keepFetching = batchCount >= BATCH_SIZE;
-    } else {
-      keepFetching = false;
-    }
+  if (error) {
+    console.error("[useMapMarkers] RPC error:", error);
+    throw error;
   }
 
-  console.log("[useMapMarkers] Total markers fetched:", allMarkers.length);
-  return allMarkers;
+  // RPC returns { items: [], total: number }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = data as unknown as { items: MapMarker[] | null; total: number; error?: string };
+  
+  if (result.error) {
+    console.warn("[useMapMarkers] RPC returned error:", result.error);
+    return [];
+  }
+
+  const markers = result.items ?? [];
+  console.log("[useMapMarkers] Total markers fetched:", markers.length);
+  return markers;
 }
 
 export function useMapMarkers(filters: LeadFilters = {}) {

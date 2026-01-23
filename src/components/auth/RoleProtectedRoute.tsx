@@ -92,6 +92,10 @@ export function RoleProtectedRoute({
 
   // Check if user has an active subscription (paid user)
   const hasPaidSubscription = hasActiveSubscription && plan?.name;
+  
+  // CRITICAL: If user just paid, give them benefit of the doubt while webhook processes
+  // This prevents the "complete subscription" screen flash after successful payment
+  const isPendingPayment = justPaid && !hasActiveSubscription;
 
   if (!hasRequiredRole) {
     // If user has an active subscription, give them access to admin-level features
@@ -100,8 +104,30 @@ export function RoleProtectedRoute({
       return <>{children}</>;
     }
     
-    // If user only has 'user' role and NO active subscription (new signup without payment)
-    if (hasRole('user') && roles.length === 1 && !hasPaidSubscription) {
+    // If user JUST PAID but webhook hasn't processed yet, show loading not the error
+    if (isPendingPayment && allowedRoles.includes('admin')) {
+      console.log('[RoleProtectedRoute] User just paid, waiting for webhook to process');
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
+          <div className="text-center space-y-6 max-w-md">
+            <div className="w-20 h-20 mx-auto rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">Payment Successful!</h1>
+            <p className="text-muted-foreground">
+              Activating your subscription...
+            </p>
+            <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+            <p className="text-xs text-muted-foreground">
+              This usually takes just a few seconds.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    
+    // If user only has 'user' role and NO active subscription AND didn't just pay
+    if (hasRole('user') && roles.length === 1 && !hasPaidSubscription && !justPaid) {
       return (
         <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-4">
           <h1 className="text-2xl font-bold text-foreground">Welcome to Snap Ignite!</h1>

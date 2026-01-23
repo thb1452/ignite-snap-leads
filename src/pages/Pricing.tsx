@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Zap, TrendingUp, Building2, ArrowRight } from "lucide-react";
+import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets } from "lucide-react";
 
 interface PricingTier {
   id: string;
@@ -12,13 +12,13 @@ interface PricingTier {
   price_annual_cents_with_discount: number;
   description: string;
   features: string[];
-  max_jurisdictions: number;
-  max_monthly_exports: number;
+  notIncluded?: string[];
   icon: any;
   popular?: boolean;
+  highlight?: string;
 }
 
-// Hardcoded pricing tiers matching database plans
+// Updated pricing tiers - no state limits, data quality based
 const PRICING_TIERS: PricingTier[] = [
   {
     id: 'starter',
@@ -26,15 +26,20 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: 'Starter',
     price_monthly_cents: 11900,
     price_annual_cents_with_discount: 114000,
-    description: 'Perfect for investors getting started with distressed properties',
+    description: 'For focused local operators',
     features: [
-      'Up to 3 jurisdictions',
-      '2,500 CSV exports/month',
-      'Basic property intelligence',
+      '2,500 monthly exports',
+      'Basic code violations',
+      'Browse all 50 states',
+      'Basic SnapScore filtering',
+      'Weekly data refresh',
+      '1 user seat',
       'Email support',
     ],
-    max_jurisdictions: 3,
-    max_monthly_exports: 2500,
+    notIncluded: [
+      'No water shutoff data',
+      'No utility disconnection tracking',
+    ],
     icon: Zap,
     popular: false,
   },
@@ -44,18 +49,20 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: 'Professional',
     price_monthly_cents: 24900,
     price_annual_cents_with_discount: 239000,
-    description: 'For serious investors who want to dominate their markets',
+    description: 'For growing acquisition operations',
     features: [
-      'Up to 10 jurisdictions',
-      '10,000 CSV exports/month',
-      'Advanced Snap Score filtering',
-      'Escalation alerts',
-      'Priority support',
+      'Everything in Starter PLUS:',
+      '10,000 monthly exports',
+      '💧 Water shutoff alerts (PREMIUM DATA)',
+      'Advanced SnapScore AI filtering',
+      'Violation type filtering',
+      'Rolling 30-day intelligence',
+      '3 user seats',
+      'Priority email support',
     ],
-    max_jurisdictions: 10,
-    max_monthly_exports: 10000,
     icon: TrendingUp,
     popular: true,
+    highlight: 'Water shutoffs convert at 10x the rate of basic violations',
   },
   {
     id: 'enterprise',
@@ -63,17 +70,16 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: 'Enterprise',
     price_monthly_cents: 49900,
     price_annual_cents_with_discount: 479000,
-    description: 'Enterprise-grade intelligence for power users and teams',
+    description: 'For serious multi-market teams',
     features: [
-      'Unlimited jurisdictions',
-      '25,000 CSV exports/month',
-      'API access',
-      'Rolling intelligence updates',
+      'Everything in Professional PLUS:',
+      '25,000 monthly exports',
+      'All 50 states (900+ counties)',
+      'Full SnapScore AI suite',
+      'API access (coming soon)',
+      '10 user seats',
       'Dedicated account manager',
-      'Custom integrations',
     ],
-    max_jurisdictions: -1,
-    max_monthly_exports: 25000,
     icon: Building2,
     popular: false,
   },
@@ -119,7 +125,7 @@ export default function Pricing() {
             Track where cities are applying maximum pressure on property owners
           </p>
           <p className="text-sm text-muted-foreground">
-            Access to 400+ counties (growing weekly)
+            Access to 400+ counties across all 50 states (growing weekly)
           </p>
 
           {/* Billing Toggle */}
@@ -162,7 +168,7 @@ export default function Pricing() {
                 {tier.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
                     <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold shadow-md">
-                      Most Popular
+                      ⭐ Most Popular
                     </span>
                   </div>
                 )}
@@ -231,11 +237,79 @@ export default function Pricing() {
                         </li>
                       ))}
                     </ul>
+                    
+                    {/* Not included items */}
+                    {tier.notIncluded && tier.notIncluded.length > 0 && (
+                      <ul className="space-y-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                        {tier.notIncluded.map((item, index) => (
+                          <li key={index} className="flex items-start gap-3">
+                            <X className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
+                            <span className="text-sm leading-relaxed text-muted-foreground">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    
+                    {/* Highlight text for Pro tier */}
+                    {tier.highlight && (
+                      <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center gap-2">
+                          <Droplets className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                            {tier.highlight}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             );
           })}
+        </div>
+
+        {/* Water Shutoff Value Prop */}
+        <div className="max-w-3xl mx-auto mb-16">
+          <Card className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/20 dark:to-blue-950/20 border-cyan-200 dark:border-cyan-800">
+            <CardHeader>
+              <div className="flex items-center gap-3 justify-center">
+                <Droplets className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
+                <CardTitle className="text-2xl text-center">Why Water Shutoffs Matter</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-6 text-center">
+                <div>
+                  <div className="text-3xl font-bold text-cyan-600 dark:text-cyan-400 mb-2">
+                    10x
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Higher conversion rate vs basic violations
+                  </div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+                    30 days
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Average time to sale after shutoff
+                  </div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
+                    Maximum
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Seller motivation level
+                  </div>
+                </div>
+              </div>
+              <p className="text-center mt-6 text-muted-foreground">
+                Properties with utility disconnections represent the <span className="font-semibold text-foreground">highest-motivation sellers</span> in the market.
+                Professional and Enterprise plans include this premium data.
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* ROI Section */}
@@ -256,7 +330,7 @@ export default function Pricing() {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-                    $1,548
+                    $1,428
                   </div>
                   <div className="text-sm text-muted-foreground">
                     Annual cost (Starter tier)
@@ -264,7 +338,7 @@ export default function Pricing() {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
-                    6-9x ROI
+                    7x ROI
                   </div>
                   <div className="text-sm text-muted-foreground">
                     Return on one deal
@@ -272,7 +346,7 @@ export default function Pricing() {
                 </div>
               </div>
               <p className="text-center mt-6 text-muted-foreground">
-                If Snap helps you close <span className="font-semibold text-foreground">just ONE deal</span> this year, you've made your money back 6-9 times over.
+                If Snap helps you close <span className="font-semibold text-foreground">just ONE deal</span> this year, you've made your money back 7 times over.
               </p>
             </CardContent>
           </Card>
@@ -285,6 +359,19 @@ export default function Pricing() {
           </h2>
 
           <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">What's the difference between code violations and water shutoffs?</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  <strong>Code violations</strong> indicate properties where the city is applying enforcement pressure (tall grass, structural issues, permits, etc.).
+                  <strong> Water shutoffs</strong> are utility disconnections - these indicate <em>maximum</em> distress and typically result in 10x higher conversion rates.
+                  Professional and Enterprise plans include both data types.
+                </p>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">What are CSV exports?</CardTitle>
@@ -317,18 +404,6 @@ export default function Pricing() {
                 <p className="text-muted-foreground">
                   Strategic 60-90 day rotation across 400+ counties (expanding to 2,000+).
                   Each county refreshed 4-6 times annually - significantly better than quarterly batch providers like PropStream.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">What if my county isn't covered yet?</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Request it! We prioritize new county coverage based on user requests.
-                  We're adding 50-100 counties monthly. All paid subscribers can submit priority county requests.
                 </p>
               </CardContent>
             </Card>

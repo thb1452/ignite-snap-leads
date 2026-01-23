@@ -11,11 +11,8 @@ export default function CheckoutSuccess() {
   const [pollingCount, setPollingCount] = useState(0);
   const [shouldRedirect, setShouldRedirect] = useState(false);
 
-  // Set the pending flag immediately on mount
-  useEffect(() => {
-    sessionStorage.setItem('snap_checkout_pending', 'true');
-    console.log('[CheckoutSuccess] Set pending flag on mount');
-  }, []);
+  // NO LONGER using sessionStorage - it caused "Payment Successful" to show on normal logins
+  // The checkout flow now relies ONLY on the URL param ?checkout=success
 
   // Poll for subscription status (webhook may take a moment)
   useEffect(() => {

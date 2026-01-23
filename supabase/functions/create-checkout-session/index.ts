@@ -73,11 +73,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // ---- Stripe Price IDs (monthly) ----
+    // ---- Stripe Price IDs (TEST MODE - monthly) ----
     const STRIPE_PRICE_IDS: Record<string, string> = {
-      starter: "price_1SrpjRBg6vwuzzF00PoWxiH0",      // $119/mo
-      professional: "price_1SrpqDBg6vwuzzF0hhQOlyKx", // $249/mo
-      enterprise: "price_1Srps9Bg6vwuzzF0Hd0yY9RV",   // $499/mo
+      starter: "price_1SsY2PPfDZrVNjz5Y18AXZSt",      // $119/mo
+      professional: "price_1SsY3IPfDZrVNjz5VNXDhLnd", // $249/mo
+      enterprise: "price_1SsY45PfDZrVNjz5PRBs6vrR",   // $499/mo
     };
 
     const priceId = STRIPE_PRICE_IDS[tier_name.toLowerCase()];

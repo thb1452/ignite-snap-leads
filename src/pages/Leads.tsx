@@ -37,6 +37,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { ExportQuotaDisplay } from "@/components/leads/ExportQuotaDisplay";
+import { WaterShutoffUpgradeBanner } from "@/components/leads/WaterShutoffUpgradeBanner";
 
 const PAGE_SIZE = 50;
 
@@ -145,6 +146,7 @@ function Leads() {
   
   const properties = data?.data ?? [];
   const totalCount = data?.total ?? 0;
+  const dataTier = data?.dataTier ?? null;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const handleClearFilters = () => {
@@ -313,7 +315,8 @@ function Leads() {
         onComplete={markOnboardingComplete}
       />
       
-      {/* State selection removed - all users now see all properties */}
+      {/* Water shutoff upgrade banner for Starter users */}
+      <WaterShutoffUpgradeBanner dataTier={dataTier} />
 
       <UpgradePrompt
         open={showUpgradePrompt}

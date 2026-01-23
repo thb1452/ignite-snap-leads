@@ -73,11 +73,11 @@ export async function fetchPropertiesPaged(
     throw error;
   }
 
-  // RPC returns { items, total, page, page_size } - NOT { data }
-  const result = data as { items: any[]; total: number; page: number; page_size: number; allowed_states?: string[]; has_state_filter?: boolean; has_subscription?: boolean };
-  console.log("[fetchPropertiesPaged] Results:", result.items?.length, "properties, total:", result.total, "has_subscription:", result.has_subscription, "allowed_states:", result.allowed_states);
+  // RPC returns { items, total, page, page_size, data_tier } - NOT { data }
+  const result = data as { items: any[]; total: number; page: number; page_size: number; has_subscription?: boolean; data_tier?: string };
+  console.log("[fetchPropertiesPaged] Results:", result.items?.length, "properties, total:", result.total, "has_subscription:", result.has_subscription, "data_tier:", result.data_tier);
   
-  return { data: result.items ?? [], total: result.total ?? 0 };
+  return { data: result.items ?? [], total: result.total ?? 0, dataTier: result.data_tier ?? null };
 }
 
 // Legacy function for complex filters (list filtering, multi-city, etc.)
@@ -190,5 +190,7 @@ async function fetchPropertiesPagedLegacy(
     throw error;
   }
   
-  return { data: data ?? [], total: count ?? 0 };
+  // Legacy path doesn't have dataTier from RPC, so we set it as null
+  // In practice, legacy is only used for advanced filters by Pro+ users
+  return { data: data ?? [], total: count ?? 0, dataTier: null as string | null };
 }

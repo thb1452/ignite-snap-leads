@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/use-auth";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Zap, TrendingUp, Building2, ArrowRight } from "lucide-react";
-import { toast } from "sonner";
 
 interface PricingTier {
   id: string;
@@ -83,55 +80,14 @@ const PRICING_TIERS: PricingTier[] = [
 ];
 
 export default function Pricing() {
-  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
-  const [loading, setLoading] = useState<string | null>(null);
 
-  const handleSelectPlan = async (tier: PricingTier) => {
-    // CRITICAL: Wait for auth to finish loading before making decisions
-    // This prevents false positives from stale sessions
-    if (authLoading) {
-      console.log('[Pricing] Auth still loading, waiting...');
-      return;
-    }
-    
-    // CRITICAL: Require authentication BEFORE creating Stripe checkout
-    // Anonymous users cannot have payments processed
-    if (!user) {
-      console.log('[Pricing] No user, redirecting to signup with plan:', tier.name);
-      // Store plan selection and redirect to auth with plan parameter
-      // After signup, Auth.tsx will redirect to Stripe checkout
-      navigate(`/auth?mode=signup&plan=${tier.name}`);
-      return;
-    }
-    
-    console.log('[Pricing] User authenticated, creating checkout for:', tier.name);
-
-    setLoading(tier.name);
-
-    try {
-      // Create Stripe checkout session via edge function
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: {
-          tier_name: tier.name,
-          billing_cycle: billingCycle,
-        }
-      });
-
-      if (error) throw error;
-
-      // Redirect to Stripe checkout
-      if (data?.checkout_url) {
-        window.location.href = data.checkout_url;
-      } else {
-        throw new Error('No checkout URL returned');
-      }
-    } catch (error: any) {
-      console.error('Error creating checkout:', error);
-      toast.error(error.message || 'Failed to start checkout. Please try again.');
-      setLoading(null);
-    }
+  const handleSelectPlan = (tier: PricingTier) => {
+    // ALWAYS redirect to auth page with plan
+    // Auth page handles: signup if needed → Stripe checkout → onboarding → leads
+    console.log('[Pricing] Redirecting to auth with plan:', tier.name);
+    navigate(`/auth?mode=signup&plan=${tier.name}`);
   };
 
   const formatPrice = (cents: number) => {
@@ -251,7 +207,6 @@ export default function Pricing() {
                 <CardContent>
                   <Button
                     onClick={() => handleSelectPlan(tier)}
-                    disabled={loading === tier.name}
                     className={`w-full mb-6 transition-all ${
                       tier.popular
                         ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
@@ -260,14 +215,8 @@ export default function Pricing() {
                     variant={tier.popular ? "default" : "outline"}
                     size="lg"
                   >
-                    {loading === tier.name ? (
-                      "Loading..."
-                    ) : (
-                      <>
-                        Get Started
-                        <ArrowRight className="ml-2 w-4 h-4" />
-                      </>
-                    )}
+                    Get Started
+                    <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
 
                   <div className="space-y-4">

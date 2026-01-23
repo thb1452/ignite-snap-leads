@@ -2192,6 +2192,17 @@ export type Database = {
           state: string
         }[]
       }
+      fn_map_markers: {
+        Args: {
+          p_city?: string
+          p_limit?: number
+          p_search?: string
+          p_snap_max?: number
+          p_snap_min?: number
+          p_state?: string
+        }
+        Returns: Json
+      }
       fn_opportunity_funnel: {
         Args: never
         Returns: {

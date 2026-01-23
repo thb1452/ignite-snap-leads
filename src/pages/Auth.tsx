@@ -4,18 +4,20 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Auth() {
-  const { user, roles, loading } = useAuth();
+  const { user, roles, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const selectedPlan = searchParams.get('plan');
   const mode = searchParams.get('mode');
   const [redirectingToCheckout, setRedirectingToCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [showAccountChoice, setShowAccountChoice] = useState(false);
 
   useEffect(() => {
-    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'redirectingToCheckout:', redirectingToCheckout);
+    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice);
     
     // Wait for auth loading to complete
     if (loading) return;
@@ -26,50 +28,11 @@ export default function Auth() {
       return;
     }
 
-    // CRITICAL: If user has a plan selected, ALWAYS redirect to Stripe checkout first
-    // This handles both fresh signups AND already-logged-in users clicking pricing buttons
-    if (selectedPlan && !redirectingToCheckout) {
-      setRedirectingToCheckout(true);
-      
-      console.log('[Auth] User authenticated with plan:', selectedPlan, '- creating Stripe checkout session');
-      
-      // Call Stripe checkout
-      supabase.functions.invoke('create-checkout-session', {
-        body: { 
-          tier_name: selectedPlan,
-          billing_cycle: 'monthly'
-        }
-      }).then(({ data, error }) => {
-        console.log('[Auth] Stripe response:', { data, error });
-        
-        if (error) {
-          console.error('[Auth] Checkout error:', error);
-          setCheckoutError('Failed to start checkout. Please try again from the pricing page.');
-          setRedirectingToCheckout(false);
-          return;
-        }
-        
-        const checkoutUrl = data?.checkout_url || data?.url;
-        if (checkoutUrl) {
-          console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
-          // Use multiple redirect methods for better mobile support
-          try {
-            window.location.replace(checkoutUrl);
-          } catch {
-            window.location.href = checkoutUrl;
-          }
-        } else {
-          console.error('[Auth] No checkout URL returned:', data);
-          setCheckoutError('Checkout unavailable. Please try again from the pricing page.');
-          setRedirectingToCheckout(false);
-        }
-      }).catch((err) => {
-        console.error('[Auth] Checkout network error:', err);
-        setCheckoutError('Network error. Please check your connection and try again.');
-        setRedirectingToCheckout(false);
-      });
-      
-      return; // Don't do any other redirects while checkout is in progress
+    // If user is logged in AND has a plan selected, show choice dialog
+    // Let them choose: continue with current account OR create new account
+    if (selectedPlan && !redirectingToCheckout && !showAccountChoice) {
+      setShowAccountChoice(true);
+      return;
     }
 
     // For non-payment flows (no selectedPlan), do normal role-based redirect
@@ -85,15 +48,84 @@ export default function Auth() {
         navigate('/leads');
       }
     }
-  }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode]);
+  }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice]);
 
-  // Show loading while checking auth or redirecting to checkout
+  const handleContinueWithCurrentAccount = () => {
+    setShowAccountChoice(false);
+    setRedirectingToCheckout(true);
+    
+    console.log('[Auth] Continuing with current account, creating Stripe checkout for:', selectedPlan);
+    
+    supabase.functions.invoke('create-checkout-session', {
+      body: { 
+        tier_name: selectedPlan,
+        billing_cycle: 'monthly'
+      }
+    }).then(({ data, error }) => {
+      console.log('[Auth] Stripe response:', { data, error });
+      
+      if (error) {
+        console.error('[Auth] Checkout error:', error);
+        setCheckoutError('Failed to start checkout. Please try again from the pricing page.');
+        setRedirectingToCheckout(false);
+        return;
+      }
+      
+      const checkoutUrl = data?.checkout_url || data?.url;
+      if (checkoutUrl) {
+        console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
+        window.location.href = checkoutUrl;
+      } else {
+        console.error('[Auth] No checkout URL returned:', data);
+        setCheckoutError('Checkout unavailable. Please try again from the pricing page.');
+        setRedirectingToCheckout(false);
+      }
+    }).catch((err) => {
+      console.error('[Auth] Checkout network error:', err);
+      setCheckoutError('Network error. Please check your connection and try again.');
+      setRedirectingToCheckout(false);
+    });
+  };
+
+  const handleCreateNewAccount = async () => {
+    console.log('[Auth] User wants new account, signing out...');
+    await signOut();
+    setShowAccountChoice(false);
+    // After signout, the auth form will show automatically
+  };
+
+  // Show loading while checking auth
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
           <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show account choice when logged in user clicks a plan
+  if (showAccountChoice && user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
+        <div className="text-center space-y-6 max-w-md bg-card p-8 rounded-xl shadow-lg border">
+          <h2 className="text-2xl font-bold text-foreground">You're already signed in</h2>
+          <p className="text-muted-foreground">
+            You're signed in as <span className="font-medium text-foreground">{user.email}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Would you like to continue with this account or create a new one?
+          </p>
+          <div className="flex flex-col gap-3">
+            <Button onClick={handleContinueWithCurrentAccount} size="lg" className="w-full">
+              Continue with this account
+            </Button>
+            <Button onClick={handleCreateNewAccount} variant="outline" size="lg" className="w-full">
+              Create a new account
+            </Button>
+          </div>
         </div>
       </div>
     );

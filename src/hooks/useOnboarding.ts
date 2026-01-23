@@ -55,11 +55,13 @@ export function useOnboarding() {
     mutationFn: async () => {
       if (!user?.id) return;
       
-      // Update database
+      // Use upsert to handle case where profile doesn't exist yet
       const { error } = await supabase
         .from("user_profiles")
-        .update({ onboarding_completed: true })
-        .eq("user_id", user.id);
+        .upsert(
+          { user_id: user.id, onboarding_completed: true },
+          { onConflict: 'user_id' }
+        );
 
       if (error) {
         console.error("[useOnboarding] Error saving to DB:", error);

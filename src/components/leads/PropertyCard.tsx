@@ -108,6 +108,12 @@ export function PropertyCard({
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {/* Water shutoff indicator */}
+              {property.enforcement_type === 'water_shutoff' && (
+                <Badge variant="outline" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200">
+                  💧
+                </Badge>
+              )}
               {/* Contact indicator */}
               {(hasPhone || hasEmail) && (
                 <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">

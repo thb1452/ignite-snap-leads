@@ -52,15 +52,18 @@ function Leads() {
   const [showStateSelection, setShowStateSelection] = useState(false);
   
   // Show state selection modal when user hasn't selected states
+  // This takes priority over onboarding - onboarding shows after state selection
   useEffect(() => {
     if (!isLoadingStates && needsStateSelection) {
-      // Small delay for better UX
+      // Small delay for better UX - show after page loads
       const timer = setTimeout(() => {
         setShowStateSelection(true);
+        // Prevent onboarding from showing while state selection is open
+        setShowOnboarding(false);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [needsStateSelection, isLoadingStates]);
+  }, [needsStateSelection, isLoadingStates, setShowOnboarding]);
   // Pagination state
   const [page, setPage] = useState(1);
 

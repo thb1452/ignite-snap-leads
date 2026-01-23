@@ -7,47 +7,61 @@ import { useAuth } from "@/hooks/use-auth";
 export default function CheckoutSuccess() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { plan, loading: subLoading, refetch } = useSubscription();
+  const { plan, refetch, hasActiveSubscription } = useSubscription();
   const [pollingCount, setPollingCount] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+
+  // Set the pending flag immediately on mount
+  useEffect(() => {
+    sessionStorage.setItem('snap_checkout_pending', 'true');
+    console.log('[CheckoutSuccess] Set pending flag on mount');
+  }, []);
 
   // Poll for subscription status (webhook may take a moment)
   useEffect(() => {
     if (authLoading || !user) return;
 
-    // If we have an active plan (not null/undefined), show success and redirect
-    if (plan && plan.name) {
+    // If we have an active subscription, show success and redirect
+    if (hasActiveSubscription && plan?.name) {
+      console.log('[CheckoutSuccess] Subscription confirmed:', plan.name);
       setShowSuccess(true);
-      // Set flag so RoleProtectedRoute knows user just paid
-      sessionStorage.setItem('snap_checkout_pending', 'true');
-      const timer = setTimeout(() => {
-        navigate('/leads?checkout=success', { replace: true });
-      }, 2000);
-      return () => clearTimeout(timer);
+      setShouldRedirect(true);
+      return;
     }
 
-    // Poll up to 10 times (10 seconds) waiting for webhook
-    if (pollingCount < 10) {
+    // Poll up to 15 times (15 seconds) waiting for webhook
+    if (pollingCount < 15) {
       const timer = setTimeout(() => {
+        console.log('[CheckoutSuccess] Polling for subscription...', pollingCount + 1);
         refetch();
         setPollingCount(prev => prev + 1);
       }, 1000);
       return () => clearTimeout(timer);
     }
 
-    // After 10 seconds, redirect anyway - webhook might be delayed
-    // User can still access the app since payment is confirmed by Stripe
+    // After 15 seconds, redirect anyway - webhook might be delayed
+    // The RoleProtectedRoute will continue polling
+    console.log('[CheckoutSuccess] Max polls reached, redirecting anyway');
     setShowSuccess(true);
-    sessionStorage.setItem('snap_checkout_pending', 'true');
-    const timer = setTimeout(() => {
-      navigate('/leads?checkout=success', { replace: true });
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [user, authLoading, plan, pollingCount, refetch, navigate]);
+    setShouldRedirect(true);
+  }, [user, authLoading, plan, pollingCount, refetch, hasActiveSubscription]);
+
+  // Handle redirect separately to avoid multiple navigation calls
+  useEffect(() => {
+    if (shouldRedirect) {
+      const timer = setTimeout(() => {
+        console.log('[CheckoutSuccess] Navigating to /leads?checkout=success');
+        navigate('/leads?checkout=success', { replace: true });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldRedirect, navigate]);
 
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
+      console.log('[CheckoutSuccess] No user, redirecting to auth');
       navigate('/auth', { replace: true });
     }
   }, [user, authLoading, navigate]);
@@ -79,7 +93,7 @@ export default function CheckoutSuccess() {
             <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
             <h1 className="text-xl font-semibold text-foreground">Processing your payment...</h1>
             <p className="text-sm text-muted-foreground">
-              Please wait while we confirm your subscription.
+              Please wait while we confirm your subscription. ({pollingCount}/15)
             </p>
           </>
         )}

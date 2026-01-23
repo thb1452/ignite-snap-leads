@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useState, useEffect, useCallback } from 'react';
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -20,37 +20,51 @@ export function RoleProtectedRoute({
   const location = useLocation();
   const [searchParams] = useSearchParams();
   
-  // Track if we're waiting for subscription to propagate after checkout
-  const [isWaitingForSubscription, setIsWaitingForSubscription] = useState(false);
+  // Track subscription polling state
   const [pollCount, setPollCount] = useState(0);
+  const [hasGivenUp, setHasGivenUp] = useState(false);
   
   // Check if user just came from checkout
-  const justPaid = searchParams.get('checkout') === 'success' || 
-                   sessionStorage.getItem('snap_checkout_pending') === 'true';
+  const checkoutSuccess = searchParams.get('checkout') === 'success';
+  const pendingFlag = typeof window !== 'undefined' 
+    ? sessionStorage.getItem('snap_checkout_pending') === 'true'
+    : false;
+  const justPaid = checkoutSuccess || pendingFlag;
 
-  // If user just paid but subscription not showing, poll for it
+  // Derived state
+  const isPolling = justPaid && !hasActiveSubscription && !hasGivenUp && pollCount < 20;
+  
+  // Poll for subscription when user just paid but subscription not yet showing
   useEffect(() => {
-    if (!loading && !subLoading && user && justPaid && !hasActiveSubscription) {
-      setIsWaitingForSubscription(true);
-      sessionStorage.setItem('snap_checkout_pending', 'true');
+    // Only poll if we need to
+    if (!loading && !subLoading && user && justPaid && !hasActiveSubscription && !hasGivenUp) {
+      // Set the pending flag if we're on checkout success
+      if (checkoutSuccess) {
+        sessionStorage.setItem('snap_checkout_pending', 'true');
+      }
       
-      if (pollCount < 15) { // Poll for up to 15 seconds
+      if (pollCount < 20) { // Poll for up to 20 seconds
         const timer = setTimeout(() => {
+          console.log('[RoleProtectedRoute] Polling for subscription... attempt', pollCount + 1);
           refetch();
           setPollCount(prev => prev + 1);
         }, 1000);
         return () => clearTimeout(timer);
       } else {
-        // After 15s, clear flag and let them through anyway
-        sessionStorage.removeItem('snap_checkout_pending');
-        setIsWaitingForSubscription(false);
+        // After 20s, give up polling but STILL grant access
+        console.log('[RoleProtectedRoute] Max polls reached, granting access anyway');
+        setHasGivenUp(true);
       }
-    } else if (hasActiveSubscription && justPaid) {
-      // Subscription confirmed - clear the pending flag
-      sessionStorage.removeItem('snap_checkout_pending');
-      setIsWaitingForSubscription(false);
     }
-  }, [loading, subLoading, user, justPaid, hasActiveSubscription, pollCount, refetch]);
+  }, [loading, subLoading, user, justPaid, hasActiveSubscription, pollCount, refetch, hasGivenUp, checkoutSuccess]);
+  
+  // Clear pending flag when subscription is confirmed
+  useEffect(() => {
+    if (hasActiveSubscription && pendingFlag) {
+      console.log('[RoleProtectedRoute] Subscription confirmed, clearing pending flag');
+      sessionStorage.removeItem('snap_checkout_pending');
+    }
+  }, [hasActiveSubscription, pendingFlag]);
 
   // Wait for auth and subscription to load
   if (loading || subLoading) {
@@ -61,8 +75,8 @@ export function RoleProtectedRoute({
     );
   }
 
-  // Show waiting state while subscription propagates
-  if (isWaitingForSubscription && !hasActiveSubscription) {
+  // Show waiting state while polling for subscription
+  if (isPolling) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
         <div className="text-center space-y-6 max-w-md">
@@ -75,13 +89,14 @@ export function RoleProtectedRoute({
           </p>
           <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
           <p className="text-xs text-muted-foreground">
-            This usually takes just a few seconds.
+            This usually takes just a few seconds. ({pollCount}/20)
           </p>
         </div>
       </div>
     );
   }
 
+  // Not logged in
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
@@ -93,40 +108,19 @@ export function RoleProtectedRoute({
   // Check if user has an active subscription (paid user)
   const hasPaidSubscription = hasActiveSubscription && plan?.name;
   
-  // CRITICAL: If user just paid, give them benefit of the doubt while webhook processes
-  // This prevents the "complete subscription" screen flash after successful payment
-  const isPendingPayment = justPaid && !hasActiveSubscription;
+  // CRITICAL: Grant access if user just paid, even if webhook hasn't processed yet
+  // After 20s of polling, hasGivenUp is true - we trust they paid
+  const grantAccessFromPayment = justPaid && (hasPaidSubscription || hasGivenUp);
 
   if (!hasRequiredRole) {
-    // If user has an active subscription, give them access to admin-level features
-    // This handles the case where a paying user only has 'user' role
-    if (hasPaidSubscription && allowedRoles.includes('admin')) {
+    // If user has an active subscription OR just paid, grant admin access
+    if ((hasPaidSubscription || grantAccessFromPayment) && allowedRoles.includes('admin')) {
+      console.log('[RoleProtectedRoute] Granting access - paid user:', { hasPaidSubscription, grantAccessFromPayment });
       return <>{children}</>;
     }
     
-    // If user JUST PAID but webhook hasn't processed yet, show loading not the error
-    if (isPendingPayment && allowedRoles.includes('admin')) {
-      console.log('[RoleProtectedRoute] User just paid, waiting for webhook to process');
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
-          <div className="text-center space-y-6 max-w-md">
-            <div className="w-20 h-20 mx-auto rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">Payment Successful!</h1>
-            <p className="text-muted-foreground">
-              Activating your subscription...
-            </p>
-            <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-            <p className="text-xs text-muted-foreground">
-              This usually takes just a few seconds.
-            </p>
-          </div>
-        </div>
-      );
-    }
-    
-    // If user only has 'user' role and NO active subscription AND didn't just pay
+    // If user only has 'user' role and NO subscription AND didn't just pay
+    // This is a new signup who hasn't completed payment
     if (hasRole('user') && roles.length === 1 && !hasPaidSubscription && !justPaid) {
       return (
         <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-4">
@@ -134,7 +128,12 @@ export function RoleProtectedRoute({
           <p className="text-muted-foreground text-center max-w-md">
             Your account is set up. Please complete your subscription to access the full platform.
           </p>
-          <a href="/pricing" className="text-primary hover:underline">View Pricing Plans</a>
+          <a 
+            href="/pricing" 
+            className="inline-flex items-center justify-center px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition font-medium"
+          >
+            View Pricing Plans
+          </a>
         </div>
       );
     }

@@ -746,6 +746,7 @@ export type Database = {
           county: string | null
           created_at: string | null
           distress_signals: string[] | null
+          enforcement_type: string
           escalated: boolean | null
           geom: unknown
           id: string
@@ -777,6 +778,7 @@ export type Database = {
           county?: string | null
           created_at?: string | null
           distress_signals?: string[] | null
+          enforcement_type?: string
           escalated?: boolean | null
           geom?: unknown
           id?: string
@@ -808,6 +810,7 @@ export type Database = {
           county?: string | null
           created_at?: string | null
           distress_signals?: string[] | null
+          enforcement_type?: string
           escalated?: boolean | null
           geom?: unknown
           id?: string
@@ -1176,6 +1179,7 @@ export type Database = {
       subscription_plans: {
         Row: {
           created_at: string
+          data_tier: string
           description: string | null
           display_name: string
           features: Json | null
@@ -1200,6 +1204,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          data_tier?: string
           description?: string | null
           display_name: string
           features?: Json | null
@@ -1224,6 +1229,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          data_tier?: string
           description?: string | null
           display_name?: string
           features?: Json | null

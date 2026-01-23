@@ -10,6 +10,7 @@ export interface MapMarker {
   address: string;
   city: string;
   state: string;
+  enforcement_type?: string; // 'code_violation' or 'water_shutoff'
 }
 
 const MAX_MARKERS = 50000;

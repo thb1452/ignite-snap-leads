@@ -2,12 +2,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Building2, CreditCard, User, Crown, Settings as SettingsIcon, Bell, MapPin } from 'lucide-react';
+import { Building2, CreditCard, User, Crown, Settings as SettingsIcon, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
 import { SubscriptionSettings } from '@/components/subscription/SubscriptionSettings';
 import { EmailPreferencesCard } from '@/components/settings/EmailPreferencesCard';
-import { StateSelectionCard } from '@/components/settings/StateSelectionCard';
+// State selection removed - all users now see all properties
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -40,7 +40,7 @@ export function Settings() {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full max-w-4xl grid-cols-6">
+          <TabsList className="grid w-full max-w-4xl grid-cols-5">
             <TabsTrigger value="organization" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">Organization</span>
@@ -49,10 +49,7 @@ export function Settings() {
               <Crown className="h-4 w-4" />
               <span className="hidden sm:inline">Subscription</span>
             </TabsTrigger>
-            <TabsTrigger value="states" className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              <span className="hidden sm:inline">States</span>
-            </TabsTrigger>
+            {/* States tab removed - all users see all properties */}
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">Notifications</span>
@@ -72,10 +69,7 @@ export function Settings() {
             <SubscriptionSettings />
           </TabsContent>
 
-          {/* States Tab */}
-          <TabsContent value="states">
-            <StateSelectionCard />
-          </TabsContent>
+          {/* States Tab removed - all users see all properties */}
 
           {/* Notifications Tab */}
           <TabsContent value="notifications" className="space-y-6">

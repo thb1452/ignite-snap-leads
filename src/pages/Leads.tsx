@@ -23,13 +23,13 @@ import { TimeFilter } from "@/components/leads/ScoreAndTimeFilter";
 import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
-import { StateSelectionModal } from "@/components/onboarding/StateSelectionModal";
+// State selection removed - all users now see all properties
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
-import { useUserAllowedStates } from "@/hooks/useUserAllowedStates";
+// useUserAllowedStates removed - no longer needed
 import { exportFilteredCsv } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
 import { useMapMarkers } from "@/hooks/useMapMarkers";
@@ -46,24 +46,7 @@ function Leads() {
   const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
   const { plan, checkLimit } = useSubscription();
   const { hasFeature } = useSubscriptionGate({ showToast: false });
-  const { needsStateSelection, isLoading: isLoadingStates, refetch: refetchStates } = useUserAllowedStates();
-  
-  // State selection modal
-  const [showStateSelection, setShowStateSelection] = useState(false);
-  
-  // Show state selection modal when user hasn't selected states
-  // This takes priority over onboarding - onboarding shows after state selection
-  useEffect(() => {
-    if (!isLoadingStates && needsStateSelection) {
-      // Small delay for better UX - show after page loads
-      const timer = setTimeout(() => {
-        setShowStateSelection(true);
-        // Prevent onboarding from showing while state selection is open
-        setShowOnboarding(false);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [needsStateSelection, isLoadingStates, setShowOnboarding]);
+  // State selection removed - all users now see all properties across all states
   // Pagination state
   const [page, setPage] = useState(1);
 
@@ -330,14 +313,7 @@ function Leads() {
         onComplete={markOnboardingComplete}
       />
       
-      <StateSelectionModal
-        open={showStateSelection}
-        onOpenChange={setShowStateSelection}
-        onComplete={() => {
-          setShowStateSelection(false);
-          refetchStates();
-        }}
-      />
+      {/* State selection removed - all users now see all properties */}
 
       <UpgradePrompt
         open={showUpgradePrompt}

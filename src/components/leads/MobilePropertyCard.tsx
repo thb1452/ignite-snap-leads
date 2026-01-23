@@ -27,6 +27,7 @@ interface MobilePropertyCardProps {
     total_violations?: number | null;
     open_violations?: number | null;
     violation_types?: string[] | null;
+    enforcement_type?: string; // 'code_violation' or 'water_shutoff'
   };
   isSelected: boolean;
   onToggleSelect: (id: string) => void;

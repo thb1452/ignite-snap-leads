@@ -76,12 +76,12 @@ export default function Auth() {
     // Skip if we're showing the signup form with mode param
     if (!mode && !selectedPlan && roles.length > 0) {
       console.log('[Auth] No plan selected, doing role-based redirect. Roles:', roles);
-      if (roles.includes('va')) {
-        navigate('/upload');
-      } else if (roles.includes('admin')) {
-        navigate('/leads');
+      // For new users without a special role, always go to leads
+      // Only VA-specific users go to VA dashboard
+      if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
+        navigate('/va-dashboard');
       } else {
-        // For users with just 'user' role, send to leads (main app)
+        // Default: send everyone to leads (main app)
         navigate('/leads');
       }
     }

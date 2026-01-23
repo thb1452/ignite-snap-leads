@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/use-auth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Loader2 } from 'lucide-react';
 
 interface RoleProtectedRouteProps {
@@ -15,9 +16,11 @@ export function RoleProtectedRoute({
   redirectTo = '/va-dashboard'
 }: RoleProtectedRouteProps) {
   const { user, roles, loading, hasRole } = useAuth();
+  const { plan, loading: subLoading, hasActiveSubscription } = useSubscription();
   const location = useLocation();
 
-  if (loading) {
+  // Wait for both auth and subscription to load
+  if (loading || subLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -33,16 +36,25 @@ export function RoleProtectedRoute({
   const isAdmin = hasRole('admin');
   const hasRequiredRole = isAdmin || allowedRoles.some(role => hasRole(role));
 
+  // Check if user has an active subscription (paid user)
+  const hasPaidSubscription = hasActiveSubscription && plan?.name;
+
   if (!hasRequiredRole) {
-    // If user only has 'user' role (new signup), redirect to settings
-    if (hasRole('user') && roles.length === 1) {
+    // If user has an active subscription, give them access to admin-level features
+    // This handles the case where a paying user only has 'user' role
+    if (hasPaidSubscription && allowedRoles.includes('admin')) {
+      return <>{children}</>;
+    }
+    
+    // If user only has 'user' role and NO active subscription (new signup without payment)
+    if (hasRole('user') && roles.length === 1 && !hasPaidSubscription) {
       return (
         <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-4">
           <h1 className="text-2xl font-bold text-foreground">Welcome to Snap Ignite!</h1>
           <p className="text-muted-foreground text-center max-w-md">
             Your account is set up. Please complete your subscription to access the full platform.
           </p>
-          <a href="/settings" className="text-primary hover:underline">Go to Settings</a>
+          <a href="/pricing" className="text-primary hover:underline">View Pricing Plans</a>
         </div>
       );
     }

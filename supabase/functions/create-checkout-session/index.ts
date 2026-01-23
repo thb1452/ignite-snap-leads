@@ -119,7 +119,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `${appUrl}/leads?checkout=success`,
+      success_url: `${appUrl}/checkout/success`,
       cancel_url: `${appUrl}/pricing?canceled=true`,
       metadata: {
         user_id: user.id,

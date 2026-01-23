@@ -27,6 +27,7 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import CheckoutSuccess from "./pages/CheckoutSuccess";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/upload" element={
             <RoleProtectedRoute allowedRoles={['admin', 'va']}>

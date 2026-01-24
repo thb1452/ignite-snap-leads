@@ -6,17 +6,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// CLEAN FIELDS ONLY - Never export raw_description or inspector notes
+// CLEAN FIELDS ONLY - Aggregated property-level export
+// One row per property with violation data aggregated
 const CLEAN_EXPORT_COLUMNS = [
   'address',
   'city', 
   'state',
   'zip',
-  'violation_type',
-  'opened_date',
-  'status',
+  'snap_score',
   'snap_summary',
-  'snap_score'
+  'violation_count',
+  'open_violation_count',
+  'violation_types',
+  'earliest_violation_date',
+  'latest_violation_date'
 ];
 
 serve(async (req) => {
@@ -169,57 +172,72 @@ serve(async (req) => {
 
     console.log(`[export-csv] Exporting ${allData.length} properties for user ${user.id}`);
 
-    // Flatten data for CSV - one row per property with primary violation info
+    // FIXED: One row per property with aggregated violations
+    // Previously: iterated through each violation creating duplicate property rows
+    // Now: aggregate all violation data into single columns per property
     const csvRows: string[] = [];
     
-    // Header row - CLEAN FIELDS ONLY
+    // Header row - aggregated property-level columns
     csvRows.push(CLEAN_EXPORT_COLUMNS.join(','));
 
     for (const property of allData) {
       const violations = property.violations || [];
       
-      // If property has violations, create one row per violation
-      if (violations.length > 0) {
-        for (const violation of violations) {
-          const row = [
-            escapeCSV(property.address || ''),
-            escapeCSV(property.city || ''),
-            escapeCSV(property.state || ''),
-            escapeCSV(property.zip || ''),
-            escapeCSV(violation.violation_type || ''),
-            escapeCSV(violation.opened_date || ''),
-            escapeCSV(normalizeStatus(violation.status)),
-            escapeCSV(property.snap_insight || ''),  // Use snap_insight consistently
-            property.snap_score?.toString() || ''
-          ];
-          csvRows.push(row.join(','));
-        }
-      } else {
-        // No violations - still export property
-        const row = [
-          escapeCSV(property.address || ''),
-          escapeCSV(property.city || ''),
-          escapeCSV(property.state || ''),
-          escapeCSV(property.zip || ''),
-          '',  // violation_type
-          '',  // opened_date
-          '',  // status
-          escapeCSV(property.snap_insight || ''),
-          property.snap_score?.toString() || ''
-        ];
-        csvRows.push(row.join(','));
-      }
+      // Aggregate violation data
+      const violationCount = violations.length;
+      const openViolationCount = violations.filter((v: any) => 
+        ['Open', 'Pending', 'Active', 'In Progress', 'New'].some(s => 
+          (v.status || '').toLowerCase().includes(s.toLowerCase())
+        )
+      ).length;
+      
+      // Get unique violation types
+      const uniqueTypes = [...new Set(violations
+        .map((v: any) => v.violation_type)
+        .filter(Boolean)
+      )].join('; ');
+      
+      // Get date range
+      const dates = violations
+        .map((v: any) => v.opened_date)
+        .filter(Boolean)
+        .sort();
+      const earliestDate = dates[0] || '';
+      const latestDate = dates[dates.length - 1] || '';
+      
+      // ONE row per property with aggregated data
+      const row = [
+        escapeCSV(property.address || ''),
+        escapeCSV(property.city || ''),
+        escapeCSV(property.state || ''),
+        escapeCSV(property.zip || ''),
+        property.snap_score?.toString() || '',
+        escapeCSV(property.snap_insight || ''),
+        violationCount.toString(),
+        openViolationCount.toString(),
+        escapeCSV(uniqueTypes),
+        escapeCSV(earliestDate),
+        escapeCSV(latestDate)
+      ];
+      csvRows.push(row.join(','));
     }
 
-    const csvContent = csvRows.join('\n');
+    // Defensive check: exported rows should equal properties count + 1 header
+    const expectedRows = allData.length + 1;
+    if (csvRows.length !== expectedRows) {
+      console.error(`[export-csv] ROW COUNT MISMATCH: expected ${expectedRows}, got ${csvRows.length}`);
+    }
 
-    console.log('[export-csv] Export complete, rows:', csvRows.length - 1);
+    console.log('[export-csv] Export complete - properties:', allData.length, 'rows:', csvRows.length - 1);
+
+    const csvContent = csvRows.join('\n');
 
     return new Response(csvContent, {
       headers: {
         ...corsHeaders,
         'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="snapignite_export_${Date.now()}.csv"`
+        'Content-Disposition': `attachment; filename="snapignite_export_${Date.now()}.csv"`,
+        'X-Export-Property-Count': allData.length.toString()
       }
     });
 
@@ -240,22 +258,4 @@ function escapeCSV(value: string): string {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;
-}
-
-// Normalize status to Open/Closed/Unknown
-function normalizeStatus(status: string): string {
-  if (!status) return 'Unknown';
-  const s = status.toLowerCase();
-  
-  if (s.includes('open') || s.includes('pending') || s.includes('active') || 
-      s.includes('in progress') || s.includes('new')) {
-    return 'Open';
-  }
-  
-  if (s.includes('closed') || s.includes('resolved') || s.includes('complete') ||
-      s.includes('complied') || s.includes('dismissed') || s.includes('abated')) {
-    return 'Closed';
-  }
-  
-  return 'Unknown';
 }

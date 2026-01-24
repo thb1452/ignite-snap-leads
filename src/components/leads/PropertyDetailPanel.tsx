@@ -375,7 +375,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           open={addToListOpen}
           onOpenChange={setAddToListOpen}
           propertyIds={[property.id]}
-          userLists={[]}
           onSuccess={() => setAddToListOpen(false)}
         />
       </SheetContent>

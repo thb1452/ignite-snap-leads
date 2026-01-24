@@ -711,7 +711,6 @@ function Leads() {
         open={showAddToListDialog}
         onOpenChange={setShowAddToListDialog}
         propertyIds={selectedIds}
-        userLists={[]}
         onSuccess={() => {
           setSelectedIds([]);
           setShowAddToListDialog(false);

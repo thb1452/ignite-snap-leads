@@ -118,7 +118,7 @@ async function geocodeAddress(
   } catch (error) {
     console.error(`[Mapbox ERROR] ${fullAddress}:`, {
       error: error instanceof Error ? error.message : String(error),
-      type: error?.name
+      type: error instanceof Error ? error.name : 'Unknown'
     });
     return { latitude: null, longitude: null, skipped: false };
   }
@@ -342,8 +342,8 @@ serve(async (req: Request) => {
       })();
       
       // @ts-ignore - EdgeRuntime.waitUntil is available in Supabase Edge Functions
-      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
-        EdgeRuntime.waitUntil(selfInvokePromise);
+      if (typeof (globalThis as any).EdgeRuntime !== 'undefined' && (globalThis as any).EdgeRuntime.waitUntil) {
+        (globalThis as any).EdgeRuntime.waitUntil(selfInvokePromise);
       }
     }
 

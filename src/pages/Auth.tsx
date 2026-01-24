@@ -1,10 +1,13 @@
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// Session key to track if user was logged in when page loaded
+const SESSION_KEY_WAS_LOGGED_IN = 'snap_auth_was_logged_in';
 
 export default function Auth() {
   const { user, roles, loading, signOut } = useAuth();
@@ -15,9 +18,22 @@ export default function Auth() {
   const [redirectingToCheckout, setRedirectingToCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [showAccountChoice, setShowAccountChoice] = useState(false);
+  
+  // Track if user was already logged in when they first landed on this page
+  // This is captured ONCE on initial load and never changes
+  const wasLoggedInOnMount = useRef<boolean | null>(null);
+  
+  // Capture initial auth state on first load (before auth finishes loading)
+  useEffect(() => {
+    if (wasLoggedInOnMount.current === null && !loading) {
+      // Capture whether user was logged in when they first arrived
+      wasLoggedInOnMount.current = !!user;
+      console.log('[Auth] Captured initial auth state - wasLoggedIn:', wasLoggedInOnMount.current);
+    }
+  }, [loading, user]);
 
   useEffect(() => {
-    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'mode:', mode, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice);
+    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'mode:', mode, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice, 'wasLoggedInOnMount:', wasLoggedInOnMount.current);
     
     // Wait for auth loading to complete
     if (loading) return;
@@ -29,14 +45,23 @@ export default function Auth() {
     }
 
     // User is logged in! 
-    // CRITICAL FIX: Only show Stripe choice if user explicitly came from pricing (mode=signup + plan)
-    // If they're just logging in normally (no mode param), go straight to dashboard
     const isFromPricing = mode === 'signup' && selectedPlan;
     
+    // CRITICAL FIX: Distinguish between:
+    // 1. User was already logged in when they clicked a plan button → Show account choice
+    // 2. User just signed up from the pricing flow → Go directly to checkout
     if (isFromPricing && !redirectingToCheckout && !showAccountChoice) {
-      console.log('[Auth] User came from pricing with plan:', selectedPlan);
-      setShowAccountChoice(true);
-      return;
+      if (wasLoggedInOnMount.current === true) {
+        // User was already logged in when they clicked the plan - show choice
+        console.log('[Auth] Already logged-in user came from pricing, showing account choice');
+        setShowAccountChoice(true);
+        return;
+      } else {
+        // User just signed up - go directly to checkout
+        console.log('[Auth] Fresh signup from pricing, redirecting to checkout immediately');
+        handleDirectCheckout();
+        return;
+      }
     }
 
     // Normal login - go to dashboard immediately
@@ -47,10 +72,62 @@ export default function Auth() {
       navigate('/leads');
     }
   }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice]);
+  
+  // Direct checkout function for fresh signups
+  const handleDirectCheckout = () => {
+    if (redirectingToCheckout) return;
+    setRedirectingToCheckout(true);
+    
+    // Mark that checkout is pending (prevents "complete subscription" screen from showing)
+    try {
+      sessionStorage.setItem('snap_pending_checkout', 'true');
+    } catch (e) {
+      console.warn('[Auth] Failed to set pending checkout flag:', e);
+    }
+    
+    console.log('[Auth] Direct checkout for fresh signup, plan:', selectedPlan);
+    
+    supabase.functions.invoke('create-checkout-session', {
+      body: { 
+        tier_name: selectedPlan,
+        billing_cycle: 'monthly'
+      }
+    }).then(({ data, error }) => {
+      console.log('[Auth] Stripe response:', { data, error });
+      
+      if (error) {
+        console.error('[Auth] Checkout error:', error);
+        setCheckoutError('Failed to start checkout. Please try again from the pricing page.');
+        setRedirectingToCheckout(false);
+        return;
+      }
+      
+      const checkoutUrl = data?.checkout_url || data?.url;
+      if (checkoutUrl) {
+        console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
+        window.location.href = checkoutUrl;
+      } else {
+        console.error('[Auth] No checkout URL returned:', data);
+        setCheckoutError('Checkout unavailable. Please try again from the pricing page.');
+        setRedirectingToCheckout(false);
+      }
+    }).catch((err) => {
+      console.error('[Auth] Checkout network error:', err);
+      setCheckoutError('Network error. Please check your connection and try again.');
+      setRedirectingToCheckout(false);
+    });
+  };
 
   const handleContinueWithCurrentAccount = () => {
     setShowAccountChoice(false);
     setRedirectingToCheckout(true);
+    
+    // Mark that checkout is pending
+    try {
+      sessionStorage.setItem('snap_pending_checkout', 'true');
+    } catch (e) {
+      console.warn('[Auth] Failed to set pending checkout flag:', e);
+    }
     
     console.log('[Auth] Continuing with current account, creating Stripe checkout for:', selectedPlan);
     

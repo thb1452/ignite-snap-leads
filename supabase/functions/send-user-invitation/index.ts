@@ -1,8 +1,15 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+// Dynamic import for Resend to handle npm resolution
+let resend: any = null;
+async function getResend() {
+  if (!resend) {
+    const { Resend } = await import("https://esm.sh/resend@2.0.0");
+    resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+  }
+  return resend;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -111,7 +118,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Send invitation email
-    const emailResponse = await resend.emails.send({
+    const resendClient = await getResend();
+    const emailResponse = await resendClient.emails.send({
       from: "SnapIgnite <noreply@snapignite.com>",
       to: [email],
       subject: "You're invited to join SnapIgnite",

@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets } from "lucide-react";
 
+// Key to signal Auth page that user was already logged in when they clicked a plan
+const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
 interface PricingTier {
   id: string;
   name: string;
@@ -87,11 +90,21 @@ const PRICING_TIERS: PricingTier[] = [
 
 export default function Pricing() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
 
   const handleSelectPlan = (tier: PricingTier) => {
-    // ALWAYS redirect to auth page with plan
-    // Auth page handles: signup if needed → Stripe checkout → onboarding → leads
+    // If user is already logged in, set a flag so Auth page knows to show account choice
+    if (user) {
+      try {
+        sessionStorage.setItem(SESSION_KEY_PRE_AUTH_USER, 'true');
+        console.log('[Pricing] User already logged in, setting pre-auth flag');
+      } catch (e) {
+        console.warn('[Pricing] Failed to set pre-auth flag:', e);
+      }
+    }
+    
+    // Redirect to auth page with plan
     console.log('[Pricing] Redirecting to auth with plan:', tier.name);
     navigate(`/auth?mode=signup&plan=${tier.name}`);
   };

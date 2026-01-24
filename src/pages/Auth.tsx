@@ -44,27 +44,28 @@ export default function Auth() {
       return;
     }
 
-    // User is logged in! 
+    // User is logged in!
     const isFromPricing = mode === 'signup' && selectedPlan;
-    
-    // CRITICAL FIX: Distinguish between:
-    // 1. User was already logged in when they clicked a plan button → Show account choice
-    // 2. User just signed up from the pricing flow → Go directly to checkout
-    if (isFromPricing && !redirectingToCheckout && !showAccountChoice) {
-      if (wasLoggedInOnMount.current === true) {
-        // User was already logged in when they clicked the plan - show choice
-        console.log('[Auth] Already logged-in user came from pricing, showing account choice');
-        setShowAccountChoice(true);
-        return;
-      } else {
-        // User just signed up - go directly to checkout
-        console.log('[Auth] Fresh signup from pricing, redirecting to checkout immediately');
-        handleDirectCheckout();
-        return;
+
+    // CRITICAL FIX: If user came from pricing, handle checkout flow - NEVER fall through to navigate('/leads')
+    if (isFromPricing) {
+      // Only trigger state changes if not already in progress
+      if (!redirectingToCheckout && !showAccountChoice) {
+        if (wasLoggedInOnMount.current === true) {
+          // User was already logged in when they clicked the plan - show choice
+          console.log('[Auth] Already logged-in user came from pricing, showing account choice');
+          setShowAccountChoice(true);
+        } else {
+          // User just signed up - go directly to checkout
+          console.log('[Auth] Fresh signup from pricing, redirecting to checkout immediately');
+          handleDirectCheckout();
+        }
       }
+      // Always return when from pricing - never fall through to navigate('/leads')
+      return;
     }
 
-    // Normal login - go to dashboard immediately
+    // Normal login (not from pricing) - go to dashboard immediately
     console.log('[Auth] Normal login, redirecting to leads. Roles:', roles);
     if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
       navigate('/va-dashboard');

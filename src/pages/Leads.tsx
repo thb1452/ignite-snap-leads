@@ -36,8 +36,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { ExportQuotaDisplay } from "@/components/leads/ExportQuotaDisplay";
 import { WaterShutoffUpgradeBanner } from "@/components/leads/WaterShutoffUpgradeBanner";
-import { LeadsHeader } from "@/components/leads/LeadsHeader";
 import { SelectionActionBar } from "@/components/leads/SelectionActionBar";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 const PAGE_SIZE = 50;
 
@@ -308,10 +308,8 @@ function Leads() {
   );
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header with navigation menu */}
-      <LeadsHeader />
-      
+    <AppLayout>
+      <div className="flex flex-col h-[calc(100vh-3.5rem)]">
       <OnboardingFlow
         open={showOnboarding}
         onOpenChange={setShowOnboarding}
@@ -743,7 +741,8 @@ function Leads() {
           onClearSelection={() => setSelectedIds([])}
         />
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 }
 

@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Eye, Download } from "lucide-react";
 import { LeadsTable } from "@/components/leads/LeadsTable";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 interface LeadList {
   id: string;
@@ -320,7 +321,8 @@ export function Lists() {
   };
 
   return (
-    <div className="p-6">
+    <AppLayout>
+      <div className="container mx-auto py-8 px-4 max-w-6xl">
       {selectedList ? (
         // Viewing a specific list
         <div className="space-y-6">
@@ -489,7 +491,8 @@ export function Lists() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
 

@@ -19,6 +19,7 @@ export default function Auth() {
   const [redirectingToCheckout, setRedirectingToCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [showAccountChoice, setShowAccountChoice] = useState(false);
+  const [showAlreadyLoggedIn, setShowAlreadyLoggedIn] = useState(false);
   const initDone = useRef(false);
   
   // On mount (before auth loads), check if we already flagged this as a pre-existing user
@@ -74,14 +75,14 @@ export default function Auth() {
       return;
     }
 
-    // Normal login (not from pricing) - go to dashboard immediately
-    console.log('[Auth] Normal login, redirecting to leads. Roles:', roles);
-    if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
-      navigate('/va-dashboard');
-    } else {
-      navigate('/leads');
+    // User is logged in but not from pricing - show options instead of auto-redirecting
+    // This allows users to sign out and create a new account if they want
+    if (!showAlreadyLoggedIn) {
+      console.log('[Auth] User already logged in, showing options');
+      setShowAlreadyLoggedIn(true);
+      return;
     }
-  }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice]);
+  }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice, showAlreadyLoggedIn]);
   
   // Direct checkout function for fresh signups
   const handleDirectCheckout = () => {
@@ -176,7 +177,17 @@ export default function Auth() {
     console.log('[Auth] User wants new account, signing out...');
     await signOut();
     setShowAccountChoice(false);
+    setShowAlreadyLoggedIn(false);
     // After signout, the auth form will show automatically
+  };
+
+  const handleGoToDashboard = () => {
+    console.log('[Auth] Going to dashboard. Roles:', roles);
+    if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
+      navigate('/va-dashboard');
+    } else {
+      navigate('/leads');
+    }
   };
 
   // Show loading while checking auth
@@ -186,6 +197,28 @@ export default function Auth() {
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
           <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show "already logged in" screen when user visits /auth while logged in (not from pricing)
+  if (showAlreadyLoggedIn && user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
+        <div className="text-center space-y-6 max-w-md bg-card p-8 rounded-xl shadow-lg border">
+          <h2 className="text-2xl font-bold text-foreground">You're already signed in</h2>
+          <p className="text-muted-foreground">
+            You're signed in as <span className="font-medium text-foreground">{user.email}</span>
+          </p>
+          <div className="flex flex-col gap-3">
+            <Button onClick={handleGoToDashboard} size="lg" className="w-full">
+              Go to Dashboard
+            </Button>
+            <Button onClick={handleCreateNewAccount} variant="outline" size="lg" className="w-full">
+              Sign out & use different email
+            </Button>
+          </div>
         </div>
       </div>
     );

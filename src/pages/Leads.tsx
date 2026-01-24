@@ -99,6 +99,7 @@ function Leads() {
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeLimitType, setUpgradeLimitType] = useState<'exports'>('exports');
 
@@ -191,6 +192,7 @@ function Leads() {
       return;
     }
 
+    setIsExporting(true);
     try {
       toast({
         title: "Export Started",
@@ -221,6 +223,8 @@ function Leads() {
         description: error.message || "Failed to export properties",
         variant: "destructive",
       });
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -612,6 +616,7 @@ function Leads() {
             onToggleSelectAll={handleToggleSelectAll}
             onSkipTrace={handleExportCSV}
             onView={() => setShowAddToListDialog(true)}
+            isTracing={isExporting}
           />
         </div>
       </div>
@@ -739,6 +744,7 @@ function Leads() {
           onExportCSV={handleExportCSV}
           onAddToList={() => setShowAddToListDialog(true)}
           onClearSelection={() => setSelectedIds([])}
+          isExporting={isExporting}
         />
       )}
       </div>

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Download, X, ListPlus } from "lucide-react";
+import { Download, X, ListPlus, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface SelectionActionBarProps {
@@ -17,9 +17,11 @@ export function SelectionActionBar({
   onClearSelection,
   isExporting = false,
 }: SelectionActionBarProps) {
+  const hasSelection = selectedCount > 0;
+  
   return (
     <AnimatePresence>
-      {selectedCount > 0 && (
+      {hasSelection && (
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -40,6 +42,7 @@ export function SelectionActionBar({
                   variant="outline"
                   size="sm"
                   onClick={onAddToList}
+                  disabled={isExporting || !hasSelection}
                   className="h-9 gap-1.5"
                 >
                   <ListPlus className="h-4 w-4" />
@@ -49,17 +52,24 @@ export function SelectionActionBar({
                 <Button
                   size="sm"
                   onClick={onExportCSV}
-                  disabled={isExporting}
+                  disabled={isExporting || !hasSelection}
                   className="h-9 gap-1.5"
                 >
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">Export CSV</span>
+                  {isExporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {isExporting ? 'Exporting...' : 'Export CSV'}
+                  </span>
                 </Button>
                 
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={onClearSelection}
+                  disabled={isExporting}
                   className="h-9 w-9 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-4 w-4" />

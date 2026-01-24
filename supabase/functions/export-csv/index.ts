@@ -6,20 +6,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// CLEAN FIELDS ONLY - Aggregated property-level export
-// One row per property with violation data aggregated
-const CLEAN_EXPORT_COLUMNS = [
+// BACKWARD-COMPATIBLE EXPORT - Original column order preserved
+// One row per property with violation data aggregated into original column positions
+const EXPORT_COLUMNS = [
   'address',
   'city', 
   'state',
   'zip',
-  'snap_score',
+  'violation_type',      // Now contains aggregated types (semicolon-separated)
+  'opened_date',         // Now contains earliest violation date
+  'status',              // Now contains summary: "X open / Y total"
   'snap_summary',
-  'violation_count',
-  'open_violation_count',
-  'violation_types',
-  'earliest_violation_date',
-  'latest_violation_date'
+  'snap_score'
 ];
 
 serve(async (req) => {
@@ -175,10 +173,8 @@ serve(async (req) => {
     // FIXED: One row per property with aggregated violations
     // Previously: iterated through each violation creating duplicate property rows
     // Now: aggregate all violation data into single columns per property
-    const csvRows: string[] = [];
-    
-    // Header row - aggregated property-level columns
-    csvRows.push(CLEAN_EXPORT_COLUMNS.join(','));
+    // Header row - backward-compatible column names
+    csvRows.push(EXPORT_COLUMNS.join(','));
 
     for (const property of allData) {
       const violations = property.violations || [];
@@ -191,33 +187,33 @@ serve(async (req) => {
         )
       ).length;
       
-      // Get unique violation types
+      // Get unique violation types (semicolon-separated for backward compat)
       const uniqueTypes = [...new Set(violations
         .map((v: any) => v.violation_type)
         .filter(Boolean)
       )].join('; ');
       
-      // Get date range
+      // Get earliest date
       const dates = violations
         .map((v: any) => v.opened_date)
         .filter(Boolean)
         .sort();
       const earliestDate = dates[0] || '';
-      const latestDate = dates[dates.length - 1] || '';
       
-      // ONE row per property with aggregated data
+      // Status summary: "X open / Y total"
+      const statusSummary = `${openViolationCount} open / ${violationCount} total`;
+      
+      // ONE row per property - backward-compatible column order
       const row = [
         escapeCSV(property.address || ''),
         escapeCSV(property.city || ''),
         escapeCSV(property.state || ''),
         escapeCSV(property.zip || ''),
-        property.snap_score?.toString() || '',
+        escapeCSV(uniqueTypes),           // violation_type column
+        escapeCSV(earliestDate),          // opened_date column
+        escapeCSV(statusSummary),         // status column
         escapeCSV(property.snap_insight || ''),
-        violationCount.toString(),
-        openViolationCount.toString(),
-        escapeCSV(uniqueTypes),
-        escapeCSV(earliestDate),
-        escapeCSV(latestDate)
+        property.snap_score?.toString() || ''
       ];
       csvRows.push(row.join(','));
     }

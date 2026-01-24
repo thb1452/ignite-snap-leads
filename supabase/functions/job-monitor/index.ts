@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('[job-monitor] Error:', error);
     return new Response(JSON.stringify({ 
-      error: error.message 
+      error: error instanceof Error ? error.message : 'Unknown error' 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

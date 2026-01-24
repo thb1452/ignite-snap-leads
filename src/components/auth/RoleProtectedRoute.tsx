@@ -5,6 +5,8 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
 
 const CHECKOUT_PROCESSED_KEY = 'snap_checkout_processed';
+// Key to track if user is in the middle of signup → checkout flow
+const PENDING_CHECKOUT_KEY = 'snap_pending_checkout';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
@@ -66,12 +68,16 @@ export function RoleProtectedRoute({
     }
   }, [checkoutSuccess, checkoutProcessed, searchParams, location.pathname, navigate]);
 
-  // Clear sessionStorage flag ONLY after subscription is confirmed in DB
+  // Clear sessionStorage flags ONLY after subscription is confirmed in DB
   useEffect(() => {
-    if (hasActiveSubscription && checkoutProcessed) {
+    if (hasActiveSubscription) {
       try {
-        sessionStorage.removeItem(CHECKOUT_PROCESSED_KEY);
-        console.log('[RoleProtectedRoute] Subscription confirmed, cleared sessionStorage flag');
+        if (checkoutProcessed) {
+          sessionStorage.removeItem(CHECKOUT_PROCESSED_KEY);
+          console.log('[RoleProtectedRoute] Subscription confirmed, cleared checkout processed flag');
+        }
+        // Also clear pending checkout flag
+        sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
       } catch (e) {
         console.warn('[RoleProtectedRoute] Failed to clear sessionStorage:', e);
       }
@@ -189,9 +195,18 @@ export function RoleProtectedRoute({
   }
 
   if (!hasRequiredRole) {
+    // Check if user is in a pending checkout flow (just signed up, about to go to Stripe)
+    const isPendingCheckout = (() => {
+      try {
+        return sessionStorage.getItem(PENDING_CHECKOUT_KEY) === 'true';
+      } catch {
+        return false;
+      }
+    })();
+    
     // If user only has 'user' role and NO subscription AND NOT in checkout flow
     // This is a new signup who hasn't completed payment
-    if (hasRole('user') && !hasPaidSubscription && !inCheckoutFlow) {
+    if (hasRole('user') && !hasPaidSubscription && !inCheckoutFlow && !isPendingCheckout) {
       return (
         <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-4">
           <h1 className="text-2xl font-bold text-foreground">Welcome to Snap Ignite!</h1>

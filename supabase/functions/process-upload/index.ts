@@ -1469,7 +1469,7 @@ async function processUploadJob(jobId: string) {
     if (allPropertyIds.length > 0) {
       console.log(`[process-upload] Triggering background insights generation for ${allPropertyIds.length} properties...`);
       
-      EdgeRuntime.waitUntil(
+      (globalThis as any).EdgeRuntime?.waitUntil?.(
         (async () => {
           try {
             const insightsResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-insights`, {
@@ -1532,7 +1532,7 @@ async function processUploadJob(jobId: string) {
           console.log(`[process-upload] Created geocoding job ${geocodingJob.id} for ${needsGeocodingCount} properties`);
           
           // Trigger geocoding with the job ID (run in background)
-          EdgeRuntime.waitUntil(
+          (globalThis as any).EdgeRuntime?.waitUntil?.(
             (async () => {
               try {
                 const geocodingResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/geocode-properties`, {
@@ -1573,7 +1573,7 @@ async function processUploadJob(jobId: string) {
       .from('upload_jobs')
       .update({ 
         status: 'FAILED',
-        error_message: error.message,
+        error_message: error instanceof Error ? error.message : 'Unknown error',
         finished_at: new Date().toISOString()
       })
       .eq('id', jobId);
@@ -1660,7 +1660,7 @@ serve(async (req) => {
     console.error('[process-upload] Request error:', error);
     
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

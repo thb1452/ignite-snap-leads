@@ -86,15 +86,6 @@ export function AppLayout({ children }: AppLayoutProps) {
               <LogOut className="h-4 w-4 mr-1.5" />
               Sign Out
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSignOut}
-              className="h-8 px-3 text-sm text-ink-500 hover:text-ink-900"
-            >
-              <LogOut className="h-4 w-4 mr-1.5" />
-              Sign Out
-            </Button>
           </div>
         </div>
       </header>

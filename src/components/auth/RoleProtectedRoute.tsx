@@ -36,8 +36,13 @@ export function RoleProtectedRoute({
     }
   });
 
-  // Check if user just came from checkout - ONLY trust URL param
+  // Check if user just came from checkout - URL param is available synchronously on first render
   const checkoutSuccess = searchParams.get('checkout') === 'success';
+
+  // CRITICAL: Combine both signals to handle first render race condition
+  // - checkoutSuccess: URL param, available immediately on first render
+  // - checkoutProcessed: sessionStorage, persists across navigation/refresh
+  const inCheckoutFlow = checkoutSuccess || checkoutProcessed;
 
   // Handle checkout success detection and persist to sessionStorage
   useEffect(() => {
@@ -74,11 +79,12 @@ export function RoleProtectedRoute({
   }, [hasActiveSubscription, checkoutProcessed]);
 
   // Derived state - only poll if we detected checkout AND no subscription yet
-  const isPolling = checkoutProcessed && !hasActiveSubscription && !hasGivenUp && pollCount < 20;
+  // Use inCheckoutFlow to handle first render (before effect saves to sessionStorage)
+  const isPolling = inCheckoutFlow && !hasActiveSubscription && !hasGivenUp && pollCount < 20;
 
   // Poll for subscription when user just paid but subscription not yet showing
   useEffect(() => {
-    if (!loading && !subLoading && user && checkoutProcessed && !hasActiveSubscription && !hasGivenUp) {
+    if (!loading && !subLoading && user && inCheckoutFlow && !hasActiveSubscription && !hasGivenUp) {
       if (pollCount < 20) {
         const timer = setTimeout(() => {
           console.log('[RoleProtectedRoute] Polling for subscription... attempt', pollCount + 1);
@@ -91,7 +97,7 @@ export function RoleProtectedRoute({
         setHasGivenUp(true);
       }
     }
-  }, [loading, subLoading, user, checkoutProcessed, hasActiveSubscription, pollCount, refetch, hasGivenUp]);
+  }, [loading, subLoading, user, inCheckoutFlow, hasActiveSubscription, pollCount, refetch, hasGivenUp]);
 
   // Wait for auth and subscription to load
   if (loading || subLoading) {
@@ -123,9 +129,9 @@ export function RoleProtectedRoute({
     );
   }
 
-  // Fallback: polling timed out but user has checkoutProcessed flag (they paid)
+  // Fallback: polling timed out but user is in checkout flow (they paid)
   // Show helpful message instead of "View Pricing Plans" loop
-  if (checkoutProcessed && !hasActiveSubscription && hasGivenUp) {
+  if (inCheckoutFlow && !hasActiveSubscription && hasGivenUp) {
     const handleManualRefresh = () => {
       setPollCount(0);
       setHasGivenUp(false);
@@ -172,9 +178,9 @@ export function RoleProtectedRoute({
   // Check if user has an active subscription (paid user)
   const hasPaidSubscription = hasActiveSubscription && plan?.name;
   
-  // CRITICAL: Grant access if user just paid (checkoutProcessed), even if webhook hasn't processed yet
+  // CRITICAL: Grant access if user just paid (inCheckoutFlow), even if webhook hasn't processed yet
   // After 20s of polling, hasGivenUp is true - we trust they paid
-  const grantAccessFromPayment = checkoutProcessed && (hasPaidSubscription || hasGivenUp);
+  const grantAccessFromPayment = inCheckoutFlow && (hasPaidSubscription || hasGivenUp);
 
   // PAID USERS: Anyone with an active subscription can access admin-level routes
   if (hasPaidSubscription || grantAccessFromPayment) {
@@ -183,9 +189,9 @@ export function RoleProtectedRoute({
   }
 
   if (!hasRequiredRole) {
-    // If user only has 'user' role and NO subscription AND didn't just complete checkout
+    // If user only has 'user' role and NO subscription AND NOT in checkout flow
     // This is a new signup who hasn't completed payment
-    if (hasRole('user') && !hasPaidSubscription && !checkoutProcessed) {
+    if (hasRole('user') && !hasPaidSubscription && !inCheckoutFlow) {
       return (
         <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-4">
           <h1 className="text-2xl font-bold text-foreground">Welcome to Snap Ignite!</h1>

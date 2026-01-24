@@ -2,7 +2,9 @@ import { ReactNode, useState, useEffect } from 'react';
 import { Navigate, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
+
+const CHECKOUT_PROCESSED_KEY = 'snap_checkout_processed';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
@@ -10,8 +12,8 @@ interface RoleProtectedRouteProps {
   redirectTo?: string;
 }
 
-export function RoleProtectedRoute({ 
-  children, 
+export function RoleProtectedRoute({
+  children,
   allowedRoles,
   redirectTo = '/leads'
 }: RoleProtectedRouteProps) {
@@ -20,37 +22,60 @@ export function RoleProtectedRoute({
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
   // Track subscription polling state
   const [pollCount, setPollCount] = useState(0);
   const [hasGivenUp, setHasGivenUp] = useState(false);
-  const [checkoutProcessed, setCheckoutProcessed] = useState(false);
-  
+
+  // Initialize checkoutProcessed from sessionStorage to survive navigation/refresh
+  const [checkoutProcessed, setCheckoutProcessed] = useState(() => {
+    try {
+      return sessionStorage.getItem(CHECKOUT_PROCESSED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   // Check if user just came from checkout - ONLY trust URL param
   const checkoutSuccess = searchParams.get('checkout') === 'success';
-  
-  // Only consider "justPaid" if checkout param is present AND we haven't processed it yet
-  const justPaid = checkoutSuccess && !checkoutProcessed;
 
-  // Clear the checkout param from URL after detecting it (prevents re-triggering on refresh)
+  // Handle checkout success detection and persist to sessionStorage
   useEffect(() => {
     if (checkoutSuccess && !checkoutProcessed) {
-      // Mark as processed so we don't keep polling
+      // Mark as processed and persist to sessionStorage
       setCheckoutProcessed(true);
-      
+      try {
+        sessionStorage.setItem(CHECKOUT_PROCESSED_KEY, 'true');
+        console.log('[RoleProtectedRoute] Checkout detected, saved to sessionStorage');
+      } catch (e) {
+        console.warn('[RoleProtectedRoute] Failed to save to sessionStorage:', e);
+      }
+
       // Remove the checkout param from URL to prevent re-triggering
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('checkout');
-      const newUrl = newParams.toString() 
+      const newUrl = newParams.toString()
         ? `${location.pathname}?${newParams.toString()}`
         : location.pathname;
       navigate(newUrl, { replace: true });
     }
   }, [checkoutSuccess, checkoutProcessed, searchParams, location.pathname, navigate]);
 
+  // Clear sessionStorage flag ONLY after subscription is confirmed in DB
+  useEffect(() => {
+    if (hasActiveSubscription && checkoutProcessed) {
+      try {
+        sessionStorage.removeItem(CHECKOUT_PROCESSED_KEY);
+        console.log('[RoleProtectedRoute] Subscription confirmed, cleared sessionStorage flag');
+      } catch (e) {
+        console.warn('[RoleProtectedRoute] Failed to clear sessionStorage:', e);
+      }
+    }
+  }, [hasActiveSubscription, checkoutProcessed]);
+
   // Derived state - only poll if we detected checkout AND no subscription yet
   const isPolling = checkoutProcessed && !hasActiveSubscription && !hasGivenUp && pollCount < 20;
-  
+
   // Poll for subscription when user just paid but subscription not yet showing
   useEffect(() => {
     if (!loading && !subLoading && user && checkoutProcessed && !hasActiveSubscription && !hasGivenUp) {
@@ -62,7 +87,7 @@ export function RoleProtectedRoute({
         }, 1000);
         return () => clearTimeout(timer);
       } else {
-        console.log('[RoleProtectedRoute] Max polls reached, granting access anyway');
+        console.log('[RoleProtectedRoute] Max polls reached, waiting for manual action');
         setHasGivenUp(true);
       }
     }
@@ -92,6 +117,43 @@ export function RoleProtectedRoute({
           <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
           <p className="text-xs text-muted-foreground">
             This usually takes just a few seconds. ({pollCount}/20)
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback: polling timed out but user has checkoutProcessed flag (they paid)
+  // Show helpful message instead of "View Pricing Plans" loop
+  if (checkoutProcessed && !hasActiveSubscription && hasGivenUp) {
+    const handleManualRefresh = () => {
+      setPollCount(0);
+      setHasGivenUp(false);
+      refetch();
+    };
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
+        <div className="text-center space-y-6 max-w-md">
+          <div className="w-20 h-20 mx-auto rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+            <CheckCircle2 className="h-10 w-10 text-yellow-600 dark:text-yellow-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Your payment is being processed</h1>
+          <p className="text-muted-foreground">
+            This may take a minute. Your subscription will be activated shortly.
+          </p>
+          <button
+            onClick={handleManualRefresh}
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition font-medium"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Check Again
+          </button>
+          <p className="text-xs text-muted-foreground">
+            If this persists, please contact{' '}
+            <a href="mailto:support@snapignite.com" className="text-primary hover:underline">
+              support@snapignite.com
+            </a>
           </p>
         </div>
       </div>

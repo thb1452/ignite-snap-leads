@@ -6,8 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Session key to track if user was logged in when page loaded
-const SESSION_KEY_WAS_LOGGED_IN = 'snap_auth_was_logged_in';
+// Session storage key to track if a user was logged in BEFORE visiting pricing/auth
+// This persists across the signup flow so we know if they're a fresh signup vs existing user
+const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
 
 export default function Auth() {
   const { user, roles, loading, signOut } = useAuth();
@@ -18,22 +19,30 @@ export default function Auth() {
   const [redirectingToCheckout, setRedirectingToCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [showAccountChoice, setShowAccountChoice] = useState(false);
+  const initDone = useRef(false);
   
-  // Track if user was already logged in when they first landed on this page
-  // This is captured ONCE on initial load and never changes
-  const wasLoggedInOnMount = useRef<boolean | null>(null);
+  // On mount (before auth loads), check if we already flagged this as a pre-existing user
+  // This flag is SET by the pricing page when a logged-in user clicks a plan
+  const wasLoggedInBeforeFlow = useRef<boolean | null>(null);
   
-  // Capture initial auth state on first load (before auth finishes loading)
   useEffect(() => {
-    if (wasLoggedInOnMount.current === null && !loading) {
-      // Capture whether user was logged in when they first arrived
-      wasLoggedInOnMount.current = !!user;
-      console.log('[Auth] Captured initial auth state - wasLoggedIn:', wasLoggedInOnMount.current);
+    if (initDone.current) return;
+    initDone.current = true;
+    
+    // Check if pricing page marked that user was already logged in
+    try {
+      const preAuthFlag = sessionStorage.getItem(SESSION_KEY_PRE_AUTH_USER);
+      wasLoggedInBeforeFlow.current = preAuthFlag === 'true';
+      // Clear it immediately so it doesn't persist across unrelated visits
+      sessionStorage.removeItem(SESSION_KEY_PRE_AUTH_USER);
+      console.log('[Auth] Pre-auth user flag:', wasLoggedInBeforeFlow.current);
+    } catch (e) {
+      wasLoggedInBeforeFlow.current = false;
     }
-  }, [loading, user]);
+  }, []);
 
   useEffect(() => {
-    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'mode:', mode, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice, 'wasLoggedInOnMount:', wasLoggedInOnMount.current);
+    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'mode:', mode, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice, 'wasLoggedInBeforeFlow:', wasLoggedInBeforeFlow.current);
     
     // Wait for auth loading to complete
     if (loading) return;
@@ -51,12 +60,12 @@ export default function Auth() {
     if (isFromPricing) {
       // Only trigger state changes if not already in progress
       if (!redirectingToCheckout && !showAccountChoice) {
-        if (wasLoggedInOnMount.current === true) {
-          // User was already logged in when they clicked the plan - show choice
+        if (wasLoggedInBeforeFlow.current === true) {
+          // User was already logged in when they clicked the plan on pricing page - show choice
           console.log('[Auth] Already logged-in user came from pricing, showing account choice');
           setShowAccountChoice(true);
         } else {
-          // User just signed up - go directly to checkout
+          // User just signed up (or wasn't logged in before) - go directly to checkout
           console.log('[Auth] Fresh signup from pricing, redirecting to checkout immediately');
           handleDirectCheckout();
         }

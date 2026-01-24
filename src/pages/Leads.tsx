@@ -23,13 +23,11 @@ import { TimeFilter } from "@/components/leads/ScoreAndTimeFilter";
 import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
-// State selection removed - all users now see all properties
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
-// useUserAllowedStates removed - no longer needed
 import { exportFilteredCsv } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
 import { useMapMarkers } from "@/hooks/useMapMarkers";
@@ -38,6 +36,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { ExportQuotaDisplay } from "@/components/leads/ExportQuotaDisplay";
 import { WaterShutoffUpgradeBanner } from "@/components/leads/WaterShutoffUpgradeBanner";
+import { LeadsHeader } from "@/components/leads/LeadsHeader";
+import { SelectionActionBar } from "@/components/leads/SelectionActionBar";
 
 const PAGE_SIZE = 50;
 
@@ -309,6 +309,9 @@ function Leads() {
 
   return (
     <div className="flex flex-col h-screen">
+      {/* Header with navigation menu */}
+      <LeadsHeader />
+      
       <OnboardingFlow
         open={showOnboarding}
         onOpenChange={setShowOnboarding}
@@ -653,32 +656,6 @@ function Leads() {
               </div>
             )}
 
-            {/* Mobile Bulk Action Bar - Show when items selected */}
-            {selectedIds.length > 0 && (
-              <div className="border-t bg-background/95 backdrop-blur p-3 flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">
-                  {selectedIds.length} selected
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleExportCSV}
-                    size="sm"
-                    className="h-10"
-                  >
-                    Export CSV
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-10"
-                    onClick={() => setShowAddToListDialog(true)}
-                  >
-                    Add to List
-                  </Button>
-                </div>
-              </div>
-            )}
-
             {/* Mobile Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-4 px-4 py-3 border-t bg-background">
@@ -757,6 +734,16 @@ function Leads() {
         onOpenChange={(open) => !open && setUpgradePromptType(null)}
         limitType={upgradePromptType || 'advanced_filters'}
       />
+
+      {/* Floating Selection Action Bar - shows on mobile and when items selected */}
+      {isMobile && (
+        <SelectionActionBar
+          selectedCount={selectedIds.length}
+          onExportCSV={handleExportCSV}
+          onAddToList={() => setShowAddToListDialog(true)}
+          onClearSelection={() => setSelectedIds([])}
+        />
+      )}
     </div>
   );
 }

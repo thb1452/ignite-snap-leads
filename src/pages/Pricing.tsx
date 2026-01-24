@@ -90,8 +90,12 @@ const PRICING_TIERS: PricingTier[] = [
 
 export default function Pricing() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   const handleSelectPlan = (tier: PricingTier) => {
     // If user is already logged in, set a flag so Auth page knows to show account choice
@@ -128,6 +132,24 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      {/* Signed-in user banner */}
+      {user && (
+        <div className="bg-blue-50 dark:bg-blue-950/50 border-b border-blue-200 dark:border-blue-800">
+          <div className="container max-w-7xl py-3 px-4 flex items-center justify-center gap-2 text-sm">
+            <span className="text-blue-700 dark:text-blue-300">
+              Signed in as <span className="font-medium">{user.email}</span>
+            </span>
+            <span className="text-blue-400 dark:text-blue-600">|</span>
+            <button
+              onClick={handleSignOut}
+              className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+            >
+              Not you? Sign out
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="container max-w-7xl py-12 px-4">
         {/* Header */}
         <div className="text-center mb-12">

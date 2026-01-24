@@ -19,7 +19,8 @@ import {
   Download,
   Building2,
   Search,
-  Zap
+  Zap,
+  Menu
 } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import {
@@ -112,7 +113,17 @@ export default function Landing() {
             </button>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Mobile menu button */}
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="md:hidden text-landing-text-muted hover:text-landing-text"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+            
             <Link to="/auth?mode=signin">
               <Button variant="ghost" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface/50">
                 Sign In
@@ -120,13 +131,59 @@ export default function Landing() {
             </Link>
             <Button 
               onClick={() => scrollToSection('pricing')}
-              className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
+              className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
             >
               See Plans
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
         </div>
+        
+        {/* Mobile Navigation Menu */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden border-t border-landing-surface/50 bg-landing-bg/95 backdrop-blur-xl"
+            >
+              <div className="container mx-auto px-4 py-4 flex flex-col gap-2">
+                <button 
+                  onClick={() => scrollToSection('features')} 
+                  className="text-left py-3 text-landing-text-muted hover:text-landing-text transition border-b border-landing-surface/30"
+                >
+                  Features
+                </button>
+                <button 
+                  onClick={() => scrollToSection('how-it-works')} 
+                  className="text-left py-3 text-landing-text-muted hover:text-landing-text transition border-b border-landing-surface/30"
+                >
+                  How It Works
+                </button>
+                <button 
+                  onClick={() => scrollToSection('pricing')} 
+                  className="text-left py-3 text-landing-text-muted hover:text-landing-text transition border-b border-landing-surface/30"
+                >
+                  Pricing
+                </button>
+                <button 
+                  onClick={() => scrollToSection('faq')} 
+                  className="text-left py-3 text-landing-text-muted hover:text-landing-text transition"
+                >
+                  FAQ
+                </button>
+                <Button 
+                  onClick={() => scrollToSection('pricing')}
+                  className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
+                >
+                  See Plans
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* Hero Section */}

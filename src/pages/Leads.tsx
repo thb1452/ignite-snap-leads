@@ -614,9 +614,9 @@ function Leads() {
             totalCount={properties.length}
             allSelected={selectedIds.length === properties.length && properties.length > 0}
             onToggleSelectAll={handleToggleSelectAll}
-            onSkipTrace={handleExportCSV}
-            onView={() => setShowAddToListDialog(true)}
-            isTracing={isExporting}
+            onExport={handleExportCSV}
+            onAddToList={() => setShowAddToListDialog(true)}
+            isExporting={isExporting}
           />
         </div>
       </div>

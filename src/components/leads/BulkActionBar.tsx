@@ -7,9 +7,9 @@ interface BulkActionBarProps {
   totalCount: number;
   allSelected: boolean;
   onToggleSelectAll: () => void;
-  onSkipTrace: () => void;
-  onView: () => void;
-  isTracing?: boolean;
+  onExport: () => void;
+  onAddToList: () => void;
+  isExporting?: boolean;
 }
 
 export function BulkActionBar({
@@ -17,9 +17,9 @@ export function BulkActionBar({
   totalCount,
   allSelected,
   onToggleSelectAll,
-  onSkipTrace,
-  onView,
-  isTracing = false
+  onExport,
+  onAddToList,
+  isExporting = false
 }: BulkActionBarProps) {
   const hasSelection = selectedCount > 0;
   
@@ -40,22 +40,22 @@ export function BulkActionBar({
           {hasSelection && (
             <>
               <Button
-                onClick={onSkipTrace}
-                disabled={isTracing || !hasSelection}
+                onClick={onExport}
+                disabled={isExporting || !hasSelection}
                 variant="default"
                 className="gap-2"
               >
-                {isTracing ? (
+                {isExporting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
-                {isTracing ? 'Exporting...' : `Export CSV (${selectedCount})`}
+                {isExporting ? 'Exporting...' : `Export CSV (${selectedCount})`}
               </Button>
               <Button
                 variant="outline"
-                onClick={onView}
-                disabled={isTracing || !hasSelection}
+                onClick={onAddToList}
+                disabled={isExporting || !hasSelection}
                 className="gap-2"
               >
                 <ListPlus className="h-4 w-4" />

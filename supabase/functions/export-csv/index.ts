@@ -173,7 +173,9 @@ serve(async (req) => {
     // FIXED: One row per property with aggregated violations
     // Previously: iterated through each violation creating duplicate property rows
     // Now: aggregate all violation data into single columns per property
-    // Header row - backward-compatible column names
+    
+    // Initialize CSV rows array with header
+    const csvRows: string[] = [];
     csvRows.push(EXPORT_COLUMNS.join(','));
 
     for (const property of allData) {

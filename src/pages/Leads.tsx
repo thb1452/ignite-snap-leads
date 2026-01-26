@@ -12,6 +12,8 @@ import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Trash2, ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { ViolationListView } from "@/components/leads/ViolationListView";
@@ -50,6 +52,7 @@ function Leads() {
   // State selection removed - all users now see all properties across all states
   // Pagination state
   const [page, setPage] = useState(1);
+  const [pendingPage, setPendingPage] = useState<number | null>(null);
 
   // Enforcement Area filter state
   const [searchInput, setSearchInput] = useState(""); // Immediate input value
@@ -173,6 +176,27 @@ function Leads() {
     setSelectedIds(prev =>
       prev.length === properties.length ? [] : properties.map(p => p.id)
     );
+  };
+
+  // Handle page change with selection warning
+  const handlePageChange = (newPage: number) => {
+    if (selectedIds.length > 0) {
+      setPendingPage(newPage);
+    } else {
+      setPage(newPage);
+    }
+  };
+
+  const confirmPageChange = () => {
+    if (pendingPage !== null) {
+      setSelectedIds([]);
+      setPage(pendingPage);
+      setPendingPage(null);
+    }
+  };
+
+  const cancelPageChange = () => {
+    setPendingPage(null);
   };
 
   const handleExportCSV = async () => {
@@ -592,7 +616,7 @@ function Leads() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                onClick={() => handlePageChange(Math.max(1, page - 1))}
                 disabled={page <= 1}
                 className="gap-1"
               >
@@ -605,7 +629,7 @@ function Leads() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
                 disabled={page >= totalPages}
                 className="gap-1"
               >
@@ -654,6 +678,32 @@ function Leads() {
                 className="flex-1 overflow-y-auto overscroll-contain touch-pan-y"
                 style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 4rem)' }}
               >
+                {/* Select All Header */}
+                <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2.5 bg-background border-b">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={selectedIds.length === properties.length && properties.length > 0}
+                      onCheckedChange={handleToggleSelectAll}
+                      className="h-5 w-5"
+                    />
+                    <span className="text-sm font-medium">
+                      {selectedIds.length > 0 
+                        ? `${selectedIds.length} selected` 
+                        : `Select all (${properties.length})`}
+                    </span>
+                  </div>
+                  {selectedIds.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedIds([])}
+                      className="h-8 text-xs text-muted-foreground"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+
                 <div className="divide-y">
                   {mappedProperties.map((property) => (
                     <MobilePropertyCard
@@ -672,7 +722,7 @@ function Leads() {
                     variant="ghost"
                     size="sm"
                     className="h-10 min-h-[44px] px-4 gap-1"
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    onClick={() => handlePageChange(Math.max(1, page - 1))}
                     disabled={page <= 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -682,7 +732,7 @@ function Leads() {
                     variant="ghost"
                     size="sm"
                     className="h-10 min-h-[44px] px-4 gap-1"
-                    onClick={() => setPage(p => Math.min(totalPages || 1, p + 1))}
+                    onClick={() => handlePageChange(Math.min(totalPages || 1, page + 1))}
                     disabled={page >= (totalPages || 1)}
                   >
                     Next
@@ -754,6 +804,28 @@ function Leads() {
           isExporting={isExporting}
         />
       )}
+
+      {/* Page Change Warning Dialog */}
+      <AlertDialog open={pendingPage !== null} onOpenChange={(open) => !open && cancelPageChange()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear selection?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have {selectedIds.length} properties selected. Changing pages will clear your selection. 
+              Would you like to export first or continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelPageChange}>Cancel</AlertDialogCancel>
+            <Button variant="outline" onClick={() => { handleExportCSV(); cancelPageChange(); }}>
+              Export First
+            </Button>
+            <AlertDialogAction onClick={confirmPageChange}>
+              Continue & Clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </AppLayout>
   );

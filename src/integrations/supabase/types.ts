@@ -2085,6 +2085,19 @@ export type Database = {
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      fn_add_filtered_to_list: {
+        Args: {
+          p_city?: string
+          p_enforcement_type?: string
+          p_jurisdiction_id?: string
+          p_limit?: number
+          p_list_id: string
+          p_max_score?: number
+          p_min_score?: number
+          p_state?: string
+        }
+        Returns: Json
+      }
       fn_bulk_insert_properties: {
         Args: { p_properties: Json }
         Returns: {
@@ -2144,9 +2157,22 @@ export type Database = {
         }[]
       }
       fn_get_current_usage: { Args: { p_user_id: string }; Returns: Json }
+      fn_get_list_properties: {
+        Args: { p_list_id: string; p_page?: number; p_page_size?: number }
+        Returns: Json
+      }
       fn_get_user_allowed_states: {
         Args: { p_user_id?: string }
         Returns: string[]
+      }
+      fn_get_user_lists: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          name: string
+          property_count: number
+        }[]
       }
       fn_get_user_subscription: {
         Args: { p_user_id?: string }

@@ -10,6 +10,7 @@ import Upload from "./pages/Upload";
 import Leads from "./pages/Leads";
 import Landing from "./pages/Landing";
 import { Lists } from "./pages/Lists";
+import ListDetail from "./pages/ListDetail";
 import { Settings } from "./pages/Settings";
 import JobDetail from "./pages/JobDetail";
 import Jobs from "./pages/Jobs";
@@ -62,6 +63,11 @@ const App = () => (
           <Route path="/lists" element={
             <RoleProtectedRoute allowedRoles={['admin']}>
               <Lists />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/lists/:listId" element={
+            <RoleProtectedRoute allowedRoles={['admin']}>
+              <ListDetail />
             </RoleProtectedRoute>
           } />
           <Route path="/settings" element={

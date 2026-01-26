@@ -10,6 +10,7 @@ import { MobileFilterSheet } from "@/components/leads/MobileFilterSheet";
 import { MobilePropertyCard } from "@/components/leads/MobilePropertyCard";
 import { VirtualizedMobilePropertyList } from "@/components/leads/VirtualizedMobilePropertyList";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
+import { AddAllToListDialog } from "@/components/leads/AddAllToListDialog";
 import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +102,7 @@ function Leads() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
+  const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -415,6 +417,7 @@ function Leads() {
           repeatOffenderOnly={repeatOffenderOnly}
           propertyCount={totalCount}
           onClearFilters={handleClearFilters}
+          onAddAllToList={() => setShowAddAllToListDialog(true)}
         />
         
         <div className="flex flex-wrap gap-6 px-4 py-4 border-b bg-background">
@@ -806,7 +809,7 @@ function Leads() {
         />
       )}
 
-      {/* Add to List Dialog */}
+      {/* Add to List Dialog (for selected properties) */}
       <AddToListDialog
         open={showAddToListDialog}
         onOpenChange={setShowAddToListDialog}
@@ -814,6 +817,23 @@ function Leads() {
         onSuccess={() => {
           setSelectedIds([]);
           setShowAddToListDialog(false);
+        }}
+      />
+
+      {/* Add All Filtered to List Dialog */}
+      <AddAllToListDialog
+        open={showAddAllToListDialog}
+        onOpenChange={setShowAddAllToListDialog}
+        totalMatchingCount={totalCount}
+        filters={{
+          city: selectedCity,
+          state: selectedState,
+        }}
+        onSuccess={() => {
+          toast({
+            title: "List Updated",
+            description: "Properties have been added to your list",
+          });
         }}
       />
 

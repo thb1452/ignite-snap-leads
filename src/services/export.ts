@@ -9,14 +9,6 @@ interface ExportParams {
 }
 
 export async function exportFilteredCsv(params: ExportParams) {
-  // Build query string
-  const qs = new URLSearchParams();
-  if (params.city) qs.set("city", params.city);
-  if (params.minScore != null) qs.set("minScore", String(params.minScore));
-  if (params.maxScore != null) qs.set("maxScore", String(params.maxScore));
-  if (params.jurisdictionId) qs.set("jurisdictionId", params.jurisdictionId);
-  if (params.propertyIds?.length) qs.set("propertyIds", params.propertyIds.join(","));
-
   // Get user session token for authenticated request
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -25,16 +17,48 @@ export async function exportFilteredCsv(params: ExportParams) {
     throw new Error("Please sign in to export data");
   }
 
-  // Call edge function with query params
-  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-csv?${qs.toString()}`;
+  const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-csv`;
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Accept': 'text/csv',
-      'Authorization': `Bearer ${token}`,
-    }
-  });
+  // Use POST for large exports (many propertyIds), GET for small/filter-based exports
+  // URL length limits (~2KB) make GET unreliable for >50 property IDs
+  const usePost = params.propertyIds && params.propertyIds.length > 50;
+
+  let response: Response;
+
+  if (usePost) {
+    // POST with JSON body for large exports
+    response = await fetch(baseUrl, {
+      method: 'POST',
+      headers: {
+        'Accept': 'text/csv',
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        city: params.city,
+        minScore: params.minScore,
+        maxScore: params.maxScore,
+        jurisdictionId: params.jurisdictionId,
+        propertyIds: params.propertyIds,
+      }),
+    });
+  } else {
+    // GET with query params for small exports
+    const qs = new URLSearchParams();
+    if (params.city) qs.set("city", params.city);
+    if (params.minScore != null) qs.set("minScore", String(params.minScore));
+    if (params.maxScore != null) qs.set("maxScore", String(params.maxScore));
+    if (params.jurisdictionId) qs.set("jurisdictionId", params.jurisdictionId);
+    if (params.propertyIds?.length) qs.set("propertyIds", params.propertyIds.join(","));
+
+    response = await fetch(`${baseUrl}?${qs.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/csv',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
 
   if (!response.ok) {
     // Check if limit exceeded

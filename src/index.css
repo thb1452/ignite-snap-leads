@@ -184,4 +184,16 @@ All colors MUST be HSL.
   .snap-drawer {
     z-index: 2000 !important;
   }
+
+  /* Hide Lovable badge in production */
+  [data-lovable-badge],
+  .lovable-badge,
+  a[href*="lovable.dev"]:not([href*="docs"]),
+  div[class*="lovable"],
+  iframe[src*="lovable"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
 }

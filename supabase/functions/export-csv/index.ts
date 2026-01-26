@@ -26,13 +26,31 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const city = url.searchParams.get('city');
-    const minScore = url.searchParams.get('minScore');
-    const maxScore = url.searchParams.get('maxScore');
-    const jurisdictionId = url.searchParams.get('jurisdictionId');
-    const propertyIdsParam = url.searchParams.get('propertyIds');
-    const propertyIds = propertyIdsParam ? propertyIdsParam.split(',').filter(id => id.trim()) : null;
+    // Support both GET (small exports) and POST (large exports with many propertyIds)
+    // POST is required when propertyIds exceed URL length limits (~2KB)
+    let city: string | null = null;
+    let minScore: string | null = null;
+    let maxScore: string | null = null;
+    let jurisdictionId: string | null = null;
+    let propertyIds: string[] | null = null;
+
+    if (req.method === 'POST') {
+      const body = await req.json();
+      city = body.city || null;
+      minScore = body.minScore?.toString() || null;
+      maxScore = body.maxScore?.toString() || null;
+      jurisdictionId = body.jurisdictionId || null;
+      propertyIds = Array.isArray(body.propertyIds) ? body.propertyIds : null;
+      console.log(`[export-csv] POST request with ${propertyIds?.length || 0} propertyIds`);
+    } else {
+      const url = new URL(req.url);
+      city = url.searchParams.get('city');
+      minScore = url.searchParams.get('minScore');
+      maxScore = url.searchParams.get('maxScore');
+      jurisdictionId = url.searchParams.get('jurisdictionId');
+      const propertyIdsParam = url.searchParams.get('propertyIds');
+      propertyIds = propertyIdsParam ? propertyIdsParam.split(',').filter(id => id.trim()) : null;
+    }
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
@@ -113,51 +131,57 @@ serve(async (req) => {
     const dataTier = (subData?.plan as any)?.data_tier || 'basic';
     console.log('[export-csv] User data tier:', dataTier);
 
-    // Build query - ONLY select clean fields
-    let query = supabase
-      .from('properties')
-      .select(`
-        address,
-        city,
-        state,
-        zip,
-        snap_insight,
-        snap_score,
-        enforcement_type,
-        violations (
-          violation_type,
-          status,
-          opened_date
-        )
-      `);
+    // Helper to build a fresh query each time (Supabase query builder is mutable)
+    const buildBaseQuery = () => {
+      let q = supabase
+        .from('properties')
+        .select(`
+          address,
+          city,
+          state,
+          zip,
+          snap_insight,
+          snap_score,
+          enforcement_type,
+          violations (
+            violation_type,
+            status,
+            opened_date
+          )
+        `);
 
-    // Apply filters - propertyIds takes priority
-    if (propertyIds && propertyIds.length > 0) {
-      query = query.in('id', propertyIds);
-    } else {
-      if (city) {
-        query = query.eq('city', city);
+      // Apply filters - propertyIds takes priority
+      if (propertyIds && propertyIds.length > 0) {
+        q = q.in('id', propertyIds);
+      } else {
+        if (city) {
+          q = q.eq('city', city);
+        }
+        if (jurisdictionId) {
+          q = q.eq('jurisdiction_id', jurisdictionId);
+        }
+        if (minScore) {
+          q = q.gte('snap_score', parseInt(minScore));
+        }
+        if (maxScore) {
+          q = q.lte('snap_score', parseInt(maxScore));
+        }
       }
-      if (jurisdictionId) {
-        query = query.eq('jurisdiction_id', jurisdictionId);
-      }
-      if (minScore) {
-        query = query.gte('snap_score', parseInt(minScore));
-      }
-      if (maxScore) {
-        query = query.lte('snap_score', parseInt(maxScore));
-      }
-    }
 
-    // CRITICAL: Enforce data tier - basic users can only export code_violation properties
-    // Premium users can export all property types including water_shutoff
+      // CRITICAL: Enforce data tier - basic users can only export code_violation properties
+      if (dataTier === 'basic') {
+        q = q.eq('enforcement_type', 'code_violation');
+      }
+
+      // Order by snap_score descending (highest motivation first)
+      q = q.order('snap_score', { ascending: false, nullsFirst: false });
+
+      return q;
+    };
+
     if (dataTier === 'basic') {
-      query = query.eq('enforcement_type', 'code_violation');
       console.log('[export-csv] Filtering to code_violation only (basic tier)');
     }
-
-    // Order by snap_score descending (highest motivation first)
-    query = query.order('snap_score', { ascending: false, nullsFirst: false });
 
     // Paginate to get data with hard limit to prevent OOM
     const MAX_EXPORT_ROWS = 50000; // Hard limit to prevent memory issues
@@ -166,17 +190,19 @@ serve(async (req) => {
     const BATCH_SIZE = 1000;
 
     while (allData.length < MAX_EXPORT_ROWS) {
-      const { data, error } = await query.range(offset, offset + BATCH_SIZE - 1);
-      
+      // CRITICAL: Build fresh query each iteration - Supabase query builder is mutable!
+      const { data, error } = await buildBaseQuery().range(offset, offset + BATCH_SIZE - 1);
+
       if (error) {
         console.error('[export-csv] Query error:', error);
         throw error;
       }
 
       if (!data || data.length === 0) break;
-      
+
       allData = allData.concat(data);
-      
+      console.log(`[export-csv] Fetched batch: offset=${offset}, got=${data.length}, total=${allData.length}`);
+
       if (data.length < BATCH_SIZE) break;
       offset += BATCH_SIZE;
     }

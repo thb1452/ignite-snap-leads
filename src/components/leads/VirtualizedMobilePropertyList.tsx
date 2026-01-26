@@ -47,8 +47,13 @@ export function VirtualizedMobilePropertyList({
     overscan: 3,
   });
 
+  // Virtualizer needs explicit height constraint for scroll container to work properly
   return (
-    <div ref={parentRef} className="flex-1 overflow-y-auto">
+    <div
+      ref={parentRef}
+      className="flex-1 overflow-y-auto min-h-0"
+      style={{ maxHeight: 'calc(100vh - 200px)' }}
+    >
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,

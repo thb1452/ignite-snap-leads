@@ -13,7 +13,9 @@ export interface MapMarker {
   enforcement_type?: string; // 'code_violation' or 'water_shutoff'
 }
 
-const MAX_MARKERS = 50000;
+// Reduced from 50k to prevent timeout with large datasets
+// Map clusters handle high-density areas efficiently
+const MAX_MARKERS = 10000;
 
 // Clean filter object by removing undefined/null values
 function cleanFilters(filters: LeadFilters): LeadFilters {
@@ -54,7 +56,15 @@ async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[
   const result = data as unknown as { items: MapMarker[] | null; total: number; error?: string };
   
   if (result.error) {
+    // Don't throw for expected "soft" errors - just return empty markers
+    // This prevents error toasts for cases like "subscription required"
     console.warn("[useMapMarkers] RPC returned error:", result.error);
+    return [];
+  }
+
+  // Handle null/undefined items gracefully
+  if (!result.items) {
+    console.warn("[useMapMarkers] RPC returned null items");
     return [];
   }
 

@@ -535,6 +535,8 @@ function Leads() {
             onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
             onClearFilters={handleClearFilters}
             activeFilterCount={activeFilterCount}
+            propertyCount={totalCount}
+            onAddAllToList={() => setShowAddAllToListDialog(true)}
           />
         </div>
         

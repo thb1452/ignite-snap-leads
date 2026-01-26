@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X, ListPlus } from "lucide-react";
 import { EnforcementAreaFilter } from "./EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "./EnforcementSignalsFilter";
 import { PressureLevelFilter } from "./PressureLevelFilter";
@@ -30,6 +30,9 @@ interface MobileFilterSheetProps {
   // General
   onClearFilters: () => void;
   activeFilterCount: number;
+  // Add all to list
+  propertyCount?: number;
+  onAddAllToList?: () => void;
 }
 
 export function MobileFilterSheet({
@@ -49,6 +52,8 @@ export function MobileFilterSheet({
   onRepeatOffenderChange,
   onClearFilters,
   activeFilterCount,
+  propertyCount = 0,
+  onAddAllToList,
 }: MobileFilterSheetProps) {
   const [open, setOpen] = useState(false);
 
@@ -126,8 +131,21 @@ export function MobileFilterSheet({
           />
         </div>
 
-        {/* Fixed Apply Button at bottom */}
-        <div className="shrink-0 px-4 py-4 border-t bg-background">
+        {/* Fixed Buttons at bottom */}
+        <div className="shrink-0 px-4 py-4 border-t bg-background space-y-2">
+          {onAddAllToList && propertyCount > 0 && (
+            <Button 
+              variant="outline"
+              className="w-full h-12 text-base font-medium gap-2" 
+              onClick={() => {
+                onAddAllToList();
+                setOpen(false);
+              }}
+            >
+              <ListPlus className="h-5 w-5" />
+              Add All to List ({propertyCount.toLocaleString()})
+            </Button>
+          )}
           <Button 
             className="w-full h-12 text-base font-medium" 
             onClick={() => setOpen(false)}

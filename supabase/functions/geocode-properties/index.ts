@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 // AGGRESSIVE batching for faster processing - 83k+ properties to process
 const BATCH_SIZE = 500; // Process 500 properties per invocation
-const PARALLEL_REQUESTS = 50; // 50 concurrent geocoding requests
+const PARALLEL_REQUESTS = 25; // 25 concurrent - Census API is rate-limited
 const CONTINUE_THRESHOLD = 100; // Auto-continue if more than 100 remaining
 
 const corsHeaders = {
@@ -16,7 +16,10 @@ interface GeocodeRequest {
 }
 
 /**
- * Geocode a single address using Mapbox Geocoding API
+ * Geocode a single address using FREE US Census Geocoder API
+ * https://geocoding.geo.census.gov/geocoder/Geocoding_Services_API.pdf
+ * 
+ * NO API KEY REQUIRED - 100% FREE for US addresses
  */
 async function geocodeAddress(
   address: string,
@@ -76,47 +79,55 @@ async function geocodeAddress(
 
   console.log(`[Geocoding] ${cleanAddress}, ${city}, ${state}`);
 
-  // STEP 5: Check for Mapbox API token
-  const MAPBOX_TOKEN = Deno.env.get('MAPBOX_ACCESS_TOKEN');
-  if (!MAPBOX_TOKEN) {
-    console.error('[Geocoding] ⚠️ MAPBOX_ACCESS_TOKEN not configured - skipping all geocoding');
-    return { latitude: null, longitude: null, skipped: true };  // FIX: Mark as skipped, not failed
-  }
-
-  // STEP 6: Build full address and call Mapbox
+  // STEP 5: Call FREE US Census Geocoder API
+  // Format: https://geocoding.geo.census.gov/geocoder/locations/onelineaddress
   const cleanCity = city.trim();
   const cleanState = state.trim();
-  const addressParts = [cleanAddress, cleanCity, cleanState];
-  if (zip && zip.trim() && zip !== '00000') {
-    addressParts.push(zip.trim());
-  }
-  const fullAddress = addressParts.join(', ');
+  const cleanZip = zip?.trim() && zip !== '00000' ? zip.trim() : '';
+  
+  // Build one-line address for Census API
+  const oneLineAddress = cleanZip 
+    ? `${cleanAddress}, ${cleanCity}, ${cleanState} ${cleanZip}`
+    : `${cleanAddress}, ${cleanCity}, ${cleanState}`;
 
   try {
-    const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(fullAddress)}.json?access_token=${MAPBOX_TOKEN}&country=US&limit=1`;
+    // Census Geocoder API - completely FREE, no API key needed
+    const censusUrl = new URL('https://geocoding.geo.census.gov/geocoder/locations/onelineaddress');
+    censusUrl.searchParams.set('address', oneLineAddress);
+    censusUrl.searchParams.set('benchmark', 'Public_AR_Current'); // Most recent data
+    censusUrl.searchParams.set('format', 'json');
 
-    const response = await fetch(mapboxUrl, {
-      signal: AbortSignal.timeout(5000) // 5 second timeout - fail fast
+    const response = await fetch(censusUrl.toString(), {
+      signal: AbortSignal.timeout(10000) // 10 second timeout - Census can be slower
     });
 
     if (!response.ok) {
-      console.error(`[Mapbox FAIL] ${fullAddress}: HTTP ${response.status}`);
+      console.error(`[Census FAIL] ${oneLineAddress}: HTTP ${response.status}`);
       return { latitude: null, longitude: null, skipped: false };
     }
 
     const data = await response.json();
 
-    if (data.features && data.features.length > 0) {
-      const [lng, lat] = data.features[0].center;
-      console.log(`✓ Geocoded: ${fullAddress} -> ${lat}, ${lng}`);
-      return { latitude: lat, longitude: lng, skipped: false };
+    // Census API returns matches in result.addressMatches array
+    if (data.result?.addressMatches && data.result.addressMatches.length > 0) {
+      const match = data.result.addressMatches[0];
+      const { x: lng, y: lat } = match.coordinates;
+      
+      // Validate coordinates are in US range
+      if (lat >= 24 && lat <= 50 && lng >= -125 && lng <= -66) {
+        console.log(`✓ Geocoded: ${oneLineAddress} -> ${lat}, ${lng}`);
+        return { latitude: lat, longitude: lng, skipped: false };
+      } else {
+        console.log(`[Census FAIL] ${oneLineAddress}: Coordinates outside US (${lat}, ${lng})`);
+        return { latitude: null, longitude: null, skipped: false };
+      }
     }
 
-    console.log(`[Mapbox FAIL] ${fullAddress}: No results`);
+    console.log(`[Census FAIL] ${oneLineAddress}: No matches found`);
     return { latitude: null, longitude: null, skipped: false };
 
   } catch (error) {
-    console.error(`[Mapbox ERROR] ${fullAddress}:`, {
+    console.error(`[Census ERROR] ${oneLineAddress}:`, {
       error: error instanceof Error ? error.message : String(error),
       type: error instanceof Error ? error.name : 'Unknown'
     });
@@ -188,7 +199,7 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log(`[Geocoding] Processing ${properties.length} properties in parallel (${PARALLEL_REQUESTS} concurrent)`);
+    console.log(`[Geocoding] Processing ${properties.length} properties using FREE Census Geocoder (${PARALLEL_REQUESTS} concurrent)`);
 
     let successCount = 0;
     let failCount = 0;
@@ -230,6 +241,11 @@ serve(async (req: Request) => {
       }
 
       console.log(`[Geocoding] Processed ${Math.min(i + PARALLEL_REQUESTS, properties.length)}/${properties.length}`);
+      
+      // Small delay between batches to be nice to Census API
+      if (i + PARALLEL_REQUESTS < properties.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
 
     // Batch update successful geocodes
@@ -322,7 +338,7 @@ serve(async (req: Request) => {
       const selfInvokePromise = (async () => {
         try {
           // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise(resolve => setTimeout(resolve, 500));
           
           const nextResponse = await fetch(
             `${Deno.env.get('SUPABASE_URL')}/functions/v1/geocode-properties`,

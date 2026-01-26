@@ -69,49 +69,17 @@ serve(async (req) => {
     }
     const user = authData.user;
 
-    // ---- Check and Reserve Usage (atomic operation) ----
-    // CRITICAL: Block export if usage tracking fails to prevent free exports during outages
-    const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
-      p_usage_type: 'exports',
-      p_amount: 1
-    });
-
-    if (usageError) {
-      console.error('[export-csv] Usage tracking failed:', usageError.message);
-      return new Response(
-        JSON.stringify({
-          error: 'Export temporarily unavailable',
-          code: 'USAGE_TRACKING_ERROR',
-          message: 'Unable to process export at this time. Please try again.'
-        }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    if (usageResult && usageResult.allowed === false) {
-      console.log('[export-csv] User hit export limit:', user.id);
-      return new Response(
-        JSON.stringify({
-          error: 'CSV export limit reached',
-          code: 'EXPORT_LIMIT_EXCEEDED',
-          message: usageResult.message || 'You have reached your monthly CSV export limit. Please upgrade your plan to continue exporting.'
-        }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    console.log('[export-csv] Usage consumed for user:', user.id, 'remaining:', usageResult?.remaining);
-
     // ---- Get user's data tier from subscription ----
     const { data: subData } = await supabase
       .from('user_subscriptions')
-      .select('plan:subscription_plans(data_tier)')
+      .select('plan:subscription_plans(data_tier, max_monthly_exports)')
       .eq('user_id', user.id)
       .eq('status', 'active')
       .single();
 
     const dataTier = (subData?.plan as any)?.data_tier || 'basic';
-    console.log('[export-csv] User data tier:', dataTier);
+    const maxExports = (subData?.plan as any)?.max_monthly_exports || 0;
+    console.log('[export-csv] User data tier:', dataTier, 'max exports:', maxExports);
 
     // Build query - ONLY select clean fields
     let query = supabase
@@ -187,7 +155,44 @@ serve(async (req) => {
       allData = allData.slice(0, MAX_EXPORT_ROWS);
     }
 
-    console.log(`[export-csv] Exporting ${allData.length} properties for user ${user.id}`);
+    const exportCount = allData.length;
+    console.log(`[export-csv] Exporting ${exportCount} properties for user ${user.id}`);
+
+    // ---- Check and Reserve Usage (atomic operation) ----
+    // CRITICAL: Consume usage AFTER we know the actual export count
+    // This ensures we track the actual number of properties exported, not just "1 export"
+    const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
+      p_usage_type: 'exports',
+      p_amount: exportCount
+    });
+
+    if (usageError) {
+      console.error('[export-csv] Usage tracking failed:', usageError.message);
+      return new Response(
+        JSON.stringify({
+          error: 'Export temporarily unavailable',
+          code: 'USAGE_TRACKING_ERROR',
+          message: 'Unable to process export at this time. Please try again.'
+        }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (usageResult && usageResult.allowed === false) {
+      console.log('[export-csv] User hit export limit:', user.id, 'tried to export:', exportCount);
+      return new Response(
+        JSON.stringify({
+          error: 'CSV export limit reached',
+          code: 'EXPORT_LIMIT_EXCEEDED',
+          message: usageResult.message || `Cannot export ${exportCount} properties. You have reached your monthly limit. Please upgrade your plan to continue exporting.`,
+          requested: exportCount,
+          remaining: usageResult.remaining || 0
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log('[export-csv] Usage consumed:', exportCount, 'for user:', user.id, 'remaining:', usageResult?.remaining);
 
     // FIXED: One row per property with aggregated violations
     // Previously: iterated through each violation creating duplicate property rows

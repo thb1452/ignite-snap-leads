@@ -227,6 +227,9 @@ function Leads() {
         propertyIds: selectedIds,
       });
 
+      // Small delay to ensure backend has committed the usage update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Refetch subscription usage to update the export counter in UI
       await refetchSubscription();
 

@@ -588,7 +588,7 @@ function Leads() {
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-4 px-4 py-2 border-t bg-background">
+            <div className="flex items-center justify-between px-4 py-2 border-t bg-background">
               <Button
                 variant="ghost"
                 size="sm"
@@ -599,6 +599,9 @@ function Leads() {
                 <ChevronLeft className="h-4 w-4" />
                 Previous
               </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </span>
               <Button
                 variant="ghost"
                 size="sm"
@@ -664,21 +667,24 @@ function Leads() {
 
             {/* Mobile Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-4 px-4 py-3 border-t bg-background">
+              <div className="flex items-center justify-between px-4 py-3 border-t bg-background">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-10 min-h-[44px] px-4 gap-1"
+                  className="h-10 min-h-[44px] px-3 gap-1"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page <= 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  Previous
+                  Prev
                 </Button>
+                <span className="text-sm text-muted-foreground">
+                  {page} / {totalPages}
+                </span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-10 min-h-[44px] px-4 gap-1"
+                  className="h-10 min-h-[44px] px-3 gap-1"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >

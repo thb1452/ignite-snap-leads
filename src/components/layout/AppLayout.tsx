@@ -157,7 +157,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Mobile Navigation - simplified */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white md:hidden">
         <div className="flex items-center justify-around h-14">
-          {mainNavItems.slice(0, 4).map((item) => {
+          {mainNavItems.slice(0, 5).map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link
@@ -171,14 +171,6 @@ export function AppLayout({ children }: AppLayoutProps) {
               </Link>
             );
           })}
-          <Link
-            to="/settings"
-            className={`flex items-center justify-center px-3 py-2 flex-1 text-xs font-medium ${
-              location.pathname === '/settings' ? "text-brand" : "text-ink-500"
-            }`}
-          >
-            Settings
-          </Link>
         </div>
       </nav>
     </div>

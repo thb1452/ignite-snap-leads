@@ -185,8 +185,8 @@ function Leads() {
       return;
     }
 
-    const canExport = await checkLimit('exports');
-    if (!canExport) {
+    const limitResult = await checkLimit('exports');
+    if (!limitResult.allowed) {
       setUpgradeLimitType('exports');
       setShowUpgradePrompt(true);
       return;

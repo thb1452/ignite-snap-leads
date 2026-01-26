@@ -56,6 +56,10 @@ All colors MUST be HSL.
     /* Animations */
     --transition-smooth: all 0.18s cubic-bezier(0.22, 0.61, 0.36, 1);
 
+    /* Layout dimensions */
+    --bottom-nav-height: 3.5rem; /* 56px - mobile bottom nav */
+    --header-height: 3.5rem; /* 56px - top header */
+
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;

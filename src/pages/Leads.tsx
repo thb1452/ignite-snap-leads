@@ -650,7 +650,10 @@ function Leads() {
                 No properties found
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y pb-4">
+              <div 
+                className="flex-1 overflow-y-auto overscroll-contain touch-pan-y"
+                style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 4rem)' }}
+              >
                 <div className="divide-y">
                   {mappedProperties.map((property) => (
                     <MobilePropertyCard
@@ -662,35 +665,33 @@ function Leads() {
                     />
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Mobile Pagination - Always show when there are properties */}
-            {properties.length > 0 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t bg-background mb-14 shrink-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-10 min-h-[44px] px-3 gap-1"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Prev
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  Page {page} of {totalPages || 1}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-10 min-h-[44px] px-3 gap-1"
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                
+                {/* Mobile Pagination - inside scroll area */}
+                <div className="flex items-center justify-between px-4 py-3 border-t bg-background mt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 min-h-[44px] px-3 gap-1"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Prev
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {page} of {totalPages || 1}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 min-h-[44px] px-3 gap-1"
+                    onClick={() => setPage(p => Math.min(totalPages || 1, p + 1))}
+                    disabled={page >= (totalPages || 1)}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>

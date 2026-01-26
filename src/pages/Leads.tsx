@@ -650,7 +650,7 @@ function Leads() {
                 No properties found
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y">
+              <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y pb-4">
                 <div className="divide-y">
                   {mappedProperties.map((property) => (
                     <MobilePropertyCard
@@ -665,9 +665,9 @@ function Leads() {
               </div>
             )}
 
-            {/* Mobile Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t bg-background">
+            {/* Mobile Pagination - Always show when there are properties */}
+            {properties.length > 0 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t bg-background mb-14 shrink-0">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -679,7 +679,7 @@ function Leads() {
                   Prev
                 </Button>
                 <span className="text-sm text-muted-foreground">
-                  {page} / {totalPages}
+                  Page {page} of {totalPages || 1}
                 </span>
                 <Button
                   variant="ghost"

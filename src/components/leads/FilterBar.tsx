@@ -1,4 +1,4 @@
-import { Search, X } from "lucide-react";
+import { Search, X, ListPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ interface FilterBarProps {
   repeatOffenderOnly: boolean;
   propertyCount: number;
   onClearFilters: () => void;
+  onAddAllToList?: () => void;
 }
 
 export function FilterBar({
@@ -29,7 +30,8 @@ export function FilterBar({
   multipleViolationsOnly,
   repeatOffenderOnly,
   propertyCount,
-  onClearFilters
+  onClearFilters,
+  onAddAllToList
 }: FilterBarProps) {
   const hasActiveFilters = lastSeenDays !== null ||
     selectedCity !== null || selectedState !== null || selectedSignal !== null ||
@@ -92,8 +94,22 @@ export function FilterBar({
         )}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
         <FreshnessIndicator />
+        
+        {/* Add All to List button */}
+        {onAddAllToList && propertyCount > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAddAllToList}
+            className="gap-2"
+          >
+            <ListPlus className="h-4 w-4" />
+            Add All to List ({propertyCount.toLocaleString()})
+          </Button>
+        )}
+        
         <Button
           variant="ghost"
           size="sm"
@@ -102,7 +118,7 @@ export function FilterBar({
           className="gap-2"
         >
           <X className="h-4 w-4" />
-          Clear all filters
+          Clear
         </Button>
       </div>
     </div>

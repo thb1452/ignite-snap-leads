@@ -289,23 +289,6 @@ function Leads() {
     }
   };
 
-  // Map properties to include violations when available from violationsData
-  // This prevents N+1 queries when opening PropertyDetailPanel
-  const mappedProperties = useMemo(() => {
-    // Group violations by property_id for efficient lookup
-    const violationsByPropertyId = new Map<string, any[]>();
-    violationsData.forEach(v => {
-      const existing = violationsByPropertyId.get(v.property_id) || [];
-      existing.push(v);
-      violationsByPropertyId.set(v.property_id, existing);
-    });
-
-    return properties.map(p => ({
-      ...p,
-      violations: violationsByPropertyId.get(p.id) || [],
-    }));
-  }, [properties, violationsData]);
-
   // Fetch violations for all properties (enables instant PropertyDetailPanel)
   // Memoize propertyIds to prevent query cache invalidation on every render
   const propertyIds = useMemo(() => properties.map(p => p.id), [properties]);
@@ -325,6 +308,23 @@ function Leads() {
     },
     staleTime: 30000,
   });
+
+  // Map properties to include violations when available from violationsData
+  // This prevents N+1 queries when opening PropertyDetailPanel
+  const mappedProperties = useMemo(() => {
+    // Group violations by property_id for efficient lookup
+    const violationsByPropertyId = new Map<string, any[]>();
+    violationsData.forEach(v => {
+      const existing = violationsByPropertyId.get(v.property_id) || [];
+      existing.push(v);
+      violationsByPropertyId.set(v.property_id, existing);
+    });
+
+    return properties.map(p => ({
+      ...p,
+      violations: violationsByPropertyId.get(p.id) || [],
+    }));
+  }, [properties, violationsData]);
 
   // Map violations with property data for violation view
   const violationsWithProperty = useMemo(() => {

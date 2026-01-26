@@ -1019,9 +1019,9 @@ async function processUploadJob(jobId: string) {
       const propertyCity = row.city || job.city || null;
       const state = row.state || job.state;
 
-      // IMPORTANT: Normalize address to lowercase for consistent matching
-      // This matches the database functional index which uses LOWER(TRIM(...))
-      const normalizedAddress = (row.address || 'Parcel-Based Location').toLowerCase().trim();
+      // IMPORTANT: Normalize address to UPPERCASE for display consistency
+      // The database unique index uses LOWER(TRIM(...)) so matching is case-insensitive
+      const normalizedAddress = (row.address || 'PARCEL-BASED LOCATION').toUpperCase().trim();
 
       // AGGREGATE VIOLATIONS FOR THIS PROPERTY
       const aggregates = aggregateViolations(row.violations || []);
@@ -1029,8 +1029,8 @@ async function processUploadJob(jobId: string) {
       return {
         key, // Include key for mapping after insert
         address: normalizedAddress,
-        city: propertyCity ? propertyCity.trim().toLowerCase() : 'unincorporated',
-        state: (state || '').trim().toLowerCase(),
+        city: propertyCity ? propertyCity.trim().toUpperCase() : 'UNINCORPORATED',
+        state: (state || '').trim().toUpperCase(),
         zip: (row.zip || '').trim(),
         county: job.county || null,
         scope: scope,

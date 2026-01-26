@@ -56,13 +56,22 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   const [isLoadingViolations, setIsLoadingViolations] = useState(false);
   const { toast } = useToast();
 
-  // Fetch violations when property changes
+  // Use pre-loaded violations if available, otherwise fetch from database
+  // This eliminates N+1 queries when violations are already loaded in the parent
   useEffect(() => {
     if (property && open) {
       // Reset state
       setPropertyLists([]);
 
-      // Fetch violations from database
+      // Check if violations are already loaded on the property
+      if (property.violations && property.violations.length > 0) {
+        console.log(`[PropertyDetailPanel] Using ${property.violations.length} pre-loaded violations for property ${property.id}`);
+        setViolations(property.violations);
+        setIsLoadingViolations(false);
+        return;
+      }
+
+      // Fallback: Fetch violations from database only if not pre-loaded
       const fetchViolations = async () => {
         setIsLoadingViolations(true);
         console.log("[PropertyDetailPanel] Fetching violations for property:", property.id);
@@ -76,18 +85,9 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
           if (error) {
             console.error("[PropertyDetailPanel] Error fetching violations:", error);
-            console.error("[PropertyDetailPanel] Error details:", {
-              message: error.message,
-              code: error.code,
-              details: error.details,
-              hint: error.hint
-            });
             setViolations([]);
           } else {
             console.log(`[PropertyDetailPanel] ✓ Fetched ${data?.length || 0} violations for property ${property.id}`);
-            if (data && data.length > 0) {
-              console.log("[PropertyDetailPanel] Sample violation:", data[0]);
-            }
             setViolations(data || []);
           }
         } catch (err) {
@@ -102,7 +102,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
     } else {
       setViolations([]);
     }
-  }, [property?.id, open]);
+  }, [property?.id, property?.violations, open]);
 
   if (!property) return null;
 

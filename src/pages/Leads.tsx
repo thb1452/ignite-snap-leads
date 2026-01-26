@@ -45,7 +45,7 @@ function Leads() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
-  const { plan, checkLimit } = useSubscription();
+  const { plan, checkLimit, refetch: refetchSubscription } = useSubscription();
   const { hasFeature } = useSubscriptionGate({ showToast: false });
   // State selection removed - all users now see all properties across all states
   // Pagination state
@@ -200,6 +200,9 @@ function Leads() {
       await exportFilteredCsv({
         propertyIds: selectedIds,
       });
+
+      // Refetch subscription usage to update the export counter in UI
+      await refetchSubscription();
 
       toast({
         title: "Export Complete",

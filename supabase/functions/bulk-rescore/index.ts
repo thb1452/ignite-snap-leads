@@ -108,9 +108,8 @@ serve(async (req) => {
     console.log(`[bulk-rescore] Batch complete: ${insightResult.processed} processed in ${elapsed}ms`);
     console.log(`[bulk-rescore] Progress: ${progress}% (${nextOffset}/${totalCount})`);
 
-    // PAUSED: Auto-continue disabled by admin request
-    // To resume: set autoResume = true below
-    const autoResume = false;
+    // Auto-continue enabled for full batch processing
+    const autoResume = true;
     
     if (!isComplete && !dryRun && autoResume) {
       // Small delay to avoid overwhelming the AI API

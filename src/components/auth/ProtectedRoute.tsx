@@ -1,15 +1,17 @@
 import { ReactNode } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthForm } from './AuthForm';
+import { EmailVerificationPrompt } from './EmailVerificationPrompt';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: ReactNode;
+  requireEmailVerification?: boolean;
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading } = useAuth();
+export function ProtectedRoute({ children, requireEmailVerification = true }: ProtectedRouteProps) {
+  const { user, loading, emailVerified } = useAuth();
 
   if (loading) {
     return (
@@ -21,6 +23,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!user) {
     return <AuthForm />;
+  }
+
+  if (requireEmailVerification && !emailVerified) {
+    return <EmailVerificationPrompt />;
   }
 
   return <AppLayout>{children}</AppLayout>;

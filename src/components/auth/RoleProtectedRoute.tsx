@@ -2,6 +2,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import { Navigate, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/useSubscription';
+import { EmailVerificationPrompt } from './EmailVerificationPrompt';
 import { Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
 
 const CHECKOUT_PROCESSED_KEY = 'snap_checkout_processed';
@@ -19,7 +20,7 @@ export function RoleProtectedRoute({
   allowedRoles,
   redirectTo = '/leads'
 }: RoleProtectedRouteProps) {
-  const { user, loading, hasRole } = useAuth();
+  const { user, loading, hasRole, emailVerified } = useAuth();
   const { plan, loading: subLoading, hasActiveSubscription, refetch } = useSubscription();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -175,6 +176,11 @@ export function RoleProtectedRoute({
   // Not logged in
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Require email verification before accessing protected routes
+  if (!emailVerified) {
+    return <EmailVerificationPrompt />;
   }
 
   // Admins can access everything

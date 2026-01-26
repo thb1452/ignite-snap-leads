@@ -256,6 +256,37 @@ export function useAuth() {
   const hasRole = (role: AppRole) => roles.includes(role);
   const isAdmin = hasRole('admin');
   const isVA = hasRole('va');
+  const emailVerified = user?.email_confirmed_at != null;
+
+  const resendVerificationEmail = async () => {
+    if (!user?.email) return { error: new Error('No email address') };
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: user.email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Verification email sent",
+        description: "Check your inbox for the verification link",
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        title: "Failed to send verification email",
+        description: error.message,
+        variant: "destructive",
+      });
+      return { error };
+    }
+  };
 
   return {
     user,
@@ -264,9 +295,11 @@ export function useAuth() {
     hasRole,
     isAdmin,
     isVA,
+    emailVerified,
     signUp,
     signIn,
     signOut,
     resetPassword,
+    resendVerificationEmail,
   };
 }

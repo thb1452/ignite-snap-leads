@@ -127,7 +127,7 @@ export function useSubscription() {
     queryKey: ['subscription-usage', user?.id],
     queryFn: () => fetchUsage(user!.id),
     enabled: !!user?.id,
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 0, // Always refetch when requested to ensure fresh data after exports
   });
 
   // Build plan object from subscription data

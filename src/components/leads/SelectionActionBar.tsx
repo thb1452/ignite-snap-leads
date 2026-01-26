@@ -29,51 +29,45 @@ export function SelectionActionBar({
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-md"
         >
-          <div className="bg-background border border-border rounded-xl shadow-lg p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">
-                  ✓ {selectedCount} {selectedCount === 1 ? 'property' : 'properties'} selected
+          <div className="bg-background border border-border rounded-xl shadow-xl p-3">
+            <div className="flex items-center justify-between gap-2">
+              {/* Selection count with checkbox icon */}
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="w-5 h-5 rounded bg-primary flex items-center justify-center">
+                  <svg className="w-3 h-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium whitespace-nowrap">
+                  {selectedCount} selected
                 </span>
               </div>
               
+              {/* Actions */}
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onAddToList}
-                  disabled={isExporting || !hasSelection}
-                  className="h-9 gap-1.5"
-                >
-                  <ListPlus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Add to List</span>
-                </Button>
-                
                 <Button
                   size="sm"
                   onClick={onExportCSV}
                   disabled={isExporting || !hasSelection}
-                  className="h-9 gap-1.5"
+                  className="h-9 gap-1.5 px-3"
                 >
                   {isExporting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  <span className="hidden sm:inline">
-                    {isExporting ? 'Exporting...' : 'Export CSV'}
-                  </span>
+                  <span>Export</span>
                 </Button>
                 
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="sm"
                   onClick={onClearSelection}
                   disabled={isExporting}
-                  className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                  className="h-9 px-2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
-                  <span className="sr-only">Clear selection</span>
+                  <span className="sr-only sm:not-sr-only sm:ml-1">Clear</span>
                 </Button>
               </div>
             </div>

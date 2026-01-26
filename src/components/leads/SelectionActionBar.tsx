@@ -27,7 +27,7 @@ export function SelectionActionBar({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md"
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-md"
         >
           <div className="bg-background border border-border rounded-xl shadow-lg p-3">
             <div className="flex items-center justify-between gap-3">

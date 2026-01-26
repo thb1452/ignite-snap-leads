@@ -106,7 +106,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               )}
               
               <DropdownMenuItem asChild>
-                <Link to="/" className="flex items-center gap-2 cursor-pointer">
+                <Link to="/leads" className="flex items-center gap-2 cursor-pointer">
                   <LayoutDashboard className="h-4 w-4" />
                   Properties
                 </Link>

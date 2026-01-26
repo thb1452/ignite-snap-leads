@@ -8,6 +8,7 @@ import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { MobilePropertyDetailSheet } from "@/components/leads/MobilePropertyDetailSheet";
 import { MobileFilterSheet } from "@/components/leads/MobileFilterSheet";
 import { MobilePropertyCard } from "@/components/leads/MobilePropertyCard";
+import { VirtualizedMobilePropertyList } from "@/components/leads/VirtualizedMobilePropertyList";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
@@ -288,20 +289,29 @@ function Leads() {
     }
   };
 
-  // Map properties to include violations placeholder (they're not fetched in paged query)
-  const mappedProperties = useMemo(() =>
-    properties.map(p => ({
-      ...p,
-      violations: [] as any[],
-    })),
-    [properties]
-  );
+  // Map properties to include violations when available from violationsData
+  // This prevents N+1 queries when opening PropertyDetailPanel
+  const mappedProperties = useMemo(() => {
+    // Group violations by property_id for efficient lookup
+    const violationsByPropertyId = new Map<string, any[]>();
+    violationsData.forEach(v => {
+      const existing = violationsByPropertyId.get(v.property_id) || [];
+      existing.push(v);
+      violationsByPropertyId.set(v.property_id, existing);
+    });
 
-  // Fetch violations when in violation view mode
-  const propertyIds = properties.map(p => p.id);
+    return properties.map(p => ({
+      ...p,
+      violations: violationsByPropertyId.get(p.id) || [],
+    }));
+  }, [properties, violationsData]);
+
+  // Fetch violations for all properties (enables instant PropertyDetailPanel)
+  // Memoize propertyIds to prevent query cache invalidation on every render
+  const propertyIds = useMemo(() => properties.map(p => p.id), [properties]);
   const { data: violationsData = [] } = useQuery({
-    queryKey: ["violations-for-properties", propertyIds, viewMode],
-    enabled: viewMode === 'violation' && propertyIds.length > 0,
+    queryKey: ["violations-for-properties", propertyIds],
+    enabled: propertyIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("violations")
@@ -677,12 +687,12 @@ function Leads() {
                 No properties found
               </div>
             ) : (
-              <div 
-                className="flex-1 overflow-y-auto overscroll-contain touch-pan-y"
-                style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 4rem)' }}
+              <div
+                className="flex-1 flex flex-col overflow-hidden"
+                style={{ paddingBottom: 'var(--bottom-nav-height)' }}
               >
                 {/* Select All Header */}
-                <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2.5 bg-background border-b">
+                <div className="flex items-center justify-between px-4 py-2.5 bg-background border-b">
                   <div className="flex items-center gap-3">
                     <Checkbox
                       checked={selectedIds.length === properties.length && properties.length > 0}
@@ -690,8 +700,8 @@ function Leads() {
                       className="h-5 w-5"
                     />
                     <span className="text-sm font-medium">
-                      {selectedIds.length > 0 
-                        ? `${selectedIds.length} selected` 
+                      {selectedIds.length > 0
+                        ? `${selectedIds.length} selected`
                         : `Select all (${properties.length})`}
                     </span>
                   </div>
@@ -707,20 +717,16 @@ function Leads() {
                   )}
                 </div>
 
-                <div className="divide-y">
-                  {mappedProperties.map((property) => (
-                    <MobilePropertyCard
-                      key={property.id}
-                      property={property}
-                      isSelected={selectedIds.includes(property.id)}
-                      onToggleSelect={handleToggleSelect}
-                      onClick={() => setSelectedPropertyId(property.id)}
-                    />
-                  ))}
-                </div>
-                
-                {/* Mobile Pagination - inside scroll area */}
-                <div className="flex items-center justify-center gap-4 px-4 py-3 border-t bg-background mt-2">
+                {/* Virtualized Mobile Property List */}
+                <VirtualizedMobilePropertyList
+                  properties={mappedProperties}
+                  selectedIds={selectedIds}
+                  onToggleSelect={handleToggleSelect}
+                  onPropertyClick={(id) => setSelectedPropertyId(id)}
+                />
+
+                {/* Mobile Pagination */}
+                <div className="flex items-center justify-center gap-4 px-4 py-3 border-t bg-background">
                   <Button
                     variant="ghost"
                     size="sm"

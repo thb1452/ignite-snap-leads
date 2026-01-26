@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, ChevronDown, ChevronUp, AlertTriangle, Flame } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, Flame } from "lucide-react";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 
@@ -144,19 +144,6 @@ export function MobilePropertyCard({
             )}
           </div>
 
-          {/* Action Button - Large tap target */}
-          <Button
-            variant="default"
-            size="sm"
-            className="mt-3 h-11 min-h-[44px] gap-2 w-full sm:w-auto"
-            onClick={(e) => {
-              e.stopPropagation();
-              // TODO: Implement contact action
-            }}
-          >
-            <MessageSquare className="h-4 w-4" />
-            Contact Owner
-          </Button>
         </div>
       </div>
     </div>

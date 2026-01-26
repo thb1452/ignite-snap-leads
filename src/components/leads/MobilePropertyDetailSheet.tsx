@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, MapPin, ExternalLink, Clock, Loader2, MessageSquare, Phone, ListPlus } from "lucide-react";
+import { X, MapPin, ExternalLink, Clock, Loader2, ListPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
@@ -241,33 +241,6 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
 
           {/* Action Footer - Sticky */}
           <div className="border-t p-4 bg-background space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)] shrink-0">
-            <div className="flex gap-3">
-              <Button
-                className="flex-1 h-12 text-base gap-2"
-                onClick={() => {
-                  toast({
-                    title: "Demo Mode",
-                    description: "Text message sent to owner",
-                  });
-                }}
-              >
-                <MessageSquare className="h-5 w-5" />
-                Text Owner
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1 h-12 text-base gap-2"
-                onClick={() => {
-                  toast({
-                    title: "Demo Mode",
-                    description: "Calling owner...",
-                  });
-                }}
-              >
-                <Phone className="h-5 w-5" />
-                Call Owner
-              </Button>
-            </div>
             {onAddToList && (
               <Button
                 variant="secondary"

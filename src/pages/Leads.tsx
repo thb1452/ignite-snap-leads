@@ -240,9 +240,16 @@ function Leads() {
 
     setIsExporting(true);
     try {
+      // Estimate export time: ~1 second per 1000 records
+      const estimatedSeconds = Math.max(5, Math.ceil(selectedIds.length / 1000) * 2);
+      const estimatedTime = estimatedSeconds > 60
+        ? `~${Math.ceil(estimatedSeconds / 60)} minute${Math.ceil(estimatedSeconds / 60) > 1 ? 's' : ''}`
+        : `~${estimatedSeconds} seconds`;
+
       toast({
         title: "Export Started",
-        description: `Exporting ${selectedIds.length} properties to CSV...`,
+        description: `Exporting ${selectedIds.length.toLocaleString()} properties to CSV. This may take ${estimatedTime} for large exports.`,
+        duration: selectedIds.length > 1000 ? 10000 : 5000,
       });
 
       await exportFilteredCsv({

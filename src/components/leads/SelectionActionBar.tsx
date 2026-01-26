@@ -57,11 +57,16 @@ export function SelectionActionBar({
                   className="h-9 gap-1.5 px-3"
                 >
                   {isExporting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Exporting...</span>
+                    </>
                   ) : (
-                    <Download className="h-4 w-4" />
+                    <>
+                      <Download className="h-4 w-4" />
+                      <span>Export</span>
+                    </>
                   )}
-                  <span>Export</span>
                 </Button>
                 
                 <Button

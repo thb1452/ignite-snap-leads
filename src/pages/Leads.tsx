@@ -145,10 +145,29 @@ function Leads() {
   // Use lightweight markers query for the map (filtered same as list)
   const { data: mapMarkers = [], error: mapError } = useMapMarkers(filters);
   
-  // Log any errors
-  if (error) console.error("[Leads] Properties error:", error);
-  if (mapError) console.error("[Leads] Map markers error:", mapError);
-  
+  // Show toast notifications for errors
+  useEffect(() => {
+    if (error) {
+      console.error("[Leads] Properties error:", error);
+      toast({
+        title: "Failed to load properties",
+        description: "Please try refreshing the page or check your connection.",
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
+
+  useEffect(() => {
+    if (mapError) {
+      console.error("[Leads] Map markers error:", mapError);
+      toast({
+        title: "Failed to load map data",
+        description: "Map markers may not be displayed correctly.",
+        variant: "destructive",
+      });
+    }
+  }, [mapError, toast]);
+
   const properties = data?.data ?? [];
   const totalCount = data?.total ?? 0;
   const dataTier = data?.dataTier ?? null;
@@ -289,6 +308,38 @@ function Leads() {
     }
   };
 
+  // Fetch violations for all properties (enables instant PropertyDetailPanel)
+  // Memoize propertyIds to prevent query cache invalidation on every render
+  const propertyIds = useMemo(() => properties.map(p => p.id), [properties]);
+  const { data: violationsData = [], error: violationsError } = useQuery({
+    queryKey: ["violations-for-properties", propertyIds],
+    enabled: propertyIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("violations")
+        .select("id, violation_type, status, opened_date, property_id, case_id, description")
+        .in("property_id", propertyIds)
+        .order("property_id")
+        .order("opened_date", { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 30000,
+  });
+
+  // Show toast for violations query error
+  useEffect(() => {
+    if (violationsError) {
+      console.error("[Leads] Violations error:", violationsError);
+      toast({
+        title: "Failed to load violation data",
+        description: "Property details may be incomplete.",
+        variant: "destructive",
+      });
+    }
+  }, [violationsError, toast]);
+
   // Map properties to include violations when available from violationsData
   // This prevents N+1 queries when opening PropertyDetailPanel
   const mappedProperties = useMemo(() => {
@@ -305,26 +356,6 @@ function Leads() {
       violations: violationsByPropertyId.get(p.id) || [],
     }));
   }, [properties, violationsData]);
-
-  // Fetch violations for all properties (enables instant PropertyDetailPanel)
-  // Memoize propertyIds to prevent query cache invalidation on every render
-  const propertyIds = useMemo(() => properties.map(p => p.id), [properties]);
-  const { data: violationsData = [] } = useQuery({
-    queryKey: ["violations-for-properties", propertyIds],
-    enabled: propertyIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("violations")
-        .select("id, violation_type, status, opened_date, property_id, case_id, description")
-        .in("property_id", propertyIds)
-        .order("property_id")
-        .order("opened_date", { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: 30000,
-  });
 
   // Map violations with property data for violation view
   const violationsWithProperty = useMemo(() => {

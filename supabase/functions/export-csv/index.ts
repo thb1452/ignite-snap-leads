@@ -102,6 +102,17 @@ serve(async (req) => {
     
     console.log('[export-csv] Usage consumed for user:', user.id, 'remaining:', usageResult?.remaining);
 
+    // ---- Get user's data tier from subscription ----
+    const { data: subData } = await supabase
+      .from('user_subscriptions')
+      .select('plan:subscription_plans(data_tier)')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .single();
+
+    const dataTier = (subData?.plan as any)?.data_tier || 'basic';
+    console.log('[export-csv] User data tier:', dataTier);
+
     // Build query - ONLY select clean fields
     let query = supabase
       .from('properties')
@@ -112,6 +123,7 @@ serve(async (req) => {
         zip,
         snap_insight,
         snap_score,
+        enforcement_type,
         violations (
           violation_type,
           status,
@@ -135,6 +147,13 @@ serve(async (req) => {
       if (maxScore) {
         query = query.lte('snap_score', parseInt(maxScore));
       }
+    }
+
+    // CRITICAL: Enforce data tier - basic users can only export code_violation properties
+    // Premium users can export all property types including water_shutoff
+    if (dataTier === 'basic') {
+      query = query.eq('enforcement_type', 'code_violation');
+      console.log('[export-csv] Filtering to code_violation only (basic tier)');
     }
 
     // Order by snap_score descending (highest motivation first)

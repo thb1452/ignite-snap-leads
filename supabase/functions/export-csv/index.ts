@@ -10,7 +10,7 @@ const corsHeaders = {
 // One row per property with violation data aggregated into original column positions
 const EXPORT_COLUMNS = [
   'address',
-  'city', 
+  'city',
   'state',
   'zip',
   'violation_type',      // Now contains aggregated types (semicolon-separated)
@@ -174,7 +174,7 @@ serve(async (req) => {
       if (data.length < BATCH_SIZE) break;
       offset += BATCH_SIZE;
     }
-    
+
     // Truncate if we hit the limit
     if (allData.length > MAX_EXPORT_ROWS) {
       console.log(`[export-csv] Truncating export from ${allData.length} to ${MAX_EXPORT_ROWS} rows`);
@@ -203,7 +203,7 @@ serve(async (req) => {
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
+
     if (usageResult && usageResult.allowed === false) {
       console.log('[export-csv] User hit export limit:', user.id, 'tried to export:', exportCount);
       return new Response(
@@ -217,44 +217,44 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
+
     console.log('[export-csv] Usage consumed:', exportCount, 'for user:', user.id, 'remaining:', usageResult?.remaining);
 
     // FIXED: One row per property with aggregated violations
     // Previously: iterated through each violation creating duplicate property rows
     // Now: aggregate all violation data into single columns per property
-    
+
     // Initialize CSV rows array with header
     const csvRows: string[] = [];
     csvRows.push(EXPORT_COLUMNS.join(','));
 
     for (const property of allData) {
       const violations = property.violations || [];
-      
+
       // Aggregate violation data
       const violationCount = violations.length;
-      const openViolationCount = violations.filter((v: any) => 
-        ['Open', 'Pending', 'Active', 'In Progress', 'New'].some(s => 
+      const openViolationCount = violations.filter((v: any) =>
+        ['Open', 'Pending', 'Active', 'In Progress', 'New'].some(s =>
           (v.status || '').toLowerCase().includes(s.toLowerCase())
         )
       ).length;
-      
+
       // Get unique violation types (semicolon-separated for backward compat)
       const uniqueTypes = [...new Set(violations
         .map((v: any) => v.violation_type)
         .filter(Boolean)
       )].join('; ');
-      
+
       // Get earliest date
       const dates = violations
         .map((v: any) => v.opened_date)
         .filter(Boolean)
         .sort();
       const earliestDate = dates[0] || '';
-      
+
       // Status summary: "X open / Y total"
       const statusSummary = `${openViolationCount} open / ${violationCount} total`;
-      
+
       // ONE row per property - backward-compatible column order
       const row = [
         escapeCSV(property.address || ''),

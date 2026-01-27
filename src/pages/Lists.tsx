@@ -35,7 +35,7 @@ import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 export function Lists() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { checkLimit, refetch: refetchSubscription, plan } = useSubscription();
+  const { checkLimit, refetch: refetchSubscription, plan, getRemainingCount } = useSubscription();
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -115,8 +115,31 @@ export function Lists() {
       return;
     }
 
-    const limitResult = await checkLimit("exports");
+    // CRITICAL: Check quota with PROPERTY COUNT, not just "1 export"
+    // Each property exported counts against the monthly limit
+    const remaining = getRemainingCount('exports');
+
+    // For unlimited plans (remaining === null), skip the client-side check
+    if (remaining !== null && propertyCount > remaining) {
+      toast({
+        title: "Export Limit Exceeded",
+        description: `You have ${remaining.toLocaleString()} property exports remaining this month. This export requires ${propertyCount.toLocaleString()}. Upgrade your plan to continue.`,
+        variant: "destructive",
+        duration: 8000,
+      });
+      setShowUpgradePrompt(true);
+      return;
+    }
+
+    // Server-side check with property count
+    const limitResult = await checkLimit("exports", propertyCount);
     if (!limitResult.allowed) {
+      toast({
+        title: "Export Limit Exceeded",
+        description: limitResult.message || `Insufficient export quota. You need ${propertyCount.toLocaleString()} but don't have enough remaining.`,
+        variant: "destructive",
+        duration: 8000,
+      });
       setShowUpgradePrompt(true);
       return;
     }
@@ -142,13 +165,17 @@ export function Lists() {
         return;
       }
 
-      await exportFilteredCsv({ propertyIds });
+      // Pass expectedPropertyCount for server-side quota validation
+      await exportFilteredCsv({
+        propertyIds,
+        expectedPropertyCount: propertyIds.length
+      });
       await new Promise((resolve) => setTimeout(resolve, 500));
       await refetchSubscription();
 
       toast({
         title: "Export Complete",
-        description: `Exported ${propertyIds.length} properties from "${listName}"`,
+        description: `Exported ${propertyIds.length.toLocaleString()} properties from "${listName}" (counted against quota)`,
       });
     } catch (error: any) {
       if (error.message === "EXPORT_LIMIT_EXCEEDED") {
@@ -283,7 +310,7 @@ export function Lists() {
               <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleCreateList}
                 disabled={createListMutation.isPending}
               >

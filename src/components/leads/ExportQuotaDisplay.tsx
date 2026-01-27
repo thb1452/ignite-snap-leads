@@ -23,11 +23,11 @@ export function ExportQuotaDisplay() {
   return (
     <div className="flex items-center gap-3 px-3 py-2 bg-muted/50 rounded-lg border">
       <Download className="h-4 w-4 text-muted-foreground shrink-0" />
-      
+
       <div className="flex flex-col gap-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">
-            CSV Exports
+            Property Exports
           </span>
           {isUnlimited ? (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 gap-0.5">
@@ -40,19 +40,19 @@ export function ExportQuotaDisplay() {
             </Badge>
           ) : isLow ? (
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-orange-500 text-orange-600">
-              {remaining} left
+              {remaining?.toLocaleString()} left
             </Badge>
           ) : null}
         </div>
-        
+
         {!isUnlimited && (
           <div className="flex items-center gap-2">
-            <Progress 
-              value={usedPercentage} 
+            <Progress
+              value={usedPercentage}
               className={`h-1.5 w-20 ${isExhausted ? '[&>div]:bg-destructive' : isLow ? '[&>div]:bg-orange-500' : ''}`}
             />
             <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-              {usage.exports_count}/{plan.max_monthly_exports}
+              {usage.exports_count.toLocaleString()}/{plan.max_monthly_exports.toLocaleString()} properties
             </span>
           </div>
         )}

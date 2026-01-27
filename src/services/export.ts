@@ -6,6 +6,7 @@ interface ExportParams {
   maxScore?: number;
   jurisdictionId?: string;
   propertyIds?: string[];
+  expectedPropertyCount?: number;  // For quota validation - tracks per property, not per operation
 }
 
 export async function exportFilteredCsv(params: ExportParams) {
@@ -40,6 +41,7 @@ export async function exportFilteredCsv(params: ExportParams) {
         maxScore: params.maxScore,
         jurisdictionId: params.jurisdictionId,
         propertyIds: params.propertyIds,
+        expectedPropertyCount: params.expectedPropertyCount || params.propertyIds?.length,
       }),
     });
   } else {
@@ -50,6 +52,9 @@ export async function exportFilteredCsv(params: ExportParams) {
     if (params.maxScore != null) qs.set("maxScore", String(params.maxScore));
     if (params.jurisdictionId) qs.set("jurisdictionId", params.jurisdictionId);
     if (params.propertyIds?.length) qs.set("propertyIds", params.propertyIds.join(","));
+    // Pass expected count for quota validation (per-property tracking)
+    const expectedCount = params.expectedPropertyCount || params.propertyIds?.length;
+    if (expectedCount) qs.set("expectedPropertyCount", String(expectedCount));
 
     response = await fetch(`${baseUrl}?${qs.toString()}`, {
       method: 'GET',

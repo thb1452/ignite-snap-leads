@@ -105,7 +105,7 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
               font-size:14px;
               box-shadow:0 2px 8px rgba(0,0,0,.2);
               border:2px solid white;
-            ">${cluster.getChildCount()}</div>`,
+            "></div>`,
             className: 'snap-cluster',
             iconSize: L.point(34, 34),
           });

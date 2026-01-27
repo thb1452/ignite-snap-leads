@@ -27,6 +27,7 @@ import { TimeFilter } from "@/components/leads/ScoreAndTimeFilter";
 import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
+import { MarketOnboarding } from "@/components/onboarding/MarketOnboarding";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
@@ -48,7 +49,8 @@ const PAGE_SIZE = 50;
 function Leads() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
+  const { showOnboarding, setShowOnboarding, markOnboardingComplete, savedMarket, saveMarket, isSavingMarket, hasCompletedOnboarding } = useOnboarding();
+  const [showMarketOnboarding, setShowMarketOnboarding] = useState(false);
   const { plan, checkLimit, refetch: refetchSubscription, getRemainingCount } = useSubscription();
   const { hasFeature } = useSubscriptionGate({ showToast: false });
   // State selection removed - all users now see all properties across all states
@@ -73,6 +75,50 @@ function Leads() {
   const [multipleViolationsOnly, setMultipleViolationsOnly] = useState(false);
   const [repeatOffenderOnly, setRepeatOffenderOnly] = useState(false);
   
+  // Pre-populate filters from saved market on first load
+  const [marketApplied, setMarketApplied] = useState(false);
+  useEffect(() => {
+    if (savedMarket && !marketApplied && hasCompletedOnboarding) {
+      setSelectedState(savedMarket.state);
+      setSelectedCity(savedMarket.city);
+      setMarketApplied(true);
+    }
+  }, [savedMarket, marketApplied, hasCompletedOnboarding]);
+
+  // Show market onboarding after general onboarding completes (if no market saved)
+  useEffect(() => {
+    if (hasCompletedOnboarding && !savedMarket && !showOnboarding) {
+      setShowMarketOnboarding(true);
+    }
+  }, [hasCompletedOnboarding, savedMarket, showOnboarding]);
+
+  // Handler for market onboarding completion
+  const handleMarketComplete = async (market: { state: string; city: string }) => {
+    await saveMarket(market);
+    setSelectedState(market.state);
+    setSelectedCity(market.city);
+    setMarketApplied(true);
+    setShowMarketOnboarding(false);
+  };
+
+  // Show "Set as my market" when filters differ from saved market
+  const showSetDefaultButton = useMemo(() => {
+    if (!hasCompletedOnboarding) return false;
+    if (!selectedState || !selectedCity) return false;
+    if (savedMarket && savedMarket.state === selectedState && savedMarket.city === selectedCity) return false;
+    return true;
+  }, [hasCompletedOnboarding, selectedState, selectedCity, savedMarket]);
+
+  const handleSetDefaultMarket = async () => {
+    if (selectedState && selectedCity) {
+      await saveMarket({ state: selectedState, city: selectedCity });
+      toast({
+        title: "Market Updated",
+        description: `${selectedCity}, ${selectedState} is now your default market`,
+      });
+    }
+  };
+
   // Mobile view state
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   
@@ -425,7 +471,14 @@ function Leads() {
         onOpenChange={setShowOnboarding}
         onComplete={markOnboardingComplete}
       />
-      
+
+      {/* Market selection onboarding - shown after general onboarding if no market saved */}
+      {showMarketOnboarding && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <MarketOnboarding onComplete={handleMarketComplete} />
+        </div>
+      )}
+
       {/* Water shutoff upgrade banner for Starter users */}
       <WaterShutoffUpgradeBanner dataTier={dataTier} />
 
@@ -461,7 +514,22 @@ function Leads() {
             onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
             onStateChange={(s) => { setSelectedState(s); setPage(1); }}
           />
-          
+
+          {/* Set as default market button */}
+          {showSetDefaultButton && (
+            <div className="flex items-end pb-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSetDefaultMarket}
+                disabled={isSavingMarket}
+                className="text-xs text-primary hover:text-primary/80 h-8 px-2"
+              >
+                {isSavingMarket ? 'Saving...' : 'Set as my market'}
+              </Button>
+            </div>
+          )}
+
           {/* Date Range */}
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
@@ -573,6 +641,21 @@ function Leads() {
           />
         </div>
         
+        {/* Set as default market - mobile */}
+        {showSetDefaultButton && (
+          <div className="px-3 pb-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSetDefaultMarket}
+              disabled={isSavingMarket}
+              className="text-xs text-primary hover:text-primary/80 h-7 px-2"
+            >
+              {isSavingMarket ? 'Saving...' : 'Set as my market'}
+            </Button>
+          </div>
+        )}
+
         {/* Freshness indicator + View Toggle */}
         <div className="flex items-center justify-between px-3 pb-2">
           <FreshnessIndicator />

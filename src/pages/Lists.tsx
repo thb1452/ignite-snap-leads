@@ -86,7 +86,7 @@ export function Lists() {
   const [isExporting, setIsExporting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const { toast } = useToast();
-  const { checkLimit, trackUsage, refetch: refetchSubscription } = useSubscription();
+  const { checkLimit, trackUsage, refetch: refetchSubscription, getRemainingCount, plan } = useSubscription();
 
   useEffect(() => {
     fetchLists();
@@ -341,9 +341,31 @@ export function Lists() {
       return;
     }
 
-    // Check quota before export
-    const limitResult = await checkLimit('exports');
+    // Check quota before export - count is PER PROPERTY, not per operation
+    const propertyCount = properties.length;
+    const remaining = getRemainingCount('exports');
+
+    // For unlimited plans (remaining === null), skip the check
+    if (remaining !== null && propertyCount > remaining) {
+      toast({
+        title: "Export Limit Exceeded",
+        description: `You have ${remaining.toLocaleString()} property exports remaining this month. This export requires ${propertyCount.toLocaleString()}. Upgrade your plan to continue.`,
+        variant: "destructive",
+        duration: 8000,
+      });
+      setShowUpgradePrompt(true);
+      return;
+    }
+
+    // Also do the server-side check for safety
+    const limitResult = await checkLimit('exports', propertyCount);
     if (!limitResult.allowed) {
+      toast({
+        title: "Export Limit Exceeded",
+        description: limitResult.message || `Insufficient export quota. You need ${propertyCount.toLocaleString()} but don't have enough remaining.`,
+        variant: "destructive",
+        duration: 8000,
+      });
       setShowUpgradePrompt(true);
       return;
     }
@@ -386,8 +408,8 @@ export function Lists() {
       URL.revokeObjectURL(url);
       a.remove();
 
-      // Track usage after successful export
-      await trackUsage('exports', 1);
+      // Track usage after successful export - count PER PROPERTY
+      await trackUsage('exports', propertyCount);
 
       // Small delay to ensure backend has committed the usage update
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -397,7 +419,7 @@ export function Lists() {
 
       toast({
         title: "Export Complete",
-        description: `Successfully exported ${properties.length.toLocaleString()} properties`,
+        description: `Successfully exported ${properties.length.toLocaleString()} properties (${propertyCount.toLocaleString()} counted against quota)`,
       });
     } catch (error) {
       console.error('[Lists] Export error:', error);
@@ -601,8 +623,8 @@ export function Lists() {
 
       {/* Upgrade Prompt for export limits */}
       <UpgradePrompt
-        isOpen={showUpgradePrompt}
-        onClose={() => setShowUpgradePrompt(false)}
+        open={showUpgradePrompt}
+        onOpenChange={(open) => setShowUpgradePrompt(open)}
         limitType="exports"
       />
       </div>

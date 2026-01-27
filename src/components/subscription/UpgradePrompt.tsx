@@ -15,8 +15,8 @@ interface UpgradePromptProps {
 // Messages for usage limits (counters)
 const LIMIT_MESSAGES: Record<LimitType, { title: string; description: string; icon: typeof TrendingUp; color: string }> = {
   exports: {
-    title: "CSV Export Limit Reached",
-    description: "You've used all your CSV exports for this billing period.",
+    title: "Property Export Limit Reached",
+    description: "You've exported all the properties available in your plan this month. Each property exported counts against your monthly limit.",
     icon: TrendingUp,
     color: "text-blue-500",
   },
@@ -66,7 +66,7 @@ const PLAN_FEATURES = {
     badge: "",
     features: [
       "5 county coverage",
-      "2,500 monthly exports",
+      "2,500 property exports/month",
       "Basic SnapScore filtering",
       "Weekly data refresh",
     ],
@@ -76,7 +76,7 @@ const PLAN_FEATURES = {
     price: "$249/mo",
     features: [
       "25 county coverage",
-      "10,000 monthly exports",
+      "10,000 property exports/month",
       "Advanced SnapScore filters",
       "Violation type filtering",
       "Rolling 30-day intelligence",
@@ -88,7 +88,7 @@ const PLAN_FEATURES = {
     price: "$499/mo",
     features: [
       "All 900+ counties",
-      "25,000 monthly exports",
+      "25,000 property exports/month",
       "Full SnapScore AI suite",
       "Escalation pattern alerts",
       "API access (coming soon)",

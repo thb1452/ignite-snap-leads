@@ -48,7 +48,7 @@ function Leads() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
-  const { plan, checkLimit, refetch: refetchSubscription } = useSubscription();
+  const { plan, checkLimit, refetch: refetchSubscription, getRemainingCount } = useSubscription();
   const { hasFeature } = useSubscriptionGate({ showToast: false });
   // State selection removed - all users now see all properties across all states
   // Pagination state
@@ -229,8 +229,32 @@ function Leads() {
       return;
     }
 
-    const limitResult = await checkLimit('exports');
+    // Check quota before export - count is PER PROPERTY, not per operation
+    const propertyCount = selectedIds.length;
+    const remaining = getRemainingCount('exports');
+
+    // For unlimited plans (remaining === null), skip the client-side check
+    if (remaining !== null && propertyCount > remaining) {
+      toast({
+        title: "Export Limit Exceeded",
+        description: `You have ${remaining.toLocaleString()} property exports remaining this month. This export requires ${propertyCount.toLocaleString()}. Upgrade your plan to continue.`,
+        variant: "destructive",
+        duration: 8000,
+      });
+      setUpgradeLimitType('exports');
+      setShowUpgradePrompt(true);
+      return;
+    }
+
+    // Server-side check with property count
+    const limitResult = await checkLimit('exports', propertyCount);
     if (!limitResult.allowed) {
+      toast({
+        title: "Export Limit Exceeded",
+        description: limitResult.message || `Insufficient export quota. You need ${propertyCount.toLocaleString()} but don't have enough remaining.`,
+        variant: "destructive",
+        duration: 8000,
+      });
       setUpgradeLimitType('exports');
       setShowUpgradePrompt(true);
       return;
@@ -250,19 +274,21 @@ function Leads() {
         duration: selectedIds.length > 1000 ? 10000 : 5000,
       });
 
+      // Pass expectedPropertyCount to edge function for validation
       await exportFilteredCsv({
         propertyIds: selectedIds,
+        expectedPropertyCount: propertyCount,
       });
 
       // Small delay to ensure backend has committed the usage update
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // Refetch subscription usage to update the export counter in UI
       await refetchSubscription();
 
       toast({
         title: "Export Complete",
-        description: `Successfully exported ${selectedIds.length} properties`,
+        description: `Successfully exported ${selectedIds.length.toLocaleString()} properties (${propertyCount.toLocaleString()} counted against quota)`,
       });
 
       setSelectedIds([]);

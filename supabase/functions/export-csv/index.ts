@@ -87,38 +87,53 @@ serve(async (req) => {
     }
     const user = authData.user;
 
-    // ---- Check and Reserve Usage (atomic operation) ----
-    // CRITICAL: Block export if usage tracking fails to prevent free exports during outages
-    const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
-      p_usage_type: 'exports',
-      p_amount: 1
-    });
+    // ---- Pre-check export limit (don't charge yet - charge by property count after fetch) ----
+    // Get expected property count from client if provided (for pre-validation)
+    let expectedPropertyCount: number | null = null;
+    if (req.method === 'POST') {
+      const bodyForCount = await req.clone().json();
+      expectedPropertyCount = bodyForCount.expectedPropertyCount || bodyForCount.propertyIds?.length || null;
+    } else {
+      const url = new URL(req.url);
+      const countParam = url.searchParams.get('expectedPropertyCount');
+      expectedPropertyCount = countParam ? parseInt(countParam) : (propertyIds?.length || null);
+    }
 
-    if (usageError) {
-      console.error('[export-csv] Usage tracking failed:', usageError.message);
-      return new Response(
-        JSON.stringify({
-          error: 'Export temporarily unavailable',
-          code: 'USAGE_TRACKING_ERROR',
-          message: 'Unable to process export at this time. Please try again.'
-        }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Pre-check if user has enough quota for expected count
+    if (expectedPropertyCount && expectedPropertyCount > 0) {
+      const { data: checkResult, error: checkError } = await supabase.rpc('fn_check_subscription_limit', {
+        p_usage_type: 'exports',
+        p_amount: expectedPropertyCount
+      });
+
+      if (checkError) {
+        console.error('[export-csv] Limit check failed:', checkError.message);
+        return new Response(
+          JSON.stringify({
+            error: 'Export temporarily unavailable',
+            code: 'USAGE_TRACKING_ERROR',
+            message: 'Unable to verify export limit. Please try again.'
+          }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (checkResult && checkResult.allowed === false) {
+        console.log('[export-csv] User would exceed limit:', user.id, 'expected:', expectedPropertyCount);
+        return new Response(
+          JSON.stringify({
+            error: 'CSV export limit exceeded',
+            code: 'EXPORT_LIMIT_EXCEEDED',
+            message: checkResult.message || `You need ${expectedPropertyCount.toLocaleString()} property exports but don't have enough remaining. Please upgrade your plan.`
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('[export-csv] Pre-check passed for user:', user.id, 'expected properties:', expectedPropertyCount);
+    } else {
+      console.log('[export-csv] No expected count provided, will charge after fetch');
     }
-    
-    if (usageResult && usageResult.allowed === false) {
-      console.log('[export-csv] User hit export limit:', user.id);
-      return new Response(
-        JSON.stringify({
-          error: 'CSV export limit reached',
-          code: 'EXPORT_LIMIT_EXCEEDED',
-          message: usageResult.message || 'You have reached your monthly CSV export limit. Please upgrade your plan to continue exporting.'
-        }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    console.log('[export-csv] Usage consumed for user:', user.id, 'remaining:', usageResult?.remaining);
 
     // ---- Get user's data tier from subscription ----
     const { data: subData } = await supabase
@@ -272,6 +287,23 @@ serve(async (req) => {
     }
 
     console.log('[export-csv] Export complete - properties:', allData.length, 'rows:', csvRows.length - 1);
+
+    // ---- Track usage AFTER successful export - charge by PROPERTY COUNT ----
+    // CRITICAL: This ensures we charge the actual number of properties exported
+    const propertyExportCount = allData.length;
+    if (propertyExportCount > 0) {
+      const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
+        p_usage_type: 'exports',
+        p_amount: propertyExportCount  // Charge per property, NOT per operation!
+      });
+
+      if (usageError) {
+        console.error('[export-csv] Usage tracking failed (export still succeeded):', usageError.message);
+        // Don't fail the export, but log the error - data was already prepared
+      } else {
+        console.log('[export-csv] Usage tracked:', propertyExportCount, 'properties, remaining:', usageResult?.remaining);
+      }
+    }
 
     const csvContent = csvRows.join('\n');
 

@@ -24,9 +24,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Eye, Download } from "lucide-react";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Plus, Trash2, Eye, Download, Loader2 } from "lucide-react";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 
 interface LeadList {
   id: string;
@@ -79,7 +81,12 @@ export function Lists() {
   const [listToDelete, setListToDelete] = useState<LeadList | null>(null);
   const [newListName, setNewListName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingList, setLoadingList] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const { toast } = useToast();
+  const { checkLimit, trackUsage, refetch: refetchSubscription } = useSubscription();
 
   useEffect(() => {
     fetchLists();
@@ -200,50 +207,90 @@ export function Lists() {
 
   const handleViewList = async (list: LeadList) => {
     setSelectedList(list);
-    
+    setLoadingList(true);
+    setLoadingProgress("Loading property IDs...");
+    setListProperties([]); // Clear previous list
+
     try {
-      // Fetch properties in this list
-      const { data: listPropertiesData, error: listError } = await supabase
-        .from("list_properties")
-        .select("property_id")
-        .eq("list_id", list.id);
+      // Fetch ALL property IDs in this list with pagination
+      // Supabase default limit is 1000, so we need to paginate
+      const BATCH_SIZE = 1000;
+      let allPropertyIds: string[] = [];
+      let offset = 0;
+      let hasMore = true;
 
-      if (listError) throw listError;
+      while (hasMore) {
+        const { data: listPropertiesData, error: listError } = await supabase
+          .from("list_properties")
+          .select("property_id")
+          .eq("list_id", list.id)
+          .range(offset, offset + BATCH_SIZE - 1);
 
-      const propertyIds = listPropertiesData?.map((lp) => lp.property_id) || [];
+        if (listError) throw listError;
+
+        const batchIds = listPropertiesData?.map((lp) => lp.property_id) || [];
+        allPropertyIds = [...allPropertyIds, ...batchIds];
+        setLoadingProgress(`Found ${allPropertyIds.length.toLocaleString()} properties...`);
+
+        hasMore = batchIds.length === BATCH_SIZE;
+        offset += BATCH_SIZE;
+      }
+
+      const propertyIds = allPropertyIds;
 
       if (propertyIds.length === 0) {
         setListProperties([]);
+        setLoadingList(false);
         return;
       }
 
-      // Fetch properties
-      const { data: propertiesData, error: propertiesError } = await supabase
-        .from("properties")
-        .select("*")
-        .in("id", propertyIds);
+      // Fetch properties in batches to avoid Supabase limits
+      // The .in() operator has PostgreSQL limits on array size
+      const IN_BATCH_SIZE = 500; // Safe batch size for IN queries
+      let allPropertiesData: any[] = [];
+      let allViolationsData: Violation[] = [];
+      let allActivitiesData: LeadActivity[] = [];
+      const totalBatches = Math.ceil(propertyIds.length / IN_BATCH_SIZE);
 
-      if (propertiesError) throw propertiesError;
+      for (let i = 0; i < propertyIds.length; i += IN_BATCH_SIZE) {
+        const batchIndex = Math.floor(i / IN_BATCH_SIZE) + 1;
+        setLoadingProgress(`Loading batch ${batchIndex} of ${totalBatches} (${allPropertiesData.length.toLocaleString()} loaded)...`);
 
-      // Fetch violations - ONLY clean fields, NEVER raw_description
-      const { data: violationsData, error: violationsError } = await supabase
-        .from("violations")
-        .select("id, property_id, violation_type, status, opened_date, last_updated, days_open, case_id")
-        .in("property_id", propertyIds);
+        const batchIds = propertyIds.slice(i, i + IN_BATCH_SIZE);
 
-      if (violationsError) throw violationsError;
+        // Fetch properties batch
+        const { data: propertiesData, error: propertiesError } = await supabase
+          .from("properties")
+          .select("*")
+          .in("id", batchIds);
 
-      // Fetch latest activities
-      const { data: activitiesData, error: activitiesError } = await supabase
-        .from("lead_activity")
-        .select("*")
-        .in("property_id", propertyIds)
-        .order("created_at", { ascending: false });
+        if (propertiesError) throw propertiesError;
+        allPropertiesData = [...allPropertiesData, ...(propertiesData || [])];
 
-      if (activitiesError) throw activitiesError;
+        // Fetch violations batch - ONLY clean fields, NEVER raw_description
+        const { data: violationsData, error: violationsError } = await supabase
+          .from("violations")
+          .select("id, property_id, violation_type, status, opened_date, last_updated, days_open, case_id")
+          .in("property_id", batchIds);
+
+        if (violationsError) throw violationsError;
+        allViolationsData = [...allViolationsData, ...(violationsData || [])];
+
+        // Fetch activities batch
+        const { data: activitiesData, error: activitiesError } = await supabase
+          .from("lead_activity")
+          .select("*")
+          .in("property_id", batchIds)
+          .order("created_at", { ascending: false });
+
+        if (activitiesError) throw activitiesError;
+        allActivitiesData = [...allActivitiesData, ...(activitiesData || [])];
+      }
+
+      setLoadingProgress("Processing data...");
 
       // Group violations by property_id
-      const violationsByProperty = (violationsData || []).reduce((acc, violation) => {
+      const violationsByProperty = allViolationsData.reduce((acc, violation) => {
         if (violation.property_id) {
           if (!acc[violation.property_id]) {
             acc[violation.property_id] = [];
@@ -254,7 +301,7 @@ export function Lists() {
       }, {} as Record<string, Violation[]>);
 
       // Get latest activity by property_id
-      const latestActivityByProperty = (activitiesData || []).reduce((acc, activity) => {
+      const latestActivityByProperty = allActivitiesData.reduce((acc, activity) => {
         if (activity.property_id && !acc[activity.property_id]) {
           acc[activity.property_id] = activity;
         }
@@ -262,7 +309,7 @@ export function Lists() {
       }, {} as Record<string, LeadActivity>);
 
       // Combine data
-      const propertiesWithViolations = (propertiesData || []).map(property => ({
+      const propertiesWithViolations = allPropertiesData.map(property => ({
         ...property,
         violations: violationsByProperty[property.id] || [],
         latest_activity: latestActivityByProperty[property.id] || null,
@@ -276,12 +323,15 @@ export function Lists() {
         description: "Failed to load list properties",
         variant: "destructive",
       });
+    } finally {
+      setLoadingList(false);
+      setLoadingProgress("");
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const properties = selectedList ? listProperties : [];
-    
+
     if (properties.length === 0) {
       toast({
         title: "Nothing to export",
@@ -291,33 +341,74 @@ export function Lists() {
       return;
     }
 
-    const csv = [
-      ["Address", "City", "State", "ZIP", "Snap Score", "Violations", "Days Open"].join(","),
-      ...properties.map(p => [
-        `"${p.address}"`,
-        p.city,
-        p.state,
-        p.zip,
-        p.snap_score ?? "N/A",
-        p.violations.length,
-        Math.max(...p.violations.map(v => v.days_open ?? 0), 0)
-      ].join(","))
-    ].join("\n");
+    // Check quota before export
+    const limitResult = await checkLimit('exports');
+    if (!limitResult.allowed) {
+      setShowUpgradePrompt(true);
+      return;
+    }
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `snap-${selectedList?.name.replace(/\s+/g, "-").toLowerCase() || "export"}-${Date.now()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    URL.revokeObjectURL(url);
-    a.remove();
+    setIsExporting(true);
 
-    toast({
-      title: "Export successful",
-      description: `Exported ${properties.length} properties`,
-    });
+    try {
+      // Estimate export time
+      const estimatedSeconds = Math.max(2, Math.ceil(properties.length / 5000));
+      const estimatedTime = estimatedSeconds > 60
+        ? `~${Math.ceil(estimatedSeconds / 60)} minute${Math.ceil(estimatedSeconds / 60) > 1 ? 's' : ''}`
+        : `~${estimatedSeconds} seconds`;
+
+      toast({
+        title: "Generating Export",
+        description: `Preparing ${properties.length.toLocaleString()} properties for download. ${estimatedTime}`,
+        duration: 5000,
+      });
+
+      const csv = [
+        ["Address", "City", "State", "ZIP", "Snap Score", "Violations", "Days Open"].join(","),
+        ...properties.map(p => [
+          `"${(p.address || "").replace(/"/g, '""')}"`,
+          `"${(p.city || "").replace(/"/g, '""')}"`,
+          p.state,
+          p.zip,
+          p.snap_score ?? "N/A",
+          p.violations.length,
+          Math.max(...p.violations.map(v => v.days_open ?? 0), 0)
+        ].join(","))
+      ].join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `snap-${selectedList?.name.replace(/\s+/g, "-").toLowerCase() || "export"}-${Date.now()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      a.remove();
+
+      // Track usage after successful export
+      await trackUsage('exports', 1);
+
+      // Small delay to ensure backend has committed the usage update
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Refetch subscription to update UI
+      await refetchSubscription();
+
+      toast({
+        title: "Export Complete",
+        description: `Successfully exported ${properties.length.toLocaleString()} properties`,
+      });
+    } catch (error) {
+      console.error('[Lists] Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export properties. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -346,15 +437,31 @@ export function Lists() {
               <Button
                 variant="outline"
                 onClick={handleExportCSV}
-                disabled={listProperties.length === 0}
+                disabled={listProperties.length === 0 || isExporting || loadingList}
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
+                {isExporting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV ({listProperties.length.toLocaleString()})
+                  </>
+                )}
               </Button>
             </div>
           </div>
 
-          {listProperties.length > 0 ? (
+          {loadingList ? (
+            <Card className="p-12 text-center">
+              <div className="max-w-md mx-auto space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+                <p className="text-muted-foreground">{loadingProgress || "Loading..."}</p>
+              </div>
+            </Card>
+          ) : listProperties.length > 0 ? (
             <LeadsTable properties={listProperties} />
           ) : (
             <Card className="p-12 text-center">
@@ -491,6 +598,13 @@ export function Lists() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Upgrade Prompt for export limits */}
+      <UpgradePrompt
+        isOpen={showUpgradePrompt}
+        onClose={() => setShowUpgradePrompt(false)}
+        limitType="exports"
+      />
       </div>
     </AppLayout>
   );

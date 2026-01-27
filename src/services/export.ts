@@ -81,10 +81,16 @@ export async function exportFilteredCsv(params: ExportParams) {
   // Trigger browser download
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
+  const blobUrl = URL.createObjectURL(blob);
+  link.href = blobUrl;
   link.download = `snapignite_export_${Date.now()}.csv`;
   document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(link.href);
-  link.remove();
+  
+  // CRITICAL: Delay cleanup to allow mobile browsers time to start the download
+  // Revoking the URL immediately can cancel downloads on slower devices
+  setTimeout(() => {
+    URL.revokeObjectURL(blobUrl);
+    link.remove();
+  }, 1000);
 }

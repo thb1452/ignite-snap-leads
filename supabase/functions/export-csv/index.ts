@@ -10,7 +10,7 @@ const corsHeaders = {
 // One row per property with violation data aggregated into original column positions
 const EXPORT_COLUMNS = [
   'address',
-  'city', 
+  'city',
   'state',
   'zip',
   'violation_type',      // Now contains aggregated types (semicolon-separated)
@@ -87,64 +87,17 @@ serve(async (req) => {
     }
     const user = authData.user;
 
-    // ---- Pre-check export limit (don't charge yet - charge by property count after fetch) ----
-    // Get expected property count from client if provided (for pre-validation)
-    let expectedPropertyCount: number | null = null;
-    if (req.method === 'POST') {
-      const bodyForCount = await req.clone().json();
-      expectedPropertyCount = bodyForCount.expectedPropertyCount || bodyForCount.propertyIds?.length || null;
-    } else {
-      const url = new URL(req.url);
-      const countParam = url.searchParams.get('expectedPropertyCount');
-      expectedPropertyCount = countParam ? parseInt(countParam) : (propertyIds?.length || null);
-    }
-
-    // Pre-check if user has enough quota for expected count
-    if (expectedPropertyCount && expectedPropertyCount > 0) {
-      const { data: checkResult, error: checkError } = await supabase.rpc('fn_check_subscription_limit', {
-        p_usage_type: 'exports',
-        p_amount: expectedPropertyCount
-      });
-
-      if (checkError) {
-        console.error('[export-csv] Limit check failed:', checkError.message);
-        return new Response(
-          JSON.stringify({
-            error: 'Export temporarily unavailable',
-            code: 'USAGE_TRACKING_ERROR',
-            message: 'Unable to verify export limit. Please try again.'
-          }),
-          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      if (checkResult && checkResult.allowed === false) {
-        console.log('[export-csv] User would exceed limit:', user.id, 'expected:', expectedPropertyCount);
-        return new Response(
-          JSON.stringify({
-            error: 'CSV export limit exceeded',
-            code: 'EXPORT_LIMIT_EXCEEDED',
-            message: checkResult.message || `You need ${expectedPropertyCount.toLocaleString()} property exports but don't have enough remaining. Please upgrade your plan.`
-          }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.log('[export-csv] Pre-check passed for user:', user.id, 'expected properties:', expectedPropertyCount);
-    } else {
-      console.log('[export-csv] No expected count provided, will charge after fetch');
-    }
-
     // ---- Get user's data tier from subscription ----
     const { data: subData } = await supabase
       .from('user_subscriptions')
-      .select('plan:subscription_plans(data_tier)')
+      .select('plan:subscription_plans(data_tier, max_monthly_exports)')
       .eq('user_id', user.id)
       .eq('status', 'active')
       .single();
 
     const dataTier = (subData?.plan as any)?.data_tier || 'basic';
-    console.log('[export-csv] User data tier:', dataTier);
+    const maxExports = (subData?.plan as any)?.max_monthly_exports || 0;
+    console.log('[export-csv] User data tier:', dataTier, 'max exports:', maxExports);
 
     // Helper to build a fresh query each time (Supabase query builder is mutable)
     const buildBaseQuery = () => {
@@ -221,50 +174,87 @@ serve(async (req) => {
       if (data.length < BATCH_SIZE) break;
       offset += BATCH_SIZE;
     }
-    
+
     // Truncate if we hit the limit
     if (allData.length > MAX_EXPORT_ROWS) {
       console.log(`[export-csv] Truncating export from ${allData.length} to ${MAX_EXPORT_ROWS} rows`);
       allData = allData.slice(0, MAX_EXPORT_ROWS);
     }
 
-    console.log(`[export-csv] Exporting ${allData.length} properties for user ${user.id}`);
+    const exportCount = allData.length;
+    console.log(`[export-csv] Exporting ${exportCount} properties for user ${user.id}`);
+
+    // ---- Check and Reserve Usage (atomic operation) ----
+    // CRITICAL: Consume usage AFTER we know the actual export count
+    // This ensures we track the actual number of properties exported, not just "1 export"
+    const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
+      p_usage_type: 'exports',
+      p_amount: exportCount
+    });
+
+    if (usageError) {
+      console.error('[export-csv] Usage tracking failed:', usageError.message);
+      return new Response(
+        JSON.stringify({
+          error: 'Export temporarily unavailable',
+          code: 'USAGE_TRACKING_ERROR',
+          message: 'Unable to process export at this time. Please try again.'
+        }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (usageResult && usageResult.allowed === false) {
+      console.log('[export-csv] User hit export limit:', user.id, 'tried to export:', exportCount);
+      return new Response(
+        JSON.stringify({
+          error: 'CSV export limit reached',
+          code: 'EXPORT_LIMIT_EXCEEDED',
+          message: usageResult.message || `Cannot export ${exportCount} properties. You have reached your monthly limit. Please upgrade your plan to continue exporting.`,
+          requested: exportCount,
+          remaining: usageResult.remaining || 0
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('[export-csv] Usage consumed:', exportCount, 'for user:', user.id, 'remaining:', usageResult?.remaining);
 
     // FIXED: One row per property with aggregated violations
     // Previously: iterated through each violation creating duplicate property rows
     // Now: aggregate all violation data into single columns per property
-    
+
     // Initialize CSV rows array with header
     const csvRows: string[] = [];
     csvRows.push(EXPORT_COLUMNS.join(','));
 
     for (const property of allData) {
       const violations = property.violations || [];
-      
+
       // Aggregate violation data
       const violationCount = violations.length;
-      const openViolationCount = violations.filter((v: any) => 
-        ['Open', 'Pending', 'Active', 'In Progress', 'New'].some(s => 
+      const openViolationCount = violations.filter((v: any) =>
+        ['Open', 'Pending', 'Active', 'In Progress', 'New'].some(s =>
           (v.status || '').toLowerCase().includes(s.toLowerCase())
         )
       ).length;
-      
+
       // Get unique violation types (semicolon-separated for backward compat)
       const uniqueTypes = [...new Set(violations
         .map((v: any) => v.violation_type)
         .filter(Boolean)
       )].join('; ');
-      
+
       // Get earliest date
       const dates = violations
         .map((v: any) => v.opened_date)
         .filter(Boolean)
         .sort();
       const earliestDate = dates[0] || '';
-      
+
       // Status summary: "X open / Y total"
       const statusSummary = `${openViolationCount} open / ${violationCount} total`;
-      
+
       // ONE row per property - backward-compatible column order
       const row = [
         escapeCSV(property.address || ''),
@@ -287,23 +277,6 @@ serve(async (req) => {
     }
 
     console.log('[export-csv] Export complete - properties:', allData.length, 'rows:', csvRows.length - 1);
-
-    // ---- Track usage AFTER successful export - charge by PROPERTY COUNT ----
-    // CRITICAL: This ensures we charge the actual number of properties exported
-    const propertyExportCount = allData.length;
-    if (propertyExportCount > 0) {
-      const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
-        p_usage_type: 'exports',
-        p_amount: propertyExportCount  // Charge per property, NOT per operation!
-      });
-
-      if (usageError) {
-        console.error('[export-csv] Usage tracking failed (export still succeeded):', usageError.message);
-        // Don't fail the export, but log the error - data was already prepared
-      } else {
-        console.log('[export-csv] Usage tracked:', propertyExportCount, 'properties, remaining:', usageResult?.remaining);
-      }
-    }
 
     const csvContent = csvRows.join('\n');
 

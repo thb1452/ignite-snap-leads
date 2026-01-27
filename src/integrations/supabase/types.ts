@@ -1574,6 +1574,8 @@ export type Database = {
           consented_skiptrace: boolean | null
           created_at: string
           credits: number
+          default_city: string | null
+          default_state: string | null
           id: string
           onboarding_completed: boolean | null
           updated_at: string
@@ -1583,6 +1585,8 @@ export type Database = {
           consented_skiptrace?: boolean | null
           created_at?: string
           credits?: number
+          default_city?: string | null
+          default_state?: string | null
           id?: string
           onboarding_completed?: boolean | null
           updated_at?: string
@@ -1592,6 +1596,8 @@ export type Database = {
           consented_skiptrace?: boolean | null
           created_at?: string
           credits?: number
+          default_city?: string | null
+          default_state?: string | null
           id?: string
           onboarding_completed?: boolean | null
           updated_at?: string

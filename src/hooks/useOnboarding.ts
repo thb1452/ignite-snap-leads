@@ -5,80 +5,114 @@ import { useAuth } from "@/hooks/use-auth";
 
 const ONBOARDING_STORAGE_KEY = 'snap_onboarding_completed';
 
+export interface UserMarket {
+  state: string;
+  city: string;
+}
+
 export function useOnboarding() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Fetch onboarding status from database
-  const { data: onboardingCompleted, isLoading } = useQuery({
-    queryKey: ["onboarding-completed", user?.id],
+  // Fetch onboarding status and market from database
+  const { data: profileData, isLoading } = useQuery({
+    queryKey: ["onboarding-profile", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      // First check database
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("onboarding_completed")
+        .select("onboarding_completed, default_state, default_city")
         .eq("user_id", user!.id)
         .maybeSingle();
 
       if (error) {
         console.error("[useOnboarding] Error fetching status:", error);
-        // Fall back to localStorage
-        return localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+        const localCompleted = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+        return { onboarding_completed: localCompleted, default_state: null, default_city: null };
       }
-      
-      // If db has it as completed, trust that
+
       if (data?.onboarding_completed) {
-        // Sync to localStorage for faster checks
         localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
-        return true;
       }
-      
-      // Check localStorage as fallback (for existing users who completed before db column existed)
+
+      // Sync localStorage fallback for existing users
       const localCompleted = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
-      if (localCompleted && data) {
-        // Sync to database
+      if (localCompleted && data && !data.onboarding_completed) {
         await supabase
           .from("user_profiles")
           .update({ onboarding_completed: true })
           .eq("user_id", user!.id);
+        return { ...data, onboarding_completed: true };
       }
-      
-      return localCompleted;
+
+      return data || { onboarding_completed: false, default_state: null, default_city: null };
     },
     staleTime: 60000,
   });
 
-  // Mutation to mark onboarding complete
+  const onboardingCompleted = profileData?.onboarding_completed ?? false;
+  const savedMarket: UserMarket | null = (profileData?.default_state && profileData?.default_city)
+    ? { state: profileData.default_state, city: profileData.default_city }
+    : null;
+
+  // Mutation to mark onboarding complete with market selection
   const markCompleteMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (market?: UserMarket) => {
       if (!user?.id) return;
-      
-      // Use upsert to handle case where profile doesn't exist yet
+
+      const updateData: Record<string, unknown> = {
+        user_id: user.id,
+        onboarding_completed: true,
+      };
+
+      if (market) {
+        updateData.default_state = market.state;
+        updateData.default_city = market.city;
+      }
+
       const { error } = await supabase
         .from("user_profiles")
-        .upsert(
-          { user_id: user.id, onboarding_completed: true },
-          { onConflict: 'user_id' }
-        );
+        .upsert(updateData, { onConflict: 'user_id' });
 
       if (error) {
         console.error("[useOnboarding] Error saving to DB:", error);
       }
-      
-      // Also set localStorage for immediate feedback
+
       localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["onboarding-completed"] });
+      queryClient.invalidateQueries({ queryKey: ["onboarding-profile"] });
+    },
+  });
+
+  // Mutation to save market without changing onboarding status
+  const saveMarketMutation = useMutation({
+    mutationFn: async (market: UserMarket) => {
+      if (!user?.id) return;
+
+      const { error } = await supabase
+        .from("user_profiles")
+        .upsert({
+          user_id: user.id,
+          default_state: market.state,
+          default_city: market.city,
+        }, { onConflict: 'user_id' });
+
+      if (error) {
+        console.error("[useOnboarding] Error saving market:", error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["onboarding-profile"] });
     },
   });
 
   // Show onboarding if not completed (with delay for UX)
   useEffect(() => {
     if (isLoading || !user) return;
-    
+
     if (onboardingCompleted === false) {
       const timer = setTimeout(() => {
         setShowOnboarding(true);
@@ -87,10 +121,14 @@ export function useOnboarding() {
     }
   }, [onboardingCompleted, isLoading, user]);
 
-  const markOnboardingComplete = useCallback(() => {
-    markCompleteMutation.mutate();
+  const markOnboardingComplete = useCallback((market?: UserMarket) => {
+    markCompleteMutation.mutate(market);
     setShowOnboarding(false);
   }, [markCompleteMutation]);
+
+  const saveMarket = useCallback(async (market: UserMarket) => {
+    await saveMarketMutation.mutateAsync(market);
+  }, [saveMarketMutation]);
 
   const resetOnboarding = useCallback(async () => {
     localStorage.removeItem(ONBOARDING_STORAGE_KEY);
@@ -99,7 +137,7 @@ export function useOnboarding() {
         .from("user_profiles")
         .update({ onboarding_completed: false })
         .eq("user_id", user.id);
-      queryClient.invalidateQueries({ queryKey: ["onboarding-completed"] });
+      queryClient.invalidateQueries({ queryKey: ["onboarding-profile"] });
     }
   }, [user, queryClient]);
 
@@ -108,12 +146,15 @@ export function useOnboarding() {
   }, []);
 
   return {
-    hasCompletedOnboarding: onboardingCompleted ?? false,
+    hasCompletedOnboarding: onboardingCompleted,
     showOnboarding,
     setShowOnboarding,
     markOnboardingComplete,
     resetOnboarding,
     triggerOnboarding,
     isLoading,
+    savedMarket,
+    saveMarket,
+    isSavingMarket: saveMarketMutation.isPending,
   };
 }

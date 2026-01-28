@@ -27,7 +27,6 @@ import { TimeFilter } from "@/components/leads/ScoreAndTimeFilter";
 import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
-import { MarketOnboarding } from "@/components/onboarding/MarketOnboarding";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
@@ -50,7 +49,6 @@ function Leads() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { showOnboarding, setShowOnboarding, markOnboardingComplete, savedMarket, saveMarket, isSavingMarket, hasCompletedOnboarding } = useOnboarding();
-  const [showMarketOnboarding, setShowMarketOnboarding] = useState(false);
   const { plan, usage, checkLimit, refetch: refetchSubscription, getRemainingCount } = useSubscription();
   const { hasFeature } = useSubscriptionGate({ showToast: false });
   // State selection removed - all users now see all properties across all states
@@ -84,31 +82,6 @@ function Leads() {
       setMarketApplied(true);
     }
   }, [savedMarket, marketApplied, hasCompletedOnboarding]);
-
-  // Show market onboarding after general onboarding completes (if no market saved)
-  useEffect(() => {
-    if (hasCompletedOnboarding && !savedMarket && !showOnboarding) {
-      setShowMarketOnboarding(true);
-    }
-  }, [hasCompletedOnboarding, savedMarket, showOnboarding]);
-
-  // Handler for market onboarding completion
-  const handleMarketComplete = async (market: { state: string; city: string }) => {
-    try {
-      await saveMarket(market);
-      setSelectedState(market.state);
-      setSelectedCity(market.city);
-      setMarketApplied(true);
-      setShowMarketOnboarding(false);
-    } catch (error) {
-      console.error("[Leads] Error saving market:", error);
-      toast({
-        title: "Failed to save market",
-        description: "Please try again. If the problem persists, refresh the page.",
-        variant: "destructive",
-      });
-    }
-  };
 
   // Show "Set as my market" when filters differ from saved market
   const showSetDefaultButton = useMemo(() => {
@@ -514,13 +487,6 @@ function Leads() {
         onOpenChange={setShowOnboarding}
         onComplete={markOnboardingComplete}
       />
-
-      {/* Market selection onboarding - shown after general onboarding if no market saved */}
-      {showMarketOnboarding && (
-        <div className="fixed inset-0 z-50 bg-background">
-          <MarketOnboarding onComplete={handleMarketComplete} isSaving={isSavingMarket} />
-        </div>
-      )}
 
       {/* Water shutoff upgrade banner for Starter users */}
       <WaterShutoffUpgradeBanner dataTier={dataTier} />

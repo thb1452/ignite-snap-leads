@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, ChevronDown, ChevronUp, RefreshCw, AlertTriangle, Flame } from "lucide-react";
+import { ChevronDown, ChevronUp, RefreshCw, AlertTriangle, Flame } from "lucide-react";
 import { differenceInDays, differenceInHours, format } from "date-fns";
 import { PropertyContactChips } from "./PropertyContactChips";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
@@ -235,21 +235,6 @@ export function PropertyCard({
               <span>Snap updated {snapUpdatedText}</span>
             </div>
           )}
-
-          <div className="flex items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-2 text-primary -ml-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                // TODO: Implement contact action
-              }}
-            >
-              <MessageSquare className="h-4 w-4" />
-              Contact owner
-            </Button>
-          </div>
         </div>
       </div>
     </div>

@@ -51,8 +51,8 @@ export function VirtualizedMobilePropertyList({
   return (
     <div
       ref={parentRef}
-      className="flex-1 overflow-y-auto min-h-0"
-      style={{ maxHeight: 'calc(100vh - 200px)' }}
+      className="flex-1 overflow-y-auto"
+      style={{ minHeight: 0 }}
     >
       <div
         style={{

@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Trash2, ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List } from "lucide-react";
+import { Trash2, ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2 } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { ViolationListView } from "@/components/leads/ViolationListView";
 import { ViewModeToggle, type ViewMode } from "@/components/leads/ViewModeToggle";
@@ -843,7 +843,7 @@ function Leads() {
                 className="flex-1 flex flex-col overflow-hidden"
                 style={{ paddingBottom: 'var(--bottom-nav-height)' }}
               >
-                {/* Select All Header */}
+                {/* Select All Header + Export */}
                 <div className="flex items-center justify-between px-4 py-2.5 bg-background border-b">
                   <div className="flex items-center gap-3">
                     <Checkbox
@@ -857,16 +857,34 @@ function Leads() {
                         : `Select all (${properties.length})`}
                     </span>
                   </div>
-                  {selectedIds.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedIds([])}
-                      className="h-8 text-xs text-muted-foreground"
-                    >
-                      Clear
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {selectedIds.length > 0 && (
+                      <>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleExportCSV}
+                          disabled={isExporting}
+                          className="h-8 text-xs gap-1"
+                        >
+                          {isExporting ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Download className="h-3 w-3" />
+                          )}
+                          Export ({selectedIds.length})
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedIds([])}
+                          className="h-8 text-xs text-muted-foreground"
+                        >
+                          Clear
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Virtualized Mobile Property List */}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { useListProperties, useRemoveFromList, useUserLists } from "@/hooks/useL
 import { exportFilteredCsv } from "@/services/export";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
+import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft,
   Download,
@@ -40,6 +41,7 @@ export function ListDetail() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<string | null>(null);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
@@ -68,32 +70,71 @@ export function ListDetail() {
   };
 
   const handleExport = async () => {
-    const idsToExport = selectedIds.length > 0 ? selectedIds : properties.map((p) => p.id);
-
-    if (idsToExport.length === 0) {
-      toast({
-        title: "Nothing to export",
-        description: "No properties to export",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const limitResult = await checkLimit("exports");
-    if (!limitResult.allowed) {
-      setShowUpgradePrompt(true);
-      return;
-    }
-
     setIsExporting(true);
+
     try {
-      await exportFilteredCsv({ propertyIds: idsToExport });
+      let idsToExport: string[];
+
+      if (selectedIds.length > 0) {
+        // Export only selected properties
+        idsToExport = selectedIds;
+      } else {
+        // Export ALL properties in the list — fetch every ID from list_properties
+        setExportProgress("Fetching all property IDs...");
+        const allIds: string[] = [];
+        const BATCH = 1000;
+        let offset = 0;
+
+        while (true) {
+          const { data: batch, error } = await supabase
+            .from("list_properties")
+            .select("property_id")
+            .eq("list_id", listId!)
+            .range(offset, offset + BATCH - 1);
+
+          if (error) throw new Error(`Failed to fetch property IDs: ${error.message}`);
+          if (!batch || batch.length === 0) break;
+
+          allIds.push(...batch.map((r) => r.property_id));
+          offset += BATCH;
+          setExportProgress(`Fetched ${allIds.length.toLocaleString()} property IDs...`);
+
+          if (batch.length < BATCH) break; // last page
+        }
+
+        idsToExport = allIds;
+      }
+
+      if (idsToExport.length === 0) {
+        toast({
+          title: "Nothing to export",
+          description: "No properties to export",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Per-property quota check
+      const propertyCount = idsToExport.length;
+      const limitResult = await checkLimit("exports", propertyCount);
+      if (!limitResult.allowed) {
+        setShowUpgradePrompt(true);
+        return;
+      }
+
+      setExportProgress(`Exporting ${propertyCount.toLocaleString()} properties...`);
+
+      await exportFilteredCsv({
+        propertyIds: idsToExport,
+        expectedPropertyCount: propertyCount,
+      });
+
       await new Promise((resolve) => setTimeout(resolve, 500));
       await refetchSubscription();
 
       toast({
         title: "Export Complete",
-        description: `Exported ${idsToExport.length} properties`,
+        description: `Exported ${propertyCount.toLocaleString()} properties`,
       });
 
       setSelectedIds([]);
@@ -109,6 +150,7 @@ export function ListDetail() {
       });
     } finally {
       setIsExporting(false);
+      setExportProgress(null);
     }
   };
 
@@ -180,9 +222,11 @@ export function ListDetail() {
               ) : (
                 <Download className="h-4 w-4 mr-2" />
               )}
-              {selectedIds.length > 0
+              {isExporting && exportProgress
+                ? exportProgress
+                : selectedIds.length > 0
                 ? `Export (${selectedIds.length})`
-                : `Export All (${totalCount})`}
+                : `Export All (${totalCount.toLocaleString()})`}
             </Button>
           </div>
         </div>

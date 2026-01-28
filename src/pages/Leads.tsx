@@ -94,11 +94,20 @@ function Leads() {
 
   // Handler for market onboarding completion
   const handleMarketComplete = async (market: { state: string; city: string }) => {
-    await saveMarket(market);
-    setSelectedState(market.state);
-    setSelectedCity(market.city);
-    setMarketApplied(true);
-    setShowMarketOnboarding(false);
+    try {
+      await saveMarket(market);
+      setSelectedState(market.state);
+      setSelectedCity(market.city);
+      setMarketApplied(true);
+      setShowMarketOnboarding(false);
+    } catch (error) {
+      console.error("[Leads] Error saving market:", error);
+      toast({
+        title: "Failed to save market",
+        description: "Please try again. If the problem persists, refresh the page.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Show "Set as my market" when filters differ from saved market
@@ -509,7 +518,7 @@ function Leads() {
       {/* Market selection onboarding - shown after general onboarding if no market saved */}
       {showMarketOnboarding && (
         <div className="fixed inset-0 z-50 bg-background">
-          <MarketOnboarding onComplete={handleMarketComplete} />
+          <MarketOnboarding onComplete={handleMarketComplete} isSaving={isSavingMarket} />
         </div>
       )}
 

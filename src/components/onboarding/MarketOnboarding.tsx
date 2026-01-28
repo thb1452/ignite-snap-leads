@@ -8,9 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface MarketOnboardingProps {
   onComplete: (market: { state: string; city: string }) => void;
+  isSaving?: boolean;
 }
 
-export function MarketOnboarding({ onComplete }: MarketOnboardingProps) {
+export function MarketOnboarding({ onComplete, isSaving = false }: MarketOnboardingProps) {
   const [states, setStates] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [selectedState, setSelectedState] = useState<string | null>(null);
@@ -175,11 +176,16 @@ export function MarketOnboarding({ onComplete }: MarketOnboardingProps) {
 
           <Button
             onClick={handleContinue}
-            disabled={!selectedState || !selectedCity || loadingCities}
+            disabled={!selectedState || !selectedCity || loadingCities || isSaving}
             className="w-full"
             size="lg"
           >
-            {loadingCities ? (
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : loadingCities ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Loading...

@@ -30,7 +30,7 @@ import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { MarketOnboarding } from "@/components/onboarding/MarketOnboarding";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
-import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
+import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
 import { exportFilteredCsv } from "@/services/export";
@@ -51,7 +51,7 @@ function Leads() {
   const isMobile = useIsMobile();
   const { showOnboarding, setShowOnboarding, markOnboardingComplete, savedMarket, saveMarket, isSavingMarket, hasCompletedOnboarding } = useOnboarding();
   const [showMarketOnboarding, setShowMarketOnboarding] = useState(false);
-  const { plan, checkLimit, refetch: refetchSubscription, getRemainingCount } = useSubscription();
+  const { plan, usage, checkLimit, refetch: refetchSubscription, getRemainingCount } = useSubscription();
   const { hasFeature } = useSubscriptionGate({ showToast: false });
   // State selection removed - all users now see all properties across all states
   // Pagination state
@@ -94,11 +94,20 @@ function Leads() {
 
   // Handler for market onboarding completion
   const handleMarketComplete = async (market: { state: string; city: string }) => {
-    await saveMarket(market);
-    setSelectedState(market.state);
-    setSelectedCity(market.city);
-    setMarketApplied(true);
-    setShowMarketOnboarding(false);
+    try {
+      await saveMarket(market);
+      setSelectedState(market.state);
+      setSelectedCity(market.city);
+      setMarketApplied(true);
+      setShowMarketOnboarding(false);
+    } catch (error) {
+      console.error("[Leads] Error saving market:", error);
+      toast({
+        title: "Failed to save market",
+        description: "Please try again. If the problem persists, refresh the page.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Show "Set as my market" when filters differ from saved market
@@ -154,6 +163,7 @@ function Leads() {
   const [isExporting, setIsExporting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeLimitType, setUpgradeLimitType] = useState<'exports'>('exports');
+  const [exportContextData, setExportContextData] = useState<ExportContext | undefined>(undefined);
 
   // Count active filters
   const activeFilterCount = useMemo(() => {
@@ -277,40 +287,48 @@ function Leads() {
       return;
     }
 
-    // Check quota before export - count is PER PROPERTY, not per operation
     const propertyCount = selectedIds.length;
     const remaining = getRemainingCount('exports');
+    const used = usage?.exports_count ?? 0;
+    const max = plan?.max_monthly_exports ?? 0;
 
     // For unlimited plans (remaining === null), skip the client-side check
     if (remaining !== null && propertyCount > remaining) {
-      toast({
-        title: "Export Limit Exceeded",
-        description: `You have ${remaining.toLocaleString()} property exports remaining this month. This export requires ${propertyCount.toLocaleString()}. Upgrade your plan to continue.`,
-        variant: "destructive",
-        duration: 8000,
-      });
+      // Show partial export option instead of just blocking
       setUpgradeLimitType('exports');
-      setShowUpgradePrompt(true);
-      return;
-    }
-
-    // Server-side check with property count
-    const limitResult = await checkLimit('exports', propertyCount);
-    if (!limitResult.allowed) {
-      toast({
-        title: "Export Limit Exceeded",
-        description: limitResult.message || `Insufficient export quota. You need ${propertyCount.toLocaleString()} but don't have enough remaining.`,
-        variant: "destructive",
-        duration: 8000,
+      setExportContextData({
+        requestedCount: propertyCount,
+        remainingCount: remaining,
+        usedCount: used,
+        maxCount: max,
+        onPartialExport: async (count: number) => {
+          const partialIds = selectedIds.slice(0, count);
+          setIsExporting(true);
+          try {
+            await exportFilteredCsv({
+              propertyIds: partialIds,
+              expectedPropertyCount: partialIds.length,
+            });
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await refetchSubscription();
+            toast({
+              title: "Export Complete",
+              description: `Exported ${partialIds.length.toLocaleString()} properties`,
+            });
+            setSelectedIds([]);
+          } catch (err: any) {
+            toast({ title: "Export Failed", description: err.message || "Failed to export", variant: "destructive" });
+          } finally {
+            setIsExporting(false);
+          }
+        },
       });
-      setUpgradeLimitType('exports');
       setShowUpgradePrompt(true);
       return;
     }
 
     setIsExporting(true);
     try {
-      // Estimate export time: ~1 second per 1000 records
       const estimatedSeconds = Math.max(5, Math.ceil(selectedIds.length / 1000) * 2);
       const estimatedTime = estimatedSeconds > 60
         ? `~${Math.ceil(estimatedSeconds / 60)} minute${Math.ceil(estimatedSeconds / 60) > 1 ? 's' : ''}`
@@ -322,21 +340,17 @@ function Leads() {
         duration: selectedIds.length > 1000 ? 10000 : 5000,
       });
 
-      // Pass expectedPropertyCount to edge function for validation
       await exportFilteredCsv({
         propertyIds: selectedIds,
         expectedPropertyCount: propertyCount,
       });
 
-      // Small delay to ensure backend has committed the usage update
       await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Refetch subscription usage to update the export counter in UI
       await refetchSubscription();
 
       toast({
         title: "Export Complete",
-        description: `Successfully exported ${selectedIds.length.toLocaleString()} properties (${propertyCount.toLocaleString()} counted against quota)`,
+        description: `Exported ${selectedIds.length.toLocaleString()} properties`,
       });
 
       setSelectedIds([]);
@@ -344,7 +358,36 @@ function Leads() {
       console.error('[Leads] Export error:', error);
 
       if (error.message === 'EXPORT_LIMIT_EXCEEDED') {
+        // Server rejected — build context for partial export
         setUpgradeLimitType('exports');
+        const serverRemaining = getRemainingCount('exports') ?? 0;
+        setExportContextData({
+          requestedCount: propertyCount,
+          remainingCount: serverRemaining,
+          usedCount: usage?.exports_count ?? 0,
+          maxCount: plan?.max_monthly_exports ?? 0,
+          onPartialExport: async (count: number) => {
+            const partialIds = selectedIds.slice(0, count);
+            setIsExporting(true);
+            try {
+              await exportFilteredCsv({
+                propertyIds: partialIds,
+                expectedPropertyCount: partialIds.length,
+              });
+              await new Promise(resolve => setTimeout(resolve, 500));
+              await refetchSubscription();
+              toast({
+                title: "Export Complete",
+                description: `Exported ${partialIds.length.toLocaleString()} properties`,
+              });
+              setSelectedIds([]);
+            } catch (err: any) {
+              toast({ title: "Export Failed", description: err.message || "Failed to export", variant: "destructive" });
+            } finally {
+              setIsExporting(false);
+            }
+          },
+        });
         setShowUpgradePrompt(true);
         return;
       }
@@ -475,7 +518,7 @@ function Leads() {
       {/* Market selection onboarding - shown after general onboarding if no market saved */}
       {showMarketOnboarding && (
         <div className="fixed inset-0 z-50 bg-background">
-          <MarketOnboarding onComplete={handleMarketComplete} />
+          <MarketOnboarding onComplete={handleMarketComplete} isSaving={isSavingMarket} />
         </div>
       )}
 
@@ -487,6 +530,7 @@ function Leads() {
         onOpenChange={setShowUpgradePrompt}
         limitType={upgradeLimitType}
         currentPlan={plan?.name}
+        exportContext={exportContextData}
       />
 
       {/* DESKTOP: Filter Bar */}

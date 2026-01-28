@@ -1,15 +1,24 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Sparkles, TrendingUp } from "lucide-react";
+import { CheckCircle2, Sparkles, TrendingUp, Download, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { LimitType, PlanTierName } from "@/types/subscription";
+
+export interface ExportContext {
+  requestedCount: number;
+  remainingCount: number;
+  usedCount: number;
+  maxCount: number;
+  onPartialExport: (count: number) => void;
+}
 
 interface UpgradePromptProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   limitType: LimitType;
   currentPlan?: PlanTierName;
+  exportContext?: ExportContext;
 }
 
 // Messages for usage limits (counters)
@@ -97,7 +106,7 @@ const PLAN_FEATURES = {
   },
 };
 
-export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'starter' }: UpgradePromptProps) {
+export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'starter', exportContext }: UpgradePromptProps) {
   const navigate = useNavigate();
   const config = LIMIT_MESSAGES[limitType];
   const Icon = config.icon;
@@ -119,6 +128,98 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
     ? ['enterprise']
     : [];
 
+  const isMaxPlan = availablePlans.length === 0;
+
+  // Export-specific UI: show partial export option when remaining > 0
+  if (limitType === 'exports' && exportContext && exportContext.remainingCount > 0) {
+    const { requestedCount, remainingCount, usedCount, maxCount, onPartialExport } = exportContext;
+    const usagePct = maxCount > 0 ? Math.round((usedCount / maxCount) * 100) : 0;
+
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-amber-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">Export Exceeds Remaining Quota</DialogTitle>
+                <DialogDescription className="text-sm mt-1">
+                  You can still export — just not the full amount.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-5 mt-2">
+            {/* Usage bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Monthly usage</span>
+                <span className="font-medium">
+                  {usedCount.toLocaleString()} / {maxCount.toLocaleString()} properties
+                </span>
+              </div>
+              <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, usagePct)}%` }}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {remainingCount.toLocaleString()} exports remaining this month
+              </p>
+            </div>
+
+            {/* What they're trying to do */}
+            <div className="rounded-lg bg-muted/50 border p-3 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>Requested</span>
+                <span className="font-medium">{requestedCount.toLocaleString()} properties</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Available</span>
+                <span className="font-medium text-green-600">{remainingCount.toLocaleString()} properties</span>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="space-y-2">
+              <Button
+                className="w-full gap-2"
+                onClick={() => {
+                  onPartialExport(remainingCount);
+                  onOpenChange(false);
+                }}
+              >
+                <Download className="h-4 w-4" />
+                Export {remainingCount.toLocaleString()} properties
+              </Button>
+
+              {!isMaxPlan && (
+                <Button variant="outline" className="w-full gap-2" onClick={handleUpgrade}>
+                  <Sparkles className="h-4 w-4" />
+                  Upgrade for more exports
+                </Button>
+              )}
+
+              {isMaxPlan && (
+                <p className="text-xs text-center text-muted-foreground">
+                  Need more? Contact support for custom enterprise options.
+                </p>
+              )}
+
+              <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
@@ -137,29 +238,47 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
+          {/* Show usage summary for export limits when context provided */}
+          {limitType === 'exports' && exportContext && exportContext.remainingCount === 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Monthly usage</span>
+                <span className="font-medium">
+                  {exportContext.usedCount.toLocaleString()} / {exportContext.maxCount.toLocaleString()} properties
+                </span>
+              </div>
+              <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-red-500 rounded-full" style={{ width: '100%' }} />
+              </div>
+              <p className="text-sm text-red-600 font-medium">
+                No exports remaining this month
+              </p>
+            </div>
+          )}
+
           {availablePlans.length > 0 && (
             <>
               <div>
                 <h3 className="font-semibold text-ink-900 mb-4">Upgrade to unlock more:</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {availablePlans.map((planKey) => {
-                    const plan = PLAN_FEATURES[planKey as keyof typeof PLAN_FEATURES];
+                    const p = PLAN_FEATURES[planKey as keyof typeof PLAN_FEATURES];
                     return (
                       <div
                         key={planKey}
                         className="relative p-4 border-2 border-brand/20 rounded-lg bg-gradient-to-br from-brand/5 to-transparent hover:border-brand/40 transition-all"
                       >
-                        {plan.badge && (
+                        {p.badge && (
                           <Badge className="absolute -top-2 right-4 bg-brand text-white">
-                            {plan.badge}
+                            {p.badge}
                           </Badge>
                         )}
                         <div className="mb-3">
-                          <h4 className="font-bold text-lg text-ink-900">{plan.name}</h4>
-                          <p className="text-2xl font-bold text-brand mt-1">{plan.price}</p>
+                          <h4 className="font-bold text-lg text-ink-900">{p.name}</h4>
+                          <p className="text-2xl font-bold text-brand mt-1">{p.price}</p>
                         </div>
                         <ul className="space-y-2">
-                          {plan.features.map((feature, idx) => (
+                          {p.features.map((feature, idx) => (
                             <li key={idx} className="flex items-start gap-2 text-sm text-ink-700">
                               <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
                               <span>{feature}</span>
@@ -192,7 +311,7 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
           {availablePlans.length === 0 && (
             <div className="text-center py-8">
               <p className="text-ink-700 mb-4">
-                You're already on the Elite plan with maximum limits!
+                You're on the Enterprise plan with the maximum monthly limit.
               </p>
               <p className="text-sm text-ink-500">
                 Need custom limits? Contact support for enterprise options.

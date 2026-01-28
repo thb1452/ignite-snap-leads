@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useListProperties, useRemoveFromList, useUserLists } from "@/hooks/useLists";
 import { exportFilteredCsv } from "@/services/export";
 import { useSubscription } from "@/hooks/useSubscription";
-import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
+import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft,
@@ -36,7 +36,7 @@ export function ListDetail() {
   const { listId } = useParams<{ listId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { checkLimit, refetch: refetchSubscription, plan } = useSubscription();
+  const { checkLimit, refetch: refetchSubscription, plan, usage, getRemainingCount } = useSubscription();
 
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -44,6 +44,8 @@ export function ListDetail() {
   const [exportProgress, setExportProgress] = useState<string | null>(null);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [exportContextData, setExportContextData] = useState<ExportContext | undefined>(undefined);
+  const pendingExportIdsRef = useRef<string[]>([]);
 
   // Fetch list details
   const { data: lists = [] } = useUserLists();
@@ -69,6 +71,61 @@ export function ListDetail() {
     setSelectedIds(allSelected ? [] : properties.map((p) => p.id));
   };
 
+  // Core export logic — accepts IDs and count directly
+  const executeExport = useCallback(async (ids: string[], count: number) => {
+    setIsExporting(true);
+    setExportProgress(`Exporting ${count.toLocaleString()} properties...`);
+
+    try {
+      await exportFilteredCsv({
+        propertyIds: ids,
+        expectedPropertyCount: count,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await refetchSubscription();
+
+      toast({
+        title: "Export Complete",
+        description: `Exported ${count.toLocaleString()} properties`,
+      });
+
+      setSelectedIds([]);
+    } catch (error: any) {
+      if (error.message === "EXPORT_LIMIT_EXCEEDED") {
+        // Server rejected — build context for partial export
+        const remaining = getRemainingCount('exports') ?? 0;
+        const used = usage?.exports_count ?? 0;
+        const max = plan?.max_monthly_exports ?? 0;
+        pendingExportIdsRef.current = ids;
+        setExportContextData({
+          requestedCount: count,
+          remainingCount: remaining,
+          usedCount: used,
+          maxCount: max,
+          onPartialExport: handlePartialExport,
+        });
+        setShowUpgradePrompt(true);
+        return;
+      }
+      toast({
+        title: "Export Failed",
+        description: error.message || "Failed to export",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+      setExportProgress(null);
+    }
+  }, [refetchSubscription, toast, getRemainingCount, usage, plan]);
+
+  // Partial export handler — called from UpgradePrompt
+  const handlePartialExport = useCallback(async (count: number) => {
+    const ids = pendingExportIdsRef.current.slice(0, count);
+    if (ids.length === 0) return;
+    await executeExport(ids, ids.length);
+  }, [executeExport]);
+
   const handleExport = async () => {
     setIsExporting(true);
 
@@ -76,10 +133,9 @@ export function ListDetail() {
       let idsToExport: string[];
 
       if (selectedIds.length > 0) {
-        // Export only selected properties
         idsToExport = selectedIds;
       } else {
-        // Export ALL properties in the list — fetch every ID from list_properties
+        // Fetch ALL property IDs from the list
         setExportProgress("Fetching all property IDs...");
         const allIds: string[] = [];
         const BATCH = 1000;
@@ -99,7 +155,7 @@ export function ListDetail() {
           offset += BATCH;
           setExportProgress(`Fetched ${allIds.length.toLocaleString()} property IDs...`);
 
-          if (batch.length < BATCH) break; // last page
+          if (batch.length < BATCH) break;
         }
 
         idsToExport = allIds;
@@ -111,44 +167,42 @@ export function ListDetail() {
           description: "No properties to export",
           variant: "destructive",
         });
+        setIsExporting(false);
+        setExportProgress(null);
         return;
       }
 
-      // Per-property quota check
+      // Check quota — if over limit, show partial export option instead of blocking
       const propertyCount = idsToExport.length;
-      const limitResult = await checkLimit("exports", propertyCount);
-      if (!limitResult.allowed) {
+      const remaining = getRemainingCount('exports');
+      const used = usage?.exports_count ?? 0;
+      const max = plan?.max_monthly_exports ?? 0;
+
+      // For unlimited plans (remaining === null), skip check
+      if (remaining !== null && propertyCount > remaining) {
+        // Store IDs for partial export
+        pendingExportIdsRef.current = idsToExport;
+        setExportContextData({
+          requestedCount: propertyCount,
+          remainingCount: remaining,
+          usedCount: used,
+          maxCount: max,
+          onPartialExport: handlePartialExport,
+        });
         setShowUpgradePrompt(true);
+        setIsExporting(false);
+        setExportProgress(null);
         return;
       }
 
-      setExportProgress(`Exporting ${propertyCount.toLocaleString()} properties...`);
-
-      await exportFilteredCsv({
-        propertyIds: idsToExport,
-        expectedPropertyCount: propertyCount,
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await refetchSubscription();
-
-      toast({
-        title: "Export Complete",
-        description: `Exported ${propertyCount.toLocaleString()} properties`,
-      });
-
-      setSelectedIds([]);
+      // Quota OK — proceed with full export
+      await executeExport(idsToExport, propertyCount);
     } catch (error: any) {
-      if (error.message === "EXPORT_LIMIT_EXCEEDED") {
-        setShowUpgradePrompt(true);
-        return;
-      }
       toast({
         title: "Export Failed",
         description: error.message || "Failed to export",
         variant: "destructive",
       });
-    } finally {
       setIsExporting(false);
       setExportProgress(null);
     }
@@ -371,12 +425,13 @@ export function ListDetail() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Upgrade Prompt */}
+        {/* Upgrade Prompt with partial export support */}
         <UpgradePrompt
           open={showUpgradePrompt}
           onOpenChange={setShowUpgradePrompt}
           limitType="exports"
           currentPlan={plan?.name}
+          exportContext={exportContextData}
         />
       </div>
     </AppLayout>

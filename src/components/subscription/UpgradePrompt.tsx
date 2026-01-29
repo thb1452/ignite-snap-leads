@@ -434,11 +434,69 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
         </Dialog>
       );
     }
+
+    // Fallback: If exportContext was provided but didn't match any case above,
+    // this is an edge case (e.g., remainingCount >= requestedCount but modal still shown).
+    // Show a generic partial export modal with available context.
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-amber-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">Export Limit Notice</DialogTitle>
+                <DialogDescription className="text-sm mt-1">
+                  Review your export quota before proceeding.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-5 mt-2">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-amber-800">Requested</span>
+                <span className="font-bold text-amber-900">{requestedCount.toLocaleString()} properties</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-amber-800">Available</span>
+                <span className="font-bold text-amber-900">{remainingCount.toLocaleString()} properties</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-amber-800">Monthly usage</span>
+                <span className="font-bold text-amber-900">{usedCount.toLocaleString()} / {maxCount.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              {!isMaxPlan && (
+                <Button className="w-full gap-2" onClick={handleUpgrade}>
+                  <Sparkles className="h-4 w-4" />
+                  Upgrade for higher limits
+                </Button>
+              )}
+
+              {listId && (
+                <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>
+                  <Pencil className="h-4 w-4" />
+                  Edit List
+                </Button>
+              )}
+
+              <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
-  // Case 4: Feature-based limits (non-export) - keep simpler design
-
-  // Case 4: Feature-based limits (non-export) - keep simpler design
+  // Case 5: Feature-based limits (non-export) - simpler design
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">

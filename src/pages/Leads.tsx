@@ -48,10 +48,10 @@ const PAGE_SIZE = 50;
 function Leads() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { showOnboarding, setShowOnboarding, markOnboardingComplete, savedMarket, saveMarket, isSavingMarket, hasCompletedOnboarding } = useOnboarding();
-  const { plan, usage, checkLimit, refetch: refetchSubscription, getRemainingCount } = useSubscription();
-  const { hasFeature } = useSubscriptionGate({ showToast: false });
-  // State selection removed - all users now see all properties across all states
+  const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
+  const { plan, usage, refetch: refetchSubscription, getRemainingCount } = useSubscription();
+  useSubscriptionGate({ showToast: false }); // Still needed for subscription context
+  
   // Pagination state
   const [page, setPage] = useState(1);
   const [pendingPage, setPendingPage] = useState<number | null>(null);
@@ -72,34 +72,6 @@ function Leads() {
   const [openViolationsOnly, setOpenViolationsOnly] = useState(false);
   const [multipleViolationsOnly, setMultipleViolationsOnly] = useState(false);
   const [repeatOffenderOnly, setRepeatOffenderOnly] = useState(false);
-  
-  // Pre-populate filters from saved market on first load
-  const [marketApplied, setMarketApplied] = useState(false);
-  useEffect(() => {
-    if (savedMarket && !marketApplied && hasCompletedOnboarding) {
-      setSelectedState(savedMarket.state);
-      setSelectedCity(savedMarket.city);
-      setMarketApplied(true);
-    }
-  }, [savedMarket, marketApplied, hasCompletedOnboarding]);
-
-  // Show "Set as my market" when filters differ from saved market
-  const showSetDefaultButton = useMemo(() => {
-    if (!hasCompletedOnboarding) return false;
-    if (!selectedState || !selectedCity) return false;
-    if (savedMarket && savedMarket.state === selectedState && savedMarket.city === selectedCity) return false;
-    return true;
-  }, [hasCompletedOnboarding, selectedState, selectedCity, savedMarket]);
-
-  const handleSetDefaultMarket = async () => {
-    if (selectedState && selectedCity) {
-      await saveMarket({ state: selectedState, city: selectedCity });
-      toast({
-        title: "Market Updated",
-        description: `${selectedCity}, ${selectedState} is now your default market`,
-      });
-    }
-  };
 
   // Mobile view state
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
@@ -107,12 +79,8 @@ function Leads() {
   // View mode state (property vs violation)
   const [viewMode, setViewMode] = useState<ViewMode>('property');
   
-  // Upgrade prompt state for gated features
-  const [upgradePromptType, setUpgradePromptType] = useState<'advanced_filters' | 'violation_filtering' | null>(null);
-  
-  // Check if user has access to advanced filters
-  const hasAdvancedFilters = hasFeature('advanced_filters');
-  const hasViolationFiltering = hasFeature('violation_filtering');
+  // Upgrade prompt state for export limits only
+  const [upgradePromptType, setUpgradePromptType] = useState<'exports' | null>(null);
   
   // Demo credits hook
   const { isDemoMode, isAdmin } = useDemoCredits();
@@ -525,21 +493,6 @@ function Leads() {
             onStateChange={(s) => { setSelectedState(s); setPage(1); }}
           />
 
-          {/* Set as default market button */}
-          {showSetDefaultButton && (
-            <div className="flex items-end pb-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSetDefaultMarket}
-                disabled={isSavingMarket}
-                className="text-xs text-primary hover:text-primary/80 h-8 px-2"
-              >
-                {isSavingMarket ? 'Saving...' : 'Set as my market'}
-              </Button>
-            </div>
-          )}
-
           {/* Date Range */}
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
@@ -551,59 +504,23 @@ function Leads() {
             />
           </div>
           
-          {/* Enforcement Signals - Gated behind advanced_filters */}
-          {hasAdvancedFilters ? (
-            <EnforcementSignalsFilter
-              selectedSignal={selectedSignal}
-              onSignalChange={(v) => { setSelectedSignal(v); setPage(1); }}
-              selectedState={selectedState}
-              selectedCity={selectedCity}
-            />
-          ) : (
-            <div 
-              className="opacity-50 cursor-pointer relative group"
-              onClick={() => setUpgradePromptType('advanced_filters')}
-            >
-              <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-lg z-10 flex items-center justify-center">
-                <Badge variant="secondary" className="text-xs">Pro Feature</Badge>
-              </div>
-              <EnforcementSignalsFilter
-                selectedSignal={null}
-                onSignalChange={() => {}}
-                selectedState={selectedState}
-                selectedCity={selectedCity}
-              />
-            </div>
-          )}
+          {/* Enforcement Signals - Available to all users */}
+          <EnforcementSignalsFilter
+            selectedSignal={selectedSignal}
+            onSignalChange={(v) => { setSelectedSignal(v); setPage(1); }}
+            selectedState={selectedState}
+            selectedCity={selectedCity}
+          />
           
-          {/* Pressure Level - Gated behind advanced_filters */}
-          {hasAdvancedFilters ? (
-            <PressureLevelFilter
-              openViolationsOnly={openViolationsOnly}
-              onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
-              multipleViolationsOnly={multipleViolationsOnly}
-              onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
-              repeatOffenderOnly={repeatOffenderOnly}
-              onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
-            />
-          ) : (
-            <div 
-              className="opacity-50 cursor-pointer relative group"
-              onClick={() => setUpgradePromptType('advanced_filters')}
-            >
-              <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-lg z-10 flex items-center justify-center">
-                <Badge variant="secondary" className="text-xs">Pro Feature</Badge>
-              </div>
-              <PressureLevelFilter
-                openViolationsOnly={false}
-                onOpenViolationsChange={() => {}}
-                multipleViolationsOnly={false}
-                onMultipleViolationsChange={() => {}}
-                repeatOffenderOnly={false}
-                onRepeatOffenderChange={() => {}}
-              />
-            </div>
-          )}
+          {/* Pressure Level - Available to all users */}
+          <PressureLevelFilter
+            openViolationsOnly={openViolationsOnly}
+            onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
+            multipleViolationsOnly={multipleViolationsOnly}
+            onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
+            repeatOffenderOnly={repeatOffenderOnly}
+            onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
+          />
         </div>
       </div>
 
@@ -650,21 +567,6 @@ function Leads() {
             onAddAllToList={() => setShowAddAllToListDialog(true)}
           />
         </div>
-        
-        {/* Set as default market - mobile */}
-        {showSetDefaultButton && (
-          <div className="px-3 pb-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSetDefaultMarket}
-              disabled={isSavingMarket}
-              className="text-xs text-primary hover:text-primary/80 h-7 px-2"
-            >
-              {isSavingMarket ? 'Saving...' : 'Set as my market'}
-            </Button>
-          </div>
-        )}
 
         {/* Freshness indicator + View Toggle */}
         <div className="flex items-center justify-between px-3 pb-2">
@@ -993,11 +895,11 @@ function Leads() {
         }}
       />
 
-      {/* Upgrade Prompt for Gated Features */}
+      {/* Upgrade Prompt for Export Limits */}
       <UpgradePrompt
         open={!!upgradePromptType}
         onOpenChange={(open) => !open && setUpgradePromptType(null)}
-        limitType={upgradePromptType || 'advanced_filters'}
+        limitType={upgradePromptType || 'exports'}
       />
 
       {/* Floating Selection Action Bar - shows on mobile and when items selected */}

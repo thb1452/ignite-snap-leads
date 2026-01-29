@@ -226,14 +226,22 @@ serve(async (req: Request) => {
     );
 
   } catch (error: unknown) {
-    const errorDetails = {
-      message: error instanceof Error ? error.message : String(error),
-      name: error instanceof Error ? error.name : typeof error,
-    };
-    console.error("[Reverse Geocoding] Error:", errorDetails);
+    let errorMessage = "Unknown error";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    } else {
+      try {
+        errorMessage = JSON.stringify(error);
+      } catch {
+        errorMessage = String(error);
+      }
+    }
+    console.error("[Reverse Geocoding] Error:", errorMessage);
 
     return new Response(
-      JSON.stringify({ error: errorDetails.message || "Unknown error" }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

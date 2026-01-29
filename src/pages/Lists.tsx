@@ -221,6 +221,7 @@ export function Lists() {
           remainingCount: remaining,
           usedCount,
           maxCount: maxMonthly,
+          listId,
         });
         setShowUpgradePrompt(true);
         return;

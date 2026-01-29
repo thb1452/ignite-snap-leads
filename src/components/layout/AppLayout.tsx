@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Settings, CreditCard, LayoutDashboard, ListChecks } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { LogoWordmark } from "@/components/branding/LogoWordmark";
@@ -12,7 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Settings, CreditCard, LayoutDashboard, ListChecks } from "lucide-react";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -116,19 +115,25 @@ export function AppLayout({ children }: AppLayoutProps) {
               
               <DropdownMenuSeparator />
               
-              <DropdownMenuItem asChild>
-                <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
+              {/* Only show Settings link when not on settings page */}
+              {location.pathname !== '/settings' && (
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+              )}
               
-              <DropdownMenuItem asChild>
-                <Link to="/settings?tab=subscription" className="flex items-center gap-2 cursor-pointer">
-                  <CreditCard className="h-4 w-4" />
-                  Billing
-                </Link>
-              </DropdownMenuItem>
+              {/* Only show Billing link when not on settings page */}
+              {location.pathname !== '/settings' && (
+                <DropdownMenuItem asChild>
+                  <Link to="/settings?tab=subscription" className="flex items-center gap-2 cursor-pointer">
+                    <CreditCard className="h-4 w-4" />
+                    Billing
+                  </Link>
+                </DropdownMenuItem>
+              )}
               
               <DropdownMenuSeparator />
               

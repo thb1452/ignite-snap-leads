@@ -227,14 +227,14 @@ export function SubscriptionSettings() {
       {/* Current Plan */}
       {plan && (
         <Card className={`border-2 bg-gradient-to-br ${planConfig?.gradient || 'from-slate-50 to-white'}`}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
+          <CardHeader className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center`}>
+                <div className={`w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center flex-shrink-0`}>
                   <PlanIcon className={`h-6 w-6 ${planConfig?.color || 'text-brand'}`} />
                 </div>
-                <div>
-                  <CardTitle className="flex items-center gap-2">
+                <div className="min-w-0">
+                  <CardTitle className="flex items-center gap-2 flex-wrap">
                     {plan.display_name}
                     {subscription?.status === 'active' && (
                       <Badge className="bg-green-500 text-white">Active</Badge>
@@ -243,7 +243,7 @@ export function SubscriptionSettings() {
                       <Badge className="bg-blue-500 text-white">Trial</Badge>
                     )}
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="mt-1">
                     {plan.price_monthly_cents > 0 && (
                       <span>${(plan.price_monthly_cents / 100).toFixed(0)}/month</span>
                     )}
@@ -261,7 +261,7 @@ export function SubscriptionSettings() {
                   size="sm"
                   onClick={handleManageSubscription}
                   disabled={portalLoading}
-                  className="gap-2"
+                  className="gap-2 self-start sm:self-center flex-shrink-0"
                 >
                   {portalLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

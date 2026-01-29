@@ -135,27 +135,37 @@ export function ListDetail() {
       if (selectedIds.length > 0) {
         idsToExport = selectedIds;
       } else {
-        // Fetch ALL property IDs from the list
+        // Fetch ALL property IDs using cursor pagination (faster for large lists)
         setExportProgress("Fetching all property IDs...");
         const allIds: string[] = [];
         const BATCH = 1000;
-        let offset = 0;
+        let lastId: string | null = null;
+        let hasMore = true;
 
-        while (true) {
-          const { data: batch, error } = await supabase
+        while (hasMore) {
+          let query = supabase
             .from("list_properties")
-            .select("property_id")
+            .select("id, property_id")
             .eq("list_id", listId!)
-            .range(offset, offset + BATCH - 1);
+            .order("id", { ascending: true })
+            .limit(BATCH);
+
+          if (lastId) {
+            query = query.gt("id", lastId);
+          }
+
+          const { data: batch, error } = await query;
 
           if (error) throw new Error(`Failed to fetch property IDs: ${error.message}`);
-          if (!batch || batch.length === 0) break;
+          if (!batch || batch.length === 0) {
+            hasMore = false;
+            break;
+          }
 
-          allIds.push(...batch.map((r) => r.property_id));
-          offset += BATCH;
+          allIds.push(...batch.map((r) => r.property_id).filter(Boolean));
+          lastId = batch[batch.length - 1].id;
           setExportProgress(`Fetched ${allIds.length.toLocaleString()} property IDs...`);
-
-          if (batch.length < BATCH) break;
+          hasMore = batch.length === BATCH;
         }
 
         idsToExport = allIds;

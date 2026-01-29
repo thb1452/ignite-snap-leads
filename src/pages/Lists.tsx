@@ -30,12 +30,12 @@ import { useUserLists, useCreateList } from "@/hooks/useLists";
 import { supabase } from "@/integrations/supabase/client";
 import { exportFilteredCsv } from "@/services/export";
 import { useSubscription } from "@/hooks/useSubscription";
-import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
+import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
 
 export function Lists() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { checkLimit, refetch: refetchSubscription, plan, getRemainingCount } = useSubscription();
+  const { checkLimit, refetch: refetchSubscription, plan, usage, getRemainingCount } = useSubscription();
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -43,6 +43,7 @@ export function Lists() {
   const [newListName, setNewListName] = useState("");
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [exportContext, setExportContext] = useState<ExportContext | undefined>(undefined);
 
   // Use the new hook
   const { data: lists = [], isLoading, refetch } = useUserLists();
@@ -118,14 +119,37 @@ export function Lists() {
     // CRITICAL: Check quota with PROPERTY COUNT, not just "1 export"
     // Each property exported counts against the monthly limit
     const remaining = getRemainingCount('exports');
+    const maxMonthly = plan?.max_monthly_exports ?? 0;
 
     // For unlimited plans (remaining === null), skip the client-side check
     if (remaining !== null && propertyCount > remaining) {
-      toast({
-        title: "Export Limit Exceeded",
-        description: `You have ${remaining.toLocaleString()} property exports remaining this month. This export requires ${propertyCount.toLocaleString()}. Upgrade your plan to continue.`,
-        variant: "destructive",
-        duration: 8000,
+      // Distinguish between "list exceeds total plan limit" vs "list exceeds remaining quota"
+      const exceedsTotalLimit = propertyCount > maxMonthly;
+      
+      if (exceedsTotalLimit) {
+        // List size is larger than the entire monthly allowance - suggest splitting or upgrading
+        toast({
+          title: "List Exceeds Monthly Limit",
+          description: `This list contains ${propertyCount.toLocaleString()} properties, which exceeds your plan's monthly limit of ${maxMonthly.toLocaleString()}. Split the list or upgrade to export.`,
+          variant: "destructive",
+          duration: 10000,
+        });
+      } else {
+        // User has used some quota - show remaining and suggest waiting or upgrading
+        toast({
+          title: "Insufficient Export Quota",
+          description: `You have ${remaining.toLocaleString()} exports remaining this month. This list requires ${propertyCount.toLocaleString()}. Wait until next billing cycle or upgrade.`,
+          variant: "destructive",
+          duration: 8000,
+        });
+      }
+      // Set export context for the UpgradePrompt
+      const usedCount = usage?.exports_count ?? 0;
+      setExportContext({
+        requestedCount: propertyCount,
+        remainingCount: remaining ?? 0,
+        usedCount,
+        maxCount: maxMonthly,
       });
       setShowUpgradePrompt(true);
       return;
@@ -134,11 +158,19 @@ export function Lists() {
     // Server-side check with property count
     const limitResult = await checkLimit("exports", propertyCount);
     if (!limitResult.allowed) {
+      const usedCount = usage?.exports_count ?? 0;
+      const exceedsTotalLimit = propertyCount > maxMonthly;
       toast({
-        title: "Export Limit Exceeded",
+        title: exceedsTotalLimit ? "List Exceeds Monthly Limit" : "Export Limit Exceeded",
         description: limitResult.message || `Insufficient export quota. You need ${propertyCount.toLocaleString()} but don't have enough remaining.`,
         variant: "destructive",
         duration: 8000,
+      });
+      setExportContext({
+        requestedCount: propertyCount,
+        remainingCount: limitResult.remaining ?? 0,
+        usedCount,
+        maxCount: maxMonthly,
       });
       setShowUpgradePrompt(true);
       return;
@@ -179,6 +211,15 @@ export function Lists() {
       });
     } catch (error: any) {
       if (error.message === "EXPORT_LIMIT_EXCEEDED") {
+        // Server rejected — set context for the upgrade prompt
+        const usedCount = usage?.exports_count ?? 0;
+        const remaining = getRemainingCount('exports') ?? 0;
+        setExportContext({
+          requestedCount: propertyCount,
+          remainingCount: remaining,
+          usedCount,
+          maxCount: maxMonthly,
+        });
         setShowUpgradePrompt(true);
         return;
       }
@@ -352,9 +393,13 @@ export function Lists() {
         {/* Upgrade Prompt */}
         <UpgradePrompt
           open={showUpgradePrompt}
-          onOpenChange={setShowUpgradePrompt}
+          onOpenChange={(open) => {
+            setShowUpgradePrompt(open);
+            if (!open) setExportContext(undefined);
+          }}
           limitType="exports"
           currentPlan={plan?.name}
+          exportContext={exportContext}
         />
       </div>
     </AppLayout>

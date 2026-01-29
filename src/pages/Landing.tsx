@@ -81,8 +81,15 @@ export default function Landing() {
   };
 
   const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    // Close menu first on mobile to avoid animation interference
     setMobileMenuOpen(false);
+    // Small delay to let menu close animation start before scrolling
+    setTimeout(() => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
   };
 
   return (

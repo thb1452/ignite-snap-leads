@@ -268,54 +268,69 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
             </DialogHeader>
 
             <div className="space-y-5 mt-2">
-              {/* Usage bar */}
-              <div className="space-y-2">
+              {/* Usage comparison - consistent with other cases */}
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Monthly usage</span>
-                  <span className="font-medium">
-                    {usedCount.toLocaleString()} / {maxCount.toLocaleString()} properties
-                  </span>
-                </div>
-                <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-amber-500 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, usagePct)}%` }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {remainingCount.toLocaleString()} exports remaining this month
-                </p>
-              </div>
-
-              {/* What they're trying to do */}
-              <div className="rounded-lg bg-muted/50 border p-3 space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span>Requested</span>
-                  <span className="font-medium">{requestedCount.toLocaleString()} properties</span>
+                  <span className="text-amber-800">List size</span>
+                  <span className="font-bold text-amber-900">{requestedCount.toLocaleString()} properties</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>Available</span>
-                  <span className="font-medium text-green-600">{remainingCount.toLocaleString()} properties</span>
+                  <span className="text-amber-800">Available quota</span>
+                  <span className="font-bold text-amber-900">{remainingCount.toLocaleString()} properties</span>
+                </div>
+                <div className="border-t border-amber-200 pt-2 text-sm text-amber-700">
+                  You've used {usedCount.toLocaleString()} of {maxCount.toLocaleString()} exports this month.
                 </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="space-y-2">
+              {/* Options - consistent with other cases */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-ink-900">Your options:</h4>
+                <ul className="space-y-2 text-sm text-ink-700">
+                  {!isMaxPlan && (
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
+                      <span><strong>Upgrade your plan</strong> for a higher monthly limit</span>
+                    </li>
+                  )}
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                    <span><strong>Export {remainingCount.toLocaleString()} now</strong> (partial export of available quota)</span>
+                  </li>
+                  {listId && (
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
+                      <span><strong>Edit list</strong> to remove properties and export a smaller list</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              {/* Action buttons - consistent order: Primary → Secondary → Tertiary → Cancel */}
+              <div className="space-y-2 pt-2">
+                {!isMaxPlan && (
+                  <Button className="w-full gap-2" onClick={handleUpgrade}>
+                    <Sparkles className="h-4 w-4" />
+                    Upgrade for higher limits
+                  </Button>
+                )}
+
                 <Button
                   className="w-full gap-2"
+                  variant="outline"
                   onClick={() => {
                     onPartialExport(remainingCount);
                     onOpenChange(false);
                   }}
                 >
                   <Download className="h-4 w-4" />
-                  Export {remainingCount.toLocaleString()} properties
+                  Export {remainingCount.toLocaleString()} now
                 </Button>
 
-                {!isMaxPlan && (
-                  <Button variant="outline" className="w-full gap-2" onClick={handleUpgrade}>
-                    <Sparkles className="h-4 w-4" />
-                    Upgrade for more exports
+                {listId && (
+                  <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>
+                    <Pencil className="h-4 w-4" />
+                    Edit List
                   </Button>
                 )}
 

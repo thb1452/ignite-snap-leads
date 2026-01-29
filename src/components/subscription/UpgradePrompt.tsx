@@ -553,10 +553,10 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
               <div className="space-y-2 pt-2">
                 <Button className="w-full gap-2" onClick={handleUpgrade}>
                   <Sparkles className="h-4 w-4" />
-                  Upgrade Now
+                  Upgrade for higher limits
                 </Button>
                 <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
-                  Maybe Later
+                  Cancel
                 </Button>
               </div>
             </>

@@ -10,7 +10,7 @@ export interface ExportContext {
   remainingCount: number;
   usedCount: number;
   maxCount: number;
-  onPartialExport: (count: number) => void;
+  onPartialExport?: (count: number) => void;
 }
 
 interface UpgradePromptProps {
@@ -130,94 +130,193 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
 
   const isMaxPlan = availablePlans.length === 0;
 
-  // Export-specific UI: show partial export option when remaining > 0
-  if (limitType === 'exports' && exportContext && exportContext.remainingCount > 0) {
+  // Export-specific UI: handle different scenarios
+  if (limitType === 'exports' && exportContext) {
     const { requestedCount, remainingCount, usedCount, maxCount, onPartialExport } = exportContext;
     const usagePct = maxCount > 0 ? Math.round((usedCount / maxCount) * 100) : 0;
+    const exceedsTotalLimit = requestedCount > maxCount;
 
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-amber-600" />
+    // Case 1: List size exceeds total monthly limit entirely
+    if (exceedsTotalLimit) {
+      return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">List Exceeds Monthly Limit</DialogTitle>
+                  <DialogDescription className="text-sm mt-1">
+                    This list is too large for a single export on your plan.
+                  </DialogDescription>
+                </div>
               </div>
-              <div>
-                <DialogTitle className="text-xl">Export Exceeds Remaining Quota</DialogTitle>
-                <DialogDescription className="text-sm mt-1">
-                  You can still export — just not the full amount.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
+            </DialogHeader>
 
-          <div className="space-y-5 mt-2">
-            {/* Usage bar */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Monthly usage</span>
-                <span className="font-medium">
-                  {usedCount.toLocaleString()} / {maxCount.toLocaleString()} properties
-                </span>
+            <div className="space-y-5 mt-2">
+              {/* What they're trying to do vs what's allowed */}
+              <div className="rounded-lg bg-red-50 border border-red-200 p-4 space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-red-800">List size</span>
+                  <span className="font-bold text-red-900">{requestedCount.toLocaleString()} properties</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-red-800">Your monthly limit</span>
+                  <span className="font-bold text-red-900">{maxCount.toLocaleString()} properties</span>
+                </div>
+                <div className="border-t border-red-200 pt-2 text-sm text-red-700">
+                  This list requires {Math.ceil(requestedCount / maxCount)} months to fully export on your current plan.
+                </div>
               </div>
-              <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-amber-500 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, usagePct)}%` }}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {remainingCount.toLocaleString()} exports remaining this month
-              </p>
-            </div>
 
-            {/* What they're trying to do */}
-            <div className="rounded-lg bg-muted/50 border p-3 space-y-1">
-              <div className="flex justify-between text-sm">
-                <span>Requested</span>
-                <span className="font-medium">{requestedCount.toLocaleString()} properties</span>
+              {/* Options */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-ink-900">Your options:</h4>
+                <ul className="space-y-2 text-sm text-ink-700">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
+                    <span><strong>Upgrade your plan</strong> for a higher monthly limit</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
+                    <span><strong>Split the list</strong> into smaller chunks and export over multiple months</span>
+                  </li>
+                  {remainingCount > 0 && onPartialExport && (
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span><strong>Export {remainingCount.toLocaleString()} now</strong> (your remaining quota)</span>
+                    </li>
+                  )}
+                </ul>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Available</span>
-                <span className="font-medium text-green-600">{remainingCount.toLocaleString()} properties</span>
-              </div>
-            </div>
 
-            {/* Action buttons */}
-            <div className="space-y-2">
-              <Button
-                className="w-full gap-2"
-                onClick={() => {
-                  onPartialExport(remainingCount);
-                  onOpenChange(false);
-                }}
-              >
-                <Download className="h-4 w-4" />
-                Export {remainingCount.toLocaleString()} properties
-              </Button>
+              {/* Action buttons */}
+              <div className="space-y-2 pt-2">
+                {remainingCount > 0 && onPartialExport && (
+                  <Button
+                    className="w-full gap-2"
+                    variant="outline"
+                    onClick={() => {
+                      onPartialExport(remainingCount);
+                      onOpenChange(false);
+                    }}
+                  >
+                    <Download className="h-4 w-4" />
+                    Export {remainingCount.toLocaleString()} properties now
+                  </Button>
+                )}
 
-              {!isMaxPlan && (
-                <Button variant="outline" className="w-full gap-2" onClick={handleUpgrade}>
-                  <Sparkles className="h-4 w-4" />
-                  Upgrade for more exports
+                {!isMaxPlan && (
+                  <Button className="w-full gap-2" onClick={handleUpgrade}>
+                    <Sparkles className="h-4 w-4" />
+                    Upgrade for higher limits
+                  </Button>
+                )}
+
+                {isMaxPlan && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    You're on the max plan. Contact support for custom enterprise options.
+                  </p>
+                )}
+
+                <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
+                  Cancel
                 </Button>
-              )}
-
-              {isMaxPlan && (
-                <p className="text-xs text-center text-muted-foreground">
-                  Need more? Contact support for custom enterprise options.
-                </p>
-              )}
-
-              <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
+              </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
+          </DialogContent>
+        </Dialog>
+      );
+    }
+
+    // Case 2: Remaining quota can partially fulfill the request
+    if (remainingCount > 0 && onPartialExport) {
+      return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-amber-600" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">Export Exceeds Remaining Quota</DialogTitle>
+                  <DialogDescription className="text-sm mt-1">
+                    You can still export — just not the full amount.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-5 mt-2">
+              {/* Usage bar */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Monthly usage</span>
+                  <span className="font-medium">
+                    {usedCount.toLocaleString()} / {maxCount.toLocaleString()} properties
+                  </span>
+                </div>
+                <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, usagePct)}%` }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {remainingCount.toLocaleString()} exports remaining this month
+                </p>
+              </div>
+
+              {/* What they're trying to do */}
+              <div className="rounded-lg bg-muted/50 border p-3 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>Requested</span>
+                  <span className="font-medium">{requestedCount.toLocaleString()} properties</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Available</span>
+                  <span className="font-medium text-green-600">{remainingCount.toLocaleString()} properties</span>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="space-y-2">
+                <Button
+                  className="w-full gap-2"
+                  onClick={() => {
+                    onPartialExport(remainingCount);
+                    onOpenChange(false);
+                  }}
+                >
+                  <Download className="h-4 w-4" />
+                  Export {remainingCount.toLocaleString()} properties
+                </Button>
+
+                {!isMaxPlan && (
+                  <Button variant="outline" className="w-full gap-2" onClick={handleUpgrade}>
+                    <Sparkles className="h-4 w-4" />
+                    Upgrade for more exports
+                  </Button>
+                )}
+
+                {isMaxPlan && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    Need more? Contact support for custom enterprise options.
+                  </p>
+                )}
+
+                <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      );
+    }
   }
 
   return (

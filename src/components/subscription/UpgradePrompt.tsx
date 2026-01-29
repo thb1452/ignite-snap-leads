@@ -332,7 +332,8 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
     }
 
     // Case 3: Partial export available (remaining quota > 0 but < requested)
-    if (remainingCount > 0 && onPartialExport) {
+    // Show this modal regardless of whether onPartialExport is provided
+    if (remainingCount > 0 && remainingCount < requestedCount) {
       return (
         <Dialog open={open} onOpenChange={onOpenChange}>
           <DialogContent className="max-w-md">
@@ -374,10 +375,12 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                       <span><strong>Upgrade your plan</strong> for a higher monthly limit</span>
                     </li>
                   )}
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span><strong>Export {remainingCount.toLocaleString()} now</strong> (partial export of available quota)</span>
-                  </li>
+                  {onPartialExport && (
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span><strong>Export {remainingCount.toLocaleString()} now</strong> (partial export of available quota)</span>
+                    </li>
+                  )}
                   {listId && (
                     <li className="flex items-start gap-2">
                       <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
@@ -395,17 +398,19 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                   </Button>
                 )}
 
-                <Button
-                  className="w-full gap-2"
-                  variant="outline"
-                  onClick={() => {
-                    onPartialExport(remainingCount);
-                    onOpenChange(false);
-                  }}
-                >
-                  <Download className="h-4 w-4" />
-                  Export {remainingCount.toLocaleString()} now
-                </Button>
+                {onPartialExport && (
+                  <Button
+                    className="w-full gap-2"
+                    variant="outline"
+                    onClick={() => {
+                      onPartialExport(remainingCount);
+                      onOpenChange(false);
+                    }}
+                  >
+                    <Download className="h-4 w-4" />
+                    Export {remainingCount.toLocaleString()} now
+                  </Button>
+                )}
 
                 {listId && (
                   <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>

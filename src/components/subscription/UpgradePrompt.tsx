@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Sparkles, TrendingUp, Download, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Sparkles, TrendingUp, Download, AlertTriangle, Pencil } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { LimitType, PlanTierName } from "@/types/subscription";
 
@@ -10,6 +10,7 @@ export interface ExportContext {
   remainingCount: number;
   usedCount: number;
   maxCount: number;
+  listId?: string;
   onPartialExport?: (count: number) => void;
 }
 
@@ -130,9 +131,16 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
 
   const isMaxPlan = availablePlans.length === 0;
 
+  const handleEditList = () => {
+    if (exportContext?.listId) {
+      onOpenChange(false);
+      navigate(`/lists/${exportContext.listId}`);
+    }
+  };
+
   // Export-specific UI: handle different scenarios
   if (limitType === 'exports' && exportContext) {
-    const { requestedCount, remainingCount, usedCount, maxCount, onPartialExport } = exportContext;
+    const { requestedCount, remainingCount, usedCount, maxCount, onPartialExport, listId } = exportContext;
     const usagePct = maxCount > 0 ? Math.round((usedCount / maxCount) * 100) : 0;
     const exceedsTotalLimit = requestedCount > maxCount;
 
@@ -179,14 +187,16 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                     <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
                     <span><strong>Upgrade your plan</strong> for a higher monthly limit</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
-                    <span><strong>Split the list</strong> into smaller chunks and export over multiple months</span>
-                  </li>
                   {remainingCount > 0 && onPartialExport && (
                     <li className="flex items-start gap-2">
                       <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span><strong>Export {remainingCount.toLocaleString()} now</strong> (your remaining quota)</span>
+                      <span><strong>Export {remainingCount.toLocaleString()} now</strong> (remaining properties saved in list)</span>
+                    </li>
+                  )}
+                  {listId && (
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
+                      <span><strong>Edit list</strong> to remove properties and export a smaller list</span>
                     </li>
                   )}
                 </ul>
@@ -194,6 +204,13 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
 
               {/* Action buttons */}
               <div className="space-y-2 pt-2">
+                {!isMaxPlan && (
+                  <Button className="w-full gap-2" onClick={handleUpgrade}>
+                    <Sparkles className="h-4 w-4" />
+                    Upgrade for higher limits
+                  </Button>
+                )}
+
                 {remainingCount > 0 && onPartialExport && (
                   <Button
                     className="w-full gap-2"
@@ -204,14 +221,14 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                     }}
                   >
                     <Download className="h-4 w-4" />
-                    Export {remainingCount.toLocaleString()} properties now
+                    Export {remainingCount.toLocaleString()} now
                   </Button>
                 )}
 
-                {!isMaxPlan && (
-                  <Button className="w-full gap-2" onClick={handleUpgrade}>
-                    <Sparkles className="h-4 w-4" />
-                    Upgrade for higher limits
+                {listId && (
+                  <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>
+                    <Pencil className="h-4 w-4" />
+                    Edit List
                   </Button>
                 )}
 

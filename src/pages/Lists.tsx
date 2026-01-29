@@ -150,6 +150,7 @@ export function Lists() {
         remainingCount: remaining ?? 0,
         usedCount,
         maxCount: maxMonthly,
+        listId,
       });
       setShowUpgradePrompt(true);
       return;
@@ -171,6 +172,7 @@ export function Lists() {
         remainingCount: limitResult.remaining ?? 0,
         usedCount,
         maxCount: maxMonthly,
+        listId,
       });
       setShowUpgradePrompt(true);
       return;

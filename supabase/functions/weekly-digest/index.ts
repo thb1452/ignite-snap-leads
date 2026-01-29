@@ -30,6 +30,16 @@ interface UserDigestData {
   full_name: string | null;
 }
 
+interface ProfileRow {
+  user_id: string;
+  email: string | null;
+  full_name: string | null;
+}
+
+interface EmailPrefRow {
+  user_id: string;
+}
+
 function formatPropertyEmail(
   userName: string | null,
   weeklyCount: number,
@@ -126,7 +136,8 @@ function formatPropertyEmail(
   `.trim();
 }
 
-async function getWeeklyStats(supabase: ReturnType<typeof createClient>) {
+async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -151,7 +162,9 @@ async function getWeeklyStats(supabase: ReturnType<typeof createClient>) {
   };
 }
 
-async function getActiveUsers(supabase: ReturnType<typeof createClient>): Promise<UserDigestData[]> {
+async function getActiveUsers(supabaseUrl: string, supabaseServiceKey: string): Promise<UserDigestData[]> {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  
   // Get users who have digest enabled or haven't set preferences (default enabled)
   // Join with auth.users to get email (via profiles table)
   const { data: profiles, error } = await supabase
@@ -169,10 +182,10 @@ async function getActiveUsers(supabase: ReturnType<typeof createClient>): Promis
     .select("user_id")
     .eq("weekly_digest_enabled", false);
 
-  const disabledUserIds = new Set((disabledPrefs || []).map(p => p.user_id));
+  const disabledUserIds = new Set((disabledPrefs as EmailPrefRow[] || []).map(p => p.user_id));
 
   // Filter out disabled users and those without email
-  return profiles
+  return (profiles as ProfileRow[])
     .filter(p => p.email && !disabledUserIds.has(p.user_id))
     .map(p => ({
       user_id: p.user_id,
@@ -192,11 +205,11 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get weekly stats
-    const { weeklyCount, topProperties } = await getWeeklyStats(supabase);
+    const { weeklyCount, topProperties } = await getWeeklyStats(supabaseUrl, supabaseServiceKey);
     console.log(`Weekly stats: ${weeklyCount} violations, ${topProperties.length} top properties`);
 
     // Get active users
-    const users = await getActiveUsers(supabase);
+    const users = await getActiveUsers(supabaseUrl, supabaseServiceKey);
     console.log(`Sending digest to ${users.length} users`);
 
     if (users.length === 0) {

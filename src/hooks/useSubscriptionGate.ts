@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useSubscription, LimitCheckResult } from "./useSubscription";
 import { useToast } from "./use-toast";
-import type { UsageType, FeatureType } from "@/types/subscription";
+import type { UsageType } from "@/types/subscription";
 
 interface UseSubscriptionGateOptions {
   onLimitExceeded?: (result: LimitCheckResult) => void;
@@ -11,6 +11,9 @@ interface UseSubscriptionGateOptions {
 /**
  * Hook for gating actions behind subscription limits
  * Use this before performing exports or other limited actions
+ * 
+ * NOTE: Feature tier gating has been removed - all users get all features.
+ * Only export quota limits remain.
  */
 export function useSubscriptionGate(options: UseSubscriptionGateOptions = {}) {
   const { showToast = true, onLimitExceeded } = options;
@@ -105,29 +108,6 @@ export function useSubscriptionGate(options: UseSubscriptionGateOptions = {}) {
     return 0;
   }, [plan, usage]);
 
-  /**
-   * Check if feature is available on current plan
-   * Features are booleans, not counters
-   */
-  const hasFeature = useCallback((feature: FeatureType): boolean => {
-    if (!plan) return false;
-    
-    switch (feature) {
-      case 'advanced_filters':
-        return plan.has_advanced_filters;
-      case 'violation_filtering':
-        return plan.has_violation_filtering;
-      case 'rolling_intelligence':
-        return plan.has_rolling_intelligence;
-      case 'escalation_alerts':
-        return plan.has_escalation_alerts;
-      case 'api_access':
-        return plan.has_api_access;
-      default:
-        return false;
-    }
-  }, [plan]);
-
   return {
     isChecking,
     hasActiveSubscription,
@@ -142,6 +122,5 @@ export function useSubscriptionGate(options: UseSubscriptionGateOptions = {}) {
     
     // Helpers
     getRemaining,
-    hasFeature,
   };
 }

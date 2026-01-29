@@ -5,31 +5,26 @@ import { useAuth } from "@/hooks/use-auth";
 
 const ONBOARDING_STORAGE_KEY = 'snap_onboarding_completed';
 
-export interface UserMarket {
-  state: string;
-  city: string;
-}
-
 export function useOnboarding() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Fetch onboarding status and market from database
+  // Fetch onboarding status from database
   const { data: profileData, isLoading } = useQuery({
     queryKey: ["onboarding-profile", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("onboarding_completed, default_state, default_city")
+        .select("onboarding_completed")
         .eq("user_id", user!.id)
         .maybeSingle();
 
       if (error) {
         console.error("[useOnboarding] Error fetching status:", error);
         const localCompleted = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
-        return { onboarding_completed: localCompleted, default_state: null, default_city: null };
+        return { onboarding_completed: localCompleted };
       }
 
       if (data?.onboarding_completed) {
@@ -46,63 +41,30 @@ export function useOnboarding() {
         return { ...data, onboarding_completed: true };
       }
 
-      return data || { onboarding_completed: false, default_state: null, default_city: null };
+      return data || { onboarding_completed: false };
     },
     staleTime: 60000,
   });
 
   const onboardingCompleted = profileData?.onboarding_completed ?? false;
-  const savedMarket: UserMarket | null = (profileData?.default_state && profileData?.default_city)
-    ? { state: profileData.default_state, city: profileData.default_city }
-    : null;
 
-  // Mutation to mark onboarding complete with market selection
+  // Mutation to mark onboarding complete
   const markCompleteMutation = useMutation({
-    mutationFn: async (market?: UserMarket) => {
-      if (!user?.id) return;
-
-      const updateData: Record<string, unknown> = {
-        user_id: user.id,
-        onboarding_completed: true,
-      };
-
-      if (market) {
-        updateData.default_state = market.state;
-        updateData.default_city = market.city;
-      }
-
-      const { error } = await supabase
-        .from("user_profiles")
-        .upsert(updateData, { onConflict: 'user_id' });
-
-      if (error) {
-        console.error("[useOnboarding] Error saving to DB:", error);
-      }
-
-      localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["onboarding-profile"] });
-    },
-  });
-
-  // Mutation to save market without changing onboarding status
-  const saveMarketMutation = useMutation({
-    mutationFn: async (market: UserMarket) => {
+    mutationFn: async () => {
       if (!user?.id) return;
 
       const { error } = await supabase
         .from("user_profiles")
         .upsert({
           user_id: user.id,
-          default_state: market.state,
-          default_city: market.city,
+          onboarding_completed: true,
         }, { onConflict: 'user_id' });
 
       if (error) {
-        console.error("[useOnboarding] Error saving market:", error);
-        throw error;
+        console.error("[useOnboarding] Error saving to DB:", error);
       }
+
+      localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["onboarding-profile"] });
@@ -121,14 +83,10 @@ export function useOnboarding() {
     }
   }, [onboardingCompleted, isLoading, user]);
 
-  const markOnboardingComplete = useCallback((market?: UserMarket) => {
-    markCompleteMutation.mutate(market);
+  const markOnboardingComplete = useCallback(() => {
+    markCompleteMutation.mutate();
     setShowOnboarding(false);
   }, [markCompleteMutation]);
-
-  const saveMarket = useCallback(async (market: UserMarket) => {
-    await saveMarketMutation.mutateAsync(market);
-  }, [saveMarketMutation]);
 
   const resetOnboarding = useCallback(async () => {
     localStorage.removeItem(ONBOARDING_STORAGE_KEY);
@@ -153,8 +111,5 @@ export function useOnboarding() {
     resetOnboarding,
     triggerOnboarding,
     isLoading,
-    savedMarket,
-    saveMarket,
-    isSavingMarket: saveMarketMutation.isPending,
   };
 }

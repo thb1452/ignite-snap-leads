@@ -123,27 +123,7 @@ export function Lists() {
 
     // For unlimited plans (remaining === null), skip the client-side check
     if (remaining !== null && propertyCount > remaining) {
-      // Distinguish between "list exceeds total plan limit" vs "list exceeds remaining quota"
-      const exceedsTotalLimit = propertyCount > maxMonthly;
-      
-      if (exceedsTotalLimit) {
-        // List size is larger than the entire monthly allowance - suggest splitting or upgrading
-        toast({
-          title: "List Exceeds Monthly Limit",
-          description: `This list contains ${propertyCount.toLocaleString()} properties, which exceeds your plan's monthly limit of ${maxMonthly.toLocaleString()}. Split the list or upgrade to export.`,
-          variant: "destructive",
-          duration: 10000,
-        });
-      } else {
-        // User has used some quota - show remaining and suggest waiting or upgrading
-        toast({
-          title: "Insufficient Export Quota",
-          description: `You have ${remaining.toLocaleString()} exports remaining this month. This list requires ${propertyCount.toLocaleString()}. Wait until next billing cycle or upgrade.`,
-          variant: "destructive",
-          duration: 8000,
-        });
-      }
-      // Set export context for the UpgradePrompt
+      // Set export context for the UpgradePrompt - modal handles all messaging
       const usedCount = usage?.exports_count ?? 0;
       setExportContext({
         requestedCount: propertyCount,
@@ -159,14 +139,8 @@ export function Lists() {
     // Server-side check with property count
     const limitResult = await checkLimit("exports", propertyCount);
     if (!limitResult.allowed) {
+      // Set export context - modal handles all messaging, no toast needed
       const usedCount = usage?.exports_count ?? 0;
-      const exceedsTotalLimit = propertyCount > maxMonthly;
-      toast({
-        title: exceedsTotalLimit ? "List Exceeds Monthly Limit" : "Export Limit Exceeded",
-        description: limitResult.message || `Insufficient export quota. You need ${propertyCount.toLocaleString()} but don't have enough remaining.`,
-        variant: "destructive",
-        duration: 8000,
-      });
       setExportContext({
         requestedCount: propertyCount,
         remainingCount: limitResult.remaining ?? 0,

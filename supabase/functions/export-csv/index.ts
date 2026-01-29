@@ -99,8 +99,8 @@ serve(async (req) => {
     const maxExports = (subData?.plan as any)?.max_monthly_exports || 0;
     console.log('[export-csv] User data tier:', dataTier, 'max exports:', maxExports);
 
-    // Helper to build a fresh query each time (Supabase query builder is mutable)
-    const buildBaseQuery = () => {
+    // Helper to build a query for filter-based exports (no propertyIds)
+    const buildFilterQuery = () => {
       let q = supabase
         .from('properties')
         .select(`
@@ -118,22 +118,17 @@ serve(async (req) => {
           )
         `);
 
-      // Apply filters - propertyIds takes priority
-      if (propertyIds && propertyIds.length > 0) {
-        q = q.in('id', propertyIds);
-      } else {
-        if (city) {
-          q = q.eq('city', city);
-        }
-        if (jurisdictionId) {
-          q = q.eq('jurisdiction_id', jurisdictionId);
-        }
-        if (minScore) {
-          q = q.gte('snap_score', parseInt(minScore));
-        }
-        if (maxScore) {
-          q = q.lte('snap_score', parseInt(maxScore));
-        }
+      if (city) {
+        q = q.eq('city', city);
+      }
+      if (jurisdictionId) {
+        q = q.eq('jurisdiction_id', jurisdictionId);
+      }
+      if (minScore) {
+        q = q.gte('snap_score', parseInt(minScore));
+      }
+      if (maxScore) {
+        q = q.lte('snap_score', parseInt(maxScore));
       }
 
       // CRITICAL: Enforce data tier - basic users can only export code_violation properties
@@ -151,28 +146,77 @@ serve(async (req) => {
       console.log('[export-csv] Filtering to code_violation only (basic tier)');
     }
 
-    // Paginate to get data with hard limit to prevent OOM
     const MAX_EXPORT_ROWS = 50000; // Hard limit to prevent memory issues
     let allData: any[] = [];
-    let offset = 0;
-    const BATCH_SIZE = 1000;
 
-    while (allData.length < MAX_EXPORT_ROWS) {
-      // CRITICAL: Build fresh query each iteration - Supabase query builder is mutable!
-      const { data, error } = await buildBaseQuery().range(offset, offset + BATCH_SIZE - 1);
+    // CRITICAL: For propertyIds exports, batch the .in() calls to avoid URL length limits
+    // Supabase/PostgREST has URL length limits (~8KB), and 3000+ UUIDs exceed this
+    if (propertyIds && propertyIds.length > 0) {
+      const ID_BATCH_SIZE = 200; // Safe batch size for UUIDs in URL
+      console.log(`[export-csv] Fetching ${propertyIds.length} properties in batches of ${ID_BATCH_SIZE}`);
+      
+      for (let i = 0; i < propertyIds.length && allData.length < MAX_EXPORT_ROWS; i += ID_BATCH_SIZE) {
+        const batchIds = propertyIds.slice(i, i + ID_BATCH_SIZE);
+        
+        let q = supabase
+          .from('properties')
+          .select(`
+            address,
+            city,
+            state,
+            zip,
+            snap_insight,
+            snap_score,
+            enforcement_type,
+            violations (
+              violation_type,
+              status,
+              opened_date
+            )
+          `)
+          .in('id', batchIds);
 
-      if (error) {
-        console.error('[export-csv] Query error:', error);
-        throw error;
+        // Apply data tier filter
+        if (dataTier === 'basic') {
+          q = q.eq('enforcement_type', 'code_violation');
+        }
+
+        q = q.order('snap_score', { ascending: false, nullsFirst: false });
+
+        const { data, error } = await q;
+
+        if (error) {
+          console.error('[export-csv] Query error:', error);
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          allData = allData.concat(data);
+        }
+        
+        console.log(`[export-csv] Fetched ID batch ${Math.floor(i / ID_BATCH_SIZE) + 1}: got=${data?.length || 0}, total=${allData.length}`);
       }
+    } else {
+      // Filter-based export: paginate normally
+      let offset = 0;
+      const BATCH_SIZE = 1000;
 
-      if (!data || data.length === 0) break;
+      while (allData.length < MAX_EXPORT_ROWS) {
+        const { data, error } = await buildFilterQuery().range(offset, offset + BATCH_SIZE - 1);
 
-      allData = allData.concat(data);
-      console.log(`[export-csv] Fetched batch: offset=${offset}, got=${data.length}, total=${allData.length}`);
+        if (error) {
+          console.error('[export-csv] Query error:', error);
+          throw error;
+        }
 
-      if (data.length < BATCH_SIZE) break;
-      offset += BATCH_SIZE;
+        if (!data || data.length === 0) break;
+
+        allData = allData.concat(data);
+        console.log(`[export-csv] Fetched batch: offset=${offset}, got=${data.length}, total=${allData.length}`);
+
+        if (data.length < BATCH_SIZE) break;
+        offset += BATCH_SIZE;
+      }
     }
 
     // Truncate if we hit the limit

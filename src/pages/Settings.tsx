@@ -9,7 +9,6 @@ import { Building2, Crown, User, Bell, FileText, Loader2, Mail, Key } from 'luci
 import { useSearchParams } from 'react-router-dom';
 import { SubscriptionSettings } from '@/components/subscription/SubscriptionSettings';
 import { EmailPreferencesCard } from '@/components/settings/EmailPreferencesCard';
-import { AppLayout } from '@/components/layout/AppLayout';
 import { useProfileSettings } from '@/hooks/useProfileSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -43,9 +42,8 @@ export function Settings() {
   };
 
   return (
-    <AppLayout>
-      <div className="max-w-4xl mx-auto space-y-6 p-6">
-        <div>
+    <div className="max-w-4xl mx-auto space-y-6 p-6">
+      <div>
           <h1 className="text-3xl font-bold">Settings</h1>
           <p className="text-muted-foreground mt-2">
             Manage your account and preferences
@@ -283,8 +281,7 @@ export function Settings() {
           <TabsContent value="notifications" className="space-y-6">
             <EmailPreferencesCard />
           </TabsContent>
-        </Tabs>
-      </div>
-    </AppLayout>
+      </Tabs>
+    </div>
   );
 }

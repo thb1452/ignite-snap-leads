@@ -27,18 +27,13 @@ export function AppLayout({ children }: AppLayoutProps) {
     await signOut();
   };
 
-  // Main navigation items - simplified and role-based
-  const mainNavItems = [];
+  // Main navigation items - role-based but Properties/Lists visible to all users
+  const mainNavItems: { name: string; path: string }[] = [
+    { name: "Properties", path: "/" },
+    { name: "Lists", path: "/lists" }
+  ];
   
-  // Admin sees full navigation
-  if (isAdmin) {
-    mainNavItems.push(
-      { name: "Properties", path: "/" },
-      { name: "Lists", path: "/lists" }
-    );
-  }
-  
-  // Upload/Jobs for admin + VA
+  // Upload/Jobs for admin + VA only
   if (isAdmin || isVA) {
     mainNavItems.push(
       { name: "Upload", path: "/upload" },

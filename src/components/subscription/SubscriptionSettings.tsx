@@ -244,11 +244,13 @@ export function SubscriptionSettings() {
                     )}
                   </CardTitle>
                   <CardDescription>
-                    {plan.price_monthly_cents === 0
-                      ? 'Free'
-                      : `$${(plan.price_monthly_cents / 100).toFixed(0)}/month`}
+                    {plan.price_monthly_cents > 0 && (
+                      <span>${(plan.price_monthly_cents / 100).toFixed(0)}/month</span>
+                    )}
                     {daysUntilRenewal && (
-                      <span className="ml-2">• Renews in {daysUntilRenewal} days</span>
+                      <span className={plan.price_monthly_cents > 0 ? 'ml-2' : ''}>
+                        {plan.price_monthly_cents > 0 ? '• ' : ''}Renews in {daysUntilRenewal} days
+                      </span>
                     )}
                   </CardDescription>
                 </div>

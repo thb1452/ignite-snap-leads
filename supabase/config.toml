@@ -54,3 +54,6 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.reverse-geocode-zips]
+verify_jwt = false

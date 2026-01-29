@@ -180,26 +180,38 @@ export function Lists() {
 
     setIsExporting(listId);
     try {
-      // Get ALL property IDs in this list - paginate to avoid 1000-row limit
+      // Get ALL property IDs using cursor pagination (faster than offset for large lists)
       const PAGE_SIZE = 1000;
       let allPropertyIds: string[] = [];
-      let offset = 0;
+      let lastId: string | null = null;
       let hasMore = true;
 
       while (hasMore) {
-        const { data: listProps, error } = await supabase
+        let query = supabase
           .from("list_properties")
-          .select("property_id")
+          .select("id, property_id")
           .eq("list_id", listId)
-          .range(offset, offset + PAGE_SIZE - 1);
+          .order("id", { ascending: true })
+          .limit(PAGE_SIZE);
+
+        if (lastId) {
+          query = query.gt("id", lastId);
+        }
+
+        const { data: listProps, error } = await query;
 
         if (error) throw error;
 
-        const batchIds = listProps?.map((lp) => lp.property_id).filter(Boolean) as string[];
+        if (!listProps || listProps.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        const batchIds = listProps.map((lp) => lp.property_id).filter(Boolean) as string[];
         allPropertyIds = allPropertyIds.concat(batchIds);
 
-        hasMore = listProps?.length === PAGE_SIZE;
-        offset += PAGE_SIZE;
+        lastId = listProps[listProps.length - 1].id;
+        hasMore = listProps.length === PAGE_SIZE;
       }
 
       const propertyIds = allPropertyIds;

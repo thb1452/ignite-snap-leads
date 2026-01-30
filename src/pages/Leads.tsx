@@ -571,25 +571,29 @@ function Leads() {
         {/* Freshness indicator + View Toggle */}
         <div className="flex items-center justify-between px-3 pb-2">
           <FreshnessIndicator />
-          <div className="flex bg-muted rounded-lg p-0.5">
-            <Button
-              variant={mobileView === 'list' ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-8 px-3 rounded-md"
+          <div className="inline-flex rounded-lg border bg-muted p-1">
+            <button
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                mobileView === 'list'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
               onClick={() => setMobileView('list')}
             >
-              <List className="h-4 w-4 mr-1" />
+              <List className="h-4 w-4" />
               List
-            </Button>
-            <Button
-              variant={mobileView === 'map' ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-8 px-3 rounded-md"
+            </button>
+            <button
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                mobileView === 'map'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
               onClick={() => setMobileView('map')}
             >
-              <MapIcon className="h-4 w-4 mr-1" />
+              <MapIcon className="h-4 w-4" />
               Map
-            </Button>
+            </button>
           </div>
         </div>
         

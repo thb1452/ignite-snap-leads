@@ -2,15 +2,14 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download } from "lucide-react";
+import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download, ListPlus, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { formatDistanceToNow, format } from "date-fns";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
 import { supabase } from "@/integrations/supabase/client";
-import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
+import { GroupedViolationsList } from "./GroupedViolationsList";
 
 interface Violation {
   id: string;
@@ -200,25 +199,25 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
           </div>
 
           {/* Main Content - Scrollable */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-5 md:p-6 space-y-6 overscroll-contain touch-pan-y">
-            {/* Property Image */}
-            {property.photo_url ? (
-              <div className="aspect-[16/9] rounded-xl overflow-hidden bg-slate-100">
-                <img
-                  src={property.photo_url}
-                  alt={property.address}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-            ) : (
-              <div className="aspect-[16/9] rounded-xl bg-slate-100 flex items-center justify-center">
-                <div className="text-center text-slate-400">
-                  <div className="text-4xl mb-2">🏠</div>
-                  <p className="text-sm">No image available</p>
-                </div>
-              </div>
-            )}
+          <div className="flex-1 min-h-0 overflow-y-auto p-5 md:p-6 space-y-5 overscroll-contain touch-pan-y">
+            {/* Metrics Grid */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+            >
+              <PropertyMetricsGrid
+                snapScore={snapScore}
+                openViolations={violations.filter(v => 
+                  v.status?.toLowerCase().includes('open') || 
+                  v.status?.toLowerCase() === 'active'
+                ).length}
+                totalViolations={violations.length}
+                oldestDaysOpen={violations.reduce((max, v) => 
+                  Math.max(max, v.days_open || 0), 0
+                ) || null}
+              />
+            </motion.div>
 
             {/* SnapInsight Card */}
             {property.snap_insight && (
@@ -226,136 +225,108 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="rounded-2xl border border-amber-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-amber-50/50 p-4"
+                className="rounded-xl border border-amber-200/70 bg-amber-50/50 p-4"
               >
                 <div className="flex items-start gap-2">
                   <span className="text-lg">💡</span>
                   <div>
                     <div className="text-xs font-medium text-amber-900 mb-1">SnapInsight</div>
-                    <p className="text-sm text-amber-800">{property.snap_insight}</p>
+                    <p className="text-sm text-amber-800 leading-relaxed">{property.snap_insight}</p>
                   </div>
                 </div>
               </motion.div>
             )}
 
-            {/* Tags Section (Demo Mode) */}
-            {(property as any).mockTags && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.12 }}
-                className="flex flex-wrap gap-2"
+            {/* Map Preview */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12 }}
+              className="rounded-xl border bg-card overflow-hidden"
+            >
+              <div className="aspect-[16/9] bg-muted relative">
+                {property.latitude && property.longitude ? (
+                  <iframe
+                    title="Property Map"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${property.latitude},${property.longitude}&zoom=17&maptype=satellite`}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-center text-muted-foreground">
+                      <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Map preview unavailable</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <a
+                href={googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 p-3 text-sm text-primary font-medium hover:bg-muted/50 transition-colors"
               >
-                {(property as any).mockTags.map((tag: string, index: number) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </motion.div>
-            )}
+                <MapPin className="h-4 w-4" />
+                View on Google Maps
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </motion.div>
 
-            {/* Violations Timeline */}
+            {/* Violations Section */}
             <motion.section
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="rounded-2xl border border-slate-200/70 shadow-[0_1px_0_0_rgba(16,24,40,.04)] bg-white p-5 md:p-6"
+              className="rounded-xl border bg-card p-4"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="text-sm font-medium text-ink-700 font-ui">Violations</div>
-                {violations.length > 0 && (
-                  <span className="text-xs text-ink-400">{violations.length} total</span>
-                )}
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  🚨 Violations
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({violations.length} total)
+                  </span>
+                </h3>
               </div>
+
               {isLoadingViolations ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-ink-400" />
-                  <span className="ml-2 text-sm text-ink-400">Loading violations...</span>
-                </div>
-              ) : violations.length === 0 ? (
-                <div className="text-center py-6">
-                  <p className="text-sm text-ink-500 mb-1">
-                    {snapScore ? "No violation records found" : "No violations recorded"}
-                  </p>
-                  <p className="text-xs text-ink-400">
-                    {snapScore
-                      ? "This property has a SnapScore but detailed violation records are not available in the database."
-                      : "Check the browser console for any errors."}
-                  </p>
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-sm text-muted-foreground">Loading violations...</span>
                 </div>
               ) : (
-                <ol className="relative border-s border-slate-200 ml-3 space-y-4">
-                  {violations.map((v) => {
-                    const statusStyle = getViolationStatusStyle(v.status);
-                    const statusBadge = (
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${statusStyle.badge}`}>
-                        {v.status || "Unknown"}
-                      </span>
-                    );
-
-                    return (
-                      <li key={v.id} className="ms-4">
-                        <div className={`absolute -left-1.5 mt-1 h-3 w-3 rounded-full ${statusStyle.dot}`} />
-                        <div className="rounded-xl border p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="font-medium text-ink-800 text-sm">{formatViolationType(v.violation_type)}</div>
-                            {statusStyle.tooltip ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    {statusBadge}
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="text-xs max-w-[200px]">{statusStyle.tooltip}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            ) : statusBadge}
-                          </div>
-                          {/* NOTE: Raw violation descriptions are NEVER shown to users for legal safety */}
-                          {v.case_id && (
-                            <p className="text-xs text-ink-400 mt-1">Case: {v.case_id}</p>
-                          )}
-                          <p className="text-xs text-ink-400 mt-1">
-                            Opened {formatDate(v.opened_date)} • {v.days_open ?? 0} days open
-                          </p>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
+                <GroupedViolationsList
+                  violations={violations}
+                  maxInitialGroups={4}
+                  onExport={() => {
+                    toast({
+                      title: "Export Started",
+                      description: "Violation data will be included in your export.",
+                    });
+                  }}
+                />
               )}
             </motion.section>
-
-
-
-            <a
-              href={googleMapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-brand hover:underline font-medium"
-            >
-              <MapPin className="h-4 w-4" />
-              View on Google Maps
-              <ExternalLink className="h-3 w-3" />
-            </a>
           </div>
 
           {/* Sticky Action Footer */}
-          <div className="border-t p-4 md:p-5 bg-white sticky bottom-0 space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)] flex-shrink-0">
-            <div className="flex gap-3">
+          <div className="border-t p-4 md:p-5 bg-background sticky bottom-0 pb-[calc(env(safe-area-inset-bottom)+16px)] flex-shrink-0">
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => setAddToListOpen(true)}
-                className="flex-1"
+                className="flex-1 gap-2"
               >
+                <ListPlus className="h-4 w-4" />
                 Add to List
               </Button>
               <Button
                 variant="default"
+                size="sm"
                 onClick={() => {
                   toast({
                     title: "Export Started",
@@ -365,7 +336,21 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 className="flex-1 gap-2"
               >
                 <Download className="h-4 w-4" />
-                Export
+                Export This
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  toast({
+                    title: "Find Similar",
+                    description: "Coming soon: Find properties with similar violation profiles.",
+                  });
+                }}
+                className="gap-2"
+              >
+                <Search className="h-4 w-4" />
+                Similar
               </Button>
             </div>
           </div>

@@ -2,13 +2,13 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, MapPin, ExternalLink, Clock, Loader2, ListPlus } from "lucide-react";
+import { X, MapPin, ExternalLink, Clock, Loader2, ListPlus, Download, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
-import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
 import { supabase } from "@/integrations/supabase/client";
-import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
+import { GroupedViolationsList } from "./GroupedViolationsList";
 
 interface Violation {
   id: string;
@@ -141,30 +141,24 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
 
           {/* Content - Scrollable */}
           <div 
-            className="flex-1 overflow-y-auto px-5 py-5 space-y-5"
+            className="flex-1 overflow-y-auto px-5 py-5 space-y-4"
             style={{ 
               WebkitOverflowScrolling: 'touch',
               overscrollBehavior: 'contain'
             }}
           >
-            {/* Property Image */}
-            {property.photo_url ? (
-              <div className="aspect-video rounded-xl overflow-hidden bg-muted">
-                <img
-                  src={property.photo_url}
-                  alt={property.address}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-            ) : (
-              <div className="aspect-video rounded-xl bg-muted flex items-center justify-center">
-                <div className="text-center text-muted-foreground">
-                  <div className="text-4xl mb-2">🏠</div>
-                  <p className="text-sm">No image available</p>
-                </div>
-              </div>
-            )}
+            {/* Metrics Grid */}
+            <PropertyMetricsGrid
+              snapScore={property.snap_score}
+              openViolations={violations.filter(v => 
+                v.status?.toLowerCase().includes('open') || 
+                v.status?.toLowerCase() === 'active'
+              ).length}
+              totalViolations={violations.length}
+              oldestDaysOpen={violations.reduce((max, v) => 
+                Math.max(max, v.days_open || 0), 0
+              ) || null}
+            />
 
             {/* SnapInsight */}
             {property.snap_insight && (
@@ -173,19 +167,57 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
                   <span className="text-lg">💡</span>
                   <div>
                     <div className="text-xs font-medium text-amber-900 mb-1">SnapInsight</div>
-                    <p className="text-sm text-amber-800">{property.snap_insight}</p>
+                    <p className="text-sm text-amber-800 leading-relaxed">{property.snap_insight}</p>
                   </div>
                 </div>
               </div>
             )}
 
+            {/* Map Preview */}
+            <div className="rounded-xl border bg-card overflow-hidden">
+              <div className="aspect-video bg-muted relative">
+                {property.latitude && property.longitude ? (
+                  <iframe
+                    title="Property Map"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${property.latitude},${property.longitude}&zoom=17&maptype=satellite`}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-center text-muted-foreground">
+                      <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Map preview unavailable</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <a
+                href={googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 p-3 text-sm text-primary font-medium"
+              >
+                <MapPin className="h-4 w-4" />
+                View on Google Maps
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+
             {/* Violations */}
             <div className="rounded-xl border bg-card p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-foreground">Violations</h3>
-                {violations.length > 0 && (
-                  <span className="text-xs text-muted-foreground">{violations.length} total</span>
-                )}
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  🚨 Violations
+                  {violations.length > 0 && (
+                    <span className="text-sm font-normal text-muted-foreground">
+                      ({violations.length} total)
+                    </span>
+                  )}
+                </h3>
               </div>
               
               {isLoadingViolations ? (
@@ -193,67 +225,66 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
                 </div>
-              ) : violations.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No violations recorded
-                </p>
               ) : (
-                <div className="space-y-3">
-                  {violations.slice(0, 4).map((v) => {
-                    const statusStyle = getViolationStatusStyle(v.status);
-                    return (
-                      <div key={v.id} className="p-3 bg-muted/50 rounded-lg">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="font-medium text-sm text-foreground">
-                            {formatViolationType(v.violation_type)}
-                          </span>
-                          <Badge variant="outline" className={`text-xs ${statusStyle.badge}`}>
-                            {v.status || "Unknown"}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Opened {formatDate(v.opened_date)} • {v.days_open ?? 0} days open
-                        </p>
-                      </div>
-                    );
-                  })}
-                  {violations.length > 4 && (
-                    <p className="text-xs text-muted-foreground text-center pt-2">
-                      +{violations.length - 4} more violations
-                    </p>
-                  )}
-                </div>
+                <GroupedViolationsList
+                  violations={violations}
+                  maxInitialGroups={4}
+                  onExport={() => {
+                    toast({
+                      title: "Export Started",
+                      description: "Violation data will be included in your export.",
+                    });
+                  }}
+                />
               )}
             </div>
-
-            {/* Google Maps Link */}
-            <a
-              href={googleMapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-primary font-medium py-2"
-            >
-              <MapPin className="h-4 w-4" />
-              View on Google Maps
-              <ExternalLink className="h-3 w-3" />
-            </a>
           </div>
 
           {/* Action Footer - Sticky */}
-          <div className="border-t p-4 bg-background space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)] shrink-0">
-            {onAddToList && (
+          <div className="border-t p-4 bg-background pb-[calc(env(safe-area-inset-bottom)+16px)] shrink-0">
+            <div className="flex items-center gap-2">
+              {onAddToList && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={() => {
+                    onAddToList(property.id);
+                    onOpenChange(false);
+                  }}
+                >
+                  <ListPlus className="h-4 w-4" />
+                  Add to List
+                </Button>
+              )}
               <Button
-                variant="secondary"
-                className="w-full h-12 text-base gap-2"
+                variant="default"
+                size="sm"
+                className="flex-1 gap-2"
                 onClick={() => {
-                  onAddToList(property.id);
-                  onOpenChange(false);
+                  toast({
+                    title: "Export Started",
+                    description: "Property data will be included in your next export.",
+                  });
                 }}
               >
-                <ListPlus className="h-5 w-5" />
-                Add to List
+                <Download className="h-4 w-4" />
+                Export
               </Button>
-            )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  toast({
+                    title: "Find Similar",
+                    description: "Coming soon: Find properties with similar violation profiles.",
+                  });
+                }}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </SheetContent>

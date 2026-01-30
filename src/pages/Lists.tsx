@@ -1,6 +1,4 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,9 +20,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Eye, Download, Loader2 } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useUserLists, useCreateList } from "@/hooks/useLists";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,8 +29,12 @@ import { exportFilteredCsv } from "@/services/export";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
 
+import { ListCard } from "@/components/lists/ListCard";
+import { CreateListCard } from "@/components/lists/CreateListCard";
+import { ListsHeader } from "@/components/lists/ListsHeader";
+import { EmptyListsState } from "@/components/lists/EmptyListsState";
+
 export function Lists() {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { checkLimit, refetch: refetchSubscription, plan, usage, getRemainingCount } = useSubscription();
 
@@ -45,9 +46,13 @@ export function Lists() {
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [exportContext, setExportContext] = useState<ExportContext | undefined>(undefined);
 
-  // Use the new hook
   const { data: lists = [], isLoading, refetch } = useUserLists();
   const createListMutation = useCreateList();
+
+  const totalProperties = useMemo(
+    () => lists.reduce((sum, list) => sum + list.property_count, 0),
+    [lists]
+  );
 
   const handleCreateList = async () => {
     if (!newListName.trim()) {
@@ -116,14 +121,10 @@ export function Lists() {
       return;
     }
 
-    // CRITICAL: Check quota with PROPERTY COUNT, not just "1 export"
-    // Each property exported counts against the monthly limit
     const remaining = getRemainingCount('exports');
     const maxMonthly = plan?.max_monthly_exports ?? 0;
 
-    // For unlimited plans (remaining === null), skip the client-side check
     if (remaining !== null && propertyCount > remaining) {
-      // Set export context for the UpgradePrompt - modal handles all messaging
       const usedCount = usage?.exports_count ?? 0;
       setExportContext({
         requestedCount: propertyCount,
@@ -136,10 +137,8 @@ export function Lists() {
       return;
     }
 
-    // Server-side check with property count
     const limitResult = await checkLimit("exports", propertyCount);
     if (!limitResult.allowed) {
-      // Set export context - modal handles all messaging, no toast needed
       const usedCount = usage?.exports_count ?? 0;
       setExportContext({
         requestedCount: propertyCount,
@@ -154,7 +153,6 @@ export function Lists() {
 
     setIsExporting(listId);
     try {
-      // Get ALL property IDs using cursor pagination (faster than offset for large lists)
       const PAGE_SIZE = 1000;
       let allPropertyIds: string[] = [];
       let lastId: string | null = null;
@@ -199,7 +197,6 @@ export function Lists() {
         return;
       }
 
-      // Pass expectedPropertyCount for server-side quota validation
       await exportFilteredCsv({
         propertyIds,
         expectedPropertyCount: propertyIds.length
@@ -209,11 +206,10 @@ export function Lists() {
 
       toast({
         title: "Export Complete",
-        description: `Exported ${propertyIds.length.toLocaleString()} properties from "${listName}" (counted against quota)`,
+        description: `Exported ${propertyIds.length.toLocaleString()} properties from "${listName}"`,
       });
     } catch (error: any) {
       if (error.message === "EXPORT_LIMIT_EXCEEDED") {
-        // Server rejected — set context for the upgrade prompt
         const usedCount = usage?.exports_count ?? 0;
         const remaining = getRemainingCount('exports') ?? 0;
         setExportContext({
@@ -238,97 +234,54 @@ export function Lists() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto py-8 px-4 max-w-6xl">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">My Lists</h1>
-              <p className="text-muted-foreground">
-                Organize and manage your lead collections
-              </p>
-            </div>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create New List
-            </Button>
-          </div>
+      <div className="container mx-auto py-6 px-4 max-w-6xl space-y-6">
+        {/* Header with stats */}
+        <ListsHeader listCount={lists.length} totalProperties={totalProperties} />
 
-          {isLoading ? (
-            <div className="flex items-center justify-center p-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : lists.length === 0 ? (
-            <Card className="p-12 text-center">
-              <div className="max-w-md mx-auto space-y-4">
-                <h3 className="text-lg font-semibold">No lists yet</h3>
-                <p className="text-muted-foreground">
-                  Create your first list to start organizing your leads, or use "Add All to List" from the Properties page.
-                </p>
-                <Button onClick={() => setCreateDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First List
-                </Button>
-              </div>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {lists.map((list) => (
-                <Card key={list.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="flex items-start justify-between">
-                      <span className="flex-1 truncate">{list.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setListToDelete({ id: list.id, name: list.name });
-                          setDeleteDialogOpen(true);
-                        }}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">
-                        {list.property_count.toLocaleString()} {list.property_count === 1 ? "property" : "properties"}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Created {new Date(list.created_at).toLocaleDateString()}
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => navigate(`/lists/${list.id}`)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => handleExportList(list.id, list.name, list.property_count)}
-                        disabled={isExporting === list.id || list.property_count === 0}
-                      >
-                        {isExporting === list.id ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Download className="h-4 w-4 mr-2" />
-                        )}
-                        Export
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+        {/* Create button for mobile */}
+        <div className="sm:hidden">
+          <Button onClick={() => setCreateDialogOpen(true)} className="w-full">
+            <Plus className="h-4 w-4 mr-2" />
+            Create New List
+          </Button>
         </div>
+
+        {/* Content */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : lists.length === 0 ? (
+          <EmptyListsState onCreateClick={() => setCreateDialogOpen(true)} />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {/* Create new list card - desktop only */}
+            <div className="hidden sm:block">
+              <CreateListCard onClick={() => setCreateDialogOpen(true)} />
+            </div>
+
+            {/* List cards */}
+            {lists.map((list) => (
+              <ListCard
+                key={list.id}
+                list={list}
+                isExporting={isExporting === list.id}
+                onExport={() => handleExportList(list.id, list.name, list.property_count)}
+                onDelete={() => {
+                  setListToDelete({ id: list.id, name: list.name });
+                  setDeleteDialogOpen(true);
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Footer summary */}
+        {lists.length > 0 && (
+          <p className="text-center text-sm text-muted-foreground pt-4">
+            Showing {lists.length} {lists.length === 1 ? "list" : "lists"} · {totalProperties.toLocaleString()} total properties
+          </p>
+        )}
 
         {/* Create List Dialog */}
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -339,7 +292,7 @@ export function Lists() {
                 Give your list a name to start organizing your leads
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 py-2">
               <div className="space-y-2">
                 <Label htmlFor="list-name">List Name</Label>
                 <Input
@@ -347,6 +300,11 @@ export function Lists() {
                   value={newListName}
                   onChange={(e) => setNewListName(e.target.value)}
                   placeholder="e.g., High Priority, Q1 Targets"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !createListMutation.isPending) {
+                      handleCreateList();
+                    }
+                  }}
                 />
               </div>
             </div>

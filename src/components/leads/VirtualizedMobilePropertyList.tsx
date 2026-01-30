@@ -30,6 +30,8 @@ interface VirtualizedMobilePropertyListProps {
   selectedIds: string[];
   onToggleSelect: (id: string) => void;
   onPropertyClick: (id: string) => void;
+  onAddToList?: (id: string) => void;
+  onExport?: (id: string) => void;
 }
 
 export function VirtualizedMobilePropertyList({
@@ -37,13 +39,15 @@ export function VirtualizedMobilePropertyList({
   selectedIds,
   onToggleSelect,
   onPropertyClick,
+  onAddToList,
+  onExport,
 }: VirtualizedMobilePropertyListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 200, // Mobile cards are roughly 200px tall
+    estimateSize: () => 220, // Updated height for card design with footer
     overscan: 3,
   });
 
@@ -51,7 +55,7 @@ export function VirtualizedMobilePropertyList({
   return (
     <div
       ref={parentRef}
-      className="flex-1 overflow-y-auto"
+      className="flex-1 overflow-y-auto bg-muted/30"
       style={{ minHeight: 0 }}
     >
       <div
@@ -74,6 +78,7 @@ export function VirtualizedMobilePropertyList({
                 left: 0,
                 width: "100%",
                 transform: `translateY(${virtualItem.start}px)`,
+                paddingTop: virtualItem.index === 0 ? "12px" : "0",
               }}
             >
               <MobilePropertyCard
@@ -81,6 +86,8 @@ export function VirtualizedMobilePropertyList({
                 isSelected={isSelected}
                 onToggleSelect={onToggleSelect}
                 onClick={() => onPropertyClick(property.id)}
+                onAddToList={onAddToList}
+                onExport={onExport}
               />
             </div>
           );

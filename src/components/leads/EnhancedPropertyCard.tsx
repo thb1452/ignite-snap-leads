@@ -26,7 +26,7 @@ interface Violation {
   opened_date: string | null;
 }
 
-interface MobilePropertyCardProps {
+interface EnhancedPropertyCardProps {
   property: {
     id: string;
     address: string;
@@ -49,22 +49,26 @@ interface MobilePropertyCardProps {
   onExport?: (id: string) => void;
 }
 
-export function MobilePropertyCard({
+export function EnhancedPropertyCard({
   property,
   isSelected,
   onToggleSelect,
   onClick,
   onAddToList,
   onExport,
-}: MobilePropertyCardProps) {
+}: EnhancedPropertyCardProps) {
   const [insightExpanded, setInsightExpanded] = useState(false);
 
-  const getScoreColor = (score: number | null) => {
-    if (!score) return "bg-muted text-muted-foreground";
-    if (score >= 75) return "bg-destructive text-destructive-foreground";
-    if (score >= 50) return "bg-orange-500 text-white";
-    if (score >= 25) return "bg-yellow-500 text-black";
-    return "bg-primary text-primary-foreground";
+  const getScoreVariant = (score: number | null) => {
+    if (!score) return "outline";
+    if (score >= 75) return "destructive";
+    if (score >= 50) return "default";
+    return "secondary";
+  };
+
+  const getScoreLabel = (score: number | null) => {
+    if (!score) return "—";
+    return score;
   };
 
   const getUpdatedText = (dateStr: string | null) => {
@@ -72,25 +76,29 @@ export function MobilePropertyCard({
     const daysDiff = differenceInDays(new Date(), new Date(dateStr));
     if (daysDiff === 0) return "Today";
     if (daysDiff === 1) return "Yesterday";
-    if (daysDiff <= 7) return `${daysDiff}d ago`;
-    return `${Math.floor(daysDiff / 7)}w ago`;
+    if (daysDiff <= 7) return `${daysDiff} days ago`;
+    if (daysDiff <= 30) return `${Math.floor(daysDiff / 7)} weeks ago`;
+    return `${Math.floor(daysDiff / 30)} months ago`;
   };
 
   const updatedText = getUpdatedText(property.updated_at);
   const insightText = property.snap_insight || "No insight available";
-  const shouldShowExpand = insightText.length > 100;
+  const shouldShowExpand = insightText.length > 120;
   const openCount = property.open_violations ?? 0;
   const violationTypes = property.violation_types ?? [];
 
   return (
     <Card
-      className="mx-3 mb-3 active:scale-[0.99] transition-transform cursor-pointer border-border/60"
+      className="group hover:shadow-md transition-all duration-200 cursor-pointer border-border/60 hover:border-border"
       onClick={onClick}
     >
-      <CardHeader className="pb-2 pt-3 px-3">
-        <div className="flex items-start gap-2.5">
+      <CardHeader className="pb-3">
+        <div className="flex items-start gap-3">
           {/* Checkbox */}
-          <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="pt-0.5"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Checkbox
               checked={isSelected}
               onCheckedChange={() => onToggleSelect(property.id)}
@@ -102,57 +110,72 @@ export function MobilePropertyCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <h3 className="flex items-center gap-1.5 font-semibold text-[15px] leading-tight">
+                <h3 className="flex items-center gap-2 font-semibold text-base leading-tight">
                   <Home className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="line-clamp-2">{formatAddress(property.address)}</span>
+                  <span className="truncate">{formatAddress(property.address)}</span>
                 </h3>
-                <p className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
                   <MapPin className="h-3 w-3 shrink-0" />
                   {formatCity(property.city)}, {property.state} {property.zip}
+                  {updatedText && (
+                    <>
+                      <span className="mx-1.5">·</span>
+                      <Clock className="h-3 w-3 shrink-0" />
+                      <span className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                        Updated {updatedText}
+                      </span>
+                    </>
+                  )}
                 </p>
               </div>
 
               {/* Score badge */}
-              <Badge className={`${getScoreColor(property.snap_score)} shrink-0 font-bold text-sm px-2 py-0.5`}>
-                {property.snap_score || 0}
+              <Badge
+                variant={getScoreVariant(property.snap_score)}
+                className="shrink-0 font-bold text-sm px-2.5 py-1"
+              >
+                {getScoreLabel(property.snap_score)}/100
               </Badge>
             </div>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="pb-2 pt-0 px-3">
-        {/* Updated + violation summary */}
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          {updatedText && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {updatedText}
-            </span>
-          )}
+      <CardContent className="pb-3 pt-0">
+        {/* Violation summary row */}
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
           {openCount > 0 && (
-            <div className="flex items-center gap-1">
-              <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-              <span className="text-xs font-medium">{openCount} open</span>
+            <div className="flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <span className="font-semibold text-sm">{openCount} open</span>
             </div>
           )}
+
+          {violationTypes.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap">
+              {violationTypes.slice(0, 3).map((type) => (
+                <Badge key={type} variant="secondary" className="text-xs">
+                  {formatViolationType(type)}
+                </Badge>
+              ))}
+              {violationTypes.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{violationTypes.length - 3} more
+                </Badge>
+              )}
+            </div>
+          )}
+
+          {/* Water shutoff indicator */}
           {property.enforcement_type === "water_shutoff" && (
-            <Badge variant="outline" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200 px-1.5 py-0">
-              💧
+            <Badge
+              variant="outline"
+              className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200"
+            >
+              💧 Water Shutoff
             </Badge>
           )}
         </div>
-
-        {/* Violation types */}
-        {violationTypes.length > 0 && (
-          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-            <Flame className="h-3.5 w-3.5 text-orange-500 shrink-0" />
-            <span className="text-xs text-muted-foreground">
-              {violationTypes.slice(0, 2).map(formatViolationType).join(", ")}
-              {violationTypes.length > 2 && ` +${violationTypes.length - 2}`}
-            </span>
-          </div>
-        )}
 
         {/* AI Insight */}
         <p
@@ -185,8 +208,8 @@ export function MobilePropertyCard({
         )}
       </CardContent>
 
-      <CardFooter className="border-t pt-2 pb-2.5 px-3 flex justify-between gap-2">
-        <div className="flex gap-1.5">
+      <CardFooter className="border-t pt-3 flex justify-between">
+        <div className="flex gap-2">
           {onAddToList && (
             <Button
               size="sm"
@@ -195,10 +218,10 @@ export function MobilePropertyCard({
                 e.stopPropagation();
                 onAddToList(property.id);
               }}
-              className="h-7 text-xs px-2"
+              className="h-8 text-xs"
             >
-              <Plus className="h-3 w-3 mr-1" />
-              Add
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add to List
             </Button>
           )}
           {onExport && (
@@ -209,9 +232,9 @@ export function MobilePropertyCard({
                 e.stopPropagation();
                 onExport(property.id);
               }}
-              className="h-7 text-xs px-2"
+              className="h-8 text-xs"
             >
-              <Download className="h-3 w-3 mr-1" />
+              <Download className="h-3.5 w-3.5 mr-1.5" />
               Export
             </Button>
           )}
@@ -224,10 +247,10 @@ export function MobilePropertyCard({
             e.stopPropagation();
             onClick();
           }}
-          className="h-7 text-xs px-2.5"
+          className="h-8 text-xs"
         >
-          <Eye className="h-3 w-3 mr-1" />
-          View
+          <Eye className="h-3.5 w-3.5 mr-1.5" />
+          View Details
         </Button>
       </CardFooter>
     </Card>

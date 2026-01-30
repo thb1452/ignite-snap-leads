@@ -2282,6 +2282,7 @@ export type Database = {
       fn_properties_paged: {
         Args: {
           p_city?: string
+          p_last_seen_days?: number
           p_page?: number
           p_page_size?: number
           p_search?: string

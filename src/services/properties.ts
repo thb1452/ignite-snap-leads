@@ -44,7 +44,6 @@ export async function fetchPropertiesPaged(
   console.log("[fetchPropertiesPaged] Filters received:", JSON.stringify(filters, null, 2));
 
   // Use legacy path for complex filters that RPC doesn't support
-  // NOTE: lastSeenDays is NOT included here - we handle null (All time) vs value (X days) consistently
   const needsLegacyPath =
     filters.listId ||
     filters.violationType ||
@@ -56,15 +55,8 @@ export async function fetchPropertiesPaged(
     console.log("[fetchPropertiesPaged] Using legacy path for advanced filters");
     return fetchPropertiesPagedLegacy(page, pageSize, filters);
   }
-  
-  // Also use legacy path when lastSeenDays is set (RPC doesn't support date filtering)
-  // This ensures consistent behavior: All time (null) uses RPC, date filter uses legacy
-  if (filters.lastSeenDays) {
-    console.log("[fetchPropertiesPaged] Using legacy path for date filter");
-    return fetchPropertiesPagedLegacy(page, pageSize, filters);
-  }
 
-  // Use the optimized RPC function for fast queries (basic filters only)
+  // Use the optimized RPC function for fast queries (supports basic filters + date filtering)
   const { data, error } = await supabase.rpc("fn_properties_paged", {
     p_page: page,
     p_page_size: pageSize,
@@ -73,6 +65,7 @@ export async function fetchPropertiesPaged(
     p_search: filters.search || null,
     p_snap_min: filters.snapScoreRange?.[0] ?? null,
     p_snap_max: filters.snapScoreRange?.[1] ?? null,
+    p_last_seen_days: filters.lastSeenDays ?? null,
   });
 
   if (error) {

@@ -51,22 +51,22 @@ const App = () => (
             </RoleProtectedRoute>
           } />
           <Route path="/app" element={
-            <RoleProtectedRoute allowedRoles={['admin', 'user']}>
+            <RoleProtectedRoute allowedRoles={['admin']}>
               <Leads />
             </RoleProtectedRoute>
           } />
           <Route path="/leads" element={
-            <RoleProtectedRoute allowedRoles={['admin', 'user']}>
+            <RoleProtectedRoute allowedRoles={['admin']}>
               <Leads />
             </RoleProtectedRoute>
           } />
           <Route path="/lists" element={
-            <RoleProtectedRoute allowedRoles={['admin', 'user']}>
+            <RoleProtectedRoute allowedRoles={['admin']}>
               <Lists />
             </RoleProtectedRoute>
           } />
           <Route path="/lists/:listId" element={
-            <RoleProtectedRoute allowedRoles={['admin', 'user']}>
+            <RoleProtectedRoute allowedRoles={['admin']}>
               <ListDetail />
             </RoleProtectedRoute>
           } />

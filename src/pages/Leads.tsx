@@ -7,6 +7,7 @@ import { BulkActionBar } from "@/components/leads/BulkActionBar";
 import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { MobilePropertyDetailSheet } from "@/components/leads/MobilePropertyDetailSheet";
 import { MobileFilterSheet } from "@/components/leads/MobileFilterSheet";
+import { MobilePropertyCard } from "@/components/leads/MobilePropertyCard";
 import { VirtualizedMobilePropertyList } from "@/components/leads/VirtualizedMobilePropertyList";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { AddAllToListDialog } from "@/components/leads/AddAllToListDialog";
@@ -15,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Trash2, ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2, RefreshCw } from "lucide-react";
+import { Trash2, ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2 } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { ViolationListView } from "@/components/leads/ViolationListView";
 import { ViewModeToggle, type ViewMode } from "@/components/leads/ViewModeToggle";
@@ -23,9 +24,6 @@ import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter"
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
 import { PressureLevelFilter } from "@/components/leads/PressureLevelFilter";
 import { TimeFilter } from "@/components/leads/ScoreAndTimeFilter";
-import { QuickFilterChips } from "@/components/leads/QuickFilterChips";
-import { PropertyListHeader } from "@/components/leads/PropertyListHeader";
-import { PaginationBar } from "@/components/leads/PaginationBar";
 import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
@@ -524,18 +522,6 @@ function Leads() {
             onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
           />
         </div>
-        
-        {/* Quick Filter Chips - Desktop */}
-        <div className="px-4 py-2 border-b bg-muted/30">
-          <QuickFilterChips
-            selectedSignal={selectedSignal}
-            onSignalChange={(v) => { setSelectedSignal(v); setPage(1); }}
-            openViolationsOnly={openViolationsOnly}
-            onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
-            multipleViolationsOnly={multipleViolationsOnly}
-            onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
-          />
-        </div>
       </div>
 
       {/* MOBILE: Compact Header with Search + Filters */}
@@ -544,7 +530,7 @@ function Leads() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search address, city or zip..."
+              placeholder="Search..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="pl-9 h-10"
@@ -582,19 +568,9 @@ function Leads() {
           />
         </div>
 
-        {/* Results summary + View Toggle */}
+        {/* Freshness indicator + View Toggle */}
         <div className="flex items-center justify-between px-3 pb-2">
-          <div className="flex items-center gap-2">
-            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              {totalCount.toLocaleString()} properties
-            </span>
-            {(selectedCity || selectedState) && (
-              <Badge variant="outline" className="text-xs">
-                {selectedCity || selectedState}
-              </Badge>
-            )}
-          </div>
+          <FreshnessIndicator />
           <div className="inline-flex rounded-lg border bg-muted p-1">
             <button
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
@@ -619,18 +595,6 @@ function Leads() {
               Map
             </button>
           </div>
-        </div>
-        
-        {/* Quick Filter Chips */}
-        <div className="px-3 pb-2">
-          <QuickFilterChips
-            selectedSignal={selectedSignal}
-            onSignalChange={(v) => { setSelectedSignal(v); setPage(1); }}
-            openViolationsOnly={openViolationsOnly}
-            onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
-            multipleViolationsOnly={multipleViolationsOnly}
-            onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
-          />
         </div>
         
         {/* Export Quota for Mobile */}
@@ -674,29 +638,29 @@ function Leads() {
         <div className="w-[40%] flex flex-col relative">
           {/* Header with View Mode Toggle and Export */}
           {properties.length > 0 && (
-            <div className="border-b bg-background">
-              <PropertyListHeader
-                totalCount={viewMode === 'violation' ? violationsWithProperty.length : totalCount}
-                selectedCount={selectedIds.length}
-                locationSummary={selectedCity || selectedState || undefined}
-              />
-              <div className="px-4 py-2 flex items-center justify-between gap-2 border-t">
+            <div className="px-4 py-2 border-b bg-background flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    {selectedIds.length > 0
+                      ? `${selectedIds.length} selected`
+                      : viewMode === 'violation'
+                      ? `${violationsWithProperty.length} violations`
+                      : `${totalCount} properties`}
+                  </span>
                   <ViewModeToggle value={viewMode} onChange={setViewMode} />
                 </div>
                 <Button
                   onClick={handleExportCSV}
-                  disabled={selectedIds.length === 0 || isExporting}
+                  disabled={selectedIds.length === 0}
                   variant="outline"
                   size="sm"
                   className="gap-2"
                 >
-                  {isExporting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4" />
-                  )}
-                  Export{selectedIds.length > 0 && ` (${selectedIds.length})`}
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export
                 </Button>
               </div>
               <ExportQuotaDisplay />
@@ -706,7 +670,6 @@ function Leads() {
           <div className="flex-1 overflow-hidden">
             {isLoading ? (
               <div className="p-8 text-center text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                 Loading properties...
               </div>
             ) : properties.length === 0 ? (
@@ -728,15 +691,33 @@ function Leads() {
             )}
           </div>
 
-          {/* Enhanced Pagination Controls */}
+          {/* Pagination Controls */}
           {totalPages > 1 && (
-            <PaginationBar
-              page={page}
-              totalPages={totalPages}
-              totalCount={totalCount}
-              pageSize={PAGE_SIZE}
-              onPageChange={handlePageChange}
-            />
+            <div className="flex items-center justify-between px-4 py-2 border-t bg-background">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handlePageChange(Math.max(1, page - 1))}
+                disabled={page <= 1}
+                className="gap-1"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+                disabled={page >= totalPages}
+                className="gap-1"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           )}
 
           <BulkActionBar
@@ -767,7 +748,6 @@ function Leads() {
           <div className="flex-1 flex flex-col min-h-0">
             {isLoading ? (
               <div className="p-8 text-center text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                 Loading properties...
               </div>
             ) : properties.length === 0 ? (
@@ -829,44 +809,30 @@ function Leads() {
                   selectedIds={selectedIds}
                   onToggleSelect={handleToggleSelect}
                   onPropertyClick={(id) => setSelectedPropertyId(id)}
-                  onAddToList={(id) => {
-                    setSelectedIds([id]);
-                    setShowAddToListDialog(true);
-                  }}
-                  onExport={(id) => {
-                    setSelectedIds([id]);
-                    // Trigger export after setting selection
-                    setTimeout(() => handleExportCSV(), 0);
-                  }}
                 />
 
-                {/* Mobile Pagination - Enhanced */}
-                <div className="flex flex-col items-center gap-2 px-4 py-3 border-t bg-background">
-                  <span className="text-xs text-muted-foreground">
-                    Page {page} of {totalPages} · {totalCount.toLocaleString()} total
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-10 min-h-[44px] px-4 gap-1"
-                      onClick={() => handlePageChange(Math.max(1, page - 1))}
-                      disabled={page <= 1}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Prev
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-10 min-h-[44px] px-4 gap-1"
-                      onClick={() => handlePageChange(Math.min(totalPages || 1, page + 1))}
-                      disabled={page >= (totalPages || 1)}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+                {/* Mobile Pagination */}
+                <div className="flex items-center justify-center gap-4 px-4 py-3 border-t bg-background">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 min-h-[44px] px-4 gap-1"
+                    onClick={() => handlePageChange(Math.max(1, page - 1))}
+                    disabled={page <= 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Prev
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 min-h-[44px] px-4 gap-1"
+                    onClick={() => handlePageChange(Math.min(totalPages || 1, page + 1))}
+                    disabled={page >= (totalPages || 1)}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             )}

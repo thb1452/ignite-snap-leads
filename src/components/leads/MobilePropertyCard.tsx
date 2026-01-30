@@ -2,20 +2,7 @@ import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import {
-  ChevronDown,
-  ChevronUp,
-  AlertTriangle,
-  Flame,
-  MapPin,
-  Home,
-  Plus,
-  Download,
-  Eye,
-  Clock,
-} from "lucide-react";
-import { differenceInDays } from "date-fns";
+import { ChevronDown, ChevronUp, AlertTriangle, Flame } from "lucide-react";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 
@@ -40,196 +27,125 @@ interface MobilePropertyCardProps {
     total_violations?: number | null;
     open_violations?: number | null;
     violation_types?: string[] | null;
-    enforcement_type?: string;
+    enforcement_type?: string; // 'code_violation' or 'water_shutoff'
   };
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onClick: () => void;
-  onAddToList?: (id: string) => void;
-  onExport?: (id: string) => void;
 }
 
 export function MobilePropertyCard({
   property,
   isSelected,
   onToggleSelect,
-  onClick,
-  onAddToList,
-  onExport,
+  onClick
 }: MobilePropertyCardProps) {
   const [insightExpanded, setInsightExpanded] = useState(false);
-
+  
   const getScoreColor = (score: number | null) => {
     if (!score) return "bg-muted text-muted-foreground";
-    if (score >= 75) return "bg-destructive text-destructive-foreground";
+    if (score >= 75) return "bg-red-500 text-white";
     if (score >= 50) return "bg-orange-500 text-white";
     if (score >= 25) return "bg-yellow-500 text-black";
-    return "bg-primary text-primary-foreground";
+    return "bg-blue-500 text-white";
   };
 
-  const getUpdatedText = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    const daysDiff = differenceInDays(new Date(), new Date(dateStr));
-    if (daysDiff === 0) return "Today";
-    if (daysDiff === 1) return "Yesterday";
-    if (daysDiff <= 7) return `${daysDiff}d ago`;
-    return `${Math.floor(daysDiff / 7)}w ago`;
-  };
-
-  const updatedText = getUpdatedText(property.updated_at);
   const insightText = property.snap_insight || "No insight available";
   const shouldShowExpand = insightText.length > 100;
-  const openCount = property.open_violations ?? 0;
-  const violationTypes = property.violation_types ?? [];
 
   return (
-    <Card
-      className="mx-3 mb-3 active:scale-[0.99] transition-transform cursor-pointer border-border/60"
+    <div
+      className="relative bg-background border-b p-4 active:bg-accent/50 transition-colors"
       onClick={onClick}
     >
-      <CardHeader className="pb-2 pt-3 px-3">
-        <div className="flex items-start gap-2.5">
-          {/* Checkbox */}
-          <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
-            <Checkbox
-              checked={isSelected}
-              onCheckedChange={() => onToggleSelect(property.id)}
-              className="h-5 w-5"
-            />
-          </div>
+      {/* Badges - Top Right */}
+      <div className="absolute top-3 right-3 flex items-center gap-1.5">
+        {/* Water shutoff indicator */}
+        {property.enforcement_type === 'water_shutoff' && (
+          <Badge variant="outline" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200 px-1.5 py-0.5">
+            💧
+          </Badge>
+        )}
+        {/* SnapScore Badge */}
+        <Badge
+          className={`${getScoreColor(property.snap_score)} text-sm font-bold px-2.5 py-1`}
+        >
+          {property.snap_score || 0}
+        </Badge>
+      </div>
 
-          {/* Main content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <h3 className="flex items-center gap-1.5 font-semibold text-[15px] leading-tight">
-                  <Home className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="line-clamp-2">{formatAddress(property.address)}</span>
-                </h3>
-                <p className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                  <MapPin className="h-3 w-3 shrink-0" />
-                  {formatCity(property.city)}, {property.state} {property.zip}
-                </p>
+      <div className="flex items-start gap-3 pr-14">
+        {/* Checkbox - Large tap target */}
+        <div 
+          className="pt-0.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelect(property.id)}
+            className="h-6 w-6"
+          />
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          {/* Address - Full width, no truncation */}
+          <h3 className="font-semibold text-base leading-snug text-foreground">
+            {formatAddress(property.address)}
+          </h3>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {formatCity(property.city)}, {property.state} {property.zip}
+          </p>
+
+          {/* Violation Density Indicators */}
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            {(property.total_violations || property.open_violations) && (
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-xs font-medium text-foreground">
+                  {property.open_violations ?? 0} open
+                  {property.total_violations && property.total_violations > (property.open_violations ?? 0) && (
+                    <span className="text-muted-foreground"> / {property.total_violations} total</span>
+                  )}
+                </span>
               </div>
-
-              {/* Score badge */}
-              <Badge className={`${getScoreColor(property.snap_score)} shrink-0 font-bold text-sm px-2 py-0.5`}>
-                {property.snap_score || 0}
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="pb-2 pt-0 px-3">
-        {/* Updated + violation summary */}
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          {updatedText && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {updatedText}
-            </span>
-          )}
-          {openCount > 0 && (
-            <div className="flex items-center gap-1">
-              <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-              <span className="text-xs font-medium">{openCount} open</span>
-            </div>
-          )}
-          {property.enforcement_type === "water_shutoff" && (
-            <Badge variant="outline" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200 px-1.5 py-0">
-              💧
-            </Badge>
-          )}
-        </div>
-
-        {/* Violation types */}
-        {violationTypes.length > 0 && (
-          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-            <Flame className="h-3.5 w-3.5 text-orange-500 shrink-0" />
-            <span className="text-xs text-muted-foreground">
-              {violationTypes.slice(0, 2).map(formatViolationType).join(", ")}
-              {violationTypes.length > 2 && ` +${violationTypes.length - 2}`}
-            </span>
-          </div>
-        )}
-
-        {/* AI Insight */}
-        <p
-          className={`text-sm text-muted-foreground leading-relaxed ${
-            !insightExpanded && shouldShowExpand ? "line-clamp-2" : ""
-          }`}
-        >
-          {insightText}
-        </p>
-        {shouldShowExpand && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setInsightExpanded(!insightExpanded);
-            }}
-            className="h-auto p-0 mt-1 text-xs text-primary hover:bg-transparent"
-          >
-            {insightExpanded ? (
-              <>
-                Show less <ChevronUp className="h-3 w-3 ml-1" />
-              </>
-            ) : (
-              <>
-                Read more <ChevronDown className="h-3 w-3 ml-1" />
-              </>
             )}
-          </Button>
-        )}
-      </CardContent>
+            {property.violation_types && property.violation_types.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <Flame className="h-3.5 w-3.5 text-orange-500" />
+                <span className="text-xs text-muted-foreground">
+                  {property.violation_types.slice(0, 2).map(formatViolationType).join(", ")}
+                  {property.violation_types.length > 2 && ` +${property.violation_types.length - 2}`}
+                </span>
+              </div>
+            )}
+          </div>
 
-      <CardFooter className="border-t pt-2 pb-2.5 px-3 flex justify-between gap-2">
-        <div className="flex gap-1.5">
-          {onAddToList && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddToList(property.id);
-              }}
-              className="h-7 text-xs px-2"
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              Add
-            </Button>
-          )}
-          {onExport && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                onExport(property.id);
-              }}
-              className="h-7 text-xs px-2"
-            >
-              <Download className="h-3 w-3 mr-1" />
-              Export
-            </Button>
-          )}
+          {/* AI Insight - Collapsible */}
+          <div className="mt-3">
+            <p className={`text-sm text-muted-foreground leading-relaxed ${!insightExpanded && shouldShowExpand ? 'line-clamp-2' : ''}`}>
+              {insightText}
+            </p>
+            {shouldShowExpand && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setInsightExpanded(!insightExpanded);
+                }}
+                className="h-auto p-0 mt-1 text-xs text-primary hover:bg-transparent"
+              >
+                {insightExpanded ? (
+                  <>Show less <ChevronUp className="h-3 w-3 ml-1" /></>
+                ) : (
+                  <>Read more <ChevronDown className="h-3 w-3 ml-1" /></>
+                )}
+              </Button>
+            )}
+          </div>
+
         </div>
-
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick();
-          }}
-          className="h-7 text-xs px-2.5"
-        >
-          <Eye className="h-3 w-3 mr-1" />
-          View
-        </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }

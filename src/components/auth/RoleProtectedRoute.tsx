@@ -187,60 +187,21 @@ export function RoleProtectedRoute({
   const isAdmin = hasRole('admin');
   const hasRequiredRole = isAdmin || allowedRoles.some(role => hasRole(role));
 
-  // Check if user has an active subscription (paid user)
-  const hasPaidSubscription = hasActiveSubscription && plan?.name;
-  
-  // CRITICAL: Grant access if user just paid (inCheckoutFlow), even if webhook hasn't processed yet
-  // After 20s of polling, hasGivenUp is true - we trust they paid
-  const grantAccessFromPayment = inCheckoutFlow && (hasPaidSubscription || hasGivenUp);
-
-  // PAID USERS: Anyone with an active subscription can access admin-level routes
-  if (hasPaidSubscription || grantAccessFromPayment) {
-    console.log('[RoleProtectedRoute] Granting access - paid user:', { hasPaidSubscription, grantAccessFromPayment });
+  // OPEN ACCESS: All authenticated users with the required role can access
+  // Subscription only gates exports, not viewing
+  if (hasRequiredRole) {
     return <>{children}</>;
   }
 
-  if (!hasRequiredRole) {
-    // Check if user is in a pending checkout flow (just signed up, about to go to Stripe)
-    const isPendingCheckout = (() => {
-      try {
-        return sessionStorage.getItem(PENDING_CHECKOUT_KEY) === 'true';
-      } catch {
-        return false;
-      }
-    })();
-    
-    // If user only has 'user' role and NO subscription AND NOT in checkout flow
-    // This is a new signup who hasn't completed payment
-    if (hasRole('user') && !hasPaidSubscription && !inCheckoutFlow && !isPendingCheckout) {
-      return (
-        <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-4">
-          <h1 className="text-2xl font-bold text-foreground">Welcome to Snap Ignite!</h1>
-          <p className="text-muted-foreground text-center max-w-md">
-            Your account is set up. Please complete your subscription to access the full platform.
-          </p>
-          <a 
-            href="/pricing" 
-            className="inline-flex items-center justify-center px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition font-medium"
-          >
-            View Pricing Plans
-          </a>
-        </div>
-      );
-    }
-    
-    // Prevent redirect loops - if already on the redirect target, show access denied
-    if (location.pathname === redirectTo) {
-      return (
-        <div className="min-h-screen flex items-center justify-center flex-col gap-4">
-          <h1 className="text-2xl font-bold text-foreground">Access Denied</h1>
-          <p className="text-muted-foreground">You don't have permission to access this page.</p>
-          <a href="/auth" className="text-primary hover:underline">Sign in with a different account</a>
-        </div>
-      );
-    }
-    return <Navigate to={redirectTo} replace />;
+  // No required role - show access denied or redirect
+  if (location.pathname === redirectTo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center flex-col gap-4">
+        <h1 className="text-2xl font-bold text-foreground">Access Denied</h1>
+        <p className="text-muted-foreground">You don't have permission to access this page.</p>
+        <a href="/auth" className="text-primary hover:underline">Sign in with a different account</a>
+      </div>
+    );
   }
-
-  return <>{children}</>;
+  return <Navigate to={redirectTo} replace />;
 }

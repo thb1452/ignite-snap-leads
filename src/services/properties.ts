@@ -44,16 +44,23 @@ export async function fetchPropertiesPaged(
   console.log("[fetchPropertiesPaged] Filters received:", JSON.stringify(filters, null, 2));
 
   // Use legacy path for complex filters that RPC doesn't support
+  // NOTE: lastSeenDays is NOT included here - we handle null (All time) vs value (X days) consistently
   const needsLegacyPath =
     filters.listId ||
     filters.violationType ||
-    filters.lastSeenDays ||
     filters.openViolationsOnly ||
     filters.multipleViolationsOnly ||
     filters.repeatOffenderOnly;
 
   if (needsLegacyPath) {
     console.log("[fetchPropertiesPaged] Using legacy path for advanced filters");
+    return fetchPropertiesPagedLegacy(page, pageSize, filters);
+  }
+  
+  // Also use legacy path when lastSeenDays is set (RPC doesn't support date filtering)
+  // This ensures consistent behavior: All time (null) uses RPC, date filter uses legacy
+  if (filters.lastSeenDays) {
+    console.log("[fetchPropertiesPaged] Using legacy path for date filter");
     return fetchPropertiesPagedLegacy(page, pageSize, filters);
   }
 

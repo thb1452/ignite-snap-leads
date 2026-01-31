@@ -391,18 +391,18 @@ export default function Landing() {
             {[
               {
                 icon: Users,
-                title: "Same Lists, Same Competition",
-                description: "By the time a property hits your lead list, it's already been called 47 times. You're not finding deals—you're racing against everyone else who bought the same data."
+                title: "Same Data, Same Competition",
+                description: "By the time a property shows up in traditional databases, everyone's already seen it. You're not finding opportunities—you're competing for leftovers."
               },
               {
                 icon: Clock,
                 title: "Timing Blindness",
-                description: "Traditional filters show you distress signals from months ago. The motivated seller who was desperate last month? Already sold. The one getting desperate now? Invisible to your current tools."
+                description: "Traditional filters show you distress signals from months ago. The property under pressure last month? Already sold. The one facing escalation now? Invisible to your current tools."
               },
               {
                 icon: Phone,
                 title: "Volume Over Intelligence",
-                description: "The current playbook: blast through more calls, send more mailers, hope something sticks. It's exhausting, expensive, and your competition does the exact same thing."
+                description: "The current playbook: blast through more data, chase more leads, hope something sticks. It's exhausting, expensive, and everyone else is doing the same thing."
               }
             ].map((problem, i) => (
               <motion.div

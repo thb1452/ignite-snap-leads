@@ -194,7 +194,7 @@ export default function Landing() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen pt-24 pb-20 flex items-center overflow-hidden">
+      <section className="relative pt-24 pb-20 overflow-hidden">
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-landing-primary/20 via-landing-bg to-landing-bg" />
         <div className="absolute top-1/4 right-0 w-[600px] h-[600px] bg-landing-accent/5 rounded-full blur-3xl" />
@@ -230,38 +230,10 @@ export default function Landing() {
                 transition={{ delay: 0.3 }}
                 className="text-xl text-landing-text-muted max-w-2xl"
               >
-                Track code violations, water shutoffs, and escalation patterns across 900+ counties. 
-                Our SnapScore AI ranks seller motivation so you contact the right properties at the right time.
+                Track code violations, water shutoffs, and escalation patterns. Our SnapScore AI ranks properties by enforcement pressure severity so you act on early signals.
               </motion.p>
               
-              {/* Key Stats Row */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="flex flex-wrap gap-8 py-6"
-              >
-                <div>
-                  <div className="text-3xl md:text-4xl font-bold text-landing-accent">
-                    <AnimatedCounter end={270000} suffix="+" />
-                  </div>
-                  <div className="text-landing-text-muted text-sm">Properties Tracked</div>
-                </div>
-                <div>
-                  <div className="text-3xl md:text-4xl font-bold text-landing-accent">
-                    <AnimatedCounter end={900} suffix="+" />
-                  </div>
-                  <div className="text-landing-text-muted text-sm">Counties Covered</div>
-                </div>
-                <div>
-                  <div className="text-3xl md:text-4xl font-bold text-landing-accent">
-                    <AnimatedCounter end={16000} suffix="+" />
-                  </div>
-                  <div className="text-landing-text-muted text-sm">Weekly Updates</div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}

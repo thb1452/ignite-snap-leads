@@ -374,7 +374,7 @@ export default function Landing() {
               viewport={{ once: true }}
               className="text-3xl md:text-4xl font-bold mb-4"
             >
-              The Problem With "Motivated Seller" Lists
+              The Problem With Traditional Property Data
             </motion.h2>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -383,7 +383,7 @@ export default function Landing() {
               transition={{ delay: 0.1 }}
               className="text-xl text-landing-text-muted"
             >
-              Everyone's working the same stale data. Here's what that costs you:
+              Everyone's working the same stale data. Here's what you're missing:
             </motion.p>
           </div>
           
@@ -429,7 +429,7 @@ export default function Landing() {
             className="max-w-3xl mx-auto text-center mt-16 p-8 bg-landing-primary/20 border border-landing-primary/30 rounded-xl"
           >
             <p className="text-xl text-landing-text">
-              What if you could see which properties are under pressure <span className="text-landing-accent font-semibold">RIGHT NOW</span>—before the motivation peaks and everyone else notices?
+              What if you could see which properties are under pressure <span className="text-landing-accent font-semibold">RIGHT NOW</span>—before everyone else notices?
             </p>
           </motion.div>
         </div>
@@ -445,7 +445,7 @@ export default function Landing() {
               viewport={{ once: true }}
               className="text-3xl md:text-4xl font-bold mb-4"
             >
-              Enforcement Intelligence That Finds Motivated Sellers <span className="text-landing-accent">First</span>
+              Enforcement Intelligence That Surfaces Opportunity <span className="text-landing-accent">First</span>
             </motion.h2>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -454,7 +454,7 @@ export default function Landing() {
               transition={{ delay: 0.1 }}
               className="text-xl text-landing-text-muted"
             >
-              Snap Ignite tracks municipal pressure signals most platforms completely miss—code violations, escalating fines, water shutoffs, and compliance deadlines. We don't just show you distress. We show you timing.
+              Snap Ignite tracks municipal pressure signals most platforms completely miss—code violations, escalating fines, water shutoffs, and compliance deadlines. We don't just show you violations. We show you pressure patterns.
             </motion.p>
           </div>
           
@@ -463,19 +463,19 @@ export default function Landing() {
             {[
               {
                 icon: Target,
-                title: "SnapScore AI Motivation Ranking",
-                description: "Not all violations are equal. Our AI analyzes violation type, escalation velocity, fine accumulation, and timeline pressure to rank properties by actual seller motivation—not just distress indicators.",
+                title: "SnapScore AI Pressure Ranking",
+                description: "Not all violations are equal. Our AI analyzes violation type, escalation velocity, fine accumulation, and compliance deadlines to rank properties by enforcement pressure severity.",
                 highlight: true
               },
               {
                 icon: BarChart3,
                 title: "The 30-Day Window",
-                description: "While competitors refresh monthly (or slower), Snap Ignite delivers 16,000+ new property updates every week. You see escalation patterns as they develop—catching the critical window when sellers shift from \"annoyed\" to \"motivated.\""
+                description: "Municipal enforcement moves fast. A code violation today becomes a lien next month. Snap Ignite tracks escalation patterns weekly so you see pressure building—not after it's resolved or sold."
               },
               {
                 icon: Map,
                 title: "Multiple Pressure Signals, One View",
-                description: "Code violations. Water shutoffs. Accumulating fines. Compliance deadlines. We aggregate enforcement data from 900+ counties so you see the full picture of municipal pressure on any property."
+                description: "Code violations. Water shutoffs. Accumulating fines. Compliance deadlines. We aggregate enforcement data across counties so you see the full picture of municipal pressure on any property."
               }
             ].map((feature, i) => (
               <motion.div

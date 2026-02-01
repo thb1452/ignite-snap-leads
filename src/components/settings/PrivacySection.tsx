@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shield, Download, Trash2, FileText, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Shield, Download, Trash2, FileText, Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -22,6 +22,8 @@ export function PrivacySection() {
   const { signOut } = useAuth();
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleDownloadData = async () => {
     setIsDownloading(true);
@@ -77,6 +79,15 @@ export function PrivacySection() {
   };
 
   const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== 'DELETE') {
+      toast({
+        title: "Confirmation Required",
+        description: "Please type DELETE to confirm account deletion.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsDeleting(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -116,8 +127,12 @@ export function PrivacySection() {
       });
     } finally {
       setIsDeleting(false);
+      setDeleteConfirmation('');
+      setShowDeleteDialog(false);
     }
   };
+
+  const isDeleteEnabled = deleteConfirmation === 'DELETE';
 
   return (
     <Card>
@@ -129,22 +144,30 @@ export function PrivacySection() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-3">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleDownloadData}
-            disabled={isDownloading}
-            className="gap-2"
-          >
-            {isDownloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            {isDownloading ? 'Exporting...' : 'Download My Data'}
-          </Button>
+          <div className="flex flex-col gap-1">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleDownloadData}
+              disabled={isDownloading}
+              className="gap-2"
+            >
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {isDownloading ? 'Exporting...' : 'Download My Data'}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              JSON export • May take up to 60 seconds for large accounts
+            </p>
+          </div>
           
-          <AlertDialog>
+          <AlertDialog open={showDeleteDialog} onOpenChange={(open) => {
+            setShowDeleteDialog(open);
+            if (!open) setDeleteConfirmation('');
+          }}>
             <AlertDialogTrigger asChild>
               <Button 
                 variant="outline" 
@@ -162,27 +185,57 @@ export function PrivacySection() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your
-                  account and remove all your data from our servers, including:
-                  <ul className="list-disc list-inside mt-2 space-y-1">
-                    <li>Your profile and settings</li>
-                    <li>All saved lists and properties</li>
-                    <li>Lead activity and call logs</li>
-                    <li>Email templates and preferences</li>
-                    <li>Upload history and credits</li>
-                  </ul>
+                <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  Delete Account Permanently
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3">
+                    <p>
+                      <strong>This action cannot be undone.</strong> This will permanently delete your
+                      account and remove all your data from our servers.
+                    </p>
+                    <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-sm">
+                      <p className="font-medium text-destructive mb-2">The following will be deleted:</p>
+                      <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                        <li>Your profile and account settings</li>
+                        <li>All saved lists and properties</li>
+                        <li>Lead activity and call logs</li>
+                        <li>Email templates and preferences</li>
+                        <li>Upload history and remaining credits</li>
+                      </ul>
+                    </div>
+                    <div className="pt-2">
+                      <label className="text-sm font-medium text-foreground">
+                        Type <span className="font-mono bg-muted px-1.5 py-0.5 rounded">DELETE</span> to confirm:
+                      </label>
+                      <Input
+                        value={deleteConfirmation}
+                        onChange={(e) => setDeleteConfirmation(e.target.value)}
+                        placeholder="Type DELETE here"
+                        className="mt-2"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
+                <Button
                   onClick={handleDeleteAccount}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  disabled={!isDeleteEnabled || isDeleting}
+                  variant="destructive"
                 >
-                  Yes, delete my account
-                </AlertDialogAction>
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete My Account'
+                  )}
+                </Button>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

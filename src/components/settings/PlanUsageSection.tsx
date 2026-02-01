@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ExternalLink, Loader2, Crown, Zap, Sparkles, TrendingUp, List, Building2 } from "lucide-react";
+import { ExternalLink, Loader2, Crown, Zap, Sparkles, TrendingUp, List, Building2, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -27,6 +27,7 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
   const { toast } = useToast();
   const navigate = useNavigate();
   const [portalLoading, setPortalLoading] = useState(false);
+  const [portalUnavailable, setPortalUnavailable] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   const handleManageSubscription = async () => {
@@ -50,6 +51,10 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
 
       if (!response.ok) {
         const error = await response.json();
+        if (response.status === 404) {
+          setPortalUnavailable(true);
+          return;
+        }
         throw new Error(error.error || "Failed to create portal session");
       }
 
@@ -200,16 +205,30 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
           </div>
           <div className="flex gap-2 flex-shrink-0">
             {subscription?.stripe_subscription_id && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleManageSubscription}
-                disabled={portalLoading}
-                className="gap-2"
-              >
-                {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-                Manage Subscription
-              </Button>
+              portalUnavailable ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  asChild
+                >
+                  <a href="mailto:support@snapignite.com?subject=Billing%20Support">
+                    <Mail className="h-4 w-4" />
+                    Contact Support to Manage Billing
+                  </a>
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleManageSubscription}
+                  disabled={portalLoading}
+                  className="gap-2"
+                >
+                  {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                  Manage Subscription
+                </Button>
+              )
             )}
             {plan.name !== 'enterprise' && (
               <Button

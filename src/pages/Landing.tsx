@@ -509,10 +509,7 @@ export default function Landing() {
             {[
               { icon: Filter, label: "Violation Type Filtering" },
               { icon: Download, label: "Export to CSV" },
-              { icon: Building2, label: "County-Level Coverage" },
-              { icon: Users, label: "Owner Information" },
-              { icon: Search, label: "Saved Searches" },
-              { icon: Users, label: "Team Collaboration" }
+              { icon: Building2, label: "County-Level Coverage" }
             ].map((pill, i) => (
               <div 
                 key={i}
@@ -536,7 +533,7 @@ export default function Landing() {
               viewport={{ once: true }}
               className="text-3xl md:text-4xl font-bold mb-4"
             >
-              From Intelligence to Offer in <span className="text-landing-accent">Minutes</span>
+              From Intelligence to Action in <span className="text-landing-accent">Minutes</span>
             </motion.h2>
           </div>
           
@@ -545,17 +542,17 @@ export default function Landing() {
               {
                 step: "01",
                 title: "Filter by Your Criteria",
-                description: "Select your target counties, violation types, and SnapScore threshold. Build lists based on the specific pressure signals that indicate motivation in your market."
+                description: "Select your target counties, violation types, and date range. Build lists based on the specific pressure signals in your market."
               },
               {
                 step: "02",
                 title: "Identify High-Priority Properties",
-                description: "SnapScore AI ranks every property by motivation timing. Focus on the properties most likely to sell NOW—not the ones that were motivated six months ago."
+                description: "SnapScore AI ranks every property by enforcement pressure. Focus on the properties under pressure NOW—not the ones flagged six months ago."
               },
               {
                 step: "03",
-                title: "Move Before Competition",
-                description: "Export your targeted list and make contact while the pressure is fresh. You're not cold calling—you're reaching out at the exact moment sellers need a solution."
+                title: "Act Before Competition",
+                description: "Export your targeted list while the data is fresh. You're not chasing stale leads—you're acting on current enforcement signals."
               }
             ].map((step, i) => (
               <motion.div
@@ -622,9 +619,9 @@ export default function Landing() {
               </h3>
               <ul className="space-y-4">
                 {[
-                  "You value timing over volume—you'd rather contact 50 motivated sellers than cold call 500 random leads",
-                  "You're tired of competing on who can make the most dials and want an actual information advantage",
-                  "You operate in markets where enforcement activity creates real seller pressure",
+                  "You value timing over volume—you'd rather work 50 high-pressure properties than chase 500 stale records",
+                  "You're tired of competing on the same data and want an actual information advantage",
+                  "You operate in markets where enforcement activity creates real opportunity",
                   "You're willing to invest in intelligence, not just data",
                   "You understand that exclusivity (our 500-user cap) protects your competitive advantage"
                 ].map((item, i) => (
@@ -649,10 +646,10 @@ export default function Landing() {
               </h3>
               <ul className="space-y-4">
                 {[
-                  "You're brand new to real estate investing and need basic education first",
-                  "Your strategy is pure volume—blast through thousands of calls regardless of quality",
+                  "You're brand new to real estate and need basic education first",
+                  "Your strategy is pure volume—quantity over quality",
                   "You're looking for the cheapest possible data source",
-                  "You need comprehensive CRM, dialer, and marketing tools in one platform",
+                  "You need CRM, dialer, and marketing tools in one platform",
                   "You're not comfortable with a tool that requires some learning curve"
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
@@ -924,26 +921,6 @@ export default function Landing() {
             ))}
           </div>
           
-          {/* Stats Bar */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="flex flex-wrap justify-center gap-12 py-8 border-y border-landing-surface"
-          >
-            <div className="text-center">
-              <div className="text-3xl font-bold text-landing-accent">87</div>
-              <div className="text-landing-text-muted text-sm">Active Users</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-landing-accent">$2.4M+</div>
-              <div className="text-landing-text-muted text-sm">in Deals Closed</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-landing-accent">4.8/5</div>
-              <div className="text-landing-text-muted text-sm">User Rating</div>
-            </div>
-          </motion.div>
         </div>
       </section>
 
@@ -964,19 +941,19 @@ export default function Landing() {
               {[
                 {
                   question: "How is Snap Ignite different from PropStream or BatchLeads?",
-                  answer: "PropStream and BatchLeads are lead list tools that pull from the same public records everyone else uses. Snap Ignite is an enforcement intelligence platform—we specifically track code violations, water shutoffs, fines, and compliance deadlines that indicate real-time seller pressure. Our SnapScore AI doesn't just show you distressed properties; it ranks them by motivation timing so you know WHO to call and WHEN."
+                  answer: "PropStream and BatchLeads pull from the same public records everyone else uses. Snap Ignite is an enforcement intelligence platform—we specifically track code violations, water shutoffs, fines, and compliance deadlines. Our SnapScore AI ranks properties by enforcement pressure severity, not just distress indicators."
                 },
                 {
                   question: "Why the 500-user limit?",
-                  answer: "The value of intelligence decreases when everyone has it. If 5,000 investors all see the same \"hot\" properties, you're back to competing on call volume. We cap access at 500 users to ensure the intelligence advantage stays valuable for those who have it. Once we hit 500, we'll open a waitlist for future spots."
+                  answer: "The value of intelligence decreases when everyone has it. If 5,000 users all see the same high-pressure properties, the advantage disappears. We cap access at 500 users to protect the data advantage. Once we hit 500, we'll open a waitlist."
                 },
                 {
                   question: "What counties do you cover?",
-                  answer: "We currently cover 900+ counties across the United States, focusing on markets with active enforcement and investor activity. Coverage is expanding monthly. Enterprise users get access to all available counties; Starter and Professional users select their priority markets."
+                  answer: "We cover counties across the United States where we've established FOIA data pipelines. Coverage is expanding as we add more municipal sources. All users get access to all available counties."
                 },
                 {
                   question: "How fresh is the data?",
-                  answer: "We process 16,000+ new property updates every week. Most enforcement data appears in Snap Ignite within 7-14 days of the violation being recorded—compared to 30-90 days (or longer) with traditional data providers."
+                  answer: "Most enforcement data appears in Snap Ignite within 7-14 days of the violation being recorded—compared to 30-90 days (or longer) with traditional data providers. We update weekly."
                 },
                 {
                   question: "Do you include owner contact information?",
@@ -1037,7 +1014,7 @@ export default function Landing() {
               transition={{ delay: 0.1 }}
               className="text-xl text-landing-text-muted mb-8"
             >
-              Join 87 operators already using enforcement intelligence to find motivated sellers first.
+              Join operators using enforcement intelligence to surface opportunities first.
             </motion.p>
             
             <motion.div 

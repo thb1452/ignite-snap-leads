@@ -7,6 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Hard cap to prevent timeouts on large accounts
+const MAX_ROWS_PER_TABLE = 1000;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -33,7 +36,7 @@ serve(async (req) => {
     const userId = user.id;
     console.log(`Exporting data for user: ${userId}`);
 
-    // Collect all user data from various tables
+    // Collect user data with filtered fields (no internal spine exposure)
     const [
       profileResult,
       listsResult,
@@ -45,24 +48,77 @@ serve(async (req) => {
       creditLedgerResult,
       uploadJobsResult,
     ] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", userId),
-      supabase.from("lead_lists").select("*").eq("user_id", userId),
-      supabase.from("list_properties").select("*").eq("created_by", userId),
-      supabase.from("lead_activity").select("*").eq("user_id", userId),
-      supabase.from("email_preferences").select("*").eq("user_id", userId),
-      supabase.from("email_templates").select("*").eq("user_id", userId),
-      supabase.from("call_logs").select("*").eq("user_id", userId),
-      supabase.from("credit_ledger").select("*").eq("user_id", userId),
-      supabase.from("upload_jobs").select("*").eq("user_id", userId),
+      // Profile - filtered fields
+      supabase
+        .from("profiles")
+        .select("email, full_name, created_at")
+        .eq("user_id", userId)
+        .limit(MAX_ROWS_PER_TABLE),
+      
+      // Lists - user-facing fields only
+      supabase
+        .from("lead_lists")
+        .select("name, created_at")
+        .eq("user_id", userId)
+        .limit(MAX_ROWS_PER_TABLE),
+      
+      // List properties - minimal reference
+      supabase
+        .from("list_properties")
+        .select("added_at, property_id")
+        .eq("created_by", userId)
+        .limit(MAX_ROWS_PER_TABLE),
+      
+      // Lead activity - user-facing fields
+      supabase
+        .from("lead_activity")
+        .select("status, notes, created_at, updated_at")
+        .eq("user_id", userId)
+        .limit(MAX_ROWS_PER_TABLE),
+      
+      // Email preferences - user settings only
+      supabase
+        .from("email_preferences")
+        .select("weekly_digest_enabled, digest_day, digest_hour, timezone, created_at")
+        .eq("user_id", userId)
+        .limit(MAX_ROWS_PER_TABLE),
+      
+      // Email templates - user content
+      supabase
+        .from("email_templates")
+        .select("name, subject, content, is_default, created_at")
+        .eq("user_id", userId)
+        .limit(MAX_ROWS_PER_TABLE),
+      
+      // Call logs - user-facing data
+      supabase
+        .from("call_logs")
+        .select("phone_number, call_type, status, duration, notes, created_at")
+        .eq("user_id", userId)
+        .limit(MAX_ROWS_PER_TABLE),
+      
+      // Credit ledger - transaction summary (no internal IDs)
+      supabase
+        .from("credit_ledger")
+        .select("delta, reason, created_at")
+        .eq("user_id", userId)
+        .limit(MAX_ROWS_PER_TABLE),
+      
+      // Upload jobs - summary only (no storage paths or internal flags)
+      supabase
+        .from("upload_jobs")
+        .select("filename, file_size, status, total_rows, processed_rows, properties_created, violations_created, created_at, finished_at")
+        .eq("user_id", userId)
+        .limit(MAX_ROWS_PER_TABLE),
     ]);
 
     const exportData = {
       exported_at: new Date().toISOString(),
+      export_note: `Data capped at ${MAX_ROWS_PER_TABLE} records per category. Contact support for complete archives.`,
       user: {
-        id: user.id,
         email: user.email,
         created_at: user.created_at,
-        email_confirmed_at: user.email_confirmed_at,
+        email_verified: !!user.email_confirmed_at,
       },
       profile: profileResult.data || [],
       lead_lists: listsResult.data || [],
@@ -71,8 +127,8 @@ serve(async (req) => {
       email_preferences: emailPreferencesResult.data || [],
       email_templates: emailTemplatesResult.data || [],
       call_logs: callLogsResult.data || [],
-      credit_ledger: creditLedgerResult.data || [],
-      upload_jobs: uploadJobsResult.data || [],
+      credit_transactions: creditLedgerResult.data || [],
+      upload_history: uploadJobsResult.data || [],
     };
 
     console.log(`Data export complete for user: ${userId}`);

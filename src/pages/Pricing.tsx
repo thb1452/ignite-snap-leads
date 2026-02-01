@@ -32,16 +32,13 @@ const PRICING_TIERS: PricingTier[] = [
     description: 'For focused local operators',
     features: [
       '2,500 monthly exports',
-      'Basic code violations',
-      'Browse all 50 states',
-      'Basic SnapScore filtering',
+      'All properties, all counties',
+      'Code violation data',
       'Weekly data refresh',
-      '1 user seat',
       'Email support',
     ],
     notIncluded: [
       'No water shutoff data',
-      'No utility disconnection tracking',
     ],
     icon: Zap,
     popular: false,
@@ -54,18 +51,17 @@ const PRICING_TIERS: PricingTier[] = [
     price_annual_cents_with_discount: 239000,
     description: 'For growing acquisition operations',
     features: [
-      'Everything in Starter PLUS:',
       '10,000 monthly exports',
-      '💧 Water shutoff alerts (PREMIUM DATA)',
-      'Advanced SnapScore AI filtering',
-      'Violation type filtering',
-      'Rolling 30-day intelligence',
-      '3 user seats',
+      'All properties, all counties',
+      'Code violation data',
+      'Everything in Starter',
       'Priority email support',
+    ],
+    notIncluded: [
+      'No water shutoff data',
     ],
     icon: TrendingUp,
     popular: true,
-    highlight: 'Water shutoffs convert at 10x the rate of basic violations',
   },
   {
     id: 'enterprise',
@@ -75,13 +71,11 @@ const PRICING_TIERS: PricingTier[] = [
     price_annual_cents_with_discount: 479000,
     description: 'For serious multi-market teams',
     features: [
-      'Everything in Professional PLUS:',
       '25,000 monthly exports',
-      'All 50 states (900+ counties)',
-      'Full SnapScore AI suite',
+      'All properties, all counties',
+      'Code violation + water shutoff data',
+      'Everything in Professional',
       'API access (coming soon)',
-      '10 user seats',
-      'Dedicated account manager',
     ],
     icon: Building2,
     popular: false,
@@ -313,75 +307,9 @@ export default function Pricing() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-3 gap-6 text-center">
-                <div>
-                  <div className="text-3xl font-bold text-cyan-600 dark:text-cyan-400 mb-2">
-                    10x
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Higher conversion rate vs basic violations
-                  </div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                    30 days
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Average time to sale after shutoff
-                  </div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-                    Maximum
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Seller motivation level
-                  </div>
-                </div>
-              </div>
-              <p className="text-center mt-6 text-muted-foreground">
-                Properties with utility disconnections represent the <span className="font-semibold text-foreground">highest-motivation sellers</span> in the market.
-                Professional and Enterprise plans include this premium data.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ROI Section */}
-        <div className="max-w-3xl mx-auto mb-16">
-          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-blue-200 dark:border-blue-800">
-            <CardHeader>
-              <CardTitle className="text-2xl text-center">One Deal Pays for the Year</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-3 gap-6 text-center">
-                <div>
-                  <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                    $10,000+
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Typical wholesale assignment fee
-                  </div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-                    $1,428
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Annual cost (Starter tier)
-                  </div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
-                    7x ROI
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Return on one deal
-                  </div>
-                </div>
-              </div>
-              <p className="text-center mt-6 text-muted-foreground">
-                If Snap helps you close <span className="font-semibold text-foreground">just ONE deal</span> this year, you've made your money back 7 times over.
+              <p className="text-center text-muted-foreground">
+                Water shutoffs represent the highest level of municipal enforcement pressure on a property.
+                This premium data is available exclusively on the Enterprise plan.
               </p>
             </CardContent>
           </Card>
@@ -401,8 +329,8 @@ export default function Pricing() {
               <CardContent>
                 <p className="text-muted-foreground">
                   <strong>Code violations</strong> indicate properties where the city is applying enforcement pressure (tall grass, structural issues, permits, etc.).
-                  <strong> Water shutoffs</strong> are utility disconnections - these indicate <em>maximum</em> distress and typically result in 10x higher conversion rates.
-                  Professional and Enterprise plans include both data types.
+                  <strong> Water shutoffs</strong> are utility disconnections — a stronger enforcement signal.
+                  Water shutoff data is available on the Enterprise plan.
                 </p>
               </CardContent>
             </Card>
@@ -450,8 +378,7 @@ export default function Pricing() {
               <CardContent>
                 <p className="text-muted-foreground">
                   PropStream is general property data. Snap is <span className="font-semibold">specialized enforcement pressure intelligence</span>.
-                  We focus exclusively on properties where cities are applying maximum code enforcement pressure - the motivated sellers
-                  wholesalers and investors actually want to find. PropStream gives you everything; Snap gives you what matters.
+                  We focus exclusively on properties where cities are applying code enforcement pressure. PropStream gives you everything; Snap gives you what matters.
                 </p>
               </CardContent>
             </Card>

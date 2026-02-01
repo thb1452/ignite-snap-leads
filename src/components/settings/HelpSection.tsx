@@ -13,12 +13,12 @@ export function HelpSection() {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="justify-start gap-2 h-auto py-3"
             asChild
           >
-            <a href="mailto:support@snapignite.com">
+            <a href="mailto:support@snapignite.com?subject=Support%20Request">
               <Mail className="h-4 w-4" />
               <div className="text-left">
                 <p className="font-medium">Contact Support</p>
@@ -26,13 +26,13 @@ export function HelpSection() {
               </div>
             </a>
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="justify-start gap-2 h-auto py-3"
             asChild
           >
-            <a href="mailto:feedback@snapignite.com?subject=Feature Request">
+            <a href="mailto:feedback@snapignite.com?subject=Feature%20Request">
               <MessageSquare className="h-4 w-4" />
               <div className="text-left">
                 <p className="font-medium">Request Feature</p>

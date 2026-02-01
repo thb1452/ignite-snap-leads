@@ -200,9 +200,7 @@ export function PrivacySection() {
                       <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                         <li>Your profile and account settings</li>
                         <li>All saved lists and properties</li>
-                        <li>Lead activity and call logs</li>
-                        <li>Email templates and preferences</li>
-                        <li>Upload history and remaining credits</li>
+                        <li>Email preferences</li>
                       </ul>
                     </div>
                     <div className="pt-2">
@@ -244,9 +242,9 @@ export function PrivacySection() {
         <div className="pt-4 border-t">
           <p className="text-sm text-muted-foreground leading-relaxed">
             <FileText className="h-4 w-4 inline mr-1" />
-            <strong>About SnapScore & SnapInsight:</strong> These are AI-generated estimates based solely on public code enforcement data. 
-            They are provided for informational lead-prioritization only and are not credit scores, financial advice, 
-            or a guarantee of motivation or sale.
+            <strong>About SnapScore & SnapInsight:</strong> These are AI-generated estimates based solely on public code enforcement data.
+            They are provided for informational purposes only and are not credit scores, financial advice,
+            or a guarantee of any outcome.
           </p>
         </div>
       </CardContent>

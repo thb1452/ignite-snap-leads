@@ -48,6 +48,12 @@ verify_jwt = true
 [functions.backfill-property-aggregates]
 verify_jwt = true
 
+[functions.export-user-data]
+verify_jwt = true
+
+[functions.delete-user-account]
+verify_jwt = true
+
 # Public endpoints - no JWT required
 [functions.weekly-digest]
 verify_jwt = false

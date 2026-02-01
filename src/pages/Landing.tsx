@@ -667,7 +667,7 @@ export default function Landing() {
             viewport={{ once: true }}
             className="text-center text-landing-text-muted mt-12 max-w-2xl mx-auto"
           >
-            Still not sure? Our Starter plan at $119/month lets you test the intelligence advantage with 5 counties and 2,500 monthly exports. No annual commitment required.
+            Still not sure? Our Starter plan at $119/month lets you test the intelligence advantage with 2,500 monthly exports. No annual commitment required.
           </motion.p>
         </div>
       </section>
@@ -737,10 +737,9 @@ export default function Landing() {
                 description: "For focused local operators",
                 features: [
                   "2,500 monthly exports",
-                  "5 county coverage (you choose)",
-                  "Basic SnapScore filtering",
+                  "All properties, all counties",
+                  "Code violation data",
                   "Weekly data refresh",
-                  "1 user seat",
                   "Email support"
                 ],
                 highlighted: false
@@ -751,11 +750,9 @@ export default function Landing() {
                 description: "For growing acquisition operations",
                 features: [
                   "10,000 monthly exports",
-                  "25 county coverage",
-                  "Advanced SnapScore filters",
-                  "Violation type filtering",
-                  "Rolling 30-day intelligence",
-                  "3 user seats",
+                  "All properties, all counties",
+                  "Code violation data",
+                  "Everything in Starter",
                   "Priority email support"
                 ],
                 highlighted: true,
@@ -767,12 +764,10 @@ export default function Landing() {
                 description: "For serious multi-market teams",
                 features: [
                   "25,000 monthly exports",
-                  "All 900+ counties",
-                  "Full SnapScore AI suite",
-                  "Escalation pattern alerts",
-                  "API access (coming soon)",
-                  "10 user seats",
-                  "Dedicated account manager"
+                  "All properties, all counties",
+                  "Code violation + water shutoff data",
+                  "Everything in Professional",
+                  "API access (coming soon)"
                 ],
                 highlighted: false
               }

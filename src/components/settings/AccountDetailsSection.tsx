@@ -4,14 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, Key, Loader2, Check } from 'lucide-react';
+import { User, Mail, Key, Loader2, Check, AlertCircle } from 'lucide-react';
 import { useProfileSettings } from '@/hooks/useProfileSettings';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/use-auth';
 
 export function AccountDetailsSection() {
   const { profile, isLoading, updateProfile, requestPasswordReset } = useProfileSettings();
+  const { emailVerified, resendVerificationEmail } = useAuth();
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState('');
+  const [isResending, setIsResending] = useState(false);
 
   const handleEditName = () => {
     setNewName(profile?.full_name || '');
@@ -28,6 +31,12 @@ export function AccountDetailsSection() {
   const handleCancelEdit = () => {
     setIsEditingName(false);
     setNewName('');
+  };
+
+  const handleResendVerification = async () => {
+    setIsResending(true);
+    await resendVerificationEmail();
+    setIsResending(false);
   };
 
   if (isLoading) {
@@ -66,10 +75,31 @@ export function AccountDetailsSection() {
             <p className="flex-1 px-3 py-2 bg-muted rounded-md text-sm">
               {profile?.email || 'Not available'}
             </p>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              <Check className="h-3 w-3 mr-1" />
-              Verified
-            </Badge>
+            {emailVerified ? (
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                <Check className="h-3 w-3 mr-1" />
+                Verified
+              </Badge>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Unverified
+                </Badge>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleResendVerification}
+                  disabled={isResending}
+                >
+                  {isResending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Resend'
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 

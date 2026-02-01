@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { HelpCircle, Mail, FileText, MessageSquare, ExternalLink } from 'lucide-react';
+import { HelpCircle, Mail, MessageSquare } from 'lucide-react';
 
 export function HelpSection() {
   return (
@@ -12,7 +12,7 @@ export function HelpSection() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Button 
             variant="outline" 
             className="justify-start gap-2 h-auto py-3"
@@ -24,21 +24,6 @@ export function HelpSection() {
                 <p className="font-medium">Contact Support</p>
                 <p className="text-xs text-muted-foreground">support@snapignite.com</p>
               </div>
-            </a>
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            className="justify-start gap-2 h-auto py-3"
-            asChild
-          >
-            <a href="https://docs.snapignite.com" target="_blank" rel="noopener noreferrer">
-              <FileText className="h-4 w-4" />
-              <div className="text-left">
-                <p className="font-medium">Documentation</p>
-                <p className="text-xs text-muted-foreground">Guides & tutorials</p>
-              </div>
-              <ExternalLink className="h-3 w-3 ml-auto" />
             </a>
           </Button>
           

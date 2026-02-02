@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { LeadFilters } from "@/schemas";
+import { getCategoryById } from "@/utils/violationCategoryMapper";
 
 export interface MapMarker {
   id: string;
@@ -13,7 +14,6 @@ export interface MapMarker {
   enforcement_type?: string; // 'code_violation' or 'water_shutoff'
 }
 
-// Reduced from 50k to prevent timeout with large datasets
 // Map clusters handle high-density areas efficiently
 const MAX_MARKERS = 10000;
 
@@ -32,11 +32,101 @@ function cleanFilters(filters: LeadFilters): LeadFilters {
   return cleaned as LeadFilters;
 }
 
-async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[]> {
-  const filters = cleanFilters(rawFilters);
-  console.log("[useMapMarkers] Fetching markers with filters:", JSON.stringify(filters));
+// Check if filters require advanced query (same logic as properties.ts needsLegacyPath)
+function hasAdvancedFilters(filters: LeadFilters): boolean {
+  return !!(
+    filters.violationType ||
+    filters.openViolationsOnly ||
+    filters.multipleViolationsOnly ||
+    filters.repeatOffenderOnly ||
+    filters.lastSeenDays
+  );
+}
 
-  // Use the new RPC function that respects user_allowed_states
+// Fetch markers directly from properties table with full filter support.
+// Used when advanced filters are active that fn_map_markers doesn't support.
+async function fetchMarkersDirectQuery(filters: LeadFilters): Promise<MapMarker[]> {
+  console.log("[useMapMarkers] Using direct query for advanced filters");
+
+  let q = supabase
+    .from("properties")
+    .select("id, latitude, longitude, snap_score, address, city, state, enforcement_type")
+    .not("latitude", "is", null)
+    .not("longitude", "is", null);
+
+  // State filter
+  if (filters.state) {
+    q = q.ilike("state", filters.state);
+  }
+
+  // City filter
+  if (filters.cities?.length === 1) {
+    q = q.ilike("city", filters.cities[0]);
+  }
+
+  // Search filter
+  if (filters.search) {
+    const s = filters.search.trim();
+    q = q.or(`address.ilike.%${s}%,city.ilike.%${s}%,state.ilike.%${s}%,zip.ilike.%${s}%`);
+  }
+
+  // Snap score filter
+  if (filters.snapScoreRange) {
+    const [min, max] = filters.snapScoreRange;
+    q = q.gte("snap_score", min).lte("snap_score", max);
+  }
+
+  // Last seen days filter
+  if (filters.lastSeenDays) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - filters.lastSeenDays);
+    q = q.gte("updated_at", cutoffDate.toISOString());
+  }
+
+  // Violation type (category) filter - same logic as legacy path in properties.ts
+  if (filters.violationType) {
+    const category = getCategoryById(filters.violationType);
+    if (category) {
+      const keywordsToMatch = category.keywords
+        .filter(kw => !kw.match(/^\d/))
+        .slice(0, 8);
+      const orConditions = keywordsToMatch
+        .map(kw => `violation_types::text.ilike.%${kw}%`)
+        .join(',');
+      q = q.or(orConditions);
+    } else {
+      q = q.or(`violation_types::text.ilike.%${filters.violationType}%`);
+    }
+  }
+
+  // Pressure level filters
+  if (filters.openViolationsOnly) {
+    q = q.gt("open_violations", 0);
+  }
+  if (filters.multipleViolationsOnly) {
+    q = q.gt("total_violations", 1);
+  }
+  if (filters.repeatOffenderOnly) {
+    q = q.eq("repeat_offender", true);
+  }
+
+  // Order by score and limit
+  q = q.order("snap_score", { ascending: false, nullsFirst: false }).limit(MAX_MARKERS);
+
+  const { data, error } = await q;
+
+  if (error) {
+    console.error("[useMapMarkers] Direct query error:", error);
+    throw error;
+  }
+
+  const markers = (data ?? []) as MapMarker[];
+  console.log("[useMapMarkers] Direct query returned", markers.length, "markers");
+  return markers;
+}
+
+// Fetch markers via RPC (basic filters only: state, city, search, snap score)
+async function fetchMarkersRPC(filters: LeadFilters): Promise<MapMarker[]> {
   const { data, error } = await supabase.rpc("fn_map_markers", {
     p_state: filters.state || null,
     p_city: filters.cities?.length === 1 ? filters.cities[0] : null,
@@ -51,18 +141,14 @@ async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[
     throw error;
   }
 
-  // RPC returns { items: [], total: number }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = data as unknown as { items: MapMarker[] | null; total: number; error?: string };
 
   if (result.error) {
-    // Don't throw for expected "soft" errors - just return empty markers
-    // This prevents error toasts for cases like "subscription required"
     console.warn("[useMapMarkers] RPC returned error:", result.error);
     return [];
   }
 
-  // Handle null/undefined items gracefully
   if (!result.items) {
     console.warn("[useMapMarkers] RPC returned null items");
     return [];
@@ -70,9 +156,7 @@ async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[
 
   let markers = result.items ?? [];
 
-  // Client-side safety filter: ensure markers match the requested filters.
-  // The RPC should already filter server-side, but this guarantees the map
-  // always respects the active filters regardless of server-side issues.
+  // Client-side safety filter for state/city
   if (filters.state) {
     const stateUpper = filters.state.toUpperCase();
     const before = markers.length;
@@ -87,17 +171,31 @@ async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[
     markers = markers.filter(m => m.city && m.city.toLowerCase() === cityLower);
   }
 
-  console.log("[useMapMarkers] Total markers after filtering:", markers.length);
+  console.log("[useMapMarkers] RPC returned", markers.length, "markers");
   return markers;
+}
+
+async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[]> {
+  const filters = cleanFilters(rawFilters);
+  console.log("[useMapMarkers] Fetching markers with filters:", JSON.stringify(filters));
+
+  // When advanced filters are active (violationType, pressure level, lastSeenDays),
+  // query the properties table directly instead of using fn_map_markers RPC
+  // which only supports basic filters (state, city, search, snap score).
+  if (hasAdvancedFilters(filters)) {
+    return fetchMarkersDirectQuery(filters);
+  }
+
+  return fetchMarkersRPC(filters);
 }
 
 export function useMapMarkers(filters: LeadFilters = {}) {
   return useQuery({
     queryKey: ["map-markers", filters],
     queryFn: () => fetchFilteredMarkers(filters),
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     retry: 2,
-    refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    refetchOnWindowFocus: false,
   });
 }

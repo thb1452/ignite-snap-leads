@@ -141,10 +141,11 @@ serve(async (req) => {
         "Content-Disposition": `attachment; filename="user-data-export-${new Date().toISOString().split('T')[0]}.json"`,
       },
     });
-  } catch (error) {
-    console.error("Error exporting user data:", error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("Error exporting user data:", errMsg);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errMsg }),
       {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -73,9 +73,10 @@ serve(async (req) => {
           console.log(`Deleted user data from ${table}`);
         }
         deletionResults.push({ table, success: !error, error: error?.message });
-      } catch (e) {
-        console.warn(`Error deleting from ${table}:`, e.message);
-        deletionResults.push({ table, success: false, error: e.message });
+      } catch (e: unknown) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        console.warn(`Error deleting from ${table}:`, errMsg);
+        deletionResults.push({ table, success: false, error: errMsg });
       }
     }
 
@@ -100,10 +101,11 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (error) {
-    console.error("Error deleting user account:", error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("Error deleting user account:", errMsg);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errMsg }),
       {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

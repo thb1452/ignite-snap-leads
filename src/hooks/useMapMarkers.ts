@@ -20,7 +20,7 @@ const MAX_MARKERS = 10000;
 // Clean filter object by removing undefined/null values
 function cleanFilters(filters: LeadFilters): LeadFilters {
   if (!filters || typeof filters !== 'object') return {};
-  
+
   const cleaned: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(filters)) {
     if (value === undefined || value === null) continue;
@@ -28,7 +28,7 @@ function cleanFilters(filters: LeadFilters): LeadFilters {
     if (Array.isArray(value) && value.length === 0) continue;
     cleaned[key] = value;
   }
-  
+
   return cleaned as LeadFilters;
 }
 
@@ -54,7 +54,7 @@ async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[
   // RPC returns { items: [], total: number }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = data as unknown as { items: MapMarker[] | null; total: number; error?: string };
-  
+
   if (result.error) {
     // Don't throw for expected "soft" errors - just return empty markers
     // This prevents error toasts for cases like "subscription required"
@@ -68,8 +68,26 @@ async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[
     return [];
   }
 
-  const markers = result.items ?? [];
-  console.log("[useMapMarkers] Total markers fetched:", markers.length);
+  let markers = result.items ?? [];
+
+  // Client-side safety filter: ensure markers match the requested filters.
+  // The RPC should already filter server-side, but this guarantees the map
+  // always respects the active filters regardless of server-side issues.
+  if (filters.state) {
+    const stateUpper = filters.state.toUpperCase();
+    const before = markers.length;
+    markers = markers.filter(m => m.state && m.state.toUpperCase() === stateUpper);
+    if (markers.length !== before) {
+      console.warn(`[useMapMarkers] Client-side state filter removed ${before - markers.length} markers not matching state=${filters.state}`);
+    }
+  }
+
+  if (filters.cities?.length === 1) {
+    const cityLower = filters.cities[0].toLowerCase();
+    markers = markers.filter(m => m.city && m.city.toLowerCase() === cityLower);
+  }
+
+  console.log("[useMapMarkers] Total markers after filtering:", markers.length);
   return markers;
 }
 

@@ -147,20 +147,24 @@ async function fetchPropertiesPagedLegacy(
   }
 
   // Filter: violation type (by category ID or raw type)
+  // NOTE: violation_types is a text[] column with values like "Exterior - Open", "Structural", etc.
+  // We cast to text and use ILIKE for substring matching because .overlaps() only does
+  // exact element matching (e.g. "exterior" would NOT match "Exterior - Open").
   if (filters.violationType) {
     const category = getCategoryById(filters.violationType);
     if (category) {
-      // Use overlaps operator to check if violation_types array overlaps with category keywords
-      // This uses PostgreSQL's && operator which is efficient with GIN indexes
       console.log("[fetchPropertiesPagedLegacy] Filtering by category:", category.label);
-      // Take top keywords most likely to match (avoid IPMC codes, use descriptive terms)
       const keywordsToMatch = category.keywords
         .filter(kw => !kw.match(/^\d/)) // Filter out code numbers like "304.2"
-        .slice(0, 5);
-      q = q.overlaps("violation_types", keywordsToMatch);
+        .slice(0, 8);
+      // Cast array to text and ILIKE each keyword for case-insensitive substring match
+      const orConditions = keywordsToMatch
+        .map(kw => `violation_types::text.ilike.%${kw}%`)
+        .join(',');
+      q = q.or(orConditions);
     } else {
-      // Raw violation type string - use contains for exact match
-      q = q.contains("violation_types", [filters.violationType]);
+      // Raw violation type string - cast to text and ILIKE for partial match
+      q = q.or(`violation_types::text.ilike.%${filters.violationType}%`);
     }
   }
 

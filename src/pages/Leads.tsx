@@ -7,24 +7,18 @@ import { BulkActionBar } from "@/components/leads/BulkActionBar";
 import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { MobilePropertyDetailSheet } from "@/components/leads/MobilePropertyDetailSheet";
 import { MobileFilterSheet } from "@/components/leads/MobileFilterSheet";
-import { MobilePropertyCard } from "@/components/leads/MobilePropertyCard";
 import { VirtualizedMobilePropertyList } from "@/components/leads/VirtualizedMobilePropertyList";
 import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { AddAllToListDialog } from "@/components/leads/AddAllToListDialog";
-import { BulkDeleteDialog } from "@/components/leads/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Trash2, ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2 } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
-import { ViolationListView } from "@/components/leads/ViolationListView";
-import { ViewModeToggle, type ViewMode } from "@/components/leads/ViewModeToggle";
 import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
 import { PressureLevelFilter } from "@/components/leads/PressureLevelFilter";
 import { TimeFilter } from "@/components/leads/ScoreAndTimeFilter";
-import { generateInsights } from "@/services/insights";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { useOnboarding } from "@/hooks/useOnboarding";
@@ -76,9 +70,6 @@ function Leads() {
   // Mobile view state
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   
-  // View mode state (property vs violation)
-  const [viewMode, setViewMode] = useState<ViewMode>('property');
-  
   // Upgrade prompt state for export limits only
   const [upgradePromptType, setUpgradePromptType] = useState<'exports' | null>(null);
   
@@ -99,8 +90,6 @@ function Leads() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
-  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeLimitType, setUpgradeLimitType] = useState<'exports'>('exports');
@@ -343,36 +332,6 @@ function Leads() {
     }
   };
 
-  const handleGenerateInsights = async () => {
-    setIsGeneratingInsights(true);
-    try {
-      const propertyIds = properties.map(p => p.id);
-      
-      toast({
-        title: "Generating Insights",
-        description: `Analyzing ${propertyIds.length} properties...`,
-      });
-
-      const result = await generateInsights(propertyIds);
-      
-      toast({
-        title: "Insights Generated",
-        description: `Generated insights for ${result.processed} properties`,
-      });
-
-      refetch();
-    } catch (error: any) {
-      console.error("Insight generation error:", error);
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate insights",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingInsights(false);
-    }
-  };
-
   // Fetch violations for all properties (enables instant PropertyDetailPanel)
   // Memoize propertyIds to prevent query cache invalidation on every render
   const propertyIds = useMemo(() => properties.map(p => p.id), [properties]);
@@ -421,25 +380,6 @@ function Leads() {
       violations: violationsByPropertyId.get(p.id) || [],
     }));
   }, [properties, violationsData]);
-
-  // Map violations with property data for violation view
-  const violationsWithProperty = useMemo(() => {
-    if (viewMode !== 'violation') return [];
-
-    const propertyMap = new Map(properties.map(p => [p.id, p]));
-
-    return violationsData.map(v => ({
-      ...v,
-      property: propertyMap.get(v.property_id) || {
-        id: v.property_id,
-        address: 'Unknown',
-        city: '',
-        state: '',
-        zip: '',
-        snap_score: null,
-      }
-    }));
-  }, [violationsData, properties, viewMode]);
 
   // Keep performance optimization with useMemo
   const selectedProperty = useMemo(() =>
@@ -607,26 +547,6 @@ function Leads() {
       <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Map - Left Side */}
         <div className="w-[60%] border-r relative">
-          <div className="absolute top-4 right-4 z-[1001] flex gap-2">
-            <Button
-              onClick={handleGenerateInsights}
-              disabled={isGeneratingInsights || properties.length === 0}
-              variant="secondary"
-              size="sm"
-              className="shadow-lg"
-            >
-              {isGeneratingInsights ? 'Analyzing...' : 'Generate Insights'}
-            </Button>
-            <Button
-              onClick={() => setShowBulkDeleteDialog(true)}
-              variant="destructive"
-              size="sm"
-              className="shadow-lg"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Bulk Delete
-            </Button>
-          </div>
           <LeadsMap
             properties={mapMarkers}
             onPropertyClick={setSelectedPropertyId}
@@ -644,11 +564,8 @@ function Leads() {
                   <span className="text-sm text-muted-foreground">
                     {selectedIds.length > 0
                       ? `${selectedIds.length} selected`
-                      : viewMode === 'violation'
-                      ? `${violationsWithProperty.length} violations`
                       : `${totalCount} properties`}
                   </span>
-                  <ViewModeToggle value={viewMode} onChange={setViewMode} />
                 </div>
                 <Button
                   onClick={handleExportCSV}
@@ -676,11 +593,6 @@ function Leads() {
               <div className="p-8 text-center text-muted-foreground">
                 No properties found
               </div>
-            ) : viewMode === 'violation' ? (
-              <ViolationListView
-                violations={violationsWithProperty}
-                onPropertyClick={setSelectedPropertyId}
-              />
             ) : (
               <VirtualizedPropertyList
                 properties={mappedProperties}
@@ -886,16 +798,6 @@ function Leads() {
             title: "List Updated",
             description: "Properties have been added to your list",
           });
-        }}
-      />
-
-      {/* Bulk Delete Dialog */}
-      <BulkDeleteDialog
-        open={showBulkDeleteDialog}
-        onOpenChange={setShowBulkDeleteDialog}
-        onSuccess={() => {
-          refetch();
-          setShowBulkDeleteDialog(false);
         }}
       />
 

@@ -365,7 +365,7 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
       </div>
 
       {/* Legend - show for both modes */}
-      <div className="absolute top-4 left-4 z-[1000] bg-background/95 backdrop-blur rounded-lg p-3 shadow-md text-xs">
+      <div className="absolute top-4 right-4 z-[1000] bg-background/95 backdrop-blur rounded-lg p-3 shadow-md text-xs">
         <div className="font-semibold mb-2">
           {viewMode === "heatmap" ? "Heat Intensity by Score" : "SnapScore Legend"}
         </div>

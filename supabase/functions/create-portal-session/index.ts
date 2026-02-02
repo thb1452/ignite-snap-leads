@@ -56,10 +56,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const user = authData.user;
 
     // ---- Get Customer ID ----
+    // Filter by active statuses and prefer the most recent subscription
     const { data: subscription } = await supabase
       .from("user_subscriptions")
       .select("stripe_customer_id")
       .eq("user_id", user.id)
+      .in("status", ["active", "trialing", "past_due"])
+      .not("stripe_customer_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (!subscription?.stripe_customer_id) {

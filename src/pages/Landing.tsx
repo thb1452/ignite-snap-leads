@@ -97,10 +97,13 @@ export default function Landing() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-landing-surface/50 bg-landing-bg/80 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold tracking-tight">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold tracking-tight flex items-baseline gap-1">
               <span className="text-landing-accent">SNAP</span>
-              <span className="text-landing-text"> IGNITE</span>
+              <svg viewBox="0 0 24 24" className="h-5 w-5 -mx-0.5 self-center" aria-hidden="true">
+                <path d="M13.5 2 4 13h6l-1.5 9L18 11h-6L13.5 2Z" fill="#22c55e" />
+              </svg>
+              <span className="text-landing-text">ignite</span>
             </span>
           </div>
           

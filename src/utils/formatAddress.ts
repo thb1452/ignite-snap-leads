@@ -25,8 +25,24 @@ const UNIT_TYPES = new Set([
 
 export function formatAddress(address: string | null): string {
   if (!address) return '';
-  
-  return address
+
+  // Handle "Parcel-based" addresses - extract parcel number if available
+  if (/^parcel[- ]based/i.test(address.trim())) {
+    const parcelMatch = address.match(/parcel\s*#?\s*(\w+)/i);
+    // Check for parcel number in parentheses: "Parcel-based Location (parcel #92003034)"
+    const parenMatch = address.match(/\(parcel\s*#?\s*(\w+)\)/i);
+    const id = parenMatch?.[1] || parcelMatch?.[1];
+    if (id && !/^based$/i.test(id)) {
+      return `Parcel #${id}`;
+    }
+    return '';
+  }
+
+  // Strip "Reinspection" and trailing numbers/text from addresses
+  // e.g. "580 Montego DR SE 10 Reinspection 12" → "580 Montego DR SE 10"
+  let cleaned = address.replace(/\s+reinspection\s*\d*\s*$/i, '').trim();
+
+  return cleaned
     .toLowerCase()
     .split(/(\s+|,)/) // Split by whitespace or comma, keeping separators
     .map(word => {

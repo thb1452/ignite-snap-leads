@@ -208,7 +208,7 @@ export function useSubscription() {
     usage,
     loading: subscriptionLoading || usageLoading,
     error: subscriptionError?.message || null,
-    hasActiveSubscription: !!subscription && subscription.status === 'active',
+    hasActiveSubscription: !!subscription && ['active', 'trialing', 'past_due'].includes(subscription.status),
     
     // Limit checking
     checkLimit: checkSubscriptionLimit,

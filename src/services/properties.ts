@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { LeadFilters } from "@/schemas";
-import { getCategoryById } from "@/utils/violationCategoryMapper";
 
 export interface BBoxFilters {
   bbox?: [number, number, number, number]; // [west, south, east, north]
@@ -146,22 +145,14 @@ async function fetchPropertiesPagedLegacy(
     q = q.gte("updated_at", cutoffDate.toISOString());
   }
 
-  // Filter: violation type (by category ID or raw type)
-  // NOTE: violation_types is a text[] column with values like "Exterior - Open", "Structural", etc.
-  // We cast to text and use ILIKE for substring matching because .overlaps() only does
-  // exact element matching (e.g. "exterior" would NOT match "Exterior - Open").
+  // Filter: violation type (by category ID)
+  // The database stores violation_types as arrays with capitalized values like ["Exterior"], ["Safety"], etc.
+  // The filter passes category IDs like "exterior", "safety", "structural"
   if (filters.violationType) {
-    const category = getCategoryById(filters.violationType);
-    if (category) {
-      // Use direct category ID match since violation_types contains pre-categorized values
-      // like "Exterior", "Zoning", "Safety" that match our category labels
-      const categoryLabel = category.label.split(' ')[0]; // e.g., "Exterior" from "Exterior Issues"
-      console.log("[fetchPropertiesPagedLegacy] Filtering by category label:", categoryLabel);
-      q = q.ilike("violation_types::text", `%${categoryLabel}%`);
-    } else {
-      // Direct match for raw violation type
-      q = q.ilike("violation_types::text", `%${filters.violationType}%`);
-    }
+    // Capitalize the first letter to match DB values
+    const dbCategoryValue = filters.violationType.charAt(0).toUpperCase() + filters.violationType.slice(1);
+    console.log("[fetchPropertiesPagedLegacy] Filtering by category:", filters.violationType, "-> DB value:", dbCategoryValue);
+    q = q.ilike("violation_types::text", `%${dbCategoryValue}%`);
   }
 
   // Pressure level filters

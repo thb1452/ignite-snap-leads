@@ -146,13 +146,28 @@ async function fetchPropertiesPagedLegacy(
   }
 
   // Filter: violation type (by category ID)
-  // The database stores violation_types as arrays with capitalized values like ["Exterior"], ["Safety"], etc.
-  // The filter passes category IDs like "exterior", "safety", "structural"
+  // The filter passes category IDs like "exterior", "safety", "maintenance"
+  // The properties.violation_types array contains values like ["Exterior"], ["Safety"], ["Zoning"], etc.
   if (filters.violationType) {
-    // Capitalize the first letter to match DB values
-    const dbCategoryValue = filters.violationType.charAt(0).toUpperCase() + filters.violationType.slice(1);
-    console.log("[fetchPropertiesPagedLegacy] Filtering by category:", filters.violationType, "-> DB value:", dbCategoryValue);
-    q = q.ilike("violation_types::text", `%${dbCategoryValue}%`);
+    const categoryKeywordMap: Record<string, string[]> = {
+      exterior: ['Exterior'],
+      structural: ['Structural'],
+      safety: ['Safety', 'Fire'],
+      zoning: ['Zoning'],
+      maintenance: ['Rubbish', 'Grass', 'Trash', 'Debris', 'Weed', 'Dumping', 'Waste', 'Snow'],
+      interior: ['Interior', 'Plumbing', 'HVAC'],
+      vacancy: ['Vacancy', 'Vacant'],
+      other: ['Unknown', 'Other', 'Complaint'],
+    };
+    
+    const keywords = categoryKeywordMap[filters.violationType] || [
+      filters.violationType.charAt(0).toUpperCase() + filters.violationType.slice(1)
+    ];
+    
+    // Build OR conditions for all keywords
+    const orConditions = keywords.map(kw => `violation_types::text.ilike.%${kw}%`).join(',');
+    console.log("[fetchPropertiesPagedLegacy] Filtering by category:", filters.violationType, "-> keywords:", keywords);
+    q = q.or(orConditions);
   }
 
   // Pressure level filters

@@ -59,12 +59,28 @@ async function fetchMarkers(filters: LeadFilters): Promise<MapMarker[]> {
     q = q.gte("updated_at", cutoffDate.toISOString());
   }
   if (filters.violationType) {
-    // The database stores violation_types as arrays with capitalized values like ["Exterior"], ["Safety"], etc.
-    // The filter passes category IDs like "exterior", "safety", "structural"
-    // We need to capitalize the first letter to match DB values
-    const dbCategoryValue = filters.violationType.charAt(0).toUpperCase() + filters.violationType.slice(1);
-    console.log("[useMapMarkers] Filtering by category:", filters.violationType, "-> DB value:", dbCategoryValue);
-    q = q.ilike("violation_types::text", `%${dbCategoryValue}%`);
+    // The filter passes category IDs like "exterior", "safety", "structural", "maintenance"
+    // The properties.violation_types array contains values like ["Exterior"], ["Safety"], ["Zoning"], etc.
+    // For most categories, we can capitalize the ID. For special cases, we use keywords.
+    const categoryKeywordMap: Record<string, string[]> = {
+      exterior: ['Exterior'],
+      structural: ['Structural'],
+      safety: ['Safety', 'Fire'],
+      zoning: ['Zoning'],
+      maintenance: ['Rubbish', 'Grass', 'Trash', 'Debris', 'Weed', 'Dumping', 'Waste', 'Snow'],
+      interior: ['Interior', 'Plumbing', 'HVAC'],
+      vacancy: ['Vacancy', 'Vacant'],
+      other: ['Unknown', 'Other', 'Complaint'],
+    };
+    
+    const keywords = categoryKeywordMap[filters.violationType] || [
+      filters.violationType.charAt(0).toUpperCase() + filters.violationType.slice(1)
+    ];
+    
+    // Build OR conditions for all keywords
+    const orConditions = keywords.map(kw => `violation_types::text.ilike.%${kw}%`).join(',');
+    console.log("[useMapMarkers] Filtering by category:", filters.violationType, "-> keywords:", keywords);
+    q = q.or(orConditions);
   }
   if (filters.openViolationsOnly) {
     q = q.gt("open_violations", 0);

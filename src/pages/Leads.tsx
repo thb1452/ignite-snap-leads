@@ -68,8 +68,8 @@ function Leads() {
   const [multipleViolationsOnly, setMultipleViolationsOnly] = useState(false);
   const [repeatOffenderOnly, setRepeatOffenderOnly] = useState(false);
   
-  // Sort state
-  const [sortBy, setSortBy] = useState<SortOption>('snap_score');
+  // Sort state - default to newest violations
+  const [sortBy, setSortBy] = useState<SortOption>('newest_violation');
 
   // Mobile view state
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');

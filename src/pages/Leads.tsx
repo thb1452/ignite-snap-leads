@@ -807,6 +807,8 @@ function Leads() {
         filters={{
           city: selectedCity,
           state: selectedState,
+          // Show warning if filters active that won't be applied to "Add All"
+          hasAdditionalFilters: !!(lastSeenDays || selectedSignal || openViolationsOnly || multipleViolationsOnly || repeatOffenderOnly || searchQuery),
         }}
         onSuccess={() => {
           toast({

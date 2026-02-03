@@ -28,6 +28,8 @@ interface FilterParams {
   minScore?: number | null;
   maxScore?: number | null;
   jurisdictionId?: string | null;
+  // Additional filters that are active but not passed to RPC (for warning display)
+  hasAdditionalFilters?: boolean;
 }
 
 interface AddAllToListDialogProps {
@@ -146,8 +148,18 @@ export function AddAllToListDialog({
           <Alert variant="default" className="border-amber-500/50 bg-amber-500/10">
             <AlertCircle className="h-4 w-4 text-amber-500" />
             <AlertDescription className="text-amber-700 dark:text-amber-400">
-              Your search found {totalMatchingCount.toLocaleString()} properties. 
+              Your search found {totalMatchingCount.toLocaleString()} properties.
               Only the top {MAX_PROPERTIES_PER_LIST.toLocaleString()} by SnapScore will be added (plan limit).
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {filters.hasAdditionalFilters && (
+          <Alert variant="default" className="border-blue-500/50 bg-blue-500/10">
+            <AlertCircle className="h-4 w-4 text-blue-500" />
+            <AlertDescription className="text-blue-700 dark:text-blue-400">
+              Note: Only location filters (state/city) are applied when adding all. Date range, category,
+              and pressure level filters are not included. For precise filtering, select individual properties.
             </AlertDescription>
           </Alert>
         )}

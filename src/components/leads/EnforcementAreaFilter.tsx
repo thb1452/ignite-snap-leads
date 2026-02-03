@@ -119,9 +119,10 @@ export function EnforcementAreaFilter({
           <Select
             value={selectedCity || "all"}
             onValueChange={(val) => onCityChange(val === "all" ? null : val)}
+            disabled={!selectedState}
           >
             <SelectTrigger className="w-full md:w-[180px] h-11 md:h-9">
-              <SelectValue placeholder={loadingCities ? "Loading..." : "All Cities"} />
+              <SelectValue placeholder={!selectedState ? "Select state first" : loadingCities ? "Loading..." : "All Cities"} />
             </SelectTrigger>
             <SelectContent className="max-h-[300px] z-[9999]">
               <SelectItem value="all">All Cities</SelectItem>

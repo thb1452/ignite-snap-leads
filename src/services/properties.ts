@@ -200,8 +200,18 @@ async function fetchPropertiesPagedLegacy(
     q = q.eq("repeat_offender", true);
   }
 
-  // Sort and paginate
-  q = q.order("snap_score", { ascending: false, nullsFirst: false }).range(from, to);
+  // Sort based on sortBy filter
+  if (filters.sortBy === 'newest_violation') {
+    q = q.order("newest_violation_date", { ascending: false, nullsFirst: false });
+  } else if (filters.sortBy === 'recently_updated') {
+    q = q.order("updated_at", { ascending: false, nullsFirst: false });
+  } else {
+    // Default: snap_score
+    q = q.order("snap_score", { ascending: false, nullsFirst: false });
+  }
+
+  // Paginate
+  q = q.range(from, to);
 
   const { data, error, count } = await q;
   

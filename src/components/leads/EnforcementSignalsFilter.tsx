@@ -44,11 +44,11 @@ export function EnforcementSignalsFilter({
         throw error;
       }
 
-      // RPC returns cat_id, cat_label, cnt (need to cast since generated types may differ)
-      const result = ((data || []) as unknown as Array<{ cat_id: string; cat_label: string; cnt: number }>).map((row) => ({
-        categoryId: row.cat_id,
-        label: row.cat_label,
-        propertyCount: row.cnt,
+      // RPC returns category_id, category_label, property_count
+      const result = ((data || []) as unknown as Array<{ category_id: string; category_label: string; property_count: number }>).map((row) => ({
+        categoryId: row.category_id,
+        label: row.category_label,
+        propertyCount: row.property_count,
       }));
       
       console.log("[EnforcementSignalsFilter] Categories:", result.length, result);

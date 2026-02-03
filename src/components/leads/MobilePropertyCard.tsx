@@ -114,6 +114,17 @@ export function MobilePropertyCard({
                     <span className="text-muted-foreground">{property.total_violations} closed</span>
                   )}
                 </span>
+                {/* Status badge based on open_violations count */}
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs ml-1 ${
+                    (property.open_violations ?? 0) > 0 
+                      ? 'bg-rose-100 text-rose-700 border-rose-200' 
+                      : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                  }`}
+                >
+                  {(property.open_violations ?? 0) > 0 ? 'Open' : 'Closed'}
+                </Badge>
               </div>
             )}
             {property.violation_types && property.violation_types.length > 0 && (

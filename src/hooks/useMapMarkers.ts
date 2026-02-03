@@ -62,13 +62,16 @@ async function fetchMarkers(filters: LeadFilters): Promise<MapMarker[]> {
   if (filters.violationType) {
     const category = getCategoryById(filters.violationType);
     if (category) {
+      // Use only the first 3 most distinctive keywords to avoid query timeout
       const keywordsToMatch = category.keywords
-        .filter(kw => !kw.match(/^\d/))
-        .slice(0, 8);
-      const orConditions = keywordsToMatch
-        .map(kw => `violation_types::text.ilike.%${kw}%`)
-        .join(',');
-      q = q.or(orConditions);
+        .filter(kw => !kw.match(/^\d/) && kw.length > 3)
+        .slice(0, 3);
+      if (keywordsToMatch.length > 0) {
+        const orConditions = keywordsToMatch
+          .map(kw => `violation_types::text.ilike.%${kw}%`)
+          .join(',');
+        q = q.or(orConditions);
+      }
     } else {
       q = q.or(`violation_types::text.ilike.%${filters.violationType}%`);
     }

@@ -154,14 +154,16 @@ async function fetchPropertiesPagedLegacy(
     const category = getCategoryById(filters.violationType);
     if (category) {
       console.log("[fetchPropertiesPagedLegacy] Filtering by category:", category.label);
+      // Use only the first 3 most distinctive keywords to avoid query timeout
       const keywordsToMatch = category.keywords
-        .filter(kw => !kw.match(/^\d/)) // Filter out code numbers like "304.2"
-        .slice(0, 8);
-      // Cast array to text and ILIKE each keyword for case-insensitive substring match
-      const orConditions = keywordsToMatch
-        .map(kw => `violation_types::text.ilike.%${kw}%`)
-        .join(',');
-      q = q.or(orConditions);
+        .filter(kw => !kw.match(/^\d/) && kw.length > 3)
+        .slice(0, 3);
+      if (keywordsToMatch.length > 0) {
+        const orConditions = keywordsToMatch
+          .map(kw => `violation_types::text.ilike.%${kw}%`)
+          .join(',');
+        q = q.or(orConditions);
+      }
     } else {
       // Raw violation type string - cast to text and ILIKE for partial match
       q = q.or(`violation_types::text.ilike.%${filters.violationType}%`);

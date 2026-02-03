@@ -60,15 +60,15 @@ async function fetchMarkers(filters: LeadFilters): Promise<MapMarker[]> {
   }
   if (filters.violationType) {
     // The filter passes category IDs like "exterior", "safety", "structural", "maintenance"
-    // The properties.violation_types array contains values like ["Exterior"], ["Safety"], ["Zoning"], etc.
-    // Use array contains operator for matching
+    // Properties have violation_types array with BOTH clean categories ("Exterior") AND raw IPMC codes
+    // We need to check for both exact array contains AND text search in the array
     const categoryKeywordMap: Record<string, string[]> = {
       exterior: ['Exterior'],
       structural: ['Structural'],
       safety: ['Safety', 'Fire'],
       zoning: ['Zoning'],
       maintenance: ['Rubbish', 'Grass', 'Trash', 'Debris', 'Weed', 'Dumping', 'Waste', 'Snow'],
-      interior: ['Interior', 'Plumbing', 'HVAC'],
+      interior: ['Interior', 'Plumbing', 'HVAC', 'Furnace', '305.3', '305.6', '605.3'],
       vacancy: ['Vacancy', 'Vacant'],
       other: ['Unknown', 'Other', 'Complaint'],
     };
@@ -77,17 +77,12 @@ async function fetchMarkers(filters: LeadFilters): Promise<MapMarker[]> {
       filters.violationType.charAt(0).toUpperCase() + filters.violationType.slice(1)
     ];
     
-    // Use array contains operator - check if violation_types contains any of the keywords
-    // For single keyword, use .contains(). For multiple, we need to use .or() with .contains()
     console.log("[useMapMarkers] Filtering by category:", filters.violationType, "-> keywords:", keywords);
     
-    if (keywords.length === 1) {
-      q = q.contains("violation_types", [keywords[0]]);
-    } else {
-      // For multiple keywords, use OR with contains
-      const orConditions = keywords.map(kw => `violation_types.cs.{${kw}}`).join(',');
-      q = q.or(orConditions);
-    }
+    // Build OR conditions that check if any keyword appears in the array (either as exact value or within text)
+    // Use ilike on the text representation of the array for broader matching
+    const orConditions = keywords.map(kw => `violation_types::text.ilike.%${kw}%`).join(',');
+    q = q.or(orConditions);
   }
   if (filters.openViolationsOnly) {
     q = q.gt("open_violations", 0);

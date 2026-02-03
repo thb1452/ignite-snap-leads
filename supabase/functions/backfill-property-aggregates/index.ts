@@ -24,6 +24,7 @@ interface BackfillRequest {
   cityFilter?: string;  // Optional: only backfill specific city
   stateFilter?: string; // Optional: only backfill specific state
   dryRun?: boolean;     // Preview only, don't update
+  autoResume?: boolean; // Auto-continue until all processed
 }
 
 interface BackfillResult {
@@ -52,13 +53,13 @@ serve(async (req) => {
 
   try {
     const {
-      batchSize = 100,
+      batchSize = 200,
       startOffset = 0,
       cityFilter,
       stateFilter,
-      dryRun = false
+      dryRun = false,
+      autoResume = false
     }: BackfillRequest = await req.json().catch(() => ({}));
-
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -260,6 +261,48 @@ serve(async (req) => {
     console.log(`[backfill]   Progress: ${progress.percentage}% (${progress.current}/${progress.total})`);
     console.log(`[backfill] ========================================`);
 
+    // Auto-resume: trigger next batch if there's more to process
+    const hasMore = processed >= batchSize && progress.current < progress.total;
+    
+    if (autoResume && hasMore && !dryRun) {
+      const nextOffset = startOffset + processed;
+      console.log(`[backfill] Auto-resuming at offset ${nextOffset}...`);
+      
+      // Use waitUntil to continue processing in background
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+      const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+      
+      const continueTask = async () => {
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/backfill-property-aggregates`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({
+              batchSize,
+              startOffset: nextOffset,
+              cityFilter,
+              stateFilter,
+              dryRun,
+              autoResume: true,
+            }),
+          });
+        } catch (err) {
+          console.error('[backfill] Auto-resume failed:', err);
+        }
+      };
+      
+      // @ts-ignore - EdgeRuntime.waitUntil is available in Supabase Edge Functions
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+        EdgeRuntime.waitUntil(continueTask());
+      } else {
+        // Fallback: just fire and forget
+        continueTask();
+      }
+    }
+
     const result: BackfillResult = {
       success: true,
       processed,
@@ -271,7 +314,7 @@ serve(async (req) => {
     };
 
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({ ...result, autoResuming: autoResume && hasMore && !dryRun }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

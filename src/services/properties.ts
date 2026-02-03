@@ -164,10 +164,16 @@ async function fetchPropertiesPagedLegacy(
       filters.violationType.charAt(0).toUpperCase() + filters.violationType.slice(1)
     ];
     
-    // Build OR conditions for all keywords
-    const orConditions = keywords.map(kw => `violation_types::text.ilike.%${kw}%`).join(',');
+    // Use array contains operator - check if violation_types contains any of the keywords
     console.log("[fetchPropertiesPagedLegacy] Filtering by category:", filters.violationType, "-> keywords:", keywords);
-    q = q.or(orConditions);
+    
+    if (keywords.length === 1) {
+      q = q.contains("violation_types", [keywords[0]]);
+    } else {
+      // For multiple keywords, use OR with contains
+      const orConditions = keywords.map(kw => `violation_types.cs.{${kw}}`).join(',');
+      q = q.or(orConditions);
+    }
   }
 
   // Pressure level filters

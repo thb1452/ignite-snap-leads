@@ -9,7 +9,7 @@ import { Map as MapIcon, Flame } from "lucide-react";
 
 // USA center coordinates and default zoom - defined outside component
 const USA_CENTER: L.LatLngTuple = [39.8283, -98.5795];
-const USA_ZOOM = 4;
+const USA_ZOOM = 5; // Increased from 4 for better initial visibility
 
 interface Property {
   id: string;
@@ -172,28 +172,22 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
 
         // Determine max zoom based on geographic spread
         let maxZoom = 15;
-        let minZoom = 4; // USA-wide default minimum
 
         if (latSpread < 0.5 && lngSpread < 0.5) {
           // Very small area (single city/neighborhood) - zoom in close
-          maxZoom = 13;
-          minZoom = 11;
+          maxZoom = 14;
         } else if (latSpread < 2 && lngSpread < 2) {
           // City-level spread
-          maxZoom = 11;
-          minZoom = 9;
+          maxZoom = 12;
         } else if (latSpread < 5 && lngSpread < 5) {
           // County/metro area spread
-          maxZoom = 9;
-          minZoom = 7;
+          maxZoom = 10;
         } else if (latSpread < 10 && lngSpread < 10) {
           // State-level spread
-          maxZoom = 7;
-          minZoom = 5;
+          maxZoom = 8;
         } else {
-          // Multi-state or national spread - USA-wide view
-          maxZoom = 5;
-          minZoom = 4;
+          // Multi-state or national spread - tighter USA view
+          maxZoom = 6;
         }
 
         // Fit bounds with calculated zoom constraints
@@ -316,23 +310,17 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
 
         // Determine max zoom based on geographic spread
         let maxZoom = 15;
-        let minZoom = 4;
 
         if (latSpread < 0.5 && lngSpread < 0.5) {
-          maxZoom = 13;
-          minZoom = 11;
+          maxZoom = 14;
         } else if (latSpread < 2 && lngSpread < 2) {
-          maxZoom = 11;
-          minZoom = 9;
+          maxZoom = 12;
         } else if (latSpread < 5 && lngSpread < 5) {
-          maxZoom = 9;
-          minZoom = 7;
+          maxZoom = 10;
         } else if (latSpread < 10 && lngSpread < 10) {
-          maxZoom = 7;
-          minZoom = 5;
+          maxZoom = 8;
         } else {
-          maxZoom = 5;
-          minZoom = 4;
+          maxZoom = 6;
         }
 
         mapRef.current.fitBounds(bounds.pad(0.1), {

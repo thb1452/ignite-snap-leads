@@ -116,8 +116,6 @@ export function MobileFilterSheet({
           <EnforcementSignalsFilter
             selectedSignal={selectedSignal}
             onSignalChange={onSignalChange}
-            selectedState={selectedState}
-            selectedCity={selectedCity}
           />
 
           {/* Pressure Level */}

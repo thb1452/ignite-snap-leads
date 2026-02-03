@@ -1,8 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Home, Lock } from "lucide-react";
+import { VIOLATION_CATEGORIES } from "@/utils/violationCategoryMapper";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -10,8 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 interface EnforcementSignalsFilterProps {
   selectedSignal: string | null;
   onSignalChange: (value: string | null) => void;
-  selectedState: string | null;
-  selectedCity: string | null;
 }
 
 // Categories that require enterprise tier
@@ -20,48 +17,19 @@ const ENTERPRISE_ONLY_CATEGORIES = ['water_disconnection'];
 export function EnforcementSignalsFilter({
   selectedSignal,
   onSignalChange,
-  selectedState,
-  selectedCity,
 }: EnforcementSignalsFilterProps) {
   const { subscription } = useSubscription();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const isEnterprise = subscription?.plan_name === 'enterprise';
-
-  // Fetch property counts by category using the new RPC
-  // This returns accurate counts of unique properties per category
-  const { data: categories = [], isLoading } = useQuery({
-    queryKey: ["category-property-counts", selectedState, selectedCity],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("fn_category_property_counts", {
-        p_state: selectedState || null,
-        p_city: selectedCity || null,
-      });
-
-      if (error) {
-        console.error("[EnforcementSignalsFilter] RPC error:", error);
-        throw error;
-      }
-
-      const result = (data || []).map((row: { category_id: string; category_label: string; property_count: number }) => ({
-        categoryId: row.category_id,
-        label: row.category_label,
-        propertyCount: row.property_count,
-      }));
-      
-      console.log("[EnforcementSignalsFilter] Categories:", result.length, result);
-      return result;
-    },
-    staleTime: 60000,
-  });
 
   const handleSignalChange = (value: string) => {
     if (value === "all") {
       onSignalChange(null);
       return;
     }
-    
+
     // Check if this is an enterprise-only category
     if (ENTERPRISE_ONLY_CATEGORIES.includes(value) && !isEnterprise) {
       toast({
@@ -72,7 +40,7 @@ export function EnforcementSignalsFilter({
       navigate('/pricing');
       return;
     }
-    
+
     onSignalChange(value);
   };
 
@@ -91,7 +59,7 @@ export function EnforcementSignalsFilter({
           Properties with these issues
         </p>
       </div>
-      
+
       <div className="flex flex-col md:flex-row md:items-center gap-2">
         <Label className="text-sm font-medium whitespace-nowrap">Category</Label>
         <Select
@@ -99,26 +67,27 @@ export function EnforcementSignalsFilter({
           onValueChange={handleSignalChange}
         >
           <SelectTrigger className="w-full md:w-[240px] h-11 md:h-9">
-            <SelectValue placeholder={isLoading ? "Loading..." : "All issues"} />
+            <SelectValue placeholder="All issues" />
           </SelectTrigger>
           <SelectContent className="z-[9999]">
             <SelectItem value="all">All issues</SelectItem>
-            {categories.map(({ categoryId, label, propertyCount }) => {
-              const locked = isLockedCategory(categoryId);
+            {VIOLATION_CATEGORIES.map(({ id, label }) => {
+              const locked = isLockedCategory(id);
               return (
-                <SelectItem 
-                  key={categoryId} 
-                  value={categoryId}
+                <SelectItem
+                  key={id}
+                  value={id}
                   className={locked ? "text-muted-foreground" : ""}
                 >
                   <span className="flex items-center gap-2">
                     {locked && <Lock className="h-3 w-3 text-amber-500" />}
-                    {label} — {propertyCount.toLocaleString()}
+                    {label}
                     {locked && <span className="text-xs text-amber-600 dark:text-amber-400 ml-1">(Enterprise)</span>}
                   </span>
                 </SelectItem>
               );
             })}
+            <SelectItem value="other">Other</SelectItem>
           </SelectContent>
         </Select>
       </div>

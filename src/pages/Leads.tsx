@@ -19,6 +19,7 @@ import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter"
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
 import { PressureLevelFilter } from "@/components/leads/PressureLevelFilter";
 import { TimeFilter } from "@/components/leads/ScoreAndTimeFilter";
+import { SortByDropdown, type SortOption } from "@/components/leads/SortByDropdown";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { useOnboarding } from "@/hooks/useOnboarding";
@@ -66,6 +67,9 @@ function Leads() {
   const [openViolationsOnly, setOpenViolationsOnly] = useState(false);
   const [multipleViolationsOnly, setMultipleViolationsOnly] = useState(false);
   const [repeatOffenderOnly, setRepeatOffenderOnly] = useState(false);
+  
+  // Sort state
+  const [sortBy, setSortBy] = useState<SortOption>('snap_score');
 
   // Mobile view state
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
@@ -122,10 +126,13 @@ function Leads() {
     if (openViolationsOnly) f.openViolationsOnly = true;
     if (multipleViolationsOnly) f.multipleViolationsOnly = true;
     if (repeatOffenderOnly) f.repeatOffenderOnly = true;
+    
+    // Sorting - always include
+    f.sortBy = sortBy;
 
     console.log("[Leads] Active filters:", JSON.stringify(f));
     return f;
-  }, [searchQuery, selectedCity, selectedState, lastSeenDays, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly]);
+  }, [searchQuery, selectedCity, selectedState, lastSeenDays, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly, sortBy]);
 
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
@@ -510,6 +517,8 @@ function Leads() {
             activeFilterCount={activeFilterCount}
             propertyCount={totalCount}
             onAddAllToList={() => setShowAddAllToListDialog(true)}
+            sortBy={sortBy}
+            onSortChange={(v) => { setSortBy(v); setPage(1); }}
           />
         </div>
 
@@ -569,8 +578,9 @@ function Leads() {
                   <span className="text-sm text-muted-foreground">
                     {selectedIds.length > 0
                       ? `${selectedIds.length} selected`
-                      : `${totalCount} properties`}
+                      : `${totalCount.toLocaleString()} properties`}
                   </span>
+                  <SortByDropdown value={sortBy} onChange={(v) => { setSortBy(v); setPage(1); }} />
                 </div>
                 <Button
                   onClick={handleExportCSV}

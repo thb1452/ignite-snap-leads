@@ -60,7 +60,7 @@ export async function fetchPropertiesPaged(
     return fetchPropertiesPagedLegacy(page, pageSize, filters);
   }
 
-  // Use the optimized RPC function for fast queries (supports basic filters + date filtering)
+  // Use the optimized RPC function for fast queries (supports basic filters + date filtering + sorting)
   const { data, error } = await supabase.rpc("fn_properties_paged", {
     p_page: page,
     p_page_size: pageSize,
@@ -70,6 +70,7 @@ export async function fetchPropertiesPaged(
     p_snap_min: filters.snapScoreRange?.[0] ?? null,
     p_snap_max: filters.snapScoreRange?.[1] ?? null,
     p_last_seen_days: filters.lastSeenDays ?? null,
+    p_sort_by: filters.sortBy || 'snap_score',
   });
 
   if (error) {
@@ -100,6 +101,7 @@ async function fetchPropertiesByCategory(
     p_last_seen_days: filters.lastSeenDays ?? null,
     p_page: page,
     p_page_size: pageSize,
+    p_sort_by: filters.sortBy || 'snap_score',
   });
 
   if (error) {

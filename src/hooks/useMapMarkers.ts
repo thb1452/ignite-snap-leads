@@ -27,16 +27,35 @@ function cleanFilters(filters: LeadFilters): LeadFilters {
   return cleaned as LeadFilters;
 }
 
-// Query properties table directly with full filter support.
-// This replaces the fn_map_markers RPC which had unreliable state filtering
-// and didn't support advanced filters (violation type, pressure level, etc).
-async function fetchMarkers(filters: LeadFilters): Promise<MapMarker[]> {
+// Use RPC for category filtering since PostgREST doesn't support text search on arrays
+async function fetchMarkersWithCategory(filters: LeadFilters): Promise<MapMarker[]> {
+  console.log("[useMapMarkers] Using RPC for category:", filters.violationType);
+  
+  const { data, error } = await supabase.rpc("fn_map_markers_by_category", {
+    p_category: filters.violationType!,
+    p_state: filters.state || null,
+    p_city: filters.cities?.length === 1 ? filters.cities[0] : null,
+    p_snap_min: filters.snapScoreRange?.[0] ?? null,
+    p_snap_max: filters.snapScoreRange?.[1] ?? null,
+    p_limit: MAX_MARKERS,
+  });
+  
+  if (error) {
+    console.error("[useMapMarkers] RPC error:", error);
+    throw error;
+  }
+  
+  return (data ?? []) as MapMarker[];
+}
+
+// Query properties table directly for non-category filters
+async function fetchMarkersDirectly(filters: LeadFilters): Promise<MapMarker[]> {
   let q = supabase
     .from("properties")
     .select("id, latitude, longitude, snap_score, address, city, state, enforcement_type")
     .not("latitude", "is", null)
     .not("longitude", "is", null)
-    .neq("latitude", 0)  // Exclude 0,0 coords (geocoding failures)
+    .neq("latitude", 0)
     .neq("longitude", 0);
 
   if (filters.state) {
@@ -58,32 +77,6 @@ async function fetchMarkers(filters: LeadFilters): Promise<MapMarker[]> {
     cutoffDate.setDate(cutoffDate.getDate() - filters.lastSeenDays);
     q = q.gte("updated_at", cutoffDate.toISOString());
   }
-  if (filters.violationType) {
-    // The filter passes category IDs like "exterior", "safety", "structural", "maintenance"
-    // Properties have violation_types array with BOTH clean categories ("Exterior") AND raw IPMC codes
-    // We need to check for both exact array contains AND text search in the array
-    const categoryKeywordMap: Record<string, string[]> = {
-      exterior: ['Exterior'],
-      structural: ['Structural'],
-      safety: ['Safety', 'Fire'],
-      zoning: ['Zoning'],
-      maintenance: ['Rubbish', 'Grass', 'Trash', 'Debris', 'Weed', 'Dumping', 'Waste', 'Snow'],
-      interior: ['Interior', 'Plumbing', 'HVAC', 'Furnace', '305.3', '305.6', '605.3'],
-      vacancy: ['Vacancy', 'Vacant'],
-      other: ['Unknown', 'Other', 'Complaint'],
-    };
-    
-    const keywords = categoryKeywordMap[filters.violationType] || [
-      filters.violationType.charAt(0).toUpperCase() + filters.violationType.slice(1)
-    ];
-    
-    console.log("[useMapMarkers] Filtering by category:", filters.violationType, "-> keywords:", keywords);
-    
-    // Build OR conditions that check if any keyword appears in the array (either as exact value or within text)
-    // Use ilike on the text representation of the array for broader matching
-    const orConditions = keywords.map(kw => `violation_types::text.ilike.%${kw}%`).join(',');
-    q = q.or(orConditions);
-  }
   if (filters.openViolationsOnly) {
     q = q.gt("open_violations", 0);
   }
@@ -104,7 +97,14 @@ async function fetchMarkers(filters: LeadFilters): Promise<MapMarker[]> {
 async function fetchFilteredMarkers(rawFilters: LeadFilters): Promise<MapMarker[]> {
   const filters = cleanFilters(rawFilters);
   console.log("[useMapMarkers] Fetching markers with filters:", JSON.stringify(filters));
-  return fetchMarkers(filters);
+  
+  // Use RPC for category filtering (handles text search in violation_types array)
+  if (filters.violationType) {
+    return fetchMarkersWithCategory(filters);
+  }
+  
+  // Use direct query for other filters
+  return fetchMarkersDirectly(filters);
 }
 
 export function useMapMarkers(filters: LeadFilters = {}) {

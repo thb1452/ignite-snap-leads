@@ -115,13 +115,17 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
       // Add markers for properties with valid coordinates (filter out 0,0 which is in Africa)
       properties.forEach(property => {
         // Only add markers for properties with valid US coordinates
-        // Valid US lat: ~24 to ~50, valid US lng: ~-125 to ~-66
+        // Includes: Continental US, Alaska, Hawaii, Puerto Rico
         const lat = property.latitude;
         const lng = property.longitude;
-        const isValidCoord = lat && lng && 
-          Math.abs(lat) > 1 && Math.abs(lng) > 1 && // Not near 0,0
-          lat >= 24 && lat <= 50 && // Continental US latitude range
-          lng >= -125 && lng <= -66; // Continental US longitude range
+        
+        // Check for valid US coordinates across all territories
+        const isContiguousUS = lat && lng && lat >= 24 && lat <= 50 && lng >= -125 && lng <= -66;
+        const isAlaska = lat && lng && lat >= 51 && lat <= 72 && lng >= -180 && lng <= -129;
+        const isHawaii = lat && lng && lat >= 18 && lat <= 23 && lng >= -161 && lng <= -154;
+        const isPuertoRico = lat && lng && lat >= 17 && lat <= 19 && lng >= -68 && lng <= -65;
+        const isValidCoord = lat && lng && Math.abs(lat) > 1 && Math.abs(lng) > 1 && 
+          (isContiguousUS || isAlaska || isHawaii || isPuertoRico);
         
         if (isValidCoord && mapRef.current) {
           const marker = L.circleMarker(
@@ -204,12 +208,14 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
       // Heatmap mode - use gradient circles with blur effect
       heatLayerRef.current = L.layerGroup();
       
-      // Helper to check valid US coordinates
+      // Helper to check valid US coordinates (includes all territories)
       const isValidUSCoord = (lat: number | null, lng: number | null) => {
-        return lat && lng && 
-          Math.abs(lat) > 1 && Math.abs(lng) > 1 &&
-          lat >= 24 && lat <= 50 && 
-          lng >= -125 && lng <= -66;
+        if (!lat || !lng || Math.abs(lat) < 1 || Math.abs(lng) < 1) return false;
+        const isContiguousUS = lat >= 24 && lat <= 50 && lng >= -125 && lng <= -66;
+        const isAlaska = lat >= 51 && lat <= 72 && lng >= -180 && lng <= -129;
+        const isHawaii = lat >= 18 && lat <= 23 && lng >= -161 && lng <= -154;
+        const isPuertoRico = lat >= 17 && lat <= 19 && lng >= -68 && lng <= -65;
+        return isContiguousUS || isAlaska || isHawaii || isPuertoRico;
       };
       
       // Sort by score so higher scores render on top, filter valid coords

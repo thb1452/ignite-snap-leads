@@ -36,7 +36,9 @@ async function fetchMarkers(filters: LeadFilters): Promise<MapMarker[]> {
     .from("properties")
     .select("id, latitude, longitude, snap_score, address, city, state, enforcement_type")
     .not("latitude", "is", null)
-    .not("longitude", "is", null);
+    .not("longitude", "is", null)
+    .neq("latitude", 0)  // Exclude 0,0 coords (geocoding failures)
+    .neq("longitude", 0);
 
   if (filters.state) {
     q = q.ilike("state", filters.state);

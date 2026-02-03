@@ -14,7 +14,7 @@ export interface MapMarker {
   enforcement_type?: string;
 }
 
-const MAX_MARKERS = 50000; // Increased from 10k - clustering handles this efficiently
+const MAX_MARKERS = 10000;
 
 function cleanFilters(filters: LeadFilters): LeadFilters {
   if (!filters || typeof filters !== 'object') return {};

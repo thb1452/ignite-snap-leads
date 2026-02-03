@@ -81,39 +81,33 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
     if (viewMode === "map") {
       // Create marker cluster group with custom icons based on avg score
       markerClusterGroupRef.current = L.markerClusterGroup({
-        maxClusterRadius: 80, // Increased from 50 for better clustering at zoomed out levels
+        maxClusterRadius: 50,
         spiderfyOnMaxZoom: true,
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
-        disableClusteringAtZoom: 16, // Only show individual markers at very high zoom
         iconCreateFunction: (cluster) => {
-          const count = cluster.getChildCount();
           const markers = cluster.getAllChildMarkers();
           const scores = markers.map((m: any) => m.options?.snapScore ?? 0);
           const avg = scores.reduce((a, b) => a + b, 0) / Math.max(1, scores.length);
           const color = avg >= 80 ? '#ef4444' : avg >= 60 ? '#f97316' : '#22c55e';
-          
-          // Scale cluster size based on count
-          const size = count > 1000 ? 50 : count > 100 ? 44 : count > 10 ? 38 : 32;
-          const fontSize = count > 1000 ? 12 : count > 100 ? 13 : 14;
           
           return L.divIcon({
             html: `<div style="
               background:${color};
               color:#fff;
               border-radius:9999px;
-              width:${size}px;
-              height:${size}px;
+              width:34px;
+              height:34px;
               display:flex;
               align-items:center;
               justify-content:center;
               font-weight:600;
-              font-size:${fontSize}px;
-              box-shadow:0 2px 8px rgba(0,0,0,.3);
+              font-size:14px;
+              box-shadow:0 2px 8px rgba(0,0,0,.2);
               border:2px solid white;
-            ">${count > 999 ? Math.round(count/1000) + 'k' : count}</div>`,
+            "></div>`,
             className: 'snap-cluster',
-            iconSize: L.point(size, size),
+            iconSize: L.point(34, 34),
           });
         },
       });

@@ -7,6 +7,7 @@ import { EnforcementAreaFilter } from "./EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "./EnforcementSignalsFilter";
 import { PressureLevelFilter } from "./PressureLevelFilter";
 import { TimeFilter } from "./ScoreAndTimeFilter";
+import { SortByDropdown, type SortOption } from "./SortByDropdown";
 
 interface MobileFilterSheetProps {
   // Enforcement area props
@@ -33,6 +34,9 @@ interface MobileFilterSheetProps {
   // Add all to list
   propertyCount?: number;
   onAddAllToList?: () => void;
+  // Sort
+  sortBy: SortOption;
+  onSortChange: (value: SortOption) => void;
 }
 
 export function MobileFilterSheet({
@@ -54,6 +58,8 @@ export function MobileFilterSheet({
   activeFilterCount,
   propertyCount = 0,
   onAddAllToList,
+  sortBy,
+  onSortChange,
 }: MobileFilterSheetProps) {
   const [open, setOpen] = useState(false);
 
@@ -93,6 +99,14 @@ export function MobileFilterSheet({
         
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          {/* Sort By */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Sort By
+            </h3>
+            <SortByDropdown value={sortBy} onChange={onSortChange} />
+          </div>
+          
           {/* Enforcement Area */}
           <EnforcementAreaFilter
             selectedCity={selectedCity}

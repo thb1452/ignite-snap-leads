@@ -44,5 +44,6 @@ export const LeadFiltersSchema = z.object({
   openViolationsOnly: z.boolean().optional(), // Filter by open violations
   multipleViolationsOnly: z.boolean().optional(), // Filter by multiple violations
   repeatOffenderOnly: z.boolean().optional(), // Filter by repeat offenders
+  sortBy: z.enum(['snap_score', 'newest_violation', 'recently_updated']).optional(), // Sorting option
 });
 export type LeadFilters = z.infer<typeof LeadFiltersSchema>;

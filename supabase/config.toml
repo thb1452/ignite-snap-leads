@@ -1,5 +1,8 @@
 project_id = "ojyxblegxpdgaqiscxpz"
 
+[functions.bulk-generate-missing-insights]
+verify_jwt = false
+
 # Security: Enable JWT verification for all authenticated functions
 # Functions should use Supabase's built-in JWT verification rather than manual auth checks
 

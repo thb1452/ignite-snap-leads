@@ -61,7 +61,7 @@ async function fetchMarkers(filters: LeadFilters): Promise<MapMarker[]> {
   if (filters.violationType) {
     // The filter passes category IDs like "exterior", "safety", "structural", "maintenance"
     // The properties.violation_types array contains values like ["Exterior"], ["Safety"], ["Zoning"], etc.
-    // For most categories, we can capitalize the ID. For special cases, we use keywords.
+    // Use array contains operator for matching
     const categoryKeywordMap: Record<string, string[]> = {
       exterior: ['Exterior'],
       structural: ['Structural'],
@@ -77,10 +77,17 @@ async function fetchMarkers(filters: LeadFilters): Promise<MapMarker[]> {
       filters.violationType.charAt(0).toUpperCase() + filters.violationType.slice(1)
     ];
     
-    // Build OR conditions for all keywords
-    const orConditions = keywords.map(kw => `violation_types::text.ilike.%${kw}%`).join(',');
+    // Use array contains operator - check if violation_types contains any of the keywords
+    // For single keyword, use .contains(). For multiple, we need to use .or() with .contains()
     console.log("[useMapMarkers] Filtering by category:", filters.violationType, "-> keywords:", keywords);
-    q = q.or(orConditions);
+    
+    if (keywords.length === 1) {
+      q = q.contains("violation_types", [keywords[0]]);
+    } else {
+      // For multiple keywords, use OR with contains
+      const orConditions = keywords.map(kw => `violation_types.cs.{${kw}}`).join(',');
+      q = q.or(orConditions);
+    }
   }
   if (filters.openViolationsOnly) {
     q = q.gt("open_violations", 0);

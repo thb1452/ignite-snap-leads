@@ -755,9 +755,8 @@ export default function Landing() {
                 description: "For active acquisition & deal sourcing",
                 features: [
                   "10,000 monthly exports",
-                  "Everything in Starter",
-                  "Pressure Level™ filtering",
-                  "Prioritize high-distress properties",
+                  "All Starter features",
+                  "Pressure Level™ filtering (prioritize higher-enforcement properties)",
                   "Priority email support"
                 ],
                 tagline: "Built to identify what matters first.",
@@ -770,12 +769,12 @@ export default function Landing() {
                 description: "For multi-market teams & advanced operators",
                 features: [
                   "25,000 monthly exports",
-                  "Everything in Professional",
-                  "Pressure Level™ + Water Shutoff data",
-                  "Time-sensitive intelligence signals",
+                  "All Professional features",
+                  "SnapScore™ filtering (multi-signal prioritization)",
+                  "Water shutoff data",
                   "API access (coming soon)"
                 ],
-                tagline: "Built for maximum signal.",
+                tagline: "Built for maximum signal, urgency, and scale.",
                 highlighted: false
               }
             ].map((plan, i) => (

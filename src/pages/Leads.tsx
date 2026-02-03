@@ -447,7 +447,12 @@ function Leads() {
           {/* Enforcement Signals - Available to all users */}
           <EnforcementSignalsFilter
             selectedSignal={selectedSignal}
-            onSignalChange={(v) => { setSelectedSignal(v); setPage(1); }}
+            onSignalChange={(v) => { 
+              setSelectedSignal(v); 
+              setPage(1);
+              // Clear search when category changes to avoid conflicting filters
+              if (v) setSearchInput("");
+            }}
             selectedState={selectedState}
             selectedCity={selectedCity}
           />
@@ -494,7 +499,7 @@ function Leads() {
             lastSeenDays={lastSeenDays}
             onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
             selectedSignal={selectedSignal}
-            onSignalChange={(v) => { setSelectedSignal(v); setPage(1); }}
+            onSignalChange={(v) => { setSelectedSignal(v); setPage(1); if (v) setSearchInput(""); }}
             openViolationsOnly={openViolationsOnly}
             onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
             multipleViolationsOnly={multipleViolationsOnly}

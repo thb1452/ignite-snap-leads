@@ -44,10 +44,11 @@ export function EnforcementSignalsFilter({
         throw error;
       }
 
-      const result = (data || []).map((row: { category_id: string; category_label: string; property_count: number }) => ({
-        categoryId: row.category_id,
-        label: row.category_label,
-        propertyCount: row.property_count,
+      // RPC returns cat_id, cat_label, cnt (need to cast since generated types may differ)
+      const result = ((data || []) as unknown as Array<{ cat_id: string; cat_label: string; cnt: number }>).map((row) => ({
+        categoryId: row.cat_id,
+        label: row.cat_label,
+        propertyCount: row.cnt,
       }));
       
       console.log("[EnforcementSignalsFilter] Categories:", result.length, result);
@@ -103,7 +104,7 @@ export function EnforcementSignalsFilter({
           </SelectTrigger>
           <SelectContent className="z-[9999]">
             <SelectItem value="all">All issues</SelectItem>
-            {categories.map(({ categoryId, label, propertyCount }) => {
+            {categories.map(({ categoryId, label }) => {
               const locked = isLockedCategory(categoryId);
               return (
                 <SelectItem 
@@ -113,7 +114,7 @@ export function EnforcementSignalsFilter({
                 >
                   <span className="flex items-center gap-2">
                     {locked && <Lock className="h-3 w-3 text-amber-500" />}
-                    {label} — {propertyCount.toLocaleString()}
+                    {label}
                     {locked && <span className="text-xs text-amber-600 dark:text-amber-400 ml-1">(Enterprise)</span>}
                   </span>
                 </SelectItem>

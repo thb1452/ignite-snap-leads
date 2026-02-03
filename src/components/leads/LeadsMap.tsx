@@ -9,7 +9,7 @@ import { Map as MapIcon, Flame } from "lucide-react";
 
 // USA center coordinates and default zoom - defined outside component
 const USA_CENTER: L.LatLngTuple = [39.8283, -98.5795];
-const USA_ZOOM = 5; // Increased from 4 for better initial visibility
+const USA_ZOOM = 7; // Zoomed in for better visibility
 
 interface Property {
   id: string;
@@ -170,24 +170,24 @@ export function LeadsMap({ properties, onPropertyClick, selectedPropertyId }: Le
         const latSpread = bounds.getNorth() - bounds.getSouth();
         const lngSpread = bounds.getEast() - bounds.getWest();
 
-        // Determine max zoom based on geographic spread
+        // Determine max zoom based on geographic spread - prefer zoomed in views
         let maxZoom = 15;
 
         if (latSpread < 0.5 && lngSpread < 0.5) {
           // Very small area (single city/neighborhood) - zoom in close
-          maxZoom = 14;
+          maxZoom = 15;
         } else if (latSpread < 2 && lngSpread < 2) {
           // City-level spread
-          maxZoom = 12;
+          maxZoom = 13;
         } else if (latSpread < 5 && lngSpread < 5) {
           // County/metro area spread
-          maxZoom = 10;
+          maxZoom = 11;
         } else if (latSpread < 10 && lngSpread < 10) {
           // State-level spread
-          maxZoom = 8;
+          maxZoom = 9;
         } else {
-          // Multi-state or national spread - tighter USA view
-          maxZoom = 6;
+          // Multi-state or national spread - still keep it reasonably zoomed
+          maxZoom = 7;
         }
 
         // Fit bounds with calculated zoom constraints

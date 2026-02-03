@@ -19,6 +19,7 @@ import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter"
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
 import { PressureLevelFilter } from "@/components/leads/PressureLevelFilter";
 import { TimeFilter } from "@/components/leads/ScoreAndTimeFilter";
+import { SnapScoreFilter } from "@/components/leads/SnapScoreFilter";
 import { SortByDropdown, type SortOption } from "@/components/leads/SortByDropdown";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
@@ -68,6 +69,9 @@ function Leads() {
   const [multipleViolationsOnly, setMultipleViolationsOnly] = useState(false);
   const [repeatOffenderOnly, setRepeatOffenderOnly] = useState(false);
   
+  // SnapScore range filter state (Enterprise only)
+  const [snapScoreRange, setSnapScoreRange] = useState<[number, number]>([0, 100]);
+
   // Sort state - default to newest violations
   const [sortBy, setSortBy] = useState<SortOption>('newest_violation');
 
@@ -109,8 +113,10 @@ function Leads() {
     if (openViolationsOnly) count++;
     if (multipleViolationsOnly) count++;
     if (repeatOffenderOnly) count++;
+    // Count SnapScore if not default range
+    if (snapScoreRange[0] !== 0 || snapScoreRange[1] !== 100) count++;
     return count;
-  }, [lastSeenDays, selectedCity, selectedState, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly]);
+  }, [lastSeenDays, selectedCity, selectedState, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly, snapScoreRange]);
 
   // Build filters object for the hook - only include truthy values
   const filters = useMemo(() => {
@@ -127,12 +133,17 @@ function Leads() {
     if (multipleViolationsOnly) f.multipleViolationsOnly = true;
     if (repeatOffenderOnly) f.repeatOffenderOnly = true;
     
+    // SnapScore range filter (only if not default)
+    if (snapScoreRange[0] !== 0 || snapScoreRange[1] !== 100) {
+      f.snapScoreRange = snapScoreRange;
+    }
+    
     // Sorting - always include
     f.sortBy = sortBy;
 
     console.log("[Leads] Active filters:", JSON.stringify(f));
     return f;
-  }, [searchQuery, selectedCity, selectedState, lastSeenDays, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly, sortBy]);
+  }, [searchQuery, selectedCity, selectedState, lastSeenDays, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly, snapScoreRange, sortBy]);
 
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
@@ -178,6 +189,7 @@ function Leads() {
     setOpenViolationsOnly(false);
     setMultipleViolationsOnly(false);
     setRepeatOffenderOnly(false);
+    setSnapScoreRange([0, 100]); // Reset SnapScore range
     setPage(1);
   };
 
@@ -426,6 +438,7 @@ function Leads() {
           openViolationsOnly={openViolationsOnly}
           multipleViolationsOnly={multipleViolationsOnly}
           repeatOffenderOnly={repeatOffenderOnly}
+          snapScoreRange={snapScoreRange}
           propertyCount={totalCount}
           onClearFilters={handleClearFilters}
           onAddAllToList={() => setShowAddAllToListDialog(true)}
@@ -464,7 +477,7 @@ function Leads() {
             selectedCity={selectedCity}
           />
           
-          {/* Pressure Level - Available to all users */}
+          {/* Pressure Level - Professional+ */}
           <PressureLevelFilter
             openViolationsOnly={openViolationsOnly}
             onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
@@ -472,6 +485,12 @@ function Leads() {
             onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
             repeatOffenderOnly={repeatOffenderOnly}
             onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
+          />
+          
+          {/* SnapScore Range - Enterprise only */}
+          <SnapScoreFilter
+            snapScoreRange={snapScoreRange}
+            onSnapScoreChange={(v) => { setSnapScoreRange(v); setPage(1); }}
           />
         </div>
       </div>
@@ -513,6 +532,8 @@ function Leads() {
             onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
             repeatOffenderOnly={repeatOffenderOnly}
             onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
+            snapScoreRange={snapScoreRange}
+            onSnapScoreChange={(v) => { setSnapScoreRange(v); setPage(1); }}
             onClearFilters={handleClearFilters}
             activeFilterCount={activeFilterCount}
             propertyCount={totalCount}

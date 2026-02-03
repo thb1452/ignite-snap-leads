@@ -24,6 +24,7 @@ interface BackfillRequest {
   cityFilter?: string;  // Optional: only backfill specific city
   stateFilter?: string; // Optional: only backfill specific state
   dryRun?: boolean;     // Preview only, don't update
+  autoResume?: boolean; // Auto-continue until all processed
 }
 
 interface BackfillResult {
@@ -52,13 +53,13 @@ serve(async (req) => {
 
   try {
     const {
-      batchSize = 100,
+      batchSize = 200,
       startOffset = 0,
       cityFilter,
       stateFilter,
-      dryRun = false
+      dryRun = false,
+      autoResume = false
     }: BackfillRequest = await req.json().catch(() => ({}));
-
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -115,26 +116,34 @@ serve(async (req) => {
 
     console.log(`[backfill] Processing ${properties.length} properties...`);
 
-    // OPTIMIZATION: Batch fetch all violations for this batch of properties to avoid N+1 queries
+    // OPTIMIZATION: Batch fetch violations in chunks to avoid URL length limits
     const propertyIds = properties.map(p => p.id);
-    const { data: allViolations, error: violError } = await supabase
-      .from("violations")
-      .select("property_id, violation_type, status, opened_date, case_id")
-      .in("property_id", propertyIds);
-
-    if (violError) {
-      console.error(`[backfill] Error fetching violations:`, violError);
-      throw violError;
-    }
-
-    // Group violations by property_id for efficient lookup
     const violationsByProperty = new Map<string, any[]>();
-    for (const violation of allViolations || []) {
-      if (!violationsByProperty.has(violation.property_id)) {
-        violationsByProperty.set(violation.property_id, []);
+    
+    // Fetch violations in chunks of 50 to avoid URL length issues
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < propertyIds.length; i += CHUNK_SIZE) {
+      const chunk = propertyIds.slice(i, i + CHUNK_SIZE);
+      const { data: chunkViolations, error: violError } = await supabase
+        .from("violations")
+        .select("property_id, violation_type, status, opened_date, case_id")
+        .in("property_id", chunk);
+
+      if (violError) {
+        console.error(`[backfill] Error fetching violations chunk:`, violError);
+        throw violError;
       }
-      violationsByProperty.get(violation.property_id)!.push(violation);
+
+      // Group violations by property_id
+      for (const violation of chunkViolations || []) {
+        if (!violationsByProperty.has(violation.property_id)) {
+          violationsByProperty.set(violation.property_id, []);
+        }
+        violationsByProperty.get(violation.property_id)!.push(violation);
+      }
     }
+    
+    console.log(`[backfill] Fetched violations for ${violationsByProperty.size} properties`);
 
     let updated = 0;
     let skipped = 0;
@@ -252,6 +261,49 @@ serve(async (req) => {
     console.log(`[backfill]   Progress: ${progress.percentage}% (${progress.current}/${progress.total})`);
     console.log(`[backfill] ========================================`);
 
+    // Auto-resume: trigger next batch if there's more to process
+    const hasMore = processed >= batchSize && progress.current < progress.total;
+    
+    if (autoResume && hasMore && !dryRun) {
+      const nextOffset = startOffset + processed;
+      console.log(`[backfill] Auto-resuming at offset ${nextOffset}...`);
+      
+      // Use waitUntil to continue processing in background
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+      const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+      
+      const continueTask = async () => {
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/backfill-property-aggregates`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({
+              batchSize,
+              startOffset: nextOffset,
+              cityFilter,
+              stateFilter,
+              dryRun,
+              autoResume: true,
+            }),
+          });
+        } catch (err) {
+          console.error('[backfill] Auto-resume failed:', err);
+        }
+      };
+      
+      // Use globalThis cast for EdgeRuntime detection in Supabase Edge Functions
+      const runtime = (globalThis as any).EdgeRuntime;
+      if (typeof runtime !== 'undefined' && runtime.waitUntil) {
+        runtime.waitUntil(continueTask());
+      } else {
+        // Fallback: just fire and forget
+        continueTask();
+      }
+    }
+
     const result: BackfillResult = {
       success: true,
       processed,
@@ -263,7 +315,7 @@ serve(async (req) => {
     };
 
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({ ...result, autoResuming: autoResume && hasMore && !dryRun }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

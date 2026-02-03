@@ -8,6 +8,7 @@ import { EnforcementSignalsFilter } from "./EnforcementSignalsFilter";
 import { PressureLevelFilter } from "./PressureLevelFilter";
 import { TimeFilter } from "./ScoreAndTimeFilter";
 import { SortByDropdown, type SortOption } from "./SortByDropdown";
+import { SnapScoreFilter } from "./SnapScoreFilter";
 
 interface MobileFilterSheetProps {
   // Enforcement area props
@@ -28,6 +29,9 @@ interface MobileFilterSheetProps {
   onMultipleViolationsChange: (value: boolean) => void;
   repeatOffenderOnly: boolean;
   onRepeatOffenderChange: (value: boolean) => void;
+  // SnapScore range props
+  snapScoreRange: [number, number];
+  onSnapScoreChange: (value: [number, number]) => void;
   // General
   onClearFilters: () => void;
   activeFilterCount: number;
@@ -54,6 +58,8 @@ export function MobileFilterSheet({
   onMultipleViolationsChange,
   repeatOffenderOnly,
   onRepeatOffenderChange,
+  snapScoreRange,
+  onSnapScoreChange,
   onClearFilters,
   activeFilterCount,
   propertyCount = 0,
@@ -142,6 +148,12 @@ export function MobileFilterSheet({
             onMultipleViolationsChange={onMultipleViolationsChange}
             repeatOffenderOnly={repeatOffenderOnly}
             onRepeatOffenderChange={onRepeatOffenderChange}
+          />
+          
+          {/* SnapScore Range - Enterprise only */}
+          <SnapScoreFilter
+            snapScoreRange={snapScoreRange}
+            onSnapScoreChange={onSnapScoreChange}
           />
         </div>
 

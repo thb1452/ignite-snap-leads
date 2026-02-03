@@ -130,16 +130,33 @@ export function PropertyCard({
 
           {/* Violation Density Indicators */}
           <div className="flex items-center gap-3 mb-2 flex-wrap">
-            {/* Total/Open Violations */}
-            {(property.total_violations || property.open_violations) && (
+            {/* Total/Open Violations - only show if there are actual violations */}
+            {(property.total_violations != null && property.total_violations > 0) && (
               <div className="flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                <AlertTriangle className={`h-3.5 w-3.5 ${(property.open_violations ?? 0) > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
                 <span className="text-xs font-medium text-foreground">
-                  {property.open_violations ?? 0} open
-                  {property.total_violations && property.total_violations > (property.open_violations ?? 0) && (
-                    <span className="text-muted-foreground"> / {property.total_violations} total</span>
+                  {(property.open_violations ?? 0) > 0 ? (
+                    <>
+                      {property.open_violations} open
+                      {property.total_violations > property.open_violations! && (
+                        <span className="text-muted-foreground"> / {property.total_violations} total</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">{property.total_violations} closed</span>
                   )}
                 </span>
+                {/* Status badge based on open_violations count */}
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs ml-1 ${
+                    (property.open_violations ?? 0) > 0 
+                      ? 'bg-rose-100 text-rose-700 border-rose-200' 
+                      : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                  }`}
+                >
+                  {(property.open_violations ?? 0) > 0 ? 'Open' : 'Closed'}
+                </Badge>
               </div>
             )}
             

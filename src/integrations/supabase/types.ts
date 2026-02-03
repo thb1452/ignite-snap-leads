@@ -2235,6 +2235,26 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_map_markers_by_category: {
+        Args: {
+          p_category: string
+          p_city?: string
+          p_limit?: number
+          p_snap_max?: number
+          p_snap_min?: number
+          p_state?: string
+        }
+        Returns: {
+          address: string
+          city: string
+          enforcement_type: string
+          id: string
+          latitude: number
+          longitude: number
+          snap_score: number
+          state: string
+        }[]
+      }
       fn_opportunity_funnel: {
         Args: never
         Returns: {
@@ -2279,6 +2299,20 @@ export type Database = {
             }
             Returns: Json
           }
+      fn_properties_by_category: {
+        Args: {
+          p_category: string
+          p_city?: string
+          p_last_seen_days?: number
+          p_page?: number
+          p_page_size?: number
+          p_search?: string
+          p_snap_max?: number
+          p_snap_min?: number
+          p_state?: string
+        }
+        Returns: Json
+      }
       fn_properties_paged: {
         Args: {
           p_city?: string

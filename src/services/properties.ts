@@ -42,10 +42,15 @@ export async function fetchPropertiesPaged(
 ) {
   console.log("[fetchPropertiesPaged] Filters received:", JSON.stringify(filters, null, 2));
 
+  // Use RPC for category filtering (handles text search in violation_types array)
+  if (filters.violationType) {
+    console.log("[fetchPropertiesPaged] Using category RPC for:", filters.violationType);
+    return fetchPropertiesByCategory(page, pageSize, filters);
+  }
+
   // Use legacy path for complex filters that RPC doesn't support
   const needsLegacyPath =
     filters.listId ||
-    filters.violationType ||
     filters.openViolationsOnly ||
     filters.multipleViolationsOnly ||
     filters.repeatOffenderOnly;
@@ -77,6 +82,35 @@ export async function fetchPropertiesPaged(
   console.log("[fetchPropertiesPaged] Results:", result.items?.length, "properties, total:", result.total, "has_subscription:", result.has_subscription, "data_tier:", result.data_tier);
   
   return { data: result.items ?? [], total: result.total ?? 0, dataTier: result.data_tier ?? null };
+}
+
+// Use the category RPC for violation type filtering
+async function fetchPropertiesByCategory(
+  page: number,
+  pageSize: number,
+  filters: LeadFilters
+) {
+  const { data, error } = await supabase.rpc("fn_properties_by_category", {
+    p_category: filters.violationType!,
+    p_state: filters.state || null,
+    p_city: filters.cities?.length === 1 ? filters.cities[0] : null,
+    p_search: filters.search || null,
+    p_snap_min: filters.snapScoreRange?.[0] ?? null,
+    p_snap_max: filters.snapScoreRange?.[1] ?? null,
+    p_last_seen_days: filters.lastSeenDays ?? null,
+    p_page: page,
+    p_page_size: pageSize,
+  });
+
+  if (error) {
+    console.error("[fetchPropertiesByCategory] RPC error:", error);
+    throw error;
+  }
+
+  const result = data as { items: any[]; total: number; page: number; page_size: number };
+  console.log("[fetchPropertiesByCategory] Results:", result.items?.length, "properties, total:", result.total);
+  
+  return { data: result.items ?? [], total: result.total ?? 0, dataTier: null as string | null };
 }
 
 // Legacy function for complex filters (list filtering, multi-city, etc.)
@@ -145,31 +179,8 @@ async function fetchPropertiesPagedLegacy(
     q = q.gte("updated_at", cutoffDate.toISOString());
   }
 
-  // Filter: violation type (by category ID)
-  // The filter passes category IDs like "exterior", "safety", "maintenance"
-  // Properties have violation_types array with BOTH clean categories ("Exterior") AND raw IPMC codes
-  if (filters.violationType) {
-    const categoryKeywordMap: Record<string, string[]> = {
-      exterior: ['Exterior'],
-      structural: ['Structural'],
-      safety: ['Safety', 'Fire'],
-      zoning: ['Zoning'],
-      maintenance: ['Rubbish', 'Grass', 'Trash', 'Debris', 'Weed', 'Dumping', 'Waste', 'Snow'],
-      interior: ['Interior', 'Plumbing', 'HVAC', 'Furnace', '305.3', '305.6', '605.3'],
-      vacancy: ['Vacancy', 'Vacant'],
-      other: ['Unknown', 'Other', 'Complaint'],
-    };
-    
-    const keywords = categoryKeywordMap[filters.violationType] || [
-      filters.violationType.charAt(0).toUpperCase() + filters.violationType.slice(1)
-    ];
-    
-    console.log("[fetchPropertiesPagedLegacy] Filtering by category:", filters.violationType, "-> keywords:", keywords);
-    
-    // Build OR conditions that check if any keyword appears in the array text
-    const orConditions = keywords.map(kw => `violation_types::text.ilike.%${kw}%`).join(',');
-    q = q.or(orConditions);
-  }
+  // Note: violationType filtering is now handled by fetchPropertiesByCategory RPC
+  // This legacy path is only used for listId, pressure level filters
 
   // Pressure level filters
   if (filters.openViolationsOnly) {

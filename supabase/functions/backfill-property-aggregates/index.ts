@@ -115,26 +115,34 @@ serve(async (req) => {
 
     console.log(`[backfill] Processing ${properties.length} properties...`);
 
-    // OPTIMIZATION: Batch fetch all violations for this batch of properties to avoid N+1 queries
+    // OPTIMIZATION: Batch fetch violations in chunks to avoid URL length limits
     const propertyIds = properties.map(p => p.id);
-    const { data: allViolations, error: violError } = await supabase
-      .from("violations")
-      .select("property_id, violation_type, status, opened_date, case_id")
-      .in("property_id", propertyIds);
-
-    if (violError) {
-      console.error(`[backfill] Error fetching violations:`, violError);
-      throw violError;
-    }
-
-    // Group violations by property_id for efficient lookup
     const violationsByProperty = new Map<string, any[]>();
-    for (const violation of allViolations || []) {
-      if (!violationsByProperty.has(violation.property_id)) {
-        violationsByProperty.set(violation.property_id, []);
+    
+    // Fetch violations in chunks of 50 to avoid URL length issues
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < propertyIds.length; i += CHUNK_SIZE) {
+      const chunk = propertyIds.slice(i, i + CHUNK_SIZE);
+      const { data: chunkViolations, error: violError } = await supabase
+        .from("violations")
+        .select("property_id, violation_type, status, opened_date, case_id")
+        .in("property_id", chunk);
+
+      if (violError) {
+        console.error(`[backfill] Error fetching violations chunk:`, violError);
+        throw violError;
       }
-      violationsByProperty.get(violation.property_id)!.push(violation);
+
+      // Group violations by property_id
+      for (const violation of chunkViolations || []) {
+        if (!violationsByProperty.has(violation.property_id)) {
+          violationsByProperty.set(violation.property_id, []);
+        }
+        violationsByProperty.get(violation.property_id)!.push(violation);
+      }
     }
+    
+    console.log(`[backfill] Fetched violations for ${violationsByProperty.size} properties`);
 
     let updated = 0;
     let skipped = 0;

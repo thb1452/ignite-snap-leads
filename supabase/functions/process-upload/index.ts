@@ -247,6 +247,101 @@ function isValidCityName(value: string): boolean {
 }
 
 /**
+ * Validate that a string looks like a real street address, not a violation description or garbage
+ * Returns { valid: boolean, reason?: string }
+ */
+function isValidAddress(value: string): { valid: boolean; reason?: string } {
+  if (!value || value.length === 0) {
+    return { valid: false, reason: 'empty' };
+  }
+  
+  const trimmed = value.trim();
+  
+  // Address too long - likely a description or legal text
+  if (trimmed.length > 100) {
+    return { valid: false, reason: 'too_long' };
+  }
+  
+  // Too short to be a real address
+  if (trimmed.length < 5) {
+    return { valid: false, reason: 'too_short' };
+  }
+  
+  // Real addresses typically start with a number (street number)
+  // or with directional prefix (N, S, E, W, North, South, etc.)
+  const startsWithNumber = /^\d+/.test(trimmed);
+  const startsWithDirection = /^(N|S|E|W|North|South|East|West|NE|NW|SE|SW)\s+/i.test(trimmed);
+  const startsWithPO = /^(P\.?O\.?\s*Box|PO\s*Box)/i.test(trimmed);
+  
+  if (!startsWithNumber && !startsWithDirection && !startsWithPO) {
+    // Might still be valid if it's a known pattern like "One Main Street"
+    const startsWithWord = /^(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten)\s+/i.test(trimmed);
+    if (!startsWithWord) {
+      return { valid: false, reason: 'no_street_number' };
+    }
+  }
+  
+  // Reject text that looks like complaint narratives or descriptions
+  const descriptionPatterns = [
+    /complainant/i,
+    /neighbor/i,
+    /property owner/i,
+    /please\s+(let|contact|notify)/i,
+    /report\s+parameters/i,
+    /pageall/i,
+    /employee\s*=/i,
+    /violation\s+(type|status)/i,
+    /during\s+site\s+investigation/i,
+    /has\s+placed/i,
+    /has\s+built/i,
+    /has\s+caused/i,
+    /is\s+cutting/i,
+    /is\s+filling/i,
+    /running\s+and\s+standing/i,
+    /flood\s+waters/i,
+    /obstruction\s+to\s+flow/i,
+    /debris\s+placed/i,
+    /materials\s+and\s+other/i,
+  ];
+  
+  for (const pattern of descriptionPatterns) {
+    if (pattern.test(trimmed)) {
+      return { valid: false, reason: 'looks_like_description' };
+    }
+  }
+  
+  // Reject OCR garbage (lots of random characters, repeated patterns)
+  if (/[|]{2,}/.test(trimmed) || /LOSRZ/.test(trimmed) || /TZOZS/.test(trimmed)) {
+    return { valid: false, reason: 'ocr_garbage' };
+  }
+  
+  // Reject legal land descriptions (SEC, LOT, PTN, AKA, PARCEL)
+  const legalDescPatterns = [
+    /\bSEC\s+\d+/i,
+    /\bLOT\s+\d+\s+LYG/i,
+    /\bPTN\b.*\bPCL\b/i,
+    /\bAKA\s+PTN\b/i,
+    /\bDRAINAGEWAY\b/i,
+    /\bCONSERVATION\s+EASEMENT\b/i,
+    /\bM&P\s+\d+/i,
+    /\d+\s+AC\s+SEC\b/i,
+  ];
+  
+  for (const pattern of legalDescPatterns) {
+    if (pattern.test(trimmed)) {
+      return { valid: false, reason: 'legal_description' };
+    }
+  }
+  
+  // Reject if it contains sentence-like structure (Subject + Verb patterns)
+  if (/\b(states\s+that|called\s+to\s+report|has\s+been|was\s+recently|appears\s+to\s+be)\b/i.test(trimmed)) {
+    return { valid: false, reason: 'sentence_structure' };
+  }
+  
+  return { valid: true };
+}
+
+/**
  * Validate that a string is a valid 2-letter US state code
  */
 function isValidStateCode(value: string): boolean {
@@ -403,6 +498,10 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Starting staging inserts for ${totalRows} rows`);
 
+    // Track bad addresses for reporting
+    let badAddressCount = 0;
+    const badAddressSamples: { row: number; address: string; reason?: string }[] = [];
+
     // RESUME SUPPORT: Check how many rows are already staged
     const { count: existingStagingCount } = await supabaseClient
       .from('upload_staging')
@@ -464,6 +563,21 @@ async function processUploadJob(jobId: string) {
         const truncatedDescription = description && description.length > MAX_DESCRIPTION_LENGTH 
           ? description.substring(0, MAX_DESCRIPTION_LENGTH) + '...' 
           : description;
+        
+        // VALIDATE ADDRESS - skip garbage data
+        const addressValidation = isValidAddress(truncatedAddress);
+        if (!addressValidation.valid) {
+          console.log(`[process-upload] Row ${i + 1}: Skipping invalid address (${addressValidation.reason}): "${truncatedAddress.substring(0, 60)}..."`);
+          badAddressCount++;
+          if (badAddressSamples.length < 10) {
+            badAddressSamples.push({
+              row: i + 1,
+              address: truncatedAddress.substring(0, 100),
+              reason: addressValidation.reason
+            });
+          }
+          continue; // Skip this row entirely
+        }
         
         stagingRows.push({
           job_id: jobId,
@@ -569,6 +683,21 @@ async function processUploadJob(jobId: string) {
         ? description.substring(0, MAX_DESCRIPTION_LENGTH) + '...' 
         : description;
       
+      // VALIDATE ADDRESS - skip garbage data
+      const addressValidation = isValidAddress(truncatedAddress);
+      if (!addressValidation.valid) {
+        console.log(`[process-upload] Row ${i + 1}: Skipping invalid address (${addressValidation.reason}): "${truncatedAddress.substring(0, 60)}..."`);
+        badAddressCount++;
+        if (badAddressSamples.length < 10) {
+          badAddressSamples.push({
+            row: i + 1,
+            address: truncatedAddress.substring(0, 100),
+            reason: addressValidation.reason
+          });
+        }
+        continue; // Skip this row entirely
+      }
+      
       stagingRows.push({
         job_id: jobId,
         row_num: i + 1,
@@ -607,6 +736,18 @@ async function processUploadJob(jobId: string) {
       }
     }
     } // End of fresh start block
+
+    // Update job with bad address statistics
+    if (badAddressCount > 0) {
+      console.log(`[process-upload] ⚠️ Skipped ${badAddressCount} rows with invalid addresses`);
+      await supabaseClient
+        .from('upload_jobs')
+        .update({ 
+          bad_addresses: badAddressCount,
+          bad_address_samples: badAddressSamples
+        })
+        .eq('id', jobId);
+    }
 
     // ===== RESUME SUPPORT: Check if we can skip DEDUPING =====
     // Re-fetch job to get latest values (status may have changed during prior runs)

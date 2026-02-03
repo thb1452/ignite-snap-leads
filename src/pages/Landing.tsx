@@ -737,41 +737,45 @@ export default function Landing() {
               {
                 name: "Starter",
                 price: pricing.starter[billingCycle],
-                description: "For focused local operators",
+                description: "For market exploration & local operators",
                 features: [
                   "2,500 monthly exports",
                   "All properties, all counties",
                   "Code violation data",
+                  "Basic filters (location, category, search)",
                   "Weekly data refresh",
                   "Email support"
                 ],
+                tagline: "Built for visibility, not prioritization.",
                 highlighted: false
               },
               {
                 name: "Professional",
                 price: pricing.professional[billingCycle],
-                description: "For growing acquisition operations",
+                description: "For active acquisition & deal sourcing",
                 features: [
                   "10,000 monthly exports",
-                  "All properties, all counties",
-                  "Code violation data",
                   "Everything in Starter",
+                  "Pressure Level™ filtering",
+                  "Prioritize high-distress properties",
                   "Priority email support"
                 ],
+                tagline: "Built to identify what matters first.",
                 highlighted: true,
                 badge: "Most Popular"
               },
               {
                 name: "Enterprise",
                 price: pricing.enterprise[billingCycle],
-                description: "For serious multi-market teams",
+                description: "For multi-market teams & advanced operators",
                 features: [
                   "25,000 monthly exports",
-                  "All properties, all counties",
-                  "Code violation + water shutoff data",
                   "Everything in Professional",
+                  "Pressure Level™ + Water Shutoff data",
+                  "Time-sensitive intelligence signals",
                   "API access (coming soon)"
                 ],
+                tagline: "Built for maximum signal.",
                 highlighted: false
               }
             ].map((plan, i) => (
@@ -803,6 +807,9 @@ export default function Landing() {
                     <p className="text-sm text-landing-text-muted">billed annually</p>
                   )}
                   <p className="text-landing-text-muted mt-2">{plan.description}</p>
+                  {plan.tagline && (
+                    <p className="text-xs text-landing-accent mt-2 font-medium italic">{plan.tagline}</p>
+                  )}
                 </div>
                 
                 <ul className="space-y-3 mb-8">

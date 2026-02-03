@@ -447,14 +447,12 @@ function Leads() {
           {/* Enforcement Signals - Available to all users */}
           <EnforcementSignalsFilter
             selectedSignal={selectedSignal}
-            onSignalChange={(v) => { 
-              setSelectedSignal(v); 
+            onSignalChange={(v) => {
+              setSelectedSignal(v);
               setPage(1);
               // Clear search when category changes to avoid conflicting filters
               if (v) setSearchInput("");
             }}
-            selectedState={selectedState}
-            selectedCity={selectedCity}
           />
           
           {/* Pressure Level - Available to all users */}

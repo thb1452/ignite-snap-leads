@@ -498,9 +498,9 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Starting staging inserts for ${totalRows} rows`);
 
-    // Track bad addresses for reporting
-    let badAddressCount = 0;
-    const badAddressSamples: { row: number; address: string; reason?: string }[] = [];
+    // Track bad addresses for reporting (staging phase)
+    let stagingBadAddressCount = 0;
+    const stagingBadAddressSamples: { row: number; address: string; reason?: string }[] = [];
 
     // RESUME SUPPORT: Check how many rows are already staged
     const { count: existingStagingCount } = await supabaseClient
@@ -568,9 +568,9 @@ async function processUploadJob(jobId: string) {
         const addressValidation = isValidAddress(truncatedAddress);
         if (!addressValidation.valid) {
           console.log(`[process-upload] Row ${i + 1}: Skipping invalid address (${addressValidation.reason}): "${truncatedAddress.substring(0, 60)}..."`);
-          badAddressCount++;
-          if (badAddressSamples.length < 10) {
-            badAddressSamples.push({
+          stagingBadAddressCount++;
+          if (stagingBadAddressSamples.length < 10) {
+            stagingBadAddressSamples.push({
               row: i + 1,
               address: truncatedAddress.substring(0, 100),
               reason: addressValidation.reason
@@ -687,9 +687,9 @@ async function processUploadJob(jobId: string) {
       const addressValidation = isValidAddress(truncatedAddress);
       if (!addressValidation.valid) {
         console.log(`[process-upload] Row ${i + 1}: Skipping invalid address (${addressValidation.reason}): "${truncatedAddress.substring(0, 60)}..."`);
-        badAddressCount++;
-        if (badAddressSamples.length < 10) {
-          badAddressSamples.push({
+        stagingBadAddressCount++;
+        if (stagingBadAddressSamples.length < 10) {
+          stagingBadAddressSamples.push({
             row: i + 1,
             address: truncatedAddress.substring(0, 100),
             reason: addressValidation.reason
@@ -738,13 +738,13 @@ async function processUploadJob(jobId: string) {
     } // End of fresh start block
 
     // Update job with bad address statistics
-    if (badAddressCount > 0) {
-      console.log(`[process-upload] ⚠️ Skipped ${badAddressCount} rows with invalid addresses`);
+    if (stagingBadAddressCount > 0) {
+      console.log(`[process-upload] ⚠️ Skipped ${stagingBadAddressCount} rows with invalid addresses`);
       await supabaseClient
         .from('upload_jobs')
         .update({ 
-          bad_addresses: badAddressCount,
-          bad_address_samples: badAddressSamples
+          bad_addresses: stagingBadAddressCount,
+          bad_address_samples: stagingBadAddressSamples
         })
         .eq('id', jobId);
     }

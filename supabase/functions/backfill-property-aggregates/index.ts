@@ -294,9 +294,10 @@ serve(async (req) => {
         }
       };
       
-      // @ts-ignore - EdgeRuntime.waitUntil is available in Supabase Edge Functions
-      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
-        EdgeRuntime.waitUntil(continueTask());
+      // Use globalThis cast for EdgeRuntime detection in Supabase Edge Functions
+      const runtime = (globalThis as any).EdgeRuntime;
+      if (typeof runtime !== 'undefined' && runtime.waitUntil) {
+        runtime.waitUntil(continueTask());
       } else {
         // Fallback: just fire and forget
         continueTask();

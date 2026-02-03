@@ -3,7 +3,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Home } from "lucide-react";
-import { aggregateByCategory, VIOLATION_CATEGORIES } from "@/utils/violationCategoryMapper";
 
 interface EnforcementSignalsFilterProps {
   selectedSignal: string | null;
@@ -18,36 +17,29 @@ export function EnforcementSignalsFilter({
   selectedState,
   selectedCity,
 }: EnforcementSignalsFilterProps) {
-  // Fetch violation types and aggregate into user-friendly categories
+  // Fetch property counts by category using the new RPC
+  // This returns accurate counts of unique properties per category
   const { data: categories = [], isLoading } = useQuery({
-    queryKey: ["violation-categories", selectedState, selectedCity],
+    queryKey: ["category-property-counts", selectedState, selectedCity],
     queryFn: async () => {
-      // Get violation counts from RPC - this already has the correct counts!
-      const { data: violationData, error: violationError } = await supabase.rpc("fn_violation_counts_by_area", {
+      const { data, error } = await supabase.rpc("fn_category_property_counts", {
         p_state: selectedState || null,
         p_city: selectedCity || null,
       });
 
-      if (violationError) {
-        console.error("[EnforcementSignalsFilter] RPC error:", violationError);
-        throw violationError;
+      if (error) {
+        console.error("[EnforcementSignalsFilter] RPC error:", error);
+        throw error;
       }
 
-      // Filter out empty types and use the RPC counts directly
-      const rawTypes = (violationData || [])
-        .filter((row: { violation_type: string; count: number }) => 
-          row.violation_type && row.violation_type.trim() !== ''
-        )
-        .map((row: { violation_type: string; count: number }) => ({
-          type: row.violation_type,
-          propertyCount: row.count,
-        }));
-
-      // Aggregate into user-friendly categories
-      const aggregated = aggregateByCategory(rawTypes);
+      const result = (data || []).map((row: { category_id: string; category_label: string; property_count: number }) => ({
+        categoryId: row.category_id,
+        label: row.category_label,
+        propertyCount: row.property_count,
+      }));
       
-      console.log("[EnforcementSignalsFilter] Categories:", aggregated.length, aggregated);
-      return aggregated;
+      console.log("[EnforcementSignalsFilter] Categories:", result.length, result);
+      return result;
     },
     staleTime: 60000,
   });

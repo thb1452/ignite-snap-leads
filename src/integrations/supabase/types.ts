@@ -2113,6 +2113,14 @@ export type Database = {
         Args: { p_field: string; p_run_id: string }
         Returns: undefined
       }
+      fn_category_property_counts: {
+        Args: { p_city?: string; p_state?: string }
+        Returns: {
+          category_id: string
+          category_label: string
+          property_count: number
+        }[]
+      }
       fn_charge_credits: {
         Args: { p_job_id: string; p_property_ids: string[] }
         Returns: Json

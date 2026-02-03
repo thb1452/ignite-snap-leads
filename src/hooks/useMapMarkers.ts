@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { LeadFilters } from "@/schemas";
-import { getCategoryById } from "@/utils/violationCategoryMapper";
 
 export interface MapMarker {
   id: string;
@@ -60,16 +59,12 @@ async function fetchMarkers(filters: LeadFilters): Promise<MapMarker[]> {
     q = q.gte("updated_at", cutoffDate.toISOString());
   }
   if (filters.violationType) {
-    const category = getCategoryById(filters.violationType);
-    if (category) {
-      // Use direct category ID match since violation_types contains pre-categorized values
-      // like "Exterior", "Zoning", "Safety" that match our category labels
-      const categoryLabel = category.label.split(' ')[0]; // e.g., "Exterior" from "Exterior Issues"
-      q = q.ilike("violation_types::text", `%${categoryLabel}%`);
-    } else {
-      // Direct match for raw violation type
-      q = q.ilike("violation_types::text", `%${filters.violationType}%`);
-    }
+    // The database stores violation_types as arrays with capitalized values like ["Exterior"], ["Safety"], etc.
+    // The filter passes category IDs like "exterior", "safety", "structural"
+    // We need to capitalize the first letter to match DB values
+    const dbCategoryValue = filters.violationType.charAt(0).toUpperCase() + filters.violationType.slice(1);
+    console.log("[useMapMarkers] Filtering by category:", filters.violationType, "-> DB value:", dbCategoryValue);
+    q = q.ilike("violation_types::text", `%${dbCategoryValue}%`);
   }
   if (filters.openViolationsOnly) {
     q = q.gt("open_violations", 0);

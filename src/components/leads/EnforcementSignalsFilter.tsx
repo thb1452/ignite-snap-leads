@@ -2,7 +2,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Home } from "lucide-react";
+import { Home, Lock } from "lucide-react";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 interface EnforcementSignalsFilterProps {
   selectedSignal: string | null;
@@ -11,12 +14,21 @@ interface EnforcementSignalsFilterProps {
   selectedCity: string | null;
 }
 
+// Categories that require enterprise tier
+const ENTERPRISE_ONLY_CATEGORIES = ['water_disconnection'];
+
 export function EnforcementSignalsFilter({
   selectedSignal,
   onSignalChange,
   selectedState,
   selectedCity,
 }: EnforcementSignalsFilterProps) {
+  const { subscription } = useSubscription();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  const isEnterprise = subscription?.plan_name === 'enterprise';
+
   // Fetch property counts by category using the new RPC
   // This returns accurate counts of unique properties per category
   const { data: categories = [], isLoading } = useQuery({
@@ -44,6 +56,30 @@ export function EnforcementSignalsFilter({
     staleTime: 60000,
   });
 
+  const handleSignalChange = (value: string) => {
+    if (value === "all") {
+      onSignalChange(null);
+      return;
+    }
+    
+    // Check if this is an enterprise-only category
+    if (ENTERPRISE_ONLY_CATEGORIES.includes(value) && !isEnterprise) {
+      toast({
+        title: "Enterprise Feature",
+        description: "Water Disconnection data is available on the Enterprise plan. Upgrade to access properties with utility disconnections.",
+        variant: "default",
+      });
+      navigate('/pricing');
+      return;
+    }
+    
+    onSignalChange(value);
+  };
+
+  const isLockedCategory = (categoryId: string) => {
+    return ENTERPRISE_ONLY_CATEGORIES.includes(categoryId) && !isEnterprise;
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
@@ -60,18 +96,29 @@ export function EnforcementSignalsFilter({
         <Label className="text-sm font-medium whitespace-nowrap">Category</Label>
         <Select
           value={selectedSignal || "all"}
-          onValueChange={(value) => onSignalChange(value === "all" ? null : value)}
+          onValueChange={handleSignalChange}
         >
           <SelectTrigger className="w-full md:w-[240px] h-11 md:h-9">
             <SelectValue placeholder={isLoading ? "Loading..." : "All issues"} />
           </SelectTrigger>
           <SelectContent className="z-[9999]">
             <SelectItem value="all">All issues</SelectItem>
-            {categories.map(({ categoryId, label, propertyCount }) => (
-              <SelectItem key={categoryId} value={categoryId}>
-                {label} — {propertyCount.toLocaleString()}
-              </SelectItem>
-            ))}
+            {categories.map(({ categoryId, label, propertyCount }) => {
+              const locked = isLockedCategory(categoryId);
+              return (
+                <SelectItem 
+                  key={categoryId} 
+                  value={categoryId}
+                  className={locked ? "text-muted-foreground" : ""}
+                >
+                  <span className="flex items-center gap-2">
+                    {locked && <Lock className="h-3 w-3 text-amber-500" />}
+                    {label} — {propertyCount.toLocaleString()}
+                    {locked && <span className="text-xs text-amber-600 dark:text-amber-400 ml-1">(Enterprise)</span>}
+                  </span>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       </div>

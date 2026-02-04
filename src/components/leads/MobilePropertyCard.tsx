@@ -110,9 +110,7 @@ export function MobilePropertyCard({
                       : 'bg-emerald-100 text-emerald-700 border-emerald-200'
                   }`}
                 >
-                  {(property.open_violations ?? 0) > 0 
-                    ? `${property.open_violations} open` 
-                    : `${property.total_violations} closed`}
+                  {(property.open_violations ?? 0) > 0 ? 'open' : 'closed'}
                 </Badge>
               </div>
             )}

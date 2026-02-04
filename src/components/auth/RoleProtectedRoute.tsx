@@ -183,9 +183,18 @@ export function RoleProtectedRoute({
     return <EmailVerificationPrompt />;
   }
 
-  // Admins can access everything
+  // Admins and VAs can access their allowed routes without subscription check
   const isAdmin = hasRole('admin');
+  const isVA = hasRole('va');
   const hasRequiredRole = isAdmin || allowedRoles.some(role => hasRole(role));
+
+  // CRITICAL: Admins and VAs bypass subscription check entirely
+  if (isAdmin || isVA) {
+    if (hasRequiredRole) {
+      console.log('[RoleProtectedRoute] Granting access - staff role:', { isAdmin, isVA });
+      return <>{children}</>;
+    }
+  }
 
   // Check if user has an active subscription (paid user)
   const hasPaidSubscription = hasActiveSubscription && plan?.name;

@@ -17,6 +17,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { BatchInsightsButton } from "@/components/intelligence/BatchInsightsButton";
 import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
+import { InsightRefreshDashboard } from "@/components/admin/InsightRefreshDashboard";
 import { 
   Users, 
   Upload, 
@@ -295,6 +296,9 @@ function SystemOverviewTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* Insight Refresh Dashboard - LIVE STATUS */}
+      <InsightRefreshDashboard />
 
       {/* Intelligence Engine Tools */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

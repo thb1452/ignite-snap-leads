@@ -111,15 +111,36 @@ export function RoleProtectedRoute({
   const isVA = hasRole('va');
   const hasRequiredRole = isAdmin || allowedRoles.some(role => hasRole(role));
 
-  // CRITICAL: Admin and VA bypass - check BEFORE subscription loading
-  // This ensures staff can access admin routes even if subscription data is slow
-  if (!loading && user && emailVerified && (isAdmin || isVA) && hasRequiredRole) {
-    console.log('[RoleProtectedRoute] Granting early access - staff role:', { isAdmin, isVA });
+  // Debug logging
+  console.log('[RoleProtectedRoute] State:', { 
+    loading, 
+    subLoading, 
+    userId: user?.id,
+    emailVerified,
+    isAdmin, 
+    isVA, 
+    hasRequiredRole,
+    hasActiveSubscription 
+  });
+
+  // Wait for auth to load first (always)
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // CRITICAL: Admin and VA bypass - check AFTER auth loads but BEFORE subscription check
+  // This ensures staff can access admin routes without needing a subscription
+  if (user && emailVerified && (isAdmin || isVA) && hasRequiredRole) {
+    console.log('[RoleProtectedRoute] Granting staff access:', { isAdmin, isVA });
     return <>{children}</>;
   }
 
-  // Wait for auth and subscription to load (for non-staff users)
-  if (loading || subLoading) {
+  // Wait for subscription to load (for non-staff users only)
+  if (subLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

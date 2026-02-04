@@ -1,9 +1,94 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export type AppRole = 'admin' | 'va' | 'user';
+
+const ROLES_CACHE_KEY = 'snap_user_roles_cache';
+
+// Helper to get cached roles from localStorage
+function getCachedRoles(userId: string): AppRole[] | null {
+  try {
+    const cached = localStorage.getItem(ROLES_CACHE_KEY);
+    if (cached) {
+      const { userId: cachedUserId, roles, timestamp } = JSON.parse(cached);
+      // Cache valid for 24 hours
+      const isValid = cachedUserId === userId && Date.now() - timestamp < 24 * 60 * 60 * 1000;
+      if (isValid && roles?.length > 0) {
+        console.log('[useAuth] Using cached roles:', roles);
+        return roles as AppRole[];
+      }
+    }
+  } catch (e) {
+    console.warn('[useAuth] Error reading cached roles:', e);
+  }
+  return null;
+}
+
+// Helper to cache roles to localStorage
+function cacheRoles(userId: string, roles: AppRole[]) {
+  try {
+    localStorage.setItem(ROLES_CACHE_KEY, JSON.stringify({
+      userId,
+      roles,
+      timestamp: Date.now()
+    }));
+  } catch (e) {
+    console.warn('[useAuth] Error caching roles:', e);
+  }
+}
+
+// Helper to clear cached roles
+function clearCachedRoles() {
+  try {
+    localStorage.removeItem(ROLES_CACHE_KEY);
+  } catch (e) {
+    console.warn('[useAuth] Error clearing cached roles:', e);
+  }
+}
+
+// Fetch roles with retry logic
+async function fetchRolesWithRetry(userId: string, maxRetries = 3): Promise<AppRole[]> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const { data: roleData, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+      
+      if (error) throw error;
+      
+      const fetchedRoles = roleData?.map(r => r.role as AppRole) || [];
+      const finalRoles = fetchedRoles.length > 0 ? fetchedRoles : ['user'] as AppRole[];
+      
+      // Cache successful fetch
+      cacheRoles(userId, finalRoles);
+      console.log('[useAuth] Fetched roles for', userId, ':', finalRoles);
+      return finalRoles;
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`[useAuth] Role fetch attempt ${attempt + 1} failed:`, err.message);
+      
+      // Exponential backoff: 500ms, 1s, 2s
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt)));
+      }
+    }
+  }
+  
+  // All retries failed - try cache
+  const cachedRoles = getCachedRoles(userId);
+  if (cachedRoles) {
+    console.log('[useAuth] Using cached roles after fetch failure:', cachedRoles);
+    return cachedRoles;
+  }
+  
+  console.error('[useAuth] All role fetch attempts failed:', lastError);
+  return ['user'];
+}
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -18,6 +103,17 @@ export function useAuth() {
     const loadingTimeout = setTimeout(() => {
       if (mounted && loading) {
         console.warn('[useAuth] Loading timeout reached, forcing complete');
+        
+        // Try to use cached roles before giving up
+        const currentUser = user;
+        if (currentUser) {
+          const cachedRoles = getCachedRoles(currentUser.id);
+          if (cachedRoles) {
+            console.log('[useAuth] Using cached roles on timeout:', cachedRoles);
+            setRoles(cachedRoles);
+          }
+        }
+        
         setLoading(false);
       }
     }, 5000);
@@ -32,27 +128,20 @@ export function useAuth() {
         setUser(currentUser);
         
         if (currentUser) {
-          // Fetch roles for this user
-          const { data: roleData, error } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', currentUser.id);
+          // Try cache first for faster initial load
+          const cachedRoles = getCachedRoles(currentUser.id);
+          if (cachedRoles) {
+            setRoles(cachedRoles);
+          }
           
-          if (!mounted) return;
-          
-          if (error) {
-            console.error('[useAuth] Error fetching roles:', error);
-            // Default to 'user' role if can't fetch
-            setRoles(['user']);
-          } else {
-            const fetchedRoles = roleData?.map(r => r.role as AppRole) || [];
-            // Default to 'user' if no roles found
-            const finalRoles = fetchedRoles.length > 0 ? fetchedRoles : ['user'] as AppRole[];
-            console.log('[useAuth] Initial roles for', currentUser.id, ':', finalRoles);
-            setRoles(finalRoles);
+          // Then fetch fresh roles
+          const freshRoles = await fetchRolesWithRetry(currentUser.id);
+          if (mounted) {
+            setRoles(freshRoles);
           }
         } else {
           setRoles([]);
+          clearCachedRoles();
         }
       } catch (err) {
         console.error('[useAuth] Init error:', err);
@@ -71,30 +160,25 @@ export function useAuth() {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       
       if (currentUser) {
-        // Fetch roles when auth state changes
-        setTimeout(async () => {
-          const { data: roleData, error } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', currentUser.id);
-          
-          if (error) {
-            console.error('[useAuth] Error fetching roles on change:', error);
-            setRoles(['user']);
-          } else {
-            const fetchedRoles = roleData?.map(r => r.role as AppRole) || [];
-            const finalRoles = fetchedRoles.length > 0 ? fetchedRoles : ['user'] as AppRole[];
-            console.log('[useAuth] Updated roles for', currentUser.id, ':', finalRoles);
-            setRoles(finalRoles);
-          }
-        }, 0);
+        // Use cached roles immediately for responsiveness
+        const cachedRoles = getCachedRoles(currentUser.id);
+        if (cachedRoles) {
+          setRoles(cachedRoles);
+        }
+        
+        // Then fetch fresh roles with retry
+        const freshRoles = await fetchRolesWithRetry(currentUser.id);
+        if (mounted) {
+          setRoles(freshRoles);
+        }
       } else {
         setRoles([]);
+        clearCachedRoles();
       }
     });
 

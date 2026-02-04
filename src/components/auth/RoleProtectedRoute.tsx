@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useState, useEffect, useRef } from 'react';
 import { Navigate, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -8,6 +8,8 @@ import { Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
 const CHECKOUT_PROCESSED_KEY = 'snap_checkout_processed';
 // Key to track if user is in the middle of signup → checkout flow
 const PENDING_CHECKOUT_KEY = 'snap_pending_checkout';
+// Safety timeout to prevent infinite loading
+const LOADING_TIMEOUT_MS = 8000;
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
@@ -25,6 +27,10 @@ export function RoleProtectedRoute({
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Safety timeout to prevent infinite loading states
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Track subscription polling state
   const [pollCount, setPollCount] = useState(0);
@@ -46,6 +52,32 @@ export function RoleProtectedRoute({
   // - checkoutSuccess: URL param, available immediately on first render
   // - checkoutProcessed: sessionStorage, persists across navigation/refresh
   const inCheckoutFlow = checkoutSuccess || checkoutProcessed;
+
+  // Safety timeout effect - prevents infinite loading
+  useEffect(() => {
+    if (loading || subLoading) {
+      if (!timeoutRef.current) {
+        timeoutRef.current = setTimeout(() => {
+          console.warn('[RoleProtectedRoute] Loading timeout reached, forcing complete');
+          setLoadingTimedOut(true);
+        }, LOADING_TIMEOUT_MS);
+      }
+    } else {
+      // Loading finished, clear timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      setLoadingTimedOut(false);
+    }
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [loading, subLoading]);
 
   // Handle checkout success detection and persist to sessionStorage
   useEffect(() => {
@@ -111,8 +143,8 @@ export function RoleProtectedRoute({
   const isVA = hasRole('va');
   const hasRequiredRole = isAdmin || allowedRoles.some(role => hasRole(role));
 
-  // Wait for auth to load first (always)
-  if (loading) {
+  // Wait for auth to load first (always) - but respect timeout
+  if (loading && !loadingTimedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -122,12 +154,13 @@ export function RoleProtectedRoute({
 
   // CRITICAL: Admin and VA bypass - check AFTER auth loads but BEFORE subscription check
   // This ensures staff can access admin routes without needing a subscription
-  if (user && emailVerified && (isAdmin || isVA) && hasRequiredRole) {
+  // Also bypass if loading timed out and user has admin/va role
+  if (user && (emailVerified || loadingTimedOut) && (isAdmin || isVA) && hasRequiredRole) {
     return <>{children}</>;
   }
 
-  // Wait for subscription to load (for non-staff users only)
-  if (subLoading) {
+  // Wait for subscription to load (for non-staff users only) - but respect timeout
+  if (subLoading && !loadingTimedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

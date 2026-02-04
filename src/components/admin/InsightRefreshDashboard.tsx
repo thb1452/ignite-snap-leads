@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -36,6 +36,7 @@ export function InsightRefreshDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [jobRunning, setJobRunning] = useState(false);
   const [progress, setProgress] = useState<{current: number; total: number; percentage: number} | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchStats = async () => {
     try {
@@ -77,9 +78,33 @@ export function InsightRefreshDashboard() {
     }
   };
 
+  // Cleanup polling on unmount
   useEffect(() => {
     fetchStats();
-    // No auto-refresh - user can click Refresh button or parent component handles it
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, []);
+
+  // Start polling when job is running
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+    }
+    // Poll every 5 seconds while job is running
+    pollingRef.current = setInterval(() => {
+      fetchStats();
+    }, 5000);
+  }, []);
+
+  // Stop polling
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
   }, []);
 
   const handleRefresh = async () => {
@@ -93,6 +118,9 @@ export function InsightRefreshDashboard() {
       setJobRunning(true);
       toast.info("Starting insight refresh job...");
 
+      // Start polling for live updates
+      startPolling();
+
       const { data, error } = await supabase.functions.invoke('refresh-outdated-insights', {
         body: { autoResume: true }
       });
@@ -105,12 +133,20 @@ export function InsightRefreshDashboard() {
 
       toast.success(`Refresh started: ${data.processed} processed in first batch`);
       
-      // Refresh stats after a short delay
-      setTimeout(fetchStats, 2000);
+      // Refresh stats immediately after starting
+      fetchStats();
+
+      // Check if job completed in this batch
+      if (data.progress?.percentage >= 100 || data.remaining === 0) {
+        setJobRunning(false);
+        stopPolling();
+        toast.success("All insights refreshed!");
+      }
     } catch (err) {
       console.error("Failed to start refresh job:", err);
       toast.error("Failed to start refresh job");
       setJobRunning(false);
+      stopPolling();
     }
   };
 

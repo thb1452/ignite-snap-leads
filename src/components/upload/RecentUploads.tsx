@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, MapPin, FileSpreadsheet, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Clock, MapPin, FileSpreadsheet, CheckCircle2, XCircle, Loader2, Droplets } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface RecentUpload {
@@ -18,6 +18,7 @@ interface RecentUpload {
   violations_created: number | null;
   created_at: string;
   finished_at: string | null;
+  source_type: string | null;
 }
 
 export function RecentUploads() {
@@ -30,7 +31,7 @@ export function RecentUploads() {
     
     const { data, error } = await supabase
       .from('upload_jobs')
-      .select('id, filename, city, state, status, total_rows, properties_created, violations_created, created_at, finished_at')
+      .select('id, filename, city, state, status, total_rows, properties_created, violations_created, created_at, finished_at, source_type')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(10);
@@ -143,6 +144,12 @@ export function RecentUploads() {
                     </span>
                   ) : (
                     <span className="font-medium truncate">{upload.filename}</span>
+                  )}
+                  {upload.source_type === 'water_disconnection' && (
+                    <Badge variant="outline" className="text-cyan-600 border-cyan-300 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-950/30 text-xs">
+                      <Droplets className="w-3 h-3 mr-1" />
+                      Water
+                    </Badge>
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">

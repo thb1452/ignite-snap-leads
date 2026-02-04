@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload as UploadIcon, FileSpreadsheet, AlertCircle, ClipboardPaste, Loader2 } from 'lucide-react';
+import { Upload as UploadIcon, FileSpreadsheet, AlertCircle, ClipboardPaste, Loader2, Droplets } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/use-auth';
 import { createUploadJob } from '@/services/uploadJobs';
 import { useUploadJob } from '@/hooks/useUploadJob';
@@ -58,12 +59,14 @@ export default function Upload() {
   const [pendingCsvData, setPendingCsvData] = useState<string | null>(null);
   const [detection, setDetection] = useState<CsvDetectionResult | null>(null);
   const [multiFileMode, setMultiFileMode] = useState(false);
+  const [isWaterData, setIsWaterData] = useState(false);
 
   const resetDetection = () => {
     setPendingFiles([]);
     setPendingCsvData(null);
     setDetection(null);
     setMultiFileMode(false);
+    setIsWaterData(false);
   };
   
   const resetAll = () => {
@@ -183,7 +186,8 @@ export default function Upload() {
               userId: effectiveUserId,
               city: jobCity || null,
               county: county || null,
-              state: jobState
+              state: jobState,
+              isWaterData,
             });
           });
 
@@ -257,7 +261,8 @@ export default function Upload() {
               userId: effectiveUserId,
               city: groupCity,
               county: county || null,
-              state: groupState
+              state: groupState,
+              isWaterData,
             });
           });
           
@@ -308,7 +313,8 @@ export default function Upload() {
           userId: effectiveUserId, 
           city: jobCity || null, 
           county: county || null, 
-          state: jobState 
+          state: jobState,
+          isWaterData,
         });
         setJobId(id);
         toast({
@@ -384,7 +390,8 @@ export default function Upload() {
               userId: effectiveUserId,
               city: groupCity,
               county: county || null,
-              state: groupState
+              state: groupState,
+              isWaterData,
             });
           });
           
@@ -441,7 +448,8 @@ export default function Upload() {
           userId: effectiveUserId,
           city: jobCity || null,
           county: county || null,
-          state: jobState
+          state: jobState,
+          isWaterData,
         });
         setJobId(id);
         toast({
@@ -547,6 +555,31 @@ export default function Upload() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                {/* Water Disconnection Data Checkbox */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-start space-x-3">
+                    <Checkbox
+                      id="water-data"
+                      checked={isWaterData}
+                      onCheckedChange={(checked) => setIsWaterData(checked === true)}
+                    />
+                    <div className="grid gap-1.5 leading-none">
+                      <Label
+                        htmlFor="water-data"
+                        className="flex items-center gap-2 text-sm font-medium cursor-pointer"
+                      >
+                        <Droplets className="h-4 w-4 text-cyan-600" />
+                        This file contains water disconnection data
+                      </Label>
+                      {isWaterData && (
+                        <p className="text-xs text-muted-foreground bg-cyan-50 dark:bg-cyan-950/30 p-2 rounded border border-cyan-200 dark:border-cyan-800">
+                          Properties from this file will be tagged as water shutoff data and visible only to Enterprise users.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

@@ -53,43 +53,43 @@ const ONBOARDING_STEPS = [
     content: (
       <div className="space-y-4">
         <p className="text-ink-700">
-          Every property gets a <strong>SnapScore</strong> from 0-100—a measure of enforcement pressure:
+          Every property gets a <strong>SnapScore</strong> from 0-100—a measure of enforcement intensity:
         </p>
 
         <div className="space-y-3">
           <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <Badge className="bg-score-red text-score-red-foreground mt-0.5">70-100</Badge>
+            <Badge className="bg-score-red text-score-red-foreground mt-0.5">75-100</Badge>
             <div className="flex-1">
-              <h4 className="font-semibold text-sm text-ink-900">High Pressure</h4>
+              <h4 className="font-semibold text-sm text-ink-900">Critical Intensity</h4>
               <p className="text-xs text-ink-600">
-                Severe violations, chronic neglect, legal escalation. Maximum enforcement pressure.
+                High-priority citations, extended duration, escalated enforcement.
               </p>
             </div>
           </div>
 
           <div className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <Badge className="bg-score-yellow text-score-yellow-foreground mt-0.5">40-69</Badge>
+            <Badge className="bg-score-yellow text-score-yellow-foreground mt-0.5">25-74</Badge>
             <div className="flex-1">
-              <h4 className="font-semibold text-sm text-ink-900">Moderate Pressure</h4>
+              <h4 className="font-semibold text-sm text-ink-900">Moderate/High Intensity</h4>
               <p className="text-xs text-ink-600">
-                Active enforcement. Ongoing municipal attention.
+                Active enforcement cases with municipal attention.
               </p>
             </div>
           </div>
 
           <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <Badge className="bg-score-blue text-score-blue-foreground mt-0.5">0-39</Badge>
+            <Badge className="bg-score-blue text-score-blue-foreground mt-0.5">0-24</Badge>
             <div className="flex-1">
-              <h4 className="font-semibold text-sm text-ink-900">Low Pressure</h4>
+              <h4 className="font-semibold text-sm text-ink-900">Low Intensity</h4>
               <p className="text-xs text-ink-600">
-                Minor issues. Monitor for escalation.
+                Minor citations or recently resolved cases.
               </p>
             </div>
           </div>
         </div>
 
         <p className="text-xs text-ink-500 mt-4">
-          Calculated from: time open, severity, repeat violations, escalation patterns.
+          Calculated from: enforcement duration, municipal priority, repeat activity, agency involvement.
         </p>
       </div>
     ),
@@ -100,7 +100,7 @@ const ONBOARDING_STEPS = [
     content: (
       <div className="space-y-4">
         <p className="text-ink-700">
-          Every property includes a <strong>SnapInsight</strong>—an AI-generated summary of the enforcement situation.
+          Every property includes a <strong>SnapInsight</strong>—an AI-generated enforcement activity summary.
         </p>
 
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -109,14 +109,14 @@ const ONBOARDING_STEPS = [
             <h4 className="font-semibold text-sm text-green-900">Example SnapInsight</h4>
           </div>
           <p className="text-sm text-green-800 italic">
-            "Extended non-compliance period (180+ days) with structural indicators suggests ongoing enforcement pressure."
+            "Active enforcement exceeds 180-day threshold. Multiple municipal agencies involved. Structural safety citation issued."
           </p>
         </div>
 
         <ul className="space-y-2 text-sm text-ink-600">
           <li className="flex items-start gap-2">
             <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-            <span>Analyzes property condition and enforcement timeline</span>
+            <span>Summarizes enforcement activity based on municipal records</span>
           </li>
         </ul>
       </div>

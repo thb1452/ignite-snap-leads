@@ -79,10 +79,7 @@ export function InsightRefreshDashboard() {
 
   useEffect(() => {
     fetchStats();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
+    // No auto-refresh - user can click Refresh button or parent component handles it
   }, []);
 
   const handleRefresh = async () => {

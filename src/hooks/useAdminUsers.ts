@@ -12,7 +12,7 @@ export interface AdminUser {
   uploads7Days: number;
 }
 
-export function useAdminUsers(refreshTrigger?: Date) {
+export function useAdminUsers(refreshTrigger?: number) {
   return useQuery({
     queryKey: ["admin-users", refreshTrigger],
     queryFn: async (): Promise<AdminUser[]> => {

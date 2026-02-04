@@ -111,18 +111,6 @@ export function RoleProtectedRoute({
   const isVA = hasRole('va');
   const hasRequiredRole = isAdmin || allowedRoles.some(role => hasRole(role));
 
-  // Debug logging
-  console.log('[RoleProtectedRoute] State:', { 
-    loading, 
-    subLoading, 
-    userId: user?.id,
-    emailVerified,
-    isAdmin, 
-    isVA, 
-    hasRequiredRole,
-    hasActiveSubscription 
-  });
-
   // Wait for auth to load first (always)
   if (loading) {
     return (
@@ -135,7 +123,6 @@ export function RoleProtectedRoute({
   // CRITICAL: Admin and VA bypass - check AFTER auth loads but BEFORE subscription check
   // This ensures staff can access admin routes without needing a subscription
   if (user && emailVerified && (isAdmin || isVA) && hasRequiredRole) {
-    console.log('[RoleProtectedRoute] Granting staff access:', { isAdmin, isVA });
     return <>{children}</>;
   }
 

@@ -106,7 +106,19 @@ export function RoleProtectedRoute({
     }
   }, [loading, subLoading, user, inCheckoutFlow, hasActiveSubscription, pollCount, refetch, hasGivenUp]);
 
-  // Wait for auth and subscription to load
+  // Derive role checks early (needed for admin bypass before subscription loads)
+  const isAdmin = hasRole('admin');
+  const isVA = hasRole('va');
+  const hasRequiredRole = isAdmin || allowedRoles.some(role => hasRole(role));
+
+  // CRITICAL: Admin and VA bypass - check BEFORE subscription loading
+  // This ensures staff can access admin routes even if subscription data is slow
+  if (!loading && user && emailVerified && (isAdmin || isVA) && hasRequiredRole) {
+    console.log('[RoleProtectedRoute] Granting early access - staff role:', { isAdmin, isVA });
+    return <>{children}</>;
+  }
+
+  // Wait for auth and subscription to load (for non-staff users)
   if (loading || subLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -183,18 +195,7 @@ export function RoleProtectedRoute({
     return <EmailVerificationPrompt />;
   }
 
-  // Admins and VAs can access their allowed routes without subscription check
-  const isAdmin = hasRole('admin');
-  const isVA = hasRole('va');
-  const hasRequiredRole = isAdmin || allowedRoles.some(role => hasRole(role));
-
-  // CRITICAL: Admins and VAs bypass subscription check entirely
-  if (isAdmin || isVA) {
-    if (hasRequiredRole) {
-      console.log('[RoleProtectedRoute] Granting access - staff role:', { isAdmin, isVA });
-      return <>{children}</>;
-    }
-  }
+  // Staff bypass already handled above (early return for admin/va)
 
   // Check if user has an active subscription (paid user)
   const hasPaidSubscription = hasActiveSubscription && plan?.name;

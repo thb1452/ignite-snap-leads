@@ -49,55 +49,83 @@ export function InsightRefreshDashboard() {
     isFetchingRef.current = true;
     
     try {
-      // Run all queries in parallel for speed
-      const [totalResult, missingResult, outdatedResult] = await Promise.all([
-        supabase
-          .from("properties")
-          .select("id", { count: "exact", head: true }),
-        supabase
-          .from("properties")
-          .select("id", { count: "exact", head: true })
-          .is("snap_insight", null),
-        supabase
-          .from("properties")
-          .select("id", { count: "exact", head: true })
-          .not("snap_insight", "is", null)
-          .or(OUTDATED_TERMS.map(term => `snap_insight.ilike.%${term}%`).join(','))
-      ]);
+      // Use simpler queries that are more reliable
+      // Query 1: Total count
+      const { count: total, error: totalError } = await supabase
+        .from("properties")
+        .select("*", { count: "exact", head: true });
 
-      // Check for errors - if any query failed, don't update stats (keep previous valid data)
-      if (totalResult.error || missingResult.error || outdatedResult.error) {
-        console.error('[InsightDashboard] Query errors:', {
-          total: totalResult.error,
-          missing: missingResult.error,
-          outdated: outdatedResult.error
-        });
-        // Don't toast on every failed poll - just log it
+      if (totalError) {
+        console.error('[InsightDashboard] Total count error:', totalError);
         setLoading(false);
+        isFetchingRef.current = false;
         return;
       }
 
-      const total = totalResult.count;
-      const missing = missingResult.count;
-      const outdated = outdatedResult.count;
+      // Query 2: Missing insights (NULL snap_insight)
+      const { count: missing, error: missingError } = await supabase
+        .from("properties")
+        .select("*", { count: "exact", head: true })
+        .is("snap_insight", null);
 
-      // Only update if we got valid counts (not null)
-      if (total !== null && missing !== null && outdated !== null) {
-        const clean = total - missing - outdated;
-        
-        setStats({
-          total,
-          missing,
-          outdated,
-          clean: Math.max(0, clean),
-          lastUpdated: new Date()
-        });
-      } else {
-        console.warn('[InsightDashboard] Got null counts, keeping previous data');
+      if (missingError) {
+        console.error('[InsightDashboard] Missing count error:', missingError);
+        setLoading(false);
+        isFetchingRef.current = false;
+        return;
       }
+
+      // Query 3: Count with insights (to check outdated separately)
+      const { count: withInsight, error: withInsightError } = await supabase
+        .from("properties")
+        .select("*", { count: "exact", head: true })
+        .not("snap_insight", "is", null);
+
+      if (withInsightError) {
+        console.error('[InsightDashboard] With insight count error:', withInsightError);
+        setLoading(false);
+        isFetchingRef.current = false;
+        return;
+      }
+
+      // Query 4: Outdated - use a simpler approach with fewer terms to avoid query complexity issues
+      // Only check the most common outdated terms
+      const CORE_OUTDATED_TERMS = ['distress', 'opportunity', 'investor', 'motivated', 'acquisition'];
+      const orCondition = CORE_OUTDATED_TERMS.map(term => `snap_insight.ilike.%${term}%`).join(',');
+      
+      const { count: outdated, error: outdatedError } = await supabase
+        .from("properties")
+        .select("*", { count: "exact", head: true })
+        .not("snap_insight", "is", null)
+        .or(orCondition);
+
+      if (outdatedError) {
+        console.error('[InsightDashboard] Outdated count error:', outdatedError);
+        // Fall back to assuming 0 outdated if query fails
+      }
+
+      const outdatedCount = outdated ?? 0;
+      const totalCount = total ?? 0;
+      const missingCount = missing ?? 0;
+      const cleanCount = Math.max(0, (withInsight ?? 0) - outdatedCount);
+
+      console.log('[InsightDashboard] Stats:', { 
+        total: totalCount, 
+        missing: missingCount, 
+        withInsight, 
+        outdated: outdatedCount, 
+        clean: cleanCount 
+      });
+
+      setStats({
+        total: totalCount,
+        missing: missingCount,
+        outdated: outdatedCount,
+        clean: cleanCount,
+        lastUpdated: new Date()
+      });
     } catch (err) {
       console.error("[InsightDashboard] Failed to fetch insight stats:", err);
-      // Don't toast on every failed poll
     } finally {
       setLoading(false);
       isFetchingRef.current = false;

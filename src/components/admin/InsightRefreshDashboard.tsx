@@ -313,6 +313,15 @@ export function InsightRefreshDashboard() {
             )}
           </ul>
         </div>
+
+        {/* Processing Note */}
+        {jobRunning && (
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-800 dark:text-blue-200">
+            <strong>Note:</strong> The refresh job runs in the background and self-continues automatically. 
+            AI generation may be rate-limited, falling back to rule-based insights. 
+            Click "Refresh" to see updated progress.
+          </div>
+        )}
       </CardContent>
     </Card>
   );

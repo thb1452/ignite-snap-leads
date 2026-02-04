@@ -68,44 +68,28 @@ interface PropertyIntelligence {
   escalated: boolean;
 }
 
-// =============================================================================
-// SNAP INSIGHT DOCTRINE v2.1
-// =============================================================================
-// The SnapInsight is a CATEGORY DESCRIPTION grounded in inspection data.
-// It describes WHAT the enforcement record shows, not WHAT IT MEANS for anyone.
-//
-// DOCTRINE:
-// 1. Describe the enforcement category (what type of issues are documented)
-// 2. Base language only on observed inspection notes
-// 3. NO implied owner intent, urgency, or predicted outcome
-// 4. NO investment framing, opportunity language, or action suggestions
-// =============================================================================
+// Enforcement pressure insight prompt - neutral compliance focus
+const SNAP_INSIGHT_PROMPT = `You are generating municipal enforcement pressure insights, NOT investment pitches.
+Your role is to summarize property condition and enforcement-related stress signals only.
 
-const SNAP_INSIGHT_PROMPT = `You are summarizing municipal enforcement records for a property.
-Your output is a factual category description based solely on inspection documentation.
-
-DOCTRINE (non-negotiable):
-1. Describe WHAT the enforcement record documents (violation types, physical conditions)
-2. Use ONLY language that appears in or is directly supported by the inspection notes
-3. NEVER imply owner intent, motivation, urgency, or predicted outcomes
-4. NEVER suggest what anyone should do or what might happen next
-
-FORBIDDEN:
-- "motivated seller", "opportunity", "distressed", "value-add"
-- "owner may be...", "likely to...", "suggests willingness..."
-- "act now", "time-sensitive", "escalating", "pressure"
-- Legal outcomes, fines, penalties, court actions, threats
-- Any urgency or timeline implications
+STRICT RULES:
+- Never suggest buying, selling, negotiating, or deal quality
+- Never use wholesaling or investor persuasion language
+- Never imply owner intent, motivation, or willingness to sell
+- Never mention legal actions, fines, penalties, courts, or threats
 
 ALLOWED:
-- Physical condition observations from inspection notes
-- Violation category descriptions (structural, exterior, vacancy, etc.)
-- Duration facts (e.g., "open 6+ months") without urgency framing
-- Count facts (e.g., "3 open violations across 2 departments")
+- Physical condition observations
+- Duration and repetition of enforcement activity
+- Signs of neglect, vacancy, or escalation
+- Neutral, factual, pressure-based language
 
-OUTPUT FORMAT:
-A neutral, factual summary of what the enforcement record documents.
-Max 280 characters. No labels. No commentary.`;
+Output must sound like:
+- A risk assessment
+- A compliance intelligence summary
+- An enforcement pressure signal
+
+Max length: 280 characters.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -649,15 +633,8 @@ function classifyViolation(violation: Violation): ViolationWithSeverity {
   return { category: 'Other', severity: 'minor', original: violation };
 }
 
-// =============================================================================
-// FALLBACK INSIGHT GENERATOR - DOCTRINE v2.1
-// =============================================================================
-// When AI is unavailable, generate category descriptions from detected signals.
-// Output must follow the same doctrine as AI insights:
-// 1. Describe the enforcement category
-// 2. Based only on inspection data
-// 3. NO implied owner intent, urgency, or outcome
-// =============================================================================
+// Generate context-aware insight based on detected signals
+// Uses neutral compliance/enforcement language - NO investor/opportunity language
 function generateSignalBasedInsight(
   signals: string[],
   intelligence: PropertyIntelligence,
@@ -665,54 +642,61 @@ function generateSignalBasedInsight(
 ): string {
   const insights: string[] = [];
   
-  // Build category-based descriptions from violation data
-  const categories = [...new Set(classified.map(v => v.category))];
-  const severeCount = classified.filter(v => v.severity === 'severe').length;
-  const moderateCount = classified.filter(v => v.severity === 'moderate').length;
+  // Time pressure context
+  if (signals.includes('chronic_neglect')) {
+    insights.push('High enforcement persistence: 180+ days of unresolved violations');
+  }
   
-  // Primary category description
+  // Repeat offender context
+  if (signals.includes('chronic_offender')) {
+    insights.push('Recurring compliance failures indicate systemic maintenance issues');
+  } else if (signals.includes('repeat_violations')) {
+    insights.push('Multiple enforcement actions recorded on property');
+  }
+  
+  // Multi-department context
+  if (signals.includes('coordinated_enforcement')) {
+    insights.push('Multi-department enforcement activity signals significant property deterioration');
+  } else if (signals.includes('multi_department')) {
+    insights.push('Cross-department compliance issues detected');
+  }
+  
+  // Legal escalation context
+  if (signals.includes('legal_escalation')) {
+    insights.push('Enforcement escalation in progress');
+  }
+  
+  // Vacancy context
+  if (signals.includes('vacancy_indicators')) {
+    insights.push('Indicators of vacancy or abandonment present');
+  }
+  
+  // Fire/Structural
   if (signals.includes('fire_damage')) {
-    insights.push('Enforcement record documents fire-related damage');
-  } else if (signals.includes('structural_issues')) {
-    insights.push('Enforcement record documents structural condition issues');
-  } else if (signals.includes('vacancy_indicators')) {
-    insights.push('Enforcement record documents vacancy or unsecured building');
-  } else if (signals.includes('utility_issues')) {
-    insights.push('Enforcement record documents building system issues');
+    insights.push('Fire-related damage documented in enforcement records');
+  }
+  if (signals.includes('structural_issues')) {
+    insights.push('Structural concerns identified in compliance review');
   }
   
-  // Violation count context (factual, no urgency)
-  if (intelligence.open_violations > 0) {
-    const deptCount = categories.length;
-    if (deptCount >= 2) {
-      insights.push(`${intelligence.open_violations} open violation(s) across ${deptCount} categories`);
-    } else if (intelligence.open_violations >= 3) {
-      insights.push(`${intelligence.open_violations} open violations documented`);
-    }
+  // Utility issues
+  if (signals.includes('utility_issues')) {
+    insights.push('Building system failures noted');
   }
   
-  // Duration context (factual, no urgency framing)
-  if (signals.includes('chronic_neglect') && intelligence.avg_days_open > 0) {
-    insights.push(`Oldest open violation: ${Math.floor(intelligence.avg_days_open / 30)}+ months`);
-  }
-  
-  // Historical pattern (factual)
-  if (intelligence.total_violations >= 5) {
-    insights.push(`${intelligence.total_violations} total violations in enforcement history`);
-  }
-  
-  // Default based on severity categories
+  // Default based on severity
   if (insights.length === 0) {
+    const severeCount = classified.filter(v => v.severity === 'severe').length;
+    const moderateCount = classified.filter(v => v.severity === 'moderate').length;
+    
     if (severeCount > 0) {
-      const severeCats = classified.filter(v => v.severity === 'severe').map(v => v.category);
-      const uniqueSevereCats = [...new Set(severeCats)];
-      insights.push(`Enforcement record includes ${uniqueSevereCats.join(', ').toLowerCase()} category violations`);
+      insights.push('Critical compliance issues requiring remediation');
     } else if (moderateCount > 0) {
-      insights.push('Enforcement record documents property maintenance violations');
+      insights.push('Multiple unresolved maintenance issues on record');
     } else if (intelligence.total_violations > 0) {
-      insights.push('Enforcement record documents minor exterior violations');
+      insights.push('Minor exterior maintenance items noted in enforcement records');
     } else {
-      insights.push('No active enforcement violations on record');
+      insights.push('Limited enforcement activity on file');
     }
   }
   

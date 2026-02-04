@@ -149,6 +149,16 @@ export function PropertyCard({
               </div>
             )}
             
+            {/* Violation Types Summary */}
+            {property.violation_types && property.violation_types.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <Flame className="h-3.5 w-3.5 text-orange-500" />
+                <span className="text-xs text-muted-foreground">
+                  {property.violation_types.slice(0, 2).map(formatViolationType).join(", ")}
+                  {property.violation_types.length > 2 && ` +${property.violation_types.length - 2}`}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Most Recent Violation Details */}

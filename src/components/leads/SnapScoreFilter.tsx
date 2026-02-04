@@ -24,7 +24,7 @@ export function SnapScoreFilter({
   const handleLockedClick = () => {
     toast({
       title: "Enterprise Feature",
-      description: "SnapScore filtering helps you target properties by distress level. Upgrade to Enterprise to unlock.",
+      description: "SnapScore filtering helps you prioritize properties by enforcement pressure. Upgrade to Enterprise to unlock.",
       variant: "default",
     });
     navigate('/pricing');
@@ -49,20 +49,20 @@ export function SnapScoreFilter({
           </Label>
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             <Target className="h-3 w-3" />
-            Filter by property distress score
+            Filter by enforcement pressure score
           </p>
         </div>
         
         <div className="bg-muted/50 border border-dashed border-amber-300 dark:border-amber-700 rounded-lg p-4">
           <div className="flex flex-col gap-2">
             <p className="text-sm text-muted-foreground">
-              Target properties by distress level:
+              Target properties by enforcement pressure:
             </p>
             <ul className="text-xs text-muted-foreground space-y-1 ml-4 list-disc">
-              <li><span className="text-red-500 font-medium">75-100</span> — Distressed (highest priority)</li>
-              <li><span className="text-orange-500 font-medium">50-74</span> — Value-Add opportunities</li>
-              <li><span className="text-yellow-500 font-medium">25-49</span> — Watch list</li>
-              <li><span className="text-blue-500 font-medium">0-24</span> — Low distress</li>
+              <li><span className="text-red-500 font-medium">75-100</span> — Critical (highest pressure)</li>
+              <li><span className="text-orange-500 font-medium">50-74</span> — High pressure</li>
+              <li><span className="text-yellow-500 font-medium">25-49</span> — Moderate</li>
+              <li><span className="text-blue-500 font-medium">0-24</span> — Low pressure</li>
             </ul>
             <Button
               size="sm"
@@ -86,7 +86,7 @@ export function SnapScoreFilter({
         </Label>
         <p className="text-xs text-muted-foreground flex items-center gap-1">
           <Target className="h-3 w-3" />
-          Filter by property distress score (0-100)
+          Filter by enforcement pressure score (0-100)
         </p>
       </div>
       
@@ -112,9 +112,9 @@ export function SnapScoreFilter({
         
         <div className="flex justify-between text-xs text-muted-foreground">
           <span className="text-blue-500">Low</span>
-          <span className="text-yellow-500">Watch</span>
-          <span className="text-orange-500">Value-Add</span>
-          <span className="text-red-500">Distressed</span>
+          <span className="text-yellow-500">Moderate</span>
+          <span className="text-orange-500">High</span>
+          <span className="text-red-500">Critical</span>
         </div>
         
         {/* Quick presets */}
@@ -133,7 +133,7 @@ export function SnapScoreFilter({
             onClick={() => onSnapScoreChange([75, 100])}
             className={snapScoreRange[0] === 75 && snapScoreRange[1] === 100 ? "border-red-500 text-red-500" : ""}
           >
-            Distressed (75+)
+            Critical (75+)
           </Button>
           <Button
             variant="outline"
@@ -141,7 +141,7 @@ export function SnapScoreFilter({
             onClick={() => onSnapScoreChange([50, 100])}
             className={snapScoreRange[0] === 50 && snapScoreRange[1] === 100 ? "border-orange-500 text-orange-500" : ""}
           >
-            Value-Add+ (50+)
+            High+ (50+)
           </Button>
         </div>
       </div>

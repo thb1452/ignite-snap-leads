@@ -36,20 +36,20 @@ All colors MUST be HSL.
     --input: 220 13% 91%;
     --ring: 217 100% 53%;
 
-    /* SnapScore Distress Color System (Official Standard) */
-    /* 0-24 = Low Distress (Blue) */
+    /* SnapScore Enforcement Pressure Color System (Official Standard) */
+    /* 0-24 = Low Pressure (Blue) */
     --score-blue: 210 71% 59%;
     --score-blue-foreground: 0 0% 100%;
     
-    /* 25-49 = Moderate Distress (Yellow) */
+    /* 25-49 = Moderate Pressure (Yellow) */
     --score-yellow: 47 91% 53%;
     --score-yellow-foreground: 24 10% 10%;
     
-    /* 50-74 = High Distress (Orange) */
+    /* 50-74 = High Pressure (Orange) */
     --score-orange: 33 100% 49%;
     --score-orange-foreground: 0 0% 100%;
     
-    /* 75-100 = Critical Distress (Red) */
+    /* 75-100 = Critical Pressure (Red) */
     --score-red: 1 77% 55%;
     --score-red-foreground: 0 0% 100%;
 

@@ -37,46 +37,72 @@ export function InsightRefreshDashboard() {
   const [jobRunning, setJobRunning] = useState(false);
   const [progress, setProgress] = useState<{current: number; total: number; percentage: number} | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const isFetchingRef = useRef(false); // Prevent concurrent fetches
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
+    // Prevent concurrent fetches that can cause race conditions
+    if (isFetchingRef.current) {
+      console.log('[InsightDashboard] Skipping fetch - already in progress');
+      return;
+    }
+    
+    isFetchingRef.current = true;
+    
     try {
-      // Get total count
-      const { count: total } = await supabase
-        .from("properties")
-        .select("id", { count: "exact", head: true });
+      // Run all queries in parallel for speed
+      const [totalResult, missingResult, outdatedResult] = await Promise.all([
+        supabase
+          .from("properties")
+          .select("id", { count: "exact", head: true }),
+        supabase
+          .from("properties")
+          .select("id", { count: "exact", head: true })
+          .is("snap_insight", null),
+        supabase
+          .from("properties")
+          .select("id", { count: "exact", head: true })
+          .not("snap_insight", "is", null)
+          .or(OUTDATED_TERMS.map(term => `snap_insight.ilike.%${term}%`).join(','))
+      ]);
 
-      // Get missing insights count
-      const { count: missing } = await supabase
-        .from("properties")
-        .select("id", { count: "exact", head: true })
-        .is("snap_insight", null);
+      // Check for errors - if any query failed, don't update stats (keep previous valid data)
+      if (totalResult.error || missingResult.error || outdatedResult.error) {
+        console.error('[InsightDashboard] Query errors:', {
+          total: totalResult.error,
+          missing: missingResult.error,
+          outdated: outdatedResult.error
+        });
+        // Don't toast on every failed poll - just log it
+        setLoading(false);
+        return;
+      }
 
-      // Build OR condition for outdated terms
-      const orConditions = OUTDATED_TERMS.map(term => `snap_insight.ilike.%${term}%`).join(',');
+      const total = totalResult.count;
+      const missing = missingResult.count;
+      const outdated = outdatedResult.count;
 
-      // Get outdated insights count
-      const { count: outdated } = await supabase
-        .from("properties")
-        .select("id", { count: "exact", head: true })
-        .not("snap_insight", "is", null)
-        .or(orConditions);
-
-      const clean = (total || 0) - (missing || 0) - (outdated || 0);
-
-      setStats({
-        total: total || 0,
-        missing: missing || 0,
-        outdated: outdated || 0,
-        clean: Math.max(0, clean),
-        lastUpdated: new Date()
-      });
+      // Only update if we got valid counts (not null)
+      if (total !== null && missing !== null && outdated !== null) {
+        const clean = total - missing - outdated;
+        
+        setStats({
+          total,
+          missing,
+          outdated,
+          clean: Math.max(0, clean),
+          lastUpdated: new Date()
+        });
+      } else {
+        console.warn('[InsightDashboard] Got null counts, keeping previous data');
+      }
     } catch (err) {
-      console.error("Failed to fetch insight stats:", err);
-      toast.error("Failed to load insight stats");
+      console.error("[InsightDashboard] Failed to fetch insight stats:", err);
+      // Don't toast on every failed poll
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  };
+  }, []);
 
   // Realtime subscription for live updates + initial fetch + polling fallback
   useEffect(() => {
@@ -93,7 +119,7 @@ export function InsightRefreshDashboard() {
           table: 'properties',
         },
         () => {
-          // Debounce: only refetch if we haven't fetched recently
+          // Debounced fetch on realtime update
           fetchStats();
         }
       )
@@ -101,10 +127,10 @@ export function InsightRefreshDashboard() {
         console.log('[InsightDashboard] Realtime status:', status);
       });
 
-    // Also poll every 3 seconds as fallback (realtime can be unreliable on mobile)
+    // Poll every 5 seconds as fallback (less aggressive to reduce race conditions)
     pollingRef.current = setInterval(() => {
       fetchStats();
-    }, 3000);
+    }, 5000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -112,28 +138,28 @@ export function InsightRefreshDashboard() {
         clearInterval(pollingRef.current);
       }
     };
-  }, []);
+  }, [fetchStats]);
 
   // Start faster polling when job is explicitly running
   const startPolling = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
     }
-    // Poll every 2 seconds while job is actively running
+    // Poll every 3 seconds while job is actively running
     pollingRef.current = setInterval(() => {
       fetchStats();
-    }, 2000);
-  }, []);
+    }, 3000);
+  }, [fetchStats]);
 
-  // Stop fast polling (revert to normal 3s)
+  // Stop fast polling (revert to normal 5s)
   const stopPolling = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
     }
     pollingRef.current = setInterval(() => {
       fetchStats();
-    }, 3000);
-  }, []);
+    }, 5000);
+  }, [fetchStats]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -178,9 +204,11 @@ export function InsightRefreshDashboard() {
     }
   };
 
-  const cleanPercentage = stats ? Math.round((stats.clean / stats.total) * 100) : 0;
-  const outdatedPercentage = stats ? Math.round((stats.outdated / stats.total) * 100) : 0;
-  const missingPercentage = stats ? Math.round((stats.missing / stats.total) * 100) : 0;
+  // Safe percentage calculations - guard against division by zero
+  const safeTotal = stats?.total || 0;
+  const cleanPercentage = safeTotal > 0 ? Math.round(((stats?.clean || 0) / safeTotal) * 100) : 0;
+  const outdatedPercentage = safeTotal > 0 ? Math.round(((stats?.outdated || 0) / safeTotal) * 100) : 0;
+  const missingPercentage = safeTotal > 0 ? Math.round(((stats?.missing || 0) / safeTotal) * 100) : 0;
 
   if (loading) {
     return (

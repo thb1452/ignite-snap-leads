@@ -130,22 +130,38 @@ serve(async (req) => {
     console.log(`[bulk-missing] Batch complete: ${totalProcessed} processed in ${elapsed}ms`);
     console.log(`[bulk-missing] Progress: ${Math.min(100, progress)}% (${Math.min(nextOffset, totalMissing || 0)}/${totalMissing})`);
 
-    // Auto-continue if enabled and not complete
+    // Auto-continue if enabled and not complete - use waitUntil for reliability
     if (!isComplete && !dryRun && autoResume) {
-      // Small delay between batches
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       const selfUrl = `${SUPABASE_URL}/functions/v1/bulk-generate-missing-insights`;
-      fetch(selfUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        },
-        body: JSON.stringify({ offset: nextOffset, autoResume }),
-      }).catch(err => console.error('[bulk-missing] Failed to trigger next batch:', err));
       
-      console.log(`[bulk-missing] Auto-triggered next batch at offset ${nextOffset}`);
+      // Use EdgeRuntime.waitUntil to ensure the self-invoke completes before shutdown
+      const triggerNext = async () => {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay
+        try {
+          const res = await fetch(selfUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+            body: JSON.stringify({ offset: nextOffset, autoResume }),
+          });
+          console.log(`[bulk-missing] Next batch triggered, status: ${res.status}`);
+        } catch (err) {
+          console.error('[bulk-missing] Failed to trigger next batch:', err);
+        }
+      };
+      
+      // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(triggerNext());
+      } else {
+        // Fallback for local dev
+        triggerNext().catch(console.error);
+      }
+      
+      console.log(`[bulk-missing] Scheduled next batch at offset ${nextOffset}`);
     }
 
     return new Response(

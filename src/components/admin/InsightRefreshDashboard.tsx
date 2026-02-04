@@ -78,33 +78,61 @@ export function InsightRefreshDashboard() {
     }
   };
 
-  // Cleanup polling on unmount
+  // Realtime subscription for live updates + initial fetch + polling fallback
   useEffect(() => {
     fetchStats();
+    
+    // Subscribe to realtime changes on properties table for instant updates
+    const channel = supabase
+      .channel('admin-insight-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'properties',
+        },
+        () => {
+          // Debounce: only refetch if we haven't fetched recently
+          fetchStats();
+        }
+      )
+      .subscribe((status) => {
+        console.log('[InsightDashboard] Realtime status:', status);
+      });
+
+    // Also poll every 3 seconds as fallback (realtime can be unreliable on mobile)
+    pollingRef.current = setInterval(() => {
+      fetchStats();
+    }, 3000);
+
     return () => {
+      supabase.removeChannel(channel);
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
       }
     };
   }, []);
 
-  // Start polling when job is running
+  // Start faster polling when job is explicitly running
   const startPolling = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
     }
-    // Poll every 5 seconds while job is running
+    // Poll every 2 seconds while job is actively running
     pollingRef.current = setInterval(() => {
       fetchStats();
-    }, 5000);
+    }, 2000);
   }, []);
 
-  // Stop polling
+  // Stop fast polling (revert to normal 3s)
   const stopPolling = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
-      pollingRef.current = null;
     }
+    pollingRef.current = setInterval(() => {
+      fetchStats();
+    }, 3000);
   }, []);
 
   const handleRefresh = async () => {

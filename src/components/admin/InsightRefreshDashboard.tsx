@@ -104,62 +104,35 @@ export function InsightRefreshDashboard() {
     }
   }, []);
 
-  // Realtime subscription for live updates + initial fetch + polling fallback
+  // Initial fetch only - no automatic polling unless job is running
   useEffect(() => {
     fetchStats();
     
-    // Subscribe to realtime changes on properties table for instant updates
-    const channel = supabase
-      .channel('admin-insight-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'properties',
-        },
-        () => {
-          // Debounced fetch on realtime update
-          fetchStats();
-        }
-      )
-      .subscribe((status) => {
-        console.log('[InsightDashboard] Realtime status:', status);
-      });
-
-    // Poll every 5 seconds as fallback (less aggressive to reduce race conditions)
-    pollingRef.current = setInterval(() => {
-      fetchStats();
-    }, 5000);
-
     return () => {
-      supabase.removeChannel(channel);
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
       }
     };
   }, [fetchStats]);
 
-  // Start faster polling when job is explicitly running
+  // Start polling only when job is running
   const startPolling = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
     }
-    // Poll every 3 seconds while job is actively running
-    pollingRef.current = setInterval(() => {
-      fetchStats();
-    }, 3000);
-  }, [fetchStats]);
-
-  // Stop fast polling (revert to normal 5s)
-  const stopPolling = useCallback(() => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-    }
+    // Poll every 5 seconds while job is running
     pollingRef.current = setInterval(() => {
       fetchStats();
     }, 5000);
   }, [fetchStats]);
+
+  // Stop polling completely
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);

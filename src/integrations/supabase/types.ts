@@ -1348,6 +1348,7 @@ export type Database = {
           properties_created: number | null
           properties_matched: number | null
           scope: string | null
+          source_type: string | null
           started_at: string | null
           state: string | null
           status: string | null
@@ -1374,6 +1375,7 @@ export type Database = {
           properties_created?: number | null
           properties_matched?: number | null
           scope?: string | null
+          source_type?: string | null
           started_at?: string | null
           state?: string | null
           status?: string | null
@@ -1400,6 +1402,7 @@ export type Database = {
           properties_created?: number | null
           properties_matched?: number | null
           scope?: string | null
+          source_type?: string | null
           started_at?: string | null
           state?: string | null
           status?: string | null

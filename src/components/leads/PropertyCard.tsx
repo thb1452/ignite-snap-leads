@@ -134,28 +134,15 @@ export function PropertyCard({
             {(property.total_violations != null && property.total_violations > 0) && (
               <div className="flex items-center gap-1.5">
                 <AlertTriangle className={`h-3.5 w-3.5 ${(property.open_violations ?? 0) > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
-                <span className="text-xs font-medium text-foreground">
-                  {(property.open_violations ?? 0) > 0 ? (
-                    <>
-                      {property.open_violations} open
-                      {property.total_violations > property.open_violations! && (
-                        <span className="text-muted-foreground"> / {property.total_violations} total</span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground">{property.total_violations} closed</span>
-                  )}
-                </span>
-                {/* Status badge based on open_violations count */}
                 <Badge 
                   variant="outline" 
-                  className={`text-xs ml-1 ${
+                  className={`text-xs ${
                     (property.open_violations ?? 0) > 0 
                       ? 'bg-rose-100 text-rose-700 border-rose-200' 
                       : 'bg-emerald-100 text-emerald-700 border-emerald-200'
                   }`}
                 >
-                  {(property.open_violations ?? 0) > 0 ? 'Open' : 'Closed'}
+                  {(property.open_violations ?? 0) > 0 ? 'open' : 'closed'}
                 </Badge>
               </div>
             )}
@@ -172,50 +159,7 @@ export function PropertyCard({
             )}
           </div>
 
-          {/* Most Recent Violation Details */}
-          {mostRecentViolation && (
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="text-xs font-medium text-foreground">
-                Latest: {formatViolationType(mostRecentViolation.violation_type)}
-              </span>
-              <span className="text-xs text-muted-foreground">•</span>
-              {(() => {
-                const statusStyle = getStatusStyle(mostRecentViolation.status);
-                const badgeElement = (
-                  <Badge 
-                    variant="outline" 
-                    className={`text-xs ${statusStyle.badge}`}
-                  >
-                    {mostRecentViolation.status || "Unknown"}
-                  </Badge>
-                );
-                
-                if (statusStyle.tooltip) {
-                  return (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          {badgeElement}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs max-w-[200px]">{statusStyle.tooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  );
-                }
-                return badgeElement;
-              })()}
-              {mostRecentViolation.opened_date && (
-                <>
-                  <span className="text-xs text-muted-foreground">•</span>
-                  <span className="text-xs text-muted-foreground">
-                    {format(new Date(mostRecentViolation.opened_date), "MMM d, yyyy")}
-                  </span>
-                </>
-              )}
-            </div>
-          )}
+          {/* Removed redundant "Latest:" section - status is already shown in the badge above */}
 
           {/* AI Insight */}
           <div className="mb-2">

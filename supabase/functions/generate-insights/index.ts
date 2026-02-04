@@ -1,8 +1,8 @@
 /**
- * SECURITY CRITICAL: Snap Insight Generation v2.0
+ * SECURITY CRITICAL: Snap Insight Generation v2.1
  * 
  * This function processes raw_description (raw city inspection notes) to generate
- * investor-safe summaries. The raw_description field is INTERNAL ONLY and is NEVER
+ * enforcement-focused summaries. The raw_description field is INTERNAL ONLY and is NEVER
  * exposed to end users through the UI or API responses.
  * 
  * Only snap_insight (the AI-generated summary) is shown in the frontend.
@@ -12,11 +12,18 @@
  * - Sanitized summaries stored in properties.snap_insight (PUBLIC)
  * - NO raw violation details ever displayed to users
  * 
- * v2.0 Features:
+ * v2.1 Features:
  * - Property-level aggregation (total_violations, open_violations, etc.)
- * - Advanced scoring algorithm with time pressure, severity matrix, repeat offense detection
- * - Distress signal detection and storage
- * - Opportunity class classification
+ * - Enforcement intensity scoring (neutral terminology)
+ * - Signal detection using municipal enforcement language
+ * - Enforcement activity classification
+ * 
+ * TERMINOLOGY (v2.1 - Enforcement Intelligence):
+ * - "Duration Factor" not "Time Pressure"
+ * - "Enforcement Priority" not "Severity"
+ * - "Recency Weighting" not "Freshness Boost"
+ * - "Enforcement Signals" not "Distress Signals"
+ * - "Activity Class" not "Opportunity Class"
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -36,23 +43,24 @@ interface Violation {
   last_updated: string | null;
 }
 
-interface ViolationWithSeverity {
+interface ViolationWithPriority {
   category: string;
-  severity: 'minor' | 'moderate' | 'severe';
+  priority: 'high' | 'medium' | 'low';
   original: Violation;
 }
 
 interface SnapScoreResult {
   score: number;
   signals: string[];
-  opportunityClass: 'distressed' | 'value_add' | 'watch';
+  activityClass: 'critical' | 'elevated' | 'monitoring';
   components: {
-    timeScore: number;
-    severityScore: number;
+    durationFactor: number;
+    priorityScore: number;
     repeatScore: number;
-    multiDeptScore: number;
+    multiAgencyScore: number;
     escalationScore: number;
     vacancyScore: number;
+    recencyWeighting: number;
   };
 }
 
@@ -68,28 +76,30 @@ interface PropertyIntelligence {
   escalated: boolean;
 }
 
-// Enforcement pressure insight prompt - neutral compliance focus
-const SNAP_INSIGHT_PROMPT = `You are generating municipal enforcement pressure insights, NOT investment pitches.
-Your role is to summarize property condition and enforcement-related stress signals only.
+// Enforcement intelligence insight prompt - neutral compliance focus
+const SNAP_INSIGHT_PROMPT = `You are generating municipal enforcement activity summaries, NOT investment pitches.
+Your role is to describe enforcement actions and property compliance status factually.
 
 STRICT RULES:
+- Describe enforcement activity only, not property condition assumptions
+- Use municipal terminology, not real estate terminology
+- Focus on what the city observed and documented
 - Never suggest buying, selling, negotiating, or deal quality
-- Never use wholesaling or investor persuasion language
+- Never use urgency language (urgent, immediate, time-sensitive, act now)
 - Never imply owner intent, motivation, or willingness to sell
-- Never mention legal actions, fines, penalties, courts, or threats
+- Never mention predicted outcomes or speculation about owners
+- Never use investor-centric terms (opportunity, distressed, motivated, deal)
 
 ALLOWED:
-- Physical condition observations
-- Duration and repetition of enforcement activity
-- Signs of neglect, vacancy, or escalation
-- Neutral, factual, pressure-based language
+- Duration of enforcement actions (e.g., "active enforcement for 6+ months")
+- Municipal classification and priority level
+- Number and type of citations or notices
+- Factual status of compliance actions
+- Enforcement escalation status if documented
 
-Output must sound like:
-- A risk assessment
-- A compliance intelligence summary
-- An enforcement pressure signal
+TONE: Risk assessment / Compliance intelligence / Enforcement activity summary
 
-Max length: 280 characters.`;
+OUTPUT FORMAT: Single paragraph, max 280 characters. No labels or headers.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -164,11 +174,11 @@ serve(async (req) => {
       // Aggregate property intelligence
       const intelligence = aggregatePropertyIntelligence(violations);
       
-      // Classify violations with severity
+      // Classify violations with enforcement priority
       const classifiedViolations = violations.map(v => classifyViolation(v));
       
-      // Calculate enhanced snap score with signals
-      const scoreResult = calculateSnapScoreV2(violations, classifiedViolations, intelligence);
+      // Calculate enforcement intensity score with signals
+      const scoreResult = calculateEnforcementIntensity(violations, classifiedViolations, intelligence);
       
       // Collect raw descriptions for AI processing
       const rawDescriptions = violations
@@ -208,6 +218,10 @@ serve(async (req) => {
       // Track method used
       methodCounts[insightMethod]++;
 
+      // Map activityClass to legacy opportunityClass for database compatibility
+      const opportunityClass = scoreResult.activityClass === 'critical' ? 'distressed' :
+                               scoreResult.activityClass === 'elevated' ? 'value_add' : 'watch';
+
       updates.push({
         id: property.id,
         snap_insight: snapInsight,
@@ -223,7 +237,7 @@ serve(async (req) => {
         multi_department: intelligence.multi_department,
         escalated: intelligence.escalated,
         distress_signals: scoreResult.signals,
-        opportunity_class: scoreResult.opportunityClass,
+        opportunity_class: opportunityClass, // Keep DB column name for compatibility
         last_analyzed_at: new Date().toISOString(),
       });
     }
@@ -300,7 +314,7 @@ function aggregatePropertyIntelligence(violations: Violation[]): PropertyIntelli
   const escalatedStatuses = ['board', 'legal', 'court', 'condemned', 'prosecution'];
   
   // LIFECYCLE-AWARE: Only count violations with status = 'Open' as active
-  // This ensures closed violations don't inflate distress signals
+  // This ensures closed violations don't inflate enforcement signals
   const openViolations = violations.filter(v => {
     const status = (v.status || '').toLowerCase().trim();
     // Only 'open' status counts as active - closed, resolved, abated, etc. are historical
@@ -338,25 +352,26 @@ function aggregatePropertyIntelligence(violations: Violation[]): PropertyIntelli
   };
 }
 
-// SNAP SCORING ENGINE v2.0 - LIFECYCLE-AWARE
-function calculateSnapScoreV2(
+// ENFORCEMENT INTENSITY SCORING v2.1 - LIFECYCLE-AWARE
+// Uses neutral terminology: Duration Factor, Priority Score, Recency Weighting
+function calculateEnforcementIntensity(
   violations: Violation[],
-  classified: ViolationWithSeverity[],
+  classified: ViolationWithPriority[],
   intelligence: PropertyIntelligence
 ): SnapScoreResult {
   let score = 0;
   const signals: string[] = [];
   const components = {
-    timeScore: 0,
-    severityScore: 0,
+    durationFactor: 0,
+    priorityScore: 0,
     repeatScore: 0,
-    multiDeptScore: 0,
+    multiAgencyScore: 0,
     escalationScore: 0,
     vacancyScore: 0,
-    freshnessBoost: 0,
+    recencyWeighting: 0,
   };
   
-  // LIFECYCLE-AWARE: Filter to only OPEN violations for active distress scoring
+  // LIFECYCLE-AWARE: Filter to only OPEN violations for active enforcement scoring
   const openViolations = violations.filter(v => 
     (v.status || '').toLowerCase().trim() === 'open'
   );
@@ -364,66 +379,70 @@ function calculateSnapScoreV2(
     (c.original.status || '').toLowerCase().trim() === 'open'
   );
   
-  // 1. TIME PRESSURE (Max 30 points) - only count OPEN violations
+  // 1. DURATION FACTOR (Max 30 points) - only count OPEN violations
+  // Measures: How long has enforcement been active?
   const maxDaysOpen = openViolations.length > 0 
     ? Math.max(...openViolations.map(v => v.days_open || 0), 0)
     : 0;
   const monthsOpen = Math.floor(maxDaysOpen / 30);
-  components.timeScore = Math.min(30, monthsOpen * 3);
-  score += components.timeScore;
+  components.durationFactor = Math.min(30, monthsOpen * 3);
+  score += components.durationFactor;
   
   if (maxDaysOpen > 180) {
-    signals.push('chronic_neglect');
+    signals.push('extended_enforcement');
   }
   
-  // 2. SEVERITY MATRIX (Max 40 points) - only count OPEN violations
-  const severeCount = openClassified.filter(v => v.severity === 'severe').length;
-  const moderateCount = openClassified.filter(v => v.severity === 'moderate').length;
-  const minorCount = openClassified.filter(v => v.severity === 'minor').length;
+  // 2. ENFORCEMENT PRIORITY MATRIX (Max 40 points) - only count OPEN violations
+  // Measures: How seriously does the municipality prioritize this?
+  const highPriorityCount = openClassified.filter(v => v.priority === 'high').length;
+  const mediumPriorityCount = openClassified.filter(v => v.priority === 'medium').length;
+  const lowPriorityCount = openClassified.filter(v => v.priority === 'low').length;
   
-  // First severe issue: full points, additional: diminishing returns
-  if (severeCount > 0) {
-    components.severityScore += 40 + Math.min((severeCount - 1) * 10, 20);
+  // First high-priority issue: full points, additional: diminishing returns
+  if (highPriorityCount > 0) {
+    components.priorityScore += 40 + Math.min((highPriorityCount - 1) * 10, 20);
     
-    // Check specific severe categories
-    const hasFire = openClassified.some(v => v.severity === 'severe' && v.category === 'Fire');
-    const hasStructural = openClassified.some(v => v.severity === 'severe' && v.category === 'Structural');
-    if (hasFire) signals.push('fire_damage');
-    if (hasStructural) signals.push('structural_issues');
+    // Check specific high-priority categories
+    const hasFire = openClassified.some(v => v.priority === 'high' && v.category === 'Fire');
+    const hasStructural = openClassified.some(v => v.priority === 'high' && v.category === 'Structural');
+    if (hasFire) signals.push('fire_citation');
+    if (hasStructural) signals.push('structural_citation');
   }
   
-  components.severityScore += Math.min(moderateCount * 15, 30);
-  components.severityScore += Math.min(minorCount * 5, 10);
-  score += Math.min(components.severityScore, 60); // Cap severity contribution
+  components.priorityScore += Math.min(mediumPriorityCount * 15, 30);
+  components.priorityScore += Math.min(lowPriorityCount * 5, 10);
+  score += Math.min(components.priorityScore, 60); // Cap priority contribution
   
-  // 3. REPEAT OFFENDER BONUS (Max 25 points) - based on history (all violations)
-  // Historical pattern still matters even if current violations are closed
+  // 3. REPEAT ACTIVITY BONUS (Max 25 points) - based on history (all violations)
+  // Measures: Pattern of enforcement activity at this address
   if (intelligence.repeat_offender) {
     if (violations.length >= 5) {
       components.repeatScore = 25;
-      signals.push('chronic_offender');
+      signals.push('recurring_enforcement');
     } else if (violations.length >= 3) {
       components.repeatScore = 15;
-      signals.push('repeat_violations');
+      signals.push('multiple_citations');
     }
   } else if (violations.length >= 2) {
     components.repeatScore = 5;
-    signals.push('repeat_violations');
+    signals.push('multiple_citations');
   }
   score += components.repeatScore;
   
-  // 4. MULTI-DEPARTMENT ENFORCEMENT (Max 25 points) - only count OPEN violations
+  // 4. MULTI-AGENCY ENFORCEMENT (Max 25 points) - only count OPEN violations
+  // Measures: Number of municipal departments involved
   const openCategories = [...new Set(openClassified.map(v => v.category))];
   if (openCategories.length >= 3) {
-    components.multiDeptScore = 25;
+    components.multiAgencyScore = 25;
     signals.push('coordinated_enforcement');
   } else if (openCategories.length >= 2) {
-    components.multiDeptScore = 15;
+    components.multiAgencyScore = 15;
     signals.push('multi_department');
   }
-  score += components.multiDeptScore;
+  score += components.multiAgencyScore;
   
-  // 5. STATUS ESCALATION (Max 30 points) - still matters if actively escalated
+  // 5. ESCALATION STATUS (Max 30 points) - still matters if actively escalated
+  // Measures: Has the case been elevated to higher enforcement levels?
   if (intelligence.escalated) {
     const statuses = openViolations.map(v => (v.status || '').toLowerCase());
     
@@ -436,12 +455,13 @@ function calculateSnapScoreV2(
     }
     
     if (components.escalationScore > 0) {
-      signals.push('legal_escalation');
+      signals.push('enforcement_escalation');
     }
   }
   score += components.escalationScore;
   
-  // 6. ABANDONMENT/VACANCY SIGNALS (Max 25 points) - only count OPEN violations
+  // 6. VACANCY INDICATORS (Max 25 points) - only count OPEN violations
+  // Measures: Has the property been cited for vacancy/abandonment?
   const hasVacancySignals = openClassified.some(v => 
     v.category === 'Vacancy' ||
     (v.original.violation_type || '').toLowerCase().includes('vacant') ||
@@ -452,24 +472,24 @@ function calculateSnapScoreV2(
   
   if (hasVacancySignals) {
     components.vacancyScore = 25;
-    signals.push('vacancy_indicators');
+    signals.push('vacancy_citation');
   }
   score += components.vacancyScore;
   
-  // Check for utility issues in descriptions - only OPEN violations
+  // Check for utility enforcement in descriptions - only OPEN violations
   const hasUtilityIssues = openClassified.some(v => v.category === 'Utility');
   if (hasUtilityIssues) {
-    signals.push('utility_issues');
+    signals.push('utility_enforcement');
   }
   
-  // If no open violations remain, significantly reduce score (property resolved)
+  // If no open violations remain, significantly reduce score (enforcement resolved)
   if (openViolations.length === 0 && violations.length > 0) {
-    // Historical violations exist but all are closed - low distress
+    // Historical violations exist but all are closed - low activity level
     score = Math.min(score, 20); // Cap at 20 for properties with only historical issues
   }
   
-  // 7. FRESHNESS BOOST (Max 40 points) - Recent enforcement = motivated seller NOW
-  // Properties with recent violations should rank higher than stale high-count properties
+  // 7. RECENCY WEIGHTING (Max 40 points) - Recent enforcement activity
+  // Measures: How current is the enforcement data?
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -489,29 +509,29 @@ function calculateSnapScoreV2(
   });
   
   if (hasViolationLast7Days) {
-    components.freshnessBoost = 40;
-    signals.push('hot_enforcement');
+    components.recencyWeighting = 40;
+    signals.push('recent_activity');
   } else if (hasViolationLast30Days) {
-    components.freshnessBoost = 20;
-    signals.push('recent_enforcement');
+    components.recencyWeighting = 20;
+    signals.push('current_enforcement');
   }
-  score += components.freshnessBoost;
+  score += components.recencyWeighting;
   
   // Cap at 100
   const finalScore = Math.min(100, Math.max(0, score));
   
-  // Classify opportunity
-  let opportunityClass: 'distressed' | 'value_add' | 'watch' = 'watch';
+  // Classify enforcement activity level
+  let activityClass: 'critical' | 'elevated' | 'monitoring' = 'monitoring';
   if (finalScore >= 70) {
-    opportunityClass = 'distressed';
+    activityClass = 'critical';
   } else if (finalScore >= 40) {
-    opportunityClass = 'value_add';
+    activityClass = 'elevated';
   }
   
   return {
     score: finalScore,
     signals,
-    opportunityClass,
+    activityClass,
     components,
   };
 }
@@ -520,14 +540,13 @@ function calculateSnapScoreV2(
 async function generateAIInsight(rawDescription: string, violationType: string, apiKey: string): Promise<string> {
   const prompt = `${SNAP_INSIGHT_PROMPT}
 
-RAW NOTES:
+ENFORCEMENT RECORDS:
 ${rawDescription}
 
-VIOLATION TYPE:
+VIOLATION CATEGORIES:
 ${violationType}
 
-OUTPUT:
-Snap Summary only. No labels. No extra commentary.`;
+Generate a factual enforcement activity summary:`;
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -559,142 +578,143 @@ Snap Summary only. No labels. No extra commentary.`;
   return summary;
 }
 
-// Classify violation type with severity level
-function classifyViolation(violation: Violation): ViolationWithSeverity {
+// Classify violation type with enforcement priority level
+function classifyViolation(violation: Violation): ViolationWithPriority {
   const t = (violation.violation_type || '').toLowerCase();
   const desc = (violation.raw_description || '').toLowerCase();
   const combined = `${t} ${desc}`;
   
-  // SEVERE - Life Safety / Structural Integrity
+  // HIGH PRIORITY - Immediate Safety / Service Termination
   if (combined.includes('collapse') || combined.includes('unsafe structure') || 
       combined.includes('condemned') || combined.includes('foundation failure') ||
       combined.includes('imminent danger')) {
-    return { category: 'Structural', severity: 'severe', original: violation };
+    return { category: 'Structural', priority: 'high', original: violation };
   }
   
   if (combined.includes('fire damage') || combined.includes('burnt') || 
       combined.includes('smoke damage') || combined.includes('charred') ||
       combined.includes('fire-related damage')) {
-    return { category: 'Fire', severity: 'severe', original: violation };
+    return { category: 'Fire', priority: 'high', original: violation };
   }
   
   if (combined.includes('no utilities') || combined.includes('utility disconnect') ||
-      combined.includes('no water') || combined.includes('no electric')) {
-    return { category: 'Utility', severity: 'severe', original: violation };
+      combined.includes('no water') || combined.includes('no electric') ||
+      combined.includes('water disconnect') || combined.includes('water shutoff')) {
+    return { category: 'Utility', priority: 'high', original: violation };
   }
   
-  // MODERATE - System Failures / Significant Issues
+  // MEDIUM PRIORITY - System Failures / Significant Issues
   if (combined.includes('roof leak') || combined.includes('structural damage') ||
       combined.includes('foundation crack') || combined.includes('major repair')) {
-    return { category: 'Structural', severity: 'moderate', original: violation };
+    return { category: 'Structural', priority: 'medium', original: violation };
   }
   
   if (combined.includes('vacant') || combined.includes('abandon') || 
       combined.includes('unoccup') || combined.includes('boarded')) {
-    return { category: 'Vacancy', severity: 'moderate', original: violation };
+    return { category: 'Vacancy', priority: 'medium', original: violation };
   }
   
   if (combined.includes('unsafe') || combined.includes('hazard') || 
       combined.includes('danger') || combined.includes('health')) {
-    return { category: 'Safety', severity: 'moderate', original: violation };
+    return { category: 'Safety', priority: 'medium', original: violation };
   }
   
   if (combined.includes('plumbing') || combined.includes('electrical') ||
       combined.includes('sewage') || combined.includes('hvac')) {
-    return { category: 'Utility', severity: 'moderate', original: violation };
+    return { category: 'Utility', priority: 'medium', original: violation };
   }
   
-  // MINOR - Maintenance / Cosmetic
+  // LOW PRIORITY - Maintenance / Exterior
   if (combined.includes('paint') || combined.includes('siding') || 
       combined.includes('fence') || combined.includes('grass') ||
       combined.includes('weeds') || combined.includes('debris')) {
-    return { category: 'Exterior', severity: 'minor', original: violation };
+    return { category: 'Exterior', priority: 'low', original: violation };
   }
   
   if (combined.includes('window') || combined.includes('door') ||
       combined.includes('screen') || combined.includes('gutter')) {
-    return { category: 'Exterior', severity: 'minor', original: violation };
+    return { category: 'Exterior', priority: 'low', original: violation };
   }
   
   // Default based on keywords
   if (combined.includes('structur') || combined.includes('foundation') || 
       combined.includes('roof') || combined.includes('wall')) {
-    return { category: 'Structural', severity: 'moderate', original: violation };
+    return { category: 'Structural', priority: 'medium', original: violation };
   }
   
   if (combined.includes('fire') || combined.includes('burn') || combined.includes('smoke')) {
-    return { category: 'Fire', severity: 'severe', original: violation };
+    return { category: 'Fire', priority: 'high', original: violation };
   }
   
   if (combined.includes('exterior') || combined.includes('facade')) {
-    return { category: 'Exterior', severity: 'minor', original: violation };
+    return { category: 'Exterior', priority: 'low', original: violation };
   }
   
-  return { category: 'Other', severity: 'minor', original: violation };
+  return { category: 'Other', priority: 'low', original: violation };
 }
 
 // Generate context-aware insight based on detected signals
-// Uses neutral compliance/enforcement language - NO investor/opportunity language
+// Uses neutral enforcement/compliance language - NO investor/opportunity language
 function generateSignalBasedInsight(
   signals: string[],
   intelligence: PropertyIntelligence,
-  classified: ViolationWithSeverity[]
+  classified: ViolationWithPriority[]
 ): string {
   const insights: string[] = [];
   
-  // Time pressure context
-  if (signals.includes('chronic_neglect')) {
-    insights.push('High enforcement persistence: 180+ days of unresolved violations');
+  // Extended enforcement duration context
+  if (signals.includes('extended_enforcement')) {
+    insights.push('Active enforcement exceeds 180-day threshold');
   }
   
-  // Repeat offender context
-  if (signals.includes('chronic_offender')) {
-    insights.push('Recurring compliance failures indicate systemic maintenance issues');
-  } else if (signals.includes('repeat_violations')) {
-    insights.push('Multiple enforcement actions recorded on property');
+  // Repeat activity context
+  if (signals.includes('recurring_enforcement')) {
+    insights.push('Property shows pattern of recurring municipal citations');
+  } else if (signals.includes('multiple_citations')) {
+    insights.push('Multiple enforcement actions documented');
   }
   
-  // Multi-department context
+  // Multi-agency context
   if (signals.includes('coordinated_enforcement')) {
-    insights.push('Multi-department enforcement activity signals significant property deterioration');
+    insights.push('Cross-department enforcement activity detected');
   } else if (signals.includes('multi_department')) {
-    insights.push('Cross-department compliance issues detected');
+    insights.push('Multiple municipal agencies involved');
   }
   
-  // Legal escalation context
-  if (signals.includes('legal_escalation')) {
-    insights.push('Enforcement escalation in progress');
+  // Escalation context
+  if (signals.includes('enforcement_escalation')) {
+    insights.push('Case has been escalated to higher enforcement level');
   }
   
   // Vacancy context
-  if (signals.includes('vacancy_indicators')) {
-    insights.push('Indicators of vacancy or abandonment present');
+  if (signals.includes('vacancy_citation')) {
+    insights.push('Vacancy or abandonment citation on record');
   }
   
   // Fire/Structural
-  if (signals.includes('fire_damage')) {
-    insights.push('Fire-related damage documented in enforcement records');
+  if (signals.includes('fire_citation')) {
+    insights.push('Fire-related enforcement action documented');
   }
-  if (signals.includes('structural_issues')) {
-    insights.push('Structural concerns identified in compliance review');
-  }
-  
-  // Utility issues
-  if (signals.includes('utility_issues')) {
-    insights.push('Building system failures noted');
+  if (signals.includes('structural_citation')) {
+    insights.push('Structural safety citation issued');
   }
   
-  // Default based on severity
+  // Utility enforcement
+  if (signals.includes('utility_enforcement')) {
+    insights.push('Utility service enforcement noted');
+  }
+  
+  // Default based on priority level
   if (insights.length === 0) {
-    const severeCount = classified.filter(v => v.severity === 'severe').length;
-    const moderateCount = classified.filter(v => v.severity === 'moderate').length;
+    const highPriorityCount = classified.filter(v => v.priority === 'high').length;
+    const mediumPriorityCount = classified.filter(v => v.priority === 'medium').length;
     
-    if (severeCount > 0) {
-      insights.push('Critical compliance issues requiring remediation');
-    } else if (moderateCount > 0) {
-      insights.push('Multiple unresolved maintenance issues on record');
+    if (highPriorityCount > 0) {
+      insights.push('High-priority enforcement actions on record');
+    } else if (mediumPriorityCount > 0) {
+      insights.push('Active compliance matters pending resolution');
     } else if (intelligence.total_violations > 0) {
-      insights.push('Minor exterior maintenance items noted in enforcement records');
+      insights.push('Routine maintenance citations documented');
     } else {
       insights.push('Limited enforcement activity on file');
     }

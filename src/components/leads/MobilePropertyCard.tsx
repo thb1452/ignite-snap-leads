@@ -102,28 +102,15 @@ export function MobilePropertyCard({
             {(property.total_violations != null && property.total_violations > 0) && (
               <div className="flex items-center gap-1.5">
                 <AlertTriangle className={`h-3.5 w-3.5 ${(property.open_violations ?? 0) > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
-                <span className="text-xs font-medium text-foreground">
-                  {(property.open_violations ?? 0) > 0 ? (
-                    <>
-                      {property.open_violations} open
-                      {property.total_violations > property.open_violations! && (
-                        <span className="text-muted-foreground"> / {property.total_violations} total</span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground">{property.total_violations} closed</span>
-                  )}
-                </span>
-                {/* Status badge based on open_violations count */}
                 <Badge 
                   variant="outline" 
-                  className={`text-xs ml-1 ${
+                  className={`text-xs ${
                     (property.open_violations ?? 0) > 0 
                       ? 'bg-rose-100 text-rose-700 border-rose-200' 
                       : 'bg-emerald-100 text-emerald-700 border-emerald-200'
                   }`}
                 >
-                  {(property.open_violations ?? 0) > 0 ? 'Open' : 'Closed'}
+                  {(property.open_violations ?? 0) > 0 ? 'open' : 'closed'}
                 </Badge>
               </div>
             )}

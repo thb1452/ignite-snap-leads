@@ -1348,6 +1348,7 @@ export type Database = {
           properties_created: number | null
           properties_matched: number | null
           scope: string | null
+          source_type: string | null
           started_at: string | null
           state: string | null
           status: string | null
@@ -1374,6 +1375,7 @@ export type Database = {
           properties_created?: number | null
           properties_matched?: number | null
           scope?: string | null
+          source_type?: string | null
           started_at?: string | null
           state?: string | null
           status?: string | null
@@ -1400,6 +1402,7 @@ export type Database = {
           properties_created?: number | null
           properties_matched?: number | null
           scope?: string | null
+          source_type?: string | null
           started_at?: string | null
           state?: string | null
           status?: string | null
@@ -2337,34 +2340,20 @@ export type Database = {
             }
             Returns: Json
           }
-      fn_properties_paged:
-        | {
-            Args: {
-              p_city?: string
-              p_last_seen_days?: number
-              p_page?: number
-              p_page_size?: number
-              p_search?: string
-              p_snap_max?: number
-              p_snap_min?: number
-              p_state?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_city?: string
-              p_last_seen_days?: number
-              p_page?: number
-              p_page_size?: number
-              p_search?: string
-              p_snap_max?: number
-              p_snap_min?: number
-              p_sort_by?: string
-              p_state?: string
-            }
-            Returns: Json
-          }
+      fn_properties_paged: {
+        Args: {
+          p_city?: string
+          p_last_seen_days?: number
+          p_page?: number
+          p_page_size?: number
+          p_search?: string
+          p_snap_max?: number
+          p_snap_min?: number
+          p_sort_by?: string
+          p_state?: string
+        }
+        Returns: Json
+      }
       fn_properties_untraced_in_list: {
         Args: { p_limit?: number; p_list_id: string }
         Returns: {

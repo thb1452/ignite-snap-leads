@@ -9,9 +9,10 @@ interface CreateJobParams {
   county: string | null;
   state: string;
   scope?: 'city' | 'county';
+  isWaterData?: boolean;  // Flag for water disconnection data
 }
 
-export async function createUploadJob({ file, userId, city, county, state, scope }: CreateJobParams): Promise<string> {
+export async function createUploadJob({ file, userId, city, county, state, scope, isWaterData }: CreateJobParams): Promise<string> {
   // Determine scope automatically if not provided
   const effectiveScope = scope || (!city && county && state ? 'county' : 'city');
   // 1. Upload file to storage with sanitized filename
@@ -19,7 +20,7 @@ export async function createUploadJob({ file, userId, city, county, state, scope
   const sanitizedName = sanitizeFilename(file.name);
   const storagePath = `${userId}/${timestamp}-${sanitizedName}`;
 
-  console.log(`[uploadJobs] Uploading file: "${file.name}" → "${sanitizedName}"`);
+  console.log(`[uploadJobs] Uploading file: "${file.name}" → "${sanitizedName}"${isWaterData ? ' (Water Disconnection Data)' : ''}`);
 
   const { error: uploadError } = await supabase.storage
     .from('csv-uploads')
@@ -36,7 +37,7 @@ export async function createUploadJob({ file, userId, city, county, state, scope
     throw new Error(`Failed to upload file: ${uploadError.message}`);
   }
 
-  // 2. Create job record
+  // 2. Create job record with source_type for water disconnection tracking
   const { data: job, error: jobError } = await supabase
     .from('upload_jobs')
     .insert({
@@ -49,6 +50,7 @@ export async function createUploadJob({ file, userId, city, county, state, scope
       county,
       state,
       scope: effectiveScope,
+      source_type: isWaterData ? 'water_disconnection' : 'code_violation',
     })
     .select('id')
     .single();

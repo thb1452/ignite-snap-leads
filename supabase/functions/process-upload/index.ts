@@ -1155,6 +1155,10 @@ async function processUploadJob(jobId: string) {
       console.log(`[process-upload] ⚠️ All properties already exist - this is normal if re-uploading violations for existing properties`);
     }
 
+    // Determine enforcement_type based on source_type
+    const enforcementType = job.source_type === 'water_disconnection' ? 'water_shutoff' : 'code_violation';
+    console.log(`[process-upload] Setting enforcement_type: ${enforcementType} (source_type: ${job.source_type || 'code_violation'})`);
+
     const newProperties = newAddressEntries.map(([key, row]) => {
       // For county-scope uploads, city might be null or extracted from CSV
       const propertyCity = row.city || job.city || null;
@@ -1180,6 +1184,7 @@ async function processUploadJob(jobId: string) {
         snap_score: null,
         snap_insight: null,
         jurisdiction_id: row.jurisdiction_id,
+        enforcement_type: enforcementType,  // Set based on upload source_type
         // AGGREGATED VIOLATION DATA
         total_violations: aggregates.total_violations,
         open_violations: aggregates.open_violations,

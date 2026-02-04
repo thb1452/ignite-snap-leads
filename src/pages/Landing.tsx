@@ -466,8 +466,8 @@ export default function Landing() {
             {[
               {
                 icon: Target,
-                title: "SnapScore AI Pressure Ranking",
-                description: "Not all violations are equal. Our AI analyzes violation type, escalation velocity, fine accumulation, and compliance deadlines to rank properties by enforcement pressure severity.",
+                title: "SnapScore Enforcement Intensity",
+                description: "Not all violations are equal. Our system analyzes violation type, municipal priority, duration, and agency involvement to rank properties by enforcement intensity.",
                 highlight: true
               },
               {

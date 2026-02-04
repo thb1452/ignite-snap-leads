@@ -10,7 +10,7 @@ const FAKE_ADDRESSES = [
 ];
 
 const FAKE_CITIES = [
-  "Dallas", "Fort Worth", "Arlington", "Plano", "Irving", "Garland", 
+  "Dallas", "Fort Worth", "Arlington", "Plano", "Irving", "Garland",
   "Frisco", "McKinney", "Mesquite", "Carrollton"
 ];
 
@@ -19,26 +19,26 @@ const VIOLATION_TYPES = [
   "Overgrown Lawn", "Structural Damage", "Abandoned Vehicle", "Roof Damage"
 ];
 
-// Enforcement-focused insights (neutral compliance language)
+// Enforcement-focused insights (neutral language)
 const INSIGHTS = [
-  "High enforcement persistence: 180+ days of unresolved violations. Multiple enforcement actions recorded on property.",
-  "Cross-department compliance issues detected. Building system failures noted in enforcement records.",
-  "Indicators of vacancy or abandonment present. Recurring compliance failures indicate systemic maintenance issues.",
-  "Structural concerns identified in compliance review. Multi-department enforcement activity signals significant property deterioration.",
-  "Critical compliance issues requiring remediation. Enforcement escalation in progress.",
-  "Multiple unresolved maintenance issues on record. Fire-related damage documented in enforcement records.",
-  "High enforcement persistence with escalating municipal actions. Utility shutoff indicators noted.",
-  "Long-standing compliance issues with multiple departments involved. Exterior maintenance violations accumulating."
+  "Active enforcement exceeds 180-day threshold. Multiple citations documented across municipal departments.",
+  "Extended enforcement activity with recurring citations. Property subject to multi-agency oversight.",
+  "Utility service enforcement action on record. Additional maintenance citations documented.",
+  "Structural safety citation issued by building department. Case remains in active enforcement status.",
+  "Pattern of recurring enforcement activity spanning 12+ months. Multiple departments involved.",
+  "Property has accumulated multiple compliance notices. Building and safety citations on file.",
+  "Extended enforcement duration with cross-department involvement. Recent citation activity noted.",
+  "Active enforcement cases include maintenance and structural categories. Municipal follow-up scheduled."
 ];
 
-// Enforcement-focused tags (neutral compliance language)
+// Enforcement-focused tags (neutral language)
 const TAGS = [
-  ["Roof damage", "Trash complaint", "High enforcement"],
-  ["Tax delinquent", "Water shutoff", "Vacant"],
-  ["Code violation", "Overgrown", "Liens"],
-  ["Structural issues", "Multiple complaints", "Urgent"],
-  ["Exterior decay", "Municipal fines", "Multi-department"],
-  ["Abandoned", "Utility shutoff", "Chronic neglect"]
+  ["Structural citation", "Maintenance notice", "Active enforcement"],
+  ["Tax citation", "Utility enforcement", "Vacancy notice"],
+  ["Code violation", "Exterior maintenance", "Compliance pending"],
+  ["Structural issues", "Multi-department", "Extended duration"],
+  ["Exterior citation", "Municipal notice", "Active case"],
+  ["Vacancy indicators", "Utility citation", "Enforcement active"]
 ];
 
 // Generate random coordinates within Dallas-Fort Worth area
@@ -46,10 +46,10 @@ function generateRandomCoordinates() {
   const centerLat = 32.7767;
   const centerLng = -96.7970;
   const radius = 0.3; // ~20 mile radius
-  
+
   const lat = centerLat + (Math.random() - 0.5) * radius;
   const lng = centerLng + (Math.random() - 0.5) * radius;
-  
+
   return { lat, lng };
 }
 
@@ -64,7 +64,7 @@ function generateRandomDate() {
 // Generate mock properties
 export function generateMockProperties(count: number = 40) {
   const properties = [];
-  
+
   for (let i = 0; i < count; i++) {
     const coords = generateRandomCoordinates();
     const address = FAKE_ADDRESSES[Math.floor(Math.random() * FAKE_ADDRESSES.length)];
@@ -75,7 +75,7 @@ export function generateMockProperties(count: number = 40) {
     const snapScore = Math.floor(Math.random() * 100);
     const openedDate = generateRandomDate();
     const daysOpen = Math.floor(Math.random() * 180);
-    
+
     properties.push({
       id: `mock-${i}`,
       address: `${address}`,
@@ -92,7 +92,7 @@ export function generateMockProperties(count: number = 40) {
         {
           id: `viol-${i}-1`,
           violation_type: violationType,
-          description: `${violationType} reported by municipality`,
+          description: `${violationType} citation issued by municipality`,
           status: Math.random() > 0.5 ? "Open" : "Pending",
           opened_date: openedDate,
           days_open: daysOpen,
@@ -104,6 +104,6 @@ export function generateMockProperties(count: number = 40) {
       mockSource: `${violationType} • ${new Date(openedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
     });
   }
-  
+
   return properties;
 }

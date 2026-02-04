@@ -14,6 +14,7 @@ export interface UploadJob {
   finished_at: string | null;
   city: string | null;
   state: string | null;
+  source_type: string | null;
 }
 
 export interface CombinedJobStats {

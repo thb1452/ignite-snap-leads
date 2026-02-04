@@ -13,7 +13,7 @@ export interface AdminJurisdiction {
   flagColor: string;
 }
 
-export function useAdminJurisdictions(refreshTrigger?: Date) {
+export function useAdminJurisdictions(refreshTrigger?: number) {
   return useQuery({
     queryKey: ["admin-jurisdictions", refreshTrigger],
     queryFn: async (): Promise<AdminJurisdiction[]> => {

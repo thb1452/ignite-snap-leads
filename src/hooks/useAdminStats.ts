@@ -19,7 +19,7 @@ export interface AdminStats {
   stuckJobs: number;
 }
 
-export function useAdminStats(refreshTrigger?: Date) {
+export function useAdminStats(refreshTrigger?: number) {
   return useQuery({
     queryKey: ["admin-stats", refreshTrigger],
     queryFn: async (): Promise<AdminStats> => {

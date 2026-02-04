@@ -14,7 +14,7 @@ export interface AdminUpload {
   errorCount: number;
 }
 
-export function useAdminUploads(refreshTrigger?: Date) {
+export function useAdminUploads(refreshTrigger?: number) {
   return useQuery({
     queryKey: ["admin-uploads", refreshTrigger],
     queryFn: async (): Promise<AdminUpload[]> => {

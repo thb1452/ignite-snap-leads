@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +34,7 @@ function cacheRoles(userId: string, roles: AppRole[]) {
       roles,
       timestamp: Date.now()
     }));
+    console.log('[useAuth] Cached roles:', roles);
   } catch (e) {
     console.warn('[useAuth] Error caching roles:', e);
   }
@@ -48,12 +49,16 @@ function clearCachedRoles() {
   }
 }
 
-// Fetch roles with retry logic
+// Fetch roles with retry logic - returns quickly with cache if available
 async function fetchRolesWithRetry(userId: string, maxRetries = 3): Promise<AppRole[]> {
+  // Check cache first - return immediately if valid
+  const cachedRoles = getCachedRoles(userId);
+  
   let lastError: Error | null = null;
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
+      console.log(`[useAuth] Fetching roles attempt ${attempt + 1}...`);
       const { data: roleData, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -72,21 +77,20 @@ async function fetchRolesWithRetry(userId: string, maxRetries = 3): Promise<AppR
       lastError = err;
       console.warn(`[useAuth] Role fetch attempt ${attempt + 1} failed:`, err.message);
       
-      // Exponential backoff: 500ms, 1s, 2s
+      // Exponential backoff: 300ms, 600ms, 1200ms
       if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt)));
+        await new Promise(resolve => setTimeout(resolve, 300 * Math.pow(2, attempt)));
       }
     }
   }
   
-  // All retries failed - try cache
-  const cachedRoles = getCachedRoles(userId);
+  // All retries failed - use cache as fallback
   if (cachedRoles) {
     console.log('[useAuth] Using cached roles after fetch failure:', cachedRoles);
     return cachedRoles;
   }
   
-  console.error('[useAuth] All role fetch attempts failed:', lastError);
+  console.error('[useAuth] All role fetch attempts failed, no cache available:', lastError);
   return ['user'];
 }
 
@@ -95,61 +99,57 @@ export function useAuth() {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  
+  // Use ref to track current user for callbacks (avoids stale closure)
+  const userRef = useRef<User | null>(null);
 
   useEffect(() => {
     let mounted = true;
     
-    // Safety timeout to prevent infinite loading
-    const loadingTimeout = setTimeout(() => {
-      if (mounted && loading) {
-        console.warn('[useAuth] Loading timeout reached, forcing complete');
-        
-        // Try to use cached roles before giving up
-        const currentUser = user;
-        if (currentUser) {
-          const cachedRoles = getCachedRoles(currentUser.id);
-          if (cachedRoles) {
-            console.log('[useAuth] Using cached roles on timeout:', cachedRoles);
-            setRoles(cachedRoles);
-          }
-        }
-        
-        setLoading(false);
-      }
-    }, 5000);
-    
     // Get initial session and roles
     const initializeAuth = async () => {
       try {
+        console.log('[useAuth] Initializing auth...');
         const { data: { session } } = await supabase.auth.getSession();
         const currentUser = session?.user ?? null;
         
         if (!mounted) return;
         setUser(currentUser);
+        userRef.current = currentUser;
+        console.log('[useAuth] User session:', currentUser?.id || 'none');
         
         if (currentUser) {
-          // Try cache first for faster initial load
+          // Check cache IMMEDIATELY for fast initial load
           const cachedRoles = getCachedRoles(currentUser.id);
-          if (cachedRoles) {
+          if (cachedRoles && cachedRoles.length > 0) {
+            console.log('[useAuth] Using cached roles immediately:', cachedRoles);
             setRoles(cachedRoles);
-          }
-          
-          // Then fetch fresh roles
-          const freshRoles = await fetchRolesWithRetry(currentUser.id);
-          if (mounted) {
-            setRoles(freshRoles);
+            // Set loading false immediately with cached roles
+            if (mounted) setLoading(false);
+            
+            // Then refresh roles in background (don't block UI)
+            fetchRolesWithRetry(currentUser.id).then(freshRoles => {
+              if (mounted) {
+                setRoles(freshRoles);
+              }
+            });
+          } else {
+            // No cache - must fetch roles before setting loading false
+            const freshRoles = await fetchRolesWithRetry(currentUser.id);
+            if (mounted) {
+              setRoles(freshRoles);
+              setLoading(false);
+            }
           }
         } else {
           setRoles([]);
           clearCachedRoles();
+          if (mounted) setLoading(false);
         }
       } catch (err) {
         console.error('[useAuth] Init error:', err);
-        // Still set loading to false to prevent infinite spinner
         setRoles([]);
-      } finally {
         if (mounted) {
-          clearTimeout(loadingTimeout);
           setLoading(false);
         }
       }
@@ -157,25 +157,29 @@ export function useAuth() {
 
     initializeAuth();
 
-    // Listen for auth changes
+    // Listen for auth changes - use synchronous callback per Supabase best practices
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
+      userRef.current = currentUser;
       
       if (currentUser) {
-        // Use cached roles immediately for responsiveness
+        // Use cached roles immediately (synchronous state update)
         const cachedRoles = getCachedRoles(currentUser.id);
         if (cachedRoles) {
           setRoles(cachedRoles);
         }
         
-        // Then fetch fresh roles with retry
-        const freshRoles = await fetchRolesWithRetry(currentUser.id);
-        if (mounted) {
-          setRoles(freshRoles);
-        }
+        // Defer Supabase calls with setTimeout per best practices
+        setTimeout(() => {
+          fetchRolesWithRetry(currentUser.id).then(freshRoles => {
+            if (mounted) {
+              setRoles(freshRoles);
+            }
+          });
+        }, 0);
       } else {
         setRoles([]);
         clearCachedRoles();
@@ -184,7 +188,6 @@ export function useAuth() {
 
     return () => {
       mounted = false;
-      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
   }, []);

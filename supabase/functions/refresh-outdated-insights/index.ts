@@ -4,17 +4,20 @@
  * Targets ONLY properties with outdated investor-focused language and regenerates
  * their insights using the new compliance/enforcement-focused prompts.
  * 
- * Runs entirely server-side with auto-continue.
+ * v2.0: Increased batch size and parallel processing for faster execution.
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+
+const VERSION = "v2.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 200; // Increased from 50
+const CONCURRENT_CHUNKS = 4; // Process 4 chunks of 50 in parallel
 
 // Outdated investor-focused terms to detect (comprehensive list)
 const OUTDATED_TERMS = [
@@ -28,10 +31,14 @@ const OUTDATED_TERMS = [
   'wholesale', 'flip', 'flipping', 'arv', 'rehab',
   // Persuasion language
   'great opportunity', 'prime candidate', 'ideal for',
-  'perfect for', 'excellent', 'strong potential'
+  'perfect for', 'excellent', 'strong potential',
+  // Owner speculation
+  'neglect', 'owner disregard', 'owner neglect'
 ];
 
 serve(async (req) => {
+  console.log(`[refresh-outdated ${VERSION}] Request received`);
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -60,7 +67,7 @@ serve(async (req) => {
       .not("snap_insight", "is", null)
       .or(orConditions);
 
-    console.log(`[refresh-outdated] Starting at offset ${offset}, total outdated: ${totalCount}`);
+    console.log(`[refresh-outdated ${VERSION}] Starting at offset ${offset}, total outdated: ${totalCount}`);
 
     // Fetch batch of properties with outdated language
     // Priority ordering: high snap_score first so valuable properties get fixed first
@@ -84,7 +91,8 @@ serve(async (req) => {
           message: "All outdated insights refreshed!",
           processed: offset,
           total: totalCount,
-          complete: true
+          complete: true,
+          _version: VERSION
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -94,37 +102,64 @@ serve(async (req) => {
     const scores = properties.map(p => p.snap_score ?? 0);
     const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
     const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
-    console.log(`[refresh-outdated] Processing ${propertyIds.length} properties (offset ${offset})`);
-    console.log(`[refresh-outdated] Priority batch: max_score=${maxScore}, avg_score=${avgScore} (high-value first)`);
+    console.log(`[refresh-outdated ${VERSION}] Processing ${propertyIds.length} properties (offset ${offset})`);
+    console.log(`[refresh-outdated ${VERSION}] Priority batch: max_score=${maxScore}, avg_score=${avgScore}`);
 
-    // Call the generate-insights function
-    let insightResult = { processed: 0, ai_generated: 0, rule_based: 0 };
-    
+    // Split into chunks and process in parallel
+    let totalProcessed = 0;
+    let totalAiGenerated = 0;
+    let totalRuleBased = 0;
+
     if (!dryRun) {
-      try {
-        const insightResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-insights`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          },
-          body: JSON.stringify({ propertyIds }),
-        });
-        
-        if (insightResponse.ok) {
-          const result = await insightResponse.json();
-          insightResult = {
-            processed: result.processed || 0,
-            ai_generated: result.breakdown?.ai_generated || 0,
-            rule_based: result.breakdown?.rule_based || 0,
-          };
-          console.log(`[refresh-outdated] Processed: ${insightResult.ai_generated} AI, ${insightResult.rule_based} rule-based`);
-        } else {
-          const errorText = await insightResponse.text();
-          console.error(`[refresh-outdated] generate-insights failed: ${errorText}`);
+      const chunkSize = Math.ceil(propertyIds.length / CONCURRENT_CHUNKS);
+      const chunks: string[][] = [];
+      
+      for (let i = 0; i < propertyIds.length; i += chunkSize) {
+        chunks.push(propertyIds.slice(i, i + chunkSize));
+      }
+
+      console.log(`[refresh-outdated ${VERSION}] Processing ${chunks.length} chunks in parallel`);
+
+      // Process chunks in parallel
+      const results = await Promise.allSettled(
+        chunks.map(async (chunk, idx) => {
+          try {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-insights`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              },
+              body: JSON.stringify({ propertyIds: chunk }),
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              console.log(`[refresh-outdated ${VERSION}] Chunk ${idx + 1} complete: ${result.processed || 0} processed`);
+              return {
+                processed: result.processed || 0,
+                ai_generated: result.breakdown?.ai_generated || 0,
+                rule_based: result.breakdown?.rule_based || 0,
+              };
+            } else {
+              const errorText = await response.text();
+              console.error(`[refresh-outdated ${VERSION}] Chunk ${idx + 1} failed: ${errorText}`);
+              return { processed: 0, ai_generated: 0, rule_based: 0 };
+            }
+          } catch (err) {
+            console.error(`[refresh-outdated ${VERSION}] Chunk ${idx + 1} error:`, err);
+            return { processed: 0, ai_generated: 0, rule_based: 0 };
+          }
+        })
+      );
+
+      // Aggregate results
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          totalProcessed += result.value.processed;
+          totalAiGenerated += result.value.ai_generated;
+          totalRuleBased += result.value.rule_based;
         }
-      } catch (insightError) {
-        console.error(`[refresh-outdated] Error calling generate-insights:`, insightError);
       }
     }
 
@@ -133,33 +168,46 @@ serve(async (req) => {
     const isComplete = nextOffset >= (totalCount || 0);
     const progress = Math.round((nextOffset / (totalCount || 1)) * 100);
 
-    console.log(`[refresh-outdated] Batch complete: ${insightResult.processed} processed in ${elapsed}ms`);
-    console.log(`[refresh-outdated] Progress: ${progress}% (${nextOffset}/${totalCount})`);
+    console.log(`[refresh-outdated ${VERSION}] Batch complete: ${totalProcessed} processed in ${elapsed}ms`);
+    console.log(`[refresh-outdated ${VERSION}] Progress: ${progress}% (${nextOffset}/${totalCount})`);
 
     // Auto-continue if enabled and not complete
     if (!isComplete && !dryRun && autoResume) {
-      // Small delay to avoid overwhelming the AI API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Use EdgeRuntime.waitUntil for reliable background continuation
+      const continueTask = async () => {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause
+        
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/refresh-outdated-insights`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+            body: JSON.stringify({ offset: nextOffset, autoResume }),
+          });
+          console.log(`[refresh-outdated ${VERSION}] Triggered next batch at offset ${nextOffset}`);
+        } catch (err) {
+          console.error(`[refresh-outdated ${VERSION}] Failed to trigger next batch:`, err);
+        }
+      };
+
+      // Use waitUntil if available, otherwise fire-and-forget
+      if (typeof (globalThis as any).EdgeRuntime !== 'undefined') {
+        (globalThis as any).EdgeRuntime.waitUntil(continueTask());
+      } else {
+        continueTask().catch(console.error);
+      }
       
-      const selfUrl = `${SUPABASE_URL}/functions/v1/refresh-outdated-insights`;
-      fetch(selfUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        },
-        body: JSON.stringify({ offset: nextOffset, autoResume }),
-      }).catch(err => console.error('[refresh-outdated] Failed to trigger next batch:', err));
-      
-      console.log(`[refresh-outdated] Auto-triggered next batch at offset ${nextOffset}`);
+      console.log(`[refresh-outdated ${VERSION}] Auto-continuation scheduled`);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        processed: insightResult.processed,
-        ai_generated: insightResult.ai_generated,
-        rule_based: insightResult.rule_based,
+        processed: totalProcessed,
+        ai_generated: totalAiGenerated,
+        rule_based: totalRuleBased,
         elapsed_ms: elapsed,
         progress: {
           current: Math.min(nextOffset, totalCount || 0),
@@ -168,17 +216,19 @@ serve(async (req) => {
           complete: isComplete
         },
         next_offset: isComplete ? null : nextOffset,
-        auto_continuing: !isComplete && !dryRun && autoResume
+        auto_continuing: !isComplete && !dryRun && autoResume,
+        _version: VERSION
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error("[refresh-outdated] Fatal error:", error);
+    console.error(`[refresh-outdated ${VERSION}] Fatal error:`, error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
+        _version: VERSION
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

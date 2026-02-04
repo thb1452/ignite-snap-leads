@@ -19,24 +19,25 @@ const VIOLATION_TYPES = [
   "Overgrown Lawn", "Structural Damage", "Abandoned Vehicle", "Roof Damage"
 ];
 
+// Enforcement-focused insights (neutral language)
 const INSIGHTS = [
-  "Property shows multiple unresolved code issues. Visible exterior decay and long-term municipal fines indicate likely seller motivation.",
-  "High-distress indicator with tax arrears exceeding 18 months. Owner may be open to creative exit strategies.",
-  "Multiple utility shutoffs and neighbor complaints suggest vacancy or financial hardship. Strong deal potential.",
-  "Structural violations combined with unpaid assessments create urgency. Property likely needs quick resolution.",
-  "Long-standing code enforcement case with escalating fines. Owner showing signs of distress and potential motivation.",
-  "Property has accumulated significant liens and repair orders. Financial pressure may drive seller flexibility.",
-  "Multiple complaints and unaddressed violations suggest owner overwhelm. Good candidate for quick acquisition.",
-  "Tax delinquency combined with visible deterioration indicates motivated seller scenario."
+  "Active enforcement exceeds 180-day threshold. Multiple citations documented across municipal departments.",
+  "Extended enforcement activity with recurring citations. Property subject to multi-agency oversight.",
+  "Utility service enforcement action on record. Additional maintenance citations documented.",
+  "Structural safety citation issued by building department. Case remains in active enforcement status.",
+  "Pattern of recurring enforcement activity spanning 12+ months. Multiple departments involved.",
+  "Property has accumulated multiple compliance notices. Building and safety citations on file.",
+  "Extended enforcement duration with cross-department involvement. Recent citation activity noted.",
+  "Active enforcement cases include maintenance and structural categories. Municipal follow-up scheduled."
 ];
 
 const TAGS = [
-  ["Roof damage", "Trash complaint", "High distress"],
-  ["Tax delinquent", "Water shutoff", "Vacant"],
-  ["Code violation", "Overgrown", "Liens"],
-  ["Structural issues", "Multiple complaints", "Urgent"],
-  ["Exterior decay", "Municipal fines", "Motivated seller"],
-  ["Abandoned", "Utility shutoff", "Financial distress"]
+  ["Structural citation", "Maintenance notice", "Active enforcement"],
+  ["Tax citation", "Utility enforcement", "Vacancy notice"],
+  ["Code violation", "Exterior maintenance", "Compliance pending"],
+  ["Structural issues", "Multi-department", "Extended duration"],
+  ["Exterior citation", "Municipal notice", "Active case"],
+  ["Vacancy indicators", "Utility citation", "Enforcement active"]
 ];
 
 // Generate random coordinates within Dallas-Fort Worth area
@@ -90,7 +91,7 @@ export function generateMockProperties(count: number = 40) {
         {
           id: `viol-${i}-1`,
           violation_type: violationType,
-          description: `${violationType} reported by municipality`,
+          description: `${violationType} citation issued by municipality`,
           status: Math.random() > 0.5 ? "Open" : "Pending",
           opened_date: openedDate,
           days_open: daysOpen,

@@ -37,7 +37,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.refresh-outdated-insights]
-verify_jwt = true
+verify_jwt = false
 
 [functions.reprocess-upload-job]
 verify_jwt = true

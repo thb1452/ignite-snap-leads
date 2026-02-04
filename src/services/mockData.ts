@@ -10,7 +10,7 @@ const FAKE_ADDRESSES = [
 ];
 
 const FAKE_CITIES = [
-  "Dallas", "Fort Worth", "Arlington", "Plano", "Irving", "Garland", 
+  "Dallas", "Fort Worth", "Arlington", "Plano", "Irving", "Garland",
   "Frisco", "McKinney", "Mesquite", "Carrollton"
 ];
 
@@ -31,6 +31,7 @@ const INSIGHTS = [
   "Active enforcement cases include maintenance and structural categories. Municipal follow-up scheduled."
 ];
 
+// Enforcement-focused tags (neutral language)
 const TAGS = [
   ["Structural citation", "Maintenance notice", "Active enforcement"],
   ["Tax citation", "Utility enforcement", "Vacancy notice"],
@@ -45,10 +46,10 @@ function generateRandomCoordinates() {
   const centerLat = 32.7767;
   const centerLng = -96.7970;
   const radius = 0.3; // ~20 mile radius
-  
+
   const lat = centerLat + (Math.random() - 0.5) * radius;
   const lng = centerLng + (Math.random() - 0.5) * radius;
-  
+
   return { lat, lng };
 }
 
@@ -63,7 +64,7 @@ function generateRandomDate() {
 // Generate mock properties
 export function generateMockProperties(count: number = 40) {
   const properties = [];
-  
+
   for (let i = 0; i < count; i++) {
     const coords = generateRandomCoordinates();
     const address = FAKE_ADDRESSES[Math.floor(Math.random() * FAKE_ADDRESSES.length)];
@@ -74,7 +75,7 @@ export function generateMockProperties(count: number = 40) {
     const snapScore = Math.floor(Math.random() * 100);
     const openedDate = generateRandomDate();
     const daysOpen = Math.floor(Math.random() * 180);
-    
+
     properties.push({
       id: `mock-${i}`,
       address: `${address}`,
@@ -103,6 +104,6 @@ export function generateMockProperties(count: number = 40) {
       mockSource: `${violationType} • ${new Date(openedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
     });
   }
-  
+
   return properties;
 }

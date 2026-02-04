@@ -43,10 +43,12 @@ serve(async (req) => {
     console.log(`[bulk-missing] Starting at offset ${offset}, total missing: ${totalMissing}`);
 
     // Fetch batch of properties MISSING insights
+    // Priority ordering: high snap_score first, then by id for consistency
     const { data: properties, error: fetchError } = await supabase
       .from("properties")
-      .select("id")
+      .select("id, snap_score")
       .is("snap_insight", null)
+      .order("snap_score", { ascending: false, nullsFirst: false })
       .order("id")
       .range(offset, offset + BATCH_SIZE - 1);
 
@@ -68,7 +70,11 @@ serve(async (req) => {
     }
 
     const propertyIds = properties.map(p => p.id);
-    console.log(`[bulk-missing] Processing ${propertyIds.length} properties (${offset + 1} to ${offset + propertyIds.length})`);
+    const scores = properties.map(p => p.snap_score ?? 0);
+    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+    const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
+    console.log(`[bulk-missing] Processing ${propertyIds.length} properties (offset ${offset})`);
+    console.log(`[bulk-missing] Priority batch: max_score=${maxScore}, avg_score=${avgScore} (high-value first)`);
 
     // Split into smaller chunks for parallel processing (50 each)
     const CHUNK_SIZE = 50;

@@ -19,24 +19,26 @@ const VIOLATION_TYPES = [
   "Overgrown Lawn", "Structural Damage", "Abandoned Vehicle", "Roof Damage"
 ];
 
+// Enforcement-focused insights (neutral compliance language)
 const INSIGHTS = [
-  "Property shows multiple unresolved code issues. Visible exterior decay and long-term municipal fines indicate likely seller motivation.",
-  "High-distress indicator with tax arrears exceeding 18 months. Owner may be open to creative exit strategies.",
-  "Multiple utility shutoffs and neighbor complaints suggest vacancy or financial hardship. Strong deal potential.",
-  "Structural violations combined with unpaid assessments create urgency. Property likely needs quick resolution.",
-  "Long-standing code enforcement case with escalating fines. Owner showing signs of distress and potential motivation.",
-  "Property has accumulated significant liens and repair orders. Financial pressure may drive seller flexibility.",
-  "Multiple complaints and unaddressed violations suggest owner overwhelm. Good candidate for quick acquisition.",
-  "Tax delinquency combined with visible deterioration indicates motivated seller scenario."
+  "High enforcement persistence: 180+ days of unresolved violations. Multiple enforcement actions recorded on property.",
+  "Cross-department compliance issues detected. Building system failures noted in enforcement records.",
+  "Indicators of vacancy or abandonment present. Recurring compliance failures indicate systemic maintenance issues.",
+  "Structural concerns identified in compliance review. Multi-department enforcement activity signals significant property deterioration.",
+  "Critical compliance issues requiring remediation. Enforcement escalation in progress.",
+  "Multiple unresolved maintenance issues on record. Fire-related damage documented in enforcement records.",
+  "High enforcement persistence with escalating municipal actions. Utility shutoff indicators noted.",
+  "Long-standing compliance issues with multiple departments involved. Exterior maintenance violations accumulating."
 ];
 
+// Enforcement-focused tags (neutral compliance language)
 const TAGS = [
-  ["Roof damage", "Trash complaint", "High distress"],
+  ["Roof damage", "Trash complaint", "High enforcement"],
   ["Tax delinquent", "Water shutoff", "Vacant"],
   ["Code violation", "Overgrown", "Liens"],
   ["Structural issues", "Multiple complaints", "Urgent"],
-  ["Exterior decay", "Municipal fines", "Motivated seller"],
-  ["Abandoned", "Utility shutoff", "Financial distress"]
+  ["Exterior decay", "Municipal fines", "Multi-department"],
+  ["Abandoned", "Utility shutoff", "Chronic neglect"]
 ];
 
 // Generate random coordinates within Dallas-Fort Worth area

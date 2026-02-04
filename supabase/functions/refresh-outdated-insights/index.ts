@@ -16,11 +16,19 @@ const corsHeaders = {
 
 const BATCH_SIZE = 50;
 
-// Outdated investor-focused terms to detect
+// Outdated investor-focused terms to detect (comprehensive list)
 const OUTDATED_TERMS = [
+  // Investment/acquisition language
   'opportunity', 'acquisition', 'value-add', 'value add',
   'investor', 'deal', 'upside', 'profit', 'financial strain',
-  'financial pressure', 'buying', 'purchase'
+  'financial pressure', 'buying', 'purchase',
+  // Distress/motivation language
+  'distress', 'motivated', 'discounted', 'below market',
+  // Wholesaling language
+  'wholesale', 'flip', 'flipping', 'arv', 'rehab',
+  // Persuasion language
+  'great opportunity', 'prime candidate', 'ideal for',
+  'perfect for', 'excellent', 'strong potential'
 ];
 
 serve(async (req) => {
@@ -55,11 +63,13 @@ serve(async (req) => {
     console.log(`[refresh-outdated] Starting at offset ${offset}, total outdated: ${totalCount}`);
 
     // Fetch batch of properties with outdated language
+    // Priority ordering: high snap_score first so valuable properties get fixed first
     const { data: properties, error: fetchError } = await supabase
       .from("properties")
-      .select("id")
+      .select("id, snap_score")
       .not("snap_insight", "is", null)
       .or(orConditions)
+      .order("snap_score", { ascending: false, nullsFirst: false })
       .order("id")
       .range(offset, offset + BATCH_SIZE - 1);
 
@@ -81,7 +91,11 @@ serve(async (req) => {
     }
 
     const propertyIds = properties.map(p => p.id);
-    console.log(`[refresh-outdated] Processing ${propertyIds.length} properties (${offset + 1} to ${offset + propertyIds.length})`);
+    const scores = properties.map(p => p.snap_score ?? 0);
+    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+    const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
+    console.log(`[refresh-outdated] Processing ${propertyIds.length} properties (offset ${offset})`);
+    console.log(`[refresh-outdated] Priority batch: max_score=${maxScore}, avg_score=${avgScore} (high-value first)`);
 
     // Call the generate-insights function
     let insightResult = { processed: 0, ai_generated: 0, rule_based: 0 };

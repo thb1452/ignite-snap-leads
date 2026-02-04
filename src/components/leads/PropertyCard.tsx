@@ -159,50 +159,7 @@ export function PropertyCard({
             )}
           </div>
 
-          {/* Most Recent Violation Details */}
-          {mostRecentViolation && (
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="text-xs font-medium text-foreground">
-                Latest: {formatViolationType(mostRecentViolation.violation_type)}
-              </span>
-              <span className="text-xs text-muted-foreground">•</span>
-              {(() => {
-                const statusStyle = getStatusStyle(mostRecentViolation.status);
-                const badgeElement = (
-                  <Badge 
-                    variant="outline" 
-                    className={`text-xs ${statusStyle.badge}`}
-                  >
-                    {mostRecentViolation.status || "Unknown"}
-                  </Badge>
-                );
-                
-                if (statusStyle.tooltip) {
-                  return (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          {badgeElement}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs max-w-[200px]">{statusStyle.tooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  );
-                }
-                return badgeElement;
-              })()}
-              {mostRecentViolation.opened_date && (
-                <>
-                  <span className="text-xs text-muted-foreground">•</span>
-                  <span className="text-xs text-muted-foreground">
-                    {format(new Date(mostRecentViolation.opened_date), "MMM d, yyyy")}
-                  </span>
-                </>
-              )}
-            </div>
-          )}
+          {/* Removed redundant "Latest:" section - status is already shown in the badge above */}
 
           {/* AI Insight */}
           <div className="mb-2">

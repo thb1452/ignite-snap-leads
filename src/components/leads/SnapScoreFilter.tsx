@@ -36,105 +36,85 @@ export function SnapScoreFilter({
     return "text-blue-500";
   };
 
-  // Compact locked state for non-Enterprise users - uses popover instead of inline card
+  // Compact locked state for non-Enterprise users - inline badge style
   if (!isEnterprise) {
     return (
-      <div className="flex flex-col gap-2">
-        <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-          SnapScore Range
-          <Lock className="h-3.5 w-3.5 text-amber-500" />
-        </Label>
-        <Popover>
-          <PopoverTrigger asChild>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <Lock className="h-3 w-3 text-amber-500" />
+            SnapScore
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64" align="start">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">Unlock SnapScore Filtering</p>
+            <p className="text-xs text-muted-foreground">
+              Target properties by enforcement pressure:
+            </p>
+            <ul className="text-xs text-muted-foreground space-y-0.5 ml-3 list-disc">
+              <li><span className="text-red-500 font-medium">75-100</span> — Critical</li>
+              <li><span className="text-orange-500 font-medium">50-74</span> — High</li>
+              <li><span className="text-yellow-500 font-medium">25-49</span> — Moderate</li>
+              <li><span className="text-blue-500 font-medium">0-24</span> — Low</li>
+            </ul>
             <Button
-              variant="outline"
               size="sm"
-              className="w-fit gap-2 border-dashed border-amber-300 text-muted-foreground hover:border-amber-500"
+              className="w-full gap-1.5 text-xs bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
+              onClick={handleUpgrade}
             >
-              <Target className="h-3.5 w-3.5" />
-              Filter by enforcement pressure score
+              <Lock className="h-3 w-3" />
+              Upgrade
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-72" align="start">
-            <div className="flex flex-col gap-3">
-              <p className="text-sm font-medium">Unlock SnapScore Filtering</p>
-              <p className="text-xs text-muted-foreground">
-                Target properties by enforcement pressure:
-              </p>
-              <ul className="text-xs text-muted-foreground space-y-1 ml-4 list-disc">
-                <li><span className="text-red-500 font-medium">75-100</span> — Critical</li>
-                <li><span className="text-orange-500 font-medium">50-74</span> — High</li>
-                <li><span className="text-yellow-500 font-medium">25-49</span> — Moderate</li>
-                <li><span className="text-blue-500 font-medium">0-24</span> — Low</li>
-              </ul>
-              <Button
-                size="sm"
-                className="w-full gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
-                onClick={handleUpgrade}
-              >
-                <Lock className="h-3.5 w-3.5" />
-                Upgrade to Enterprise
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-        SnapScore Range
-      </Label>
-      
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 text-sm">
-          <span className={`font-medium ${getScoreColor(snapScoreRange[0])}`}>
-            {snapScoreRange[0]}
-          </span>
-          <span className="text-muted-foreground">-</span>
-          <span className={`font-medium ${getScoreColor(snapScoreRange[1])}`}>
-            {snapScoreRange[1]}
-          </span>
-        </div>
-        
-        <Slider
-          value={snapScoreRange}
-          onValueChange={(value) => onSnapScoreChange(value as [number, number])}
-          min={0}
-          max={100}
-          step={5}
-          className="w-32"
-        />
-        
-        {/* Quick presets */}
-        <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onSnapScoreChange([0, 100])}
-            className={`h-7 px-2 text-xs ${snapScoreRange[0] === 0 && snapScoreRange[1] === 100 ? "bg-muted" : ""}`}
-          >
-            All
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onSnapScoreChange([75, 100])}
-            className={`h-7 px-2 text-xs ${snapScoreRange[0] === 75 ? "bg-red-50 text-red-600" : ""}`}
-          >
-            Critical
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onSnapScoreChange([50, 100])}
-            className={`h-7 px-2 text-xs ${snapScoreRange[0] === 50 ? "bg-orange-50 text-orange-600" : ""}`}
-          >
-            High+
-          </Button>
-        </div>
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        Score
+      </span>
+      <div className="flex items-center gap-1.5 text-xs">
+        <span className={`font-medium ${getScoreColor(snapScoreRange[0])}`}>
+          {snapScoreRange[0]}
+        </span>
+        <span className="text-muted-foreground">-</span>
+        <span className={`font-medium ${getScoreColor(snapScoreRange[1])}`}>
+          {snapScoreRange[1]}
+        </span>
+      </div>
+      <Slider
+        value={snapScoreRange}
+        onValueChange={(value) => onSnapScoreChange(value as [number, number])}
+        min={0}
+        max={100}
+        step={5}
+        className="w-24"
+      />
+      <div className="flex gap-0.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onSnapScoreChange([0, 100])}
+          className={`h-6 px-1.5 text-xs ${snapScoreRange[0] === 0 && snapScoreRange[1] === 100 ? "bg-muted" : ""}`}
+        >
+          All
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onSnapScoreChange([75, 100])}
+          className={`h-6 px-1.5 text-xs ${snapScoreRange[0] === 75 ? "bg-red-50 text-red-600" : ""}`}
+        >
+          Crit
+        </Button>
       </div>
     </div>
   );

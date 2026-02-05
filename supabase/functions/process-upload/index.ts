@@ -415,24 +415,52 @@ async function processUploadJob(jobId: string) {
     console.log(`[process-upload] Starting background job ${jobId}`);
 
     // =====================================================
-    // JOB LOCKING: Prevent concurrent processing using updated_at timestamp
-    // Only proceed if job hasn't been touched in last 30 seconds
+    // JOB LOCKING: Use atomic status transition to prevent concurrent processing
+    // Only the first worker to transition from QUEUED succeeds
     // =====================================================
-    const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
     const { data: lockResult, error: lockError } = await supabaseClient
       .from('upload_jobs')
-      .update({ updated_at: new Date().toISOString() })
+      .update({ 
+        status: 'PARSING',
+        started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
       .eq('id', jobId)
-      .in('status', ['QUEUED', 'PARSING', 'PROCESSING', 'DEDUPING', 'CREATING_VIOLATIONS'])
-      .lt('updated_at', thirtySecondsAgo)
+      .eq('status', 'QUEUED')  // Only grab if still QUEUED - atomic lock
       .select('id')
       .single();
 
     if (lockError || !lockResult) {
-      console.log(`[process-upload] Job ${jobId} recently updated (locked), skipping`);
-      return;
+      // Job already being processed - check if it's stuck or just in progress
+      const { data: currentJob } = await supabaseClient
+        .from('upload_jobs')
+        .select('status, updated_at')
+        .eq('id', jobId)
+        .single();
+      
+      if (currentJob?.status === 'COMPLETE' || currentJob?.status === 'FAILED') {
+        console.log(`[process-upload] Job ${jobId} already ${currentJob.status}, skipping`);
+        return;
+      }
+      
+      // Check if job is stuck (no update in 5 minutes) - allow retry
+      const fiveMinutesAgo = new Date(Date.now() - 300000);
+      const jobUpdatedAt = currentJob?.updated_at ? new Date(currentJob.updated_at) : new Date();
+      
+      if (jobUpdatedAt < fiveMinutesAgo) {
+        console.log(`[process-upload] Job ${jobId} appears stuck (last update: ${currentJob?.updated_at}), resuming...`);
+        // Force status to resume
+        await supabaseClient
+          .from('upload_jobs')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', jobId);
+      } else {
+        console.log(`[process-upload] Job ${jobId} already in progress (${currentJob?.status}), skipping`);
+        return;
+      }
+    } else {
+      console.log(`[process-upload] Acquired lock for job ${jobId}`);
     }
-    console.log(`[process-upload] Acquired lock for job ${jobId}`);
 
     // Get job details
     const { data: job, error: jobError } = await supabaseClient
@@ -477,14 +505,7 @@ async function processUploadJob(jobId: string) {
     console.log(`[process-upload] Using location: ${job.city}, ${job.county || 'N/A'}, ${job.state}`);
     console.log(`[process-upload] File size: ${Math.round(job.file_size / 1024)}KB`);
 
-    // Update status to PARSING
-    await supabaseClient
-      .from('upload_jobs')
-      .update({ 
-        status: 'PARSING',
-        started_at: new Date().toISOString()
-      })
-      .eq('id', jobId);
+    // Status already set to PARSING in lock acquisition above
 
     // Download CSV from storage
     const { data: fileData, error: downloadError } = await supabaseClient.storage

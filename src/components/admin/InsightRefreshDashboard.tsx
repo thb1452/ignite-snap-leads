@@ -304,26 +304,27 @@ export function InsightRefreshDashboard() {
         {/* Action Summary */}
         <div className="pt-4 border-t space-y-2">
           <h4 className="font-medium text-sm">What needs fixing:</h4>
-          <ul className="text-sm text-muted-foreground space-y-1">
-            {stats?.outdated && stats.outdated > 0 && (
-              <li className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-orange-500" />
-                {stats.outdated.toLocaleString()} insights use investor language (will be replaced with neutral enforcement language)
-              </li>
-            )}
-            {stats?.missing && stats.missing > 0 && (
-              <li className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-500" />
-                {stats.missing.toLocaleString()} properties have no insights yet
-              </li>
-            )}
-            {stats?.clean === stats?.total && (
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                All insights are up to date!
-              </li>
-            )}
-          </ul>
+          {(stats?.outdated || 0) > 0 || (stats?.missing || 0) > 0 ? (
+            <ul className="text-sm text-muted-foreground space-y-1">
+              {(stats?.outdated || 0) > 0 && (
+                <li className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                  {stats?.outdated?.toLocaleString()} insights use investor language (will be replaced with neutral enforcement language)
+                </li>
+              )}
+              {(stats?.missing || 0) > 0 && (
+                <li className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                  {stats?.missing?.toLocaleString()} properties have no insights yet
+                </li>
+              )}
+            </ul>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              All insights are up to date!
+            </div>
+          )}
         </div>
 
         {/* Processing Note */}

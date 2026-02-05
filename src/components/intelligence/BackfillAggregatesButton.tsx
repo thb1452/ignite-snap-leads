@@ -93,7 +93,7 @@ export function BackfillAggregatesButton() {
       toast.info("Starting high-speed SQL backfill...");
 
       const result = await callFn("backfill-property-aggregates", {
-        batchSize: 500, // Reduced to avoid statement timeout
+        batchSize: 100, // Small batches for reliability with statement timeout
         autoResume: true,
       });
 

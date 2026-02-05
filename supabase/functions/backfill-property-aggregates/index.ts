@@ -14,7 +14,7 @@ const corsHeaders = {
 };
 
 interface BackfillRequest {
-  batchSize?: number;  // Default: 5000 (SQL handles this efficiently)
+  batchSize?: number;  // Default: 500 (reduced to avoid statement timeout)
   autoResume?: boolean; // Auto-continue until all processed
 }
 
@@ -25,7 +25,7 @@ serve(async (req) => {
 
   try {
     const {
-      batchSize = 5000,
+      batchSize = 500,  // Reduced from 5000 to avoid statement timeout
       autoResume = true,
     }: BackfillRequest = await req.json().catch(() => ({}));
 
@@ -115,12 +115,17 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error("[backfill-v2] Fatal error:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'object' && error !== null
+        ? JSON.stringify(error)
+        : String(error);
+    console.error("[backfill-v2] Fatal error:", errorMessage);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: errorMessage
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -50,6 +50,15 @@ const KNOWN_CITIES_NV = [
 
 const ALL_KNOWN_CITIES = [...KNOWN_CITIES_CA, ...KNOWN_CITIES_NV];
 
+// PRE-COMPILE city patterns for performance (avoid creating regex in loops)
+const CITY_PATTERNS: Map<string, RegExp> = new Map();
+// Sort cities by length (descending) to match longer names first
+const SORTED_CITIES = [...ALL_KNOWN_CITIES].sort((a, b) => b.length - a.length);
+for (const city of SORTED_CITIES) {
+  // Match city at end of address, with optional comma before
+  CITY_PATTERNS.set(city, new RegExp(`[,\\s]+${city.replace(/\s+/g, '\\s+')}\\s*$`, 'i'));
+}
+
 /**
  * Sanitize date string before inserting into staging - reject invalid dates
  * This prevents Postgres errors like "date/time field value out of range"
@@ -119,19 +128,15 @@ function extractCityFromAddress(
     return { cleanAddress: addressTrimmed, extractedCity: trimmedCity };
   }
   
-  console.log(`[process-upload] City extraction needed for address: "${addressTrimmed.substring(0, 60)}..." (city field: "${trimmedCity}")`);
+  // Only log for debugging in small batches
+  // console.log(`[process-upload] City extraction needed for address: "${addressTrimmed.substring(0, 60)}..." (city field: "${trimmedCity}")`);
   
-  // Try to find known city at end of address (sorted by length to match longer names first)
-  const sortedCities = [...ALL_KNOWN_CITIES].sort((a, b) => b.length - a.length);
-  
-  for (const city of sortedCities) {
-    // Match city at end of address, with optional comma before
-    const cityPattern = new RegExp(`[,\\s]+${city.replace(/\s+/g, '\\s+')}\\s*$`, 'i');
-    
-    if (cityPattern.test(addressTrimmed)) {
+  // Use pre-compiled patterns for performance (SORTED_CITIES is already sorted by length)
+  for (const city of SORTED_CITIES) {
+    const cityPattern = CITY_PATTERNS.get(city);
+    if (cityPattern && cityPattern.test(addressTrimmed)) {
       // Found city at end of address - extract it
       const cleanAddress = addressTrimmed.replace(cityPattern, '').trim();
-      console.log(`[process-upload] ✓ Extracted known city "${city}" from address`);
       return { cleanAddress, extractedCity: city };
     }
   }
@@ -409,6 +414,29 @@ async function processUploadJob(jobId: string) {
   try {
     console.log(`[process-upload] Starting background job ${jobId}`);
 
+    // =====================================================
+    // JOB LOCKING: Prevent concurrent processing of the same job
+    // Uses atomic update with status check to ensure only one worker processes
+    // =====================================================
+    const { data: lockResult, error: lockError } = await supabaseClient
+      .from('upload_jobs')
+      .update({ 
+        processing_lock: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobId)
+      .in('status', ['QUEUED', 'PARSING', 'PROCESSING', 'DEDUPING', 'CREATING_VIOLATIONS'])
+      // Only acquire lock if not locked recently (within 30 seconds)
+      .or(`processing_lock.is.null,processing_lock.lt.${new Date(Date.now() - 30000).toISOString()}`)
+      .select('id')
+      .single();
+
+    if (lockError || !lockResult) {
+      console.log(`[process-upload] Job ${jobId} already being processed by another worker, skipping`);
+      return; // Another worker has the lock
+    }
+    console.log(`[process-upload] Acquired lock for job ${jobId}`);
+
     // Get job details
     const { data: job, error: jobError } = await supabaseClient
       .from('upload_jobs')
@@ -418,6 +446,12 @@ async function processUploadJob(jobId: string) {
 
     if (jobError || !job) {
       throw new Error(`Job not found: ${jobError?.message}`);
+    }
+
+    // Skip if already complete or failed
+    if (job.status === 'COMPLETE' || job.status === 'FAILED') {
+      console.log(`[process-upload] Job ${jobId} already ${job.status}, skipping`);
+      return;
     }
 
     // Determine scope: if city is missing but county+state are present, it's a county-level upload

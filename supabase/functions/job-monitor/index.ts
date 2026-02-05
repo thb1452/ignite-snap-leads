@@ -6,7 +6,8 @@ const corsHeaders = {
 };
 
 // Thresholds for detecting stuck jobs
-const UPLOAD_STUCK_THRESHOLD_SECONDS = 60;  // 1 minute without progress = stuck (reduced for faster resume)
+// IMPORTANT: Large files can take 5+ minutes to process, so threshold must be generous
+const UPLOAD_STUCK_THRESHOLD_SECONDS = 300;  // 5 minutes without progress = stuck (increased for large files)
 const GEOCODING_STUCK_THRESHOLD_SECONDS = 300;  // 5 minutes without progress = stuck
 
 Deno.serve(async (req) => {

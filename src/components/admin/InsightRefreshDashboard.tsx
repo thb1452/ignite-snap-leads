@@ -10,8 +10,6 @@ import {
   CheckCircle2, 
   RefreshCw,
   Play,
-  Pause,
-  TrendingUp,
   Clock
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,12 +22,6 @@ interface InsightStats {
   lastUpdated: Date;
 }
 
-const OUTDATED_TERMS = [
-  'distress', 'opportunity', 'motivated', 'acquisition', 
-  'investor', 'deal', 'value-add', 'value add', 'flip',
-  'wholesale', 'profit', 'below market', 'discounted'
-];
-
 export function InsightRefreshDashboard() {
   const [stats, setStats] = useState<InsightStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,10 +29,9 @@ export function InsightRefreshDashboard() {
   const [jobRunning, setJobRunning] = useState(false);
   const [progress, setProgress] = useState<{current: number; total: number; percentage: number} | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const isFetchingRef = useRef(false); // Prevent concurrent fetches
+  const isFetchingRef = useRef(false);
 
   const fetchStats = useCallback(async () => {
-    // Prevent concurrent fetches that can cause race conditions
     if (isFetchingRef.current) {
       console.log('[InsightDashboard] Skipping fetch - already in progress');
       return;
@@ -49,81 +40,34 @@ export function InsightRefreshDashboard() {
     isFetchingRef.current = true;
     
     try {
-      // Use simpler queries that are more reliable
-      // Query 1: Total count
-      const { count: total, error: totalError } = await supabase
-        .from("properties")
-        .select("*", { count: "exact", head: true });
-
-      if (totalError) {
-        console.error('[InsightDashboard] Total count error:', totalError);
-        setLoading(false);
-        isFetchingRef.current = false;
-        return;
-      }
-
-      // Query 2: Missing insights (NULL snap_insight)
-      const { count: missing, error: missingError } = await supabase
-        .from("properties")
-        .select("*", { count: "exact", head: true })
-        .is("snap_insight", null);
-
-      if (missingError) {
-        console.error('[InsightDashboard] Missing count error:', missingError);
-        setLoading(false);
-        isFetchingRef.current = false;
-        return;
-      }
-
-      // Query 3: Count with insights (to check outdated separately)
-      const { count: withInsight, error: withInsightError } = await supabase
-        .from("properties")
-        .select("*", { count: "exact", head: true })
-        .not("snap_insight", "is", null);
-
-      if (withInsightError) {
-        console.error('[InsightDashboard] With insight count error:', withInsightError);
-        setLoading(false);
-        isFetchingRef.current = false;
-        return;
-      }
-
-      // Query 4: Outdated - use a simpler approach with fewer terms to avoid query complexity issues
-      // Only check the most common outdated terms
-      const CORE_OUTDATED_TERMS = ['distress', 'opportunity', 'investor', 'motivated', 'acquisition'];
-      const orCondition = CORE_OUTDATED_TERMS.map(term => `snap_insight.ilike.%${term}%`).join(',');
+      // Use RPC for fast, reliable stats - avoids statement timeouts
+      const { data, error } = await supabase.rpc('get_insight_stats');
       
-      const { count: outdated, error: outdatedError } = await supabase
-        .from("properties")
-        .select("*", { count: "exact", head: true })
-        .not("snap_insight", "is", null)
-        .or(orCondition);
-
-      if (outdatedError) {
-        console.error('[InsightDashboard] Outdated count error:', outdatedError);
-        // Fall back to assuming 0 outdated if query fails
+      if (error) {
+        console.error('[InsightDashboard] Stats error:', error);
+        // Fallback: try simple count
+        const { count: total } = await supabase
+          .from("properties")
+          .select("*", { count: "exact", head: true });
+        
+        setStats({
+          total: total ?? 0,
+          missing: 0,
+          outdated: 0,
+          clean: total ?? 0,
+          lastUpdated: new Date()
+        });
+      } else if (data && data.length > 0) {
+        const row = data[0];
+        setStats({
+          total: row.total ?? 0,
+          missing: row.missing ?? 0,
+          outdated: row.outdated ?? 0,
+          clean: row.clean ?? 0,
+          lastUpdated: new Date()
+        });
+        console.log('[InsightDashboard] Stats loaded:', row);
       }
-
-      const outdatedCount = outdated ?? 0;
-      const totalCount = total ?? 0;
-      const missingCount = missing ?? 0;
-      const cleanCount = Math.max(0, (withInsight ?? 0) - outdatedCount);
-
-      console.log('[InsightDashboard] Stats:', { 
-        total: totalCount, 
-        missing: missingCount, 
-        withInsight, 
-        outdated: outdatedCount, 
-        clean: cleanCount 
-      });
-
-      setStats({
-        total: totalCount,
-        missing: missingCount,
-        outdated: outdatedCount,
-        clean: cleanCount,
-        lastUpdated: new Date()
-      });
     } catch (err) {
       console.error("[InsightDashboard] Failed to fetch insight stats:", err);
     } finally {

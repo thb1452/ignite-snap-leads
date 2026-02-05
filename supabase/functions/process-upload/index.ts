@@ -647,7 +647,7 @@ async function processUploadJob(jobId: string) {
           raw_description: truncatedDescription,
         });
 
-        if (stagingRows.length >= STAGING_BATCH_SIZE || i === parsedRows.length - 1) {
+        if (stagingRows.length >= STAGING_BATCH_SIZE) {
           const { error: insertError } = await supabaseClient
             .from('upload_staging')
             .insert(stagingRows);
@@ -666,6 +666,25 @@ async function processUploadJob(jobId: string) {
           console.log(`[process-upload] RESUME staged ${processedCount} / ${totalRows} rows (${Math.round(processedCount / totalRows * 100)}%)`);
           stagingRows.length = 0;
         }
+      }
+      
+      // CRITICAL: Flush any remaining rows after the loop ends (handles case where last row was skipped)
+      if (stagingRows.length > 0) {
+        const { error: insertError } = await supabaseClient
+          .from('upload_staging')
+          .insert(stagingRows);
+
+        if (insertError) {
+          console.error('[process-upload] Final staging insert error:', insertError);
+          throw insertError;
+        }
+
+        await supabaseClient
+          .from('upload_jobs')
+          .update({ processed_rows: parsedRows.length })
+          .eq('id', jobId);
+
+        console.log(`[process-upload] RESUME final flush: staged ${stagingRows.length} remaining rows`);
       }
     } else {
       // Fresh start - no staging rows yet
@@ -766,7 +785,7 @@ async function processUploadJob(jobId: string) {
         raw_description: truncatedDescription, // Store raw notes for AI processing (INTERNAL ONLY)
       });
 
-      if (stagingRows.length >= STAGING_BATCH_SIZE || i === parsedRows.length - 1) {
+      if (stagingRows.length >= STAGING_BATCH_SIZE) {
         const { error: insertError } = await supabaseClient
           .from('upload_staging')
           .insert(stagingRows);
@@ -786,6 +805,25 @@ async function processUploadJob(jobId: string) {
         console.log(`[process-upload] Staged ${processedCount} / ${totalRows} rows (${Math.round(processedCount / totalRows * 100)}%)`);
         stagingRows.length = 0;
       }
+    }
+    
+    // CRITICAL: Flush any remaining rows after the loop ends (handles case where last row was skipped)
+    if (stagingRows.length > 0) {
+      const { error: insertError } = await supabaseClient
+        .from('upload_staging')
+        .insert(stagingRows);
+
+      if (insertError) {
+        console.error('[process-upload] Final staging insert error:', insertError);
+        throw insertError;
+      }
+
+      await supabaseClient
+        .from('upload_jobs')
+        .update({ processed_rows: parsedRows.length })
+        .eq('id', jobId);
+
+      console.log(`[process-upload] Final flush: staged ${stagingRows.length} remaining rows`);
     }
     } // End of fresh start block
 

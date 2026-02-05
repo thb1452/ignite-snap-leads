@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCw, CheckCircle, AlertCircle, Sparkles, AlertTriangle } from "lucide-react";
-import { BatchRescoreProgress, countPropertiesWithOutdatedLanguage } from "@/services/batchRescore";
+import { BatchRescoreProgress } from "@/services/batchRescore";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -20,15 +20,22 @@ export function BatchRescoreButton() {
     try {
       setIsLoading(true);
       const { supabase } = await import("@/integrations/supabase/client");
-      const [totalRes, scoredRes, outdatedRes] = await Promise.all([
+      
+      // Use simpler, faster queries that won't timeout
+      const [totalRes, scoredRes] = await Promise.all([
         supabase.from("properties").select("id", { count: "exact", head: true }),
-        supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_score", "is", null),
-        countPropertiesWithOutdatedLanguage()
+        supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_score", "is", null)
       ]);
+      
+      if (totalRes.error) throw totalRes.error;
+      if (scoredRes.error) throw scoredRes.error;
+      
       setPropertyCount(totalRes.count ?? 0);
       setScoredCount(scoredRes.count ?? 0);
-      setOutdatedCount(outdatedRes);
+      // Skip outdated count as it's too slow - just show basic counts
+      setOutdatedCount(0);
     } catch (error) {
+      console.error("Failed to fetch property count:", error);
       toast.error("Failed to fetch property count");
     } finally {
       setIsLoading(false);

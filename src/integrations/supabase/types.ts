@@ -2053,6 +2053,13 @@ export type Database = {
             }
             Returns: string
           }
+      backfill_insights_batch: {
+        Args: { batch_size?: number }
+        Returns: {
+          processed: number
+          remaining: number
+        }[]
+      }
       bulk_upsert_violations: { Args: { p_violations: Json }; Returns: Json }
       consume_credit: { Args: { p_user_id: string }; Returns: number }
       disablelongtransactions: { Args: never; Returns: string }
@@ -2373,6 +2380,19 @@ export type Database = {
           violation_type: string
         }[]
       }
+      generate_enforcement_insight: {
+        Args: {
+          p_avg_days_open: number
+          p_distress_signals: string[]
+          p_escalated: boolean
+          p_multi_department: boolean
+          p_open_violations: number
+          p_repeat_offender: boolean
+          p_total_violations: number
+          p_violation_types: string[]
+        }
+        Returns: string
+      }
       geometry: { Args: { "": string }; Returns: unknown }
       geometry_above: {
         Args: { geom1: unknown; geom2: unknown }
@@ -2520,6 +2540,13 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      refresh_outdated_insights_batch: {
+        Args: { batch_size?: number }
+        Returns: {
+          processed: number
+          remaining: number
+        }[]
+      }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: unknown

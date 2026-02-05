@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { PropertyCard } from "./PropertyCard";
+import { CompactPropertyRow } from "./CompactPropertyRow";
 
 interface Violation {
   id: string;
@@ -31,6 +31,9 @@ interface VirtualizedPropertyListProps {
   onPropertyClick: (id: string) => void;
 }
 
+// Compact row height for dense list (shows 10-15 items in viewport)
+const COMPACT_ROW_HEIGHT = 52;
+
 export function VirtualizedPropertyList({
   properties,
   selectedIds,
@@ -42,12 +45,21 @@ export function VirtualizedPropertyList({
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 220,
-    overscan: 5,
+    estimateSize: () => COMPACT_ROW_HEIGHT,
+    overscan: 10,
   });
 
   return (
-    <div ref={parentRef} className="h-[calc(100vh-240px)] overflow-y-auto pb-20">
+    <div ref={parentRef} className="h-full overflow-y-auto">
+      {/* Column Headers */}
+      <div className="sticky top-0 z-10 flex items-center gap-3 px-3 py-1.5 bg-muted/80 backdrop-blur-sm border-b text-xs font-medium text-muted-foreground">
+        <div className="w-4 shrink-0" /> {/* Checkbox spacer */}
+        <div className="flex-1">Address</div>
+        <div className="shrink-0 w-16 text-center">Status</div>
+        <div className="w-12 text-right shrink-0">Viols</div>
+        <div className="w-10 text-center shrink-0">Score</div>
+      </div>
+      
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -58,7 +70,7 @@ export function VirtualizedPropertyList({
         {virtualizer.getVirtualItems().map((virtualItem) => {
           const property = properties[virtualItem.index];
           const isSelected = selectedIds.includes(property.id);
-          
+
           return (
             <div
               key={property.id}
@@ -68,9 +80,10 @@ export function VirtualizedPropertyList({
                 left: 0,
                 width: "100%",
                 transform: `translateY(${virtualItem.start}px)`,
+                height: `${COMPACT_ROW_HEIGHT}px`,
               }}
             >
-              <PropertyCard
+              <CompactPropertyRow
                 property={property}
                 isSelected={isSelected}
                 onToggleSelect={onToggleSelect}

@@ -40,25 +40,34 @@ export function InsightRefreshDashboard() {
     isFetchingRef.current = true;
     
     try {
-      // Fetch counts in parallel for efficiency
-      const [totalResult, missingResult] = await Promise.all([
-        supabase.from("properties").select("*", { count: "exact", head: true }),
+      // Use estimated count for total (fast) and exact for filtered missing count
+      // The exact count on full table times out, but estimated is reliable
+      const [totalResult, missingResult] = await Promise.allSettled([
+        supabase.from("properties").select("*", { count: "estimated", head: true }),
         supabase.from("properties").select("*", { count: "exact", head: true }).is("snap_insight", null)
       ]);
 
-      const total = totalResult.count ?? 0;
-      const missing = missingResult.count ?? 0;
+      // Extract results with fallbacks
+      const total = totalResult.status === 'fulfilled' ? (totalResult.value.count ?? 0) : 0;
+      const missing = missingResult.status === 'fulfilled' ? (missingResult.value.count ?? 0) : 0;
       
-      // For outdated, we'll estimate based on insights containing investor language
-      // This is a simplified check - the full check would be too slow
-      const outdated = 0; // Skip outdated detection for now to avoid timeouts
-      const clean = total - missing - outdated;
+      // Log any errors for debugging
+      if (totalResult.status === 'rejected') {
+        console.error('[InsightDashboard] Total count failed:', totalResult.reason);
+      }
+      if (missingResult.status === 'rejected') {
+        console.error('[InsightDashboard] Missing count failed:', missingResult.reason);
+      }
+      
+      // Skip outdated detection to avoid timeouts
+      const outdated = 0;
+      const clean = Math.max(0, total - missing - outdated);
 
       setStats({
         total,
         missing,
         outdated,
-        clean: Math.max(0, clean),
+        clean,
         lastUpdated: new Date()
       });
       

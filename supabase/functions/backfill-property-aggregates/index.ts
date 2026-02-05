@@ -14,7 +14,7 @@ const corsHeaders = {
 };
 
 interface BackfillRequest {
-  batchSize?: number;  // Default: 100 (reduced further for reliability)
+  batchSize?: number;  // Default: 50 (small for reliability)
   autoResume?: boolean; // Auto-continue until all processed
 }
 
@@ -25,7 +25,7 @@ serve(async (req) => {
 
   try {
     const {
-      batchSize = 100,  // Reduced further for reliability with statement timeout
+      batchSize = 50,  // Reduced to 50 for better timeout reliability
       autoResume = true,
     }: BackfillRequest = await req.json().catch(() => ({}));
 
@@ -38,19 +38,35 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    console.log(`[backfill-v2] Starting SQL-native backfill with batch size ${batchSize}...`);
+    // Try with current batch size, retry with smaller if timeout
+    let currentBatchSize = batchSize;
+    let result = { processed: 0, updated: 0, remaining: 0 };
+    let attempts = 0;
+    const MAX_ATTEMPTS = 3;
 
-    // Call the SQL function for high-performance batch processing
-    const { data, error } = await supabase.rpc('backfill_property_aggregates_batch', {
-      p_batch_size: batchSize
-    });
+    while (attempts < MAX_ATTEMPTS) {
+      attempts++;
+      console.log(`[backfill-v2] Attempt ${attempts}: batch size ${currentBatchSize}...`);
 
-    if (error) {
-      console.error("[backfill-v2] SQL function error:", error);
-      throw error;
+      const { data, error } = await supabase.rpc('backfill_property_aggregates_batch', {
+        p_batch_size: currentBatchSize
+      });
+
+      if (error) {
+        // Check if it's a timeout error
+        if (error.code === '57014' && currentBatchSize > 10) {
+          // Reduce batch size and retry
+          currentBatchSize = Math.max(10, Math.floor(currentBatchSize / 2));
+          console.log(`[backfill-v2] Timeout, reducing batch to ${currentBatchSize}...`);
+          continue;
+        }
+        console.error("[backfill-v2] SQL function error:", error);
+        throw error;
+      }
+
+      result = data?.[0] || { processed: 0, updated: 0, remaining: 0 };
+      break; // Success, exit retry loop
     }
-
-    const result = data?.[0] || { processed: 0, updated: 0, remaining: 0 };
     
     console.log(`[backfill-v2] ========================================`);
     console.log(`[backfill-v2] Batch complete (SQL-native):`);

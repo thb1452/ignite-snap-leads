@@ -82,47 +82,36 @@ export function EnforcementSignalsFilter({
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          Issue Type
-        </Label>
-        <p className="text-xs text-muted-foreground flex items-center gap-1">
-          <Home className="h-3 w-3" />
-          Properties with these issues
-        </p>
-      </div>
-      
-      <div className="flex flex-col md:flex-row md:items-center gap-2">
-        <Label className="text-sm font-medium whitespace-nowrap">Category</Label>
-        <Select
-          value={selectedSignal || "all"}
-          onValueChange={handleSignalChange}
-        >
-          <SelectTrigger className="w-full md:w-[240px] h-11 md:h-9">
-            <SelectValue placeholder={isLoading ? "Loading..." : "All issues"} />
-          </SelectTrigger>
-          <SelectContent className="z-[9999]">
-            <SelectItem value="all">All issues</SelectItem>
-            {categories.map(({ categoryId, label }) => {
-              const locked = isLockedCategory(categoryId);
-              return (
-                <SelectItem 
-                  key={categoryId} 
-                  value={categoryId}
-                  className={locked ? "text-muted-foreground" : ""}
-                >
-                  <span className="flex items-center gap-2">
-                    {locked && <Lock className="h-3 w-3 text-amber-500" />}
-                    {label}
-                    {locked && <span className="text-xs text-amber-600 dark:text-amber-400 ml-1">(Enterprise)</span>}
-                  </span>
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
-      </div>
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        Category
+      </span>
+      <Select
+        value={selectedSignal || "all"}
+        onValueChange={handleSignalChange}
+      >
+        <SelectTrigger className="w-[160px] h-7 text-xs">
+          <SelectValue placeholder={isLoading ? "..." : "All issues"} />
+        </SelectTrigger>
+        <SelectContent className="z-[9999]">
+          <SelectItem value="all">All issues</SelectItem>
+          {categories.map(({ categoryId, label }) => {
+            const locked = isLockedCategory(categoryId);
+            return (
+              <SelectItem 
+                key={categoryId} 
+                value={categoryId}
+                className={locked ? "text-muted-foreground" : ""}
+              >
+                <span className="flex items-center gap-1.5 text-xs">
+                  {locked && <Lock className="h-3 w-3 text-amber-500" />}
+                  {label}
+                </span>
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

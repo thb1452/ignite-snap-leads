@@ -39,81 +39,84 @@ export function PressureLevelFilter({
     navigate('/pricing');
   };
 
-  // Compact locked state for Starter users - inline badge style
+  // Locked state for Starter users
   if (!isProOrHigher) {
     return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <Lock className="h-3 w-3 text-amber-500" />
-            Pressure
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-64" align="start">
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium">Unlock Pressure Filters</p>
-            <p className="text-xs text-muted-foreground">
-              Find properties under enforcement pressure:
-            </p>
-            <ul className="text-xs text-muted-foreground space-y-0.5 ml-3 list-disc">
-              <li>Open Violations Only</li>
-              <li>Multiple Violations</li>
-              <li>Repeat Offenders</li>
-            </ul>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+          Pressure Level
+          <Lock className="h-3 w-3 text-amber-500" />
+        </span>
+        <Popover>
+          <PopoverTrigger asChild>
             <Button
+              variant="outline"
               size="sm"
-              className="w-full gap-1.5 text-xs bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
-              onClick={handleUpgrade}
+              className="h-8 gap-2 border-dashed border-amber-300 text-muted-foreground hover:border-amber-500"
             >
-              <Lock className="h-3 w-3" />
-              Upgrade
+              <AlertCircle className="h-3.5 w-3.5" />
+              Filter by enforcement pressure
             </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
+          </PopoverTrigger>
+          <PopoverContent className="w-64" align="start">
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium">Unlock Pressure Filters</p>
+              <p className="text-xs text-muted-foreground">
+                Find properties under enforcement pressure:
+              </p>
+              <ul className="text-xs text-muted-foreground space-y-0.5 ml-3 list-disc">
+                <li>Open Violations Only</li>
+                <li>Multiple Violations</li>
+                <li>Repeat Offenders</li>
+              </ul>
+              <Button
+                size="sm"
+                className="w-full gap-1.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
+                onClick={handleUpgrade}
+              >
+                <Lock className="h-3 w-3" />
+                Upgrade to Professional
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        Pressure
+        Pressure Level
       </span>
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5">
           <Switch
             id="open-only"
             checked={openViolationsOnly}
             onCheckedChange={onOpenViolationsChange}
-            className="scale-75"
           />
-          <Label htmlFor="open-only" className="text-xs cursor-pointer">
-            Open
+          <Label htmlFor="open-only" className="text-sm cursor-pointer">
+            Open Only
           </Label>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <Switch
             id="multiple"
             checked={multipleViolationsOnly}
             onCheckedChange={onMultipleViolationsChange}
-            className="scale-75"
           />
-          <Label htmlFor="multiple" className="text-xs cursor-pointer">
-            Multi
+          <Label htmlFor="multiple" className="text-sm cursor-pointer">
+            Multiple
           </Label>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <Switch
             id="repeat"
             checked={repeatOffenderOnly}
             onCheckedChange={onRepeatOffenderChange}
-            className="scale-75"
           />
-          <Label htmlFor="repeat" className="text-xs cursor-pointer">
+          <Label htmlFor="repeat" className="text-sm cursor-pointer">
             Repeat
           </Label>
         </div>

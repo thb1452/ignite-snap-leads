@@ -444,7 +444,7 @@ function Leads() {
           onAddAllToList={() => setShowAddAllToListDialog(true)}
         />
         
-        <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b bg-background text-sm">
+        <div className="flex flex-wrap items-start gap-6 px-4 py-3 border-b bg-background">
           {/* Enforcement Area */}
           <EnforcementAreaFilter
             selectedCity={selectedCity}
@@ -454,17 +454,20 @@ function Leads() {
           />
 
           {/* Date Range */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Last seen
+              Date Range
             </span>
-            <TimeFilter
-              lastSeenDays={lastSeenDays}
-              onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
-            />
+            <div className="flex items-center gap-2">
+              <span className="text-sm">Last seen</span>
+              <TimeFilter
+                lastSeenDays={lastSeenDays}
+                onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
+              />
+            </div>
           </div>
           
-          {/* Enforcement Signals - Available to all users */}
+          {/* Enforcement Signals */}
           <EnforcementSignalsFilter
             selectedSignal={selectedSignal}
             onSignalChange={(v) => { 
@@ -476,7 +479,7 @@ function Leads() {
             selectedCity={selectedCity}
           />
           
-          {/* Pressure Level - Professional+ */}
+          {/* Pressure Level */}
           <PressureLevelFilter
             openViolationsOnly={openViolationsOnly}
             onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
@@ -486,7 +489,7 @@ function Leads() {
             onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
           />
           
-          {/* SnapScore Range - Enterprise only */}
+          {/* SnapScore Range */}
           <SnapScoreFilter
             snapScoreRange={snapScoreRange}
             onSnapScoreChange={(v) => { setSnapScoreRange(v); setPage(1); }}

@@ -86,47 +86,52 @@ export function EnforcementAreaFilter({
   }, [selectedState]);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        State
+        Enforcement Area
       </span>
-      <Select
-        value={selectedState || "all"}
-        onValueChange={(val) => onStateChange(val === "all" ? null : val)}
-      >
-        <SelectTrigger className="w-[100px] h-7 text-xs">
-          <SelectValue placeholder={loadingStates ? "..." : "All"} />
-        </SelectTrigger>
-        <SelectContent className="z-[9999]">
-          <SelectItem value="all">All States</SelectItem>
-          {propertyStates.map((state) => (
-            <SelectItem key={state} value={state}>
-              {state}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">State</span>
+          <Select
+            value={selectedState || "all"}
+            onValueChange={(val) => onStateChange(val === "all" ? null : val)}
+          >
+            <SelectTrigger className="w-[100px] h-8">
+              <SelectValue placeholder={loadingStates ? "..." : "All States"} />
+            </SelectTrigger>
+            <SelectContent className="z-[9999]">
+              <SelectItem value="all">All States</SelectItem>
+              {propertyStates.map((state) => (
+                <SelectItem key={state} value={state}>
+                  {state}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        City
-      </span>
-      <Select
-        value={selectedCity || "all"}
-        onValueChange={(val) => onCityChange(val === "all" ? null : val)}
-        disabled={!selectedState}
-      >
-        <SelectTrigger className="w-[140px] h-7 text-xs">
-          <SelectValue placeholder={!selectedState ? "Select state" : loadingCities ? "..." : "All"} />
-        </SelectTrigger>
-        <SelectContent className="max-h-[300px] z-[9999]">
-          <SelectItem value="all">All Cities</SelectItem>
-          {propertyCities.map((city) => (
-            <SelectItem key={city} value={city}>
-              {city}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <div className="flex items-center gap-2">
+          <span className="text-sm">City</span>
+          <Select
+            value={selectedCity || "all"}
+            onValueChange={(val) => onCityChange(val === "all" ? null : val)}
+            disabled={!selectedState}
+          >
+            <SelectTrigger className="w-[140px] h-8">
+              <SelectValue placeholder={!selectedState ? "Select state" : loadingCities ? "..." : "All Cities"} />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px] z-[9999]">
+              <SelectItem value="all">All Cities</SelectItem>
+              {propertyCities.map((city) => (
+                <SelectItem key={city} value={city}>
+                  {city}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
     </div>
   );
 }

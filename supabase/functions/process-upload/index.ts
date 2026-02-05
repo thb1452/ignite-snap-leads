@@ -415,25 +415,22 @@ async function processUploadJob(jobId: string) {
     console.log(`[process-upload] Starting background job ${jobId}`);
 
     // =====================================================
-    // JOB LOCKING: Prevent concurrent processing of the same job
-    // Uses atomic update with status check to ensure only one worker processes
+    // JOB LOCKING: Prevent concurrent processing using updated_at timestamp
+    // Only proceed if job hasn't been touched in last 30 seconds
     // =====================================================
+    const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
     const { data: lockResult, error: lockError } = await supabaseClient
       .from('upload_jobs')
-      .update({ 
-        processing_lock: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .update({ updated_at: new Date().toISOString() })
       .eq('id', jobId)
       .in('status', ['QUEUED', 'PARSING', 'PROCESSING', 'DEDUPING', 'CREATING_VIOLATIONS'])
-      // Only acquire lock if not locked recently (within 30 seconds)
-      .or(`processing_lock.is.null,processing_lock.lt.${new Date(Date.now() - 30000).toISOString()}`)
+      .lt('updated_at', thirtySecondsAgo)
       .select('id')
       .single();
 
     if (lockError || !lockResult) {
-      console.log(`[process-upload] Job ${jobId} already being processed by another worker, skipping`);
-      return; // Another worker has the lock
+      console.log(`[process-upload] Job ${jobId} recently updated (locked), skipping`);
+      return;
     }
     console.log(`[process-upload] Acquired lock for job ${jobId}`);
 

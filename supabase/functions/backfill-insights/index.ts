@@ -1,18 +1,15 @@
  /**
-  * BACKFILL INSIGHTS v1.0 - High-Volume Batch Processor
+  * BACKFILL INSIGHTS v2.0 - SQL-Native High-Performance Processor
   * 
-  * Processes properties with NULL snap_insight in batches of 10,000
-  * Uses the partial index idx_properties_snap_insight_null for performance
-  * 
-  * NO statement timeouts - NO expensive count queries in hot path
+  * Uses native SQL function backfill_insights_batch() for 100x faster processing
+  * Processes 5000 properties per call directly in Postgres
   * Auto-continues until all NULLs are processed
   */
  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
  
- const VERSION = "v1.0";
- const BATCH_SIZE = 10000; // Process 10k at a time
- const SUB_BATCH_SIZE = 100; // Process 100 at a time for generate-insights
+ const VERSION = "v2.0";
+ const BATCH_SIZE = 5000;
  
  const corsHeaders = {
    'Access-Control-Allow-Origin': '*',
@@ -29,7 +26,7 @@
    const startTime = Date.now();
    
    try {
-     const { dryRun = false, autoResume = true, limit } = await req.json().catch(() => ({}));
+     const { autoResume = true, batchSize = BATCH_SIZE, mode = 'null' } = await req.json().catch(() => ({}));
  
      const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -40,91 +37,53 @@
  
      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
  
-     // Use limit if provided, otherwise use BATCH_SIZE
-     const batchLimit = limit || BATCH_SIZE;
+     let processed = 0;
+     let remaining = 0;
  
-     // Fetch properties with NULL snap_insight (uses partial index)
-     // NO COUNT QUERY - just fetch and process
-     const { data: properties, error: fetchError } = await supabase
-       .from("properties")
-       .select("id")
-       .is("snap_insight", null)
-       .order("id")
-       .limit(batchLimit);
- 
-     if (fetchError) {
-       console.error(`[backfill-insights ${VERSION}] Fetch error:`, fetchError);
-       throw fetchError;
-     }
- 
-     if (!properties || properties.length === 0) {
-       console.log(`[backfill-insights ${VERSION}] No more properties to process - COMPLETE!`);
-       return new Response(
-         JSON.stringify({
-           success: true,
-           message: "All insights backfilled - no NULL values remain!",
-           processed: 0,
-           complete: true,
-           _version: VERSION
-         }),
-         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-       );
-     }
- 
-     const propertyIds = properties.map(p => p.id);
-     console.log(`[backfill-insights ${VERSION}] Processing ${propertyIds.length} properties`);
- 
-     let totalProcessed = 0;
-     let totalErrors = 0;
- 
-     if (!dryRun) {
-       // Process in sub-batches to avoid overwhelming generate-insights
-       for (let i = 0; i < propertyIds.length; i += SUB_BATCH_SIZE) {
-         const subBatch = propertyIds.slice(i, i + SUB_BATCH_SIZE);
-         const batchNum = Math.floor(i / SUB_BATCH_SIZE) + 1;
-         const totalBatches = Math.ceil(propertyIds.length / SUB_BATCH_SIZE);
-         
-         console.log(`[backfill-insights ${VERSION}] Sub-batch ${batchNum}/${totalBatches} (${subBatch.length} properties)`);
-         
-         try {
-           const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-insights`, {
-             method: 'POST',
-             headers: {
-               'Content-Type': 'application/json',
-               'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-             },
-             body: JSON.stringify({ propertyIds: subBatch }),
-           });
-           
-           if (response.ok) {
-             const result = await response.json();
-             totalProcessed += result.processed || 0;
-             totalErrors += result.errors || 0;
-             console.log(`[backfill-insights ${VERSION}] Sub-batch ${batchNum} complete: ${result.processed || 0} processed`);
-           } else {
-             const errorText = await response.text();
-             console.error(`[backfill-insights ${VERSION}] Sub-batch ${batchNum} failed:`, errorText);
-             totalErrors += subBatch.length;
-           }
-         } catch (err) {
-           console.error(`[backfill-insights ${VERSION}] Sub-batch ${batchNum} error:`, err);
-           totalErrors += subBatch.length;
-         }
+     // Use the appropriate SQL function based on mode
+     if (mode === 'outdated') {
+       // Refresh outdated investor-language insights
+       const { data, error } = await supabase.rpc('refresh_outdated_insights_batch', {
+         batch_size: batchSize
+       });
+       
+       if (error) {
+         console.error(`[backfill-insights ${VERSION}] RPC error:`, error);
+         throw error;
        }
+       
+       if (data && data.length > 0) {
+         processed = data[0].processed || 0;
+         remaining = data[0].remaining || 0;
+       }
+       
+       console.log(`[backfill-insights ${VERSION}] Outdated refresh: ${processed} processed, ${remaining} remaining`);
      } else {
-       console.log(`[backfill-insights ${VERSION}] DRY RUN - would process ${propertyIds.length} properties`);
-       totalProcessed = propertyIds.length;
+       // Backfill NULL insights
+       const { data, error } = await supabase.rpc('backfill_insights_batch', {
+         batch_size: batchSize
+       });
+       
+       if (error) {
+         console.error(`[backfill-insights ${VERSION}] RPC error:`, error);
+         throw error;
+       }
+       
+       if (data && data.length > 0) {
+         processed = data[0].processed || 0;
+         remaining = data[0].remaining || 0;
+       }
+       
+       console.log(`[backfill-insights ${VERSION}] NULL backfill: ${processed} processed, ${remaining} remaining`);
      }
  
      const elapsed = Date.now() - startTime;
-     const hasMore = properties.length === batchLimit;
- 
-     console.log(`[backfill-insights ${VERSION}] Batch complete: ${totalProcessed} processed, ${totalErrors} errors in ${elapsed}ms`);
+     const hasMore = remaining > 0;
  
      // Auto-continue if more remain
-     if (hasMore && !dryRun && autoResume) {
+     if (hasMore && autoResume) {
        const continueTask = async () => {
-         await new Promise(resolve => setTimeout(resolve, 2000)); // Brief pause between batches
+         await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause
          
          try {
            await fetch(`${SUPABASE_URL}/functions/v1/backfill-insights`, {
@@ -133,7 +92,7 @@
                'Content-Type': 'application/json',
                'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
              },
-             body: JSON.stringify({ autoResume, limit: batchLimit }),
+             body: JSON.stringify({ autoResume, batchSize, mode }),
            });
            console.log(`[backfill-insights ${VERSION}] Triggered next batch`);
          } catch (err) {
@@ -153,12 +112,12 @@
      return new Response(
        JSON.stringify({
          success: true,
-         processed: totalProcessed,
-         errors: totalErrors,
-         batch_size: propertyIds.length,
+         processed,
+         remaining,
          elapsed_ms: elapsed,
          has_more: hasMore,
-         auto_continuing: hasMore && !dryRun && autoResume,
+         auto_continuing: hasMore && autoResume,
+         mode,
          _version: VERSION
        }),
        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

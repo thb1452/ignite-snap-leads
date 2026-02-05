@@ -66,3 +66,6 @@ verify_jwt = false
 
 [functions.reverse-geocode-zips]
 verify_jwt = false
+
+[functions.backfill-insights]
+verify_jwt = false

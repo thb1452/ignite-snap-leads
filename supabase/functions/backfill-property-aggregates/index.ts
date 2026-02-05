@@ -14,7 +14,7 @@ const corsHeaders = {
 };
 
 interface BackfillRequest {
-  batchSize?: number;  // Default: 50 (small for reliability)
+  batchSize?: number;  // Default: 500 (fast processing)
   autoResume?: boolean; // Auto-continue until all processed
 }
 
@@ -25,7 +25,7 @@ serve(async (req) => {
 
   try {
     const {
-      batchSize = 50,  // Reduced to 50 for better timeout reliability
+      batchSize = 500,  // Back to 500 for speed
       autoResume = true,
     }: BackfillRequest = await req.json().catch(() => ({}));
 

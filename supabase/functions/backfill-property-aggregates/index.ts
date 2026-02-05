@@ -16,6 +16,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 interface BackfillRequest {
@@ -25,6 +26,7 @@ interface BackfillRequest {
   stateFilter?: string; // Optional: only backfill specific state
   dryRun?: boolean;     // Preview only, don't update
   autoResume?: boolean; // Auto-continue until all processed
+   onlyStale?: boolean;  // Only process properties with stale aggregates
 }
 
 interface BackfillResult {
@@ -58,7 +60,8 @@ serve(async (req) => {
       cityFilter,
       stateFilter,
       dryRun = false,
-      autoResume = false
+       autoResume = false,
+       onlyStale = true,
     }: BackfillRequest = await req.json().catch(() => ({}));
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -79,6 +82,12 @@ serve(async (req) => {
     }
     if (stateFilter) {
       query = query.ilike("state", stateFilter);
+    }
+    
+    // Only process properties that have stale/missing aggregates (total_violations = 0 but have violations)
+    // This is more efficient than processing all 270k properties
+    if (onlyStale) {
+      query = query.eq("total_violations", 0);
     }
 
     // Get total count first

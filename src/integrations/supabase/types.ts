@@ -2060,6 +2060,14 @@ export type Database = {
           remaining: number
         }[]
       }
+      backfill_property_aggregates_batch: {
+        Args: { p_batch_size?: number }
+        Returns: {
+          processed: number
+          remaining: number
+          updated: number
+        }[]
+      }
       bulk_upsert_violations: { Args: { p_violations: Json }; Returns: Json }
       consume_credit: { Args: { p_user_id: string }; Returns: number }
       disablelongtransactions: { Args: never; Returns: string }

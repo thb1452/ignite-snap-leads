@@ -18,6 +18,7 @@ import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { BatchInsightsButton } from "@/components/intelligence/BatchInsightsButton";
 import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
 import { InsightRefreshDashboard } from "@/components/admin/InsightRefreshDashboard";
+ import { BackfillAggregatesButton } from "@/components/intelligence/BackfillAggregatesButton";
 import { 
   Users, 
   Upload, 
@@ -301,9 +302,10 @@ function SystemOverviewTab({
       <InsightRefreshDashboard />
 
       {/* Intelligence Engine Tools */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <BatchRescoreButton />
         <BatchInsightsButton />
+        <BackfillAggregatesButton />
       </div>
     </div>
   );

@@ -444,7 +444,7 @@ function Leads() {
           onAddAllToList={() => setShowAddAllToListDialog(true)}
         />
         
-        <div className="flex flex-wrap gap-6 px-4 py-4 border-b bg-background">
+        <div className="flex flex-wrap items-end gap-4 px-4 py-3 border-b bg-background">
           {/* Enforcement Area */}
           <EnforcementAreaFilter
             selectedCity={selectedCity}

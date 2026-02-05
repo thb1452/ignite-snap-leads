@@ -3,8 +3,12 @@ import { Slider } from "@/components/ui/slider";
 import { Lock, Target } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface SnapScoreFilterProps {
   snapScoreRange: [number, number];
@@ -17,16 +21,10 @@ export function SnapScoreFilter({
 }: SnapScoreFilterProps) {
   const { subscription } = useSubscription();
   const navigate = useNavigate();
-  const { toast } = useToast();
   
   const isEnterprise = subscription?.plan_name === 'enterprise';
 
-  const handleLockedClick = () => {
-    toast({
-      title: "Enterprise Feature",
-      description: "SnapScore filtering helps you prioritize properties by enforcement pressure. Upgrade to Enterprise to unlock.",
-      variant: "default",
-    });
+  const handleUpgrade = () => {
     navigate('/pricing');
   };
 
@@ -38,64 +36,64 @@ export function SnapScoreFilter({
     return "text-blue-500";
   };
 
-  // Locked state for non-Enterprise users
+  // Compact locked state for non-Enterprise users - uses popover instead of inline card
   if (!isEnterprise) {
     return (
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-            SnapScore Range
-            <Lock className="h-3.5 w-3.5 text-amber-500" />
-          </Label>
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <Target className="h-3 w-3" />
-            Filter by enforcement pressure score
-          </p>
-        </div>
-        
-        <div className="bg-muted/50 border border-dashed border-amber-300 dark:border-amber-700 rounded-lg p-4">
-          <div className="flex flex-col gap-2">
-            <p className="text-sm text-muted-foreground">
-              Target properties by enforcement pressure:
-            </p>
-            <ul className="text-xs text-muted-foreground space-y-1 ml-4 list-disc">
-              <li><span className="text-red-500 font-medium">75-100</span> — Critical (highest pressure)</li>
-              <li><span className="text-orange-500 font-medium">50-74</span> — High pressure</li>
-              <li><span className="text-yellow-500 font-medium">25-49</span> — Moderate</li>
-              <li><span className="text-blue-500 font-medium">0-24</span> — Low pressure</li>
-            </ul>
+      <div className="flex flex-col gap-2">
+        <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+          SnapScore Range
+          <Lock className="h-3.5 w-3.5 text-amber-500" />
+        </Label>
+        <Popover>
+          <PopoverTrigger asChild>
             <Button
+              variant="outline"
               size="sm"
-              className="mt-2 w-fit gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
-              onClick={handleLockedClick}
+              className="w-fit gap-2 border-dashed border-amber-300 text-muted-foreground hover:border-amber-500"
             >
-              <Lock className="h-3.5 w-3.5" />
-              Upgrade to Enterprise
+              <Target className="h-3.5 w-3.5" />
+              Filter by enforcement pressure score
             </Button>
-          </div>
-        </div>
+          </PopoverTrigger>
+          <PopoverContent className="w-72" align="start">
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium">Unlock SnapScore Filtering</p>
+              <p className="text-xs text-muted-foreground">
+                Target properties by enforcement pressure:
+              </p>
+              <ul className="text-xs text-muted-foreground space-y-1 ml-4 list-disc">
+                <li><span className="text-red-500 font-medium">75-100</span> — Critical</li>
+                <li><span className="text-orange-500 font-medium">50-74</span> — High</li>
+                <li><span className="text-yellow-500 font-medium">25-49</span> — Moderate</li>
+                <li><span className="text-blue-500 font-medium">0-24</span> — Low</li>
+              </ul>
+              <Button
+                size="sm"
+                className="w-full gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
+                onClick={handleUpgrade}
+              >
+                <Lock className="h-3.5 w-3.5" />
+                Upgrade to Enterprise
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          SnapScore Range
-        </Label>
-        <p className="text-xs text-muted-foreground flex items-center gap-1">
-          <Target className="h-3 w-3" />
-          Filter by enforcement pressure score (0-100)
-        </p>
-      </div>
+    <div className="flex flex-col gap-2">
+      <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+        SnapScore Range
+      </Label>
       
-      <div className="flex flex-col gap-4 pt-2">
-        <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 text-sm">
           <span className={`font-medium ${getScoreColor(snapScoreRange[0])}`}>
             {snapScoreRange[0]}
           </span>
-          <span className="text-muted-foreground">to</span>
+          <span className="text-muted-foreground">-</span>
           <span className={`font-medium ${getScoreColor(snapScoreRange[1])}`}>
             {snapScoreRange[1]}
           </span>
@@ -107,41 +105,34 @@ export function SnapScoreFilter({
           min={0}
           max={100}
           step={5}
-          className="w-full"
+          className="w-32"
         />
         
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span className="text-blue-500">Low</span>
-          <span className="text-yellow-500">Moderate</span>
-          <span className="text-orange-500">High</span>
-          <span className="text-red-500">Critical</span>
-        </div>
-        
         {/* Quick presets */}
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-1">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() => onSnapScoreChange([0, 100])}
-            className={snapScoreRange[0] === 0 && snapScoreRange[1] === 100 ? "border-primary" : ""}
+            className={`h-7 px-2 text-xs ${snapScoreRange[0] === 0 && snapScoreRange[1] === 100 ? "bg-muted" : ""}`}
           >
             All
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() => onSnapScoreChange([75, 100])}
-            className={snapScoreRange[0] === 75 && snapScoreRange[1] === 100 ? "border-red-500 text-red-500" : ""}
+            className={`h-7 px-2 text-xs ${snapScoreRange[0] === 75 ? "bg-red-50 text-red-600" : ""}`}
           >
-            Critical (75+)
+            Critical
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() => onSnapScoreChange([50, 100])}
-            className={snapScoreRange[0] === 50 && snapScoreRange[1] === 100 ? "border-orange-500 text-orange-500" : ""}
+            className={`h-7 px-2 text-xs ${snapScoreRange[0] === 50 ? "bg-orange-50 text-orange-600" : ""}`}
           >
-            High+ (50+)
+            High+
           </Button>
         </div>
       </div>

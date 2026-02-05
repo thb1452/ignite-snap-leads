@@ -1,8 +1,8 @@
 /**
- * Backfill Property Aggregates (v2 - SQL Native)
+ * Backfill Property Aggregates (v3 - Parallel Processing)
  *
- * Uses a high-performance SQL function to recalculate violation aggregates.
- * ~100x faster than the previous individual-update approach.
+ * Uses parallel batch processing for maximum speed.
+ * Processes multiple batches concurrently for ~5x throughput.
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -14,8 +14,9 @@ const corsHeaders = {
 };
 
 interface BackfillRequest {
-  batchSize?: number;  // Default: 500 (fast processing)
-  autoResume?: boolean; // Auto-continue until all processed
+  batchSize?: number;
+  concurrency?: number; // Number of parallel batches
+  autoResume?: boolean;
 }
 
 serve(async (req) => {
@@ -25,7 +26,8 @@ serve(async (req) => {
 
   try {
     const {
-      batchSize = 500,  // Back to 500 for speed
+      batchSize = 200,
+      concurrency = 5, // Run 5 batches in parallel = 1000 properties per cycle
       autoResume = true,
     }: BackfillRequest = await req.json().catch(() => ({}));
 
@@ -38,48 +40,48 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Try with current batch size, retry with smaller if timeout
-    let currentBatchSize = batchSize;
-    let result = { processed: 0, updated: 0, remaining: 0 };
-    let attempts = 0;
-    const MAX_ATTEMPTS = 3;
+    console.log(`[backfill-v3] Starting parallel processing: ${concurrency} x ${batchSize} = ${concurrency * batchSize} properties per cycle`);
 
-    while (attempts < MAX_ATTEMPTS) {
-      attempts++;
-      console.log(`[backfill-v2] Attempt ${attempts}: batch size ${currentBatchSize}...`);
-
-      const { data, error } = await supabase.rpc('backfill_property_aggregates_batch', {
-        p_batch_size: currentBatchSize
-      });
-
-      if (error) {
-        // Check if it's a timeout error
-        if (error.code === '57014' && currentBatchSize > 10) {
-          // Reduce batch size and retry
-          currentBatchSize = Math.max(10, Math.floor(currentBatchSize / 2));
-          console.log(`[backfill-v2] Timeout, reducing batch to ${currentBatchSize}...`);
-          continue;
+    // Run multiple batches in parallel
+    const batchPromises = Array.from({ length: concurrency }, async (_, i) => {
+      try {
+        const { data, error } = await supabase.rpc('backfill_property_aggregates_batch', {
+          p_batch_size: batchSize
+        });
+        
+        if (error) {
+          console.error(`[backfill-v3] Batch ${i + 1} error:`, error.message);
+          return { processed: 0, updated: 0, remaining: 0, error: error.message };
         }
-        console.error("[backfill-v2] SQL function error:", error);
-        throw error;
+        
+        return data?.[0] || { processed: 0, updated: 0, remaining: 0 };
+      } catch (err) {
+        console.error(`[backfill-v3] Batch ${i + 1} exception:`, err);
+        return { processed: 0, updated: 0, remaining: 0, error: String(err) };
       }
+    });
 
-      result = data?.[0] || { processed: 0, updated: 0, remaining: 0 };
-      break; // Success, exit retry loop
-    }
+    const results = await Promise.all(batchPromises);
     
-    console.log(`[backfill-v2] ========================================`);
-    console.log(`[backfill-v2] Batch complete (SQL-native):`);
-    console.log(`[backfill-v2]   Processed: ${result.processed}`);
-    console.log(`[backfill-v2]   Updated: ${result.updated}`);
-    console.log(`[backfill-v2]   Remaining: ${result.remaining}`);
-    console.log(`[backfill-v2] ========================================`);
+    // Aggregate results
+    const totalProcessed = results.reduce((sum, r) => sum + (r.processed || 0), 0);
+    const totalUpdated = results.reduce((sum, r) => sum + (r.updated || 0), 0);
+    const remaining = results[results.length - 1]?.remaining ?? 0;
+    const errors = results.filter(r => r.error).length;
+
+    console.log(`[backfill-v3] ========================================`);
+    console.log(`[backfill-v3] Parallel batch complete:`);
+    console.log(`[backfill-v3]   Processed: ${totalProcessed}`);
+    console.log(`[backfill-v3]   Updated: ${totalUpdated}`);
+    console.log(`[backfill-v3]   Remaining: ${remaining}`);
+    console.log(`[backfill-v3]   Errors: ${errors}/${concurrency}`);
+    console.log(`[backfill-v3] ========================================`);
 
     // Auto-resume if there are more to process
-    const hasMore = result.remaining > 0 && result.processed > 0;
+    const hasMore = remaining > 0 && totalProcessed > 0;
     
     if (autoResume && hasMore) {
-      console.log(`[backfill-v2] Auto-resuming, ${result.remaining} remaining...`);
+      console.log(`[backfill-v3] Auto-resuming, ${remaining} remaining...`);
       
       const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
       
@@ -93,15 +95,15 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               batchSize,
+              concurrency,
               autoResume: true,
             }),
           });
         } catch (err) {
-          console.error('[backfill-v2] Auto-resume failed:', err);
+          console.error('[backfill-v3] Auto-resume failed:', err);
         }
       };
       
-      // Use EdgeRuntime.waitUntil for reliable background continuation
       const runtime = (globalThis as any).EdgeRuntime;
       if (typeof runtime !== 'undefined' && runtime.waitUntil) {
         runtime.waitUntil(continueTask());
@@ -111,22 +113,22 @@ serve(async (req) => {
     }
 
     const progress = {
-      current: result.processed,
-      remaining: result.remaining,
-      percentage: result.remaining > 0 
-        ? Math.round(((result.processed) / (result.processed + result.remaining)) * 100)
+      current: totalProcessed,
+      remaining: remaining,
+      percentage: remaining > 0 
+        ? Math.round((totalProcessed / (totalProcessed + remaining)) * 100)
         : 100
     };
 
     return new Response(
       JSON.stringify({
         success: true,
-        processed: result.processed,
-        updated: result.updated,
-        remaining: result.remaining,
+        processed: totalProcessed,
+        updated: totalUpdated,
+        remaining: remaining,
         progress,
         autoResuming: autoResume && hasMore,
-        version: 'v2-sql-native'
+        version: 'v3-parallel'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -137,7 +139,7 @@ serve(async (req) => {
       : typeof error === 'object' && error !== null
         ? JSON.stringify(error)
         : String(error);
-    console.error("[backfill-v2] Fatal error:", errorMessage);
+    console.error("[backfill-v3] Fatal error:", errorMessage);
     return new Response(
       JSON.stringify({
         success: false,

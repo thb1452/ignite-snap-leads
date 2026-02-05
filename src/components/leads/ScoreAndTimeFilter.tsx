@@ -15,7 +15,7 @@ export function TimeFilter({
       value={lastSeenDays?.toString() || "all"}
       onValueChange={(value) => onLastSeenChange(value === "all" ? null : parseInt(value))}
     >
-      <SelectTrigger className="w-[100px] h-7 text-xs">
+      <SelectTrigger className="w-[110px] h-8">
         <SelectValue placeholder="All time" />
       </SelectTrigger>
       <SelectContent className="z-[9999]">

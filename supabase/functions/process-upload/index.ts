@@ -274,16 +274,23 @@ function isValidAddress(value: string): { valid: boolean; reason?: string } {
   
   // Real addresses typically start with a number (street number)
   // or with directional prefix (N, S, E, W, North, South, etc.)
+  // RELAXED: Also allow addresses that start with common place prefixes (Mt., St., Ft., etc.)
+  // or highway/route patterns, or just plain street names for rural areas
   const startsWithNumber = /^\d+/.test(trimmed);
   const startsWithDirection = /^(N|S|E|W|North|South|East|West|NE|NW|SE|SW)\s+/i.test(trimmed);
   const startsWithPO = /^(P\.?O\.?\s*Box|PO\s*Box)/i.test(trimmed);
+  const startsWithPlacePrefix = /^(Mt\.?|Mount|St\.?|Saint|Ft\.?|Fort|Lake|Old|New|Upper|Lower|Little|Big|East|West|North|South)\s+/i.test(trimmed);
+  const startsWithHighway = /^(Highway|Hwy\.?|Route|Rte\.?|State\s+Route|SR|US\s*\d+|I-\d+)\s*/i.test(trimmed);
+  const startsWithWordNumber = /^(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten)\s+/i.test(trimmed);
   
-  if (!startsWithNumber && !startsWithDirection && !startsWithPO) {
-    // Might still be valid if it's a known pattern like "One Main Street"
-    const startsWithWord = /^(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten)\s+/i.test(trimmed);
-    if (!startsWithWord) {
-      return { valid: false, reason: 'no_street_number' };
-    }
+  // For rural/small towns, allow addresses that look like street names even without numbers
+  // Must have at least 2 words to look like "Main Street" or "Highway 97"
+  const looksLikeStreetName = trimmed.split(/\s+/).length >= 2 && 
+    /\b(St\.?|Street|Ave\.?|Avenue|Rd\.?|Road|Blvd\.?|Boulevard|Dr\.?|Drive|Ln\.?|Lane|Way|Ct\.?|Court|Hwy\.?|Highway|Loop|Circle|Cir\.?|Place|Pl\.?|Trail|Tr\.?)\b/i.test(trimmed);
+  
+  if (!startsWithNumber && !startsWithDirection && !startsWithPO && 
+      !startsWithPlacePrefix && !startsWithHighway && !startsWithWordNumber && !looksLikeStreetName) {
+    return { valid: false, reason: 'no_street_number' };
   }
   
   // Reject text that looks like complaint narratives or descriptions

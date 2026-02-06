@@ -6,11 +6,14 @@ import Papa from "https://esm.sh/papaparse@5.4.1";
 // UPLOAD LIMITS - Change these to adjust capacity
 // Edge functions have ~150MB memory limit, so we must be conservative
 // Statement timeout is typically 10-15s on free tier, so keep batches VERY small
+// These are tuned to prevent "statement timeout" errors under heavy load
 // ============================================
 const MAX_ROWS_PER_UPLOAD = 50000;  // Maximum rows allowed in a single CSV
-const STAGING_BATCH_SIZE = 100;     // Rows per batch for staging inserts (REDUCED to avoid timeout)
-const PROP_INSERT_BATCH = 50;       // Properties per batch for inserts
-const VIOL_BATCH_SIZE = 50;         // Violations per batch for inserts
+const STAGING_BATCH_SIZE = 50;      // Rows per batch for staging inserts (REDUCED from 100)
+const PROP_INSERT_BATCH = 25;       // Properties per batch for inserts (REDUCED from 50)
+const VIOL_BATCH_SIZE = 25;         // Violations per batch for inserts (REDUCED from 50)
+const RETRY_ATTEMPTS = 3;           // Number of retries for transient errors
+const RETRY_DELAY_MS = 1000;        // Delay between retries
 const MAX_FILE_SIZE_MB = 15;        // Maximum file size in MB (edge function memory limit)
 
 const corsHeaders = {
@@ -57,6 +60,40 @@ const SORTED_CITIES = [...ALL_KNOWN_CITIES].sort((a, b) => b.length - a.length);
 for (const city of SORTED_CITIES) {
   // Match city at end of address, with optional comma before
   CITY_PATTERNS.set(city, new RegExp(`[,\\s]+${city.replace(/\s+/g, '\\s+')}\\s*$`, 'i'));
+}
+
+/**
+ * Retry helper for transient database errors (timeouts, connection issues)
+ */
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  maxRetries = RETRY_ATTEMPTS
+): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      const isTransient = 
+        error?.code === '57014' || // statement timeout
+        error?.message?.includes('timeout') ||
+        error?.message?.includes('connection') ||
+        error?.message?.includes('ECONNRESET');
+      
+      if (isTransient && attempt < maxRetries) {
+        const delay = RETRY_DELAY_MS * attempt; // Exponential backoff
+        console.log(`[process-upload] ${operationName} attempt ${attempt} failed (transient), retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+  
+  throw lastError;
 }
 
 /**
@@ -793,14 +830,17 @@ async function processUploadJob(jobId: string) {
       });
 
       if (stagingRows.length >= STAGING_BATCH_SIZE) {
-        const { error: insertError } = await supabaseClient
-          .from('upload_staging')
-          .insert(stagingRows);
+        // Use retry wrapper for staging inserts (most common timeout point)
+        await withRetry(async () => {
+          const { error: insertError } = await supabaseClient
+            .from('upload_staging')
+            .insert(stagingRows);
 
-        if (insertError) {
-          console.error('[process-upload] Staging insert error:', insertError);
-          throw insertError;
-        }
+          if (insertError) {
+            console.error('[process-upload] Staging insert error:', insertError);
+            throw insertError;
+          }
+        }, `staging insert batch at row ${i + 1}`);
 
         // Update progress - keep status as PROCESSING
         const processedCount = i + 1;
@@ -816,14 +856,16 @@ async function processUploadJob(jobId: string) {
     
     // CRITICAL: Flush any remaining rows after the loop ends (handles case where last row was skipped)
     if (stagingRows.length > 0) {
-      const { error: insertError } = await supabaseClient
-        .from('upload_staging')
-        .insert(stagingRows);
+      await withRetry(async () => {
+        const { error: insertError } = await supabaseClient
+          .from('upload_staging')
+          .insert(stagingRows);
 
-      if (insertError) {
-        console.error('[process-upload] Final staging insert error:', insertError);
-        throw insertError;
-      }
+        if (insertError) {
+          console.error('[process-upload] Final staging insert error:', insertError);
+          throw insertError;
+        }
+      }, 'final staging flush');
 
       await supabaseClient
         .from('upload_jobs')
@@ -1008,16 +1050,20 @@ async function processUploadJob(jobId: string) {
     console.log(`[process-upload] ⚠️  CRITICAL: Fetching ALL staging rows for dedup (pagination with batches of ${DEDUP_PAGE_SIZE})...`);
 
     while (true) {
-      const { data: dedupBatch, error: dedupError, count } = await supabaseClient
-        .from('upload_staging')
-        .select('address, city, state, zip, case_id, row_num, jurisdiction_id', { count: 'exact' })
-        .eq('job_id', jobId)
-        .order('row_num')
-        .range(dedupOffset, dedupOffset + DEDUP_PAGE_SIZE - 1);
-
-      if (dedupError) {
-        throw new Error(`Failed to fetch staging data for dedup: ${dedupError.message}`);
-      }
+      // Use retry wrapper for dedup fetch (common timeout point under load)
+      const { data: dedupBatch, error: dedupError, count } = await withRetry(async () => {
+        const result = await supabaseClient
+          .from('upload_staging')
+          .select('address, city, state, zip, case_id, row_num, jurisdiction_id', { count: 'exact' })
+          .eq('job_id', jobId)
+          .order('row_num')
+          .range(dedupOffset, dedupOffset + DEDUP_PAGE_SIZE - 1);
+        
+        if (result.error) {
+          throw result.error;
+        }
+        return result;
+      }, `dedup fetch at offset ${dedupOffset}`);
 
       // Log total count on first iteration to verify we're fetching all rows
       if (dedupOffset === 0 && count !== null) {

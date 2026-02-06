@@ -31,8 +31,8 @@ interface VirtualizedPropertyListProps {
   onPropertyClick: (id: string) => void;
 }
 
-// Compact card height - shows 10-15 properties in viewport
-const CARD_HEIGHT = 88;
+// Ultra-compact card height - shows 15+ properties in viewport
+const CARD_HEIGHT = 52;
 
 export function VirtualizedPropertyList({
   properties,

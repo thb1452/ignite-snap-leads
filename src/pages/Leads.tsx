@@ -426,75 +426,63 @@ function Leads() {
         exportContext={exportContextData}
       />
 
-      {/* DESKTOP: Filter Bar */}
-      <div className="hidden md:block">
-        <FilterBar
-          searchQuery={searchInput}
-          onSearchChange={setSearchInput}
-          lastSeenDays={lastSeenDays}
-          selectedCity={selectedCity}
-          selectedState={selectedState}
-          selectedSignal={selectedSignal}
-          openViolationsOnly={openViolationsOnly}
-          multipleViolationsOnly={multipleViolationsOnly}
-          repeatOffenderOnly={repeatOffenderOnly}
-          snapScoreRange={snapScoreRange}
-          propertyCount={totalCount}
-          onClearFilters={handleClearFilters}
-          onAddAllToList={() => setShowAddAllToListDialog(true)}
-        />
-        
-        <div className="flex flex-wrap items-start gap-6 px-4 py-3 border-b bg-background">
-          {/* Enforcement Area */}
-          <EnforcementAreaFilter
-            selectedCity={selectedCity}
-            selectedState={selectedState}
-            onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
-            onStateChange={(s) => { setSelectedState(s); setPage(1); }}
-          />
-
-          {/* Date Range */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Date Range
-            </span>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">Last seen</span>
-              <TimeFilter
-                lastSeenDays={lastSeenDays}
-                onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
-              />
-            </div>
-          </div>
-          
-          {/* Enforcement Signals */}
-          <EnforcementSignalsFilter
-            selectedSignal={selectedSignal}
-            onSignalChange={(v) => { 
-              setSelectedSignal(v); 
-              setPage(1);
-              if (v) setSearchInput("");
-            }}
-            selectedState={selectedState}
-            selectedCity={selectedCity}
-          />
-          
-          {/* Pressure Level */}
-          <PressureLevelFilter
-            openViolationsOnly={openViolationsOnly}
-            onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
-            multipleViolationsOnly={multipleViolationsOnly}
-            onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
-            repeatOffenderOnly={repeatOffenderOnly}
-            onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
-          />
-          
-          {/* SnapScore Range */}
-          <SnapScoreFilter
-            snapScoreRange={snapScoreRange}
-            onSnapScoreChange={(v) => { setSnapScoreRange(v); setPage(1); }}
+      {/* DESKTOP: Ultra-compact single-row filter bar */}
+      <div className="hidden md:flex items-center gap-4 px-4 py-2 border-b bg-background flex-wrap">
+        {/* Search */}
+        <div className="relative w-48">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pl-8 h-7 text-xs"
           />
         </div>
+
+        {/* State/City */}
+        <EnforcementAreaFilter
+          selectedCity={selectedCity}
+          selectedState={selectedState}
+          onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
+          onStateChange={(s) => { setSelectedState(s); setPage(1); }}
+        />
+
+        {/* Time */}
+        <TimeFilter
+          lastSeenDays={lastSeenDays}
+          onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
+        />
+
+        {/* Issue Type */}
+        <EnforcementSignalsFilter
+          selectedSignal={selectedSignal}
+          onSignalChange={(v) => { setSelectedSignal(v); setPage(1); if (v) setSearchInput(""); }}
+          selectedState={selectedState}
+          selectedCity={selectedCity}
+        />
+
+        {/* Pressure Level */}
+        <PressureLevelFilter
+          openViolationsOnly={openViolationsOnly}
+          onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
+          multipleViolationsOnly={multipleViolationsOnly}
+          onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
+          repeatOffenderOnly={repeatOffenderOnly}
+          onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
+        />
+
+        {/* SnapScore Range */}
+        <SnapScoreFilter
+          snapScoreRange={snapScoreRange}
+          onSnapScoreChange={(v) => { setSnapScoreRange(v); setPage(1); }}
+        />
+
+        {/* Spacer + Actions */}
+        <div className="flex-1" />
+        <FreshnessIndicator />
+        <Button variant="ghost" size="sm" onClick={handleClearFilters} disabled={!activeFilterCount} className="h-7 px-2 text-xs gap-1">
+          <X className="h-3 w-3" /> Clear
+        </Button>
       </div>
 
       {/* MOBILE: Compact Header with Search + Filters */}

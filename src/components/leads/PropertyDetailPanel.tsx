@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
 import { GroupedViolationsList } from "./GroupedViolationsList";
+import { exportFilteredCsv } from "@/services/export";
 
 interface Violation {
   id: string;
@@ -53,6 +54,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [violations, setViolations] = useState<Violation[]>([]);
   const [isLoadingViolations, setIsLoadingViolations] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
   // Use pre-loaded violations if available, otherwise fetch from database
@@ -327,15 +329,31 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => {
-                  toast({
-                    title: "Export Started",
-                    description: "Property data will be included in your next export.",
-                  });
+                disabled={isExporting}
+                onClick={async () => {
+                  setIsExporting(true);
+                  try {
+                    await exportFilteredCsv({
+                      propertyIds: [property.id],
+                      expectedPropertyCount: 1,
+                    });
+                    toast({
+                      title: "Export Complete",
+                      description: "Property exported successfully.",
+                    });
+                  } catch (error: any) {
+                    toast({
+                      title: "Export Failed",
+                      description: error.message || "Failed to export property",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsExporting(false);
+                  }
                 }}
                 className="flex-1 gap-2"
               >
-                <Download className="h-4 w-4" />
+                {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Export This
               </Button>
               <Button

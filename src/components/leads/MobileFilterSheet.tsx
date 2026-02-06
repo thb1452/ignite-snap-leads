@@ -164,6 +164,23 @@ export function MobileFilterSheet({
         
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          {/* Sort By */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-foreground">Sort by</label>
+            <Select
+              value={sortBy}
+              onValueChange={(val) => onSortChange(val as SortOption)}
+            >
+              <SelectTrigger className="w-full h-12 text-base">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest_violation">Newest Violations</SelectItem>
+                <SelectItem value="recently_updated">Recently Updated</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* State */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-foreground">State</label>

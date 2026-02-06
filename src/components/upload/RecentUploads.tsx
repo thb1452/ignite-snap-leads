@@ -32,15 +32,21 @@ export function RecentUploads() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const fetchUploads = async () => {
+    // Create an AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+    
     try {
       // Fetch recent uploads - if no user, show all recent uploads
       const query = supabase
         .from('upload_jobs')
         .select('id, filename, city, state, status, total_rows, properties_created, properties_matched, violations_created, created_at, finished_at, source_type')
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(10)
+        .abortSignal(controller.signal);
       
       // Only filter by user if logged in
       if (user) {
@@ -48,22 +54,37 @@ export function RecentUploads() {
       }
       
       const { data, error: queryError } = await query;
+      
+      clearTimeout(timeoutId);
 
       if (queryError) {
         console.error('Failed to fetch uploads:', queryError);
-        setError('Failed to load uploads');
+        setError('Database temporarily unavailable');
         setLoading(false);
         return;
       }
 
       setUploads(data || []);
       setError(null);
-    } catch (err) {
+      setRetryCount(0);
+    } catch (err: any) {
+      clearTimeout(timeoutId);
       console.error('Error fetching uploads:', err);
-      setError('Connection error');
+      if (err.name === 'AbortError') {
+        setError('Request timed out - database is busy');
+      } else {
+        setError('Connection error');
+      }
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handleRetry = () => {
+    setLoading(true);
+    setError(null);
+    setRetryCount(prev => prev + 1);
+    fetchUploads();
   };
 
   const handleDeleteUpload = async (upload: RecentUpload) => {
@@ -136,30 +157,36 @@ export function RecentUploads() {
   useEffect(() => {
     fetchUploads();
 
-    // Poll every 5 seconds for fresh data
-    const interval = setInterval(fetchUploads, 5000);
+    // Only poll if no error - avoid hammering a struggling database
+    let interval: NodeJS.Timeout | null = null;
+    if (!error) {
+      interval = setInterval(fetchUploads, 10000); // Reduced polling to 10 seconds
+    }
 
-    // Also subscribe to realtime updates
-    const channel = supabase
-      .channel('recent-uploads')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'upload_jobs',
-        },
-        () => {
-          fetchUploads();
-        }
-      )
-      .subscribe();
+    // Skip realtime subscription if database is under load
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    if (!error) {
+      channel = supabase
+        .channel('recent-uploads')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'upload_jobs',
+          },
+          () => {
+            fetchUploads();
+          }
+        )
+        .subscribe();
+    }
 
     return () => {
-      clearInterval(interval);
-      supabase.removeChannel(channel);
+      if (interval) clearInterval(interval);
+      if (channel) supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, error]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -184,9 +211,10 @@ export function RecentUploads() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
+          <div className="flex items-center justify-center gap-2 py-4">
+            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Loading...</span>
+          </div>
         </CardContent>
       </Card>
     );
@@ -202,9 +230,18 @@ export function RecentUploads() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-sm text-center py-4">
-            {error}. <button onClick={fetchUploads} className="text-primary hover:underline">Retry</button>
-          </p>
+          <div className="text-center py-4 space-y-3">
+            <p className="text-muted-foreground text-sm">{error}</p>
+            <Button onClick={handleRetry} variant="outline" size="sm" disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Try Again
+            </Button>
+            {retryCount > 2 && (
+              <p className="text-xs text-muted-foreground">
+                Database is under heavy load. Uploads will still work - just history won't show.
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     );

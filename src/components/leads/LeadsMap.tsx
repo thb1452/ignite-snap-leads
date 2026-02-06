@@ -92,13 +92,18 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
     };
   }, [handleMapMove]);
 
-  // Reset and refetch when filters change
+  // Reset and refetch when filters change (excluding sortBy since map markers don't use sorting)
+  // Extract sortBy to exclude it from the dependency - map markers are always sorted by snap_score
+  const { sortBy: _sortBy, ...mapRelevantFilters } = filters;
+  const mapFiltersKey = JSON.stringify(mapRelevantFilters);
+  
   useEffect(() => {
     if (mapReady && mapRef.current) {
       resetMarkers();
       handleMapMove();
     }
-  }, [filters, mapReady, resetMarkers, handleMapMove]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapFiltersKey, mapReady, resetMarkers, handleMapMove]);
 
   // Render markers when data changes
   useEffect(() => {

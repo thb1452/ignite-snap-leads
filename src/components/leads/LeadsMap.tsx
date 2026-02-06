@@ -12,6 +12,7 @@ import type { LeadFilters } from "@/schemas";
 // USA center coordinates and default zoom - defined outside component
 const USA_CENTER: L.LatLngTuple = [39.8283, -98.5795];
 const USA_ZOOM = 5; // Start zoomed out to show all US
+const VIEWPORT_LIMIT = 1000; // Max markers per viewport load
 
 interface LeadsMapProps {
   filters?: LeadFilters;
@@ -305,8 +306,8 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
         <div className="absolute top-4 left-4 z-[1000] bg-background/95 backdrop-blur rounded-lg px-3 py-2 shadow-md text-sm">
           <span className="font-medium">{totalInBounds.toLocaleString()}</span>
           <span className="text-muted-foreground"> properties in view</span>
-          {totalInBounds >= 1000 && (
-            <span className="text-amber-600 text-xs block">Top 1,000 shown • Zoom in for more</span>
+          {totalInBounds >= VIEWPORT_LIMIT && (
+            <span className="text-amber-600 text-xs block">Top {VIEWPORT_LIMIT.toLocaleString()} shown • Zoom in for more</span>
           )}
         </div>
       )}

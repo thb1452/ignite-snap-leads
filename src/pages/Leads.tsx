@@ -593,32 +593,27 @@ function Leads() {
 
         {/* Property List - Right Side */}
         <div className="w-[40%] flex flex-col relative">
-          {/* Header with View Mode Toggle and Export */}
+        {/* Compact Header - single row */}
           {properties.length > 0 && (
-            <div className="px-4 py-2 border-b bg-background flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground">
-                    {selectedIds.length > 0
-                      ? `${selectedIds.length} selected`
-                      : `${totalCount.toLocaleString()} properties`}
-                  </span>
-                  <SortByDropdown value={sortBy} onChange={(v) => { setSortBy(v); setPage(1); }} />
-                </div>
-                <Button
-                  onClick={handleExportCSV}
-                  disabled={selectedIds.length === 0}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Export
-                </Button>
+            <div className="px-3 py-1.5 border-b bg-background flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {selectedIds.length > 0
+                    ? `${selectedIds.length} selected`
+                    : `${totalCount.toLocaleString()}`}
+                </span>
+                <SortByDropdown value={sortBy} onChange={(v) => { setSortBy(v); setPage(1); }} />
               </div>
-              <ExportQuotaDisplay />
+              <Button
+                onClick={handleExportCSV}
+                disabled={selectedIds.length === 0}
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+              >
+                <Download className="h-3.5 w-3.5 mr-1" />
+                Export
+              </Button>
             </div>
           )}
 
@@ -641,31 +636,29 @@ function Leads() {
             )}
           </div>
 
-          {/* Pagination Controls */}
+          {/* Compact Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-2 border-t bg-background">
+            <div className="flex items-center justify-center gap-3 px-2 py-1 border-t bg-background text-xs">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handlePageChange(Math.max(1, page - 1))}
                 disabled={page <= 1}
-                className="gap-1"
+                className="h-6 px-2 text-xs"
               >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
+                <ChevronLeft className="h-3 w-3" />
               </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
+              <span className="text-muted-foreground">
+                {page}/{totalPages}
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
                 disabled={page >= totalPages}
-                className="gap-1"
+                className="h-6 px-2 text-xs"
               >
-                Next
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3 w-3" />
               </Button>
             </div>
           )}

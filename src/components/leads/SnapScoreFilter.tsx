@@ -83,55 +83,17 @@ export function SnapScoreFilter({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        SnapScore Range
-      </span>
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <span className={`text-sm font-medium ${getScoreColor(snapScoreRange[0])}`}>
-            {snapScoreRange[0]}
-          </span>
-          <span className="text-muted-foreground">-</span>
-          <span className={`text-sm font-medium ${getScoreColor(snapScoreRange[1])}`}>
-            {snapScoreRange[1]}
-          </span>
-        </div>
-        <Slider
-          value={snapScoreRange}
-          onValueChange={(value) => onSnapScoreChange(value as [number, number])}
-          min={0}
-          max={100}
-          step={5}
-          className="w-28"
-        />
-        <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onSnapScoreChange([0, 100])}
-            className={`h-7 px-2 text-xs ${snapScoreRange[0] === 0 && snapScoreRange[1] === 100 ? "bg-muted" : ""}`}
-          >
-            All
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onSnapScoreChange([75, 100])}
-            className={`h-7 px-2 text-xs ${snapScoreRange[0] === 75 ? "bg-red-50 text-red-600" : ""}`}
-          >
-            Critical
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onSnapScoreChange([50, 100])}
-            className={`h-7 px-2 text-xs ${snapScoreRange[0] === 50 ? "bg-orange-50 text-orange-600" : ""}`}
-          >
-            High+
-          </Button>
-        </div>
-      </div>
+    <div className="flex items-center gap-2">
+      <span className={`text-xs font-medium ${getScoreColor(snapScoreRange[0])}`}>{snapScoreRange[0]}</span>
+      <Slider
+        value={snapScoreRange}
+        onValueChange={(value) => onSnapScoreChange(value as [number, number])}
+        min={0}
+        max={100}
+        step={5}
+        className="w-20"
+      />
+      <span className={`text-xs font-medium ${getScoreColor(snapScoreRange[1])}`}>{snapScoreRange[1]}</span>
     </div>
   );
 }

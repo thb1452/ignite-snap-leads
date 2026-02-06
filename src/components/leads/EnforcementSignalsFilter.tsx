@@ -82,45 +82,31 @@ export function EnforcementSignalsFilter({
   };
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex flex-col">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Issue Type
-        </span>
-        <span className="text-xs text-muted-foreground flex items-center gap-1">
-          <Home className="h-3 w-3" />
-          Properties with these issues
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-sm">Category</span>
-        <Select
-          value={selectedSignal || "all"}
-          onValueChange={handleSignalChange}
-        >
-          <SelectTrigger className="w-[180px] h-8">
-            <SelectValue placeholder={isLoading ? "..." : "All issues"} />
-          </SelectTrigger>
-          <SelectContent className="z-[9999]">
-            <SelectItem value="all">All issues</SelectItem>
-            {categories.map(({ categoryId, label }) => {
-              const locked = isLockedCategory(categoryId);
-              return (
-                <SelectItem 
-                  key={categoryId} 
-                  value={categoryId}
-                  className={locked ? "text-muted-foreground" : ""}
-                >
-                  <span className="flex items-center gap-1.5">
-                    {locked && <Lock className="h-3 w-3 text-amber-500" />}
-                    {label}
-                  </span>
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
+    <Select
+      value={selectedSignal || "all"}
+      onValueChange={handleSignalChange}
+    >
+      <SelectTrigger className="w-[120px] h-7 text-xs">
+        <SelectValue placeholder={isLoading ? "..." : "Issue"} />
+      </SelectTrigger>
+      <SelectContent className="z-[9999]">
+        <SelectItem value="all">All issues</SelectItem>
+        {categories.map(({ categoryId, label }) => {
+          const locked = isLockedCategory(categoryId);
+          return (
+            <SelectItem 
+              key={categoryId} 
+              value={categoryId}
+              className={locked ? "text-muted-foreground" : ""}
+            >
+              <span className="flex items-center gap-1">
+                {locked && <Lock className="h-3 w-3 text-amber-500" />}
+                {label}
+              </span>
+            </SelectItem>
+          );
+        })}
+      </SelectContent>
+    </Select>
   );
 }

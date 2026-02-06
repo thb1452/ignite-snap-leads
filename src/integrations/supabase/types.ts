@@ -2281,6 +2281,30 @@ export type Database = {
           state: string
         }[]
       }
+      fn_map_markers_in_bounds: {
+        Args: {
+          p_category?: string
+          p_city?: string
+          p_limit?: number
+          p_max_lat: number
+          p_max_lng: number
+          p_min_lat: number
+          p_min_lng: number
+          p_snap_max?: number
+          p_snap_min?: number
+          p_state?: string
+        }
+        Returns: {
+          address: string
+          city: string
+          enforcement_type: string
+          id: string
+          latitude: number
+          longitude: number
+          snap_score: number
+          state: string
+        }[]
+      }
       fn_opportunity_funnel: {
         Args: never
         Returns: {

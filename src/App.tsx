@@ -22,6 +22,7 @@ import VATemplates from "./pages/VATemplates";
 import AdminConsole from "./pages/AdminConsole";
 import AdminImportCounties from "./pages/AdminImportCounties";
 import AdminAssignCounties from "./pages/AdminAssignCounties";
+import AdminMigration from "./pages/AdminMigration";
 import ResetPassword from "./pages/ResetPassword";
 import HowSnapWorks from "./pages/HowSnapWorks";
 import Pricing from "./pages/Pricing";
@@ -121,6 +122,11 @@ const App = () => (
           <Route path="/admin/assign-counties" element={
             <RoleProtectedRoute allowedRoles={['admin']}>
               <AdminAssignCounties />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/admin/migration" element={
+            <RoleProtectedRoute allowedRoles={['admin']}>
+              <AdminMigration />
             </RoleProtectedRoute>
           } />
           <Route path="/how-snap-works" element={

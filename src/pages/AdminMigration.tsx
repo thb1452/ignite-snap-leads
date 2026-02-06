@@ -1,0 +1,373 @@
+import { useState } from "react";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
+import { 
+  Database, 
+  CheckCircle2, 
+  XCircle, 
+  Loader2, 
+  Play, 
+  RefreshCw,
+  AlertTriangle,
+  ArrowRight
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+interface TableStatus {
+  source: number;
+  target: number;
+}
+
+interface MigrationState {
+  status: "idle" | "checking" | "migrating" | "verifying" | "complete" | "error";
+  tables: Record<string, TableStatus>;
+  currentTable: string | null;
+  progress: number;
+  totalRows: number;
+  migratedRows: number;
+  errors: string[];
+}
+
+const TABLES_TO_MIGRATE = [
+  "jurisdictions",
+  "organizations", 
+  "counties",
+  "properties",
+  "violations",
+  "foia_templates",
+  "foia_requests",
+  "clean_leads",
+  "email_templates",
+  "email_preferences",
+  "email_analytics",
+  "lead_lists",
+  "list_properties",
+  "lead_activity",
+  "upload_jobs",
+  "upload_staging",
+  "user_profiles",
+  "user_roles",
+  "user_subscriptions",
+  "user_allowed_states",
+  "user_invitations",
+  "call_logs",
+  "property_contacts",
+  "credit_ledger",
+  "credit_ledger_skiptrace",
+  "skiptrace_jobs",
+  "skiptrace_outcomes",
+  "skiptrace_bulk_runs",
+  "skiptrace_consent_log",
+  "geocoding_jobs",
+  "staging_uploads",
+  "subscription_tiers",
+];
+
+export default function AdminMigration() {
+  const { toast } = useToast();
+  const [state, setState] = useState<MigrationState>({
+    status: "idle",
+    tables: {},
+    currentTable: null,
+    progress: 0,
+    totalRows: 0,
+    migratedRows: 0,
+    errors: [],
+  });
+
+  const checkStatus = async () => {
+    setState(prev => ({ ...prev, status: "checking" }));
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("migrate-to-external", {
+        body: { action: "get-status" }
+      });
+
+      if (error) throw error;
+
+      const totalRows = Object.values(data.tables as Record<string, TableStatus>)
+        .reduce((sum, t) => sum + t.source, 0);
+
+      setState(prev => ({
+        ...prev,
+        status: "idle",
+        tables: data.tables,
+        totalRows,
+      }));
+
+      if (!data.ready) {
+        toast({
+          title: "Schema Not Ready",
+          description: "Some tables don't exist in target database. Run schema migration first.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Status check failed:", error);
+      setState(prev => ({ 
+        ...prev, 
+        status: "error",
+        errors: [...prev.errors, error.message]
+      }));
+      toast({
+        title: "Status Check Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const startMigration = async () => {
+    setState(prev => ({ 
+      ...prev, 
+      status: "migrating",
+      migratedRows: 0,
+      errors: [],
+    }));
+
+    let totalMigrated = 0;
+
+    for (let i = 0; i < TABLES_TO_MIGRATE.length; i++) {
+      const table = TABLES_TO_MIGRATE[i];
+      setState(prev => ({ 
+        ...prev, 
+        currentTable: table,
+        progress: (i / TABLES_TO_MIGRATE.length) * 100,
+      }));
+
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        try {
+          const { data, error } = await supabase.functions.invoke("migrate-to-external", {
+            body: { action: "migrate-table", table, offset }
+          });
+
+          if (error) throw error;
+
+          if (data.status === "error") {
+            setState(prev => ({
+              ...prev,
+              errors: [...prev.errors, `${table}: ${data.error}`]
+            }));
+            break;
+          }
+
+          totalMigrated += data.rowsMigrated || 0;
+          hasMore = data.hasMore;
+          offset = data.nextOffset;
+
+          setState(prev => ({
+            ...prev,
+            migratedRows: totalMigrated,
+          }));
+
+          // Small delay to avoid overwhelming the database
+          if (hasMore) {
+            await new Promise(r => setTimeout(r, 100));
+          }
+
+        } catch (error: any) {
+          console.error(`Migration failed for ${table}:`, error);
+          setState(prev => ({
+            ...prev,
+            errors: [...prev.errors, `${table}: ${error.message}`]
+          }));
+          break;
+        }
+      }
+    }
+
+    setState(prev => ({ 
+      ...prev, 
+      status: "complete",
+      currentTable: null,
+      progress: 100,
+    }));
+
+    toast({
+      title: "Migration Complete",
+      description: `Migrated ${totalMigrated.toLocaleString()} rows across ${TABLES_TO_MIGRATE.length} tables`,
+    });
+  };
+
+  const verifyMigration = async () => {
+    setState(prev => ({ ...prev, status: "verifying" }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke("migrate-to-external", {
+        body: { action: "verify" }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: data.allMatch ? "Verification Passed" : "Verification Warning",
+        description: data.summary,
+        variant: data.allMatch ? "default" : "destructive",
+      });
+
+      setState(prev => ({ ...prev, status: "complete", tables: data.tables }));
+    } catch (error: any) {
+      toast({
+        title: "Verification Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setState(prev => ({ ...prev, status: "error" }));
+    }
+  };
+
+  const getTableStatusIcon = (source: number, target: number) => {
+    if (target === -1) return <XCircle className="h-4 w-4 text-destructive" />;
+    if (target === source) return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+    if (target > 0) return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+    return <ArrowRight className="h-4 w-4 text-muted-foreground" />;
+  };
+
+  return (
+    <AppLayout>
+      <div className="container mx-auto py-8 px-4 max-w-4xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+            <Database className="h-8 w-8" />
+            Database Migration
+          </h1>
+          <p className="text-muted-foreground">
+            Migrate data from Lovable Cloud to Supabase Pro
+          </p>
+        </div>
+
+        <div className="space-y-6">
+          {/* Status Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Migration Status</CardTitle>
+              <CardDescription>
+                Check connection and table status before migrating
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-3">
+                <Button 
+                  onClick={checkStatus} 
+                  disabled={state.status === "checking" || state.status === "migrating"}
+                  variant="outline"
+                >
+                  {state.status === "checking" ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Check Status
+                </Button>
+
+                <Button 
+                  onClick={startMigration}
+                  disabled={state.status === "migrating" || Object.keys(state.tables).length === 0}
+                >
+                  {state.status === "migrating" ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4 mr-2" />
+                  )}
+                  Start Migration
+                </Button>
+
+                <Button 
+                  onClick={verifyMigration}
+                  disabled={state.status === "verifying" || state.status === "migrating"}
+                  variant="secondary"
+                >
+                  {state.status === "verifying" ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                  )}
+                  Verify
+                </Button>
+              </div>
+
+              {state.status === "migrating" && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Migrating: {state.currentTable}</span>
+                    <span>{state.migratedRows.toLocaleString()} rows</span>
+                  </div>
+                  <Progress value={state.progress} className="h-2" />
+                </div>
+              )}
+
+              {state.errors.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <ul className="list-disc list-inside text-sm">
+                      {state.errors.slice(-5).map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Table Status */}
+          {Object.keys(state.tables).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Table Status</CardTitle>
+                <CardDescription>
+                  Source (Lovable Cloud) → Target (Supabase Pro)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-96 overflow-y-auto">
+                  {Object.entries(state.tables).map(([table, counts]) => (
+                    <div 
+                      key={table}
+                      className="flex items-center justify-between p-2 rounded border bg-card"
+                    >
+                      <div className="flex items-center gap-2">
+                        {getTableStatusIcon(counts.source, counts.target)}
+                        <span className="text-sm font-medium">{table}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline">{counts.source.toLocaleString()}</Badge>
+                        <ArrowRight className="h-3 w-3" />
+                        <Badge variant={counts.target === counts.source ? "default" : "secondary"}>
+                          {counts.target === -1 ? "N/A" : counts.target.toLocaleString()}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Instructions */}
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Before migrating:</strong>
+              <ol className="list-decimal list-inside mt-2 space-y-1 text-sm">
+                <li>Run the schema SQL in your Supabase Pro SQL Editor to create tables</li>
+                <li>Click "Check Status" to verify all tables exist in target</li>
+                <li>Click "Start Migration" to copy all data</li>
+                <li>Click "Verify" to confirm row counts match</li>
+              </ol>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    </AppLayout>
+  );
+}

@@ -69,3 +69,6 @@ verify_jwt = false
 
 [functions.backfill-insights]
 verify_jwt = false
+
+[functions.migrate-to-external]
+verify_jwt = true

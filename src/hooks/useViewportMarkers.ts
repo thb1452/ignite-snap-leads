@@ -21,7 +21,7 @@ export interface MapBounds {
 }
 
 // Limit per viewport load - balance between coverage and performance
-const VIEWPORT_LIMIT = 10000;
+const VIEWPORT_LIMIT = 1000;
 
 // Debounce time in ms to avoid excessive API calls during pan/zoom
 const DEBOUNCE_MS = 300;

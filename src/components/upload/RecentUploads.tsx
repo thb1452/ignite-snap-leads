@@ -30,22 +30,40 @@ export function RecentUploads() {
   const { toast } = useToast();
   const [uploads, setUploads] = useState<RecentUpload[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchUploads = async () => {
-    if (!user) return;
-    
-    const { data, error } = await supabase
-      .from('upload_jobs')
-      .select('id, filename, city, state, status, total_rows, properties_created, properties_matched, violations_created, created_at, finished_at, source_type')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    try {
+      // Fetch recent uploads - if no user, show all recent uploads
+      const query = supabase
+        .from('upload_jobs')
+        .select('id, filename, city, state, status, total_rows, properties_created, properties_matched, violations_created, created_at, finished_at, source_type')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      // Only filter by user if logged in
+      if (user) {
+        query.eq('user_id', user.id);
+      }
+      
+      const { data, error: queryError } = await query;
 
-    if (!error && data) {
-      setUploads(data);
+      if (queryError) {
+        console.error('Failed to fetch uploads:', queryError);
+        setError('Failed to load uploads');
+        setLoading(false);
+        return;
+      }
+
+      setUploads(data || []);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching uploads:', err);
+      setError('Connection error');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleDeleteUpload = async (upload: RecentUpload) => {
@@ -169,6 +187,24 @@ export function RecentUploads() {
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-16 w-full" />
           ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Recent Uploads
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-sm text-center py-4">
+            {error}. <button onClick={fetchUploads} className="text-primary hover:underline">Retry</button>
+          </p>
         </CardContent>
       </Card>
     );

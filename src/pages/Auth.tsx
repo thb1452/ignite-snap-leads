@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 // This persists across the signup flow so we know if they're a fresh signup vs existing user
 const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
 
+const LOADING_TIMEOUT_MS = 5000; // Auth page loading timeout
+
 export default function Auth() {
   const { user, roles, loading, signOut } = useAuth();
   const navigate = useNavigate();
@@ -20,6 +22,7 @@ export default function Auth() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [showAccountChoice, setShowAccountChoice] = useState(false);
   const [showAlreadyLoggedIn, setShowAlreadyLoggedIn] = useState(false);
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const initDone = useRef(false);
   
   // On mount (before auth loads), check if we already flagged this as a pre-existing user
@@ -41,6 +44,17 @@ export default function Auth() {
       wasLoggedInBeforeFlow.current = false;
     }
   }, []);
+
+  // Safety timeout for loading state - prevent infinite spinner
+  useEffect(() => {
+    if (loading && !loadingTimedOut) {
+      const timer = setTimeout(() => {
+        console.warn('[Auth] Loading timeout reached, forcing complete');
+        setLoadingTimedOut(true);
+      }, LOADING_TIMEOUT_MS);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, loadingTimedOut]);
 
   useEffect(() => {
     console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'mode:', mode, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice, 'wasLoggedInBeforeFlow:', wasLoggedInBeforeFlow.current);
@@ -190,8 +204,8 @@ export default function Auth() {
     }
   };
 
-  // Show loading while checking auth
-  if (loading) {
+  // Show loading while checking auth (with timeout safety)
+  if (loading && !loadingTimedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10">
         <div className="text-center space-y-4">

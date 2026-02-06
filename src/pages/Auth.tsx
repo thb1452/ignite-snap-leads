@@ -205,6 +205,7 @@ export default function Auth() {
   };
 
   // Show loading while checking auth (with timeout safety)
+  // After timeout, just show the auth form - don't block users if backend is slow
   if (loading && !loadingTimedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10">
@@ -214,6 +215,12 @@ export default function Auth() {
         </div>
       </div>
     );
+  }
+
+  // If loading timed out but we still don't have clear state, show auth form
+  // This prevents infinite loading when backend is unavailable
+  if (loadingTimedOut && !user && !showAlreadyLoggedIn && !showAccountChoice && !redirectingToCheckout && !checkoutError) {
+    return <AuthForm />;
   }
 
   // Show "already logged in" screen when user visits /auth while logged in (not from pricing)

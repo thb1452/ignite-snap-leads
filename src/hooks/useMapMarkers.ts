@@ -15,6 +15,8 @@ export interface MapMarker {
 
 // Batch size for pagination (Supabase limits to 1000 per query)
 const BATCH_SIZE = 1000;
+// Maximum markers to load - balance between coverage and performance
+const MAX_MARKERS = 50000;
 
 function cleanFilters(filters: LeadFilters): LeadFilters {
   if (!filters || typeof filters !== 'object') return {};
@@ -36,7 +38,7 @@ async function fetchAllMarkersDirectly(filters: LeadFilters): Promise<MapMarker[
 
   console.log("[useMapMarkers] Starting paginated fetch for all markers...");
 
-  while (hasMore) {
+  while (hasMore && allMarkers.length < MAX_MARKERS) {
     let q = supabase
       .from("properties")
       .select("id, latitude, longitude, snap_score, address, city, state, enforcement_type")

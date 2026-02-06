@@ -13,7 +13,8 @@ export interface MapMarker {
   enforcement_type?: string;
 }
 
-const MAX_MARKERS = 10000;
+// Show all properties on the map - clustering handles performance
+const MAX_MARKERS = 500000;
 
 function cleanFilters(filters: LeadFilters): LeadFilters {
   if (!filters || typeof filters !== 'object') return {};

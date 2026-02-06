@@ -337,9 +337,10 @@ export default function Upload() {
             });
             createdJobIds.push(chunkJobId);
             
-            // Small delay between chunk submissions to prevent overwhelming the system
+            // Increased delay between chunk submissions to prevent database overload
+            // Jobs will process sequentially to avoid concurrent statement timeouts
             if (i < chunks.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, 300));
+              await new Promise(resolve => setTimeout(resolve, 2000));
             }
           }
 

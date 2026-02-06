@@ -2,9 +2,10 @@ import Papa from "papaparse";
 import type { CsvDetectionResult, DetectedLocation } from "@/components/upload/CsvLocationDetector";
 
 // Upload limits - must match edge function
+// Tuned to prevent statement timeout errors under database load
 export const UPLOAD_LIMITS = {
   MAX_ROWS_PER_UPLOAD: 50000,
-  CHUNK_SIZE: 25000, // Rows per chunk when auto-splitting
+  CHUNK_SIZE: 15000, // Rows per chunk when auto-splitting (reduced from 25k to prevent timeouts)
 };
 
 // Valid US state codes (2-letter abbreviations)

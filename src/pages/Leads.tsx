@@ -30,7 +30,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
 import { exportFilteredCsv } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
-import { useMapMarkers } from "@/hooks/useMapMarkers";
+import type { LeadFilters } from "@/schemas";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -148,8 +148,7 @@ function Leads() {
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
   
-  // Use lightweight markers query for the map (filtered same as list)
-  const { data: mapMarkers = [], error: mapError } = useMapMarkers(filters);
+  // Map now uses viewport-based loading - no pre-fetching needed
   
   // Show toast notifications for errors
   useEffect(() => {
@@ -163,16 +162,6 @@ function Leads() {
     }
   }, [error, toast]);
 
-  useEffect(() => {
-    if (mapError) {
-      console.error("[Leads] Map markers error:", mapError);
-      toast({
-        title: "Failed to load map data",
-        description: "Map markers may not be displayed correctly.",
-        variant: "destructive",
-      });
-    }
-  }, [mapError, toast]);
 
   const properties = data?.data ?? [];
   const totalCount = data?.total ?? 0;
@@ -573,7 +562,7 @@ function Leads() {
         {/* Map - Left Side */}
         <div className="w-[60%] border-r relative">
           <LeadsMap
-            properties={mapMarkers}
+            filters={filters as LeadFilters}
             onPropertyClick={setSelectedPropertyId}
             selectedPropertyId={selectedPropertyId || undefined}
           />
@@ -669,7 +658,7 @@ function Leads() {
           /* Map View - Full height */
           <div className="flex-1 relative">
             <LeadsMap
-              properties={mapMarkers}
+              filters={filters as LeadFilters}
               onPropertyClick={setSelectedPropertyId}
               selectedPropertyId={selectedPropertyId || undefined}
             />

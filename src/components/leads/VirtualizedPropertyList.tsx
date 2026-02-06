@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { CompactPropertyRow } from "./CompactPropertyRow";
+import { PropertyCard } from "./PropertyCard";
 
 interface Violation {
   id: string;
@@ -31,8 +31,8 @@ interface VirtualizedPropertyListProps {
   onPropertyClick: (id: string) => void;
 }
 
-// Compact row height for dense list (shows 10-15 items in viewport)
-const COMPACT_ROW_HEIGHT = 52;
+// Rich card height - shows address, status, violations, insight preview
+const CARD_HEIGHT = 180;
 
 export function VirtualizedPropertyList({
   properties,
@@ -45,21 +45,12 @@ export function VirtualizedPropertyList({
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => COMPACT_ROW_HEIGHT,
-    overscan: 10,
+    estimateSize: () => CARD_HEIGHT,
+    overscan: 5,
   });
 
   return (
     <div ref={parentRef} className="h-full overflow-y-auto">
-      {/* Column Headers */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 px-3 py-1.5 bg-muted/80 backdrop-blur-sm border-b text-xs font-medium text-muted-foreground">
-        <div className="w-4 shrink-0" /> {/* Checkbox spacer */}
-        <div className="flex-1">Address</div>
-        <div className="shrink-0 w-16 text-center">Status</div>
-        <div className="w-12 text-right shrink-0">Viols</div>
-        <div className="w-10 text-center shrink-0">Score</div>
-      </div>
-      
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -80,10 +71,9 @@ export function VirtualizedPropertyList({
                 left: 0,
                 width: "100%",
                 transform: `translateY(${virtualItem.start}px)`,
-                height: `${COMPACT_ROW_HEIGHT}px`,
               }}
             >
-              <CompactPropertyRow
+              <PropertyCard
                 property={property}
                 isSelected={isSelected}
                 onToggleSelect={onToggleSelect}

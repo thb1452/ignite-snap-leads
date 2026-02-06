@@ -1,43 +1,80 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { fetchLatestGeocodingJob, GeocodingJob } from "@/services/geocoding";
 
-export function useGeocodingJob(pollMs: number = 2000) {
+const TIMEOUT_MS = 8000; // 8 second timeout
+
+export function useGeocodingJob(pollMs: number = 5000) {
   const [job, setJob] = useState<GeocodingJob | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let timer: number | undefined;
+    let mounted = true;
 
     async function load() {
+      // Cancel previous request if still pending
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+      abortRef.current = new AbortController();
+      
+      const timeoutId = setTimeout(() => {
+        if (abortRef.current) {
+          abortRef.current.abort();
+        }
+      }, TIMEOUT_MS);
+
       try {
         setLoading(true);
         const latest = await fetchLatestGeocodingJob();
+        
+        clearTimeout(timeoutId);
+        if (!mounted) return;
+        
         setJob(latest ?? null);
         setError(null);
+        setTimedOut(false);
 
         const active =
           latest &&
           (latest.status === "queued" || latest.status === "running");
 
         if (active) {
-          // keep polling
+          // keep polling but with longer interval
           timer = window.setTimeout(load, pollMs);
         }
-      } catch (err) {
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (!mounted) return;
+        
         console.error("[Geocoding] Failed to fetch latest job", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load geocoding job",
-        );
+        
+        // Check for timeout/abort
+        if (err.name === 'AbortError' || err.message?.includes('timeout')) {
+          setTimedOut(true);
+          setError(null); // Don't show error for timeout, just hide the component
+        } else {
+          setError(
+            err instanceof Error ? err.message : "Failed to load geocoding job",
+          );
+        }
+        setJob(null);
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
 
     load();
 
     return () => {
+      mounted = false;
       if (timer) window.clearTimeout(timer);
+      if (abortRef.current) abortRef.current.abort();
     };
   }, [pollMs]);
 
@@ -51,5 +88,5 @@ export function useGeocodingJob(pollMs: number = 2000) {
         )
       : 0;
 
-  return { job, loading, error, progress };
+  return { job, loading, error, progress, timedOut };
 }

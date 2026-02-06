@@ -261,11 +261,17 @@ export function MobileFilterSheet({
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 <SelectItem value="all">All issues</SelectItem>
-                {categories.map(({ categoryId, label, propertyCount: count }) => (
+                {categories.map(({ categoryId, label }) => (
                   <SelectItem key={categoryId} value={categoryId}>
-                    {label} — {count.toLocaleString()}
+                    {label}
                   </SelectItem>
                 ))}
+                {/* Always show Water Disconnection option */}
+                {!categories.some(c => c.categoryId === 'water_disconnection') && (
+                  <SelectItem value="water_disconnection">
+                    Water Disconnection
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>

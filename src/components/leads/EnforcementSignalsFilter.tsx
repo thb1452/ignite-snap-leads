@@ -106,6 +106,18 @@ export function EnforcementSignalsFilter({
             </SelectItem>
           );
         })}
+        {/* Always show Water Disconnection with lock for non-enterprise */}
+        {!categories.some(c => c.categoryId === 'water_disconnection') && (
+          <SelectItem 
+            value="water_disconnection"
+            className="text-muted-foreground"
+          >
+            <span className="flex items-center gap-1">
+              <Lock className="h-3 w-3 text-amber-500" />
+              Water Disconnection
+            </span>
+          </SelectItem>
+        )}
       </SelectContent>
     </Select>
   );

@@ -78,9 +78,13 @@ export function PropertyCard({
           <span className="truncate">
             {formatCity(property.city)}, {property.state}
           </span>
-          {(property.open_violations ?? 0) > 0 && (
-            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-rose-100 text-rose-700 border-rose-200 shrink-0">
+          {(property.open_violations ?? 0) > 0 ? (
+            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-emerald-100 text-emerald-700 border-emerald-200 shrink-0">
               open
+            </Badge>
+          ) : (property.total_violations ?? 0) > 0 && (
+            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-rose-100 text-rose-700 border-rose-200 shrink-0">
+              closed
             </Badge>
           )}
           {property.violation_types && property.violation_types.length > 0 && (

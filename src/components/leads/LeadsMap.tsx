@@ -301,9 +301,9 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
         </div>
       )}
       
-      {/* Marker count indicator */}
+      {/* Marker count indicator - positioned below zoom controls */}
       {!isLoading && totalInBounds > 0 && (
-        <div className="absolute top-4 left-4 z-[1000] bg-background/95 backdrop-blur rounded-lg px-3 py-2 shadow-md text-sm">
+        <div className="absolute top-24 left-2 z-[1000] bg-background/95 backdrop-blur rounded-lg px-3 py-2 shadow-md text-sm">
           <span className="font-medium">{totalInBounds.toLocaleString()}</span>
           <span className="text-muted-foreground"> properties in view</span>
           {totalInBounds >= VIEWPORT_LIMIT && (

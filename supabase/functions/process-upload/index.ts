@@ -1343,27 +1343,31 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Property creation complete: ${propertiesCreated} created, ${dbLevelDedupes} duplicates skipped`);
 
-    // UPDATE EXISTING PROPERTIES WITH AGGREGATED VIOLATION DATA
-    console.log(`[process-upload] Updating ${existingMap.size} existing properties with aggregated violation data...`);
+    // SKIP EXISTING PROPERTY AGGREGATE UPDATES DURING UPLOAD
+    // This is the main cause of timeouts for large uploads (6000+ existing properties)
+    // Aggregate data will be updated via the background backfill job instead
+    // The violation records are the source of truth - aggregates are derived
     const existingAddressEntries = Array.from(addressMap.entries())
       .filter(([key]) => existingMap.has(key));
-
-    if (existingAddressEntries.length > 0) {
-      const PROP_UPDATE_BATCH = 50;
+    
+    if (existingAddressEntries.length > 100) {
+      console.log(`[process-upload] ⚠️ Skipping inline aggregate updates for ${existingAddressEntries.length} existing properties (will use background backfill)`);
+      console.log(`[process-upload] Property aggregates will be updated by the backfill-property-aggregates job`);
+    } else if (existingAddressEntries.length > 0) {
+      // For small batches (<100), we can do inline updates without timeout risk
+      const PROP_UPDATE_BATCH = 25;
       let updatedCount = 0;
 
       for (let i = 0; i < existingAddressEntries.length; i += PROP_UPDATE_BATCH) {
         const batch = existingAddressEntries.slice(i, i + PROP_UPDATE_BATCH);
-
-        for (const [key, row] of batch) {
+        
+        // Use Promise.all for parallel updates within batch
+        const updatePromises = batch.map(async ([key, row]) => {
           const propertyId = existingMap.get(key);
-          if (!propertyId) continue;
+          if (!propertyId) return false;
 
-          // Aggregate violations for this property
           const aggregates = aggregateViolations(row.violations || []);
-
-          // Update the property with aggregated data
-          const { error: updateError } = await supabaseClient
+          const { error } = await supabaseClient
             .from('properties')
             .update({
               total_violations: aggregates.total_violations,
@@ -1374,20 +1378,14 @@ async function processUploadJob(jobId: string) {
               updated_at: new Date().toISOString(),
             })
             .eq('id', propertyId);
-
-          if (updateError) {
-            console.error(`[process-upload] Error updating property ${propertyId}:`, updateError);
-          } else {
-            updatedCount++;
-          }
-        }
-
-        if ((i + batch.length) % 200 === 0 || i + batch.length >= existingAddressEntries.length) {
-          console.log(`[process-upload] Updated ${i + batch.length}/${existingAddressEntries.length} existing properties`);
-        }
+          return !error;
+        });
+        
+        const results = await Promise.all(updatePromises);
+        updatedCount += results.filter(Boolean).length;
       }
 
-      console.log(`[process-upload] ✓ Existing property updates complete: ${updatedCount} properties updated`);
+      console.log(`[process-upload] ✓ Updated ${updatedCount}/${existingAddressEntries.length} existing properties`);
     }
 
     // Now fetch all property IDs for this city in bulk - much faster than individual lookups

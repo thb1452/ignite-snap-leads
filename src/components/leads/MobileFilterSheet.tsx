@@ -266,12 +266,6 @@ export function MobileFilterSheet({
                     {label}
                   </SelectItem>
                 ))}
-                {/* Always show Water Disconnection option */}
-                {!categories.some(c => c.categoryId === 'water_disconnection') && (
-                  <SelectItem value="water_disconnection">
-                    Water Disconnection
-                  </SelectItem>
-                )}
               </SelectContent>
             </Select>
           </div>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { supabase } from "@/integrations/supabase/client";
+
 import { 
   Database, 
   CheckCircle2, 
@@ -84,11 +84,19 @@ export default function AdminMigration() {
     setState(prev => ({ ...prev, status: "checking" }));
     
     try {
-      const { data, error } = await supabase.functions.invoke("migrate-to-external", {
-        body: { action: "get-status" }
+      // Use direct fetch since this is a public endpoint
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/migrate-to-external`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get-status" }),
       });
-
-      if (error) throw error;
+      
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || `HTTP ${res.status}`);
+      }
+      
+      const data = await res.json();
 
       const totalRows = Object.values(data.tables as Record<string, TableStatus>)
         .reduce((sum, t) => sum + t.source, 0);
@@ -145,11 +153,18 @@ export default function AdminMigration() {
 
       while (hasMore) {
         try {
-          const { data, error } = await supabase.functions.invoke("migrate-to-external", {
-            body: { action: "migrate-table", table, offset }
+          const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/migrate-to-external`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "migrate-table", table, offset }),
           });
 
-          if (error) throw error;
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(errText || `HTTP ${res.status}`);
+          }
+          
+          const data = await res.json();
 
           if (data.status === "error") {
             setState(prev => ({
@@ -201,11 +216,18 @@ export default function AdminMigration() {
     setState(prev => ({ ...prev, status: "verifying" }));
 
     try {
-      const { data, error } = await supabase.functions.invoke("migrate-to-external", {
-        body: { action: "verify" }
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/migrate-to-external`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify" }),
       });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || `HTTP ${res.status}`);
+      }
+      
+      const data = await res.json();
 
       toast({
         title: data.allMatch ? "Verification Passed" : "Verification Warning",

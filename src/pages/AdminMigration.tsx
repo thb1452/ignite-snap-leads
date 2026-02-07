@@ -81,15 +81,21 @@ export default function AdminMigration() {
   });
 
   const checkStatus = async () => {
-    setState(prev => ({ ...prev, status: "checking" }));
+    setState(prev => ({ ...prev, status: "checking", errors: [] }));
     
     try {
-      // Use direct fetch since this is a public endpoint
+      // Use AbortController for timeout control (30 seconds - query takes ~17s)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/migrate-to-external`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "get-status" }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
       
       if (!res.ok) {
         const errText = await res.text();
@@ -108,6 +114,11 @@ export default function AdminMigration() {
         totalRows,
       }));
 
+      toast({
+        title: "Status Retrieved",
+        description: `Found ${totalRows.toLocaleString()} total rows across ${data.totalTables} tables`,
+      });
+
       if (!data.ready) {
         toast({
           title: "Schema Not Ready",
@@ -117,14 +128,17 @@ export default function AdminMigration() {
       }
     } catch (error: any) {
       console.error("Status check failed:", error);
+      const message = error.name === 'AbortError' 
+        ? "Request timed out (30s). The database may be under heavy load - try again."
+        : error.message;
       setState(prev => ({ 
         ...prev, 
         status: "error",
-        errors: [...prev.errors, error.message]
+        errors: [...prev.errors, message]
       }));
       toast({
         title: "Status Check Failed",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     }

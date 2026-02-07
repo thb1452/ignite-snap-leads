@@ -95,10 +95,10 @@ export default function AdminMigration() {
         headers: { 
           "Content-Type": "application/json",
           "Accept": "application/json",
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXhibGVneHBkZ2FxaXNjeHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMTQ5NTMsImV4cCI6MjA3Mzg5MDk1M30.r9TsZsdtHiYVyyNXpeKB8iHumb3ZZfdDUHN4g8twGrU",
         },
         body: JSON.stringify({ action: "get-status" }),
         signal: controller.signal,
-        mode: "cors",
       });
       
       clearTimeout(timeoutId);
@@ -173,9 +173,12 @@ export default function AdminMigration() {
 
       while (hasMore) {
         try {
-          const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/migrate-to-external`, {
+          const res = await fetch(`https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/migrate-to-external`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXhibGVneHBkZ2FxaXNjeHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMTQ5NTMsImV4cCI6MjA3Mzg5MDk1M30.r9TsZsdtHiYVyyNXpeKB8iHumb3ZZfdDUHN4g8twGrU",
+            },
             body: JSON.stringify({ action: "migrate-table", table, offset }),
           });
 
@@ -236,9 +239,12 @@ export default function AdminMigration() {
     setState(prev => ({ ...prev, status: "verifying" }));
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/migrate-to-external`, {
+      const res = await fetch(`https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/migrate-to-external`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXhibGVneHBkZ2FxaXNjeHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMTQ5NTMsImV4cCI6MjA3Mzg5MDk1M30.r9TsZsdtHiYVyyNXpeKB8iHumb3ZZfdDUHN4g8twGrU",
+        },
         body: JSON.stringify({ action: "verify" }),
       });
 

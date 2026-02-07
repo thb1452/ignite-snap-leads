@@ -83,16 +83,22 @@ export default function AdminMigration() {
   const checkStatus = async () => {
     setState(prev => ({ ...prev, status: "checking", errors: [] }));
     
+    const url = `https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/migrate-to-external`;
+    
     try {
-      // Use AbortController for timeout control (30 seconds - query takes ~17s)
+      // Use AbortController for timeout control (45 seconds - query can take up to 20s)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
       
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/migrate-to-external`, {
+      const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
         body: JSON.stringify({ action: "get-status" }),
         signal: controller.signal,
+        mode: "cors",
       });
       
       clearTimeout(timeoutId);
@@ -129,7 +135,7 @@ export default function AdminMigration() {
     } catch (error: any) {
       console.error("Status check failed:", error);
       const message = error.name === 'AbortError' 
-        ? "Request timed out (30s). The database may be under heavy load - try again."
+        ? "Request timed out (45s). The database may be under heavy load - try again."
         : error.message;
       setState(prev => ({ 
         ...prev, 

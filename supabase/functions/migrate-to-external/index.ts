@@ -154,6 +154,14 @@ async function getMigrationStatus(sourceClient: any, targetClient: any) {
   };
 }
 
+// Tables that don't have created_at column - use id for ordering
+const TABLES_WITHOUT_CREATED_AT = [
+  "email_analytics",
+  "list_properties", 
+  "skiptrace_outcomes",
+  "skiptrace_bulk_items",
+];
+
 async function migrateTableData(
   sourceClient: any, 
   targetClient: any, 
@@ -163,12 +171,14 @@ async function migrateTableData(
   console.log(`[Migration] Starting ${table} at offset ${offset}`);
 
   try {
-    // Fetch batch from source
+    // Fetch batch from source - use id for tables without created_at
+    const orderColumn = TABLES_WITHOUT_CREATED_AT.includes(table) ? "id" : "created_at";
+    
     const { data: rows, error: fetchError } = await sourceClient
       .from(table)
       .select("*")
       .range(offset, offset + BATCH_SIZE - 1)
-      .order("created_at", { ascending: true, nullsFirst: true });
+      .order(orderColumn, { ascending: true, nullsFirst: true });
 
     if (fetchError) {
       console.error(`[Migration] Fetch error for ${table}:`, fetchError);

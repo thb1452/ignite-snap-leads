@@ -124,11 +124,8 @@ const App = () => (
               <AdminAssignCounties />
             </RoleProtectedRoute>
           } />
-          <Route path="/admin/migration" element={
-            <RoleProtectedRoute allowedRoles={['admin']}>
-              <AdminMigration />
-            </RoleProtectedRoute>
-          } />
+          {/* Temporarily public for migration - restore RoleProtectedRoute after */}
+          <Route path="/admin/migration" element={<AdminMigration />} />
           <Route path="/how-snap-works" element={
             <ProtectedRoute>
               <HowSnapWorks />

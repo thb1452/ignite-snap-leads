@@ -168,8 +168,11 @@ export default function AdminMigration() {
         progress: (i / TABLES_TO_MIGRATE.length) * 100,
       }));
 
-      let offset = 0;
+      // CURSOR-BASED pagination - much faster than offset!
+      let cursor: string | null = null;
       let hasMore = true;
+      let retryCount = 0;
+      const maxRetries = 3;
 
       while (hasMore) {
         try {
@@ -179,7 +182,7 @@ export default function AdminMigration() {
               "Content-Type": "application/json",
               "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXhibGVneHBkZ2FxaXNjeHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMTQ5NTMsImV4cCI6MjA3Mzg5MDk1M30.r9TsZsdtHiYVyyNXpeKB8iHumb3ZZfdDUHN4g8twGrU",
             },
-            body: JSON.stringify({ action: "migrate-table", table, offset }),
+            body: JSON.stringify({ action: "migrate-table", table, cursor }),
           });
 
           if (!res.ok) {
@@ -190,39 +193,42 @@ export default function AdminMigration() {
           const data = await res.json();
 
           if (data.status === "error") {
-            // Auto-retry on timeout errors (up to 3 times per table position)
-            if (data.error?.includes("timeout") && data.hasMore) {
-              console.log(`Timeout on ${table}, auto-retrying...`);
-              await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retry
-              continue; // Retry same offset
+            // Auto-retry on timeout errors
+            if (data.error?.includes("timeout") && retryCount < maxRetries) {
+              retryCount++;
+              console.log(`Timeout on ${table} (retry ${retryCount}/${maxRetries}), waiting 2s...`);
+              await new Promise(r => setTimeout(r, 2000));
+              continue; // Retry same cursor position
             }
             setState(prev => ({
               ...prev,
               errors: [...prev.errors, `${table}: ${data.error}`]
             }));
-            // Still continue if hasMore is true (can retry later)
             if (!data.hasMore) break;
           }
 
+          // Success - reset retry counter
+          retryCount = 0;
           totalMigrated += data.rowsMigrated || 0;
           hasMore = data.hasMore;
-          offset = data.nextOffset;
+          cursor = data.nextCursor;
 
           setState(prev => ({
             ...prev,
             migratedRows: totalMigrated,
           }));
 
-          // Small delay to avoid overwhelming the database
+          // Minimal delay between batches
           if (hasMore) {
-            await new Promise(r => setTimeout(r, 50)); // Reduced delay
+            await new Promise(r => setTimeout(r, 25));
           }
 
         } catch (error: any) {
           console.error(`Migration failed for ${table}:`, error);
           // Auto-retry on network errors
-          if (error.message?.includes("fetch") || error.message?.includes("network")) {
-            console.log(`Network error on ${table}, retrying in 3s...`);
+          if ((error.message?.includes("fetch") || error.message?.includes("network")) && retryCount < maxRetries) {
+            retryCount++;
+            console.log(`Network error on ${table} (retry ${retryCount}/${maxRetries}), waiting 3s...`);
             await new Promise(r => setTimeout(r, 3000));
             continue;
           }

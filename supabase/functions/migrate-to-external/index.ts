@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, table, offset = 0 } = await req.json();
+    const { action, table, offset = 0, cursor } = await req.json();
 
     // Source: Lovable Cloud (current project)
     const sourceUrl = Deno.env.get("SUPABASE_URL")!;
@@ -88,9 +88,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Action: migrate-table - Migrate a single table's data
+    // Action: migrate-table - Migrate using CURSOR-based pagination (fast!)
     if (action === "migrate-table" && table) {
-      const result = await migrateTableData(sourceClient, targetClient, table, offset);
+      const result = await migrateTableDataCursor(sourceClient, targetClient, table, cursor);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -163,39 +163,44 @@ const TABLES_WITHOUT_CREATED_AT = [
   "skiptrace_bulk_items",
 ];
 
-async function migrateTableData(
+// CURSOR-BASED pagination - much faster than offset for large tables!
+async function migrateTableDataCursor(
   sourceClient: any, 
   targetClient: any, 
   table: string,
-  offset: number,
+  cursor?: string,
   retryCount = 0
-): Promise<MigrationResult & { hasMore: boolean; nextOffset: number }> {
-  console.log(`[Migration] Starting ${table} at offset ${offset}, retry ${retryCount}`);
+): Promise<MigrationResult & { hasMore: boolean; nextCursor: string | null; migratedTotal?: number }> {
+  console.log(`[Migration] Starting ${table} with cursor: ${cursor || 'START'}, retry ${retryCount}`);
 
   try {
-    // Fetch batch from source - use id for tables without created_at
-    const orderColumn = TABLES_WITHOUT_CREATED_AT.includes(table) ? "id" : "created_at";
-    
-    const { data: rows, error: fetchError } = await sourceClient
+    // Build query with cursor-based pagination using 'id' column
+    let query = sourceClient
       .from(table)
       .select("*")
-      .range(offset, offset + BATCH_SIZE - 1)
-      .order(orderColumn, { ascending: true, nullsFirst: true });
+      .order("id", { ascending: true })
+      .limit(BATCH_SIZE);
+    
+    // If we have a cursor, fetch rows AFTER that id
+    if (cursor) {
+      query = query.gt("id", cursor);
+    }
+
+    const { data: rows, error: fetchError } = await query;
 
     if (fetchError) {
       console.error(`[Migration] Fetch error for ${table}:`, fetchError);
-      // Retry on timeout up to 2 times (faster failure)
       if (fetchError.message?.includes("timeout") && retryCount < 2) {
-        console.log(`[Migration] Retrying ${table} at offset ${offset} (attempt ${retryCount + 1})`);
-        await new Promise(r => setTimeout(r, 500)); // Shorter backoff
-        return migrateTableData(sourceClient, targetClient, table, offset, retryCount + 1);
+        console.log(`[Migration] Retrying ${table} with cursor ${cursor} (attempt ${retryCount + 1})`);
+        await new Promise(r => setTimeout(r, 500));
+        return migrateTableDataCursor(sourceClient, targetClient, table, cursor, retryCount + 1);
       }
       return { 
         table, 
         status: "error", 
         error: fetchError.message,
-        hasMore: true, // Allow retry from dashboard
-        nextOffset: offset
+        hasMore: true,
+        nextCursor: cursor || null
       };
     }
 
@@ -206,11 +211,11 @@ async function migrateTableData(
         status: "success", 
         rowsMigrated: 0,
         hasMore: false,
-        nextOffset: offset
+        nextCursor: null
       };
     }
 
-    // Upsert to target (handles duplicates gracefully)
+    // Upsert to target
     const { error: insertError } = await targetClient
       .from(table)
       .upsert(rows, { 
@@ -220,30 +225,33 @@ async function migrateTableData(
 
     if (insertError) {
       console.error(`[Migration] Insert error for ${table}:`, insertError);
-      // Retry on timeout - faster
       if (insertError.message?.includes("timeout") && retryCount < 2) {
         console.log(`[Migration] Retrying insert for ${table} (attempt ${retryCount + 1})`);
         await new Promise(r => setTimeout(r, 500));
-        return migrateTableData(sourceClient, targetClient, table, offset, retryCount + 1);
+        return migrateTableDataCursor(sourceClient, targetClient, table, cursor, retryCount + 1);
       }
       return { 
         table, 
         status: "error", 
         error: insertError.message,
         hasMore: true,
-        nextOffset: offset
+        nextCursor: cursor || null
       };
     }
 
+    // Get the last row's id as the next cursor
+    const lastRow = rows[rows.length - 1];
+    const nextCursor = lastRow?.id || null;
     const hasMore = rows.length === BATCH_SIZE;
-    console.log(`[Migration] Migrated ${rows.length} rows for ${table}, hasMore: ${hasMore}`);
+    
+    console.log(`[Migration] Migrated ${rows.length} rows for ${table}, nextCursor: ${nextCursor}, hasMore: ${hasMore}`);
 
     return {
       table,
       status: "success",
       rowsMigrated: rows.length,
       hasMore,
-      nextOffset: offset + rows.length,
+      nextCursor,
     };
 
   } catch (e) {
@@ -253,7 +261,7 @@ async function migrateTableData(
       status: "error",
       error: e.message,
       hasMore: false,
-      nextOffset: offset,
+      nextCursor: cursor || null,
     };
   }
 }

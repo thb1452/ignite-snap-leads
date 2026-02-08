@@ -155,12 +155,10 @@ async function getMigrationStatus(sourceClient: any, targetClient: any) {
   };
 }
 
-// Tables that don't have created_at column - use id for ordering
-const TABLES_WITHOUT_CREATED_AT = [
-  "email_analytics",
-  "list_properties", 
-  "skiptrace_outcomes",
-  "skiptrace_bulk_items",
+// Tables that don't have an 'id' column - need special handling
+const TABLES_WITHOUT_ID = [
+  "skiptrace_outcomes",      // uses job_id + property_id composite
+  "skiptrace_bulk_items",    // uses run_id + property_id composite
 ];
 
 // CURSOR-BASED pagination - much faster than offset for large tables!
@@ -172,6 +170,11 @@ async function migrateTableDataCursor(
   retryCount = 0
 ): Promise<MigrationResult & { hasMore: boolean; nextCursor: string | null; migratedTotal?: number }> {
   console.log(`[Migration] Starting ${table} with cursor: ${cursor || 'START'}, retry ${retryCount}`);
+
+  // For tables without 'id' column, use offset-based pagination as fallback
+  if (TABLES_WITHOUT_ID.includes(table)) {
+    return migrateTableOffset(sourceClient, targetClient, table, cursor ? parseInt(cursor) : 0, retryCount);
+  }
 
   try {
     // Build query with cursor-based pagination using 'id' column
@@ -263,6 +266,72 @@ async function migrateTableDataCursor(
       hasMore: false,
       nextCursor: cursor || null,
     };
+  }
+}
+
+// Offset-based fallback for tables without 'id' column
+async function migrateTableOffset(
+  sourceClient: any,
+  targetClient: any,
+  table: string,
+  offset: number,
+  retryCount = 0
+): Promise<MigrationResult & { hasMore: boolean; nextCursor: string | null }> {
+  console.log(`[Migration] Using OFFSET for ${table} at offset ${offset}`);
+
+  try {
+    const { data: rows, error: fetchError } = await sourceClient
+      .from(table)
+      .select("*")
+      .range(offset, offset + BATCH_SIZE - 1);
+
+    if (fetchError) {
+      console.error(`[Migration] Fetch error for ${table}:`, fetchError);
+      if (fetchError.message?.includes("timeout") && retryCount < 2) {
+        await new Promise(r => setTimeout(r, 500));
+        return migrateTableOffset(sourceClient, targetClient, table, offset, retryCount + 1);
+      }
+      return { table, status: "error", error: fetchError.message, hasMore: true, nextCursor: String(offset) };
+    }
+
+    if (!rows || rows.length === 0) {
+      return { table, status: "success", rowsMigrated: 0, hasMore: false, nextCursor: null };
+    }
+
+    // Determine conflict column(s) for this table
+    let onConflict = "job_id,property_id"; // default for skiptrace tables
+    if (table === "skiptrace_bulk_items") {
+      onConflict = "run_id,property_id";
+    }
+
+    const { error: insertError } = await targetClient
+      .from(table)
+      .upsert(rows, { onConflict, ignoreDuplicates: false });
+
+    if (insertError) {
+      console.error(`[Migration] Insert error for ${table}:`, insertError);
+      if (insertError.message?.includes("timeout") && retryCount < 2) {
+        await new Promise(r => setTimeout(r, 500));
+        return migrateTableOffset(sourceClient, targetClient, table, offset, retryCount + 1);
+      }
+      return { table, status: "error", error: insertError.message, hasMore: true, nextCursor: String(offset) };
+    }
+
+    const nextOffset = offset + rows.length;
+    const hasMore = rows.length === BATCH_SIZE;
+
+    console.log(`[Migration] Migrated ${rows.length} rows for ${table}, next offset: ${nextOffset}`);
+
+    return {
+      table,
+      status: "success",
+      rowsMigrated: rows.length,
+      hasMore,
+      nextCursor: String(nextOffset),
+    };
+  } catch (e) {
+    console.error(`[Migration] Exception for ${table}:`, e);
+    return { table, status: "error", error: e.message, hasMore: false, nextCursor: String(offset) };
   }
 }
 

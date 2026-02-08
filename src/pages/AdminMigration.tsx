@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,13 +14,27 @@ import {
   Play, 
   RefreshCw,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  RotateCcw
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface TableStatus {
   source: number;
   target: number;
+}
+
+interface TableProgress {
+  cursor: string | null;
+  rowsMigrated: number;
+  complete: boolean;
+}
+
+interface MigrationProgress {
+  tableIndex: number;
+  tableProgress: Record<string, TableProgress>;
+  totalMigrated: number;
+  lastUpdated: string;
 }
 
 interface MigrationState {
@@ -33,6 +47,7 @@ interface MigrationState {
   errors: string[];
 }
 
+// Updated list - removed deprecated skiptrace tables
 const TABLES_TO_MIGRATE = [
   "jurisdictions",
   "organizations", 
@@ -58,15 +73,36 @@ const TABLES_TO_MIGRATE = [
   "call_logs",
   "property_contacts",
   "credit_ledger",
-  "credit_ledger_skiptrace",
-  "skiptrace_jobs",
-  "skiptrace_outcomes",
-  "skiptrace_bulk_runs",
-  "skiptrace_consent_log",
   "geocoding_jobs",
   "staging_uploads",
-  "subscription_tiers",
 ];
+
+const STORAGE_KEY = "snap_migration_progress";
+
+function loadProgress(): MigrationProgress | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return null;
+    return JSON.parse(saved);
+  } catch {
+    return null;
+  }
+}
+
+function saveProgress(progress: MigrationProgress) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      ...progress,
+      lastUpdated: new Date().toISOString(),
+    }));
+  } catch (e) {
+    console.warn("Failed to save progress:", e);
+  }
+}
+
+function clearProgress() {
+  localStorage.removeItem(STORAGE_KEY);
+}
 
 export default function AdminMigration() {
   const { toast } = useToast();
@@ -79,6 +115,19 @@ export default function AdminMigration() {
     migratedRows: 0,
     errors: [],
   });
+  const [savedProgress, setSavedProgress] = useState<MigrationProgress | null>(null);
+
+  // Load saved progress on mount
+  useEffect(() => {
+    const progress = loadProgress();
+    if (progress) {
+      setSavedProgress(progress);
+      setState(prev => ({
+        ...prev,
+        migratedRows: progress.totalMigrated,
+      }));
+    }
+  }, []);
 
   const checkStatus = async () => {
     setState(prev => ({ ...prev, status: "checking", errors: [] }));
@@ -86,7 +135,6 @@ export default function AdminMigration() {
     const url = `https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/migrate-to-external`;
     
     try {
-      // Use AbortController for timeout control (45 seconds - query can take up to 20s)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 45000);
       
@@ -150,29 +198,52 @@ export default function AdminMigration() {
     }
   };
 
-  const startMigration = async () => {
+  const startMigration = async (resume = false) => {
+    // Load existing progress if resuming
+    let migrationProgress: MigrationProgress = resume && savedProgress ? savedProgress : {
+      tableIndex: 0,
+      tableProgress: {},
+      totalMigrated: 0,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    const startIndex = migrationProgress.tableIndex;
+    let totalMigrated = migrationProgress.totalMigrated;
+
     setState(prev => ({ 
       ...prev, 
       status: "migrating",
-      migratedRows: 0,
+      migratedRows: totalMigrated,
       errors: [],
     }));
 
-    let totalMigrated = 0;
+    if (resume) {
+      toast({
+        title: "Resuming Migration",
+        description: `Continuing from table ${TABLES_TO_MIGRATE[startIndex]} (${totalMigrated.toLocaleString()} rows already migrated)`,
+      });
+    }
 
-    for (let i = 0; i < TABLES_TO_MIGRATE.length; i++) {
+    for (let i = startIndex; i < TABLES_TO_MIGRATE.length; i++) {
       const table = TABLES_TO_MIGRATE[i];
+      
       setState(prev => ({ 
         ...prev, 
         currentTable: table,
         progress: (i / TABLES_TO_MIGRATE.length) * 100,
       }));
 
-      // CURSOR-BASED pagination - much faster than offset!
-      let cursor: string | null = null;
-      let hasMore = true;
+      // Get saved cursor for this table if resuming
+      const tableState = migrationProgress.tableProgress[table];
+      let cursor: string | null = tableState?.cursor || null;
+      let hasMore = !tableState?.complete;
       let retryCount = 0;
       const maxRetries = 3;
+
+      if (tableState?.complete) {
+        // Table already done, skip
+        continue;
+      }
 
       while (hasMore) {
         try {
@@ -193,12 +264,11 @@ export default function AdminMigration() {
           const data = await res.json();
 
           if (data.status === "error") {
-            // Auto-retry on timeout errors
             if (data.error?.includes("timeout") && retryCount < maxRetries) {
               retryCount++;
               console.log(`Timeout on ${table} (retry ${retryCount}/${maxRetries}), waiting 2s...`);
               await new Promise(r => setTimeout(r, 2000));
-              continue; // Retry same cursor position
+              continue;
             }
             setState(prev => ({
               ...prev,
@@ -207,25 +277,40 @@ export default function AdminMigration() {
             if (!data.hasMore) break;
           }
 
-          // Success - reset retry counter
+          // Success - update progress
           retryCount = 0;
           totalMigrated += data.rowsMigrated || 0;
           hasMore = data.hasMore;
           cursor = data.nextCursor;
+
+          // Save progress after each batch
+          migrationProgress = {
+            tableIndex: i,
+            tableProgress: {
+              ...migrationProgress.tableProgress,
+              [table]: {
+                cursor,
+                rowsMigrated: (migrationProgress.tableProgress[table]?.rowsMigrated || 0) + (data.rowsMigrated || 0),
+                complete: !hasMore,
+              }
+            },
+            totalMigrated,
+            lastUpdated: new Date().toISOString(),
+          };
+          saveProgress(migrationProgress);
+          setSavedProgress(migrationProgress);
 
           setState(prev => ({
             ...prev,
             migratedRows: totalMigrated,
           }));
 
-          // Minimal delay between batches
           if (hasMore) {
             await new Promise(r => setTimeout(r, 25));
           }
 
         } catch (error: any) {
           console.error(`Migration failed for ${table}:`, error);
-          // Auto-retry on network errors
           if ((error.message?.includes("fetch") || error.message?.includes("network")) && retryCount < maxRetries) {
             retryCount++;
             console.log(`Network error on ${table} (retry ${retryCount}/${maxRetries}), waiting 3s...`);
@@ -236,10 +321,33 @@ export default function AdminMigration() {
             ...prev,
             errors: [...prev.errors, `${table}: ${error.message}`]
           }));
-          break;
+          
+          // Save progress before breaking so we can resume
+          saveProgress(migrationProgress);
+          setSavedProgress(migrationProgress);
+          
+          setState(prev => ({ ...prev, status: "error" }));
+          toast({
+            title: "Migration Paused",
+            description: `Error on ${table}. Click "Resume" to continue from where you left off.`,
+            variant: "destructive",
+          });
+          return; // Exit without clearing progress
         }
       }
+
+      // Mark table as complete and move to next
+      migrationProgress.tableIndex = i + 1;
+      migrationProgress.tableProgress[table] = {
+        ...migrationProgress.tableProgress[table],
+        complete: true,
+      };
+      saveProgress(migrationProgress);
     }
+
+    // Clear progress on successful completion
+    clearProgress();
+    setSavedProgress(null);
 
     setState(prev => ({ 
       ...prev, 
@@ -251,6 +359,21 @@ export default function AdminMigration() {
     toast({
       title: "Migration Complete",
       description: `Migrated ${totalMigrated.toLocaleString()} rows across ${TABLES_TO_MIGRATE.length} tables`,
+    });
+  };
+
+  const resetProgress = () => {
+    clearProgress();
+    setSavedProgress(null);
+    setState(prev => ({
+      ...prev,
+      migratedRows: 0,
+      progress: 0,
+      errors: [],
+    }));
+    toast({
+      title: "Progress Reset",
+      description: "Migration will start from the beginning next time.",
     });
   };
 
@@ -312,6 +435,30 @@ export default function AdminMigration() {
         </div>
 
         <div className="space-y-6">
+          {/* Saved Progress Banner */}
+          {savedProgress && state.status !== "migrating" && (
+            <Alert>
+              <RefreshCw className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between">
+                <span>
+                  <strong>Saved progress found:</strong> {savedProgress.totalMigrated.toLocaleString()} rows migrated 
+                  ({TABLES_TO_MIGRATE[savedProgress.tableIndex] || "complete"})
+                  <span className="text-muted-foreground ml-2 text-xs">
+                    Last updated: {new Date(savedProgress.lastUpdated).toLocaleString()}
+                  </span>
+                </span>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => startMigration(true)}>
+                    <Play className="h-3 w-3 mr-1" /> Resume
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={resetProgress}>
+                    <RotateCcw className="h-3 w-3 mr-1" /> Reset
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Status Card */}
           <Card>
             <CardHeader>
@@ -321,7 +468,7 @@ export default function AdminMigration() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 <Button 
                   onClick={checkStatus} 
                   disabled={state.status === "checking" || state.status === "migrating"}
@@ -335,17 +482,31 @@ export default function AdminMigration() {
                   Check Status
                 </Button>
 
-                <Button 
-                  onClick={startMigration}
-                  disabled={state.status === "migrating" || Object.keys(state.tables).length === 0}
-                >
-                  {state.status === "migrating" ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Play className="h-4 w-4 mr-2" />
-                  )}
-                  Start Migration
-                </Button>
+                {savedProgress ? (
+                  <Button 
+                    onClick={() => startMigration(true)}
+                    disabled={state.status === "migrating"}
+                  >
+                    {state.status === "migrating" ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4 mr-2" />
+                    )}
+                    Resume Migration
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={() => startMigration(false)}
+                    disabled={state.status === "migrating" || Object.keys(state.tables).length === 0}
+                  >
+                    {state.status === "migrating" ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4 mr-2" />
+                    )}
+                    Start Migration
+                  </Button>
+                )}
 
                 <Button 
                   onClick={verifyMigration}
@@ -429,6 +590,7 @@ export default function AdminMigration() {
                 <li>Run the schema SQL in your Supabase Pro SQL Editor to create tables</li>
                 <li>Click "Check Status" to verify all tables exist in target</li>
                 <li>Click "Start Migration" to copy all data</li>
+                <li>If interrupted, click "Resume" to continue from where you left off</li>
                 <li>Click "Verify" to confirm row counts match</li>
               </ol>
             </AlertDescription>

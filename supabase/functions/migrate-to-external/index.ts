@@ -42,14 +42,14 @@ const TABLES_TO_MIGRATE = [
   "subscription_tiers",
 ];
 
-// Smaller batch for large tables to avoid timeouts
-const BATCH_SIZE_SMALL = 100;
-const BATCH_SIZE_NORMAL = 300;
+// Larger batch now that constraints are dropped on target
+const BATCH_SIZE_LARGE = 500;
+const BATCH_SIZE_NORMAL = 500;
 
 const LARGE_TABLES = ["properties", "violations", "upload_staging", "list_properties"];
 
 function getBatchSize(table: string): number {
-  return LARGE_TABLES.includes(table) ? BATCH_SIZE_SMALL : BATCH_SIZE_NORMAL;
+  return BATCH_SIZE_LARGE; // Use 500 for all tables - constraints are dropped
 }
 
 interface MigrationResult {

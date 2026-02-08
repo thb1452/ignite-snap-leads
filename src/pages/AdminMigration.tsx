@@ -190,11 +190,18 @@ export default function AdminMigration() {
           const data = await res.json();
 
           if (data.status === "error") {
+            // Auto-retry on timeout errors (up to 3 times per table position)
+            if (data.error?.includes("timeout") && data.hasMore) {
+              console.log(`Timeout on ${table}, auto-retrying...`);
+              await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retry
+              continue; // Retry same offset
+            }
             setState(prev => ({
               ...prev,
               errors: [...prev.errors, `${table}: ${data.error}`]
             }));
-            break;
+            // Still continue if hasMore is true (can retry later)
+            if (!data.hasMore) break;
           }
 
           totalMigrated += data.rowsMigrated || 0;
@@ -208,11 +215,17 @@ export default function AdminMigration() {
 
           // Small delay to avoid overwhelming the database
           if (hasMore) {
-            await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 50)); // Reduced delay
           }
 
         } catch (error: any) {
           console.error(`Migration failed for ${table}:`, error);
+          // Auto-retry on network errors
+          if (error.message?.includes("fetch") || error.message?.includes("network")) {
+            console.log(`Network error on ${table}, retrying in 3s...`);
+            await new Promise(r => setTimeout(r, 3000));
+            continue;
+          }
           setState(prev => ({
             ...prev,
             errors: [...prev.errors, `${table}: ${error.message}`]

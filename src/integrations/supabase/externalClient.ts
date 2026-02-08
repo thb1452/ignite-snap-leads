@@ -4,33 +4,41 @@
  * This client connects to the external Supabase Pro instance (dqwolscmceelqpkfclgi)
  * after migrating from Lovable Cloud.
  * 
- * Usage: Import this instead of the auto-generated client when ready to switch:
- * import { supabase } from "@/integrations/supabase/externalClient";
- * 
- * Required environment variables:
- * - VITE_EXTERNAL_SUPABASE_URL
- * - VITE_EXTERNAL_SUPABASE_ANON_KEY
+ * Falls back to Lovable Cloud Supabase if external credentials aren't configured.
  */
 
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// External Supabase Pro instance credentials
+// External Supabase Pro instance credentials (primary)
 const EXTERNAL_SUPABASE_URL = import.meta.env.VITE_EXTERNAL_SUPABASE_URL;
 const EXTERNAL_SUPABASE_ANON_KEY = import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY;
 
-// Validate that external credentials are configured
-if (!EXTERNAL_SUPABASE_URL || !EXTERNAL_SUPABASE_ANON_KEY) {
-  console.warn(
-    '[External Supabase] Missing environment variables. ' +
-    'Set VITE_EXTERNAL_SUPABASE_URL and VITE_EXTERNAL_SUPABASE_ANON_KEY to enable external client.'
+// Lovable Cloud Supabase credentials (fallback)
+const LOVABLE_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const LOVABLE_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+// Determine which credentials to use
+const useExternal = EXTERNAL_SUPABASE_URL && EXTERNAL_SUPABASE_ANON_KEY;
+const SUPABASE_URL = useExternal ? EXTERNAL_SUPABASE_URL : LOVABLE_SUPABASE_URL;
+const SUPABASE_KEY = useExternal ? EXTERNAL_SUPABASE_ANON_KEY : LOVABLE_SUPABASE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  throw new Error(
+    'Missing Supabase credentials. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are set.'
   );
 }
 
-// Create the external Supabase client
+if (useExternal) {
+  console.log('[Supabase] Using external Supabase Pro instance');
+} else {
+  console.log('[Supabase] Using Lovable Cloud Supabase');
+}
+
+// Create the Supabase client
 export const supabaseExternal = createClient<Database>(
-  EXTERNAL_SUPABASE_URL || '',
-  EXTERNAL_SUPABASE_ANON_KEY || '',
+  SUPABASE_URL,
+  SUPABASE_KEY,
   {
     auth: {
       storage: localStorage,

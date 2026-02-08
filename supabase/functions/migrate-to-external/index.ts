@@ -42,7 +42,15 @@ const TABLES_TO_MIGRATE = [
   "subscription_tiers",
 ];
 
-const BATCH_SIZE = 500;
+// Smaller batch for large tables to avoid timeouts
+const BATCH_SIZE_SMALL = 100;
+const BATCH_SIZE_NORMAL = 300;
+
+const LARGE_TABLES = ["properties", "violations", "upload_staging", "list_properties"];
+
+function getBatchSize(table: string): number {
+  return LARGE_TABLES.includes(table) ? BATCH_SIZE_SMALL : BATCH_SIZE_NORMAL;
+}
 
 interface MigrationResult {
   table: string;
@@ -166,9 +174,11 @@ async function migrateTableData(
   sourceClient: any, 
   targetClient: any, 
   table: string,
-  offset: number
+  offset: number,
+  retryCount = 0
 ): Promise<MigrationResult & { hasMore: boolean; nextOffset: number }> {
-  console.log(`[Migration] Starting ${table} at offset ${offset}`);
+  const batchSize = getBatchSize(table);
+  console.log(`[Migration] Starting ${table} at offset ${offset}, batch ${batchSize}, retry ${retryCount}`);
 
   try {
     // Fetch batch from source - use id for tables without created_at
@@ -177,16 +187,22 @@ async function migrateTableData(
     const { data: rows, error: fetchError } = await sourceClient
       .from(table)
       .select("*")
-      .range(offset, offset + BATCH_SIZE - 1)
+      .range(offset, offset + batchSize - 1)
       .order(orderColumn, { ascending: true, nullsFirst: true });
 
     if (fetchError) {
       console.error(`[Migration] Fetch error for ${table}:`, fetchError);
+      // Retry on timeout up to 3 times
+      if (fetchError.message?.includes("timeout") && retryCount < 3) {
+        console.log(`[Migration] Retrying ${table} at offset ${offset} (attempt ${retryCount + 1})`);
+        await new Promise(r => setTimeout(r, 1000 * (retryCount + 1))); // Backoff
+        return migrateTableData(sourceClient, targetClient, table, offset, retryCount + 1);
+      }
       return { 
         table, 
         status: "error", 
         error: fetchError.message,
-        hasMore: false,
+        hasMore: true, // Allow retry from dashboard
         nextOffset: offset
       };
     }
@@ -212,16 +228,22 @@ async function migrateTableData(
 
     if (insertError) {
       console.error(`[Migration] Insert error for ${table}:`, insertError);
+      // Retry on timeout
+      if (insertError.message?.includes("timeout") && retryCount < 3) {
+        console.log(`[Migration] Retrying insert for ${table} (attempt ${retryCount + 1})`);
+        await new Promise(r => setTimeout(r, 1000 * (retryCount + 1)));
+        return migrateTableData(sourceClient, targetClient, table, offset, retryCount + 1);
+      }
       return { 
         table, 
         status: "error", 
         error: insertError.message,
-        hasMore: false,
+        hasMore: true, // Allow retry
         nextOffset: offset
       };
     }
 
-    const hasMore = rows.length === BATCH_SIZE;
+    const hasMore = rows.length === batchSize;
     console.log(`[Migration] Migrated ${rows.length} rows for ${table}, hasMore: ${hasMore}`);
 
     return {

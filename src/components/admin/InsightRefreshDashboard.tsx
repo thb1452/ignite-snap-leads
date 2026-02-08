@@ -12,7 +12,7 @@ import {
   Clock
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 interface InsightStats {
   total: number;

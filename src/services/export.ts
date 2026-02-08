@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 interface ExportParams {
   city?: string;
@@ -18,7 +18,9 @@ export async function exportFilteredCsv(params: ExportParams) {
     throw new Error("Please sign in to export data");
   }
 
-  const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-csv`;
+  // Use external Supabase URL for edge functions (fallback to default for compatibility)
+  const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+  const baseUrl = `${supabaseUrl}/functions/v1/export-csv`;
 
   // Use POST for large exports (many propertyIds), GET for small/filter-based exports
   // URL length limits (~2KB) make GET unreliable for >50 property IDs

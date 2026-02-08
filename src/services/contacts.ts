@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 export type PropertyContact = {
   id: string; property_id: string; name: string | null; phone: string | null; email: string | null;

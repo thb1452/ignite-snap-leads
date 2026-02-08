@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 export async function bulkAddToList(listId: string, propertyIds: string[]) {
   if (!propertyIds.length) return 0;

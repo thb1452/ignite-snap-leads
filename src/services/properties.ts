@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import type { LeadFilters } from "@/schemas";
 
 export interface BBoxFilters {

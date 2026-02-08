@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 // Map upload_jobs status to Job status
 function mapUploadStatus(status: string): 'queued' | 'processing' | 'partial' | 'completed' | 'failed' {

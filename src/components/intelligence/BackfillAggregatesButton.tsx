@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RefreshCw, CheckCircle, AlertCircle, Database, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { callFn } from "@/integrations/http/functions";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 interface BackfillProgress {
   processed: number;

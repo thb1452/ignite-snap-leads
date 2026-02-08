@@ -24,7 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useUserLists, useCreateList } from "@/hooks/useLists";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { exportFilteredCsv } from "@/services/export";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";

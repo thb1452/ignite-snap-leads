@@ -3,7 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { MapPin, Loader2, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { useGeocodingJob } from "@/hooks/useGeocodingJob";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { Button } from "@/components/ui/button";
 
 export function GeocodingProgress() {

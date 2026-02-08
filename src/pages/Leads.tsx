@@ -32,7 +32,7 @@ import { exportFilteredCsv } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
 import type { LeadFilters } from "@/schemas";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { Input } from "@/components/ui/input";
 import { ExportQuotaDisplay } from "@/components/leads/ExportQuotaDisplay";
 import { WaterShutoffUpgradeBanner } from "@/components/leads/WaterShutoffUpgradeBanner";

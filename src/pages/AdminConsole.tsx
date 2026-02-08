@@ -12,7 +12,7 @@ import { useAdminUploads } from "@/hooks/useAdminUploads";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useAdminJurisdictions } from "@/hooks/useAdminJurisdictions";
 import * as AdminAPI from "@/services/adminApi";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { BatchInsightsButton } from "@/components/intelligence/BatchInsightsButton";

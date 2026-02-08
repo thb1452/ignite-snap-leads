@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/externalClient';
 import { callFn } from '@/integrations/http/functions';
 import { sanitizeFilename } from '@/utils/sanitizeFilename';
 

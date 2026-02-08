@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { callFn } from "@/integrations/http/functions";
 
 const BATCH_SIZE = 100; // Properties per batch

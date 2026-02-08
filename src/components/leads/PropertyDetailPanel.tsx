@@ -6,7 +6,7 @@ import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download, ListPlus,
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { formatDistanceToNow, format } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
 import { GroupedViolationsList } from "./GroupedViolationsList";

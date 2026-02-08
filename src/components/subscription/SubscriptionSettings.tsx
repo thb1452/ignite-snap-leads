@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useSubscription } from "@/hooks/useSubscription";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, Sparkles, TrendingUp, ExternalLink, Loader2, Crown, Zap, Mail } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";

@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 // Tables to migrate in dependency order (referenced tables first)
+// NOTE: Skiptrace tables removed - feature was deprecated
 const TABLES_TO_MIGRATE = [
   "jurisdictions",
   "organizations",
@@ -32,14 +33,8 @@ const TABLES_TO_MIGRATE = [
   "call_logs",
   "property_contacts",
   "credit_ledger",
-  "credit_ledger_skiptrace",
-  "skiptrace_jobs",
-  "skiptrace_outcomes",
-  "skiptrace_bulk_runs",
-  "skiptrace_consent_log",
   "geocoding_jobs",
   "staging_uploads",
-  "subscription_tiers",
 ];
 
 // Smaller batch to avoid statement timeouts on source
@@ -155,11 +150,8 @@ async function getMigrationStatus(sourceClient: any, targetClient: any) {
   };
 }
 
-// Tables that don't have an 'id' column - need special handling
-const TABLES_WITHOUT_ID = [
-  "skiptrace_outcomes",      // uses job_id + property_id composite
-  "skiptrace_bulk_items",    // uses run_id + property_id composite
-];
+// No tables without 'id' column remain after skiptrace removal
+const TABLES_WITHOUT_ID: string[] = [];
 
 // CURSOR-BASED pagination - much faster than offset for large tables!
 async function migrateTableDataCursor(

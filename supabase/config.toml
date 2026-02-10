@@ -42,9 +42,6 @@ verify_jwt = false
 [functions.reprocess-upload-job]
 verify_jwt = true
 
-[functions.rerun-failed]
-verify_jwt = true
-
 [functions.send-user-invitation]
 verify_jwt = true
 

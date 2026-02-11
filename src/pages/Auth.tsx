@@ -21,15 +21,22 @@ export default function Auth() {
   const [showAccountChoice, setShowAccountChoice] = useState(false);
   const [showAlreadyLoggedIn, setShowAlreadyLoggedIn] = useState(false);
   const initDone = useRef(false);
-  
+
+  // Track if user was logged in when page FIRST loaded (before auth completes)
+  // null = not yet determined, true = was logged in, false = was not logged in
+  const wasLoggedInOnMount = useRef<boolean | null>(null);
+
+  // Track if we've already initiated a redirect (prevent multiple redirects)
+  const hasRedirected = useRef(false);
+
   // On mount (before auth loads), check if we already flagged this as a pre-existing user
   // This flag is SET by the pricing page when a logged-in user clicks a plan
   const wasLoggedInBeforeFlow = useRef<boolean | null>(null);
-  
+
   useEffect(() => {
     if (initDone.current) return;
     initDone.current = true;
-    
+
     // Check if pricing page marked that user was already logged in
     try {
       const preAuthFlag = sessionStorage.getItem(SESSION_KEY_PRE_AUTH_USER);
@@ -42,12 +49,20 @@ export default function Auth() {
     }
   }, []);
 
+  // Capture initial auth state ONCE when loading completes
   useEffect(() => {
-    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'mode:', mode, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice, 'wasLoggedInBeforeFlow:', wasLoggedInBeforeFlow.current);
-    
+    if (!loading && wasLoggedInOnMount.current === null) {
+      wasLoggedInOnMount.current = !!user;
+      console.log('[Auth] Initial auth state captured - was logged in:', wasLoggedInOnMount.current);
+    }
+  }, [loading, user]);
+
+  useEffect(() => {
+    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'mode:', mode, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice, 'wasLoggedInBeforeFlow:', wasLoggedInBeforeFlow.current, 'wasLoggedInOnMount:', wasLoggedInOnMount.current);
+
     // Wait for auth loading to complete
     if (loading) return;
-    
+
     // Not logged in - show auth form
     if (!user) {
       console.log('[Auth] No user, showing auth form');
@@ -75,10 +90,24 @@ export default function Auth() {
       return;
     }
 
-    // User is logged in but not from pricing - show options instead of auto-redirecting
-    // This allows users to sign out and create a new account if they want
+    // User is logged in but not from pricing
+    // Check if they were ALREADY logged in when they visited /auth, or if they JUST authenticated
+    if (wasLoggedInOnMount.current === false && !hasRedirected.current) {
+      // User was NOT logged in when page loaded - they just signed in/up
+      // Auto-redirect to appropriate dashboard (only once)
+      hasRedirected.current = true;
+      console.log('[Auth] Fresh sign-in detected, auto-redirecting to dashboard. Roles:', roles);
+      if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
+        navigate('/va-dashboard', { replace: true });
+      } else {
+        navigate('/leads', { replace: true });
+      }
+      return;
+    }
+
+    // User WAS already logged in when they visited /auth - show choice screen
     if (!showAlreadyLoggedIn) {
-      console.log('[Auth] User already logged in, showing options');
+      console.log('[Auth] User was already logged in on page load, showing options');
       setShowAlreadyLoggedIn(true);
       return;
     }

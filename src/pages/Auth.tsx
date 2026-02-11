@@ -24,6 +24,8 @@ export default function Auth() {
   const [showAlreadyLoggedIn, setShowAlreadyLoggedIn] = useState(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const initDone = useRef(false);
+  // Track whether user was already logged in when page first loaded
+  const hadUserOnMount = useRef<boolean | null>(null);
   
   // On mount (before auth loads), check if we already flagged this as a pre-existing user
   // This flag is SET by the pricing page when a logged-in user clicks a plan
@@ -62,6 +64,12 @@ export default function Auth() {
     // Wait for auth loading to complete
     if (loading) return;
     
+    // Track whether user existed on first load
+    if (hadUserOnMount.current === null) {
+      hadUserOnMount.current = !!user;
+      console.log('[Auth] User on mount:', hadUserOnMount.current);
+    }
+    
     // Not logged in - show auth form
     if (!user) {
       console.log('[Auth] No user, showing auth form');
@@ -89,8 +97,18 @@ export default function Auth() {
       return;
     }
 
-    // User is logged in but not from pricing - show options instead of auto-redirecting
-    // This allows users to sign out and create a new account if they want
+    // If user just authenticated (wasn't logged in on mount), auto-redirect to dashboard
+    if (hadUserOnMount.current === false) {
+      console.log('[Auth] Fresh auth detected, auto-redirecting to dashboard');
+      if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
+        navigate('/va-dashboard');
+      } else {
+        navigate('/leads');
+      }
+      return;
+    }
+
+    // User was already logged in when they visited /auth - show options
     if (!showAlreadyLoggedIn) {
       console.log('[Auth] User already logged in, showing options');
       setShowAlreadyLoggedIn(true);

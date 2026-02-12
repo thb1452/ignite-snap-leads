@@ -71,27 +71,13 @@ function ScarcityBadge() {
 }
 
 const showcaseSlides = [
-  {
-    images: [
-      { src: "/images/screenshot-map.png", alt: "Live Enforcement Map", label: "Live Enforcement Map", desc: "Color-coded clusters show enforcement intensity across your target areas", wide: true },
-      { src: "/images/screenshot-detail.png", alt: "Deep Property Intel", label: "Deep Property Intel", desc: "SnapScore, AI insights, and satellite imagery for every property", wide: false },
-    ],
-  },
-  {
-    images: [
-      { src: "/images/screenshot-leads.png", alt: "Scored Lead Lists", label: "Scored Lead Lists", desc: "141,900+ properties ranked by enforcement pressure", wide: true },
-      { src: "/images/screenshot-filters.png", alt: "Pressure Level Filters", label: "Pressure Level Filters", desc: "Zero in on open, multiple, or repeat violations", wide: false },
-    ],
-  },
-  {
-    images: [
-      { src: "/images/screenshot-categories.png", alt: "7 Violation Categories", label: "7 Violation Categories", desc: "Filter by issue type including water disconnections", wide: false },
-      { src: "/images/screenshot-map.png", alt: "Live Enforcement Map", label: "Live Enforcement Map", desc: "Pinpoint high-pressure zones on an interactive map", wide: true },
-    ],
-  },
-]; // showcase slides data
+  { src: "/images/screenshot-map.png", alt: "Live Enforcement Map", address: "1247 Oakridge DR NW, Atlanta", score: 87, feature: "Live Enforcement Map" },
+  { src: "/images/screenshot-leads.png", alt: "Scored Lead Lists", address: "580 Montego DR SE, Grand Rapids", score: 72, feature: "Scored Lead Pipeline" },
+  { src: "/images/screenshot-detail.png", alt: "Property Detail View", address: "3301 Peachtree RD NE, Atlanta", score: 94, feature: "Deep Property Intel" },
+  { src: "/images/screenshot-filters.png", alt: "Pressure Level Filters", address: "Filter by enforcement pressure", score: null, feature: "Smart Pressure Filters" },
+  { src: "/images/screenshot-categories.png", alt: "Violation Categories", address: "7 categories incl. water shutoffs", score: null, feature: "Violation Category Breakdown" },
+];
 
-// Showcase carousel component for platform screenshots
 function ShowcaseCarousel() {
   const [current, setCurrent] = useState(0);
 
@@ -102,46 +88,71 @@ function ShowcaseCarousel() {
     return () => clearInterval(timer);
   }, []);
 
+  const goPrev = () => setCurrent((prev) => (prev - 1 + showcaseSlides.length) % showcaseSlides.length);
+  const goNext = () => setCurrent((prev) => (prev + 1) % showcaseSlides.length);
+  const slide = showcaseSlides[current];
+
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="relative overflow-hidden rounded-2xl">
+    <div className="max-w-5xl mx-auto">
+      <div className="relative group/carousel">
+        {/* Arrows */}
+        <button
+          onClick={goPrev}
+          className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-landing-bg/70 backdrop-blur border border-landing-surface flex items-center justify-center text-landing-text-muted hover:text-landing-text hover:bg-landing-surface transition opacity-0 group-hover/carousel:opacity-100"
+          aria-label="Previous slide"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <button
+          onClick={goNext}
+          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-landing-bg/70 backdrop-blur border border-landing-surface flex items-center justify-center text-landing-text-muted hover:text-landing-text hover:bg-landing-surface transition opacity-0 group-hover/carousel:opacity-100"
+          aria-label="Next slide"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+
+        {/* Slide image */}
         <AnimatePresence mode="wait">
           <motion.div
             key={current}
-            initial={{ opacity: 0, x: 60 }}
+            initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -60 }}
-            transition={{ duration: 0.5 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.4 }}
           >
-            {showcaseSlides[current].images.map((img, i) => (
-              <div key={i} className={`group ${img.wide ? "md:col-span-2" : ""}`}>
-                <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300 h-full">
-                  <img src={img.src} alt={img.alt} className="w-full h-full object-cover object-top" loading="lazy" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                    <p className="text-lg font-bold">{img.label}</p>
-                    <p className="text-sm text-landing-text-muted">{img.desc}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
+            <div className="rounded-2xl border border-landing-surface overflow-hidden shadow-2xl">
+              <img src={slide.src} alt={slide.alt} className="w-full h-auto object-cover object-top" loading="lazy" />
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Dot indicators */}
-      <div className="flex justify-center gap-3 mt-8">
+      {/* Caption */}
+      <div className="text-center mt-6 space-y-1">
+        <p className="text-lg font-semibold text-landing-text">{slide.feature}</p>
+        <p className="text-sm text-landing-text-muted">
+          {slide.address}
+          {slide.score !== null && (
+            <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-landing-accent/15 text-landing-accent text-xs font-bold">
+              SnapScore {slide.score}
+            </span>
+          )}
+        </p>
+      </div>
+
+      {/* Dots + slide counter */}
+      <div className="flex items-center justify-center gap-3 mt-5">
         {showcaseSlides.map((_, i) => (
           <button
             key={i}
             onClick={() => setCurrent(i)}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              i === current ? "bg-landing-accent w-8" : "bg-landing-surface hover:bg-landing-text-muted"
+            className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+              i === current ? "bg-landing-accent w-7" : "bg-landing-surface hover:bg-landing-text-muted"
             }`}
             aria-label={`Go to slide ${i + 1}`}
           />
         ))}
+        <span className="text-xs text-landing-text-muted ml-2">{current + 1}/{showcaseSlides.length}</span>
       </div>
     </div>
   );

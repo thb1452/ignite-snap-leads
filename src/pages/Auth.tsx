@@ -24,17 +24,22 @@ export default function Auth() {
   const [showAlreadyLoggedIn, setShowAlreadyLoggedIn] = useState(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const initDone = useRef(false);
-  // Track whether user was already logged in when page first loaded
-  const hadUserOnMount = useRef<boolean | null>(null);
-  
+
+  // Track if user was logged in when page FIRST loaded (before auth completes)
+  // null = not yet determined, true = was logged in, false = was not logged in
+  const wasLoggedInOnMount = useRef<boolean | null>(null);
+
+  // Track if we've already initiated a redirect (prevent multiple redirects)
+  const hasRedirected = useRef(false);
+
   // On mount (before auth loads), check if we already flagged this as a pre-existing user
   // This flag is SET by the pricing page when a logged-in user clicks a plan
   const wasLoggedInBeforeFlow = useRef<boolean | null>(null);
-  
+
   useEffect(() => {
     if (initDone.current) return;
     initDone.current = true;
-    
+
     // Check if pricing page marked that user was already logged in
     try {
       const preAuthFlag = sessionStorage.getItem(SESSION_KEY_PRE_AUTH_USER);
@@ -58,18 +63,20 @@ export default function Auth() {
     }
   }, [loading, loadingTimedOut]);
 
+  // Capture initial auth state ONCE when loading completes
   useEffect(() => {
-    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'mode:', mode, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice, 'wasLoggedInBeforeFlow:', wasLoggedInBeforeFlow.current);
-    
+    if (!loading && wasLoggedInOnMount.current === null) {
+      wasLoggedInOnMount.current = !!user;
+      console.log('[Auth] Initial auth state captured - was logged in:', wasLoggedInOnMount.current);
+    }
+  }, [loading, user]);
+
+  useEffect(() => {
+    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'mode:', mode, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice, 'wasLoggedInBeforeFlow:', wasLoggedInBeforeFlow.current, 'wasLoggedInOnMount:', wasLoggedInOnMount.current);
+
     // Wait for auth loading to complete
     if (loading) return;
-    
-    // Track whether user existed on first load
-    if (hadUserOnMount.current === null) {
-      hadUserOnMount.current = !!user;
-      console.log('[Auth] User on mount:', hadUserOnMount.current);
-    }
-    
+
     // Not logged in - show auth form
     if (!user) {
       console.log('[Auth] No user, showing auth form');
@@ -97,54 +104,58 @@ export default function Auth() {
       return;
     }
 
-    // If user just authenticated (wasn't logged in on mount), auto-redirect to dashboard
-    if (hadUserOnMount.current === false) {
-      console.log('[Auth] Fresh auth detected, auto-redirecting to dashboard');
+    // User is logged in but not from pricing
+    // Check if they were ALREADY logged in when they visited /auth, or if they JUST authenticated
+    if (wasLoggedInOnMount.current === false && !hasRedirected.current) {
+      // User was NOT logged in when page loaded - they just signed in/up
+      // Auto-redirect to appropriate dashboard (only once)
+      hasRedirected.current = true;
+      console.log('[Auth] Fresh sign-in detected, auto-redirecting to dashboard. Roles:', roles);
       if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
-        navigate('/va-dashboard');
+        navigate('/va-dashboard', { replace: true });
       } else {
-        navigate('/leads');
+        navigate('/leads', { replace: true });
       }
       return;
     }
 
-    // User was already logged in when they visited /auth - show options
+    // User WAS already logged in when they visited /auth - show choice screen
     if (!showAlreadyLoggedIn) {
-      console.log('[Auth] User already logged in, showing options');
+      console.log('[Auth] User was already logged in on page load, showing options');
       setShowAlreadyLoggedIn(true);
       return;
     }
   }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice, showAlreadyLoggedIn]);
-  
+
   // Direct checkout function for fresh signups
   const handleDirectCheckout = () => {
     if (redirectingToCheckout) return;
     setRedirectingToCheckout(true);
-    
+
     // Mark that checkout is pending (prevents "complete subscription" screen from showing)
     try {
       sessionStorage.setItem('snap_pending_checkout', 'true');
     } catch (e) {
       console.warn('[Auth] Failed to set pending checkout flag:', e);
     }
-    
+
     console.log('[Auth] Direct checkout for fresh signup, plan:', selectedPlan);
-    
+
     supabase.functions.invoke('create-checkout-session', {
-      body: { 
+      body: {
         tier_name: selectedPlan,
         billing_cycle: 'monthly'
       }
     }).then(({ data, error }) => {
       console.log('[Auth] Stripe response:', { data, error });
-      
+
       if (error) {
         console.error('[Auth] Checkout error:', error);
         setCheckoutError('Failed to start checkout. Please try again from the pricing page.');
         setRedirectingToCheckout(false);
         return;
       }
-      
+
       const checkoutUrl = data?.checkout_url || data?.url;
       if (checkoutUrl) {
         console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
@@ -164,31 +175,31 @@ export default function Auth() {
   const handleContinueWithCurrentAccount = () => {
     setShowAccountChoice(false);
     setRedirectingToCheckout(true);
-    
+
     // Mark that checkout is pending
     try {
       sessionStorage.setItem('snap_pending_checkout', 'true');
     } catch (e) {
       console.warn('[Auth] Failed to set pending checkout flag:', e);
     }
-    
+
     console.log('[Auth] Continuing with current account, creating Stripe checkout for:', selectedPlan);
-    
+
     supabase.functions.invoke('create-checkout-session', {
-      body: { 
+      body: {
         tier_name: selectedPlan,
         billing_cycle: 'monthly'
       }
     }).then(({ data, error }) => {
       console.log('[Auth] Stripe response:', { data, error });
-      
+
       if (error) {
         console.error('[Auth] Checkout error:', error);
         setCheckoutError('Failed to start checkout. Please try again from the pricing page.');
         setRedirectingToCheckout(false);
         return;
       }
-      
+
       const checkoutUrl = data?.checkout_url || data?.url;
       if (checkoutUrl) {
         console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
@@ -311,13 +322,13 @@ export default function Auth() {
           <h2 className="text-xl font-semibold text-foreground">Checkout Error</h2>
           <p className="text-muted-foreground">{checkoutError}</p>
           <div className="flex gap-3 justify-center">
-            <a 
-              href="/pricing" 
+            <a
+              href="/pricing"
               className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
             >
               View Pricing
             </a>
-            <button 
+            <button
               onClick={() => {
                 setCheckoutError(null);
                 setRedirectingToCheckout(false);

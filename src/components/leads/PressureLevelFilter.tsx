@@ -75,7 +75,7 @@ export function PressureLevelFilter({
                 onClick={handleUpgrade}
               >
                 <Lock className="h-3 w-3" />
-                Upgrade to Professional
+                Upgrade to Pro
               </Button>
             </div>
           </PopoverContent>

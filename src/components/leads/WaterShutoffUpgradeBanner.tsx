@@ -28,14 +28,14 @@ export function WaterShutoffUpgradeBanner({ dataTier }: WaterShutoffUpgradeBanne
               Unlock Water Shutoff Properties
             </h3>
             <p className="text-xs text-muted-foreground mt-1 max-w-md">
-              Properties with utility disconnections convert at <span className="font-semibold text-cyan-700 dark:text-cyan-300">10x the rate</span> of basic violations. Upgrade to Professional to access this premium data.
+              Properties with utility disconnections convert at <span className="font-semibold text-cyan-700 dark:text-cyan-300">10x the rate</span> of basic violations. Upgrade to Elite to access this premium data.
             </p>
             <Button
               size="sm"
               className="mt-3 gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700"
               onClick={() => navigate('/pricing')}
             >
-              Upgrade to Professional
+              Upgrade to Elite
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </div>

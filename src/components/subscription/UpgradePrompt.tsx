@@ -39,31 +39,31 @@ const LIMIT_MESSAGES: Record<LimitType, { title: string; description: string; ic
   // Feature-based limits (booleans)
   advanced_filters: {
     title: "Advanced Filters Not Available",
-    description: "Advanced filtering is available on Professional and Enterprise plans.",
+    description: "Advanced filtering is available on Pro and Elite plans.",
     icon: Sparkles,
     color: "text-purple-500",
   },
   violation_filtering: {
     title: "Violation Filtering Not Available",
-    description: "Violation type filtering is available on Professional and Enterprise plans.",
+    description: "Violation type filtering is available on Pro and Elite plans.",
     icon: Sparkles,
     color: "text-purple-500",
   },
   rolling_intelligence: {
     title: "Rolling Intelligence Not Available",
-    description: "30-day rolling intelligence is available on Professional and Enterprise plans.",
+    description: "30-day rolling intelligence is available on Pro and Elite plans.",
     icon: Sparkles,
     color: "text-purple-500",
   },
   escalation_alerts: {
     title: "Escalation Alerts Not Available",
-    description: "Escalation pattern alerts are available on Enterprise plans.",
+    description: "Escalation pattern alerts are available on Elite plans.",
     icon: Sparkles,
     color: "text-purple-500",
   },
   api_access: {
     title: "API Access Not Available",
-    description: "API access is available on Enterprise plans only.",
+    description: "API access is available on Elite plans only.",
     icon: Sparkles,
     color: "text-purple-500",
   },
@@ -75,32 +75,30 @@ const PLAN_FEATURES = {
     price: "$119/mo",
     badge: "",
     features: [
-      "5 county coverage",
-      "2,500 property exports/month",
-      "Basic SnapScore filtering",
+      "All properties, all counties",
+      "5,000 property exports/month",
+      "Code violation data",
       "Weekly data refresh",
     ],
   },
   professional: {
-    name: "Professional",
+    name: "Pro",
     price: "$249/mo",
     features: [
-      "25 county coverage",
-      "10,000 property exports/month",
-      "Advanced SnapScore filters",
-      "Violation type filtering",
-      "Rolling 30-day intelligence",
+      "All properties, all counties",
+      "15,000 property exports/month",
+      "Pressure Level™ filters",
+      "Priority email support",
     ],
     badge: "Popular",
   },
   enterprise: {
-    name: "Enterprise",
+    name: "Elite",
     price: "$499/mo",
     features: [
-      "All 900+ counties",
-      "25,000 property exports/month",
-      "Full SnapScore AI suite",
-      "Escalation pattern alerts",
+      "All properties, all counties",
+      "50,000 property exports/month",
+      "Water shutoff data",
       "API access (coming soon)",
     ],
     badge: "Best Value",
@@ -565,7 +563,7 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
           {availablePlans.length === 0 && (
             <div className="text-center py-4">
               <p className="text-ink-700 mb-2">
-                You're on the Enterprise plan with maximum features.
+                You're on the Elite plan with maximum features.
               </p>
               <p className="text-sm text-ink-500 mb-4">
                 Need custom options? Contact support.

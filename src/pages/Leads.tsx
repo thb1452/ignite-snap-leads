@@ -19,7 +19,6 @@ import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter"
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
 import { PressureLevelFilter } from "@/components/leads/PressureLevelFilter";
 import { TimeFilter } from "@/components/leads/ScoreAndTimeFilter";
-import { SnapScoreFilter } from "@/components/leads/SnapScoreFilter";
 import { SortByDropdown, type SortOption } from "@/components/leads/SortByDropdown";
 import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
@@ -460,12 +459,6 @@ function Leads() {
           onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
         />
 
-        {/* SnapScore Range */}
-        <SnapScoreFilter
-          snapScoreRange={snapScoreRange}
-          onSnapScoreChange={(v) => { setSnapScoreRange(v); setPage(1); }}
-        />
-
         {/* Spacer + Actions */}
         <div className="flex-1" />
         <FreshnessIndicator />
@@ -511,8 +504,6 @@ function Leads() {
             onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
             repeatOffenderOnly={repeatOffenderOnly}
             onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
-            snapScoreRange={snapScoreRange}
-            onSnapScoreChange={(v) => { setSnapScoreRange(v); setPage(1); }}
             onClearFilters={handleClearFilters}
             activeFilterCount={activeFilterCount}
             propertyCount={totalCount}

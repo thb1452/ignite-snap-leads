@@ -66,8 +66,8 @@ export function EnforcementSignalsFilter({
     // Check if this is an enterprise-only category
     if (ENTERPRISE_ONLY_CATEGORIES.includes(value) && !isEnterprise) {
       toast({
-        title: "Enterprise Feature",
-        description: "Water Disconnection data is available on the Enterprise plan. Upgrade to access properties with utility disconnections.",
+        title: "Elite Feature",
+        description: "Water Disconnection data is available on the Elite plan. Upgrade to access properties with utility disconnections.",
         variant: "default",
       });
       navigate('/pricing');

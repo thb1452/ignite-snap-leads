@@ -73,7 +73,7 @@ export function SnapScoreFilter({
                 onClick={handleUpgrade}
               >
                 <Lock className="h-3 w-3" />
-                Upgrade to Enterprise
+                Upgrade to Elite
               </Button>
             </div>
           </PopoverContent>

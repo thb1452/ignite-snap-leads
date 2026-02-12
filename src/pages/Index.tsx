@@ -2,15 +2,18 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, ListChecks, Zap, TrendingUp, Users } from "lucide-react";
+import { Phone, Mail, ListChecks, Zap, TrendingUp, Users, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { IntelligenceDashboard } from "@/components/intelligence/IntelligenceDashboard";
 import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
 import { useDashboardStats } from "@/hooks/useIntelligenceDashboard";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 export default function Index() {
   const navigate = useNavigate();
   const { data: dashboardStats, isLoading: statsLoading, error: statsError } = useDashboardStats();
+  const { hasFeature } = useFeatureAccess();
+  const hasRollingIntelligence = hasFeature('rolling_intelligence');
   
   const [extraStats, setExtraStats] = useState({
     tracedLeads: 0,
@@ -193,14 +196,35 @@ export default function Index() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">Property Intelligence</h2>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
-          <div className="lg:col-span-3">
-            <IntelligenceDashboard onPropertyClick={(id) => navigate(`/leads?property=${id}`)} />
+        {hasRollingIntelligence ? (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+            <div className="lg:col-span-3">
+              <IntelligenceDashboard onPropertyClick={(id) => navigate(`/leads?property=${id}`)} />
+            </div>
+            <div className="lg:col-span-1">
+              <BatchRescoreButton />
+            </div>
           </div>
-          <div className="lg:col-span-1">
-            <BatchRescoreButton />
-          </div>
-        </div>
+        ) : (
+          <Card className="border-dashed border-amber-300">
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+                <Lock className="h-6 w-6 text-amber-600" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Rolling 30-Day Intelligence</h3>
+              <p className="text-sm text-muted-foreground mb-4 max-w-md">
+                Unlock property intelligence including opportunity funnels, hot property alerts, and jurisdiction enforcement profiles.
+              </p>
+              <Button
+                className="gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
+                onClick={() => navigate('/pricing')}
+              >
+                <Lock className="h-4 w-4" />
+                Upgrade to Professional
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Quick Actions */}

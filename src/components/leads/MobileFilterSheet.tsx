@@ -332,7 +332,7 @@ export function MobileFilterSheet({
               }}
             >
               <ListPlus className="h-5 w-5" />
-              Add All to List ({propertyCount.toLocaleString()})
+              + Add All Results
             </Button>
           )}
           <Button 

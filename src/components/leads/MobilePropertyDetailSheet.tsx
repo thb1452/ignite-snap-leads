@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, MapPin, ExternalLink, Clock, Loader2, ListPlus, Download, Search } from "lucide-react";
+import { X, MapPin, ExternalLink, Clock, Loader2, ListPlus, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { supabase } from "@/integrations/supabase/externalClient";
@@ -288,19 +288,6 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
               >
                 {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Export
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => {
-                  toast({
-                    title: "Find Similar",
-                    description: "Coming soon: Find properties with similar violation profiles.",
-                  });
-                }}
-              >
-                <Search className="h-4 w-4" />
               </Button>
             </div>
           </div>

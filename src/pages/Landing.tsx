@@ -279,70 +279,15 @@ export default function Landing() {
               transition={{ delay: 0.4, duration: 0.8 }}
               className="lg:col-span-2 relative"
             >
-              <div className="relative bg-landing-surface/80 rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-tr from-landing-accent/10 to-transparent" />
-                <div className="p-6 space-y-4">
-                  {/* Mock dashboard header */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-red-500" />
-                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                      <div className="w-3 h-3 rounded-full bg-green-500" />
-                    </div>
-                    <div className="text-xs text-landing-text-muted">Intelligence Dashboard</div>
-                  </div>
-                  
-                  {/* Mock map area */}
-                  <div className="bg-landing-bg/50 rounded-lg h-48 relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-50">
-                      {/* Simulated map pins */}
-                      {[...Array(12)].map((_, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ delay: 0.8 + i * 0.1 }}
-                          className="absolute w-3 h-3 rounded-full bg-landing-accent"
-                          style={{
-                            left: `${20 + Math.random() * 60}%`,
-                            top: `${20 + Math.random() * 60}%`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <div className="absolute bottom-2 left-2 text-xs text-landing-text-muted">
-                      Live enforcement data
-                    </div>
-                  </div>
-                  
-                  {/* Mock property cards */}
-                  <div className="space-y-2">
-                    {[
-                      { address: "1247 Oak St", score: 87, type: "Code Violation" },
-                      { address: "892 Pine Ave", score: 72, type: "Water Shutoff" },
-                      { address: "3456 Elm Rd", score: 65, type: "Multiple Violations" },
-                    ].map((property, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 1 + i * 0.2 }}
-                        className="bg-landing-bg/30 rounded-lg p-3 flex items-center justify-between"
-                      >
-                        <div>
-                          <div className="text-sm font-medium">{property.address}</div>
-                          <div className="text-xs text-landing-text-muted">{property.type}</div>
-                        </div>
-                        <div className={`text-lg font-bold ${
-                          property.score >= 75 ? 'text-red-400' : 
-                          property.score >= 50 ? 'text-orange-400' : 'text-yellow-400'
-                        }`}>
-                          {property.score}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
+              <div className="relative rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
+                <video
+                  src="/demo-video.mp4"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-auto rounded-2xl"
+                />
               </div>
               
               {/* Floating glow effect */}

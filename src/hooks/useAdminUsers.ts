@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 export interface AdminUser {
   id: string;
@@ -12,7 +12,7 @@ export interface AdminUser {
   uploads7Days: number;
 }
 
-export function useAdminUsers(refreshTrigger?: Date) {
+export function useAdminUsers(refreshTrigger?: number) {
   return useQuery({
     queryKey: ["admin-users", refreshTrigger],
     queryFn: async (): Promise<AdminUser[]> => {

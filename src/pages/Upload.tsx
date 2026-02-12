@@ -23,12 +23,12 @@ import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { startGeocodingJob } from '@/services/geocoding';
 import { supabase } from '@/integrations/supabase/client';
-import { detectCsvLocations, splitCsvByCity } from '@/utils/csvLocationDetector';
+import { detectCsvLocations, splitCsvByCity, splitCsvIntoChunks, UPLOAD_LIMITS as CSV_LIMITS } from '@/utils/csvLocationDetector';
 import { sanitizeFilename } from '@/utils/sanitizeFilename';
 
 const UPLOAD_LIMITS = {
   MAX_FILE_SIZE_MB: 15,  // Edge function memory limit requires smaller files
-  MAX_ROWS: 50000,
+  MAX_ROWS: CSV_LIMITS.MAX_ROWS_PER_UPLOAD,
 };
 
 const US_STATES = [
@@ -281,6 +281,7 @@ export default function Upload() {
           description: `Created ${createdJobIds.length} ingest jobs`,
         });
       } else {
+        // Single location - but check if file needs row-based splitting (>50k rows)
         const jobCity = currentDetection?.locations[0]?.city || city || "";
         const jobState = currentDetection?.locations[0]?.state || state || "";
 
@@ -308,19 +309,63 @@ export default function Upload() {
           return;
         }
 
-        const id = await createUploadJob({ 
-          file, 
-          userId: effectiveUserId, 
-          city: jobCity || null, 
-          county: county || null, 
-          state: jobState,
-          isWaterData,
-        });
-        setJobId(id);
-        toast({
-          title: 'Upload Started',
-          description: 'Your file is being processed',
-        });
+        // Check if file exceeds row limit - auto-split if needed
+        const { chunks, totalRows, needsSplit } = splitCsvIntoChunks(csvData);
+        
+        if (needsSplit) {
+          console.log(`[Upload] Auto-splitting ${totalRows} rows into ${chunks.length} chunks`);
+          toast({
+            title: 'Large File Detected',
+            description: `Splitting ${totalRows.toLocaleString()} rows into ${chunks.length} parts for processing...`,
+          });
+
+          const createdJobIds: string[] = [];
+          
+          for (let i = 0; i < chunks.length; i++) {
+            const chunkCsv = chunks[i];
+            const blob = new Blob([chunkCsv], { type: 'text/csv' });
+            const chunkFileName = `${sanitizeFilename(file.name.replace('.csv', ''))}_part${i + 1}of${chunks.length}_${Date.now()}.csv`;
+            const chunkFile = new File([blob], chunkFileName, { type: 'text/csv' });
+
+            const chunkJobId = await createUploadJob({
+              file: chunkFile,
+              userId: effectiveUserId,
+              city: jobCity || null,
+              county: county || null,
+              state: jobState,
+              isWaterData,
+            });
+            createdJobIds.push(chunkJobId);
+            
+            // Increased delay between chunk submissions to prevent database overload
+            // Jobs will process sequentially to avoid concurrent statement timeouts
+            if (i < chunks.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
+
+          setJobIds(createdJobIds);
+          setJobId(null);
+          toast({
+            title: 'Upload Started',
+            description: `Split into ${createdJobIds.length} jobs for parallel processing`,
+          });
+        } else {
+          // Normal single file upload
+          const id = await createUploadJob({ 
+            file, 
+            userId: effectiveUserId, 
+            city: jobCity || null, 
+            county: county || null, 
+            state: jobState,
+            isWaterData,
+          });
+          setJobId(id);
+          toast({
+            title: 'Upload Started',
+            description: 'Your file is being processed',
+          });
+        }
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -410,7 +455,7 @@ export default function Upload() {
           description: `Created ${createdJobIds.length} ingest jobs (staggered to prevent conflicts)`,
         });
       } else {
-        // Single location
+        // Single location - but check if file needs row-based splitting (>50k rows)
         const jobCity = currentDetection?.locations[0]?.city || city || "";
         const jobState = currentDetection?.locations[0]?.state || state || "";
 
@@ -439,23 +484,65 @@ export default function Upload() {
           return;
         }
 
-        const fileName = `pasted_${Date.now()}.csv`;
-        const blob = new Blob([csvData], { type: 'text/csv' });
-        const file = new File([blob], fileName, { type: 'text/csv' });
+        // Check if data exceeds row limit - auto-split if needed
+        const { chunks, totalRows, needsSplit } = splitCsvIntoChunks(csvData);
+        
+        if (needsSplit) {
+          console.log(`[Upload] Auto-splitting pasted ${totalRows} rows into ${chunks.length} chunks`);
+          toast({
+            title: 'Large Data Detected',
+            description: `Splitting ${totalRows.toLocaleString()} rows into ${chunks.length} parts for processing...`,
+          });
 
-        const id = await createUploadJob({
-          file,
-          userId: effectiveUserId,
-          city: jobCity || null,
-          county: county || null,
-          state: jobState,
-          isWaterData,
-        });
-        setJobId(id);
-        toast({
-          title: 'CSV Processed',
-          description: 'Your pasted data is being processed',
-        });
+          const createdJobIds: string[] = [];
+          
+          for (let i = 0; i < chunks.length; i++) {
+            const chunkCsv = chunks[i];
+            const blob = new Blob([chunkCsv], { type: 'text/csv' });
+            const chunkFileName = `pasted_part${i + 1}of${chunks.length}_${Date.now()}.csv`;
+            const chunkFile = new File([blob], chunkFileName, { type: 'text/csv' });
+
+            const chunkJobId = await createUploadJob({
+              file: chunkFile,
+              userId: effectiveUserId,
+              city: jobCity || null,
+              county: county || null,
+              state: jobState,
+              isWaterData,
+            });
+            createdJobIds.push(chunkJobId);
+            
+            // Small delay between chunk submissions
+            if (i < chunks.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
+          }
+
+          setJobIds(createdJobIds);
+          setJobId(null);
+          toast({
+            title: 'CSV Processed',
+            description: `Split into ${createdJobIds.length} jobs for parallel processing`,
+          });
+        } else {
+          const fileName = `pasted_${Date.now()}.csv`;
+          const blob = new Blob([csvData], { type: 'text/csv' });
+          const file = new File([blob], fileName, { type: 'text/csv' });
+
+          const id = await createUploadJob({
+            file,
+            userId: effectiveUserId,
+            city: jobCity || null,
+            county: county || null,
+            state: jobState,
+            isWaterData,
+          });
+          setJobId(id);
+          toast({
+            title: 'CSV Processed',
+            description: 'Your pasted data is being processed',
+          });
+        }
       }
     } catch (error) {
       console.error('Error processing pasted CSV:', error);
@@ -742,7 +829,7 @@ export default function Upload() {
                   Location columns (city, state) enable auto-detection. Other optional: zip, violation type, description, opened date, status, case/file ID.
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  <strong>Limits:</strong> Max {UPLOAD_LIMITS.MAX_FILE_SIZE_MB}MB file size, {UPLOAD_LIMITS.MAX_ROWS.toLocaleString()} rows per file.
+                  <strong>Limits:</strong> Max {UPLOAD_LIMITS.MAX_FILE_SIZE_MB}MB file size. Files over {UPLOAD_LIMITS.MAX_ROWS.toLocaleString()} rows are automatically split into smaller parts for processing.
                 </p>
               </div>
             </AlertDescription>

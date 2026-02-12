@@ -2053,6 +2053,21 @@ export type Database = {
             }
             Returns: string
           }
+      backfill_insights_batch: {
+        Args: { batch_size?: number }
+        Returns: {
+          processed: number
+          remaining: number
+        }[]
+      }
+      backfill_property_aggregates_batch: {
+        Args: { p_batch_size?: number }
+        Returns: {
+          processed: number
+          remaining: number
+          updated: number
+        }[]
+      }
       bulk_upsert_violations: { Args: { p_violations: Json }; Returns: Json }
       consume_credit: { Args: { p_user_id: string }; Returns: number }
       disablelongtransactions: { Args: never; Returns: string }
@@ -2266,6 +2281,30 @@ export type Database = {
           state: string
         }[]
       }
+      fn_map_markers_in_bounds: {
+        Args: {
+          p_category?: string
+          p_city?: string
+          p_limit?: number
+          p_max_lat: number
+          p_max_lng: number
+          p_min_lat: number
+          p_min_lng: number
+          p_snap_max?: number
+          p_snap_min?: number
+          p_state?: string
+        }
+        Returns: {
+          address: string
+          city: string
+          enforcement_type: string
+          id: string
+          latitude: number
+          longitude: number
+          snap_score: number
+          state: string
+        }[]
+      }
       fn_opportunity_funnel: {
         Args: never
         Returns: {
@@ -2330,6 +2369,24 @@ export type Database = {
               p_category: string
               p_city?: string
               p_last_seen_days?: number
+              p_multiple_violations_only?: boolean
+              p_open_violations_only?: boolean
+              p_page?: number
+              p_page_size?: number
+              p_repeat_offender_only?: boolean
+              p_search?: string
+              p_snap_max?: number
+              p_snap_min?: number
+              p_sort_by?: string
+              p_state?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_category: string
+              p_city?: string
+              p_last_seen_days?: number
               p_page?: number
               p_page_size?: number
               p_search?: string
@@ -2340,20 +2397,38 @@ export type Database = {
             }
             Returns: Json
           }
-      fn_properties_paged: {
-        Args: {
-          p_city?: string
-          p_last_seen_days?: number
-          p_page?: number
-          p_page_size?: number
-          p_search?: string
-          p_snap_max?: number
-          p_snap_min?: number
-          p_sort_by?: string
-          p_state?: string
-        }
-        Returns: Json
-      }
+      fn_properties_paged:
+        | {
+            Args: {
+              p_city?: string
+              p_last_seen_days?: number
+              p_page?: number
+              p_page_size?: number
+              p_search?: string
+              p_snap_max?: number
+              p_snap_min?: number
+              p_sort_by?: string
+              p_state?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_city?: string
+              p_last_seen_days?: number
+              p_multiple_violations_only?: boolean
+              p_open_violations_only?: boolean
+              p_page?: number
+              p_page_size?: number
+              p_repeat_offender_only?: boolean
+              p_search?: string
+              p_snap_max?: number
+              p_snap_min?: number
+              p_sort_by?: string
+              p_state?: string
+            }
+            Returns: Json
+          }
       fn_properties_untraced_in_list: {
         Args: { p_limit?: number; p_list_id: string }
         Returns: {
@@ -2372,6 +2447,19 @@ export type Database = {
           count: number
           violation_type: string
         }[]
+      }
+      generate_enforcement_insight: {
+        Args: {
+          p_avg_days_open: number
+          p_distress_signals: string[]
+          p_escalated: boolean
+          p_multi_department: boolean
+          p_open_violations: number
+          p_repeat_offender: boolean
+          p_total_violations: number
+          p_violation_types: string[]
+        }
+        Returns: string
       }
       geometry: { Args: { "": string }; Returns: unknown }
       geometry_above: {
@@ -2520,6 +2608,13 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      refresh_outdated_insights_batch: {
+        Args: { batch_size?: number }
+        Returns: {
+          processed: number
+          remaining: number
+        }[]
+      }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: unknown

@@ -30,9 +30,9 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
 import { exportFilteredCsv } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
-import { useMapMarkers } from "@/hooks/useMapMarkers";
+import type { LeadFilters } from "@/schemas";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { Input } from "@/components/ui/input";
 import { ExportQuotaDisplay } from "@/components/leads/ExportQuotaDisplay";
 import { WaterShutoffUpgradeBanner } from "@/components/leads/WaterShutoffUpgradeBanner";
@@ -148,8 +148,7 @@ function Leads() {
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
   
-  // Use lightweight markers query for the map (filtered same as list)
-  const { data: mapMarkers = [], error: mapError } = useMapMarkers(filters);
+  // Map now uses viewport-based loading - no pre-fetching needed
   
   // Show toast notifications for errors
   useEffect(() => {
@@ -163,16 +162,6 @@ function Leads() {
     }
   }, [error, toast]);
 
-  useEffect(() => {
-    if (mapError) {
-      console.error("[Leads] Map markers error:", mapError);
-      toast({
-        title: "Failed to load map data",
-        description: "Map markers may not be displayed correctly.",
-        variant: "destructive",
-      });
-    }
-  }, [mapError, toast]);
 
   const properties = data?.data ?? [];
   const totalCount = data?.total ?? 0;
@@ -426,73 +415,63 @@ function Leads() {
         exportContext={exportContextData}
       />
 
-      {/* DESKTOP: Filter Bar */}
-      <div className="hidden md:block">
-        <FilterBar
-          searchQuery={searchInput}
-          onSearchChange={setSearchInput}
-          lastSeenDays={lastSeenDays}
-          selectedCity={selectedCity}
-          selectedState={selectedState}
-          selectedSignal={selectedSignal}
-          openViolationsOnly={openViolationsOnly}
-          multipleViolationsOnly={multipleViolationsOnly}
-          repeatOffenderOnly={repeatOffenderOnly}
-          snapScoreRange={snapScoreRange}
-          propertyCount={totalCount}
-          onClearFilters={handleClearFilters}
-          onAddAllToList={() => setShowAddAllToListDialog(true)}
-        />
-        
-        <div className="flex flex-wrap gap-6 px-4 py-4 border-b bg-background">
-          {/* Enforcement Area */}
-          <EnforcementAreaFilter
-            selectedCity={selectedCity}
-            selectedState={selectedState}
-            onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
-            onStateChange={(s) => { setSelectedState(s); setPage(1); }}
-          />
-
-          {/* Date Range */}
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Date Range
-            </span>
-            <TimeFilter
-              lastSeenDays={lastSeenDays}
-              onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
-            />
-          </div>
-          
-          {/* Enforcement Signals - Available to all users */}
-          <EnforcementSignalsFilter
-            selectedSignal={selectedSignal}
-            onSignalChange={(v) => { 
-              setSelectedSignal(v); 
-              setPage(1);
-              // Clear search when category changes to avoid conflicting filters
-              if (v) setSearchInput("");
-            }}
-            selectedState={selectedState}
-            selectedCity={selectedCity}
-          />
-          
-          {/* Pressure Level - Professional+ */}
-          <PressureLevelFilter
-            openViolationsOnly={openViolationsOnly}
-            onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
-            multipleViolationsOnly={multipleViolationsOnly}
-            onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
-            repeatOffenderOnly={repeatOffenderOnly}
-            onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
-          />
-          
-          {/* SnapScore Range - Enterprise only */}
-          <SnapScoreFilter
-            snapScoreRange={snapScoreRange}
-            onSnapScoreChange={(v) => { setSnapScoreRange(v); setPage(1); }}
+      {/* DESKTOP: Ultra-compact single-row filter bar */}
+      <div className="hidden md:flex items-center gap-4 px-4 py-2 border-b bg-background flex-wrap">
+        {/* Search */}
+        <div className="relative w-48">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pl-8 h-7 text-xs"
           />
         </div>
+
+        {/* State/City */}
+        <EnforcementAreaFilter
+          selectedCity={selectedCity}
+          selectedState={selectedState}
+          onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
+          onStateChange={(s) => { setSelectedState(s); setPage(1); }}
+        />
+
+        {/* Time */}
+        <TimeFilter
+          lastSeenDays={lastSeenDays}
+          onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
+        />
+
+        {/* Issue Type */}
+        <EnforcementSignalsFilter
+          selectedSignal={selectedSignal}
+          onSignalChange={(v) => { setSelectedSignal(v); setPage(1); if (v) setSearchInput(""); }}
+          selectedState={selectedState}
+          selectedCity={selectedCity}
+        />
+
+        {/* Pressure Level */}
+        <PressureLevelFilter
+          openViolationsOnly={openViolationsOnly}
+          onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
+          multipleViolationsOnly={multipleViolationsOnly}
+          onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
+          repeatOffenderOnly={repeatOffenderOnly}
+          onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
+        />
+
+        {/* SnapScore Range */}
+        <SnapScoreFilter
+          snapScoreRange={snapScoreRange}
+          onSnapScoreChange={(v) => { setSnapScoreRange(v); setPage(1); }}
+        />
+
+        {/* Spacer + Actions */}
+        <div className="flex-1" />
+        <FreshnessIndicator />
+        <Button variant="ghost" size="sm" onClick={handleClearFilters} disabled={!activeFilterCount} className="h-7 px-2 text-xs gap-1">
+          <X className="h-3 w-3" /> Clear
+        </Button>
       </div>
 
       {/* MOBILE: Compact Header with Search + Filters */}
@@ -583,7 +562,7 @@ function Leads() {
         {/* Map - Left Side */}
         <div className="w-[60%] border-r relative">
           <LeadsMap
-            properties={mapMarkers}
+            filters={filters as LeadFilters}
             onPropertyClick={setSelectedPropertyId}
             selectedPropertyId={selectedPropertyId || undefined}
           />
@@ -591,32 +570,27 @@ function Leads() {
 
         {/* Property List - Right Side */}
         <div className="w-[40%] flex flex-col relative">
-          {/* Header with View Mode Toggle and Export */}
+        {/* Compact Header - single row */}
           {properties.length > 0 && (
-            <div className="px-4 py-2 border-b bg-background flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground">
-                    {selectedIds.length > 0
-                      ? `${selectedIds.length} selected`
-                      : `${totalCount.toLocaleString()} properties`}
-                  </span>
-                  <SortByDropdown value={sortBy} onChange={(v) => { setSortBy(v); setPage(1); }} />
-                </div>
-                <Button
-                  onClick={handleExportCSV}
-                  disabled={selectedIds.length === 0}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Export
-                </Button>
+            <div className="px-3 py-1.5 border-b bg-background flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {selectedIds.length > 0
+                    ? `${selectedIds.length} selected`
+                    : `${totalCount.toLocaleString()}`}
+                </span>
+                <SortByDropdown value={sortBy} onChange={(v) => { setSortBy(v); setPage(1); }} />
               </div>
-              <ExportQuotaDisplay />
+              <Button
+                onClick={handleExportCSV}
+                disabled={selectedIds.length === 0}
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+              >
+                <Download className="h-3.5 w-3.5 mr-1" />
+                Export
+              </Button>
             </div>
           )}
 
@@ -639,31 +613,29 @@ function Leads() {
             )}
           </div>
 
-          {/* Pagination Controls */}
+          {/* Compact Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-2 border-t bg-background">
+            <div className="flex items-center justify-center gap-3 px-2 py-1 border-t bg-background text-xs">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handlePageChange(Math.max(1, page - 1))}
                 disabled={page <= 1}
-                className="gap-1"
+                className="h-6 px-2 text-xs"
               >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
+                <ChevronLeft className="h-3 w-3" />
               </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
+              <span className="text-muted-foreground">
+                {page}/{totalPages}
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
                 disabled={page >= totalPages}
-                className="gap-1"
+                className="h-6 px-2 text-xs"
               >
-                Next
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3 w-3" />
               </Button>
             </div>
           )}
@@ -686,7 +658,7 @@ function Leads() {
           /* Map View - Full height */
           <div className="flex-1 relative">
             <LeadsMap
-              properties={mapMarkers}
+              filters={filters as LeadFilters}
               onPropertyClick={setSelectedPropertyId}
               selectedPropertyId={selectedPropertyId || undefined}
             />

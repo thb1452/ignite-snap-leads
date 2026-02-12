@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 interface EnforcementAreaFilterProps {
   selectedCity: string | null;
@@ -86,55 +86,41 @@ export function EnforcementAreaFilter({
   }, [selectedState]);
 
   return (
-    <div className="flex flex-col gap-3">
-      <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-        Enforcement Area
-      </Label>
-      
-      <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-3 flex-wrap">
-        {/* State Filter */}
-        <div className="flex flex-col md:flex-row md:items-center gap-2">
-          <Label className="text-sm font-medium whitespace-nowrap">State</Label>
-          <Select
-            value={selectedState || "all"}
-            onValueChange={(val) => onStateChange(val === "all" ? null : val)}
-          >
-            <SelectTrigger className="w-full md:w-[120px] h-11 md:h-9">
-              <SelectValue placeholder={loadingStates ? "Loading..." : "All States"} />
-            </SelectTrigger>
-            <SelectContent className="z-[9999]">
-              <SelectItem value="all">All States</SelectItem>
-              {propertyStates.map((state) => (
-                <SelectItem key={state} value={state}>
-                  {state}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <div className="flex items-center gap-2">
+      <Select
+        value={selectedState || "all"}
+        onValueChange={(val) => onStateChange(val === "all" ? null : val)}
+      >
+        <SelectTrigger className="w-[80px] h-7 text-xs">
+          <SelectValue placeholder={loadingStates ? "..." : "State"} />
+        </SelectTrigger>
+        <SelectContent className="z-[9999]">
+          <SelectItem value="all">All States</SelectItem>
+          {propertyStates.map((state) => (
+            <SelectItem key={state} value={state}>
+              {state}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-        {/* City Filter */}
-        <div className="flex flex-col md:flex-row md:items-center gap-2">
-          <Label className="text-sm font-medium whitespace-nowrap">City</Label>
-          <Select
-            value={selectedCity || "all"}
-            onValueChange={(val) => onCityChange(val === "all" ? null : val)}
-            disabled={!selectedState}
-          >
-            <SelectTrigger className="w-full md:w-[180px] h-11 md:h-9">
-              <SelectValue placeholder={!selectedState ? "Select state first" : loadingCities ? "Loading..." : "All Cities"} />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px] z-[9999]">
-              <SelectItem value="all">All Cities</SelectItem>
-              {propertyCities.map((city) => (
-                <SelectItem key={city} value={city}>
-                  {city}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <Select
+        value={selectedCity || "all"}
+        onValueChange={(val) => onCityChange(val === "all" ? null : val)}
+        disabled={!selectedState}
+      >
+        <SelectTrigger className="w-[100px] h-7 text-xs">
+          <SelectValue placeholder={!selectedState ? "City" : loadingCities ? "..." : "City"} />
+        </SelectTrigger>
+        <SelectContent className="max-h-[300px] z-[9999]">
+          <SelectItem value="all">All Cities</SelectItem>
+          {propertyCities.map((city) => (
+            <SelectItem key={city} value={city}>
+              {city}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 export async function getUserCredits(): Promise<number> {
   const { data: { user } } = await supabase.auth.getUser();

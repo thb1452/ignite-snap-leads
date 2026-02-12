@@ -1,13 +1,15 @@
 // Minimal wrapper to call Supabase Edge Functions with the user's JWT.
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 export async function callFn<T = any>(
-  name: "sms-send" | "email-send" | "export-csv" | "generate-insights" | "geocode-properties" | "process-upload" | "bulk-rescore" | "refresh-outdated-insights",
+  name: "sms-send" | "email-send" | "export-csv" | "generate-insights" | "geocode-properties" | "process-upload" | "bulk-rescore" | "refresh-outdated-insights" | "backfill-property-aggregates",
   payload?: unknown,
   init?: RequestInit
 ): Promise<T> {
   const { data: { session } } = await supabase.auth.getSession();
-  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`, {
+  // Use external Supabase URL for edge functions (fallback to default for compatibility)
+  const baseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+  const res = await fetch(`${baseUrl}/functions/v1/${name}`, {
     method: init?.method ?? (payload ? "POST" : "GET"),
     headers: {
       "Content-Type": "application/json",

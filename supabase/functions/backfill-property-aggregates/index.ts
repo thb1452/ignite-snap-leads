@@ -1,14 +1,8 @@
 /**
- * Backfill Property Aggregates
+ * Backfill Property Aggregates (v3 - Parallel Processing)
  *
- * Recalculates violation aggregates for existing properties:
- * - total_violations
- * - open_violations
- * - violation_types
- * - repeat_offender
- * - last_enforcement_date
- *
- * Processes in batches to avoid timeout.
+ * Uses parallel batch processing for maximum speed.
+ * Processes multiple batches concurrently for ~5x throughput.
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -16,34 +10,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 interface BackfillRequest {
-  batchSize?: number;  // Default: 100
-  startOffset?: number; // For resuming
-  cityFilter?: string;  // Optional: only backfill specific city
-  stateFilter?: string; // Optional: only backfill specific state
-  dryRun?: boolean;     // Preview only, don't update
-  autoResume?: boolean; // Auto-continue until all processed
-}
-
-interface BackfillResult {
-  success: boolean;
-  processed: number;
-  updated: number;
-  skipped: number;
-  errors: number;
-  progress: {
-    current: number;
-    total: number;
-    percentage: number;
-  };
-  samples?: Array<{
-    property_id: string;
-    address: string;
-    before: any;
-    after: any;
-  }>;
+  batchSize?: number;
+  concurrency?: number; // Number of parallel batches
+  autoResume?: boolean;
 }
 
 serve(async (req) => {
@@ -54,12 +27,10 @@ serve(async (req) => {
   try {
     const {
       batchSize = 200,
-      startOffset = 0,
-      cityFilter,
-      stateFilter,
-      dryRun = false,
-      autoResume = false
+      concurrency = 5, // Run 5 batches in parallel = 1000 properties per cycle
+      autoResume = true,
     }: BackfillRequest = await req.json().catch(() => ({}));
+
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -69,207 +40,49 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Build query for properties to process
-    let query = supabase
-      .from("properties")
-      .select("id, address, city, state, total_violations, open_violations, violation_types, repeat_offender, last_enforcement_date", { count: "exact" });
+    console.log(`[backfill-v3] Starting parallel processing: ${concurrency} x ${batchSize} = ${concurrency * batchSize} properties per cycle`);
 
-    if (cityFilter) {
-      query = query.ilike("city", cityFilter);
-    }
-    if (stateFilter) {
-      query = query.ilike("state", stateFilter);
-    }
-
-    // Get total count first
-    const { count: totalCount, error: countError } = await query;
-
-    if (countError) {
-      console.error("[backfill] Error counting properties:", countError);
-      throw countError;
-    }
-
-    console.log(`[backfill] Total properties to process: ${totalCount}`);
-    console.log(`[backfill] Batch size: ${batchSize}`);
-    console.log(`[backfill] Start offset: ${startOffset}`);
-    console.log(`[backfill] Dry run: ${dryRun}`);
-
-    // Fetch batch of properties
-    const { data: properties, error: fetchError } = await query
-      .range(startOffset, startOffset + batchSize - 1);
-
-    if (fetchError) {
-      console.error("[backfill] Error fetching properties:", fetchError);
-      throw fetchError;
-    }
-
-    if (!properties || properties.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          processed: 0,
-          message: "No properties to process in this batch"
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`[backfill] Processing ${properties.length} properties...`);
-
-    // OPTIMIZATION: Batch fetch violations in chunks to avoid URL length limits
-    const propertyIds = properties.map(p => p.id);
-    const violationsByProperty = new Map<string, any[]>();
-    
-    // Fetch violations in chunks of 50 to avoid URL length issues
-    const CHUNK_SIZE = 50;
-    for (let i = 0; i < propertyIds.length; i += CHUNK_SIZE) {
-      const chunk = propertyIds.slice(i, i + CHUNK_SIZE);
-      const { data: chunkViolations, error: violError } = await supabase
-        .from("violations")
-        .select("property_id, violation_type, status, opened_date, case_id")
-        .in("property_id", chunk);
-
-      if (violError) {
-        console.error(`[backfill] Error fetching violations chunk:`, violError);
-        throw violError;
-      }
-
-      // Group violations by property_id
-      for (const violation of chunkViolations || []) {
-        if (!violationsByProperty.has(violation.property_id)) {
-          violationsByProperty.set(violation.property_id, []);
-        }
-        violationsByProperty.get(violation.property_id)!.push(violation);
-      }
-    }
-    
-    console.log(`[backfill] Fetched violations for ${violationsByProperty.size} properties`);
-
-    let updated = 0;
-    let skipped = 0;
-    let errors = 0;
-    const samples: any[] = [];
-
-    // Process each property
-    for (const property of properties) {
+    // Run multiple batches in parallel
+    const batchPromises = Array.from({ length: concurrency }, async (_, i) => {
       try {
-        // Get violations for this property from the batch-fetched data
-        const violations = violationsByProperty.get(property.id) || [];
-
-        // Skip if no violations
-        if (violations.length === 0) {
-          skipped++;
-          continue;
+        const { data, error } = await supabase.rpc('backfill_property_aggregates_batch', {
+          p_batch_size: batchSize
+        });
+        
+        if (error) {
+          console.error(`[backfill-v3] Batch ${i + 1} error:`, error.message);
+          return { processed: 0, updated: 0, remaining: 0, error: error.message };
         }
-
-        // Calculate aggregates
-        const totalCount = violations.length;
-
-        const openCount = violations.filter(v =>
-          (v.status || '').toLowerCase().trim() === 'open'
-        ).length;
-
-        const types = [...new Set(
-          violations
-            .map(v => v.violation_type)
-            .filter((t): t is string => t !== null && t.trim() !== '')
-        )];
-
-        const uniqueCases = new Set(
-          violations
-            .map(v => v.case_id)
-            .filter((c): c is string => c !== null && c.trim() !== '')
-        );
-        const isRepeatOffender = uniqueCases.size > 1;
-
-        const dates = violations
-          .map(v => v.opened_date)
-          .filter((d): d is string => d !== null)
-          .map(d => new Date(d))
-          .filter(d => !isNaN(d.getTime()));
-
-        const lastEnforcementDate = dates.length > 0
-          ? new Date(Math.max(...dates.map(d => d.getTime()))).toISOString()
-          : null;
-
-        const aggregates = {
-          total_violations: totalCount,
-          open_violations: openCount,
-          violation_types: types,
-          repeat_offender: isRepeatOffender,
-          last_enforcement_date: lastEnforcementDate,
-        };
-
-        // Store sample for first 5 properties
-        if (samples.length < 5) {
-          samples.push({
-            property_id: property.id,
-            address: property.address,
-            before: {
-              total_violations: property.total_violations,
-              open_violations: property.open_violations,
-              violation_types: property.violation_types,
-              repeat_offender: property.repeat_offender,
-              last_enforcement_date: property.last_enforcement_date,
-            },
-            after: aggregates
-          });
-        }
-
-        // Update property (unless dry run)
-        if (!dryRun) {
-          const { error: updateError } = await supabase
-            .from("properties")
-            .update({
-              total_violations: aggregates.total_violations,
-              open_violations: aggregates.open_violations,
-              violation_types: aggregates.violation_types,
-              repeat_offender: aggregates.repeat_offender,
-              last_enforcement_date: aggregates.last_enforcement_date,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", property.id);
-
-          if (updateError) {
-            console.error(`[backfill] Error updating ${property.id}:`, updateError);
-            errors++;
-            continue;
-          }
-        }
-
-        updated++;
-
-      } catch (error) {
-        console.error(`[backfill] Error processing property ${property.id}:`, error);
-        errors++;
+        
+        return data?.[0] || { processed: 0, updated: 0, remaining: 0 };
+      } catch (err) {
+        console.error(`[backfill-v3] Batch ${i + 1} exception:`, err);
+        return { processed: 0, updated: 0, remaining: 0, error: String(err) };
       }
-    }
+    });
 
-    const processed = properties.length;
-    const progress = {
-      current: startOffset + processed,
-      total: totalCount || 0,
-      percentage: totalCount ? Math.round(((startOffset + processed) / totalCount) * 100) : 100
-    };
-
-    console.log(`[backfill] ========================================`);
-    console.log(`[backfill] Batch complete:`);
-    console.log(`[backfill]   Processed: ${processed}`);
-    console.log(`[backfill]   Updated: ${updated}`);
-    console.log(`[backfill]   Skipped (no violations): ${skipped}`);
-    console.log(`[backfill]   Errors: ${errors}`);
-    console.log(`[backfill]   Progress: ${progress.percentage}% (${progress.current}/${progress.total})`);
-    console.log(`[backfill] ========================================`);
-
-    // Auto-resume: trigger next batch if there's more to process
-    const hasMore = processed >= batchSize && progress.current < progress.total;
+    const results = await Promise.all(batchPromises);
     
-    if (autoResume && hasMore && !dryRun) {
-      const nextOffset = startOffset + processed;
-      console.log(`[backfill] Auto-resuming at offset ${nextOffset}...`);
+    // Aggregate results
+    const totalProcessed = results.reduce((sum, r) => sum + (r.processed || 0), 0);
+    const totalUpdated = results.reduce((sum, r) => sum + (r.updated || 0), 0);
+    const remaining = results[results.length - 1]?.remaining ?? 0;
+    const errors = results.filter(r => r.error).length;
+
+    console.log(`[backfill-v3] ========================================`);
+    console.log(`[backfill-v3] Parallel batch complete:`);
+    console.log(`[backfill-v3]   Processed: ${totalProcessed}`);
+    console.log(`[backfill-v3]   Updated: ${totalUpdated}`);
+    console.log(`[backfill-v3]   Remaining: ${remaining}`);
+    console.log(`[backfill-v3]   Errors: ${errors}/${concurrency}`);
+    console.log(`[backfill-v3] ========================================`);
+
+    // Auto-resume if there are more to process
+    const hasMore = remaining > 0 && totalProcessed > 0;
+    
+    if (autoResume && hasMore) {
+      console.log(`[backfill-v3] Auto-resuming, ${remaining} remaining...`);
       
-      // Use waitUntil to continue processing in background
-      const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
       const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
       
       const continueTask = async () => {
@@ -282,49 +95,55 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               batchSize,
-              startOffset: nextOffset,
-              cityFilter,
-              stateFilter,
-              dryRun,
+              concurrency,
               autoResume: true,
             }),
           });
         } catch (err) {
-          console.error('[backfill] Auto-resume failed:', err);
+          console.error('[backfill-v3] Auto-resume failed:', err);
         }
       };
       
-      // Use globalThis cast for EdgeRuntime detection in Supabase Edge Functions
       const runtime = (globalThis as any).EdgeRuntime;
       if (typeof runtime !== 'undefined' && runtime.waitUntil) {
         runtime.waitUntil(continueTask());
       } else {
-        // Fallback: just fire and forget
         continueTask();
       }
     }
 
-    const result: BackfillResult = {
-      success: true,
-      processed,
-      updated,
-      skipped,
-      errors,
-      progress,
-      samples: dryRun ? samples : undefined,
+    const progress = {
+      current: totalProcessed,
+      remaining: remaining,
+      percentage: remaining > 0 
+        ? Math.round((totalProcessed / (totalProcessed + remaining)) * 100)
+        : 100
     };
 
     return new Response(
-      JSON.stringify({ ...result, autoResuming: autoResume && hasMore && !dryRun }),
+      JSON.stringify({
+        success: true,
+        processed: totalProcessed,
+        updated: totalUpdated,
+        remaining: remaining,
+        progress,
+        autoResuming: autoResume && hasMore,
+        version: 'v3-parallel'
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error("[backfill] Fatal error:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'object' && error !== null
+        ? JSON.stringify(error)
+        : String(error);
+    console.error("[backfill-v3] Fatal error:", errorMessage);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: errorMessage
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -1,13 +1,15 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useState, useEffect, useRef, useCallback } from 'react';
 import { Navigate, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { EmailVerificationPrompt } from './EmailVerificationPrompt';
-import { Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Loader2, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const CHECKOUT_PROCESSED_KEY = 'snap_checkout_processed';
-// Key to track if user is in the middle of signup → checkout flow
 const PENDING_CHECKOUT_KEY = 'snap_pending_checkout';
+const LOADING_TIMEOUT_MS = 8000;
+const ROLES_CACHE_KEY = 'snap_user_roles_cache';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
@@ -20,17 +22,20 @@ export function RoleProtectedRoute({
   allowedRoles,
   redirectTo = '/leads'
 }: RoleProtectedRouteProps) {
-  const { user, loading, hasRole, emailVerified } = useAuth();
+  const { user, loading, hasRole, emailVerified, roles } = useAuth();
   const { plan, loading: subLoading, hasActiveSubscription, refetch } = useSubscription();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Track subscription polling state
+  // ALL HOOKS MUST BE AT THE TOP - BEFORE ANY CONDITIONAL RETURNS
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [pollCount, setPollCount] = useState(0);
   const [hasGivenUp, setHasGivenUp] = useState(false);
+  const [isRetryingRoles, setIsRetryingRoles] = useState(false);
+  const [roleRetryCount, setRoleRetryCount] = useState(0);
 
-  // Initialize checkoutProcessed from sessionStorage to survive navigation/refresh
   const [checkoutProcessed, setCheckoutProcessed] = useState(() => {
     try {
       return sessionStorage.getItem(CHECKOUT_PROCESSED_KEY) === 'true';
@@ -39,18 +44,71 @@ export function RoleProtectedRoute({
     }
   });
 
-  // Check if user just came from checkout - URL param is available synchronously on first render
   const checkoutSuccess = searchParams.get('checkout') === 'success';
-
-  // CRITICAL: Combine both signals to handle first render race condition
-  // - checkoutSuccess: URL param, available immediately on first render
-  // - checkoutProcessed: sessionStorage, persists across navigation/refresh
   const inCheckoutFlow = checkoutSuccess || checkoutProcessed;
 
-  // Handle checkout success detection and persist to sessionStorage
+  // Manual role retry function
+  const handleRetryRoles = useCallback(async () => {
+    if (!user || isRetryingRoles) return;
+    
+    setIsRetryingRoles(true);
+    setRoleRetryCount(prev => prev + 1);
+    
+    try {
+      const { data: roleData, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+      
+      if (!error && roleData && roleData.length > 0) {
+        const fetchedRoles = roleData.map(r => r.role as AppRole);
+        try {
+          localStorage.setItem(ROLES_CACHE_KEY, JSON.stringify({
+            userId: user.id,
+            roles: fetchedRoles,
+            timestamp: Date.now()
+          }));
+        } catch (e) {
+          console.warn('[RoleProtectedRoute] Error caching roles:', e);
+        }
+        window.location.reload();
+        return;
+      }
+    } catch (err) {
+      console.error('[RoleProtectedRoute] Role retry failed:', err);
+    } finally {
+      setIsRetryingRoles(false);
+    }
+  }, [user, isRetryingRoles]);
+
+  // Safety timeout effect
+  useEffect(() => {
+    if (loading || subLoading) {
+      if (!timeoutRef.current) {
+        timeoutRef.current = setTimeout(() => {
+          console.warn('[RoleProtectedRoute] Loading timeout reached, forcing complete');
+          setLoadingTimedOut(true);
+        }, LOADING_TIMEOUT_MS);
+      }
+    } else {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      setLoadingTimedOut(false);
+    }
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [loading, subLoading]);
+
+  // Handle checkout success detection
   useEffect(() => {
     if (checkoutSuccess && !checkoutProcessed) {
-      // Mark as processed and persist to sessionStorage
       setCheckoutProcessed(true);
       try {
         sessionStorage.setItem(CHECKOUT_PROCESSED_KEY, 'true');
@@ -59,7 +117,6 @@ export function RoleProtectedRoute({
         console.warn('[RoleProtectedRoute] Failed to save to sessionStorage:', e);
       }
 
-      // Remove the checkout param from URL to prevent re-triggering
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('checkout');
       const newUrl = newParams.toString()
@@ -69,7 +126,7 @@ export function RoleProtectedRoute({
     }
   }, [checkoutSuccess, checkoutProcessed, searchParams, location.pathname, navigate]);
 
-  // Clear sessionStorage flags ONLY after subscription is confirmed in DB
+  // Clear sessionStorage after subscription confirmed
   useEffect(() => {
     if (hasActiveSubscription) {
       try {
@@ -77,7 +134,6 @@ export function RoleProtectedRoute({
           sessionStorage.removeItem(CHECKOUT_PROCESSED_KEY);
           console.log('[RoleProtectedRoute] Subscription confirmed, cleared checkout processed flag');
         }
-        // Also clear pending checkout flag
         sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
       } catch (e) {
         console.warn('[RoleProtectedRoute] Failed to clear sessionStorage:', e);
@@ -85,11 +141,7 @@ export function RoleProtectedRoute({
     }
   }, [hasActiveSubscription, checkoutProcessed]);
 
-  // Derived state - only poll if we detected checkout AND no subscription yet
-  // Use inCheckoutFlow to handle first render (before effect saves to sessionStorage)
-  const isPolling = inCheckoutFlow && !hasActiveSubscription && !hasGivenUp && pollCount < 20;
-
-  // Poll for subscription when user just paid but subscription not yet showing
+  // Poll for subscription
   useEffect(() => {
     if (!loading && !subLoading && user && inCheckoutFlow && !hasActiveSubscription && !hasGivenUp) {
       if (pollCount < 20) {
@@ -106,8 +158,65 @@ export function RoleProtectedRoute({
     }
   }, [loading, subLoading, user, inCheckoutFlow, hasActiveSubscription, pollCount, refetch, hasGivenUp]);
 
-  // Wait for auth and subscription to load
-  if (loading || subLoading) {
+  // Derive computed values
+  const isPolling = inCheckoutFlow && !hasActiveSubscription && !hasGivenUp && pollCount < 20;
+  const isAdmin = hasRole('admin');
+  const isVA = hasRole('va');
+  const hasRequiredRole = isAdmin || allowedRoles.some(role => hasRole(role));
+  const rolesEmpty = roles.length === 0;
+
+  // NOW WE CAN HAVE CONDITIONAL RETURNS
+
+  // Wait for auth to load first
+  if (loading && !loadingTimedOut) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // CRITICAL: If we have a user but roles are empty after timeout, show retry UI
+  if (user && loadingTimedOut && rolesEmpty) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
+        <div className="text-center space-y-6 max-w-md">
+          <div className="w-20 h-20 mx-auto rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+            <AlertTriangle className="h-10 w-10 text-yellow-600 dark:text-yellow-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Connection Issue</h1>
+          <p className="text-muted-foreground">
+            We couldn't verify your account permissions. This is usually a temporary network issue.
+          </p>
+          <button
+            onClick={handleRetryRoles}
+            disabled={isRetryingRoles}
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition font-medium disabled:opacity-50"
+          >
+            {isRetryingRoles ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            {isRetryingRoles ? 'Checking...' : 'Try Again'}
+          </button>
+          {roleRetryCount > 2 && (
+            <p className="text-xs text-muted-foreground">
+              Still having trouble? Try refreshing the page or check your internet connection.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Admin and VA bypass
+  if (user && (emailVerified || loadingTimedOut) && (isAdmin || isVA) && hasRequiredRole) {
+    return <>{children}</>;
+  }
+
+  // Wait for subscription to load
+  if (subLoading && !loadingTimedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -136,8 +245,7 @@ export function RoleProtectedRoute({
     );
   }
 
-  // Fallback: polling timed out but user is in checkout flow (they paid)
-  // Show helpful message instead of "View Pricing Plans" loop
+  // Fallback: polling timed out but user is in checkout flow
   if (inCheckoutFlow && !hasActiveSubscription && hasGivenUp) {
     const handleManualRefresh = () => {
       setPollCount(0);
@@ -178,30 +286,22 @@ export function RoleProtectedRoute({
     return <Navigate to="/auth" replace />;
   }
 
-  // Require email verification before accessing protected routes
+  // Require email verification
   if (!emailVerified) {
     return <EmailVerificationPrompt />;
   }
 
-  // Admins can access everything
-  const isAdmin = hasRole('admin');
-  const hasRequiredRole = isAdmin || allowedRoles.some(role => hasRole(role));
-
-  // Check if user has an active subscription (paid user)
+  // Check subscription
   const hasPaidSubscription = hasActiveSubscription && plan?.name;
-  
-  // CRITICAL: Grant access if user just paid (inCheckoutFlow), even if webhook hasn't processed yet
-  // After 20s of polling, hasGivenUp is true - we trust they paid
   const grantAccessFromPayment = inCheckoutFlow && (hasPaidSubscription || hasGivenUp);
 
-  // PAID USERS: Anyone with an active subscription can access admin-level routes
+  // PAID USERS: Anyone with an active subscription can access
   if (hasPaidSubscription || grantAccessFromPayment) {
     console.log('[RoleProtectedRoute] Granting access - paid user:', { hasPaidSubscription, grantAccessFromPayment });
     return <>{children}</>;
   }
 
   if (!hasRequiredRole) {
-    // Check if user is in a pending checkout flow (just signed up, about to go to Stripe)
     const isPendingCheckout = (() => {
       try {
         return sessionStorage.getItem(PENDING_CHECKOUT_KEY) === 'true';
@@ -210,8 +310,6 @@ export function RoleProtectedRoute({
       }
     })();
     
-    // If user only has 'user' role and NO subscription AND NOT in checkout flow
-    // This is a new signup who hasn't completed payment
     if (hasRole('user') && !hasPaidSubscription && !inCheckoutFlow && !isPendingCheckout) {
       return (
         <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-4">
@@ -229,7 +327,6 @@ export function RoleProtectedRoute({
       );
     }
     
-    // Prevent redirect loops - if already on the redirect target, show access denied
     if (location.pathname === redirectTo) {
       return (
         <div className="min-h-screen flex items-center justify-center flex-col gap-4">

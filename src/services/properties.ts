@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import type { LeadFilters } from "@/schemas";
 
 export interface BBoxFilters {
@@ -43,24 +43,19 @@ export async function fetchPropertiesPaged(
   console.log("[fetchPropertiesPaged] Filters received:", JSON.stringify(filters, null, 2));
 
   // Use RPC for category filtering (handles text search in violation_types array)
+  // Now also supports pressure level filters
   if (filters.violationType) {
     console.log("[fetchPropertiesPaged] Using category RPC for:", filters.violationType);
     return fetchPropertiesByCategory(page, pageSize, filters);
   }
 
-  // Use legacy path for complex filters that RPC doesn't support
-  const needsLegacyPath =
-    filters.listId ||
-    filters.openViolationsOnly ||
-    filters.multipleViolationsOnly ||
-    filters.repeatOffenderOnly;
-
-  if (needsLegacyPath) {
-    console.log("[fetchPropertiesPaged] Using legacy path for advanced filters");
+  // Use legacy path ONLY for list filtering (which needs JOIN)
+  if (filters.listId) {
+    console.log("[fetchPropertiesPaged] Using legacy path for list filter");
     return fetchPropertiesPagedLegacy(page, pageSize, filters);
   }
 
-  // Use the optimized RPC function for fast queries (supports basic filters + date filtering + sorting)
+  // Use the optimized RPC function for all queries including pressure level filters
   const { data, error } = await supabase.rpc("fn_properties_paged", {
     p_page: page,
     p_page_size: pageSize,
@@ -71,6 +66,9 @@ export async function fetchPropertiesPaged(
     p_snap_max: filters.snapScoreRange?.[1] ?? null,
     p_last_seen_days: filters.lastSeenDays ?? null,
     p_sort_by: filters.sortBy || 'newest_violation',
+    p_open_violations_only: filters.openViolationsOnly ?? false,
+    p_multiple_violations_only: filters.multipleViolationsOnly ?? false,
+    p_repeat_offender_only: filters.repeatOffenderOnly ?? false,
   });
 
   if (error) {
@@ -102,6 +100,9 @@ async function fetchPropertiesByCategory(
     p_page: page,
     p_page_size: pageSize,
     p_sort_by: filters.sortBy || 'newest_violation',
+    p_open_violations_only: filters.openViolationsOnly ?? false,
+    p_multiple_violations_only: filters.multipleViolationsOnly ?? false,
+    p_repeat_offender_only: filters.repeatOffenderOnly ?? false,
   });
 
   if (error) {

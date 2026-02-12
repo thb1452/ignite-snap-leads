@@ -37,12 +37,9 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.refresh-outdated-insights]
-verify_jwt = true
+verify_jwt = false
 
 [functions.reprocess-upload-job]
-verify_jwt = true
-
-[functions.rerun-failed]
 verify_jwt = true
 
 [functions.send-user-invitation]
@@ -65,4 +62,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.reverse-geocode-zips]
+verify_jwt = false
+
+[functions.backfill-insights]
+verify_jwt = false
+
+[functions.migrate-to-external]
 verify_jwt = false

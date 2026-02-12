@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Building2, FileWarning, CheckCircle2 } from "lucide-react";
+import { MapPin, Building2, FileWarning, CheckCircle2, Scissors } from "lucide-react";
+import { UPLOAD_LIMITS } from "@/utils/csvLocationDetector";
 
 export interface DetectedLocation {
   city: string;
@@ -147,6 +148,24 @@ export function CsvLocationDetector({ detection, fallbackCity, fallbackState, mu
         {hasMultipleLocations && (
           <div className="text-xs text-muted-foreground bg-background rounded-lg p-3">
             <strong>Multi-location file detected.</strong> Snap will automatically split this into separate ingest jobs per city for optimal processing.
+          </div>
+        )}
+
+        {/* Large file auto-split info */}
+        {!hasMultipleLocations && totalRows > UPLOAD_LIMITS.MAX_ROWS_PER_UPLOAD && (
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-sm">
+            <div className="flex items-start gap-2">
+              <Scissors className="h-4 w-4 text-blue-600 mt-0.5" />
+              <div>
+                <span className="font-medium text-blue-700 dark:text-blue-400">
+                  Large file detected ({totalRows.toLocaleString()} rows)
+                </span>
+                <p className="text-muted-foreground text-xs mt-1">
+                  This file exceeds the {UPLOAD_LIMITS.MAX_ROWS_PER_UPLOAD.toLocaleString()} row limit. 
+                  Snap will automatically split it into {Math.ceil(totalRows / UPLOAD_LIMITS.CHUNK_SIZE)} parts for parallel processing.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

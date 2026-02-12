@@ -12,11 +12,13 @@ import { useAdminUploads } from "@/hooks/useAdminUploads";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useAdminJurisdictions } from "@/hooks/useAdminJurisdictions";
 import * as AdminAPI from "@/services/adminApi";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { BatchInsightsButton } from "@/components/intelligence/BatchInsightsButton";
 import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
+import { InsightRefreshDashboard } from "@/components/admin/InsightRefreshDashboard";
+ import { BackfillAggregatesButton } from "@/components/intelligence/BackfillAggregatesButton";
 import { 
   Users, 
   Upload, 
@@ -35,26 +37,26 @@ import {
 
 type Tab = "overview" | "uploads" | "users" | "jurisdictions" | "logs";
 
-const REFRESH_INTERVAL = 30000; // 30 seconds
-
 export default function AdminConsole() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // Use a simple counter to trigger manual refreshes only, not auto-refresh
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     setLastUpdated(new Date());
-    // Trigger refresh in child components via state update
+    setRefreshCounter(c => c + 1);
     setTimeout(() => setIsRefreshing(false), 1000);
   }, []);
 
-  // Auto-refresh every 30 seconds
+  // Just update the "last updated" display, don't trigger data refetch
+  // The hooks themselves have refetchInterval for auto-refresh
   useEffect(() => {
     const interval = setInterval(() => {
       setLastUpdated(new Date());
-    }, REFRESH_INTERVAL);
-
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -120,11 +122,11 @@ export default function AdminConsole() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === "overview" && <SystemOverviewTab onSwitchTab={setActiveTab} refreshTrigger={lastUpdated} />}
-        {activeTab === "uploads" && <UploadJobsTab refreshTrigger={lastUpdated} />}
-        {activeTab === "users" && <UserManagementTab refreshTrigger={lastUpdated} />}
-        {activeTab === "jurisdictions" && <JurisdictionsTab refreshTrigger={lastUpdated} />}
-        {activeTab === "logs" && <SystemLogsTab refreshTrigger={lastUpdated} />}
+        {activeTab === "overview" && <SystemOverviewTab onSwitchTab={setActiveTab} refreshTrigger={refreshCounter} />}
+        {activeTab === "uploads" && <UploadJobsTab refreshTrigger={refreshCounter} />}
+        {activeTab === "users" && <UserManagementTab refreshTrigger={refreshCounter} />}
+        {activeTab === "jurisdictions" && <JurisdictionsTab refreshTrigger={refreshCounter} />}
+        {activeTab === "logs" && <SystemLogsTab refreshTrigger={refreshCounter} />}
       </div>
     </AppLayout>
   );
@@ -136,7 +138,7 @@ function SystemOverviewTab({
   refreshTrigger 
 }: { 
   onSwitchTab: (tab: Tab) => void;
-  refreshTrigger: Date;
+  refreshTrigger: number;
 }) {
   const { data: stats, isLoading: loading, error, refetch } = useAdminStats(refreshTrigger);
 
@@ -296,17 +298,21 @@ function SystemOverviewTab({
         </CardContent>
       </Card>
 
+      {/* Insight Refresh Dashboard - LIVE STATUS */}
+      <InsightRefreshDashboard />
+
       {/* Intelligence Engine Tools */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <BatchRescoreButton />
         <BatchInsightsButton />
+        <BackfillAggregatesButton />
       </div>
     </div>
   );
 }
 
 // Upload Jobs Tab
-function UploadJobsTab({ refreshTrigger }: { refreshTrigger: Date }) {
+function UploadJobsTab({ refreshTrigger }: { refreshTrigger: number }) {
   const { data: uploads, isLoading: loading, error, refetch } = useAdminUploads(refreshTrigger);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [userFilter, setUserFilter] = useState<string>('all');
@@ -526,7 +532,7 @@ function UploadJobsTab({ refreshTrigger }: { refreshTrigger: Date }) {
 }
 
 // User Management Tab
-function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
+function UserManagementTab({ refreshTrigger }: { refreshTrigger: number }) {
   const { data: users, isLoading: loading, error, refetch } = useAdminUsers(refreshTrigger);
   const [disabling, setDisabling] = useState<string | null>(null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
@@ -842,7 +848,7 @@ function UserManagementTab({ refreshTrigger }: { refreshTrigger: Date }) {
 }
 
 // Jurisdictions Tab
-function JurisdictionsTab({ refreshTrigger }: { refreshTrigger: Date }) {
+function JurisdictionsTab({ refreshTrigger }: { refreshTrigger: number }) {
   const { data: jurisdictions, isLoading: loading, error, refetch } = useAdminJurisdictions(refreshTrigger);
   const [deactivating, setDeactivating] = useState<string | null>(null);
 
@@ -1003,7 +1009,7 @@ function JurisdictionsTab({ refreshTrigger }: { refreshTrigger: Date }) {
 }
 
 // System Logs Tab
-function SystemLogsTab({ refreshTrigger }: { refreshTrigger: Date }) {
+function SystemLogsTab({ refreshTrigger }: { refreshTrigger: number }) {
   const [logs, setLogs] = useState<AdminAPI.SystemLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

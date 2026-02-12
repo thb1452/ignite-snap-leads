@@ -10,7 +10,7 @@ import { useListProperties, useRemoveFromList, useUserLists } from "@/hooks/useL
 import { exportFilteredCsv } from "@/services/export";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import {
   ArrowLeft,
   Download,

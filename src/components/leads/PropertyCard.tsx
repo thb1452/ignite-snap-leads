@@ -1,13 +1,5 @@
-import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, RefreshCw, AlertTriangle, Flame } from "lucide-react";
-import { differenceInDays, differenceInHours, format } from "date-fns";
-import { PropertyContactChips } from "./PropertyContactChips";
-import { usePropertyContacts } from "@/hooks/usePropertyContacts";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { getViolationStatusStyle } from "@/utils/violationStatusStyles";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 
@@ -46,9 +38,6 @@ export function PropertyCard({
   onToggleSelect,
   onClick
 }: PropertyCardProps) {
-  const { data: contacts = [] } = usePropertyContacts(property.id);
-  const [insightExpanded, setInsightExpanded] = useState(false);
-  
   const getScoreColor = (score: number | null) => {
     if (!score) return "bg-muted";
     if (score >= 75) return "bg-score-red";
@@ -57,144 +46,51 @@ export function PropertyCard({
     return "bg-score-blue";
   };
 
-  const getStatusStyle = (status: string) => getViolationStatusStyle(status);
-
-  const getSnapUpdatedText = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    const date = new Date(dateStr);
-    const now = new Date();
-    const hoursDiff = differenceInHours(now, date);
-    const daysDiff = differenceInDays(now, date);
-    
-    if (hoursDiff < 24) {
-      return `${hoursDiff} hour${hoursDiff !== 1 ? 's' : ''} ago`;
-    } else if (daysDiff <= 7) {
-      return `${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago`;
-    } else {
-      return format(date, "MMM d, yyyy");
-    }
-  };
-
-  const snapUpdatedText = getSnapUpdatedText(property.updated_at);
-
-  const hasPhone = contacts.some(c => c.phone);
-  const hasEmail = contacts.some(c => c.email);
-  
-  const mostRecentViolation = property.violations?.[0];
-  const insightText = property.snap_insight || "No insight available";
-  const shouldShowExpand = insightText.length > 150;
+  const insightText = property.snap_insight || "";
+  // Truncate to ~80 chars for single line
+  const truncatedInsight = insightText.length > 80 ? insightText.slice(0, 77) + "..." : insightText;
 
   return (
     <div
-      className="group p-4 border-b hover:bg-accent/50 transition-colors cursor-pointer bg-background"
+      className="group flex items-center gap-2 px-3 py-1.5 border-b hover:bg-accent/50 transition-colors cursor-pointer bg-background"
       onClick={onClick}
     >
-      <div className="flex items-start gap-3">
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={() => onToggleSelect(property.id)}
-          onClick={(e) => e.stopPropagation()}
-          className="mt-1 shrink-0"
-        />
-        
-        <div className="flex-1 min-w-0 max-w-full">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-base leading-tight break-words">
-                {formatAddress(property.address)}
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5 break-words">
-                {formatCity(property.city)}, {property.state} {property.zip}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Water shutoff indicator */}
-              {property.enforcement_type === 'water_shutoff' && (
-                <Badge variant="outline" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200">
-                  💧
-                </Badge>
-              )}
-              {/* Contact indicator */}
-              {(hasPhone || hasEmail) && (
-                <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
-                  {hasPhone && hasEmail ? "📞✉️" : hasPhone ? "📞" : "✉️"}
-                </Badge>
-              )}
-              <Badge
-                className={`${getScoreColor(property.snap_score)} text-white`}
-              >
-                {property.snap_score || 0}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Violation Density Indicators */}
-          <div className="flex items-center gap-3 mb-2 flex-wrap">
-            {/* Total/Open Violations - only show if there are actual violations */}
-            {(property.total_violations != null && property.total_violations > 0) && (
-              <div className="flex items-center gap-1.5">
-                <AlertTriangle className={`h-3.5 w-3.5 ${(property.open_violations ?? 0) > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs ${
-                    (property.open_violations ?? 0) > 0 
-                      ? 'bg-rose-100 text-rose-700 border-rose-200' 
-                      : 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                  }`}
-                >
-                  {(property.open_violations ?? 0) > 0 ? 'open' : 'closed'}
-                </Badge>
-              </div>
-            )}
-            
-            {/* Violation Types Summary */}
-            {property.violation_types && property.violation_types.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <Flame className="h-3.5 w-3.5 text-orange-500" />
-                <span className="text-xs text-muted-foreground">
-                  {property.violation_types.slice(0, 2).map(formatViolationType).join(", ")}
-                  {property.violation_types.length > 2 && ` +${property.violation_types.length - 2}`}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Removed redundant "Latest:" section - status is already shown in the badge above */}
-
-          {/* AI Insight */}
-          <div className="mb-2">
-            <p className={`text-sm text-muted-foreground leading-relaxed ${!insightExpanded && shouldShowExpand ? 'line-clamp-3' : ''}`}>
-              {insightText}
-            </p>
-            {shouldShowExpand && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setInsightExpanded(!insightExpanded);
-                }}
-                className="h-auto p-0 mt-1 text-xs text-primary hover:bg-transparent"
-              >
-                {insightExpanded ? (
-                  <>
-                    Show less <ChevronUp className="h-3 w-3 ml-1" />
-                  </>
-                ) : (
-                  <>
-                    Read more <ChevronDown className="h-3 w-3 ml-1" />
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-
-          {/* Snap Updated Timestamp */}
-          {snapUpdatedText && (
-            <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 mb-3">
-              <RefreshCw className="h-3 w-3" />
-              <span>Snap updated {snapUpdatedText}</span>
-            </div>
+      <Checkbox
+        checked={isSelected}
+        onCheckedChange={() => onToggleSelect(property.id)}
+        onClick={(e) => e.stopPropagation()}
+        className="shrink-0"
+      />
+      
+      {/* Main content - single row with address info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-medium text-sm truncate">
+            {formatAddress(property.address)}
+          </span>
+          <Badge
+            className={`${getScoreColor(property.snap_score)} text-white text-xs px-1.5 py-0 h-5 shrink-0`}
+          >
+            {property.snap_score || 0}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="truncate">
+            {formatCity(property.city)}, {property.state}
+          </span>
+          {(property.open_violations ?? 0) > 0 ? (
+            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-emerald-100 text-emerald-700 border-emerald-200 shrink-0">
+              open
+            </Badge>
+          ) : (property.total_violations ?? 0) > 0 && (
+            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-rose-100 text-rose-700 border-rose-200 shrink-0">
+              closed
+            </Badge>
+          )}
+          {property.violation_types && property.violation_types.length > 0 && (
+            <span className="truncate text-[10px]">
+              {property.violation_types.slice(0, 2).map(formatViolationType).join(", ")}
+            </span>
           )}
         </div>
       </div>

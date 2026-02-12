@@ -2,13 +2,15 @@ import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Session storage key to track if a user was logged in BEFORE visiting pricing/auth
 // This persists across the signup flow so we know if they're a fresh signup vs existing user
 const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
+
+const LOADING_TIMEOUT_MS = 5000; // Auth page loading timeout
 
 export default function Auth() {
   const { user, roles, loading, signOut } = useAuth();
@@ -20,6 +22,7 @@ export default function Auth() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [showAccountChoice, setShowAccountChoice] = useState(false);
   const [showAlreadyLoggedIn, setShowAlreadyLoggedIn] = useState(false);
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const initDone = useRef(false);
 
   // Track if user was logged in when page FIRST loaded (before auth completes)
@@ -48,6 +51,17 @@ export default function Auth() {
       wasLoggedInBeforeFlow.current = false;
     }
   }, []);
+
+  // Safety timeout for loading state - prevent infinite spinner
+  useEffect(() => {
+    if (loading && !loadingTimedOut) {
+      const timer = setTimeout(() => {
+        console.warn('[Auth] Loading timeout reached, forcing complete');
+        setLoadingTimedOut(true);
+      }, LOADING_TIMEOUT_MS);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, loadingTimedOut]);
 
   // Capture initial auth state ONCE when loading completes
   useEffect(() => {
@@ -112,36 +126,36 @@ export default function Auth() {
       return;
     }
   }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice, showAlreadyLoggedIn]);
-  
+
   // Direct checkout function for fresh signups
   const handleDirectCheckout = () => {
     if (redirectingToCheckout) return;
     setRedirectingToCheckout(true);
-    
+
     // Mark that checkout is pending (prevents "complete subscription" screen from showing)
     try {
       sessionStorage.setItem('snap_pending_checkout', 'true');
     } catch (e) {
       console.warn('[Auth] Failed to set pending checkout flag:', e);
     }
-    
+
     console.log('[Auth] Direct checkout for fresh signup, plan:', selectedPlan);
-    
+
     supabase.functions.invoke('create-checkout-session', {
-      body: { 
+      body: {
         tier_name: selectedPlan,
         billing_cycle: 'monthly'
       }
     }).then(({ data, error }) => {
       console.log('[Auth] Stripe response:', { data, error });
-      
+
       if (error) {
         console.error('[Auth] Checkout error:', error);
         setCheckoutError('Failed to start checkout. Please try again from the pricing page.');
         setRedirectingToCheckout(false);
         return;
       }
-      
+
       const checkoutUrl = data?.checkout_url || data?.url;
       if (checkoutUrl) {
         console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
@@ -161,31 +175,31 @@ export default function Auth() {
   const handleContinueWithCurrentAccount = () => {
     setShowAccountChoice(false);
     setRedirectingToCheckout(true);
-    
+
     // Mark that checkout is pending
     try {
       sessionStorage.setItem('snap_pending_checkout', 'true');
     } catch (e) {
       console.warn('[Auth] Failed to set pending checkout flag:', e);
     }
-    
+
     console.log('[Auth] Continuing with current account, creating Stripe checkout for:', selectedPlan);
-    
+
     supabase.functions.invoke('create-checkout-session', {
-      body: { 
+      body: {
         tier_name: selectedPlan,
         billing_cycle: 'monthly'
       }
     }).then(({ data, error }) => {
       console.log('[Auth] Stripe response:', { data, error });
-      
+
       if (error) {
         console.error('[Auth] Checkout error:', error);
         setCheckoutError('Failed to start checkout. Please try again from the pricing page.');
         setRedirectingToCheckout(false);
         return;
       }
-      
+
       const checkoutUrl = data?.checkout_url || data?.url;
       if (checkoutUrl) {
         console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
@@ -219,8 +233,9 @@ export default function Auth() {
     }
   };
 
-  // Show loading while checking auth
-  if (loading) {
+  // Show loading while checking auth (with timeout safety)
+  // After timeout, just show the auth form - don't block users if backend is slow
+  if (loading && !loadingTimedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10">
         <div className="text-center space-y-4">
@@ -229,6 +244,12 @@ export default function Auth() {
         </div>
       </div>
     );
+  }
+
+  // If loading timed out but we still don't have clear state, show auth form
+  // This prevents infinite loading when backend is unavailable
+  if (loadingTimedOut && !user && !showAlreadyLoggedIn && !showAccountChoice && !redirectingToCheckout && !checkoutError) {
+    return <AuthForm />;
   }
 
   // Show "already logged in" screen when user visits /auth while logged in (not from pricing)
@@ -301,13 +322,13 @@ export default function Auth() {
           <h2 className="text-xl font-semibold text-foreground">Checkout Error</h2>
           <p className="text-muted-foreground">{checkoutError}</p>
           <div className="flex gap-3 justify-center">
-            <a 
-              href="/pricing" 
+            <a
+              href="/pricing"
               className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
             >
               View Pricing
             </a>
-            <button 
+            <button
               onClick={() => {
                 setCheckoutError(null);
                 setRedirectingToCheckout(false);

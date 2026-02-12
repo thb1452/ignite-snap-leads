@@ -1,6 +1,13 @@
 import Papa from "papaparse";
 import type { CsvDetectionResult, DetectedLocation } from "@/components/upload/CsvLocationDetector";
 
+// Upload limits - must match edge function
+// Tuned to prevent statement timeout errors under database load
+export const UPLOAD_LIMITS = {
+  MAX_ROWS_PER_UPLOAD: 50000,
+  CHUNK_SIZE: 15000, // Rows per chunk when auto-splitting (reduced from 25k to prevent timeouts)
+};
+
 // Valid US state codes (2-letter abbreviations)
 const VALID_US_STATES = new Set([
   'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -299,4 +306,50 @@ export function splitCsvByCity(
   }
 
   return { csvGroups, skippedRows: skippedRowCount };
+}
+
+/**
+ * Split a large CSV into smaller chunks of CHUNK_SIZE rows each
+ * Returns array of CSV strings, each containing up to CHUNK_SIZE rows
+ */
+export function splitCsvIntoChunks(csvText: string): { chunks: string[]; totalRows: number; needsSplit: boolean } {
+  const result = Papa.parse<Record<string, string>>(csvText, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (header) => header.trim().toLowerCase(),
+  });
+
+  const rows = result.data;
+  const headers = result.meta.fields || [];
+  const totalRows = rows.length;
+
+  console.log(`[splitCsvIntoChunks] Total rows: ${totalRows}, limit: ${UPLOAD_LIMITS.MAX_ROWS_PER_UPLOAD}`);
+
+  // No split needed if under limit
+  if (totalRows <= UPLOAD_LIMITS.MAX_ROWS_PER_UPLOAD) {
+    return { chunks: [csvText], totalRows, needsSplit: false };
+  }
+
+  // Split into chunks
+  const chunks: string[] = [];
+  const chunkSize = UPLOAD_LIMITS.CHUNK_SIZE;
+  const numChunks = Math.ceil(totalRows / chunkSize);
+
+  console.log(`[splitCsvIntoChunks] Splitting ${totalRows} rows into ${numChunks} chunks of ~${chunkSize} rows each`);
+
+  for (let i = 0; i < numChunks; i++) {
+    const start = i * chunkSize;
+    const end = Math.min(start + chunkSize, totalRows);
+    const chunkRows = rows.slice(start, end);
+
+    const csv = Papa.unparse(chunkRows, {
+      columns: headers,
+      header: true,
+    });
+
+    console.log(`[splitCsvIntoChunks] Chunk ${i + 1}/${numChunks}: rows ${start + 1}-${end} (${chunkRows.length} rows)`);
+    chunks.push(csv);
+  }
+
+  return { chunks, totalRows, needsSplit: true };
 }

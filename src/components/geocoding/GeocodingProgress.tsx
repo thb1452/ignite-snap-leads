@@ -3,37 +3,53 @@ import { Progress } from "@/components/ui/progress";
 import { MapPin, Loader2, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { useGeocodingJob } from "@/hooks/useGeocodingJob";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { Button } from "@/components/ui/button";
 
 export function GeocodingProgress() {
-  const { job, loading, error } = useGeocodingJob();
+  const { job, loading, error, timedOut } = useGeocodingJob();
 
   // Get actual counts from database (more reliable than job counters which may lag)
-  const { data: dbCounts } = useQuery({
+  const { data: dbCounts, isError: dbCountsError } = useQuery({
     queryKey: ["geocoding-db-counts", job?.id],
     queryFn: async () => {
-      const [withCoords, needsGeo] = await Promise.all([
-        supabase
-          .from("properties")
-          .select("id", { count: "exact", head: true })
-          .not("latitude", "is", null)
-          .neq("latitude", 0),
-        supabase
-          .from("properties")
-          .select("id", { count: "exact", head: true })
-          .is("latitude", null),
-      ]);
-      return {
-        geocoded: withCoords.count ?? 0,
-        remaining: needsGeo.count ?? 0,
-      };
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      try {
+        const [withCoords, needsGeo] = await Promise.all([
+          supabase
+            .from("properties")
+            .select("id", { count: "exact", head: true })
+            .not("latitude", "is", null)
+            .neq("latitude", 0)
+            .abortSignal(controller.signal),
+          supabase
+            .from("properties")
+            .select("id", { count: "exact", head: true })
+            .is("latitude", null)
+            .abortSignal(controller.signal),
+        ]);
+        clearTimeout(timeoutId);
+        return {
+          geocoded: withCoords.count ?? 0,
+          remaining: needsGeo.count ?? 0,
+        };
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
     },
     enabled: !!job && (job.status === "running" || job.status === "queued"),
-    refetchInterval: 3000, // Refresh every 3 seconds
+    refetchInterval: 5000, // Refresh every 5 seconds (slower to reduce load)
+    retry: 1, // Only retry once
   });
 
+  // Don't show anything if timed out, errored, or no job
+  if (timedOut || dbCountsError) return null;
   if (!job && !loading) return null;
+  // Only show loading state for first 3 seconds, then hide if still loading
+  if (loading && !job) return null;
 
   const total = job?.total_properties ?? 0;
   const status = job?.status ?? "idle";

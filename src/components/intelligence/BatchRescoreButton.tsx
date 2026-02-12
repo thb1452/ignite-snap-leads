@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCw, CheckCircle, AlertCircle, Sparkles, AlertTriangle } from "lucide-react";
-import { BatchRescoreProgress, countPropertiesWithOutdatedLanguage } from "@/services/batchRescore";
+import { BatchRescoreProgress } from "@/services/batchRescore";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -15,20 +15,78 @@ export function BatchRescoreButton() {
   const [outdatedCount, setOutdatedCount] = useState<number | null>(null);
   const [refreshMode, setRefreshMode] = useState<'all' | 'outdated' | null>(null);
   const queryClient = useQueryClient();
+   const [isPolling, setIsPolling] = useState(false);
 
+   // Poll for progress updates when a job is running
+   const checkProgress = useCallback(async () => {
+     try {
+       const { supabase } = await import("@/integrations/supabase/client");
+       const [totalRes, scoredRes] = await Promise.all([
+         supabase.from("properties").select("id", { count: "exact", head: true }),
+         supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_score", "is", null)
+       ]);
+       
+       if (!totalRes.error && !scoredRes.error) {
+         const newTotal = totalRes.count ?? 0;
+         const newScored = scoredRes.count ?? 0;
+         
+         setPropertyCount(newTotal);
+         setScoredCount(newScored);
+         
+         // Update progress if we're tracking it
+         if (progress?.status === 'running') {
+           setProgress(prev => prev ? {
+             ...prev,
+             processed: newScored,
+             currentBatch: Math.ceil(newScored / 50),
+           } : null);
+           
+           // Check if complete
+           if (newScored >= newTotal) {
+             setProgress(prev => prev ? { ...prev, status: 'complete' } : null);
+             setIsPolling(false);
+             invalidateQueries();
+           }
+         }
+       }
+     } catch (error) {
+       console.error("Error checking progress:", error);
+     }
+   }, [progress?.status]);
+ 
+   // Start/stop polling based on job status
+   useEffect(() => {
+     let interval: NodeJS.Timeout | null = null;
+     
+     if (isPolling && progress?.status === 'running') {
+       interval = setInterval(checkProgress, 5000); // Poll every 5 seconds
+     }
+     
+     return () => {
+       if (interval) clearInterval(interval);
+     };
+   }, [isPolling, progress?.status, checkProgress]);
+ 
   const handleFetchCount = async () => {
     try {
       setIsLoading(true);
       const { supabase } = await import("@/integrations/supabase/client");
-      const [totalRes, scoredRes, outdatedRes] = await Promise.all([
+      
+      // Use simpler, faster queries that won't timeout
+      const [totalRes, scoredRes] = await Promise.all([
         supabase.from("properties").select("id", { count: "exact", head: true }),
-        supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_score", "is", null),
-        countPropertiesWithOutdatedLanguage()
+        supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_score", "is", null)
       ]);
+      
+      if (totalRes.error) throw totalRes.error;
+      if (scoredRes.error) throw scoredRes.error;
+      
       setPropertyCount(totalRes.count ?? 0);
       setScoredCount(scoredRes.count ?? 0);
-      setOutdatedCount(outdatedRes);
+      // Skip outdated count as it's too slow - just show basic counts
+      setOutdatedCount(0);
     } catch (error) {
+      console.error("Failed to fetch property count:", error);
       toast.error("Failed to fetch property count");
     } finally {
       setIsLoading(false);
@@ -66,6 +124,7 @@ export function BatchRescoreButton() {
           });
         }
         invalidateQueries();
+         setIsPolling(true); // Start polling for updates
       }
     } catch (error) {
       console.error("Batch re-scoring failed:", error);
@@ -107,6 +166,7 @@ export function BatchRescoreButton() {
           setOutdatedCount(0);
         }
         // Don't invalidate queries while running - causes page refresh issues
+         setIsPolling(true); // Start polling for updates
       }
     } catch (error) {
       console.error("Refresh outdated failed:", error);

@@ -6,16 +6,19 @@ import Papa from "https://esm.sh/papaparse@5.4.1";
 // UPLOAD LIMITS - Change these to adjust capacity
 // Edge functions have ~150MB memory limit, so we must be conservative
 // Statement timeout is typically 10-15s on free tier, so keep batches VERY small
+// These are tuned to prevent "statement timeout" errors under heavy load
 // ============================================
 const MAX_ROWS_PER_UPLOAD = 50000;  // Maximum rows allowed in a single CSV
-const STAGING_BATCH_SIZE = 100;     // Rows per batch for staging inserts (REDUCED to avoid timeout)
-const PROP_INSERT_BATCH = 50;       // Properties per batch for inserts
-const VIOL_BATCH_SIZE = 50;         // Violations per batch for inserts
+const STAGING_BATCH_SIZE = 50;      // Rows per batch for staging inserts (REDUCED from 100)
+const PROP_INSERT_BATCH = 25;       // Properties per batch for inserts (REDUCED from 50)
+const VIOL_BATCH_SIZE = 25;         // Violations per batch for inserts (REDUCED from 50)
+const RETRY_ATTEMPTS = 3;           // Number of retries for transient errors
+const RETRY_DELAY_MS = 1000;        // Delay between retries
 const MAX_FILE_SIZE_MB = 15;        // Maximum file size in MB (edge function memory limit)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 // Valid US state codes (2-letter abbreviations)
@@ -49,6 +52,49 @@ const KNOWN_CITIES_NV = [
 ];
 
 const ALL_KNOWN_CITIES = [...KNOWN_CITIES_CA, ...KNOWN_CITIES_NV];
+
+// PRE-COMPILE city patterns for performance (avoid creating regex in loops)
+const CITY_PATTERNS: Map<string, RegExp> = new Map();
+// Sort cities by length (descending) to match longer names first
+const SORTED_CITIES = [...ALL_KNOWN_CITIES].sort((a, b) => b.length - a.length);
+for (const city of SORTED_CITIES) {
+  // Match city at end of address, with optional comma before
+  CITY_PATTERNS.set(city, new RegExp(`[,\\s]+${city.replace(/\s+/g, '\\s+')}\\s*$`, 'i'));
+}
+
+/**
+ * Retry helper for transient database errors (timeouts, connection issues)
+ */
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  maxRetries = RETRY_ATTEMPTS
+): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      const isTransient = 
+        error?.code === '57014' || // statement timeout
+        error?.message?.includes('timeout') ||
+        error?.message?.includes('connection') ||
+        error?.message?.includes('ECONNRESET');
+      
+      if (isTransient && attempt < maxRetries) {
+        const delay = RETRY_DELAY_MS * attempt; // Exponential backoff
+        console.log(`[process-upload] ${operationName} attempt ${attempt} failed (transient), retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+  
+  throw lastError;
+}
 
 /**
  * Sanitize date string before inserting into staging - reject invalid dates
@@ -119,19 +165,15 @@ function extractCityFromAddress(
     return { cleanAddress: addressTrimmed, extractedCity: trimmedCity };
   }
   
-  console.log(`[process-upload] City extraction needed for address: "${addressTrimmed.substring(0, 60)}..." (city field: "${trimmedCity}")`);
+  // Only log for debugging in small batches
+  // console.log(`[process-upload] City extraction needed for address: "${addressTrimmed.substring(0, 60)}..." (city field: "${trimmedCity}")`);
   
-  // Try to find known city at end of address (sorted by length to match longer names first)
-  const sortedCities = [...ALL_KNOWN_CITIES].sort((a, b) => b.length - a.length);
-  
-  for (const city of sortedCities) {
-    // Match city at end of address, with optional comma before
-    const cityPattern = new RegExp(`[,\\s]+${city.replace(/\s+/g, '\\s+')}\\s*$`, 'i');
-    
-    if (cityPattern.test(addressTrimmed)) {
+  // Use pre-compiled patterns for performance (SORTED_CITIES is already sorted by length)
+  for (const city of SORTED_CITIES) {
+    const cityPattern = CITY_PATTERNS.get(city);
+    if (cityPattern && cityPattern.test(addressTrimmed)) {
       // Found city at end of address - extract it
       const cleanAddress = addressTrimmed.replace(cityPattern, '').trim();
-      console.log(`[process-upload] ✓ Extracted known city "${city}" from address`);
       return { cleanAddress, extractedCity: city };
     }
   }
@@ -269,16 +311,23 @@ function isValidAddress(value: string): { valid: boolean; reason?: string } {
   
   // Real addresses typically start with a number (street number)
   // or with directional prefix (N, S, E, W, North, South, etc.)
+  // RELAXED: Also allow addresses that start with common place prefixes (Mt., St., Ft., etc.)
+  // or highway/route patterns, or just plain street names for rural areas
   const startsWithNumber = /^\d+/.test(trimmed);
   const startsWithDirection = /^(N|S|E|W|North|South|East|West|NE|NW|SE|SW)\s+/i.test(trimmed);
   const startsWithPO = /^(P\.?O\.?\s*Box|PO\s*Box)/i.test(trimmed);
+  const startsWithPlacePrefix = /^(Mt\.?|Mount|St\.?|Saint|Ft\.?|Fort|Lake|Old|New|Upper|Lower|Little|Big|East|West|North|South)\s+/i.test(trimmed);
+  const startsWithHighway = /^(Highway|Hwy\.?|Route|Rte\.?|State\s+Route|SR|US\s*\d+|I-\d+)\s*/i.test(trimmed);
+  const startsWithWordNumber = /^(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten)\s+/i.test(trimmed);
   
-  if (!startsWithNumber && !startsWithDirection && !startsWithPO) {
-    // Might still be valid if it's a known pattern like "One Main Street"
-    const startsWithWord = /^(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten)\s+/i.test(trimmed);
-    if (!startsWithWord) {
-      return { valid: false, reason: 'no_street_number' };
-    }
+  // For rural/small towns, allow addresses that look like street names even without numbers
+  // Must have at least 2 words to look like "Main Street" or "Highway 97"
+  const looksLikeStreetName = trimmed.split(/\s+/).length >= 2 && 
+    /\b(St\.?|Street|Ave\.?|Avenue|Rd\.?|Road|Blvd\.?|Boulevard|Dr\.?|Drive|Ln\.?|Lane|Way|Ct\.?|Court|Hwy\.?|Highway|Loop|Circle|Cir\.?|Place|Pl\.?|Trail|Tr\.?)\b/i.test(trimmed);
+  
+  if (!startsWithNumber && !startsWithDirection && !startsWithPO && 
+      !startsWithPlacePrefix && !startsWithHighway && !startsWithWordNumber && !looksLikeStreetName) {
+    return { valid: false, reason: 'no_street_number' };
   }
   
   // Reject text that looks like complaint narratives or descriptions
@@ -409,6 +458,54 @@ async function processUploadJob(jobId: string) {
   try {
     console.log(`[process-upload] Starting background job ${jobId}`);
 
+    // =====================================================
+    // JOB LOCKING: Use atomic status transition to prevent concurrent processing
+    // Only the first worker to transition from QUEUED succeeds
+    // =====================================================
+    const { data: lockResult, error: lockError } = await supabaseClient
+      .from('upload_jobs')
+      .update({ 
+        status: 'PARSING',
+        started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobId)
+      .eq('status', 'QUEUED')  // Only grab if still QUEUED - atomic lock
+      .select('id')
+      .single();
+
+    if (lockError || !lockResult) {
+      // Job already being processed - check if it's stuck or just in progress
+      const { data: currentJob } = await supabaseClient
+        .from('upload_jobs')
+        .select('status, updated_at')
+        .eq('id', jobId)
+        .single();
+      
+      if (currentJob?.status === 'COMPLETE' || currentJob?.status === 'FAILED') {
+        console.log(`[process-upload] Job ${jobId} already ${currentJob.status}, skipping`);
+        return;
+      }
+      
+      // Check if job is stuck (no update in 5 minutes) - allow retry
+      const fiveMinutesAgo = new Date(Date.now() - 300000);
+      const jobUpdatedAt = currentJob?.updated_at ? new Date(currentJob.updated_at) : new Date();
+      
+      if (jobUpdatedAt < fiveMinutesAgo) {
+        console.log(`[process-upload] Job ${jobId} appears stuck (last update: ${currentJob?.updated_at}), resuming...`);
+        // Force status to resume
+        await supabaseClient
+          .from('upload_jobs')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', jobId);
+      } else {
+        console.log(`[process-upload] Job ${jobId} already in progress (${currentJob?.status}), skipping`);
+        return;
+      }
+    } else {
+      console.log(`[process-upload] Acquired lock for job ${jobId}`);
+    }
+
     // Get job details
     const { data: job, error: jobError } = await supabaseClient
       .from('upload_jobs')
@@ -418,6 +515,12 @@ async function processUploadJob(jobId: string) {
 
     if (jobError || !job) {
       throw new Error(`Job not found: ${jobError?.message}`);
+    }
+
+    // Skip if already complete or failed
+    if (job.status === 'COMPLETE' || job.status === 'FAILED') {
+      console.log(`[process-upload] Job ${jobId} already ${job.status}, skipping`);
+      return;
     }
 
     // Determine scope: if city is missing but county+state are present, it's a county-level upload
@@ -446,14 +549,7 @@ async function processUploadJob(jobId: string) {
     console.log(`[process-upload] Using location: ${job.city}, ${job.county || 'N/A'}, ${job.state}`);
     console.log(`[process-upload] File size: ${Math.round(job.file_size / 1024)}KB`);
 
-    // Update status to PARSING
-    await supabaseClient
-      .from('upload_jobs')
-      .update({ 
-        status: 'PARSING',
-        started_at: new Date().toISOString()
-      })
-      .eq('id', jobId);
+    // Status already set to PARSING in lock acquisition above
 
     // Download CSV from storage
     const { data: fileData, error: downloadError } = await supabaseClient.storage
@@ -595,7 +691,7 @@ async function processUploadJob(jobId: string) {
           raw_description: truncatedDescription,
         });
 
-        if (stagingRows.length >= STAGING_BATCH_SIZE || i === parsedRows.length - 1) {
+        if (stagingRows.length >= STAGING_BATCH_SIZE) {
           const { error: insertError } = await supabaseClient
             .from('upload_staging')
             .insert(stagingRows);
@@ -614,6 +710,25 @@ async function processUploadJob(jobId: string) {
           console.log(`[process-upload] RESUME staged ${processedCount} / ${totalRows} rows (${Math.round(processedCount / totalRows * 100)}%)`);
           stagingRows.length = 0;
         }
+      }
+      
+      // CRITICAL: Flush any remaining rows after the loop ends (handles case where last row was skipped)
+      if (stagingRows.length > 0) {
+        const { error: insertError } = await supabaseClient
+          .from('upload_staging')
+          .insert(stagingRows);
+
+        if (insertError) {
+          console.error('[process-upload] Final staging insert error:', insertError);
+          throw insertError;
+        }
+
+        await supabaseClient
+          .from('upload_jobs')
+          .update({ processed_rows: parsedRows.length })
+          .eq('id', jobId);
+
+        console.log(`[process-upload] RESUME final flush: staged ${stagingRows.length} remaining rows`);
       }
     } else {
       // Fresh start - no staging rows yet
@@ -714,15 +829,18 @@ async function processUploadJob(jobId: string) {
         raw_description: truncatedDescription, // Store raw notes for AI processing (INTERNAL ONLY)
       });
 
-      if (stagingRows.length >= STAGING_BATCH_SIZE || i === parsedRows.length - 1) {
-        const { error: insertError } = await supabaseClient
-          .from('upload_staging')
-          .insert(stagingRows);
+      if (stagingRows.length >= STAGING_BATCH_SIZE) {
+        // Use retry wrapper for staging inserts (most common timeout point)
+        await withRetry(async () => {
+          const { error: insertError } = await supabaseClient
+            .from('upload_staging')
+            .insert(stagingRows);
 
-        if (insertError) {
-          console.error('[process-upload] Staging insert error:', insertError);
-          throw insertError;
-        }
+          if (insertError) {
+            console.error('[process-upload] Staging insert error:', insertError);
+            throw insertError;
+          }
+        }, `staging insert batch at row ${i + 1}`);
 
         // Update progress - keep status as PROCESSING
         const processedCount = i + 1;
@@ -734,6 +852,27 @@ async function processUploadJob(jobId: string) {
         console.log(`[process-upload] Staged ${processedCount} / ${totalRows} rows (${Math.round(processedCount / totalRows * 100)}%)`);
         stagingRows.length = 0;
       }
+    }
+    
+    // CRITICAL: Flush any remaining rows after the loop ends (handles case where last row was skipped)
+    if (stagingRows.length > 0) {
+      await withRetry(async () => {
+        const { error: insertError } = await supabaseClient
+          .from('upload_staging')
+          .insert(stagingRows);
+
+        if (insertError) {
+          console.error('[process-upload] Final staging insert error:', insertError);
+          throw insertError;
+        }
+      }, 'final staging flush');
+
+      await supabaseClient
+        .from('upload_jobs')
+        .update({ processed_rows: parsedRows.length })
+        .eq('id', jobId);
+
+      console.log(`[process-upload] Final flush: staged ${stagingRows.length} remaining rows`);
     }
     } // End of fresh start block
 
@@ -911,16 +1050,20 @@ async function processUploadJob(jobId: string) {
     console.log(`[process-upload] ⚠️  CRITICAL: Fetching ALL staging rows for dedup (pagination with batches of ${DEDUP_PAGE_SIZE})...`);
 
     while (true) {
-      const { data: dedupBatch, error: dedupError, count } = await supabaseClient
-        .from('upload_staging')
-        .select('address, city, state, zip, case_id, row_num, jurisdiction_id', { count: 'exact' })
-        .eq('job_id', jobId)
-        .order('row_num')
-        .range(dedupOffset, dedupOffset + DEDUP_PAGE_SIZE - 1);
-
-      if (dedupError) {
-        throw new Error(`Failed to fetch staging data for dedup: ${dedupError.message}`);
-      }
+      // Use retry wrapper for dedup fetch (common timeout point under load)
+      const { data: dedupBatch, error: dedupError, count } = await withRetry(async () => {
+        const result = await supabaseClient
+          .from('upload_staging')
+          .select('address, city, state, zip, case_id, row_num, jurisdiction_id', { count: 'exact' })
+          .eq('job_id', jobId)
+          .order('row_num')
+          .range(dedupOffset, dedupOffset + DEDUP_PAGE_SIZE - 1);
+        
+        if (result.error) {
+          throw result.error;
+        }
+        return result;
+      }, `dedup fetch at offset ${dedupOffset}`);
 
       // Log total count on first iteration to verify we're fetching all rows
       if (dedupOffset === 0 && count !== null) {
@@ -1246,27 +1389,31 @@ async function processUploadJob(jobId: string) {
 
     console.log(`[process-upload] Property creation complete: ${propertiesCreated} created, ${dbLevelDedupes} duplicates skipped`);
 
-    // UPDATE EXISTING PROPERTIES WITH AGGREGATED VIOLATION DATA
-    console.log(`[process-upload] Updating ${existingMap.size} existing properties with aggregated violation data...`);
+    // SKIP EXISTING PROPERTY AGGREGATE UPDATES DURING UPLOAD
+    // This is the main cause of timeouts for large uploads (6000+ existing properties)
+    // Aggregate data will be updated via the background backfill job instead
+    // The violation records are the source of truth - aggregates are derived
     const existingAddressEntries = Array.from(addressMap.entries())
       .filter(([key]) => existingMap.has(key));
-
-    if (existingAddressEntries.length > 0) {
-      const PROP_UPDATE_BATCH = 50;
+    
+    if (existingAddressEntries.length > 100) {
+      console.log(`[process-upload] ⚠️ Skipping inline aggregate updates for ${existingAddressEntries.length} existing properties (will use background backfill)`);
+      console.log(`[process-upload] Property aggregates will be updated by the backfill-property-aggregates job`);
+    } else if (existingAddressEntries.length > 0) {
+      // For small batches (<100), we can do inline updates without timeout risk
+      const PROP_UPDATE_BATCH = 25;
       let updatedCount = 0;
 
       for (let i = 0; i < existingAddressEntries.length; i += PROP_UPDATE_BATCH) {
         const batch = existingAddressEntries.slice(i, i + PROP_UPDATE_BATCH);
-
-        for (const [key, row] of batch) {
+        
+        // Use Promise.all for parallel updates within batch
+        const updatePromises = batch.map(async ([key, row]) => {
           const propertyId = existingMap.get(key);
-          if (!propertyId) continue;
+          if (!propertyId) return false;
 
-          // Aggregate violations for this property
           const aggregates = aggregateViolations(row.violations || []);
-
-          // Update the property with aggregated data
-          const { error: updateError } = await supabaseClient
+          const { error } = await supabaseClient
             .from('properties')
             .update({
               total_violations: aggregates.total_violations,
@@ -1277,20 +1424,14 @@ async function processUploadJob(jobId: string) {
               updated_at: new Date().toISOString(),
             })
             .eq('id', propertyId);
-
-          if (updateError) {
-            console.error(`[process-upload] Error updating property ${propertyId}:`, updateError);
-          } else {
-            updatedCount++;
-          }
-        }
-
-        if ((i + batch.length) % 200 === 0 || i + batch.length >= existingAddressEntries.length) {
-          console.log(`[process-upload] Updated ${i + batch.length}/${existingAddressEntries.length} existing properties`);
-        }
+          return !error;
+        });
+        
+        const results = await Promise.all(updatePromises);
+        updatedCount += results.filter(Boolean).length;
       }
 
-      console.log(`[process-upload] ✓ Existing property updates complete: ${updatedCount} properties updated`);
+      console.log(`[process-upload] ✓ Updated ${updatedCount}/${existingAddressEntries.length} existing properties`);
     }
 
     // Now fetch all property IDs for this city in bulk - much faster than individual lookups

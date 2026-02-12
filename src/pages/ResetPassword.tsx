@@ -12,22 +12,51 @@ export default function ResetPassword() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isValidSession, setIsValidSession] = useState<boolean | null>(null);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if we have a valid recovery session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
+    // Listen for the PASSWORD_RECOVERY event which fires when user clicks reset link
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[ResetPassword] Auth event:', event, 'Session:', !!session);
+      
+      if (event === 'PASSWORD_RECOVERY') {
+        // User just clicked recovery link - they have a valid session for password reset
+        console.log('[ResetPassword] PASSWORD_RECOVERY event - user can reset password');
+        setIsValidSession(true);
+      } else if (event === 'SIGNED_IN' && session) {
+        // Could also be a valid recovery session
+        setIsValidSession(true);
+      }
+    });
+
+    // Also check for existing session (in case we missed the event)
+    const checkSession = async () => {
+      // Wait a moment for auth to process the recovery token from URL
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[ResetPassword] Session check:', !!session);
+      
+      if (session) {
+        setIsValidSession(true);
+      } else if (isValidSession === null) {
+        // Only redirect if we haven't already validated
+        console.log('[ResetPassword] No session found, redirecting...');
         toast({
           title: "Invalid reset link",
           description: "Please request a new password reset link",
           variant: "destructive",
         });
-        navigate('/');
+        navigate('/auth');
       }
-    });
+    };
+
+    checkSession();
+
+    return () => subscription.unsubscribe();
   }, [navigate, toast]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -58,8 +87,11 @@ export default function ResetPassword() {
         description: "You can now sign in with your new password",
       });
 
-      navigate('/');
+      // Sign out after password change so user logs in fresh with new password
+      await supabase.auth.signOut();
+      navigate('/auth');
     } catch (error: any) {
+      console.error('[ResetPassword] Update failed:', error);
       setError(error.message);
       toast({
         title: "Password reset failed",
@@ -70,6 +102,18 @@ export default function ResetPassword() {
       setIsLoading(false);
     }
   };
+
+  // Show loading while checking session
+  if (isValidSession === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground">Verifying reset link...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">

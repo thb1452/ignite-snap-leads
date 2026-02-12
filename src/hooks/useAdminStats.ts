@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 export interface AdminStats {
   totalLeads: number;
@@ -19,7 +19,7 @@ export interface AdminStats {
   stuckJobs: number;
 }
 
-export function useAdminStats(refreshTrigger?: Date) {
+export function useAdminStats(refreshTrigger?: number) {
   return useQuery({
     queryKey: ["admin-stats", refreshTrigger],
     queryFn: async (): Promise<AdminStats> => {

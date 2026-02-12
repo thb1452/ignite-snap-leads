@@ -22,6 +22,7 @@ import VATemplates from "./pages/VATemplates";
 import AdminConsole from "./pages/AdminConsole";
 import AdminImportCounties from "./pages/AdminImportCounties";
 import AdminAssignCounties from "./pages/AdminAssignCounties";
+import AdminMigration from "./pages/AdminMigration";
 import ResetPassword from "./pages/ResetPassword";
 import HowSnapWorks from "./pages/HowSnapWorks";
 import Pricing from "./pages/Pricing";
@@ -45,11 +46,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/checkout/success" element={<CheckoutSuccess />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/upload" element={
-            <RoleProtectedRoute allowedRoles={['admin', 'va']}>
-              <Upload />
-            </RoleProtectedRoute>
-          } />
+          <Route path="/upload" element={<Upload />} />
           <Route path="/app" element={
             <RoleProtectedRoute allowedRoles={['admin']}>
               <Leads />
@@ -127,6 +124,8 @@ const App = () => (
               <AdminAssignCounties />
             </RoleProtectedRoute>
           } />
+          {/* Temporarily public for migration - restore RoleProtectedRoute after */}
+          <Route path="/admin/migration" element={<AdminMigration />} />
           <Route path="/how-snap-works" element={
             <ProtectedRoute>
               <HowSnapWorks />

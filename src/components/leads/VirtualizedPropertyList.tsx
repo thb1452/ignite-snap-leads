@@ -31,6 +31,9 @@ interface VirtualizedPropertyListProps {
   onPropertyClick: (id: string) => void;
 }
 
+// Ultra-compact card height - shows 15+ properties in viewport
+const CARD_HEIGHT = 52;
+
 export function VirtualizedPropertyList({
   properties,
   selectedIds,
@@ -42,12 +45,12 @@ export function VirtualizedPropertyList({
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 220,
+    estimateSize: () => CARD_HEIGHT,
     overscan: 5,
   });
 
   return (
-    <div ref={parentRef} className="h-[calc(100vh-240px)] overflow-y-auto pb-20">
+    <div ref={parentRef} className="h-full overflow-y-auto">
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -58,7 +61,7 @@ export function VirtualizedPropertyList({
         {virtualizer.getVirtualItems().map((virtualItem) => {
           const property = properties[virtualItem.index];
           const isSelected = selectedIds.includes(property.id);
-          
+
           return (
             <div
               key={property.id}

@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useJurisdictions } from "@/hooks/useJurisdictions";
 import { useMemo, useEffect, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { formatCity } from "@/utils/formatAddress";
 
 interface LocationFilterProps {

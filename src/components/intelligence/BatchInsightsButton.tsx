@@ -1,15 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCw, CheckCircle, AlertCircle, Lightbulb } from "lucide-react";
-import { 
-  batchGenerateMissingInsights, 
-  BatchRescoreProgress, 
-  countPropertiesMissingInsights 
-} from "@/services/batchRescore";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+
+interface BatchRescoreProgress {
+  totalProperties: number;
+  processed: number;
+  currentBatch: number;
+  totalBatches: number;
+  status: 'idle' | 'running' | 'complete' | 'error';
+  error?: string;
+}
 
 export function BatchInsightsButton() {
   const [progress, setProgress] = useState<BatchRescoreProgress | null>(null);
@@ -17,12 +22,17 @@ export function BatchInsightsButton() {
   const [stats, setStats] = useState<{ total: number; hasInsight: number; missing: number } | null>(null);
   const queryClient = useQueryClient();
 
-  const handleFetchCount = async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      setIsLoading(true);
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { count: total } = await supabase.from("properties").select("id", { count: "exact", head: true });
-      const { count: hasInsight } = await supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_insight", "is", null);
+      const { count: total } = await supabase
+        .from("properties")
+        .select("id", { count: "exact", head: true });
+      
+      const { count: hasInsight } = await supabase
+        .from("properties")
+        .select("id", { count: "exact", head: true })
+        .not("snap_insight", "is", null);
+      
       const totalCount = total ?? 0;
       const insightCount = hasInsight ?? 0;
       setStats({ 
@@ -31,10 +41,20 @@ export function BatchInsightsButton() {
         missing: totalCount - insightCount 
       });
     } catch (error) {
-      toast.error("Failed to fetch count");
-    } finally {
-      setIsLoading(false);
+      console.error("Failed to fetch insight stats:", error);
     }
+  }, []);
+
+  // Auto-fetch stats on mount
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    await fetchStats();
+    setIsLoading(false);
+    toast.success("Stats refreshed");
   };
 
   const handleGenerateInsights = async () => {
@@ -42,39 +62,40 @@ export function BatchInsightsButton() {
       setIsLoading(true);
       toast.info("Starting server-side insight generation...");
 
-      // Call the bulk-rescore edge function which handles everything server-side
-      const { callFn } = await import("@/integrations/http/functions");
-      const result = await callFn("bulk-rescore", { offset: 0 });
+      // Call the bulk-generate-missing-insights edge function
+      const { data, error } = await supabase.functions.invoke("bulk-generate-missing-insights", {
+        body: { offset: 0, autoResume: true }
+      });
       
-      if (result.success) {
-        if (result.auto_continuing) {
-          toast.success(`Started! Processing ${result.progress?.total?.toLocaleString()} properties. This runs server-side and will continue automatically.`);
+      if (error) throw error;
+
+      if (data.success) {
+        if (data.auto_continuing) {
+          toast.success(`Started! Processing ${data.progress?.total?.toLocaleString()} properties. This runs server-side and will continue automatically.`);
           setProgress({
-            totalProperties: result.progress?.total ?? stats?.total ?? 0,
-            processed: result.processed ?? 0,
+            totalProperties: data.progress?.total ?? stats?.total ?? 0,
+            processed: data.processed ?? 0,
             currentBatch: 1,
-            totalBatches: Math.ceil((result.progress?.total ?? 0) / 50),
+            totalBatches: Math.ceil((data.progress?.total ?? 0) / 200),
             status: 'running',
           });
         } else {
-          toast.success(`Generated insights for ${result.processed?.toLocaleString()} properties!`);
+          toast.success(`Generated insights for ${data.processed?.toLocaleString()} properties!`);
           setProgress({
-            totalProperties: result.progress?.total ?? 0,
-            processed: result.progress?.total ?? 0,
+            totalProperties: data.progress?.total ?? 0,
+            processed: data.progress?.total ?? 0,
             currentBatch: 1,
             totalBatches: 1,
             status: 'complete',
           });
         }
-        // Invalidate all intelligence queries
+        // Invalidate queries
         queryClient.invalidateQueries({ queryKey: ["opportunity-funnel"] });
         queryClient.invalidateQueries({ queryKey: ["hot-properties"] });
         queryClient.invalidateQueries({ queryKey: ["jurisdiction-stats"] });
         queryClient.invalidateQueries({ queryKey: ["properties"] });
-        // Update the stats
-        if (stats) {
-          setStats({ ...stats, hasInsight: stats.total, missing: 0 });
-        }
+        // Refresh stats after a delay
+        setTimeout(fetchStats, 2000);
       }
     } catch (error) {
       console.error("Insight generation failed:", error);
@@ -91,29 +112,29 @@ export function BatchInsightsButton() {
   return (
     <Card className="border-amber-500/20">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Lightbulb className="h-5 w-5 text-amber-500" />
-          Generate Missing Insights
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Lightbulb className="h-5 w-5 text-amber-500" />
+            Generate Missing Insights
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
         <CardDescription>
           Process properties that don't have SNAP insights yet
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {stats === null ? (
-          <Button 
-            onClick={handleFetchCount} 
-            disabled={isLoading}
-            variant="outline"
-            className="w-full"
-          >
-            {isLoading ? (
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Lightbulb className="h-4 w-4 mr-2" />
-            )}
-            Check Insight Stats
-          </Button>
+          <div className="flex items-center justify-center py-4">
+            <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
         ) : stats.missing === 0 ? (
           <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
             <CheckCircle className="h-4 w-4" />
@@ -141,7 +162,11 @@ export function BatchInsightsButton() {
             </div>
 
             {progress?.status === 'running' && (
-              <div className="space-y-2">
+              <div className="space-y-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Processing in background...</span>
+                </div>
                 <Progress value={progressPercent} className="h-2" />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Batch {progress.currentBatch} of {progress.totalBatches}</span>
@@ -183,8 +208,8 @@ export function BatchInsightsButton() {
             </Button>
             
             <p className="text-xs text-muted-foreground">
-              ⚠️ This will process {stats.missing.toLocaleString()} properties in batches of 100. 
-              Estimated time: ~{Math.ceil(stats.missing / 100 * 3)} seconds.
+              ⚠️ This will process {stats.missing.toLocaleString()} properties in batches. 
+              Processing happens server-side and continues automatically.
             </p>
           </>
         )}

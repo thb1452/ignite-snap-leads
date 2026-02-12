@@ -89,8 +89,9 @@ const showcaseSlides = [
       { src: "/images/screenshot-map.png", alt: "Live Enforcement Map", label: "Live Enforcement Map", desc: "Pinpoint high-pressure zones on an interactive map", wide: true },
     ],
   },
-];
+]; // showcase slides data
 
+// Showcase carousel component for platform screenshots
 function ShowcaseCarousel() {
   const [current, setCurrent] = useState(0);
 

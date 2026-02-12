@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Lock, Target } from "lucide-react";
-import { useSubscription } from "@/hooks/useSubscription";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,10 +19,10 @@ export function SnapScoreFilter({
   snapScoreRange,
   onSnapScoreChange,
 }: SnapScoreFilterProps) {
-  const { subscription } = useSubscription();
+  const { hasFeature } = useFeatureAccess();
   const navigate = useNavigate();
-  
-  const isEnterprise = subscription?.plan_name === 'enterprise';
+
+  const hasAdvancedFilters = hasFeature('advanced_filters');
 
   const handleUpgrade = () => {
     navigate('/pricing');
@@ -36,8 +36,8 @@ export function SnapScoreFilter({
     return "text-blue-500";
   };
 
-  // Locked state for non-Enterprise users
-  if (!isEnterprise) {
+  // Locked state for plans without advanced filters (Starter)
+  if (!hasAdvancedFilters) {
     return (
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
@@ -73,7 +73,7 @@ export function SnapScoreFilter({
                 onClick={handleUpgrade}
               >
                 <Lock className="h-3 w-3" />
-                Upgrade to Enterprise
+                Upgrade to Professional
               </Button>
             </div>
           </PopoverContent>

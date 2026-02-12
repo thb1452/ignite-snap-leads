@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { Home, Lock } from "lucide-react";
-import { useSubscription } from "@/hooks/useSubscription";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,11 +23,11 @@ export function EnforcementSignalsFilter({
   selectedState,
   selectedCity,
 }: EnforcementSignalsFilterProps) {
-  const { subscription } = useSubscription();
+  const { hasFeature } = useFeatureAccess();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  const isEnterprise = subscription?.plan_name === 'enterprise';
+
+  const hasEscalationAlerts = hasFeature('escalation_alerts');
 
   // Fetch property counts by category using the new RPC
   // This returns accurate counts of unique properties per category
@@ -64,7 +64,7 @@ export function EnforcementSignalsFilter({
     }
     
     // Check if this is an enterprise-only category
-    if (ENTERPRISE_ONLY_CATEGORIES.includes(value) && !isEnterprise) {
+    if (ENTERPRISE_ONLY_CATEGORIES.includes(value) && !hasEscalationAlerts) {
       toast({
         title: "Enterprise Feature",
         description: "Water Disconnection data is available on the Enterprise plan. Upgrade to access properties with utility disconnections.",
@@ -78,7 +78,7 @@ export function EnforcementSignalsFilter({
   };
 
   const isLockedCategory = (categoryId: string) => {
-    return ENTERPRISE_ONLY_CATEGORIES.includes(categoryId) && !isEnterprise;
+    return ENTERPRISE_ONLY_CATEGORIES.includes(categoryId) && !hasEscalationAlerts;
   };
 
   return (

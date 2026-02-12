@@ -70,6 +70,82 @@ function ScarcityBadge() {
   );
 }
 
+const showcaseSlides = [
+  {
+    images: [
+      { src: "/images/screenshot-map.png", alt: "Live Enforcement Map", label: "Live Enforcement Map", desc: "Color-coded clusters show enforcement intensity across your target areas", wide: true },
+      { src: "/images/screenshot-detail.png", alt: "Deep Property Intel", label: "Deep Property Intel", desc: "SnapScore, AI insights, and satellite imagery for every property", wide: false },
+    ],
+  },
+  {
+    images: [
+      { src: "/images/screenshot-leads.png", alt: "Scored Lead Lists", label: "Scored Lead Lists", desc: "141,900+ properties ranked by enforcement pressure", wide: true },
+      { src: "/images/screenshot-filters.png", alt: "Pressure Level Filters", label: "Pressure Level Filters", desc: "Zero in on open, multiple, or repeat violations", wide: false },
+    ],
+  },
+  {
+    images: [
+      { src: "/images/screenshot-categories.png", alt: "7 Violation Categories", label: "7 Violation Categories", desc: "Filter by issue type including water disconnections", wide: false },
+      { src: "/images/screenshot-map.png", alt: "Live Enforcement Map", label: "Live Enforcement Map", desc: "Pinpoint high-pressure zones on an interactive map", wide: true },
+    ],
+  },
+];
+
+function ShowcaseCarousel() {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % showcaseSlides.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className="relative overflow-hidden rounded-2xl">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={current}
+            initial={{ opacity: 0, x: 60 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -60 }}
+            transition={{ duration: 0.5 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
+            {showcaseSlides[current].images.map((img, i) => (
+              <div key={i} className={`group ${img.wide ? "md:col-span-2" : ""}`}>
+                <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300 h-full">
+                  <img src={img.src} alt={img.alt} className="w-full h-full object-cover object-top" loading="lazy" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                    <p className="text-lg font-bold">{img.label}</p>
+                    <p className="text-sm text-landing-text-muted">{img.desc}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Dot indicators */}
+      <div className="flex justify-center gap-3 mt-8">
+        {showcaseSlides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setCurrent(i)}
+            className={`w-3 h-3 rounded-full transition-all duration-300 ${
+              i === current ? "bg-landing-accent w-8" : "bg-landing-surface hover:bg-landing-text-muted"
+            }`}
+            aria-label={`Go to slide ${i + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -406,97 +482,8 @@ export default function Landing() {
             </motion.p>
           </div>
           
-          {/* Screenshot Grid */}
-          <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Map View - Large */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="lg:col-span-2 group"
-            >
-              <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300">
-                <img src="/images/screenshot-map.png" alt="Interactive map with SnapScore property clusters and enforcement legend" className="w-full h-auto" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                  <p className="text-lg font-bold">Live Enforcement Map</p>
-                  <p className="text-sm text-landing-text-muted">Color-coded clusters show enforcement intensity across your target areas</p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Property Detail */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="group"
-            >
-              <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300 h-full">
-                <img src="/images/screenshot-detail.png" alt="Property detail panel showing SnapScore, intensity, active violations and SnapInsight" className="w-full h-full object-cover object-top" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                  <p className="text-lg font-bold">Deep Property Intel</p>
-                  <p className="text-sm text-landing-text-muted">SnapScore, AI insights, and satellite imagery for every property</p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Leads List */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="group"
-            >
-              <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300">
-                <img src="/images/screenshot-leads.png" alt="Property leads list with SnapScores, violation badges, and bulk selection" className="w-full h-auto" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                  <p className="text-lg font-bold">Scored Lead Lists</p>
-                  <p className="text-sm text-landing-text-muted">141,900+ properties ranked by enforcement pressure</p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Filters */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.25 }}
-              className="group"
-            >
-              <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300">
-                <img src="/images/screenshot-filters.png" alt="Pressure level filters for open violations, multiple violations, and repeat offenders" className="w-full h-auto" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                  <p className="text-lg font-bold">Pressure Level Filters</p>
-                  <p className="text-sm text-landing-text-muted">Zero in on open, multiple, or repeat violations</p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Categories */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              className="group"
-            >
-              <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300">
-                <img src="/images/screenshot-categories.png" alt="Issue type filter showing exterior, safety, structural, zoning, vacancy, utility, and water disconnection categories" className="w-full h-auto" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                  <p className="text-lg font-bold">7 Violation Categories</p>
-                  <p className="text-sm text-landing-text-muted">Filter by issue type including water disconnections</p>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+          {/* Screenshot Carousel */}
+          <ShowcaseCarousel />
         </div>
       </section>
 

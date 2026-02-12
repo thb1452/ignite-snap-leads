@@ -383,6 +383,123 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Platform Showcase Section */}
+      <section className="py-24 bg-landing-bg">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center mb-16">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold mb-4"
+            >
+              See the Platform in Action
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-xl text-landing-text-muted"
+            >
+              Real enforcement data, real-time intelligence, real results.
+            </motion.p>
+          </div>
+          
+          {/* Screenshot Grid */}
+          <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Map View - Large */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="lg:col-span-2 group"
+            >
+              <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300">
+                <img src="/images/screenshot-map.png" alt="Interactive map with SnapScore property clusters and enforcement legend" className="w-full h-auto" loading="lazy" />
+                <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <p className="text-lg font-bold">Live Enforcement Map</p>
+                  <p className="text-sm text-landing-text-muted">Color-coded clusters show enforcement intensity across your target areas</p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Property Detail */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="group"
+            >
+              <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300 h-full">
+                <img src="/images/screenshot-detail.png" alt="Property detail panel showing SnapScore, intensity, active violations and SnapInsight" className="w-full h-full object-cover object-top" loading="lazy" />
+                <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <p className="text-lg font-bold">Deep Property Intel</p>
+                  <p className="text-sm text-landing-text-muted">SnapScore, AI insights, and satellite imagery for every property</p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Leads List */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="group"
+            >
+              <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300">
+                <img src="/images/screenshot-leads.png" alt="Property leads list with SnapScores, violation badges, and bulk selection" className="w-full h-auto" loading="lazy" />
+                <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <p className="text-lg font-bold">Scored Lead Lists</p>
+                  <p className="text-sm text-landing-text-muted">141,900+ properties ranked by enforcement pressure</p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Filters */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.25 }}
+              className="group"
+            >
+              <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300">
+                <img src="/images/screenshot-filters.png" alt="Pressure level filters for open violations, multiple violations, and repeat offenders" className="w-full h-auto" loading="lazy" />
+                <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <p className="text-lg font-bold">Pressure Level Filters</p>
+                  <p className="text-sm text-landing-text-muted">Zero in on open, multiple, or repeat violations</p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Categories */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+              className="group"
+            >
+              <div className="relative rounded-2xl border border-landing-surface overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300">
+                <img src="/images/screenshot-categories.png" alt="Issue type filter showing exterior, safety, structural, zoning, vacancy, utility, and water disconnection categories" className="w-full h-auto" loading="lazy" />
+                <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <p className="text-lg font-bold">7 Violation Categories</p>
+                  <p className="text-sm text-landing-text-muted">Filter by issue type including water disconnections</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* Solution Section */}
       <section id="features" className="py-24">
         <div className="container mx-auto px-4">

@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("[Migration] Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -254,7 +254,7 @@ async function migrateTableDataCursor(
     return {
       table,
       status: "error",
-      error: e.message,
+      error: (e as Error).message,
       hasMore: false,
       nextCursor: cursor || null,
     };
@@ -323,7 +323,7 @@ async function migrateTableOffset(
     };
   } catch (e) {
     console.error(`[Migration] Exception for ${table}:`, e);
-    return { table, status: "error", error: e.message, hasMore: false, nextCursor: String(offset) };
+    return { table, status: "error", error: (e as Error).message, hasMore: false, nextCursor: String(offset) };
   }
 }
 

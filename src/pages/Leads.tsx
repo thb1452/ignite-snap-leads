@@ -541,7 +541,14 @@ function Leads() {
             </button>
           </div>
         </div>
-        
+
+        {/* Filter Results Count - Mobile */}
+        {(activeFilterCount > 0 || searchQuery?.trim()) && (
+          <div className="px-3 py-2 text-sm text-muted-foreground border-b bg-muted/30">
+            <span className="font-medium text-foreground">{totalCount.toLocaleString()}</span> properties match your filters
+          </div>
+        )}
+
         {/* Export Quota for Mobile */}
         <div className="px-3 pb-3">
           <ExportQuotaDisplay />
@@ -561,19 +568,22 @@ function Leads() {
 
         {/* Property List - Right Side */}
         <div className="w-[40%] flex flex-col relative">
+          {/* Filter Results Count - Desktop */}
+          {(activeFilterCount > 0 || searchQuery?.trim()) && (
+            <div className="px-3 py-2 text-sm text-muted-foreground border-b bg-muted/30">
+              <span className="font-medium text-foreground">{totalCount.toLocaleString()}</span> properties match your filters
+            </div>
+          )}
+
         {/* Compact Header - single row */}
           {properties.length > 0 && (
             <div className="px-3 py-1.5 border-b bg-background flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                {selectedIds.length > 0 ? (
+                {selectedIds.length > 0 && (
                   <span className="text-xs text-muted-foreground">
                     {selectedIds.length} selected
                   </span>
-                ) : (activeFilterCount > 0 || searchQuery?.trim()) ? (
-                  <span className="text-xs text-muted-foreground">
-                    {totalCount.toLocaleString()} match your filters
-                  </span>
-                ) : null}
+                )}
                 <SortByDropdown value={sortBy} onChange={(v) => { setSortBy(v); setPage(1); }} />
               </div>
               <Button

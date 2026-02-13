@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { AlertCircle, Lock } from "lucide-react";
-import { useSubscription } from "@/hooks/useSubscription";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -28,19 +28,18 @@ export function PressureLevelFilter({
   repeatOffenderOnly,
   onRepeatOffenderChange,
 }: PressureLevelFilterProps) {
-  const { subscription } = useSubscription();
+  const { hasFeature } = useFeatureAccess();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  const planName = subscription?.plan_name;
-  const isProOrHigher = planName === 'professional' || planName === 'enterprise';
+
+  const hasViolationFiltering = hasFeature('violation_filtering');
 
   const handleUpgrade = () => {
     navigate('/pricing');
   };
 
-  // Locked state for Starter users
-  if (!isProOrHigher) {
+  // Locked state for plans without violation filtering (Starter)
+  if (!hasViolationFiltering) {
     return (
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">

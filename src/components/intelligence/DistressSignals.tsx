@@ -1,15 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Clock, 
-  AlertTriangle, 
-  Building2, 
-  Scale, 
+import {
+  Clock,
+  AlertTriangle,
+  Building2,
+  Scale,
   Home,
   Flame,
   Wrench,
   Zap,
-  Activity
+  Activity,
+  Lock
 } from "lucide-react";
 import {
   Tooltip,
@@ -17,6 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 interface EnforcementSignalsProps {
   property: {
@@ -33,8 +35,14 @@ interface EnforcementSignalsProps {
   } | null;
 }
 
+// Escalation signal IDs that require the escalation_alerts feature flag
+const ESCALATION_SIGNALS = ['legal_escalation', 'enforcement_escalation'];
+
 // Renamed component but keeping export name for compatibility
 export function DistressSignals({ property }: EnforcementSignalsProps) {
+  const { hasFeature } = useFeatureAccess();
+  const hasEscalationAlerts = hasFeature('escalation_alerts');
+
   if (!property) {
     return null;
   }
@@ -106,7 +114,7 @@ export function DistressSignals({ property }: EnforcementSignalsProps) {
 
   // Build detected signals list
   const detectedSignals: string[] = [...signals];
-  
+
   if (property.escalated && !detectedSignals.includes("enforcement_escalation") && !detectedSignals.includes("legal_escalation")) {
     detectedSignals.push("enforcement_escalation");
   }
@@ -116,6 +124,12 @@ export function DistressSignals({ property }: EnforcementSignalsProps) {
   if (property.repeat_offender && !detectedSignals.includes("recurring_enforcement") && !detectedSignals.includes("chronic_offender")) {
     detectedSignals.push("recurring_enforcement");
   }
+
+  // Filter out escalation signals for plans without escalation_alerts
+  const hasHiddenEscalation = !hasEscalationAlerts && detectedSignals.some(s => ESCALATION_SIGNALS.includes(s));
+  const visibleSignals = hasEscalationAlerts
+    ? detectedSignals
+    : detectedSignals.filter(s => !ESCALATION_SIGNALS.includes(s));
 
   // Calculate days open if we have oldest_violation_date
   let daysOpen: number | null = null;
@@ -173,10 +187,10 @@ export function DistressSignals({ property }: EnforcementSignalsProps) {
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-2">Enforcement Signals</p>
             <div className="space-y-1">
-              {detectedSignals.length === 0 ? (
+              {visibleSignals.length === 0 && !hasHiddenEscalation ? (
                 <p className="text-sm text-muted-foreground">No significant enforcement signals detected</p>
               ) : (
-                detectedSignals.map((signal) => {
+                visibleSignals.map((signal) => {
                   const config = getSignalConfig(signal);
                   const Icon = config.icon;
                   return (
@@ -186,6 +200,12 @@ export function DistressSignals({ property }: EnforcementSignalsProps) {
                     </div>
                   );
                 })
+              )}
+              {hasHiddenEscalation && (
+                <div className="flex items-center gap-2 p-2 rounded border border-dashed border-amber-300 bg-amber-50/50">
+                  <Lock className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm text-muted-foreground">Escalation alerts — upgrade to Enterprise</span>
+                </div>
               )}
             </div>
           </div>

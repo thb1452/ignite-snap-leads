@@ -9,11 +9,14 @@ interface UseSubscriptionGateOptions {
 }
 
 /**
- * Hook for gating actions behind subscription limits
- * Use this before performing exports or other limited actions
- * 
- * NOTE: Feature tier gating has been removed - all users get all features.
- * Only export quota limits remain.
+ * Hook for gating actions behind subscription limits.
+ * Use this before performing exports or other limited actions.
+ *
+ * Usage-based limits (exports, api_calls) are enforced here via the
+ * server-side fn_check_subscription_limit RPC.
+ *
+ * Feature-based limits (advanced_filters, violation_filtering, etc.)
+ * are enforced at the component level using the useFeatureAccess hook.
  */
 export function useSubscriptionGate(options: UseSubscriptionGateOptions = {}) {
   const { showToast = true, onLimitExceeded } = options;

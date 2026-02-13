@@ -13,8 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 const PLAN_CONFIGS = {
   free_trial: { icon: Zap, color: "text-blue-500" },
   starter: { icon: TrendingUp, color: "text-green-500" },
-  professional: { icon: Sparkles, color: "text-purple-500" },
-  enterprise: { icon: Crown, color: "text-amber-500" },
+  professional: { icon: Sparkles, color: "text-purple-500" }, // Pro
+  enterprise: { icon: Crown, color: "text-amber-500" }, // Elite
 };
 
 interface PlanUsageSectionProps {
@@ -152,7 +152,7 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
             Choose a plan to unlock enforcement intelligence.
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
-            <Button 
+            <Button
               onClick={() => handleUpgrade('starter')}
               variant="outline"
               disabled={!!checkoutLoading}
@@ -160,12 +160,12 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
               {checkoutLoading === 'starter' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Starter - $119/mo
             </Button>
-            <Button 
+            <Button
               onClick={() => handleUpgrade('professional')}
               disabled={!!checkoutLoading}
             >
               {checkoutLoading === 'professional' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Professional - $249/mo
+              Pro - $249/mo
             </Button>
           </div>
         </CardContent>

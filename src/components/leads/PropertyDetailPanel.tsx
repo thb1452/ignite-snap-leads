@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download, ListPlus, Search } from "lucide-react";
+import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download, ListPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { formatDistanceToNow, format } from "date-fns";
@@ -355,20 +355,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
               >
                 {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Export This
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  toast({
-                    title: "Find Similar",
-                    description: "Coming soon: Find properties with similar violation profiles.",
-                  });
-                }}
-                className="gap-2"
-              >
-                <Search className="h-4 w-4" />
-                Similar
               </Button>
             </div>
           </div>

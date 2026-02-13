@@ -237,7 +237,7 @@ export function AddAllToListDialog({
                 Adding...
               </>
             ) : (
-              `Add ${propertiesToAdd.toLocaleString()} Properties`
+              "Add to List"
             )}
           </Button>
         </DialogFooter>

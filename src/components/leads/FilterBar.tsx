@@ -116,7 +116,7 @@ export function FilterBar({
             className="gap-2"
           >
             <ListPlus className="h-4 w-4" />
-            Add All to List ({propertyCount.toLocaleString()})
+            + Add All Results
           </Button>
         )}
         

@@ -4,10 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SlidersHorizontal, X, ListPlus, Home, Info } from "lucide-react";
+import { SlidersHorizontal, X, ListPlus, Home, Info, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useQuery } from "@tanstack/react-query";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import type { SortOption } from "./SortByDropdown";
+
+// Categories that require enterprise tier
+const ENTERPRISE_ONLY_CATEGORIES = ['water_disconnection'];
 
 interface MobileFilterSheetProps {
   // Enforcement area props
@@ -28,9 +34,6 @@ interface MobileFilterSheetProps {
   onMultipleViolationsChange: (value: boolean) => void;
   repeatOffenderOnly: boolean;
   onRepeatOffenderChange: (value: boolean) => void;
-  // SnapScore range props
-  snapScoreRange: [number, number];
-  onSnapScoreChange: (value: [number, number]) => void;
   // General
   onClearFilters: () => void;
   activeFilterCount: number;
@@ -57,8 +60,6 @@ export function MobileFilterSheet({
   onMultipleViolationsChange,
   repeatOffenderOnly,
   onRepeatOffenderChange,
-  snapScoreRange,
-  onSnapScoreChange,
   onClearFilters,
   activeFilterCount,
   propertyCount = 0,
@@ -71,6 +72,38 @@ export function MobileFilterSheet({
   const [cities, setCities] = useState<string[]>([]);
   const [loadingStates, setLoadingStates] = useState(true);
   const [loadingCities, setLoadingCities] = useState(false);
+
+  // Subscription gating
+  const { subscription } = useSubscription();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const planName = subscription?.plan_name;
+  const isProOrHigher = planName === 'professional' || planName === 'enterprise';
+  const isEnterprise = planName === 'enterprise';
+
+  const isLockedCategory = (categoryId: string) => {
+    return ENTERPRISE_ONLY_CATEGORIES.includes(categoryId) && !isEnterprise;
+  };
+
+  const handleSignalChange = (value: string) => {
+    if (value === "all") {
+      onSignalChange(null);
+      return;
+    }
+
+    // Check if this is an enterprise-only category
+    if (ENTERPRISE_ONLY_CATEGORIES.includes(value) && !isEnterprise) {
+      toast({
+        title: "Elite Feature",
+        description: "Water Disconnection data is available on the Elite plan.",
+      });
+      navigate('/pricing');
+      return;
+    }
+
+    onSignalChange(value);
+  };
 
   // Fetch states
   useEffect(() => {
@@ -254,18 +287,28 @@ export function MobileFilterSheet({
             <label className="text-sm font-semibold text-foreground">Category</label>
             <Select
               value={selectedSignal || "all"}
-              onValueChange={(val) => onSignalChange(val === "all" ? null : val)}
+              onValueChange={handleSignalChange}
             >
               <SelectTrigger className="w-full h-12 text-base">
                 <SelectValue placeholder="All issues" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 <SelectItem value="all">All issues</SelectItem>
-                {categories.map(({ categoryId, label }) => (
-                  <SelectItem key={categoryId} value={categoryId}>
-                    {label}
-                  </SelectItem>
-                ))}
+                {categories.map(({ categoryId, label }) => {
+                  const locked = isLockedCategory(categoryId);
+                  return (
+                    <SelectItem
+                      key={categoryId}
+                      value={categoryId}
+                      className={locked ? "text-muted-foreground" : ""}
+                    >
+                      <span className="flex items-center gap-1">
+                        {locked && <Lock className="h-3 w-3" />}
+                        {label}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -273,50 +316,75 @@ export function MobileFilterSheet({
           {/* Pressure Level Section */}
           <div className="space-y-4">
             <div>
-              <h3 className="text-xs font-semibold text-primary uppercase tracking-wide">
+              <h3 className="text-xs font-semibold text-primary uppercase tracking-wide flex items-center gap-1">
                 PRESSURE LEVEL
+                {!isProOrHigher && <Lock className="h-3 w-3 text-amber-500" />}
               </h3>
               <div className="flex items-center gap-2 text-muted-foreground mt-1">
                 <Info className="h-4 w-4" />
                 <span className="text-sm">Filter by enforcement pressure indicators.</span>
               </div>
             </div>
-            
-            {/* Open Violations Only */}
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <span className="text-sm font-semibold text-foreground">Open Violations Only</span>
-                <p className="text-xs text-muted-foreground">Show only properties with unresolved violations</p>
-              </div>
-              <Switch
-                checked={openViolationsOnly}
-                onCheckedChange={onOpenViolationsChange}
-              />
-            </div>
 
-            {/* Multiple Violations */}
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <span className="text-sm font-semibold text-foreground">Multiple Violations</span>
-                <p className="text-xs text-muted-foreground">Properties with more than one violation</p>
+            {!isProOrHigher ? (
+              /* Locked state for Starter users */
+              <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/50 p-4">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Unlock pressure filters to find properties under enforcement pressure:
+                </p>
+                <ul className="text-xs text-muted-foreground space-y-1 mb-4 ml-3 list-disc">
+                  <li>Open Violations Only</li>
+                  <li>Multiple Violations</li>
+                  <li>Repeat Offenders</li>
+                </ul>
+                <Button
+                  size="sm"
+                  className="w-full gap-1.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
+                  onClick={() => navigate('/pricing')}
+                >
+                  <Lock className="h-3 w-3" />
+                  Upgrade to Pro
+                </Button>
               </div>
-              <Switch
-                checked={multipleViolationsOnly}
-                onCheckedChange={onMultipleViolationsChange}
-              />
-            </div>
+            ) : (
+              <>
+                {/* Open Violations Only */}
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">Open Violations Only</span>
+                    <p className="text-xs text-muted-foreground">Show only properties with unresolved violations</p>
+                  </div>
+                  <Switch
+                    checked={openViolationsOnly}
+                    onCheckedChange={onOpenViolationsChange}
+                  />
+                </div>
 
-            {/* Repeat Offender */}
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <span className="text-sm font-semibold text-foreground">Repeat Offender</span>
-                <p className="text-xs text-muted-foreground">Same property, multiple enforcement cases</p>
-              </div>
-              <Switch
-                checked={repeatOffenderOnly}
-                onCheckedChange={onRepeatOffenderChange}
-              />
-            </div>
+                {/* Multiple Violations */}
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">Multiple Violations</span>
+                    <p className="text-xs text-muted-foreground">Properties with more than one violation</p>
+                  </div>
+                  <Switch
+                    checked={multipleViolationsOnly}
+                    onCheckedChange={onMultipleViolationsChange}
+                  />
+                </div>
+
+                {/* Repeat Offender */}
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">Repeat Offender</span>
+                    <p className="text-xs text-muted-foreground">Same property, multiple enforcement cases</p>
+                  </div>
+                  <Switch
+                    checked={repeatOffenderOnly}
+                    onCheckedChange={onRepeatOffenderChange}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -332,7 +400,7 @@ export function MobileFilterSheet({
               }}
             >
               <ListPlus className="h-5 w-5" />
-              Add All to List ({propertyCount.toLocaleString()})
+              + Add All Results
             </Button>
           )}
           <Button 

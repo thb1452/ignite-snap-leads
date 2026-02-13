@@ -731,7 +731,7 @@ export default function Landing() {
             viewport={{ once: true }}
             className="text-center text-landing-text-muted mt-12 max-w-2xl mx-auto"
           >
-            Still not sure? Our Starter plan at $119/month lets you test the intelligence advantage with 2,500 monthly exports. No annual commitment required.
+            Still not sure? Our Starter plan at $119/month lets you test the intelligence advantage with 5,000 monthly exports. No annual commitment required.
           </motion.p>
         </div>
       </section>
@@ -800,7 +800,7 @@ export default function Landing() {
                 price: pricing.starter[billingCycle],
                 description: "For market exploration & local operators",
                 features: [
-                  "2,500 monthly exports",
+                  "5,000 monthly exports",
                   "All properties, all counties",
                   "Code violation data",
                   "Basic filters (location, category, search)",
@@ -811,11 +811,11 @@ export default function Landing() {
                 highlighted: false
               },
               {
-                name: "Professional",
+                name: "Pro",
                 price: pricing.professional[billingCycle],
                 description: "For active acquisition & deal sourcing",
                 features: [
-                  "10,000 monthly exports",
+                  "15,000 monthly exports",
                   "All Starter features",
                   "Pressure Level™ filtering (prioritize higher-enforcement properties)",
                   "Priority email support"
@@ -825,13 +825,12 @@ export default function Landing() {
                 badge: "Most Popular"
               },
               {
-                name: "Enterprise",
+                name: "Elite",
                 price: pricing.enterprise[billingCycle],
                 description: "For multi-market teams & advanced operators",
                 features: [
-                  "25,000 monthly exports",
-                  "All Professional features",
-                  "SnapScore™ filtering (multi-signal prioritization)",
+                  "50,000 monthly exports",
+                  "All Pro features",
                   "Water shutoff data",
                   "API access (coming soon)"
                 ],

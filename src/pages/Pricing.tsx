@@ -31,7 +31,7 @@ const PRICING_TIERS: PricingTier[] = [
     price_annual_cents_with_discount: 114000,
     description: 'For focused local operators',
     features: [
-      '2,500 monthly exports',
+      '5,000 monthly exports',
       'All properties, all counties',
       'Code violation data',
       'Weekly data refresh',
@@ -46,15 +46,16 @@ const PRICING_TIERS: PricingTier[] = [
   {
     id: 'professional',
     name: 'professional',
-    display_name: 'Professional',
+    display_name: 'Pro',
     price_monthly_cents: 24900,
     price_annual_cents_with_discount: 239000,
     description: 'For growing acquisition operations',
     features: [
-      '10,000 monthly exports',
+      '15,000 monthly exports',
       'All properties, all counties',
       'Code violation data',
       'Everything in Starter',
+      'Pressure Level™ filters',
       'Priority email support',
     ],
     notIncluded: [
@@ -66,15 +67,15 @@ const PRICING_TIERS: PricingTier[] = [
   {
     id: 'enterprise',
     name: 'enterprise',
-    display_name: 'Enterprise',
+    display_name: 'Elite',
     price_monthly_cents: 49900,
     price_annual_cents_with_discount: 479000,
     description: 'For serious multi-market teams',
     features: [
-      '25,000 monthly exports',
+      '50,000 monthly exports',
       'All properties, all counties',
       'Code violation + water shutoff data',
-      'Everything in Professional',
+      'Everything in Pro',
       'API access (coming soon)',
     ],
     icon: Building2,
@@ -309,7 +310,7 @@ export default function Pricing() {
             <CardContent>
               <p className="text-center text-muted-foreground">
                 Water shutoffs represent the highest level of municipal enforcement pressure on a property.
-                This premium data is available exclusively on the Enterprise plan.
+                This premium data is available exclusively on the Elite plan.
               </p>
             </CardContent>
           </Card>

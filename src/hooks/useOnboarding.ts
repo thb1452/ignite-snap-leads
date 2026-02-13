@@ -3,12 +3,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useAuth } from "@/hooks/use-auth";
 
-const ONBOARDING_STORAGE_KEY = 'snap_onboarding_completed';
+// Use user-specific key to prevent cross-account interference
+const getOnboardingStorageKey = (userId: string) => `snap_onboarding_completed_${userId}`;
 
 export function useOnboarding() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // User-specific storage key
+  const storageKey = user?.id ? getOnboardingStorageKey(user.id) : null;
 
   // Fetch onboarding status from database
   const { data: profileData, isLoading } = useQuery({
@@ -23,16 +27,18 @@ export function useOnboarding() {
 
       if (error) {
         console.error("[useOnboarding] Error fetching status:", error);
-        const localCompleted = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+        // On error, default to showing onboarding for new users
+        const localCompleted = storageKey ? localStorage.getItem(storageKey) === 'true' : false;
         return { onboarding_completed: localCompleted };
       }
 
-      if (data?.onboarding_completed) {
-        localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+      // Sync localStorage for this user
+      if (data?.onboarding_completed && storageKey) {
+        localStorage.setItem(storageKey, 'true');
       }
 
       // Sync localStorage fallback for existing users
-      const localCompleted = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+      const localCompleted = storageKey ? localStorage.getItem(storageKey) === 'true' : false;
       if (localCompleted && data && !data.onboarding_completed) {
         await supabase
           .from("user_profiles")
@@ -64,7 +70,9 @@ export function useOnboarding() {
         console.error("[useOnboarding] Error saving to DB:", error);
       }
 
-      localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+      if (storageKey) {
+        localStorage.setItem(storageKey, 'true');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["onboarding-profile"] });
@@ -89,7 +97,9 @@ export function useOnboarding() {
   }, [markCompleteMutation]);
 
   const resetOnboarding = useCallback(async () => {
-    localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+    if (storageKey) {
+      localStorage.removeItem(storageKey);
+    }
     if (user?.id) {
       await supabase
         .from("user_profiles")
@@ -97,7 +107,7 @@ export function useOnboarding() {
         .eq("user_id", user.id);
       queryClient.invalidateQueries({ queryKey: ["onboarding-profile"] });
     }
-  }, [user, queryClient]);
+  }, [user, queryClient, storageKey]);
 
   const triggerOnboarding = useCallback(() => {
     setShowOnboarding(true);

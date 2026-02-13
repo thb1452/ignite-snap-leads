@@ -565,11 +565,15 @@ function Leads() {
           {properties.length > 0 && (
             <div className="px-3 py-1.5 border-b bg-background flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {selectedIds.length > 0
-                    ? `${selectedIds.length} selected`
-                    : `${totalCount.toLocaleString()}`}
-                </span>
+                {selectedIds.length > 0 ? (
+                  <span className="text-xs text-muted-foreground">
+                    {selectedIds.length} selected
+                  </span>
+                ) : (activeFilterCount > 0 || searchQuery?.trim()) ? (
+                  <span className="text-xs text-muted-foreground">
+                    {totalCount.toLocaleString()} match your filters
+                  </span>
+                ) : null}
                 <SortByDropdown value={sortBy} onChange={(v) => { setSortBy(v); setPage(1); }} />
               </div>
               <Button

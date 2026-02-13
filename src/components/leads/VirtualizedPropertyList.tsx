@@ -22,7 +22,6 @@ interface Property {
   total_violations?: number | null;
   open_violations?: number | null;
   violation_types?: string[] | null;
-  enforcement_type?: string;
 }
 
 interface VirtualizedPropertyListProps {
@@ -32,8 +31,8 @@ interface VirtualizedPropertyListProps {
   onPropertyClick: (id: string) => void;
 }
 
-// Card height with insight text - shows ~8 properties in viewport
-const CARD_HEIGHT = 120;
+// Ultra-compact card height - shows 15+ properties in viewport
+const CARD_HEIGHT = 52;
 
 export function VirtualizedPropertyList({
   properties,

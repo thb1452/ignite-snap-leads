@@ -277,7 +277,7 @@ export default function Pricing() {
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                   <p className="text-xs text-center text-muted-foreground mb-4">
-                    {isOnTrial ? `Upgrade from your ${trialTier === 'professional' ? 'Pro' : trialTier === 'enterprise' ? 'Elite' : 'Starter'} trial` : `Then ${getMonthlyPrice(tier)}/month • No credit card required`}
+                    {isOnTrial ? `Upgrade from your ${trialTier === 'professional' ? 'Pro' : trialTier === 'enterprise' ? 'Elite' : 'Starter'} trial` : `Then ${getMonthlyPrice(tier)}/month • Cancel anytime`}
                   </p>
 
                   <div className="space-y-4">
@@ -354,9 +354,9 @@ export default function Pricing() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Start a 7-day trial with no credit card required. Get 50 property exports to test data quality.
-                  Search unlimited properties, save favorites, and access tier-specific features.
-                  Trial ends automatically after 7 days—upgrade anytime to keep exporting.
+                  Start a 7-day trial — $0 due today. Enter your payment method at checkout and get 50 property
+                  exports to test data quality. Search unlimited properties, save favorites, and access tier-specific
+                  features. Your subscription begins automatically after 7 days, or cancel anytime before then.
                 </p>
               </CardContent>
             </Card>

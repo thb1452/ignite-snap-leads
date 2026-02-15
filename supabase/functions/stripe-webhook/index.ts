@@ -133,6 +133,7 @@ async function handleCheckoutCompleted(
   const planId = session.metadata?.plan_id;
   const customerId = session.customer as string;
   const subscriptionId = session.subscription as string;
+  const isTrial = session.metadata?.is_trial === "true";
 
   if (!userId || !planId) {
     console.error("[webhook] Missing metadata in checkout session");
@@ -147,43 +148,71 @@ async function handleCheckoutCompleted(
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-  // Cancel any existing active subscriptions for this user
+  // Cancel any existing active/trial subscriptions for this user
   const { error: cancelError } = await supabase
     .from("user_subscriptions")
     .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
     .eq("user_id", userId)
-    .eq("status", "active");
+    .in("status", ["active", "trial", "trialing"]);
 
   if (cancelError) {
     console.error("[webhook] Error cancelling old subscriptions:", cancelError);
   }
 
+  // Determine status and trial fields
+  const isTrialing = subscription.status === "trialing";
+  const status = isTrialing ? "trialing" : "active";
+
+  // Look up the tier name from the plan_id (which might be a UUID or tier name)
+  let trialTier: string | null = null;
+  if (isTrialing || isTrial) {
+    // Try to get tier name from subscription_plans table
+    const { data: planData } = await supabase
+      .from("subscription_plans")
+      .select("name")
+      .eq("id", planId)
+      .maybeSingle();
+    trialTier = planData?.name || planId; // Fallback to planId if it's already the tier name
+  }
+
+  // Build subscription record
+  const subscriptionRecord: Record<string, any> = {
+    user_id: userId,
+    plan_id: planId,
+    status,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscriptionId,
+    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+  };
+
+  // Set trial fields if this is a trial subscription
+  if (isTrialing && subscription.trial_end) {
+    subscriptionRecord.trial_started_at = new Date().toISOString();
+    subscriptionRecord.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
+    subscriptionRecord.trial_tier = trialTier;
+    subscriptionRecord.trial_exports_used = 0;
+    subscriptionRecord.trial_exports_limit = 50;
+  }
+
   // Create new subscription record
   const { error: insertError } = await supabase
     .from("user_subscriptions")
-    .insert({
-      user_id: userId,
-      plan_id: planId,
-      status: "active",
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-    });
+    .insert(subscriptionRecord);
 
   if (insertError) {
     console.error("[webhook] Error creating subscription:", insertError);
     throw insertError;
   }
 
-  console.log("[webhook] Subscription created for user:", userId);
+  console.log("[webhook] Subscription created for user:", userId, "status:", status, isTrialing ? "(trial)" : "");
 }
 
 async function handleSubscriptionChange(
   supabase: any,
   subscription: Stripe.Subscription
 ) {
-  console.log("[webhook] Subscription changed:", subscription.id);
+  console.log("[webhook] Subscription changed:", subscription.id, "stripe_status:", subscription.status);
 
   const userId = subscription.metadata?.user_id;
   if (!userId) {
@@ -191,24 +220,50 @@ async function handleSubscriptionChange(
     return;
   }
 
-  // Determine status
+  // Determine status — map Stripe statuses to our internal statuses
   let status = "active";
-  if (subscription.status === "canceled") status = "cancelled";
+  if (subscription.status === "trialing") status = "trialing";
+  else if (subscription.status === "canceled") status = "cancelled";
   else if (subscription.status === "past_due") status = "past_due";
   else if (subscription.status === "unpaid") status = "unpaid";
   else if (subscription.cancel_at_period_end) status = "active"; // Still active until period ends
 
+  // Build update payload
+  const updatePayload: Record<string, any> = {
+    status,
+    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+    cancel_at: subscription.cancel_at
+      ? new Date(subscription.cancel_at * 1000).toISOString()
+      : null,
+  };
+
+  // If transitioning from trialing → active (trial ended, card charged),
+  // clear the trial tracking fields so the user gets full monthly limits
+  if (subscription.status === "active") {
+    // Get current record to check if it was trialing
+    const { data: currentSub } = await supabase
+      .from("user_subscriptions")
+      .select("status, trial_started_at")
+      .eq("stripe_subscription_id", subscription.id)
+      .maybeSingle();
+
+    if (currentSub?.status === "trialing" && currentSub?.trial_started_at) {
+      console.log("[webhook] Trial → Active conversion for user:", userId);
+      // Reset trial export counter — user now gets full monthly limits
+      updatePayload.trial_exports_used = 0;
+    }
+  }
+
+  // If this is a trialing subscription, ensure trial fields are set
+  if (subscription.status === "trialing" && subscription.trial_end) {
+    updatePayload.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
+  }
+
   // Update subscription record
   const { error } = await supabase
     .from("user_subscriptions")
-    .update({
-      status,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      cancel_at: subscription.cancel_at
-        ? new Date(subscription.cancel_at * 1000).toISOString()
-        : null,
-    })
+    .update(updatePayload)
     .eq("stripe_subscription_id", subscription.id);
 
   if (error) {

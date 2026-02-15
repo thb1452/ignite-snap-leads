@@ -61,7 +61,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .from("user_subscriptions")
       .select("stripe_customer_id")
       .eq("user_id", user.id)
-      .in("status", ["active", "trialing", "past_due"])
+      .in("status", ["active", "trialing", "past_due", "trial"])
       .not("stripe_customer_id", "is", null)
       .order("created_at", { ascending: false })
       .limit(1)

@@ -244,8 +244,8 @@ export function SubscriptionSettings() {
                     {subscription?.status === 'active' && (
                       <Badge className="bg-green-500 text-white">Active</Badge>
                     )}
-                    {subscription?.status === 'trial' && (
-                      <Badge className="bg-blue-500 text-white">Trial</Badge>
+                    {(subscription?.status === 'trial' || subscription?.status === 'trialing') && (
+                      <Badge className="bg-cyan-500 text-white">Trial</Badge>
                     )}
                   </CardTitle>
                   <CardDescription className="mt-1">

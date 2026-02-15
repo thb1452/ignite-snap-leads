@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
 import { 
   Target, 
   Clock, 
@@ -161,6 +162,13 @@ function ShowcaseCarousel() {
 export default function Landing() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [trialModalOpen, setTrialModalOpen] = useState(false);
+  const [selectedTrialTier, setSelectedTrialTier] = useState('starter');
+
+  const openTrialModal = (tier: string) => {
+    setSelectedTrialTier(tier);
+    setTrialModalOpen(true);
+  };
 
   const pricing = {
     starter: { monthly: 119, annual: 99 },
@@ -231,7 +239,7 @@ export default function Landing() {
               onClick={() => scrollToSection('pricing')}
               className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
             >
-              See Plans
+              Start Free Trial
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
@@ -275,7 +283,7 @@ export default function Landing() {
                   onClick={() => scrollToSection('pricing')}
                   className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
                 >
-                  See Plans
+                  Start Free Trial
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
@@ -335,7 +343,7 @@ export default function Landing() {
                   onClick={() => scrollToSection('pricing')}
                   className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6"
                 >
-                  See Available Plans
+                  Start Free Trial
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </motion.div>
@@ -347,7 +355,7 @@ export default function Landing() {
                 className="text-landing-text-muted text-sm flex items-center gap-2"
               >
                 <Lock className="w-4 h-4" />
-                Limited to 500 operators. No credit card required to view pricing.
+                No credit card required • 50 free property exports
               </motion.p>
               
               <motion.p 
@@ -880,17 +888,19 @@ export default function Landing() {
                   ))}
                 </ul>
                 
-                <Link to={`/auth?mode=signup&plan=${plan.name.toLowerCase()}`}>
-                  <Button 
-                    className={`w-full ${
-                      plan.highlighted 
-                        ? 'bg-landing-accent hover:bg-landing-accent/90 text-landing-bg' 
-                        : 'bg-landing-surface hover:bg-landing-surface/80 text-landing-text border border-landing-surface'
-                    }`}
-                  >
-                    Get Started
-                  </Button>
-                </Link>
+                <Button
+                  onClick={() => openTrialModal(plan.name.toLowerCase() === 'pro' ? 'professional' : plan.name.toLowerCase())}
+                  className={`w-full ${
+                    plan.highlighted 
+                      ? 'bg-landing-accent hover:bg-landing-accent/90 text-landing-bg' 
+                      : 'bg-landing-surface hover:bg-landing-surface/80 text-landing-text border border-landing-surface'
+                  }`}
+                >
+                  Start 7-Day Free Trial
+                </Button>
+                <p className="text-xs text-center text-landing-text-muted mt-2">
+                  Then ${plan.price}/month • No credit card required
+                </p>
               </motion.div>
             ))}
           </div>
@@ -1029,7 +1039,11 @@ export default function Landing() {
                 },
                 {
                   question: "Is there a free trial?",
-                  answer: "We don't offer a free trial because our data has real value and we protect it for paying users. However, our Starter plan at $119/month is designed as a low-risk way to test the platform, and we offer a 30-day money-back guarantee if you don't see value."
+                  answer: "Yes! Start a 7-day free trial with no credit card required. You get 50 property exports to test data quality in your markets. Search unlimited properties, save favorites, and access all features for your selected tier. After 7 days, upgrade to keep exporting or your account converts to view-only access."
+                },
+                {
+                  question: "How does the free trial work?",
+                  answer: "Start a 7-day trial with no credit card required. Get 50 property exports to test data quality. Search unlimited properties, save favorites, and access tier-specific features. Trial ends automatically after 7 days—upgrade anytime to keep exporting."
                 }
               ].map((faq, i) => (
                 <motion.div
@@ -1100,10 +1114,10 @@ export default function Landing() {
             >
               <Button 
                 size="lg"
-                onClick={() => scrollToSection('pricing')}
+                onClick={() => openTrialModal('starter')}
                 className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-12 py-6"
               >
-                Choose Your Plan
+                Start Free Trial
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </motion.div>
@@ -1174,15 +1188,22 @@ export default function Landing() {
               </Link>
               <Button 
                 size="sm"
-                onClick={() => scrollToSection('pricing')}
+                onClick={() => openTrialModal('starter')}
                 className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
               >
-                Get Started
+                Start Free Trial
               </Button>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Trial Signup Modal */}
+      <TrialSignupModal
+        open={trialModalOpen}
+        onOpenChange={setTrialModalOpen}
+        selectedTier={selectedTrialTier}
+      />
     </div>
   );
 }

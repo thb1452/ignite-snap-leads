@@ -1635,6 +1635,11 @@ export type Database = {
           status: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
+          trial_ends_at: string | null
+          trial_exports_limit: number | null
+          trial_exports_used: number | null
+          trial_started_at: string | null
+          trial_tier: string | null
           updated_at: string
           user_id: string
         }
@@ -1649,6 +1654,11 @@ export type Database = {
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          trial_exports_limit?: number | null
+          trial_exports_used?: number | null
+          trial_started_at?: string | null
+          trial_tier?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1663,6 +1673,11 @@ export type Database = {
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          trial_exports_limit?: number | null
+          trial_exports_used?: number | null
+          trial_started_at?: string | null
+          trial_tier?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -2187,6 +2202,7 @@ export type Database = {
         Args: { p_list_id: string; p_page?: number; p_page_size?: number }
         Returns: Json
       }
+      fn_get_trial_status: { Args: { p_user_id: string }; Returns: Json }
       fn_get_user_allowed_states: {
         Args: { p_user_id?: string }
         Returns: string[]
@@ -2222,6 +2238,10 @@ export type Database = {
           subscription_id: string
           user_id: string
         }[]
+      }
+      fn_increment_trial_exports: {
+        Args: { p_count?: number; p_user_id: string }
+        Returns: Json
       }
       fn_increment_usage:
         | {
@@ -2437,6 +2457,10 @@ export type Database = {
       }
       fn_refund_credits: {
         Args: { p_job_id: string; p_property_ids: string[]; p_reason: string }
+        Returns: Json
+      }
+      fn_start_trial: {
+        Args: { p_trial_tier: string; p_user_id: string }
         Returns: Json
       }
       fn_update_user_states: { Args: { p_states: string[] }; Returns: Json }

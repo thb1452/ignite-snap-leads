@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
+import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets } from "lucide-react";
+import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock } from "lucide-react";
+import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
 
 // Key to signal Auth page that user was already logged in when they clicked a plan
 const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
@@ -86,7 +88,15 @@ const PRICING_TIERS: PricingTier[] = [
 export default function Pricing() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { isOnTrial, trialDaysRemaining, trialExportsRemaining, trialTier } = useTrialStatus();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+  const [trialModalOpen, setTrialModalOpen] = useState(false);
+  const [selectedTrialTier, setSelectedTrialTier] = useState('starter');
+
+  const openTrialModal = (tier: string) => {
+    setSelectedTrialTier(tier);
+    setTrialModalOpen(true);
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -141,6 +151,18 @@ export default function Pricing() {
             >
               Not you? Sign out
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Trial status banner */}
+      {isOnTrial && (
+        <div className="bg-gradient-to-r from-cyan-500/10 to-teal-500/10 border-b border-cyan-200 dark:border-cyan-800">
+          <div className="container max-w-7xl py-3 px-4 flex items-center justify-center gap-3 text-sm">
+            <Clock className="h-4 w-4 text-cyan-600" />
+            <span className="text-cyan-700 dark:text-cyan-300">
+              You're on a <span className="font-semibold">{trialTier === 'professional' ? 'Pro' : trialTier === 'enterprise' ? 'Elite' : 'Starter'} trial</span> with {trialDaysRemaining} day{trialDaysRemaining !== 1 ? 's' : ''} and {trialExportsRemaining} exports remaining.
+            </span>
           </div>
         </div>
       )}
@@ -242,18 +264,21 @@ export default function Pricing() {
 
                 <CardContent>
                   <Button
-                    onClick={() => handleSelectPlan(tier)}
-                    className={`w-full mb-6 transition-all ${
+                    onClick={() => openTrialModal(tier.name)}
+                    className={`w-full mb-2 transition-all ${
                       tier.popular
-                        ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                        ? "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
                         : ""
                     }`}
                     variant={tier.popular ? "default" : "outline"}
                     size="lg"
                   >
-                    Get Started
+                    {isOnTrial ? 'Upgrade Early' : 'Start 7-Day Free Trial'}
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
+                  <p className="text-xs text-center text-muted-foreground mb-4">
+                    {isOnTrial ? `Upgrade from your ${trialTier === 'professional' ? 'Pro' : trialTier === 'enterprise' ? 'Elite' : 'Starter'} trial` : `Then ${getMonthlyPrice(tier)}/month • No credit card required`}
+                  </p>
 
                   <div className="space-y-4">
                     <div className="text-sm font-semibold text-muted-foreground mb-2">
@@ -325,13 +350,26 @@ export default function Pricing() {
           <div className="space-y-4">
             <Card>
               <CardHeader>
+                <CardTitle className="text-lg">How does the free trial work?</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Start a 7-day trial with no credit card required. Get 50 property exports to test data quality.
+                  Search unlimited properties, save favorites, and access tier-specific features.
+                  Trial ends automatically after 7 days—upgrade anytime to keep exporting.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle className="text-lg">What's the difference between code violations and water shutoffs?</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  <strong>Code violations</strong> indicate properties where the city is applying enforcement pressure (tall grass, structural issues, permits, etc.).
+                  <strong>Code violations</strong> indicate properties where the city is applying enforcement pressure.
                   <strong> Water shutoffs</strong> are utility disconnections — a stronger enforcement signal.
-                  Water shutoff data is available on the Enterprise plan.
+                  Water shutoff data is available on the Elite plan.
                 </p>
               </CardContent>
             </Card>
@@ -367,19 +405,7 @@ export default function Pricing() {
               <CardContent>
                 <p className="text-muted-foreground">
                   Strategic 60-90 day rotation across 400+ counties (expanding to 2,000+).
-                  Each county refreshed 4-6 times annually - significantly better than quarterly batch providers like PropStream.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">What makes Snap different from PropStream?</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  PropStream is general property data. Snap is <span className="font-semibold">specialized enforcement pressure intelligence</span>.
-                  We focus exclusively on properties where cities are applying code enforcement pressure. PropStream gives you everything; Snap gives you what matters.
+                  Each county refreshed 4-6 times annually.
                 </p>
               </CardContent>
             </Card>
@@ -393,6 +419,13 @@ export default function Pricing() {
           </p>
         </div>
       </div>
+
+      {/* Trial Signup Modal */}
+      <TrialSignupModal
+        open={trialModalOpen}
+        onOpenChange={setTrialModalOpen}
+        selectedTier={selectedTrialTier}
+      />
     </div>
   );
 }

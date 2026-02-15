@@ -1,10 +1,13 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Settings, CreditCard, LayoutDashboard, ListChecks } from "lucide-react";
+import { LogOut, User, Settings, CreditCard, LayoutDashboard, ListChecks, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { LogoWordmark } from "@/components/branding/LogoWordmark";
+import { TrialBanner } from "@/components/trial/TrialBanner";
+import { TrialExpiredModal } from "@/components/trial/TrialExpiredModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +24,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { signOut, user } = useAuth();
   const location = useLocation();
   const { isAdmin, isVA } = useUserRole();
+  const { isOnTrial, hasTrialExpired, trialDaysRemaining, trialTier } = useTrialStatus();
+
+  const trialTierDisplay = trialTier === 'professional' ? 'Pro' : trialTier === 'enterprise' ? 'Elite' : 'Starter';
 
   const handleSignOut = async () => {
     await signOut();
@@ -52,6 +58,9 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Trial Banner */}
+      <TrialBanner />
+      <TrialExpiredModal />
       {/* Navigation Bar - consolidated with user menu */}
       <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 supports-[backdrop-filter]:bg-white/55 border-b border-slate-200/70 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto max-w-[1400px] px-6 h-14 flex items-center justify-between">
@@ -96,10 +105,34 @@ export function AppLayout({ children }: AppLayoutProps) {
                     <p className="text-sm font-medium truncate">{user.email}</p>
                   </div>
                   <DropdownMenuSeparator />
-                </>
-              )}
-              
-              <DropdownMenuItem asChild>
+                 </>
+               )}
+
+               {/* Trial status in dropdown */}
+               {(isOnTrial || hasTrialExpired) && (
+                 <>
+                   <div className="px-2 py-1.5">
+                     <p className="text-sm font-medium">
+                       {isOnTrial ? `${trialTierDisplay} Trial` : 'Trial Expired'}
+                     </p>
+                     {isOnTrial && (
+                       <p className="text-xs text-muted-foreground flex items-center gap-1">
+                         <Clock className="h-3 w-3" />
+                         Expires in {trialDaysRemaining} day{trialDaysRemaining !== 1 ? 's' : ''}
+                       </p>
+                     )}
+                   </div>
+                   <DropdownMenuItem asChild>
+                     <Link to="/pricing" className="flex items-center gap-2 cursor-pointer text-cyan-600">
+                       <CreditCard className="h-4 w-4" />
+                       {isOnTrial ? 'View Pricing' : 'Upgrade Now'}
+                     </Link>
+                   </DropdownMenuItem>
+                   <DropdownMenuSeparator />
+                 </>
+               )}
+               
+               <DropdownMenuItem asChild>
                 <Link to="/leads" className="flex items-center gap-2 cursor-pointer">
                   <LayoutDashboard className="h-4 w-4" />
                   Properties

@@ -57,7 +57,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // ---- Input ----
     const body = await req.json();
-    const { tier_name, billing_cycle = "monthly" } = body;
+    const { tier_name, billing_cycle = "monthly", trial = false } = body;
 
     if (!tier_name) {
       return new Response(
@@ -114,25 +114,36 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // ---- Create Checkout Session with real Stripe Price ----
+    const subscriptionData: Record<string, any> = {
+      metadata: {
+        user_id: user.id,
+        plan_id: plan?.id ?? tier_name,
+        billing_cycle: billing_cycle,
+        is_trial: trial ? "true" : "false",
+      },
+    };
+
+    // Add 7-day trial period when requested
+    if (trial) {
+      subscriptionData.trial_period_days = 7;
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `${appUrl}/checkout/success`,
+      success_url: trial
+        ? `${appUrl}/checkout/success?trial=true`
+        : `${appUrl}/checkout/success`,
       cancel_url: `${appUrl}/pricing?canceled=true`,
       metadata: {
         user_id: user.id,
         plan_id: plan?.id ?? tier_name,
         billing_cycle: billing_cycle,
+        is_trial: trial ? "true" : "false",
       },
-      subscription_data: {
-        metadata: {
-          user_id: user.id,
-          plan_id: plan?.id ?? tier_name,
-          billing_cycle: billing_cycle,
-        },
-      },
+      subscription_data: subscriptionData,
       allow_promotion_codes: true,
     });
 

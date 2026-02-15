@@ -355,7 +355,7 @@ export default function Landing() {
                 className="text-landing-text-muted text-sm flex items-center gap-2"
               >
                 <Lock className="w-4 h-4" />
-                No credit card required • 50 free property exports
+                7-day free trial • 50 property exports • Cancel anytime
               </motion.p>
               
               <motion.p 
@@ -899,7 +899,7 @@ export default function Landing() {
                   Start 7-Day Free Trial
                 </Button>
                 <p className="text-xs text-center text-landing-text-muted mt-2">
-                  Then ${plan.price}/month • No credit card required
+                  Then ${plan.price}/month • Cancel anytime
                 </p>
               </motion.div>
             ))}
@@ -1039,11 +1039,11 @@ export default function Landing() {
                 },
                 {
                   question: "Is there a free trial?",
-                  answer: "Yes! Start a 7-day free trial with no credit card required. You get 50 property exports to test data quality in your markets. Search unlimited properties, save favorites, and access all features for your selected tier. After 7 days, upgrade to keep exporting or your account converts to view-only access."
+                  answer: "Yes! Start a 7-day free trial — $0 due today. Enter your payment method at checkout and get 50 property exports to test data quality in your markets. Search unlimited properties, save favorites, and access all features for your selected tier. After 7 days your subscription begins automatically, or cancel anytime before then."
                 },
                 {
                   question: "How does the free trial work?",
-                  answer: "Start a 7-day trial with no credit card required. Get 50 property exports to test data quality. Search unlimited properties, save favorites, and access tier-specific features. Trial ends automatically after 7 days—upgrade anytime to keep exporting."
+                  answer: "Start a 7-day trial — $0 due today. Enter your payment method at checkout and get 50 property exports to test data quality. Search unlimited properties, save favorites, and access tier-specific features. Your subscription begins automatically after 7 days, or cancel anytime before then."
                 }
               ].map((faq, i) => (
                 <motion.div

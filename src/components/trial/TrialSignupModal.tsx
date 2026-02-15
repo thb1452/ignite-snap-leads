@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
-import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,7 +11,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Check, Loader2, Zap, TrendingUp, Building2 } from "lucide-react";
+import { Check, Loader2, Zap, TrendingUp, Building2, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { Link } from "react-router-dom";
@@ -39,7 +38,7 @@ const TIER_CONFIG: Record<string, {
     icon: TrendingUp,
     features: [
       "All Starter features",
-      "Pressure Level™ filtering",
+      "Pressure Level\u2122 filtering",
       "Priority support",
     ],
   },
@@ -54,6 +53,35 @@ const TIER_CONFIG: Record<string, {
   },
 };
 
+/** Create a Stripe Checkout session with a 7-day trial */
+async function createTrialCheckoutSession(tierName: string, token: string): Promise<string> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_EXTERNAL_SUPABASE_URL;
+
+  const response = await fetch(
+    `${supabaseUrl}/functions/v1/create-checkout-session`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        tier_name: tierName,
+        billing_cycle: "monthly",
+        trial: true,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to create checkout session");
+  }
+
+  const data = await response.json();
+  return data.url || data.checkout_url;
+}
+
 interface TrialSignupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -62,7 +90,6 @@ interface TrialSignupModalProps {
 
 export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSignupModalProps) {
   const { user } = useAuth();
-  const { startTrial } = useTrialStatus();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -74,6 +101,30 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
   const tier = TIER_CONFIG[selectedTier] || TIER_CONFIG.starter;
   const TierIcon = tier.icon;
 
+  const trialEndDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  /** Redirect an authenticated user to Stripe Checkout with trial */
+  const redirectToStripeCheckout = async () => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+
+    if (!token) {
+      throw new Error("Not authenticated. Please sign in and try again.");
+    }
+
+    toast({
+      title: "Redirecting to checkout...",
+      description: "You'll enter your payment details on our secure checkout page.",
+    });
+
+    const checkoutUrl = await createTrialCheckoutSession(selectedTier, token);
+    window.location.href = checkoutUrl;
+  };
+
   const handleStartTrial = async () => {
     if (!agreedToTerms) {
       toast({ variant: "destructive", title: "Please agree to Terms of Service" });
@@ -84,26 +135,12 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
 
     try {
       if (user) {
-        // User already logged in — start trial directly
-        const result = await startTrial(selectedTier);
-        if (!result.success) {
-          if (result.error === 'already_had_trial') {
-            toast({ variant: "destructive", title: "Trial Already Used", description: "You've already started a trial. View your dashboard to continue." });
-          } else if (result.error === 'already_has_subscription') {
-            toast({ variant: "destructive", title: "Active Subscription", description: "You already have an active subscription." });
-          } else {
-            toast({ variant: "destructive", title: "Error", description: result.error || "Failed to start trial" });
-          }
-          return;
-        }
-
-        toast({ title: "🎉 Trial Started!", description: `Your 7-day ${tier.display} trial is active. You have 50 property exports.` });
-        onOpenChange(false);
-        navigate("/leads");
+        // User already logged in — redirect to Stripe Checkout directly
+        await redirectToStripeCheckout();
         return;
       }
 
-      // Sign up new user
+      // Sign up new user first, then redirect to Stripe
       if (!email || !password) {
         toast({ variant: "destructive", title: "Please enter email and password" });
         return;
@@ -135,23 +172,14 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
         return;
       }
 
-      // Wait for session to be established
-      // The trial will be started after email verification or auto-confirm
       if (signUpData.session) {
-        // Session exists (auto-confirm enabled) — start trial
-        const result = await startTrial(selectedTier);
-        if (result.success) {
-          toast({ title: "🎉 Trial Started!", description: `Your 7-day ${tier.display} trial is active. You have 50 property exports.` });
-          onOpenChange(false);
-          navigate("/leads");
-        } else {
-          toast({ variant: "destructive", title: "Trial Error", description: result.error || "Failed to start trial" });
-        }
+        // Session exists (auto-confirm enabled) — redirect to Stripe Checkout
+        await redirectToStripeCheckout();
       } else {
-        // Email verification required
+        // Email verification required — user must verify first, then start trial
         toast({
           title: "Check Your Email",
-          description: "We sent a verification link. After verifying, your trial will begin automatically.",
+          description: "We sent a verification link. After verifying, you'll be able to start your trial.",
         });
         onOpenChange(false);
         navigate(`/auth?mode=signin&trial_tier=${selectedTier}`);
@@ -174,7 +202,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
             Start Your {tier.display} Trial
           </DialogTitle>
           <DialogDescription>
-            7 days free • 50 property exports • No credit card required
+            7 days free &bull; 50 property exports &bull; Cancel anytime
           </DialogDescription>
         </DialogHeader>
 
@@ -196,6 +224,15 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
                 50 total property exports
               </li>
             </ul>
+          </div>
+
+          {/* Payment info callout */}
+          <div className="flex items-start gap-3 bg-muted/50 rounded-lg p-3 border">
+            <CreditCard className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <div className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-semibold text-foreground">$0 due today.</span>{" "}
+              You won't be charged until {trialEndDate}. Cancel anytime before then.
+            </div>
           </div>
 
           {/* Only show form fields if not logged in */}
@@ -244,7 +281,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Starting Trial...
+                {user ? "Redirecting to checkout..." : "Creating account..."}
               </>
             ) : (
               "Start Free Trial"
@@ -254,7 +291,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
           <p className="text-xs text-center text-muted-foreground">
             Your trial starts immediately. No charges for 7 days.
             <br />
-            Then ${tier.price}/month if you upgrade.
+            Then ${tier.price}/month. Cancel anytime.
           </p>
         </div>
       </DialogContent>

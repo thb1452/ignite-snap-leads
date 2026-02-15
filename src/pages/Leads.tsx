@@ -37,6 +37,9 @@ import { ExportQuotaDisplay } from "@/components/leads/ExportQuotaDisplay";
 import { WaterShutoffUpgradeBanner } from "@/components/leads/WaterShutoffUpgradeBanner";
 import { SelectionActionBar } from "@/components/leads/SelectionActionBar";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { useTrialStatus } from "@/hooks/useTrialStatus";
+import { useTrialExportNotifications } from "@/hooks/useTrialExportNotifications";
+import { TrialExportGate } from "@/components/trial/TrialExportGate";
 
 const PAGE_SIZE = 50;
 
@@ -46,6 +49,19 @@ function Leads() {
   const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
   const { plan, usage, refetch: refetchSubscription, getRemainingCount } = useSubscription();
   useSubscriptionGate({ showToast: false }); // Still needed for subscription context
+  const {
+    isOnTrial,
+    hasTrialExpired,
+    canExport: trialCanExport,
+    trialExportsUsed,
+    trialExportsRemaining,
+    trialExportsLimit,
+    trialTier,
+    trialEndsAt,
+    incrementTrialExports,
+    refetch: refetchTrial,
+  } = useTrialStatus();
+  const { showExportNotification } = useTrialExportNotifications();
   
   // Pagination state
   const [page, setPage] = useState(1);
@@ -101,6 +117,8 @@ function Leads() {
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeLimitType, setUpgradeLimitType] = useState<'exports'>('exports');
   const [exportContextData, setExportContextData] = useState<ExportContext | undefined>(undefined);
+  const [trialGateOpen, setTrialGateOpen] = useState(false);
+  const [trialGateType, setTrialGateType] = useState<'exhausted' | 'expired'>('exhausted');
 
   // Count active filters
   const activeFilterCount = useMemo(() => {
@@ -225,6 +243,77 @@ function Leads() {
     }
 
     const propertyCount = selectedIds.length;
+
+    // === TRIAL EXPORT GATING ===
+    if (isOnTrial || hasTrialExpired) {
+      // Trial expired
+      if (hasTrialExpired) {
+        setTrialGateType('expired');
+        setTrialGateOpen(true);
+        return;
+      }
+
+      // Trial exports exhausted
+      if (trialExportsRemaining <= 0) {
+        setTrialGateType('exhausted');
+        setTrialGateOpen(true);
+        return;
+      }
+
+      // Would exceed remaining trial exports
+      if (propertyCount > trialExportsRemaining) {
+        toast({
+          variant: "destructive",
+          title: "Too many properties selected",
+          description: `You have ${trialExportsRemaining} trial exports remaining. Select fewer properties or upgrade for more.`,
+          duration: 6000,
+        });
+        return;
+      }
+
+      // Trial export allowed — proceed
+      setIsExporting(true);
+      try {
+        toast({
+          title: "Export Started",
+          description: `Exporting ${propertyCount.toLocaleString()} properties to CSV.`,
+          duration: 5000,
+        });
+
+        await exportFilteredCsv({
+          propertyIds: selectedIds,
+          expectedPropertyCount: propertyCount,
+        });
+
+        // Track trial exports
+        const result = await incrementTrialExports(propertyCount);
+        if (result.success) {
+          const newUsed = trialExportsUsed + propertyCount;
+          showExportNotification(newUsed, trialExportsLimit);
+        }
+
+        await refetchTrial();
+
+        toast({
+          title: "Export Complete",
+          description: `Exported ${propertyCount.toLocaleString()} properties — ${Math.max(0, trialExportsRemaining - propertyCount)} trial exports remaining`,
+        });
+
+        setSelectedIds([]);
+      } catch (error: any) {
+        console.error('[Leads] Trial export error:', error);
+        toast({
+          title: "Export Failed",
+          description: error.message || "Failed to export properties",
+          variant: "destructive",
+        });
+      } finally {
+        setIsExporting(false);
+      }
+      return;
+    }
+
+    // === PAID SUBSCRIPTION EXPORT FLOW ===
     const remaining = getRemainingCount('exports');
     const used = usage?.exports_count ?? 0;
     const max = plan?.max_monthly_exports ?? 0;
@@ -588,10 +677,11 @@ function Leads() {
               </div>
               <Button
                 onClick={handleExportCSV}
-                disabled={selectedIds.length === 0}
+                disabled={selectedIds.length === 0 || (hasTrialExpired && !trialCanExport)}
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-xs"
+                className={`h-7 px-2 text-xs ${hasTrialExpired ? 'opacity-50' : ''}`}
+                title={hasTrialExpired ? 'Trial expired — upgrade to export' : undefined}
               >
                 <Download className="h-3.5 w-3.5 mr-1" />
                 Export
@@ -814,6 +904,15 @@ function Leads() {
             description: "Properties have been added to your list",
           });
         }}
+      />
+
+      {/* Trial Export Gate (exhausted/expired) */}
+      <TrialExportGate
+        open={trialGateOpen}
+        onOpenChange={setTrialGateOpen}
+        type={trialGateType}
+        trialTier={trialTier}
+        trialEndsAt={trialEndsAt}
       />
 
       {/* Upgrade Prompt for Export Limits */}

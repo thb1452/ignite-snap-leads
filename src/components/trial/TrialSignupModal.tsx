@@ -146,8 +146,8 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
         return;
       }
 
-      if (password.length < 6) {
-        toast({ variant: "destructive", title: "Password must be at least 6 characters" });
+      if (password.length < 8) {
+        toast({ variant: "destructive", title: "Password must be at least 8 characters" });
         return;
       }
 

@@ -87,17 +87,37 @@ serve(async (req) => {
     }
     const user = authData.user;
 
-    // ---- Get user's data tier from subscription ----
+    // ---- Get user's subscription (including trial statuses) ----
     const { data: subData } = await supabase
       .from('user_subscriptions')
-      .select('plan:subscription_plans(data_tier, max_monthly_exports)')
+      .select('status, trial_exports_used, trial_exports_limit, trial_ends_at, plan:subscription_plans(data_tier, max_monthly_exports)')
       .eq('user_id', user.id)
-      .eq('status', 'active')
-      .single();
+      .in('status', ['active', 'trialing', 'past_due', 'trial'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // Reject expired trial users and users with no subscription
+    if (!subData) {
+      return new Response(
+        JSON.stringify({ error: 'No active subscription', code: 'NO_SUBSCRIPTION' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const isTrialUser = subData.status === 'trial' || subData.status === 'trialing';
+
+    // Check if trial has expired
+    if (isTrialUser && subData.trial_ends_at && new Date(subData.trial_ends_at) < new Date()) {
+      return new Response(
+        JSON.stringify({ error: 'Trial has expired. Please upgrade to continue exporting.', code: 'TRIAL_EXPIRED' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const dataTier = (subData?.plan as any)?.data_tier || 'basic';
     const maxExports = (subData?.plan as any)?.max_monthly_exports || 0;
-    console.log('[export-csv] User data tier:', dataTier, 'max exports:', maxExports);
+    console.log('[export-csv] User data tier:', dataTier, 'max exports:', maxExports, 'status:', subData.status);
 
     // Helper to build a query for filter-based exports (no propertyIds)
     const buildFilterQuery = () => {
@@ -228,41 +248,90 @@ serve(async (req) => {
     const exportCount = allData.length;
     console.log(`[export-csv] Exporting ${exportCount} properties for user ${user.id}`);
 
-    // ---- Check and Reserve Usage (atomic operation) ----
-    // CRITICAL: Consume usage AFTER we know the actual export count
-    // This ensures we track the actual number of properties exported, not just "1 export"
-    const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
-      p_usage_type: 'exports',
-      p_amount: exportCount
-    });
+    // ---- Check and Reserve Usage ----
+    if (isTrialUser) {
+      // Trial users: check and increment trial exports atomically via DB function
+      const trialUsed = subData.trial_exports_used || 0;
+      const trialLimit = subData.trial_exports_limit || 50;
+      const trialRemaining = trialLimit - trialUsed;
 
-    if (usageError) {
-      console.error('[export-csv] Usage tracking failed:', usageError.message);
-      return new Response(
-        JSON.stringify({
-          error: 'Export temporarily unavailable',
-          code: 'USAGE_TRACKING_ERROR',
-          message: 'Unable to process export at this time. Please try again.'
-        }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (exportCount > trialRemaining) {
+        console.log('[export-csv] Trial user hit export limit:', user.id, 'tried:', exportCount, 'remaining:', trialRemaining);
+        return new Response(
+          JSON.stringify({
+            error: 'Trial export limit reached',
+            code: 'TRIAL_EXPORT_LIMIT_EXCEEDED',
+            message: `Cannot export ${exportCount} properties. You have ${trialRemaining} trial exports remaining. Upgrade to continue.`,
+            requested: exportCount,
+            remaining: trialRemaining
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Increment trial exports atomically
+      const { data: trialResult, error: trialError } = await supabase.rpc('fn_increment_trial_exports', {
+        p_user_id: user.id,
+        p_count: exportCount
+      });
+
+      if (trialError) {
+        console.error('[export-csv] Trial export tracking failed:', trialError.message);
+        return new Response(
+          JSON.stringify({ error: 'Export temporarily unavailable', code: 'USAGE_TRACKING_ERROR' }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (trialResult && !trialResult.success) {
+        console.log('[export-csv] Trial export denied by DB:', trialResult.error);
+        return new Response(
+          JSON.stringify({
+            error: 'Trial export limit reached',
+            code: 'TRIAL_EXPORT_LIMIT_EXCEEDED',
+            message: trialResult.error || 'Trial export limit exceeded',
+            remaining: trialResult.remaining || 0
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('[export-csv] Trial exports consumed:', exportCount, 'for user:', user.id, 'remaining:', trialResult?.remaining);
+    } else {
+      // Paid users: use the standard usage consumption function
+      const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
+        p_usage_type: 'exports',
+        p_amount: exportCount
+      });
+
+      if (usageError) {
+        console.error('[export-csv] Usage tracking failed:', usageError.message);
+        return new Response(
+          JSON.stringify({
+            error: 'Export temporarily unavailable',
+            code: 'USAGE_TRACKING_ERROR',
+            message: 'Unable to process export at this time. Please try again.'
+          }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (usageResult && usageResult.allowed === false) {
+        console.log('[export-csv] User hit export limit:', user.id, 'tried to export:', exportCount);
+        return new Response(
+          JSON.stringify({
+            error: 'CSV export limit reached',
+            code: 'EXPORT_LIMIT_EXCEEDED',
+            message: usageResult.message || `Cannot export ${exportCount} properties. You have reached your monthly limit. Please upgrade your plan to continue exporting.`,
+            requested: exportCount,
+            remaining: usageResult.remaining || 0
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('[export-csv] Usage consumed:', exportCount, 'for user:', user.id, 'remaining:', usageResult?.remaining);
     }
-
-    if (usageResult && usageResult.allowed === false) {
-      console.log('[export-csv] User hit export limit:', user.id, 'tried to export:', exportCount);
-      return new Response(
-        JSON.stringify({
-          error: 'CSV export limit reached',
-          code: 'EXPORT_LIMIT_EXCEEDED',
-          message: usageResult.message || `Cannot export ${exportCount} properties. You have reached your monthly limit. Please upgrade your plan to continue exporting.`,
-          requested: exportCount,
-          remaining: usageResult.remaining || 0
-        }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('[export-csv] Usage consumed:', exportCount, 'for user:', user.id, 'remaining:', usageResult?.remaining);
 
     // FIXED: One row per property with aggregated violations
     // Previously: iterated through each violation creating duplicate property rows

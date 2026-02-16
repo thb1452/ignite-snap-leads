@@ -132,7 +132,7 @@ export default function AdminMigration() {
   const checkStatus = async () => {
     setState(prev => ({ ...prev, status: "checking", errors: [] }));
     
-    const url = `https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/migrate-to-external`;
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/migrate-to-external`;
     
     try {
       const controller = new AbortController();
@@ -143,7 +143,7 @@ export default function AdminMigration() {
         headers: { 
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXhibGVneHBkZ2FxaXNjeHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMTQ5NTMsImV4cCI6MjA3Mzg5MDk1M30.r9TsZsdtHiYVyyNXpeKB8iHumb3ZZfdDUHN4g8twGrU",
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ action: "get-status" }),
         signal: controller.signal,
@@ -247,11 +247,11 @@ export default function AdminMigration() {
 
       while (hasMore) {
         try {
-          const res = await fetch(`https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/migrate-to-external`, {
+          const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/migrate-to-external`, {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
-              "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXhibGVneHBkZ2FxaXNjeHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMTQ5NTMsImV4cCI6MjA3Mzg5MDk1M30.r9TsZsdtHiYVyyNXpeKB8iHumb3ZZfdDUHN4g8twGrU",
+              "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             },
             body: JSON.stringify({ action: "migrate-table", table, cursor }),
           });
@@ -381,11 +381,11 @@ export default function AdminMigration() {
     setState(prev => ({ ...prev, status: "verifying" }));
 
     try {
-      const res = await fetch(`https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/migrate-to-external`, {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/migrate-to-external`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXhibGVneHBkZ2FxaXNjeHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMTQ5NTMsImV4cCI6MjA3Mzg5MDk1M30.r9TsZsdtHiYVyyNXpeKB8iHumb3ZZfdDUHN4g8twGrU",
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ action: "verify" }),
       });

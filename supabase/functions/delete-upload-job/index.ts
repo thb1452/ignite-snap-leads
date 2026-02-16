@@ -11,10 +11,34 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    // ---- Auth: Verify the caller is authenticated ----
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const token = authHeader.replace('Bearer ', '');
+
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    });
+    const { data: authData, error: authErr } = await authClient.auth.getUser(token);
+    if (authErr || !authData?.user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const userId = authData.user.id;
+
+    // Use service role client for actual operations (needs to bypass RLS)
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const { jobId } = await req.json();
 
@@ -22,7 +46,7 @@ Deno.serve(async (req) => {
       throw new Error('Job ID is required');
     }
 
-    console.log(`[delete-upload-job] Deleting job: ${jobId}`);
+    console.log(`[delete-upload-job] Deleting job: ${jobId} by user: ${userId}`);
 
     // 1. Get the job details including storage path
     const { data: job, error: jobError } = await supabaseClient
@@ -33,6 +57,24 @@ Deno.serve(async (req) => {
 
     if (jobError) throw new Error(`Failed to fetch job: ${jobError.message}`);
     if (!job) throw new Error('Job not found');
+
+    // ---- Authorization: Verify the user owns this job ----
+    if (job.user_id !== userId) {
+      // Check if user is admin
+      const { data: roleData } = await supabaseClient
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (!roleData) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden: you do not own this job' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     // 2. Get all property IDs created by this job from upload_staging
     const { data: stagingRows, error: stagingError } = await supabaseClient

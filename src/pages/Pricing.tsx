@@ -4,8 +4,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock } from "lucide-react";
+import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Lock } from "lucide-react";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
+import { useEliteCapacity } from "@/hooks/useEliteCapacity";
 
 // Key to signal Auth page that user was already logged in when they clicked a plan
 const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
@@ -72,7 +73,7 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: 'Elite',
     price_monthly_cents: 29900,
     price_annual_cents_with_discount: 287000,
-    description: 'For teams running enforcement-first strategies',
+    description: 'For teams running enforcement-first strategies. Limited to 500 members.',
     features: [
       '15,000 monthly exports',
       'All properties, all counties',
@@ -89,6 +90,7 @@ export default function Pricing() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { isOnTrial, trialDaysRemaining, trialExportsRemaining, trialTier } = useTrialStatus();
+  const { spotsRemaining: eliteSpotsRemaining, isFull: isEliteFull } = useEliteCapacity();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [trialModalOpen, setTrialModalOpen] = useState(false);
   const [selectedTrialTier, setSelectedTrialTier] = useState('starter');
@@ -242,6 +244,27 @@ export default function Pricing() {
                   </div>
                   <CardDescription className="text-base">{tier.description}</CardDescription>
 
+                  {tier.name === 'enterprise' && (
+                    <div className="mt-3">
+                      {isEliteFull ? (
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs">
+                          <Lock className="w-3.5 h-3.5" />
+                          <span className="font-medium">Waitlist Only — 500 member cap reached</span>
+                        </div>
+                      ) : eliteSpotsRemaining <= 50 ? (
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 text-xs">
+                          <Lock className="w-3.5 h-3.5" />
+                          <span className="font-medium">Only {eliteSpotsRemaining} of 500 spots left</span>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-xs">
+                          <Lock className="w-3.5 h-3.5" />
+                          <span className="font-medium">{eliteSpotsRemaining} of 500 Elite spots remaining</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="mt-6">
                     <div className="flex items-baseline gap-2">
                       <span className="text-5xl font-bold">
@@ -264,7 +287,14 @@ export default function Pricing() {
 
                 <CardContent>
                   <Button
-                    onClick={() => openTrialModal(tier.name)}
+                    onClick={() => {
+                      if (tier.name === 'enterprise' && isEliteFull) {
+                        // TODO: Open waitlist modal or redirect to waitlist signup
+                        window.location.href = 'mailto:support@snapignite.com?subject=Elite%20Waitlist&body=I%20would%20like%20to%20join%20the%20Elite%20tier%20waitlist.';
+                        return;
+                      }
+                      openTrialModal(tier.name);
+                    }}
                     className={`w-full mb-2 transition-all ${
                       tier.popular
                         ? "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
@@ -273,7 +303,9 @@ export default function Pricing() {
                     variant={tier.popular ? "default" : "outline"}
                     size="lg"
                   >
-                    {isOnTrial ? 'Upgrade Early' : 'Start 7-Day Free Trial'}
+                    {tier.name === 'enterprise' && isEliteFull
+                      ? 'Join Waitlist'
+                      : isOnTrial ? 'Upgrade Early' : 'Start 7-Day Free Trial'}
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                   <p className="text-xs text-center text-muted-foreground mb-4">

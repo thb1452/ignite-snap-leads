@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
+import { useEliteCapacity } from "@/hooks/useEliteCapacity";
 import { 
   Target, 
   Clock, 
@@ -55,19 +56,54 @@ function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number; s
   return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
 }
 
-// Scarcity badge component
-function ScarcityBadge() {
-  const spotsLeft = 423; // This would come from database
-  
+// Elite tier scarcity badge - shows live counter of remaining Elite spots
+function EliteScarcityBadge({ compact = false }: { compact?: boolean }) {
+  const { spotsRemaining, isFull, loading } = useEliteCapacity();
+
+  if (loading) return null;
+
+  if (isFull) {
+    return (
+      <div className={`inline-flex items-center gap-2 ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} rounded-full bg-red-500/20 border border-red-500/40 text-red-400`}>
+        <Lock className="w-3.5 h-3.5" />
+        <span className="font-medium">Waitlist Only — 500 member cap reached</span>
+      </div>
+    );
+  }
+
+  if (spotsRemaining <= 10) {
+    return (
+      <div className={`inline-flex items-center gap-2 ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} rounded-full bg-red-500/20 border border-red-500/40 text-red-400 animate-pulse`}>
+        <Lock className="w-3.5 h-3.5" />
+        <span className="font-medium">Only {spotsRemaining} Elite spots remaining</span>
+      </div>
+    );
+  }
+
+  if (spotsRemaining <= 50) {
+    return (
+      <div className={`inline-flex items-center gap-2 ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} rounded-full bg-landing-warning/20 border border-landing-warning/40 text-landing-warning`}>
+        <Lock className="w-3.5 h-3.5" />
+        <span className="font-medium">Only {spotsRemaining} Elite spots left</span>
+      </div>
+    );
+  }
+
+  if (spotsRemaining <= 100) {
+    return (
+      <div className={`inline-flex items-center gap-2 ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} rounded-full bg-landing-warning/20 border border-landing-warning/40 text-landing-warning`}>
+        <Lock className="w-3.5 h-3.5" />
+        <span className="font-medium">{spotsRemaining} of 500 Elite spots remaining</span>
+      </div>
+    );
+  }
+
+  // > 100 spots: softer messaging
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-landing-warning/20 border border-landing-warning/40 text-landing-warning animate-glow-pulse"
-    >
-      <Lock className="w-4 h-4" />
-      <span className="text-sm font-medium">{spotsLeft} of 500 spots left</span>
-    </motion.div>
+    <div className={`inline-flex items-center gap-2 ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent`}>
+      <Lock className="w-3.5 h-3.5" />
+      <span className="font-medium">Limited to 500 Elite members</span>
+    </div>
   );
 }
 
@@ -302,7 +338,6 @@ export default function Landing() {
           <div className="grid lg:grid-cols-5 gap-12 items-center">
             {/* Left side - Copy (60%) */}
             <div className="lg:col-span-3 space-y-8">
-              <ScarcityBadge />
               
               <motion.p 
                 initial={{ opacity: 0, y: 20 }}
@@ -764,7 +799,7 @@ export default function Landing() {
                   "You're tired of competing on the same data and want an actual information advantage",
                   "You operate in markets where enforcement activity creates real opportunity",
                   "You're willing to invest in intelligence, not just data",
-                  "You understand that exclusivity (our 500-user cap) protects your competitive advantage"
+                  "You understand that exclusivity (our 500-member Elite cap) protects your competitive advantage"
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-landing-accent flex-shrink-0 mt-0.5" />
@@ -904,7 +939,7 @@ export default function Landing() {
               {
                 name: "Elite",
                 price: pricing.enterprise[billingCycle],
-                description: "For teams running enforcement-first strategies",
+                description: "For teams running enforcement-first strategies. Limited to 500 members.",
                 features: [
                   "15,000 monthly exports",
                   "All Pro features",
@@ -912,7 +947,8 @@ export default function Landing() {
                   "API access (coming soon)"
                 ],
                 tagline: "Built for maximum signal, urgency, and scale.",
-                highlighted: false
+                highlighted: false,
+                isElite: true
               }
             ].map((plan, i) => (
               <motion.div
@@ -943,6 +979,11 @@ export default function Landing() {
                     <p className="text-sm text-landing-text-muted">billed annually</p>
                   )}
                   <p className="text-landing-text-muted mt-2">{plan.description}</p>
+                  {(plan as any).isElite && (
+                    <div className="mt-3">
+                      <EliteScarcityBadge compact />
+                    </div>
+                  )}
                   {plan.tagline && (
                     <p className="text-xs text-landing-accent mt-2 font-medium italic">{plan.tagline}</p>
                   )}
@@ -973,19 +1014,6 @@ export default function Landing() {
               </motion.div>
             ))}
           </div>
-          
-          {/* Scarcity Reminder */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center"
-          >
-            <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-landing-warning/10 border border-landing-warning/30 text-landing-warning">
-              <Lock className="w-5 h-5" />
-              <span className="font-medium">Limited to 500 total users to protect data advantage</span>
-            </div>
-          </motion.div>
           
           {/* Money-Back Guarantee */}
           <motion.p 
@@ -1167,8 +1195,8 @@ export default function Landing() {
                   answer: "PropStream and BatchLeads are excellent platforms for comprehensive property records—ownership info, liens, equity, comparables. Snap gives you something they don't: real-time enforcement pressure intelligence. We track code violations, water shutoffs, escalating fines, and compliance deadlines from 900+ municipal systems. Most successful wholesalers use Snap WITH PropStream: pull violation leads from Snap (sorted by SnapScore urgency), cross-reference ownership and equity in PropStream, then call owners before enforcement escalates further. It's the intelligence layer that makes your existing tools more effective."
                 },
                 {
-                  question: "Why the 500-user limit?",
-                  answer: "The value of intelligence decreases when everyone has it. If 5,000 users all see the same high-pressure properties, the advantage disappears. We cap access at 500 users to protect the data advantage. Once we hit 500, we'll open a waitlist."
+                  question: "Why the 500-member Elite limit?",
+                  answer: "The 500-member cap applies only to our Elite tier and protects the competitive advantage of our most serious operators. Elite includes water shutoff data and the highest export limits (15,000/month). If we allowed unlimited Elite members, the data advantage would dilute as more investors work the same enforcement signals. The cap ensures Elite members get genuine first-mover advantage on the most urgent enforcement cases. Starter and Professional tiers have no user limits."
                 },
                 {
                   question: "What counties do you cover?",
@@ -1244,15 +1272,14 @@ export default function Landing() {
               Join operators using enforcement intelligence to surface opportunities first.
             </motion.p>
             
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-landing-warning/10 border border-landing-warning/30 text-landing-warning mb-8"
+              className="mb-8"
             >
-              <Lock className="w-5 h-5" />
-              <span className="font-medium">423 of 500 spots remaining. Once we hit capacity, new users join the waitlist.</span>
+              <EliteScarcityBadge />
             </motion.div>
             
             <motion.div 

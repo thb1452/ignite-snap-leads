@@ -26,7 +26,7 @@ const TIER_PRICES: Record<string, number> = {
 
 export function TrialExportGate({ open, onOpenChange, type, trialTier, trialEndsAt }: TrialExportGateProps) {
   const tierDisplay = trialTier === 'professional' ? 'Pro' : trialTier === 'enterprise' ? 'Elite' : 'Starter';
-  const price = TIER_PRICES[trialTier || 'starter'] || 119;
+  const price = TIER_PRICES[trialTier || 'starter'] || 79;
   const expiredDate = trialEndsAt ? new Date(trialEndsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
 
   return (

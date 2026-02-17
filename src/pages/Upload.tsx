@@ -22,7 +22,7 @@ import { RecentUploads } from '@/components/upload/RecentUploads';
 import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { startGeocodingJob } from '@/services/geocoding';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/externalClient';
 import { detectCsvLocations, splitCsvByCity, splitCsvIntoChunks, UPLOAD_LIMITS as CSV_LIMITS } from '@/utils/csvLocationDetector';
 import { sanitizeFilename } from '@/utils/sanitizeFilename';
 

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/externalClient';
 import { useAuth } from '@/hooks/use-auth';
 import { PlanUsageSection } from '@/components/settings/PlanUsageSection';
 import { NotificationsSection } from '@/components/settings/NotificationsSection';

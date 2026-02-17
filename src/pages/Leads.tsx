@@ -297,11 +297,20 @@ function Leads() {
         setSelectedIds([]);
       } catch (error: any) {
         console.error('[Leads] Trial export error:', error);
-        toast({
-          title: "Export Failed",
-          description: error.message || "Failed to export properties",
-          variant: "destructive",
-        });
+        if (error.message === 'TRIAL_EXPORT_LIMIT_EXCEEDED') {
+          setTrialGateType('exhausted');
+          setTrialGateOpen(true);
+        } else if (error.message === 'TRIAL_EXPIRED') {
+          setTrialGateType('expired');
+          setTrialGateOpen(true);
+        } else {
+          toast({
+            title: "Export Failed",
+            description: error.message || "Failed to export properties",
+            variant: "destructive",
+          });
+        }
+        await refetchTrial();
       } finally {
         setIsExporting(false);
       }

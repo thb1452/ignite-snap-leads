@@ -151,6 +151,16 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
         return;
       }
 
+      if (!/[0-9]/.test(password)) {
+        toast({ variant: "destructive", title: "Password must contain at least one number" });
+        return;
+      }
+
+      if (!/[^A-Za-z0-9]/.test(password)) {
+        toast({ variant: "destructive", title: "Password must contain at least one special character" });
+        return;
+      }
+
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -247,7 +257,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
               />
               <Input
                 type="password"
-                placeholder="Password (min 6 characters)"
+                placeholder="Password (min 8 chars, 1 number, 1 special)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isSubmitting}

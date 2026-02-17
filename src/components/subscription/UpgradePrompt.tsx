@@ -72,21 +72,21 @@ const LIMIT_MESSAGES: Record<LimitType, { title: string; description: string; ic
 const PLAN_FEATURES = {
   starter: {
     name: "Starter",
-    price: "$119/mo",
+    price: "$79/mo",
     badge: "",
     features: [
       "All properties, all counties",
-      "5,000 property exports/month",
+      "1,500 property exports/month",
       "Code violation data",
       "Weekly data refresh",
     ],
   },
   professional: {
     name: "Pro",
-    price: "$249/mo",
+    price: "$149/mo",
     features: [
       "All properties, all counties",
-      "15,000 property exports/month",
+      "5,000 property exports/month",
       "Pressure Level™ filters",
       "Priority email support",
     ],
@@ -94,10 +94,10 @@ const PLAN_FEATURES = {
   },
   enterprise: {
     name: "Elite",
-    price: "$499/mo",
+    price: "$299/mo",
     features: [
       "All properties, all counties",
-      "50,000 property exports/month",
+      "15,000 property exports/month",
       "Water shutoff data",
       "API access (coming soon)",
     ],

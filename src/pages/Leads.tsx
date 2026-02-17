@@ -285,13 +285,8 @@ function Leads() {
           expectedPropertyCount: propertyCount,
         });
 
-        // Track trial exports
-        const result = await incrementTrialExports(propertyCount);
-        if (result.success) {
-          const newUsed = trialExportsUsed + propertyCount;
-          showExportNotification(newUsed, trialExportsLimit);
-        }
-
+        // Server-side trial export tracking is now handled by the export-csv edge function.
+        // Refresh local trial status to reflect the updated count.
         await refetchTrial();
 
         toast({

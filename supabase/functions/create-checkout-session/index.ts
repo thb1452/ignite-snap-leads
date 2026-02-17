@@ -74,10 +74,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // ---- Stripe Price IDs (TEST MODE - monthly) ----
+    // TODO: Create new Stripe products at $79/$149/$299 and update these IDs
     const STRIPE_PRICE_IDS: Record<string, string> = {
-      starter: "price_1SsY2PPfDZrVNjz5Y18AXZSt",      // $119/mo
-      professional: "price_1SsY3IPfDZrVNjz5VNXDhLnd", // $249/mo
-      enterprise: "price_1SsY45PfDZrVNjz5PRBs6vrR",   // $499/mo
+      starter: "price_1SsY2PPfDZrVNjz5Y18AXZSt",      // TODO: update to $79/mo product
+      professional: "price_1SsY3IPfDZrVNjz5VNXDhLnd", // TODO: update to $149/mo product
+      enterprise: "price_1SsY45PfDZrVNjz5PRBs6vrR",   // TODO: update to $299/mo product
     };
 
     const priceId = STRIPE_PRICE_IDS[tier_name.toLowerCase()];

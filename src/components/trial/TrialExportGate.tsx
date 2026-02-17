@@ -19,9 +19,9 @@ interface TrialExportGateProps {
 }
 
 const TIER_PRICES: Record<string, number> = {
-  starter: 119,
-  professional: 249,
-  enterprise: 499,
+  starter: 79,
+  professional: 149,
+  enterprise: 299,
 };
 
 export function TrialExportGate({ open, onOpenChange, type, trialTier, trialEndsAt }: TrialExportGateProps) {

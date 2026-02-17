@@ -24,7 +24,7 @@ const TIER_CONFIG: Record<string, {
 }> = {
   starter: {
     display: "Starter",
-    price: 119,
+    price: 79,
     icon: Zap,
     features: [
       "Code violation data",
@@ -34,7 +34,7 @@ const TIER_CONFIG: Record<string, {
   },
   professional: {
     display: "Pro",
-    price: 249,
+    price: 149,
     icon: TrendingUp,
     features: [
       "All Starter features",
@@ -44,7 +44,7 @@ const TIER_CONFIG: Record<string, {
   },
   enterprise: {
     display: "Elite",
-    price: 499,
+    price: 299,
     icon: Building2,
     features: [
       "All Pro features",

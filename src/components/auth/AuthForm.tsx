@@ -31,9 +31,9 @@ const PLAN_DISPLAY_NAMES: Record<string, string> = {
 };
 
 const PLAN_PRICES: Record<string, string> = {
-  starter: '$119',
-  professional: '$249',
-  enterprise: '$499',
+  starter: '$79',
+  professional: '$149',
+  enterprise: '$299',
 };
 
 export function AuthForm() {

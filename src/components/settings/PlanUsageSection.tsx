@@ -158,14 +158,14 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
               disabled={!!checkoutLoading}
             >
               {checkoutLoading === 'starter' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Starter - $119/mo
+              Starter - $79/mo
             </Button>
             <Button
               onClick={() => handleUpgrade('professional')}
               disabled={!!checkoutLoading}
             >
               {checkoutLoading === 'professional' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Pro - $249/mo
+              Pro - $149/mo
             </Button>
           </div>
         </CardContent>

@@ -196,9 +196,9 @@ export function SubscriptionSettings() {
                 {checkoutLoading === 'starter' ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : null}
-                Starter - $119/mo
+                Starter - $79/mo
               </Button>
-              <Button 
+              <Button
                 onClick={() => handleUpgrade('professional')}
                 disabled={checkoutLoading === 'professional'}
                 className="bg-brand hover:bg-brand/90"
@@ -208,9 +208,9 @@ export function SubscriptionSettings() {
                 ) : (
                   <Sparkles className="h-4 w-4 mr-2" />
                 )}
-                Professional - $249/mo
+                Pro - $149/mo
               </Button>
-              <Button 
+              <Button
                 onClick={() => handleUpgrade('enterprise')}
                 variant="outline"
                 disabled={checkoutLoading === 'enterprise'}
@@ -218,7 +218,7 @@ export function SubscriptionSettings() {
                 {checkoutLoading === 'enterprise' ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : null}
-                Enterprise - $499/mo
+                Elite - $299/mo
               </Button>
             </div>
           </CardContent>

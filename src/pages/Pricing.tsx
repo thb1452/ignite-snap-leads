@@ -23,17 +23,17 @@ interface PricingTier {
   highlight?: string;
 }
 
-// Updated pricing tiers - no state limits, data quality based
+// Updated pricing tiers - PropStream complementary positioning
 const PRICING_TIERS: PricingTier[] = [
   {
     id: 'starter',
     name: 'starter',
     display_name: 'Starter',
-    price_monthly_cents: 11900,
-    price_annual_cents_with_discount: 114000,
-    description: 'For focused local operators',
+    price_monthly_cents: 7900,
+    price_annual_cents_with_discount: 76000,
+    description: 'For PropStream users who want premium targeting',
     features: [
-      '5,000 monthly exports',
+      '1,500 monthly exports',
       'All properties, all counties',
       'Code violation data',
       'Weekly data refresh',
@@ -43,17 +43,17 @@ const PRICING_TIERS: PricingTier[] = [
       'No water shutoff data',
     ],
     icon: Zap,
-    popular: false,
+    popular: true,
   },
   {
     id: 'professional',
     name: 'professional',
     display_name: 'Pro',
-    price_monthly_cents: 24900,
-    price_annual_cents_with_discount: 239000,
-    description: 'For growing acquisition operations',
+    price_monthly_cents: 14900,
+    price_annual_cents_with_discount: 143000,
+    description: 'For serious operators stacking enforcement data',
     features: [
-      '15,000 monthly exports',
+      '5,000 monthly exports',
       'All properties, all counties',
       'Code violation data',
       'Everything in Starter',
@@ -64,17 +64,17 @@ const PRICING_TIERS: PricingTier[] = [
       'No water shutoff data',
     ],
     icon: TrendingUp,
-    popular: true,
+    popular: false,
   },
   {
     id: 'enterprise',
     name: 'enterprise',
     display_name: 'Elite',
-    price_monthly_cents: 49900,
-    price_annual_cents_with_discount: 479000,
-    description: 'For serious multi-market teams',
+    price_monthly_cents: 29900,
+    price_annual_cents_with_discount: 287000,
+    description: 'For teams running enforcement-first strategies',
     features: [
-      '50,000 monthly exports',
+      '15,000 monthly exports',
       'All properties, all counties',
       'Code violation + water shutoff data',
       'Everything in Pro',
@@ -171,10 +171,10 @@ export default function Pricing() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Enforcement Pressure Intelligence
+            Add Enforcement Intelligence to Your Stack
           </h1>
           <p className="text-xl text-muted-foreground mb-2">
-            Track where cities are applying maximum pressure on property owners
+            No hidden fees. No per-record charges. No surprises.
           </p>
           <p className="text-sm text-muted-foreground">
             Access to 400+ counties across all 50 states (growing weekly)

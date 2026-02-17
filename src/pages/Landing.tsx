@@ -171,9 +171,9 @@ export default function Landing() {
   };
 
   const pricing = {
-    starter: { monthly: 119, annual: 99 },
-    professional: { monthly: 249, annual: 199 },
-    enterprise: { monthly: 499, annual: 399 },
+    starter: { monthly: 79, annual: 63 },
+    professional: { monthly: 149, annual: 119 },
+    enterprise: { monthly: 299, annual: 239 },
   };
 
   const scrollToSection = (id: string) => {
@@ -323,13 +323,13 @@ export default function Landing() {
                 <span className="text-landing-accent">Before Anyone Else</span>
               </motion.h1>
               
-              <motion.p 
+              <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
                 className="text-xl text-landing-text-muted max-w-2xl"
               >
-                Track code violations, water shutoffs, and escalation patterns. Our SnapScore AI ranks properties by enforcement pressure severity so you act on early signals.
+                Use Snap alongside PropStream to find motivated sellers 3-6 months before they hit traditional lists. Our SnapScore AI ranks properties by enforcement pressure severity so you act on early signals.
               </motion.p>
               
               <motion.div

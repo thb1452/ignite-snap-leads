@@ -355,7 +355,7 @@ export default function Landing() {
                 className="text-landing-text-muted text-sm flex items-center gap-2"
               >
                 <Lock className="w-4 h-4" />
-                7-day free trial • 50 property exports • Cancel anytime
+                7-day free trial • 50 property exports • Then $79/month • Cancel anytime
               </motion.p>
               
               <motion.p 
@@ -654,11 +654,79 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Stack With Your Existing Tools Section */}
+      <section className="py-24 bg-landing-surface/30">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center mb-16">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold mb-4"
+            >
+              Stack Snap With Your Existing Tools
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-xl text-landing-text-muted"
+            >
+              Snap isn't a replacement for PropStream or BatchLeads—it's the intelligence layer that makes them more effective.
+            </motion.p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {[
+              {
+                step: "1",
+                title: "Filter by Enforcement Pressure",
+                description: "Use Snap to find properties with active code violations, water shutoffs, and compliance deadlines. Export your top 50-100 properties with highest SnapScores.",
+                color: "bg-landing-accent/20 text-landing-accent"
+              },
+              {
+                step: "2",
+                title: "Cross-Reference in PropStream",
+                description: "Verify equity, ownership details, and property comps. Skip trace contact info if needed. Build your target list with confidence.",
+                color: "bg-blue-500/20 text-blue-400"
+              },
+              {
+                step: "3",
+                title: "Call the Motivated Sellers First",
+                description: "Reach owners facing escalating fines and court dates. While other investors work stale lists, you're calling active enforcement cases.",
+                color: "bg-green-500/20 text-green-400"
+              }
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.15 }}
+                className="relative bg-landing-bg/50 border border-landing-surface rounded-xl p-8"
+              >
+                {i < 2 && (
+                  <div className="hidden md:block absolute top-1/2 -right-3 transform -translate-y-1/2 z-10">
+                    <ArrowRight className="w-6 h-6 text-landing-text-muted" />
+                  </div>
+                )}
+                <div className={`w-12 h-12 rounded-full ${item.color} flex items-center justify-center text-xl font-bold mb-4`}>
+                  {item.step}
+                </div>
+                <h3 className="text-xl font-bold mb-3">{item.title}</h3>
+                <p className="text-landing-text-muted">{item.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Who It's For Section */}
       <section className="py-24">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center mb-16">
-            <motion.h2 
+            <motion.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -691,6 +759,7 @@ export default function Landing() {
               </h3>
               <ul className="space-y-4">
                 {[
+                  "You already use PropStream, BatchLeads, or similar tools and want better targeting",
                   "You value timing over volume—you'd rather work 50 high-pressure properties than chase 500 stale records",
                   "You're tired of competing on the same data and want an actual information advantage",
                   "You operate in markets where enforcement activity creates real opportunity",
@@ -718,11 +787,11 @@ export default function Landing() {
               </h3>
               <ul className="space-y-4">
                 {[
+                  "You're looking to replace PropStream or BatchLeads entirely",
                   "You're brand new to real estate and need basic education first",
                   "Your strategy is pure volume—quantity over quality",
                   "You're looking for the cheapest possible data source",
-                  "You need CRM, dialer, and marketing tools in one platform",
-                  "You're not comfortable with a tool that requires some learning curve"
+                  "You need CRM, dialer, and marketing tools in one platform"
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
@@ -739,7 +808,7 @@ export default function Landing() {
             viewport={{ once: true }}
             className="text-center text-landing-text-muted mt-12 max-w-2xl mx-auto"
           >
-            Still not sure? Our Starter plan at $119/month lets you test the intelligence advantage with 5,000 monthly exports. No annual commitment required.
+            Still not sure? Our Starter plan at $79/month lets you add enforcement intelligence to your PropStream stack with 1,500 monthly exports. No annual commitment required.
           </motion.p>
         </div>
       </section>
@@ -754,7 +823,7 @@ export default function Landing() {
               viewport={{ once: true }}
               className="text-3xl md:text-4xl font-bold mb-4"
             >
-              Simple, Transparent Pricing
+              Add Enforcement Intelligence to Your Stack
             </motion.h2>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -806,38 +875,38 @@ export default function Landing() {
               {
                 name: "Starter",
                 price: pricing.starter[billingCycle],
-                description: "For market exploration & local operators",
+                description: "For PropStream users who want premium targeting",
                 features: [
-                  "5,000 monthly exports",
+                  "1,500 monthly exports",
                   "All properties, all counties",
                   "Code violation data",
                   "Basic filters (location, category, search)",
                   "Weekly data refresh",
                   "Email support"
                 ],
-                tagline: "Built for visibility, not prioritization.",
-                highlighted: false
+                tagline: "Built to identify your best 50 leads/week.",
+                highlighted: true,
+                badge: "Most Popular"
               },
               {
                 name: "Pro",
                 price: pricing.professional[billingCycle],
-                description: "For active acquisition & deal sourcing",
+                description: "For serious operators stacking enforcement data",
                 features: [
-                  "15,000 monthly exports",
+                  "5,000 monthly exports",
                   "All Starter features",
                   "Pressure Level™ filtering (prioritize higher-enforcement properties)",
                   "Priority email support"
                 ],
                 tagline: "Built to identify what matters first.",
-                highlighted: true,
-                badge: "Most Popular"
+                highlighted: false
               },
               {
                 name: "Elite",
                 price: pricing.enterprise[billingCycle],
-                description: "For multi-market teams & advanced operators",
+                description: "For teams running enforcement-first strategies",
                 features: [
-                  "50,000 monthly exports",
+                  "15,000 monthly exports",
                   "All Pro features",
                   "Water shutoff data",
                   "API access (coming soon)"
@@ -930,8 +999,88 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
+      {/* PropStream vs Snap Comparison Table */}
       <section className="py-24">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold text-center mb-12"
+            >
+              What PropStream Gives You vs. What Snap Gives You
+            </motion.h2>
+
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="overflow-hidden rounded-xl border border-landing-surface"
+            >
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-landing-surface/50">
+                    <th className="text-left py-4 px-6 font-semibold">Data Type</th>
+                    <th className="text-center py-4 px-4 font-semibold">PropStream</th>
+                    <th className="text-center py-4 px-4 font-semibold text-landing-accent">Snap</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-landing-surface/50">
+                  {[
+                    { type: "Property records (160M+)", ps: true, snap: "partial", snapNote: "via integration" },
+                    { type: "Ownership & equity data", ps: true, snap: "ref", snapNote: "use PropStream for this" },
+                    { type: "Comparable sales", ps: true, snap: "ref", snapNote: "use PropStream for this" },
+                    { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "900+ counties" },
+                    { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
+                    { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
+                    { type: "Municipal court dates", ps: false, snap: true, snapNote: "" },
+                    { type: "Real-time escalation alerts", ps: false, snap: true, snapNote: "" },
+                    { type: "Weekly data refresh", ps: false, snap: true, snapNote: "" },
+                  ].map((row, i) => (
+                    <tr key={i} className="bg-landing-bg/30">
+                      <td className="py-3 px-6">{row.type}</td>
+                      <td className="py-3 px-4 text-center">
+                        {row.ps === true ? (
+                          <Check className="w-5 h-5 text-green-400 mx-auto" />
+                        ) : row.ps === "limited" ? (
+                          <span className="text-yellow-400 text-xs">Limited</span>
+                        ) : (
+                          <X className="w-5 h-5 text-red-400/50 mx-auto" />
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {row.snap === true ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <Check className="w-5 h-5 text-landing-accent" />
+                            {row.snapNote && <span className="text-xs text-landing-text-muted">{row.snapNote}</span>}
+                          </div>
+                        ) : row.snap === "partial" || row.snap === "ref" ? (
+                          <span className="text-xs text-landing-text-muted">{row.snapNote}</span>
+                        ) : (
+                          <X className="w-5 h-5 text-red-400/50 mx-auto" />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </motion.div>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center text-landing-text-muted mt-8 text-lg italic"
+            >
+              Use them together. PropStream shows you the market. Snap shows you who's motivated.
+            </motion.p>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-24 bg-landing-surface/30">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center mb-16">
             <motion.h2 
@@ -950,14 +1099,14 @@ export default function Landing() {
                 initials: "JM",
                 name: "Jake M.",
                 role: "Wholesaler, Phoenix AZ",
-                quote: "Found 3 deals in my first 6 weeks that I never would have seen with PropStream. The SnapScore ranking is the difference—I'm not guessing anymore, I know which owners are actually motivated.",
+                quote: "Found 3 deals in my first 6 weeks that I never would have seen with PropStream alone. The SnapScore ranking is the difference—I'm not guessing anymore, I know which owners are actually motivated. I still use PropStream for comps and ownership—Snap tells me who to call first.",
                 result: "3 deals closed in 6 weeks"
               },
               {
                 initials: "SR",
                 name: "Sarah R.",
                 role: "Acquisition Manager, Southeast Portfolio",
-                quote: "We switched from BatchLeads and the data freshness is night and day. Seeing violation escalation patterns before they peak gives us a real timing advantage in competitive markets.",
+                quote: "We pull violation leads from Snap, verify equity in PropStream, then call. The data freshness is night and day compared to BatchLeads. Seeing violation escalation patterns before they peak gives us a real timing advantage.",
                 result: "40% improvement in contact-to-contract rate"
               },
               {
@@ -1015,7 +1164,7 @@ export default function Landing() {
               {[
                 {
                   question: "How is Snap Ignite different from PropStream or BatchLeads?",
-                  answer: "PropStream and BatchLeads pull from the same public records everyone else uses. Snap Ignite is an enforcement intelligence platform—we specifically track code violations, water shutoffs, fines, and compliance deadlines. Our SnapScore AI ranks properties by enforcement pressure severity, not just distress indicators."
+                  answer: "PropStream and BatchLeads are excellent platforms for comprehensive property records—ownership info, liens, equity, comparables. Snap gives you something they don't: real-time enforcement pressure intelligence. We track code violations, water shutoffs, escalating fines, and compliance deadlines from 900+ municipal systems. Most successful wholesalers use Snap WITH PropStream: pull violation leads from Snap (sorted by SnapScore urgency), cross-reference ownership and equity in PropStream, then call owners before enforcement escalates further. It's the intelligence layer that makes your existing tools more effective."
                 },
                 {
                   question: "Why the 500-user limit?",

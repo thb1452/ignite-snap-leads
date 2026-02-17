@@ -55,7 +55,7 @@ const TIER_CONFIG: Record<string, {
 
 /** Create a Stripe Checkout session with a 7-day trial */
 async function createTrialCheckoutSession(tierName: string, token: string): Promise<string> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_EXTERNAL_SUPABASE_URL;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_EXTERNAL_SUPABASE_URL || 'https://ojyxblegxpdgaqiscxpz.supabase.co';
 
   const response = await fetch(
     `${supabaseUrl}/functions/v1/create-checkout-session`,

@@ -10,6 +10,8 @@ import { useListProperties, useRemoveFromList, useUserLists } from "@/hooks/useL
 import { exportFilteredCsv } from "@/services/export";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
+import { useTrialStatus } from "@/hooks/useTrialStatus";
+import { TrialExportGate } from "@/components/trial/TrialExportGate";
 import { supabase } from "@/integrations/supabase/externalClient";
 import {
   ArrowLeft,
@@ -37,6 +39,14 @@ export function ListDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { checkLimit, refetch: refetchSubscription, plan, usage, getRemainingCount } = useSubscription();
+  const {
+    isOnTrial,
+    hasTrialExpired,
+    trialExportsRemaining,
+    trialTier,
+    trialEndsAt,
+    refetch: refetchTrial,
+  } = useTrialStatus();
 
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -46,6 +56,8 @@ export function ListDetail() {
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [exportContextData, setExportContextData] = useState<ExportContext | undefined>(undefined);
   const pendingExportIdsRef = useRef<string[]>([]);
+  const [trialGateOpen, setTrialGateOpen] = useState(false);
+  const [trialGateType, setTrialGateType] = useState<'exhausted' | 'expired'>('exhausted');
 
   // Fetch list details
   const { data: lists = [] } = useUserLists();
@@ -92,6 +104,16 @@ export function ListDetail() {
 
       setSelectedIds([]);
     } catch (error: any) {
+      if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+        setTrialGateType('exhausted');
+        setTrialGateOpen(true);
+        return;
+      }
+      if (error.message === "TRIAL_EXPIRED") {
+        setTrialGateType('expired');
+        setTrialGateOpen(true);
+        return;
+      }
       if (error.message === "EXPORT_LIMIT_EXCEEDED") {
         // Server rejected — build context for partial export
         const remaining = getRemainingCount('exports') ?? 0;
@@ -116,8 +138,10 @@ export function ListDetail() {
     } finally {
       setIsExporting(false);
       setExportProgress(null);
+      // Refresh trial status after any export attempt
+      if (isOnTrial) refetchTrial();
     }
-  }, [refetchSubscription, toast, getRemainingCount, usage, plan]);
+  }, [refetchSubscription, refetchTrial, isOnTrial, toast, getRemainingCount, usage, plan]);
 
   // Partial export handler — called from UpgradePrompt
   const handlePartialExport = useCallback(async (count: number) => {
@@ -127,6 +151,20 @@ export function ListDetail() {
   }, [executeExport]);
 
   const handleExport = async () => {
+    // === TRIAL EXPORT GATING ===
+    if (isOnTrial || hasTrialExpired) {
+      if (hasTrialExpired) {
+        setTrialGateType('expired');
+        setTrialGateOpen(true);
+        return;
+      }
+      if (trialExportsRemaining <= 0) {
+        setTrialGateType('exhausted');
+        setTrialGateOpen(true);
+        return;
+      }
+    }
+
     setIsExporting(true);
 
     try {
@@ -182,14 +220,28 @@ export function ListDetail() {
         return;
       }
 
-      // Check quota — if over limit, show partial export option instead of blocking
       const propertyCount = idsToExport.length;
+
+      // === TRIAL: check count against remaining trial exports ===
+      if (isOnTrial && propertyCount > trialExportsRemaining) {
+        toast({
+          variant: "destructive",
+          title: "Too many properties",
+          description: `You have ${trialExportsRemaining} trial exports remaining. Select fewer properties or upgrade.`,
+          duration: 6000,
+        });
+        setIsExporting(false);
+        setExportProgress(null);
+        return;
+      }
+
+      // Check quota — if over limit, show partial export option instead of blocking
       const remaining = getRemainingCount('exports');
       const used = usage?.exports_count ?? 0;
       const max = plan?.max_monthly_exports ?? 0;
 
       // For unlimited plans (remaining === null), skip check
-      if (remaining !== null && propertyCount > remaining) {
+      if (!isOnTrial && remaining !== null && propertyCount > remaining) {
         // Store IDs for partial export
         pendingExportIdsRef.current = idsToExport;
         setExportContextData({
@@ -434,6 +486,15 @@ export function ListDetail() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Trial Export Gate */}
+        <TrialExportGate
+          open={trialGateOpen}
+          onOpenChange={setTrialGateOpen}
+          type={trialGateType}
+          trialTier={trialTier}
+          trialEndsAt={trialEndsAt}
+        />
 
         {/* Upgrade Prompt with partial export support */}
         <UpgradePrompt

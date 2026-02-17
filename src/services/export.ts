@@ -68,11 +68,20 @@ export async function exportFilteredCsv(params: ExportParams) {
   }
 
   if (!response.ok) {
-    // Check if limit exceeded
+    // Check if limit exceeded (both trial and paid error codes)
     if (response.status === 403) {
       const errorData = await response.json().catch(() => ({}));
       if (errorData.code === 'EXPORT_LIMIT_EXCEEDED') {
         throw new Error('EXPORT_LIMIT_EXCEEDED');
+      }
+      if (errorData.code === 'TRIAL_EXPORT_LIMIT_EXCEEDED') {
+        throw new Error('TRIAL_EXPORT_LIMIT_EXCEEDED');
+      }
+      if (errorData.code === 'TRIAL_EXPIRED') {
+        throw new Error('TRIAL_EXPIRED');
+      }
+      if (errorData.code === 'NO_SUBSCRIPTION') {
+        throw new Error('NO_SUBSCRIPTION');
       }
     }
     throw new Error(`Export failed: ${response.statusText}`);

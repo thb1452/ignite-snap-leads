@@ -72,7 +72,7 @@ export function useTrialStatus() {
     queryKey: ['trial-status', user?.id],
     queryFn: () => fetchTrialStatus(user!.id),
     enabled: !!user?.id,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 0, // Always fetch fresh data so trial counter updates immediately after export
     refetchInterval: 60 * 1000, // refetch every minute to keep trial countdown fresh
   });
 

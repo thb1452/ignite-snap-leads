@@ -73,6 +73,8 @@ export function useTrialStatus() {
     queryFn: () => fetchTrialStatus(user!.id),
     enabled: !!user?.id,
     staleTime: 0, // Always fetch fresh data so trial counter updates immediately after export
+    refetchOnMount: 'always', // Force refetch when component mounts (e.g. navigating to settings)
+    refetchOnWindowFocus: true,
     refetchInterval: 60 * 1000, // refetch every minute to keep trial countdown fresh
   });
 

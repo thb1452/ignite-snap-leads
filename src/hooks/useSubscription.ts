@@ -128,6 +128,8 @@ export function useSubscription() {
     queryFn: () => fetchUsage(user!.id),
     enabled: !!user?.id,
     staleTime: 0, // Always refetch when requested to ensure fresh data after exports
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   // Build plan object from subscription data

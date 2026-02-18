@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
-import { supabase } from "@/integrations/supabase/externalClient";
+import { supabase, supabaseUrl } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
 import { ExternalLink, Loader2, Crown, Zap, Sparkles, TrendingUp, List, Building2, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -40,9 +40,9 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
 
       if (!token) throw new Error("Please sign in");
 
-      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+      const edgeFnUrl = supabaseUrl;
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/create-portal-session`,
+        `${edgeFnUrl}/functions/v1/create-portal-session`,
         {
           method: "POST",
           headers: {
@@ -51,6 +51,11 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
           },
         }
       );
+
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error("Billing service unavailable. Please try again later.");
+      }
 
       if (!response.ok) {
         const error = await response.json();
@@ -64,6 +69,7 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
       const { url } = await response.json();
       window.open(url, '_blank');
     } catch (error: any) {
+      console.error("[PlanUsageSection] Portal error:", error);
       toast({
         title: "Portal Failed",
         description: error.message || "Failed to open customer portal",
@@ -82,9 +88,9 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
 
       if (!token) throw new Error("Please sign in to upgrade");
 
-      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+      const edgeFnUrl = supabaseUrl;
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/create-checkout-session`,
+        `${edgeFnUrl}/functions/v1/create-checkout-session`,
         {
           method: "POST",
           headers: {
@@ -94,6 +100,11 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
           body: JSON.stringify({ tier_name: tierName, billing_cycle: 'monthly' }),
         }
       );
+
+      const checkoutContentType = response.headers.get('content-type') || '';
+      if (!checkoutContentType.includes('application/json')) {
+        throw new Error("Checkout service unavailable. Please try again later.");
+      }
 
       if (!response.ok) {
         const error = await response.json();

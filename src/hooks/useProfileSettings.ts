@@ -23,7 +23,9 @@ export function useProfileSettings() {
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["profile-settings"],
     queryFn: async (): Promise<ProfileData | null> => {
-      const { data: { user } } = await supabase.auth.getUser();
+      // Use getSession for reliability - getUser makes a network call that can fail
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
       if (!user) return null;
 
       const { data, error } = await supabase
@@ -45,8 +47,20 @@ export function useProfileSettings() {
         };
       }
 
+      // If no profile row found, return fallback from auth session
+      if (!data) {
+        return {
+          id: user.id,
+          user_id: user.id,
+          email: user.email || null,
+          full_name: user.user_metadata?.full_name || null,
+          org_id: '',
+          created_at: user.created_at || new Date().toISOString(),
+        };
+      }
+
       // If profile exists but email is null, fall back to auth user email
-      if (data && !data.email) {
+      if (!data.email) {
         return { ...data, email: user.email || null };
       }
 
@@ -77,7 +91,8 @@ export function useProfileSettings() {
 
   const updateProfile = useMutation({
     mutationFn: async (updates: { full_name?: string }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
       if (!user) throw new Error("Not authenticated");
 
       const { error } = await supabase
@@ -105,7 +120,8 @@ export function useProfileSettings() {
 
   const requestPasswordReset = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
       if (!user?.email) throw new Error("No email found");
 
       const { error } = await supabase.auth.resetPasswordForEmail(user.email, {

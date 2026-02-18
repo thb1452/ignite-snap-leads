@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Shield, Download, Trash2, FileText, Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/externalClient';
+import { supabase, supabaseUrl } from '@/integrations/supabase/externalClient';
 import { useAuth } from '@/hooks/use-auth';
 import {
   AlertDialog,
@@ -33,9 +33,9 @@ export function PrivacySection() {
         throw new Error("Not authenticated");
       }
 
-      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+      const edgeFnUrl = supabaseUrl;
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/export-user-data`,
+        `${edgeFnUrl}/functions/v1/export-user-data`,
         {
           method: 'POST',
           headers: {
@@ -96,9 +96,9 @@ export function PrivacySection() {
         throw new Error("Not authenticated");
       }
 
-      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+      const edgeFnUrl = supabaseUrl;
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/delete-user-account`,
+        `${edgeFnUrl}/functions/v1/delete-user-account`,
         {
           method: 'POST',
           headers: {

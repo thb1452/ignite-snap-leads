@@ -34,7 +34,7 @@ export function useProfileSettings() {
 
       if (error) {
         console.error("Error fetching profile:", error);
-        // Return a minimal profile with the auth user's email even if profiles row missing
+        // Return a minimal profile with the auth user's email even if profiles row is missing
         return {
           id: user.id,
           user_id: user.id,

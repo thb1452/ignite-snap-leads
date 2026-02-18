@@ -41,7 +41,7 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
   const fetchUserLists = async () => {
     setIsLoadingLists(true);
     try {
-      // Use getSession for reliability - getUser sometimes fails on mobile
+      // Use getSession for reliability - getUser makes a network call that can fail
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id;
       if (!userId) {
@@ -58,7 +58,7 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
       if (error) throw error;
       console.log('[AddToListDialog] Fetched lists:', data?.length, data);
       setUserLists(data || []);
-      
+
       // If no lists exist, default to "new" mode
       if (!data || data.length === 0) {
         setMode("new");
@@ -99,7 +99,7 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
       if (mode === "new") {
         const { data: sessionData } = await supabase.auth.getSession();
         const userId = sessionData?.session?.user?.id;
-        
+
         if (!userId) {
           toast({
             title: "Authentication Required",

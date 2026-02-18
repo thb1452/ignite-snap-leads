@@ -33,8 +33,9 @@ export function PrivacySection() {
         throw new Error("Not authenticated");
       }
 
+      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-user-data`,
+        `${supabaseUrl}/functions/v1/export-user-data`,
         {
           method: 'POST',
           headers: {
@@ -95,8 +96,9 @@ export function PrivacySection() {
         throw new Error("Not authenticated");
       }
 
+      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user-account`,
+        `${supabaseUrl}/functions/v1/delete-user-account`,
         {
           method: 'POST',
           headers: {

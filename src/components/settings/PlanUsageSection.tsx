@@ -40,9 +40,9 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
 
       if (!token) throw new Error("Please sign in");
 
-      const portalUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ojyxblegxpdgaqiscxpz.supabase.co';
+      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(
-        `${portalUrl}/functions/v1/create-portal-session`,
+        `${supabaseUrl}/functions/v1/create-portal-session`,
         {
           method: "POST",
           headers: {
@@ -82,9 +82,9 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
 
       if (!token) throw new Error("Please sign in to upgrade");
 
-      const checkoutUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ojyxblegxpdgaqiscxpz.supabase.co';
+      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(
-        `${checkoutUrl}/functions/v1/create-checkout-session`,
+        `${supabaseUrl}/functions/v1/create-checkout-session`,
         {
           method: "POST",
           headers: {
@@ -130,7 +130,7 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
   const planConfig = plan ? PLAN_CONFIGS[plan.name as keyof typeof PLAN_CONFIGS] : null;
   const PlanIcon = planConfig?.icon || Zap;
 
-  // For trial users, show trial export limits (50 cap) not the plan's monthly quota
+  // For trial users, show trial export counts instead of plan limits
   const csvExportsUsed = isOnTrial ? trialExportsUsed : (usage?.exports_count || 0);
   const csvExportsLimit = isOnTrial ? trialExportsLimit : (plan?.max_monthly_exports || 0);
   const csvExportsPercent = csvExportsLimit === -1 ? 0 : Math.min(100, (csvExportsUsed / Math.max(1, csvExportsLimit)) * 100);

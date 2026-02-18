@@ -28,6 +28,8 @@ import { supabase } from "@/integrations/supabase/externalClient";
 import { exportFilteredCsv } from "@/services/export";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
+import { useTrialStatus } from "@/hooks/useTrialStatus";
+import { TrialExportGate } from "@/components/trial/TrialExportGate";
 
 import { ListCard } from "@/components/lists/ListCard";
 import { CreateListCard } from "@/components/lists/CreateListCard";
@@ -37,6 +39,14 @@ import { EmptyListsState } from "@/components/lists/EmptyListsState";
 export function Lists() {
   const { toast } = useToast();
   const { checkLimit, refetch: refetchSubscription, plan, usage, getRemainingCount } = useSubscription();
+  const {
+    isOnTrial,
+    hasTrialExpired,
+    trialExportsRemaining,
+    trialTier,
+    trialEndsAt,
+    refetch: refetchTrial,
+  } = useTrialStatus();
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -45,6 +55,8 @@ export function Lists() {
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [exportContext, setExportContext] = useState<ExportContext | undefined>(undefined);
+  const [trialGateOpen, setTrialGateOpen] = useState(false);
+  const [trialGateType, setTrialGateType] = useState<'exhausted' | 'expired'>('exhausted');
 
   const { data: lists = [], isLoading, refetch } = useUserLists();
   const createListMutation = useCreateList();
@@ -121,10 +133,33 @@ export function Lists() {
       return;
     }
 
+    // === TRIAL EXPORT GATING ===
+    if (isOnTrial || hasTrialExpired) {
+      if (hasTrialExpired) {
+        setTrialGateType('expired');
+        setTrialGateOpen(true);
+        return;
+      }
+      if (trialExportsRemaining <= 0) {
+        setTrialGateType('exhausted');
+        setTrialGateOpen(true);
+        return;
+      }
+      if (propertyCount > trialExportsRemaining) {
+        toast({
+          variant: "destructive",
+          title: "Too many properties",
+          description: `You have ${trialExportsRemaining} trial exports remaining. This list has ${propertyCount} properties.`,
+          duration: 6000,
+        });
+        return;
+      }
+    }
+
     const remaining = getRemainingCount('exports');
     const maxMonthly = plan?.max_monthly_exports ?? 0;
 
-    if (remaining !== null && propertyCount > remaining) {
+    if (!isOnTrial && remaining !== null && propertyCount > remaining) {
       const usedCount = usage?.exports_count ?? 0;
       setExportContext({
         requestedCount: propertyCount,
@@ -209,6 +244,16 @@ export function Lists() {
         description: `Exported ${propertyIds.length.toLocaleString()} properties from "${listName}"`,
       });
     } catch (error: any) {
+      if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+        setTrialGateType('exhausted');
+        setTrialGateOpen(true);
+        return;
+      }
+      if (error.message === "TRIAL_EXPIRED") {
+        setTrialGateType('expired');
+        setTrialGateOpen(true);
+        return;
+      }
       if (error.message === "EXPORT_LIMIT_EXCEEDED") {
         const usedCount = usage?.exports_count ?? 0;
         const remaining = getRemainingCount('exports') ?? 0;
@@ -229,6 +274,7 @@ export function Lists() {
       });
     } finally {
       setIsExporting(null);
+      if (isOnTrial) refetchTrial();
     }
   };
 
@@ -350,6 +396,15 @@ export function Lists() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Trial Export Gate */}
+        <TrialExportGate
+          open={trialGateOpen}
+          onOpenChange={setTrialGateOpen}
+          type={trialGateType}
+          trialTier={trialTier}
+          trialEndsAt={trialEndsAt}
+        />
 
         {/* Upgrade Prompt */}
         <UpgradePrompt

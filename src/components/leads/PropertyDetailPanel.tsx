@@ -11,6 +11,8 @@ import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
 import { GroupedViolationsList } from "./GroupedViolationsList";
 import { exportFilteredCsv } from "@/services/export";
+import { useTrialStatus } from "@/hooks/useTrialStatus";
+import { TrialExportGate } from "@/components/trial/TrialExportGate";
 
 interface Violation {
   id: string;
@@ -55,7 +57,17 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   const [violations, setViolations] = useState<Violation[]>([]);
   const [isLoadingViolations, setIsLoadingViolations] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [trialGateOpen, setTrialGateOpen] = useState(false);
+  const [trialGateType, setTrialGateType] = useState<'exhausted' | 'expired'>('exhausted');
   const { toast } = useToast();
+  const {
+    isOnTrial,
+    hasTrialExpired,
+    trialExportsRemaining,
+    trialTier,
+    trialEndsAt,
+    refetch: refetchTrial,
+  } = useTrialStatus();
 
   // Use pre-loaded violations if available, otherwise fetch from database
   // This eliminates N+1 queries when violations are already loaded in the parent
@@ -331,22 +343,43 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 size="sm"
                 disabled={isExporting}
                 onClick={async () => {
+                  // Trial export gating
+                  if (hasTrialExpired) {
+                    setTrialGateType('expired');
+                    setTrialGateOpen(true);
+                    return;
+                  }
+                  if (isOnTrial && trialExportsRemaining <= 0) {
+                    setTrialGateType('exhausted');
+                    setTrialGateOpen(true);
+                    return;
+                  }
+
                   setIsExporting(true);
                   try {
                     await exportFilteredCsv({
                       propertyIds: [property.id],
                       expectedPropertyCount: 1,
                     });
+                    if (isOnTrial) refetchTrial();
                     toast({
                       title: "Export Complete",
                       description: "Property exported successfully.",
                     });
                   } catch (error: any) {
-                    toast({
-                      title: "Export Failed",
-                      description: error.message || "Failed to export property",
-                      variant: "destructive",
-                    });
+                    if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+                      setTrialGateType('exhausted');
+                      setTrialGateOpen(true);
+                    } else if (error.message === "TRIAL_EXPIRED") {
+                      setTrialGateType('expired');
+                      setTrialGateOpen(true);
+                    } else {
+                      toast({
+                        title: "Export Failed",
+                        description: error.message || "Failed to export property",
+                        variant: "destructive",
+                      });
+                    }
                   } finally {
                     setIsExporting(false);
                   }
@@ -359,6 +392,14 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
             </div>
           </div>
         </motion.div>
+
+        <TrialExportGate
+          open={trialGateOpen}
+          onOpenChange={setTrialGateOpen}
+          type={trialGateType}
+          trialTier={trialTier}
+          trialEndsAt={trialEndsAt}
+        />
 
         <AddToListDialog
           open={addToListOpen}

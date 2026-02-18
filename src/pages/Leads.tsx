@@ -389,6 +389,16 @@ function Leads() {
     } catch (error: any) {
       console.error('[Leads] Export error:', error);
 
+      if (error.message === 'TRIAL_EXPORT_LIMIT_EXCEEDED') {
+        setTrialGateType('exhausted');
+        setTrialGateOpen(true);
+        return;
+      }
+      if (error.message === 'TRIAL_EXPIRED') {
+        setTrialGateType('expired');
+        setTrialGateOpen(true);
+        return;
+      }
       if (error.message === 'EXPORT_LIMIT_EXCEEDED') {
         // Server rejected — build context for partial export
         setUpgradeLimitType('exports');

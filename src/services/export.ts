@@ -68,6 +68,7 @@ export async function exportFilteredCsv(params: ExportParams) {
   }
 
   if (!response.ok) {
+    // Check if limit exceeded (both trial and paid error codes)
     if (response.status === 403) {
       const errorData = await response.json().catch(() => ({}));
       if (errorData.code === 'EXPORT_LIMIT_EXCEEDED') {

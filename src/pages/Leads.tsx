@@ -286,12 +286,14 @@ function Leads() {
         });
 
         // Server-side trial export tracking is now handled by the export-csv edge function.
-        // Refresh local trial status to reflect the updated count.
+        // Small delay then refresh local trial status to reflect updated count from DB.
+        await new Promise(resolve => setTimeout(resolve, 800));
         await refetchTrial();
 
+        const newRemaining = Math.max(0, trialExportsRemaining - propertyCount);
         toast({
           title: "Export Complete",
-          description: `Exported ${propertyCount.toLocaleString()} properties — ${Math.max(0, trialExportsRemaining - propertyCount)} trial exports remaining`,
+          description: `Exported ${propertyCount.toLocaleString()} properties — ${newRemaining} trial exports remaining`,
         });
 
         setSelectedIds([]);

@@ -25,7 +25,7 @@ interface PlanUsageSectionProps {
 
 export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUsageSectionProps) {
   const { subscription, plan, usage, loading, refetch } = useSubscription();
-  const { isOnTrial, trialExportsUsed, trialExportsLimit } = useTrialStatus();
+  const { isOnTrial, trialExportsUsed, trialExportsLimit, trialExportsRemaining } = useTrialStatus();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [portalLoading, setPortalLoading] = useState(false);
@@ -171,6 +171,14 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
             >
               {checkoutLoading === 'professional' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Pro - $149/mo
+            </Button>
+            <Button
+              onClick={() => handleUpgrade('enterprise')}
+              variant="outline"
+              disabled={!!checkoutLoading}
+            >
+              {checkoutLoading === 'enterprise' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Elite - $299/mo
             </Button>
           </div>
         </CardContent>

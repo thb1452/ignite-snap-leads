@@ -44,7 +44,10 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
       // Use getSession for reliability - getUser makes a network call that can fail
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id;
-      if (!userId) return;
+      if (!userId) {
+        console.warn('[AddToListDialog] No user session found');
+        return;
+      }
 
       const { data, error } = await supabase
         .from("lead_lists")
@@ -53,6 +56,7 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
         .order("created_at", { ascending: false });
 
       if (error) throw error;
+      console.log('[AddToListDialog] Fetched lists:', data?.length, data);
       setUserLists(data || []);
 
       // If no lists exist, default to "new" mode

@@ -201,30 +201,30 @@ export function SubscriptionSettings() {
                 {checkoutLoading === 'starter' ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : null}
-                Starter - $79/mo
-              </Button>
-              <Button
-                onClick={() => handleUpgrade('professional')}
-                disabled={checkoutLoading === 'professional'}
-                className="bg-brand hover:bg-brand/90"
-              >
-                {checkoutLoading === 'professional' ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Sparkles className="h-4 w-4 mr-2" />
-                )}
-                Pro - $149/mo
-              </Button>
-              <Button
-                onClick={() => handleUpgrade('enterprise')}
-                variant="outline"
-                disabled={checkoutLoading === 'enterprise'}
-              >
-                {checkoutLoading === 'enterprise' ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
-                Elite - $299/mo
-              </Button>
+              Starter - $79/mo
+            </Button>
+            <Button
+              onClick={() => handleUpgrade('professional')}
+              disabled={checkoutLoading === 'professional'}
+              className="bg-brand hover:bg-brand/90"
+            >
+              {checkoutLoading === 'professional' ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              Pro - $149/mo
+            </Button>
+            <Button
+              onClick={() => handleUpgrade('enterprise')}
+              variant="outline"
+              disabled={checkoutLoading === 'enterprise'}
+            >
+              {checkoutLoading === 'enterprise' ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Elite - $299/mo
+            </Button>
             </div>
           </CardContent>
         </Card>
@@ -339,13 +339,13 @@ export function SubscriptionSettings() {
             {plan.name === 'starter' && (
               <UpgradePlanCard
                 name="Professional"
-                price="$249/mo"
+                price="$149/mo"
                 features={[
-                  "25 county coverage",
-                  "10,000 monthly exports",
-                  "Advanced SnapScore filters",
-                  "Violation type filtering",
-                  "Rolling 30-day intelligence",
+                  "5,000 monthly exports",
+                  "All properties, all counties",
+                  "Everything in Starter",
+                  "Pressure Level™ filters",
+                  "Priority email support",
                 ]}
                 badge="Popular"
                 onUpgrade={() => handleUpgrade('professional')}
@@ -355,13 +355,13 @@ export function SubscriptionSettings() {
 
             {(plan.name === 'starter' || plan.name === 'professional') && (
               <UpgradePlanCard
-                name="Enterprise"
-                price="$499/mo"
+                name="Elite"
+                price="$299/mo"
                 features={[
-                  "All 900+ counties",
-                  "25,000 monthly exports",
-                  "Full SnapScore AI suite",
-                  "Escalation pattern alerts",
+                  "15,000 monthly exports",
+                  "All properties, all counties",
+                  "Code violation + water shutoff data",
+                  "Everything in Pro",
                   "API access (coming soon)",
                 ]}
                 badge="Best Value"

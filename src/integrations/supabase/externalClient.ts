@@ -21,6 +21,9 @@ const useExternal = !!EXTERNAL_SUPABASE_URL && !!EXTERNAL_SUPABASE_ANON_KEY;
 const SUPABASE_URL = useExternal ? EXTERNAL_SUPABASE_URL : LOVABLE_SUPABASE_URL;
 const SUPABASE_KEY = useExternal ? EXTERNAL_SUPABASE_ANON_KEY : LOVABLE_SUPABASE_KEY;
 
+// Export the resolved URL for edge function calls
+export const supabaseUrl = SUPABASE_URL;
+
 // Create the Supabase client
 export const supabase = createClient<Database>(
   SUPABASE_URL,

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
-import { supabase } from "@/integrations/supabase/externalClient";
+import { supabase, supabaseUrl } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, Sparkles, TrendingUp, ExternalLink, Loader2, Crown, Zap, Mail } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -80,7 +80,6 @@ export function SubscriptionSettings() {
         throw new Error("Please sign in to upgrade");
       }
 
-      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(
         `${supabaseUrl}/functions/v1/create-checkout-session`,
         {
@@ -92,6 +91,11 @@ export function SubscriptionSettings() {
           body: JSON.stringify({ tier_name: tierName, billing_cycle: 'monthly' }),
         }
       );
+
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error("Checkout service unavailable. Please try again later.");
+      }
 
       if (!response.ok) {
         const error = await response.json();
@@ -123,7 +127,6 @@ export function SubscriptionSettings() {
         throw new Error("Please sign in");
       }
 
-      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(
         `${supabaseUrl}/functions/v1/create-portal-session`,
         {
@@ -134,6 +137,11 @@ export function SubscriptionSettings() {
           },
         }
       );
+
+      const portalContentType = response.headers.get('content-type') || '';
+      if (!portalContentType.includes('application/json')) {
+        throw new Error("Billing service unavailable. Please try again later.");
+      }
 
       if (!response.ok) {
         const error = await response.json();

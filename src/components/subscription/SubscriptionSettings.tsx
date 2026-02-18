@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, Sparkles, TrendingUp, ExternalLink, Loader2, Crown, Zap, Mail } from "lucide-react";
@@ -38,6 +39,7 @@ const PLAN_CONFIGS = {
 
 export function SubscriptionSettings() {
   const { subscription, plan, usage, loading, refetch } = useSubscription();
+  const { isOnTrial, trialExportsUsed, trialExportsLimit } = useTrialStatus();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -78,8 +80,9 @@ export function SubscriptionSettings() {
         throw new Error("Please sign in to upgrade");
       }
 
+      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
+        `${supabaseUrl}/functions/v1/create-checkout-session`,
         {
           method: "POST",
           headers: {
@@ -120,8 +123,9 @@ export function SubscriptionSettings() {
         throw new Error("Please sign in");
       }
 
+      const supabaseUrl = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
+        `${supabaseUrl}/functions/v1/create-portal-session`,
         {
           method: "POST",
           headers: {
@@ -165,8 +169,9 @@ export function SubscriptionSettings() {
   const planConfig = plan ? PLAN_CONFIGS[plan.name as keyof typeof PLAN_CONFIGS] : null;
   const PlanIcon = planConfig?.icon || Zap;
 
-  const csvExportsUsed = usage?.exports_count || 0;
-  const csvExportsLimit = plan?.max_monthly_exports || 0;
+  // For trial users, show trial export counts instead of plan limits
+  const csvExportsUsed = isOnTrial ? trialExportsUsed : (usage?.exports_count || 0);
+  const csvExportsLimit = isOnTrial ? trialExportsLimit : (plan?.max_monthly_exports || 0);
   const csvExportsPercent = csvExportsLimit === -1 ? 0 : Math.min(100, (csvExportsUsed / Math.max(1, csvExportsLimit)) * 100);
 
   const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;

@@ -41,18 +41,20 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
   const fetchUserLists = async () => {
     setIsLoadingLists(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      // Use getSession for reliability - getUser makes a network call that can fail
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) return;
 
       const { data, error } = await supabase
         .from("lead_lists")
         .select("id, name")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       setUserLists(data || []);
-      
+
       // If no lists exist, default to "new" mode
       if (!data || data.length === 0) {
         setMode("new");
@@ -91,9 +93,10 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
 
       // If creating a new list, insert it first
       if (mode === "new") {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData?.session?.user?.id;
+
+        if (!userId) {
           toast({
             title: "Authentication Required",
             description: "Please sign in to create a list",
@@ -104,7 +107,7 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
 
         const { data: newList, error: createError } = await supabase
           .from("lead_lists")
-          .insert({ name: newListName.trim(), user_id: user.id })
+          .insert({ name: newListName.trim(), user_id: userId })
           .select("id, name")
           .single();
 

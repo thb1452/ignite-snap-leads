@@ -78,8 +78,9 @@ export function SubscriptionSettings() {
         throw new Error("Please sign in to upgrade");
       }
 
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ojyxblegxpdgaqiscxpz.supabase.co';
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
+        `${supabaseUrl}/functions/v1/create-checkout-session`,
         {
           method: "POST",
           headers: {
@@ -120,8 +121,9 @@ export function SubscriptionSettings() {
         throw new Error("Please sign in");
       }
 
+      const supabaseUrl2 = import.meta.env.VITE_SUPABASE_URL || 'https://ojyxblegxpdgaqiscxpz.supabase.co';
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
+        `${supabaseUrl2}/functions/v1/create-portal-session`,
         {
           method: "POST",
           headers: {

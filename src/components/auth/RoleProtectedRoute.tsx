@@ -4,7 +4,7 @@ import { useAuth, AppRole } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { EmailVerificationPrompt } from './EmailVerificationPrompt';
 import { Loader2, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/externalClient';
 
 const CHECKOUT_PROCESSED_KEY = 'snap_checkout_processed';
 const PENDING_CHECKOUT_KEY = 'snap_pending_checkout';

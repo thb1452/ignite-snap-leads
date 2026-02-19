@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
-import { supabase, supabaseUrl } from "@/integrations/supabase/externalClient";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, Sparkles, TrendingUp, ExternalLink, Loader2, Crown, Zap, Mail } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -73,37 +73,16 @@ export function SubscriptionSettings() {
     try {
       setCheckoutLoading(tierName);
 
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
+      const { data, error: fnError } = await supabase.functions.invoke('create-checkout-session', {
+        body: { tier_name: tierName, billing_cycle: 'monthly' },
+      });
 
-      if (!token) {
-        throw new Error("Please sign in to upgrade");
-      }
+      if (fnError) throw new Error(fnError.message || "Failed to create checkout session");
 
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/create-checkout-session`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ tier_name: tierName, billing_cycle: 'monthly' }),
-        }
-      );
+      const checkoutUrl = data?.url || data?.checkout_url;
+      if (!checkoutUrl) throw new Error("No checkout URL returned. Please try again.");
 
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        throw new Error("Checkout service unavailable. Please try again later.");
-      }
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create checkout session");
-      }
-
-      const { url } = await response.json();
-      window.location.href = url; // Redirect to Stripe Checkout
+      window.location.href = checkoutUrl;
     } catch (error: any) {
       console.error("[SubscriptionSettings] Checkout error:", error);
       toast({
@@ -120,40 +99,26 @@ export function SubscriptionSettings() {
     try {
       setPortalLoading(true);
 
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
+      const { data, error: fnError } = await supabase.functions.invoke('create-portal-session', {
+        body: {},
+      });
 
-      if (!token) {
-        throw new Error("Please sign in");
-      }
-
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/create-portal-session`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const portalContentType = response.headers.get('content-type') || '';
-      if (!portalContentType.includes('application/json')) {
-        throw new Error("Billing service unavailable. Please try again later.");
-      }
-
-      if (!response.ok) {
-        const error = await response.json();
-        if (response.status === 404) {
+      if (fnError) {
+        // 404 means no Stripe customer found
+        if (fnError.message?.includes('404') || fnError.message?.includes('No active subscription')) {
           setPortalUnavailable(true);
           return;
         }
-        throw new Error(error.error || "Failed to create portal session");
+        throw new Error(fnError.message || "Failed to create portal session");
       }
 
-      const { url } = await response.json();
-      window.open(url, '_blank'); // Open portal in new tab
+      const portalUrl = data?.url;
+      if (!portalUrl) {
+        setPortalUnavailable(true);
+        return;
+      }
+
+      window.open(portalUrl, '_blank');
     } catch (error: any) {
       console.error("[SubscriptionSettings] Portal error:", error);
       toast({

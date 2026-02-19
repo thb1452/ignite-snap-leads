@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
-import { supabase, supabaseUrl } from "@/integrations/supabase/externalClient";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
 import { ExternalLink, Loader2, Crown, Zap, Sparkles, TrendingUp, List, Building2, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -35,39 +35,26 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
   const handleManageSubscription = async () => {
     try {
       setPortalLoading(true);
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
 
-      if (!token) throw new Error("Please sign in");
+      const { data, error: fnError } = await supabase.functions.invoke('create-portal-session', {
+        body: {},
+      });
 
-      const edgeFnUrl = supabaseUrl;
-      const response = await fetch(
-        `${edgeFnUrl}/functions/v1/create-portal-session`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        throw new Error("Billing service unavailable. Please try again later.");
-      }
-
-      if (!response.ok) {
-        const error = await response.json();
-        if (response.status === 404) {
+      if (fnError) {
+        if (fnError.message?.includes('404') || fnError.message?.includes('No active subscription')) {
           setPortalUnavailable(true);
           return;
         }
-        throw new Error(error.error || "Failed to create portal session");
+        throw new Error(fnError.message || "Failed to create portal session");
       }
 
-      const { url } = await response.json();
-      window.open(url, '_blank');
+      const portalUrl = data?.url;
+      if (!portalUrl) {
+        setPortalUnavailable(true);
+        return;
+      }
+
+      window.open(portalUrl, '_blank');
     } catch (error: any) {
       console.error("[PlanUsageSection] Portal error:", error);
       toast({
@@ -83,36 +70,17 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
   const handleUpgrade = async (tierName: string) => {
     try {
       setCheckoutLoading(tierName);
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
 
-      if (!token) throw new Error("Please sign in to upgrade");
+      const { data, error: fnError } = await supabase.functions.invoke('create-checkout-session', {
+        body: { tier_name: tierName, billing_cycle: 'monthly' },
+      });
 
-      const edgeFnUrl = supabaseUrl;
-      const response = await fetch(
-        `${edgeFnUrl}/functions/v1/create-checkout-session`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ tier_name: tierName, billing_cycle: 'monthly' }),
-        }
-      );
+      if (fnError) throw new Error(fnError.message || "Failed to create checkout session");
 
-      const checkoutContentType = response.headers.get('content-type') || '';
-      if (!checkoutContentType.includes('application/json')) {
-        throw new Error("Checkout service unavailable. Please try again later.");
-      }
+      const checkoutUrl = data?.url || data?.checkout_url;
+      if (!checkoutUrl) throw new Error("No checkout URL returned. Please try again.");
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create checkout session");
-      }
-
-      const { url } = await response.json();
-      window.location.href = url;
+      window.location.href = checkoutUrl;
     } catch (error: any) {
       toast({
         title: "Checkout Failed",

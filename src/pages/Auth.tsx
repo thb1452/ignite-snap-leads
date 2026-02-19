@@ -7,10 +7,9 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Session storage key to track if a user was logged in BEFORE visiting pricing/auth
-// This persists across the signup flow so we know if they're a fresh signup vs existing user
 const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
 
-const LOADING_TIMEOUT_MS = 5000; // Auth page loading timeout
+const LOADING_TIMEOUT_MS = 5000;
 
 export default function Auth() {
   const { user, roles, loading, signOut } = useAuth();
@@ -23,36 +22,38 @@ export default function Auth() {
   const [showAccountChoice, setShowAccountChoice] = useState(false);
   const [showAlreadyLoggedIn, setShowAlreadyLoggedIn] = useState(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
-  const initDone = useRef(false);
-
-  // Track if user was logged in when page FIRST loaded (before auth completes)
-  // null = not yet determined, true = was logged in, false = was not logged in
-  const wasLoggedInOnMount = useRef<boolean | null>(null);
 
   // Track if we've already initiated a redirect (prevent multiple redirects)
   const hasRedirected = useRef(false);
 
-  // On mount (before auth loads), check if we already flagged this as a pre-existing user
-  // This flag is SET by the pricing page when a logged-in user clicks a plan
+  // TRUE = user was logged in when /auth page first loaded (session existed in localStorage)
+  // FALSE = user was not logged in on load (they just signed in during this visit)
+  const wasLoggedInOnMount = useRef<boolean | null>(null);
+
+  // Flag set by pricing page when logged-in user clicks a plan
   const wasLoggedInBeforeFlow = useRef<boolean | null>(null);
 
+  // Check pre-auth flag & capture initial session state on mount
   useEffect(() => {
-    if (initDone.current) return;
-    initDone.current = true;
-
-    // Check if pricing page marked that user was already logged in
     try {
       const preAuthFlag = sessionStorage.getItem(SESSION_KEY_PRE_AUTH_USER);
       wasLoggedInBeforeFlow.current = preAuthFlag === 'true';
-      // Clear it immediately so it doesn't persist across unrelated visits
       sessionStorage.removeItem(SESSION_KEY_PRE_AUTH_USER);
-      console.log('[Auth] Pre-auth user flag:', wasLoggedInBeforeFlow.current);
     } catch (e) {
       wasLoggedInBeforeFlow.current = false;
     }
+
+    // Check if a session already exists in localStorage RIGHT NOW (before any auth state change)
+    // This is synchronous so we get the true "on mount" state
+    supabase.auth.getSession().then(({ data }) => {
+      if (wasLoggedInOnMount.current === null) {
+        wasLoggedInOnMount.current = !!data.session?.user;
+        console.log('[Auth] Mount session check - was logged in:', wasLoggedInOnMount.current);
+      }
+    });
   }, []);
 
-  // Safety timeout for loading state - prevent infinite spinner
+  // Safety timeout for loading state
   useEffect(() => {
     if (loading && !loadingTimedOut) {
       const timer = setTimeout(() => {
@@ -63,54 +64,28 @@ export default function Auth() {
     }
   }, [loading, loadingTimedOut]);
 
-  // Capture initial auth state ONCE when loading completes
   useEffect(() => {
-    if (!loading && wasLoggedInOnMount.current === null) {
-      wasLoggedInOnMount.current = !!user;
-      console.log('[Auth] Initial auth state captured - was logged in:', wasLoggedInOnMount.current);
-    }
-  }, [loading, user]);
-
-  useEffect(() => {
-    console.log('[Auth] useEffect - loading:', loading, 'user:', !!user, 'selectedPlan:', selectedPlan, 'mode:', mode, 'redirectingToCheckout:', redirectingToCheckout, 'showAccountChoice:', showAccountChoice, 'wasLoggedInBeforeFlow:', wasLoggedInBeforeFlow.current, 'wasLoggedInOnMount:', wasLoggedInOnMount.current);
-
-    // Wait for auth loading to complete
     if (loading) return;
+    if (!user) return;
 
-    // Not logged in - show auth form
-    if (!user) {
-      console.log('[Auth] No user, showing auth form');
-      return;
-    }
-
-    // User is logged in!
     const isFromPricing = mode === 'signup' && selectedPlan;
 
-    // CRITICAL FIX: If user came from pricing, handle checkout flow - NEVER fall through to navigate('/leads')
     if (isFromPricing) {
-      // Only trigger state changes if not already in progress
       if (!redirectingToCheckout && !showAccountChoice) {
         if (wasLoggedInBeforeFlow.current === true) {
-          // User was already logged in when they clicked the plan on pricing page - show choice
-          console.log('[Auth] Already logged-in user came from pricing, showing account choice');
           setShowAccountChoice(true);
         } else {
-          // User just signed up (or wasn't logged in before) - go directly to checkout
-          console.log('[Auth] Fresh signup from pricing, redirecting to checkout immediately');
           handleDirectCheckout();
         }
       }
-      // Always return when from pricing - never fall through to navigate('/leads')
       return;
     }
 
-    // User is logged in but not from pricing
-    // Check if they were ALREADY logged in when they visited /auth, or if they JUST authenticated
+    // Not from pricing: did the user JUST sign in, or were they already logged in?
     if (wasLoggedInOnMount.current === false && !hasRedirected.current) {
-      // User was NOT logged in when page loaded - they just signed in/up
-      // Auto-redirect to appropriate dashboard (only once)
+      // Fresh sign-in → redirect to dashboard
       hasRedirected.current = true;
-      console.log('[Auth] Fresh sign-in detected, auto-redirecting to dashboard. Roles:', roles);
+      console.log('[Auth] Fresh sign-in, redirecting to dashboard. Roles:', roles);
       if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
         navigate('/va-dashboard', { replace: true });
       } else {
@@ -119,11 +94,11 @@ export default function Auth() {
       return;
     }
 
-    // User WAS already logged in when they visited /auth - show choice screen
-    if (!showAlreadyLoggedIn) {
+    // wasLoggedInOnMount is null (still checking) or true (was already logged in)
+    // Only show "already logged in" if we've confirmed they were logged in on mount
+    if (wasLoggedInOnMount.current === true && !showAlreadyLoggedIn && !hasRedirected.current) {
       console.log('[Auth] User was already logged in on page load, showing options');
       setShowAlreadyLoggedIn(true);
-      return;
     }
   }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice, showAlreadyLoggedIn]);
 

@@ -195,7 +195,7 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
                   <SelectTrigger>
                     <SelectValue placeholder="Choose a list" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[200]" position="popper">
                     {userLists.map((list) => (
                       <SelectItem key={list.id} value={list.id}>
                         {list.name}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useBulkAddToList, useUserLists, useCreateList } from "@/hooks/useLists";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 interface AddToListDialogProps {
@@ -21,10 +22,18 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
   const [newListName, setNewListName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const qc = useQueryClient();
 
   const bulkAddMutation = useBulkAddToList();
   const createListMutation = useCreateList();
   const { data: userLists = [], isLoading: isLoadingLists } = useUserLists();
+
+  // Force refetch lists every time the dialog opens
+  useEffect(() => {
+    if (open) {
+      qc.invalidateQueries({ queryKey: ["lists"] });
+    }
+  }, [open, qc]);
 
   const handleAddToList = async () => {
     if (mode === "existing" && !selectedListId) {
@@ -80,7 +89,6 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
               variant={mode === "existing" ? "default" : "outline"}
               onClick={() => setMode("existing")}
               className="flex-1"
-              disabled={userLists.length === 0 && !isLoadingLists}
             >
               Existing List
             </Button>

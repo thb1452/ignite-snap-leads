@@ -55,13 +55,24 @@ const TIER_CONFIG: Record<string, {
 
 /** Create a Stripe Checkout session with a 7-day trial using supabase.functions.invoke */
 async function createTrialCheckoutSession(tierName: string): Promise<string> {
-  const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+  const TIMEOUT_MS = 15000;
+
+  const invokePromise = supabase.functions.invoke("create-checkout-session", {
     body: {
       tier_name: tierName,
       billing_cycle: "monthly",
       trial: true,
     },
   });
+
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error("Checkout request timed out. Please check your connection and try again.")),
+      TIMEOUT_MS
+    )
+  );
+
+  const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
 
   if (error) {
     throw new Error(error.message || "Failed to create checkout session");

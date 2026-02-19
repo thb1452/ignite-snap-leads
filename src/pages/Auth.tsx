@@ -117,12 +117,15 @@ export default function Auth() {
 
     console.log('[Auth] Direct checkout for fresh signup, plan:', selectedPlan);
 
-    supabase.functions.invoke('create-checkout-session', {
-      body: {
-        tier_name: selectedPlan,
-        billing_cycle: 'monthly'
-      }
-    }).then(({ data, error }) => {
+    const TIMEOUT_MS = 15000;
+    const invokePromise = supabase.functions.invoke('create-checkout-session', {
+      body: { tier_name: selectedPlan, billing_cycle: 'monthly' }
+    });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Checkout request timed out. Please try again.')), TIMEOUT_MS)
+    );
+
+    Promise.race([invokePromise, timeoutPromise]).then(({ data, error }) => {
       console.log('[Auth] Stripe response:', { data, error });
 
       if (error) {
@@ -143,7 +146,7 @@ export default function Auth() {
       }
     }).catch((err) => {
       console.error('[Auth] Checkout network error:', err);
-      setCheckoutError('Network error. Please check your connection and try again.');
+      setCheckoutError(err?.message || 'Network error. Please check your connection and try again.');
       setRedirectingToCheckout(false);
     });
   };
@@ -161,12 +164,15 @@ export default function Auth() {
 
     console.log('[Auth] Continuing with current account, creating Stripe checkout for:', selectedPlan);
 
-    supabase.functions.invoke('create-checkout-session', {
-      body: {
-        tier_name: selectedPlan,
-        billing_cycle: 'monthly'
-      }
-    }).then(({ data, error }) => {
+    const TIMEOUT_MS = 15000;
+    const invokePromise = supabase.functions.invoke('create-checkout-session', {
+      body: { tier_name: selectedPlan, billing_cycle: 'monthly' }
+    });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Checkout request timed out. Please try again.')), TIMEOUT_MS)
+    );
+
+    Promise.race([invokePromise, timeoutPromise]).then(({ data, error }) => {
       console.log('[Auth] Stripe response:', { data, error });
 
       if (error) {
@@ -187,7 +193,7 @@ export default function Auth() {
       }
     }).catch((err) => {
       console.error('[Auth] Checkout network error:', err);
-      setCheckoutError('Network error. Please check your connection and try again.');
+      setCheckoutError(err?.message || 'Network error. Please check your connection and try again.');
       setRedirectingToCheckout(false);
     });
   };

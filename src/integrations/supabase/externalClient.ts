@@ -24,13 +24,22 @@ const SUPABASE_KEY = useExternal ? EXTERNAL_SUPABASE_ANON_KEY : LOVABLE_SUPABASE
 // Export the resolved URL for edge function calls
 export const supabaseUrl = SUPABASE_URL;
 
+// Safe localStorage access (guards against mobile/SSR environments)
+const safeStorage = (() => {
+  try {
+    return typeof window !== 'undefined' ? localStorage : undefined;
+  } catch {
+    return undefined;
+  }
+})();
+
 // Create the Supabase client
 export const supabase = createClient<Database>(
   SUPABASE_URL,
   SUPABASE_KEY,
   {
     auth: {
-      storage: localStorage,
+      storage: safeStorage,
       persistSession: true,
       autoRefreshToken: true,
     },

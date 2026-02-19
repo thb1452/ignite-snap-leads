@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Check, Loader2, Zap, TrendingUp, Building2, CreditCard } from "lucide-react";
+import { Check, Loader2, Zap, TrendingUp, Building2, CreditCard, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { Link } from "react-router-dom";
@@ -99,6 +99,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
   const [password, setPassword] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
 
   const tier = TIER_CONFIG[selectedTier] || TIER_CONFIG.starter;
   const TierIcon = tier.icon;
@@ -111,13 +112,18 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
 
   /** Redirect an authenticated user to Stripe Checkout with trial */
   const redirectToStripeCheckout = async () => {
-    toast({
-      title: "Redirecting to checkout...",
-      description: "You'll enter your payment details on our secure checkout page.",
-    });
-
     const checkoutUrl = await createTrialCheckoutSession(selectedTier);
-    window.location.href = checkoutUrl;
+    
+    // Store as fallback in case redirect is blocked (e.g. mobile async context)
+    setFallbackUrl(checkoutUrl);
+
+    // Attempt redirect
+    window.location.assign(checkoutUrl);
+
+    // If still on page after 2s, the redirect was blocked — show manual link
+    setTimeout(() => {
+      setIsSubmitting(false);
+    }, 2000);
   };
 
   const handleStartTrial = async () => {
@@ -324,6 +330,17 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
               "Start Free Trial"
             )}
           </Button>
+
+          {/* Fallback link if redirect was blocked (mobile browsers) */}
+          {fallbackUrl && !isSubmitting && (
+            <a
+              href={fallbackUrl}
+              className="flex items-center justify-center gap-2 text-sm text-cyan-600 hover:underline font-medium"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Tap here to open checkout
+            </a>
+          )}
 
           <p className="text-xs text-center text-muted-foreground">
             Your trial starts immediately. No charges for 7 days.

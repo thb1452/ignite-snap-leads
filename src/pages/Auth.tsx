@@ -82,7 +82,9 @@ export default function Auth() {
     }
 
     // Not from pricing: did the user JUST sign in, or were they already logged in?
-    if (wasLoggedInOnMount.current === false && !hasRedirected.current) {
+    // Treat null (async check not yet resolved) the same as false — assume fresh sign-in
+    // to avoid the race condition where the redirect is skipped entirely.
+    if (wasLoggedInOnMount.current !== true && !hasRedirected.current) {
       // Fresh sign-in → redirect to dashboard
       hasRedirected.current = true;
       console.log('[Auth] Fresh sign-in, redirecting to dashboard. Roles:', roles);
@@ -94,7 +96,6 @@ export default function Auth() {
       return;
     }
 
-    // wasLoggedInOnMount is null (still checking) or true (was already logged in)
     // Only show "already logged in" if we've confirmed they were logged in on mount
     if (wasLoggedInOnMount.current === true && !showAlreadyLoggedIn && !hasRedirected.current) {
       console.log('[Auth] User was already logged in on page load, showing options');

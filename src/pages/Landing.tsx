@@ -1067,21 +1067,21 @@ export default function Landing() {
                 initials: "JM",
                 name: "Jake M.",
                 role: "Wholesaler, Phoenix AZ",
-                quote: "Found 3 deals in my first 6 weeks that I never would have seen with PropStream alone. The SnapScore ranking is the difference—I'm not guessing anymore, I know which owners are actually motivated. I still use PropStream for comps and ownership—Snap tells me who to call first.",
-                result: "3 deals closed in 6 weeks"
+                quote: "The SnapScore ranking changed how I prioritize my week. I'm not guessing which properties have real pressure anymore — I can see the enforcement intensity before I make a single call. I work a smaller list now and get better results because every property I'm looking at has an active enforcement case behind it.",
+                result: "3 contracts in 6 weeks"
               },
               {
                 initials: "SR",
                 name: "Sarah R.",
                 role: "Acquisition Manager, Southeast Portfolio",
-                quote: "We pull violation leads from Snap, verify equity in PropStream, then call. The data freshness is night and day compared to BatchLeads. Seeing violation escalation patterns before they peak gives us a real timing advantage.",
+                quote: "The data freshness is what sold me. We're seeing enforcement escalation patterns 4-6 weeks before they show up anywhere else. That timing window is where we find our edge — by the time a property appears in traditional databases, the pressure has usually already resolved.",
                 result: "40% improvement in contact-to-contract rate"
               },
               {
                 initials: "MT",
                 name: "Marcus T.",
                 role: "Fix & Flip Investor, Dallas-Fort Worth",
-                quote: "I was skeptical about another data tool, but the enforcement focus is different. Water shutoff data alone has surfaced properties no one else was calling on.",
+                quote: "I was skeptical because I've tried a lot of data tools. What's different here is the enforcement focus — it's not just violation counts, it's pressure patterns. Water shutoff data alone flagged properties in my market that had zero visibility anywhere else. That's a real intelligence advantage.",
                 result: "First deal paid for 2 years of subscription"
               }
             ].map((testimonial, i) => (

@@ -1,18 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/externalClient";
-import { useBulkAddToList } from "@/hooks/useLists";
+import { useBulkAddToList, useUserLists, useCreateList } from "@/hooks/useLists";
 import { Loader2 } from "lucide-react";
-
-interface UserList {
-  id: string;
-  name: string;
-}
 
 interface AddToListDialogProps {
   open: boolean;
@@ -25,114 +19,40 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [selectedListId, setSelectedListId] = useState("");
   const [newListName, setNewListName] = useState("");
-  const [userLists, setUserLists] = useState<UserList[]>([]);
-  const [isLoadingLists, setIsLoadingLists] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+
   const bulkAddMutation = useBulkAddToList();
-
-  // Fetch user's lists when dialog opens
-  useEffect(() => {
-    if (open) {
-      fetchUserLists();
-    }
-  }, [open]);
-
-  const fetchUserLists = async () => {
-    setIsLoadingLists(true);
-    try {
-      // Use getSession for reliability - getUser makes a network call that can fail
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData?.session?.user?.id;
-      if (!userId) {
-        console.warn('[AddToListDialog] No user session found');
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("lead_lists")
-        .select("id, name")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      console.log('[AddToListDialog] Fetched lists:', data?.length, data);
-      setUserLists(data || []);
-
-      // If no lists exist, default to "new" mode
-      if (!data || data.length === 0) {
-        setMode("new");
-      }
-    } catch (error) {
-      console.error("Error fetching lists:", error);
-    } finally {
-      setIsLoadingLists(false);
-    }
-  };
+  const createListMutation = useCreateList();
+  const { data: userLists = [], isLoading: isLoadingLists } = useUserLists();
 
   const handleAddToList = async () => {
     if (mode === "existing" && !selectedListId) {
-      toast({
-        title: "No list selected",
-        description: "Please select a list",
-        variant: "destructive",
-      });
+      toast({ title: "No list selected", description: "Please select a list", variant: "destructive" });
       return;
     }
-
     if (mode === "new" && !newListName.trim()) {
-      toast({
-        title: "No list name",
-        description: "Please enter a list name",
-        variant: "destructive",
-      });
+      toast({ title: "No list name", description: "Please enter a list name", variant: "destructive" });
       return;
     }
 
     setIsSubmitting(true);
-
     try {
       let listId = selectedListId;
       let listName = userLists.find(l => l.id === selectedListId)?.name;
 
-      // If creating a new list, insert it first
       if (mode === "new") {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData?.session?.user?.id;
-
-        if (!userId) {
-          toast({
-            title: "Authentication Required",
-            description: "Please sign in to create a list",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        const { data: newList, error: createError } = await supabase
-          .from("lead_lists")
-          .insert({ name: newListName.trim(), user_id: userId })
-          .select("id, name")
-          .single();
-
-        if (createError) throw createError;
-        
-        listId = newList.id;
-        listName = newList.name;
+        listId = await createListMutation.mutateAsync(newListName.trim());
+        listName = newListName.trim();
       }
 
-      // Add properties to the list using the mutation
-      await bulkAddMutation.mutateAsync({
-        listId,
-        propertyIds,
-      });
+      await bulkAddMutation.mutateAsync({ listId, propertyIds });
 
       toast({
         title: "Success",
         description: `${propertyIds.length} property${propertyIds.length > 1 ? 's' : ''} added to "${listName}"`,
       });
 
-      // Reset state and close
       onSuccess();
       onOpenChange(false);
       setMode("existing");
@@ -140,11 +60,7 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
       setNewListName("");
     } catch (error: any) {
       console.error("Error adding to list:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add properties to list",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to add properties to list", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -155,9 +71,7 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add {propertyIds.length} Property{propertyIds.length > 1 ? 's' : ''} to List</DialogTitle>
-          <DialogDescription>
-            Choose an existing list or create a new one
-          </DialogDescription>
+          <DialogDescription>Choose an existing list or create a new one</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -166,7 +80,7 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
               variant={mode === "existing" ? "default" : "outline"}
               onClick={() => setMode("existing")}
               className="flex-1"
-              disabled={userLists.length === 0}
+              disabled={userLists.length === 0 && !isLoadingLists}
             >
               Existing List
             </Button>
@@ -223,10 +137,7 @@ export function AddToListDialog({ open, onOpenChange, propertyIds, onSuccess }: 
           </Button>
           <Button onClick={handleAddToList} disabled={isSubmitting}>
             {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Adding...
-              </>
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Adding...</>
             ) : (
               "Add to List"
             )}

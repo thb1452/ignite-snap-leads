@@ -2,7 +2,8 @@ import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
-import { supabase } from "@/integrations/supabase/externalClient";
+import { supabase as externalSupabase } from "@/integrations/supabase/externalClient";
+import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -45,7 +46,7 @@ export default function Auth() {
 
     // Check if a session already exists in localStorage RIGHT NOW (before any auth state change)
     // This is synchronous so we get the true "on mount" state
-    supabase.auth.getSession().then(({ data }) => {
+    externalSupabase.auth.getSession().then(({ data }) => {
       if (wasLoggedInOnMount.current === null) {
         wasLoggedInOnMount.current = !!data.session?.user;
         console.log('[Auth] Mount session check - was logged in:', wasLoggedInOnMount.current);

@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Settings, CreditCard, LayoutDashboard, ListChecks, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,6 +23,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const { signOut, user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const { isAdmin, isVA } = useUserRole();
   const { isOnTrial, hasTrialExpired, trialDaysRemaining, trialTier } = useTrialStatus();
 
@@ -30,6 +31,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const handleSignOut = async () => {
     await signOut();
+    navigate('/');
   };
 
   // Main navigation items - role-based but Properties/Lists visible to all users

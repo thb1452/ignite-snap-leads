@@ -28,6 +28,8 @@ import HowSnapWorks from "./pages/HowSnapWorks";
 import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import About from "./pages/About";
+import Blog from "./pages/Blog";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
@@ -137,6 +139,8 @@ const App = () => (
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/blog" element={<Blog />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

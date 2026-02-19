@@ -20,8 +20,8 @@ export default function Terms() {
           <section>
             <h2 className="text-2xl font-semibold text-foreground mb-4">1. Service Description</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Snap Ignite provides real estate enforcement intelligence data to help investors 
-              identify motivated sellers through code violation tracking and enforcement pressure analysis.
+              Snap Ignite provides municipal enforcement intelligence data to help real estate operators 
+              identify properties under active enforcement pressure.
             </p>
           </section>
 

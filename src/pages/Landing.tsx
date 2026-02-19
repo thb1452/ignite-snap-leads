@@ -1148,7 +1148,7 @@ export default function Landing() {
                 },
                 {
                   question: "Do you include owner contact information?",
-                  answer: "Yes, we include available owner information with property records. For skip tracing beyond basic records, we recommend pairing Snap Ignite with a dedicated skip tracing service—we focus on intelligence, not trying to be an all-in-one platform."
+                  answer: "Snap Ignite focuses on enforcement intelligence, not contact data. Basic ownership records are available where public. For skip tracing, we recommend pairing Snap with a dedicated service — we build the signal layer, not the outreach layer."
                 },
                 {
                   question: "Can I cancel anytime?",
@@ -1273,9 +1273,9 @@ export default function Landing() {
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-landing-text-muted">
-                <li><a href="#" className="hover:text-landing-text transition">About</a></li>
+              <li><a href="/about" className="hover:text-landing-text transition">About</a></li>
                 <li><a href="mailto:support@snapignite.com" className="hover:text-landing-text transition">Contact</a></li>
-                <li><a href="#" className="hover:text-landing-text transition">Blog</a></li>
+                <li><a href="/blog" className="hover:text-landing-text transition">Blog</a></li>
               </ul>
             </div>
             

@@ -28,10 +28,10 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.create-checkout-session]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-portal-session]
-verify_jwt = true
+verify_jwt = false
 
 [functions.delete-upload-job]
 verify_jwt = true

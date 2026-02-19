@@ -2,7 +2,8 @@ import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
-import { supabase } from "@/integrations/supabase/externalClient";
+import { supabase as externalSupabase } from "@/integrations/supabase/externalClient";
+import { supabase as mainSupabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -13,11 +14,22 @@ const LOADING_TIMEOUT_MS = 5000;
 const CHECKOUT_TIMEOUT_MS = 20000;
 const CHECKOUT_MAX_ATTEMPTS = 2;
 
-/** Invoke the create-checkout-session function with timeout + one automatic retry for cold starts. */
+/**
+ * Invoke create-checkout-session on the Lovable Cloud project (where it is deployed).
+ * Passes the auth token from externalClient so the function can verify the user.
+ * Retries once to handle cold-start delays.
+ */
 async function invokeCheckoutWithRetry(tierName: string): Promise<string> {
+  // Get the auth token from the external client (where auth lives)
+  const { data: sessionData } = await externalSupabase.auth.getSession();
+  const authHeaders = sessionData?.session?.access_token
+    ? { Authorization: `Bearer ${sessionData.session.access_token}` }
+    : undefined;
+
   for (let attempt = 1; attempt <= CHECKOUT_MAX_ATTEMPTS; attempt++) {
-    const invokePromise = supabase.functions.invoke('create-checkout-session', {
+    const invokePromise = mainSupabase.functions.invoke('create-checkout-session', {
       body: { tier_name: tierName, billing_cycle: 'monthly' },
+      headers: authHeaders,
     });
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('__TIMEOUT__')), CHECKOUT_TIMEOUT_MS)
@@ -77,7 +89,7 @@ export default function Auth() {
 
     // Check if a session already exists in localStorage RIGHT NOW (before any auth state change)
     // This is synchronous so we get the true "on mount" state
-    supabase.auth.getSession().then(({ data }) => {
+    externalSupabase.auth.getSession().then(({ data }) => {
       if (wasLoggedInOnMount.current === null) {
         wasLoggedInOnMount.current = !!data.session?.user;
         console.log('[Auth] Mount session check - was logged in:', wasLoggedInOnMount.current);

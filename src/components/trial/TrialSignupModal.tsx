@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Check, Loader2, Zap, TrendingUp, Building2, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/externalClient";
+import { supabase as externalSupabase } from "@/integrations/supabase/externalClient";
+import { supabase as mainSupabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 
 const TIER_CONFIG: Record<string, {
@@ -66,18 +67,27 @@ async function invokeWithTimeout<T>(
 
 /**
  * Create a Stripe Checkout session with a 7-day trial.
+ * Calls the edge function on the Lovable Cloud project (where it is deployed),
+ * passing the auth token from externalClient so the function can verify the user.
  * Retries once automatically to handle cold-start delays on the first call.
  */
 async function createTrialCheckoutSession(tierName: string): Promise<string> {
   const TIMEOUT_MS = 20000;
   const MAX_ATTEMPTS = 2;
 
+  // Grab the current session's access token from the external auth client
+  const { data: sessionData } = await externalSupabase.auth.getSession();
+  const authHeaders = sessionData?.session?.access_token
+    ? { Authorization: `Bearer ${sessionData.session.access_token}` }
+    : undefined;
+
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const { data, error } = await invokeWithTimeout(
         () =>
-          supabase.functions.invoke("create-checkout-session", {
+          mainSupabase.functions.invoke("create-checkout-session", {
             body: { tier_name: tierName, billing_cycle: "monthly", trial: true },
+            headers: authHeaders,
           }),
         TIMEOUT_MS
       );
@@ -186,7 +196,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
         return;
       }
 
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await externalSupabase.auth.signUp({
         email: email.trim(),
         password,
         options: {

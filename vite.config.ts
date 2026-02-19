@@ -13,8 +13,6 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      // Redirect auto-generated client to externalClient to avoid crash when env vars are missing
-      "@/integrations/supabase/client": path.resolve(__dirname, "./src/integrations/supabase/externalClient.ts"),
     },
   },
 }));

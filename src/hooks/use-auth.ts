@@ -200,7 +200,10 @@ export function useAuth() {
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: fullName,
+          },
         }
       });
 

@@ -53,9 +53,41 @@ export interface UserList {
 }
 
 export async function getUserLists(): Promise<UserList[]> {
-  const { data, error } = await supabase.rpc("fn_get_user_lists");
+  // Verify we have an active session first
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData?.session) {
+    console.warn("getUserLists: no active session");
+    return [];
+  }
+
+  // Direct query instead of RPC to avoid auth.uid() timing issues
+  const { data, error } = await supabase
+    .from("lead_lists")
+    .select("id, name, created_at")
+    .order("created_at", { ascending: false });
+
   if (error) throw error;
-  return (data || []) as UserList[];
+
+  // Attach property counts via a separate query
+  const lists = data || [];
+  if (lists.length === 0) return [];
+
+  const { data: countData } = await supabase
+    .from("list_properties")
+    .select("list_id")
+    .in("list_id", lists.map(l => l.id));
+
+  const countMap: Record<string, number> = {};
+  (countData || []).forEach(row => {
+    countMap[row.list_id] = (countMap[row.list_id] || 0) + 1;
+  });
+
+  return lists.map(l => ({
+    id: l.id,
+    name: l.name,
+    created_at: l.created_at,
+    property_count: countMap[l.id] || 0,
+  }));
 }
 
 export interface ListProperty {

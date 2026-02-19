@@ -65,9 +65,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 supports-[backdrop-filter]:bg-white/55 border-b border-slate-200/70 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto max-w-[1400px] px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link to="/leads">
-              <LogoWordmark className="text-[18px] leading-none" />
-            </Link>
+            <LogoWordmark className="text-[18px] leading-none" />
             <nav className="ml-6 hidden md:flex gap-4 text-sm font-ui">
               {mainNavItems.map((item) => {
                 const isActive = location.pathname === item.path;

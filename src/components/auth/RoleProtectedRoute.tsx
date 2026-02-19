@@ -2,6 +2,7 @@ import { ReactNode, useState, useEffect, useRef, useCallback } from 'react';
 import { Navigate, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useTrialStatus } from '@/hooks/useTrialStatus';
 import { EmailVerificationPrompt } from './EmailVerificationPrompt';
 import { Loader2, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/externalClient';
@@ -24,6 +25,7 @@ export function RoleProtectedRoute({
 }: RoleProtectedRouteProps) {
   const { user, loading, hasRole, emailVerified, roles } = useAuth();
   const { plan, loading: subLoading, hasActiveSubscription, refetch } = useSubscription();
+  const { isOnTrial, hasTrialExpired } = useTrialStatus();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -295,9 +297,9 @@ export function RoleProtectedRoute({
   const hasPaidSubscription = hasActiveSubscription && plan?.name;
   const grantAccessFromPayment = inCheckoutFlow && (hasPaidSubscription || hasGivenUp);
 
-  // PAID USERS: Anyone with an active subscription can access
-  if (hasPaidSubscription || grantAccessFromPayment) {
-    console.log('[RoleProtectedRoute] Granting access - paid user:', { hasPaidSubscription, grantAccessFromPayment });
+  // PAID USERS or TRIAL USERS: grant access
+  if (hasPaidSubscription || grantAccessFromPayment || isOnTrial || hasTrialExpired) {
+    console.log('[RoleProtectedRoute] Granting access:', { hasPaidSubscription, grantAccessFromPayment, isOnTrial, hasTrialExpired });
     return <>{children}</>;
   }
 
@@ -315,7 +317,7 @@ export function RoleProtectedRoute({
         <div className="min-h-screen flex items-center justify-center flex-col gap-4 p-4">
           <h1 className="text-2xl font-bold text-foreground">Welcome to Snap Ignite!</h1>
           <p className="text-muted-foreground text-center max-w-md">
-            Your account is set up. Please complete your subscription to access the full platform.
+            Your account is set up. Please choose a plan to access the full platform.
           </p>
           <a 
             href="/pricing" 

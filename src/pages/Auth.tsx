@@ -81,27 +81,19 @@ export default function Auth() {
       return;
     }
 
-    // Not from pricing: did the user JUST sign in, or were they already logged in?
-    // Treat null (async check not yet resolved) the same as false — assume fresh sign-in
-    // to avoid the race condition where the redirect is skipped entirely.
-    if (wasLoggedInOnMount.current !== true && !hasRedirected.current) {
-      // Fresh sign-in → redirect to dashboard
+    // Not from pricing: redirect to dashboard immediately upon sign-in.
+    // Don't wait for wasLoggedInOnMount (async race condition on mobile).
+    // If user is already on /auth and logged in, just send them to the dashboard.
+    if (!hasRedirected.current) {
       hasRedirected.current = true;
-      console.log('[Auth] Fresh sign-in, redirecting to dashboard. Roles:', roles);
+      console.log('[Auth] User authenticated, redirecting to dashboard. Roles:', roles);
       if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
         navigate('/va-dashboard', { replace: true });
       } else {
         navigate('/leads', { replace: true });
       }
-      return;
     }
-
-    // Only show "already logged in" if we've confirmed they were logged in on mount
-    if (wasLoggedInOnMount.current === true && !showAlreadyLoggedIn && !hasRedirected.current) {
-      console.log('[Auth] User was already logged in on page load, showing options');
-      setShowAlreadyLoggedIn(true);
-    }
-  }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice, showAlreadyLoggedIn]);
+  }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice]);
 
   // Direct checkout function for fresh signups
   const handleDirectCheckout = () => {

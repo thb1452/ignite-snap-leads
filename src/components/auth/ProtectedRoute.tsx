@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
-import { AuthForm } from './AuthForm';
 import { EmailVerificationPrompt } from './EmailVerificationPrompt';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Loader2 } from 'lucide-react';
@@ -22,7 +22,7 @@ export function ProtectedRoute({ children, requireEmailVerification = true }: Pr
   }
 
   if (!user) {
-    return <AuthForm />;
+    return <Navigate to="/" replace />;
   }
 
   if (requireEmailVerification && !emailVerified) {

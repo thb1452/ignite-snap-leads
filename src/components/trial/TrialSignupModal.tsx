@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Check, Loader2, Zap, TrendingUp, Building2, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/externalClient";
+import { supabase as externalSupabase } from "@/integrations/supabase/externalClient";
+import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 
 const TIER_CONFIG: Record<string, {
@@ -166,7 +167,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
         return;
       }
 
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await externalSupabase.auth.signUp({
         email: email.trim(),
         password,
         options: {

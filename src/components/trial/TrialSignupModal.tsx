@@ -53,34 +53,54 @@ const TIER_CONFIG: Record<string, {
   },
 };
 
-/** Create a Stripe Checkout session with a 7-day trial using supabase.functions.invoke */
-async function createTrialCheckoutSession(tierName: string): Promise<string> {
-  const TIMEOUT_MS = 15000;
-
-  const invokePromise = supabase.functions.invoke("create-checkout-session", {
-    body: {
-      tier_name: tierName,
-      billing_cycle: "monthly",
-      trial: true,
-    },
-  });
-
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(
-      () => reject(new Error("Checkout request timed out. Please check your connection and try again.")),
-      TIMEOUT_MS
-    )
+/** Invoke edge function with a timeout. Returns the invoke result or throws on timeout. */
+async function invokeWithTimeout<T>(
+  fn: () => Promise<T>,
+  timeoutMs: number
+): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("__TIMEOUT__")), timeoutMs)
   );
+  return Promise.race([fn(), timeout]);
+}
 
-  const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
+/**
+ * Create a Stripe Checkout session with a 7-day trial.
+ * Retries once automatically to handle cold-start delays on the first call.
+ */
+async function createTrialCheckoutSession(tierName: string): Promise<string> {
+  const TIMEOUT_MS = 20000;
+  const MAX_ATTEMPTS = 2;
 
-  if (error) {
-    throw new Error(error.message || "Failed to create checkout session");
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const { data, error } = await invokeWithTimeout(
+        () =>
+          supabase.functions.invoke("create-checkout-session", {
+            body: { tier_name: tierName, billing_cycle: "monthly", trial: true },
+          }),
+        TIMEOUT_MS
+      );
+
+      if (error) throw new Error(error.message || "Failed to create checkout session");
+
+      const url = data?.url || data?.checkout_url;
+      if (!url) throw new Error("No checkout URL returned. Please try again.");
+      return url;
+    } catch (e: any) {
+      if (e.message === "__TIMEOUT__" && attempt < MAX_ATTEMPTS) {
+        // First attempt timed out — likely a cold start. Retry immediately.
+        console.log("[checkout] Cold start detected, retrying...");
+        continue;
+      }
+      if (e.message === "__TIMEOUT__") {
+        throw new Error("Checkout is taking too long. Please try again in a moment.");
+      }
+      throw e;
+    }
   }
 
-  const url = data?.url || data?.checkout_url;
-  if (!url) throw new Error("No checkout URL returned. Please try again.");
-  return url;
+  throw new Error("Failed to create checkout session");
 }
 
 interface TrialSignupModalProps {

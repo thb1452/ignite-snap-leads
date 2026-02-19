@@ -10,6 +10,38 @@ import { Button } from "@/components/ui/button";
 const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
 
 const LOADING_TIMEOUT_MS = 5000;
+const CHECKOUT_TIMEOUT_MS = 20000;
+const CHECKOUT_MAX_ATTEMPTS = 2;
+
+/** Invoke the create-checkout-session function with timeout + one automatic retry for cold starts. */
+async function invokeCheckoutWithRetry(tierName: string): Promise<string> {
+  for (let attempt = 1; attempt <= CHECKOUT_MAX_ATTEMPTS; attempt++) {
+    const invokePromise = supabase.functions.invoke('create-checkout-session', {
+      body: { tier_name: tierName, billing_cycle: 'monthly' },
+    });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('__TIMEOUT__')), CHECKOUT_TIMEOUT_MS)
+    );
+
+    try {
+      const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
+      if (error) throw new Error(error.message || 'Failed to create checkout session');
+      const url = data?.checkout_url || data?.url;
+      if (!url) throw new Error('No checkout URL returned');
+      return url;
+    } catch (e: any) {
+      if (e.message === '__TIMEOUT__' && attempt < CHECKOUT_MAX_ATTEMPTS) {
+        console.log('[Auth] Cold start detected, retrying checkout...');
+        continue;
+      }
+      if (e.message === '__TIMEOUT__') {
+        throw new Error('Checkout is taking too long. Please try again in a moment.');
+      }
+      throw e;
+    }
+  }
+  throw new Error('Failed to create checkout session');
+}
 
 export default function Auth() {
   const { user, roles, loading, signOut } = useAuth();
@@ -103,99 +135,38 @@ export default function Auth() {
     }
   }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice, showAlreadyLoggedIn]);
 
-  // Direct checkout function for fresh signups
-  const handleDirectCheckout = () => {
-    if (redirectingToCheckout) return;
-    setRedirectingToCheckout(true);
-
-    // Mark that checkout is pending (prevents "complete subscription" screen from showing)
+  // Shared checkout launcher — used by both direct and "continue" flows
+  const startCheckout = async (plan: string) => {
     try {
       sessionStorage.setItem('snap_pending_checkout', 'true');
     } catch (e) {
       console.warn('[Auth] Failed to set pending checkout flag:', e);
     }
 
-    console.log('[Auth] Direct checkout for fresh signup, plan:', selectedPlan);
+    console.log('[Auth] Starting checkout for plan:', plan);
 
-    const TIMEOUT_MS = 15000;
-    const invokePromise = supabase.functions.invoke('create-checkout-session', {
-      body: { tier_name: selectedPlan, billing_cycle: 'monthly' }
-    });
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Checkout request timed out. Please try again.')), TIMEOUT_MS)
-    );
-
-    Promise.race([invokePromise, timeoutPromise]).then(({ data, error }) => {
-      console.log('[Auth] Stripe response:', { data, error });
-
-      if (error) {
-        console.error('[Auth] Checkout error:', error);
-        setCheckoutError('Failed to start checkout. Please try again from the pricing page.');
-        setRedirectingToCheckout(false);
-        return;
-      }
-
-      const checkoutUrl = data?.checkout_url || data?.url;
-      if (checkoutUrl) {
-        console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
-        window.location.href = checkoutUrl;
-      } else {
-        console.error('[Auth] No checkout URL returned:', data);
-        setCheckoutError('Checkout unavailable. Please try again from the pricing page.');
-        setRedirectingToCheckout(false);
-      }
-    }).catch((err) => {
-      console.error('[Auth] Checkout network error:', err);
-      setCheckoutError(err?.message || 'Network error. Please check your connection and try again.');
+    try {
+      const checkoutUrl = await invokeCheckoutWithRetry(plan);
+      console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
+      window.location.href = checkoutUrl;
+    } catch (err: any) {
+      console.error('[Auth] Checkout error:', err);
+      setCheckoutError(err?.message || 'Failed to start checkout. Please try again from the pricing page.');
       setRedirectingToCheckout(false);
-    });
+    }
+  };
+
+  // Direct checkout function for fresh signups
+  const handleDirectCheckout = () => {
+    if (redirectingToCheckout) return;
+    setRedirectingToCheckout(true);
+    startCheckout(selectedPlan!);
   };
 
   const handleContinueWithCurrentAccount = () => {
     setShowAccountChoice(false);
     setRedirectingToCheckout(true);
-
-    // Mark that checkout is pending
-    try {
-      sessionStorage.setItem('snap_pending_checkout', 'true');
-    } catch (e) {
-      console.warn('[Auth] Failed to set pending checkout flag:', e);
-    }
-
-    console.log('[Auth] Continuing with current account, creating Stripe checkout for:', selectedPlan);
-
-    const TIMEOUT_MS = 15000;
-    const invokePromise = supabase.functions.invoke('create-checkout-session', {
-      body: { tier_name: selectedPlan, billing_cycle: 'monthly' }
-    });
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Checkout request timed out. Please try again.')), TIMEOUT_MS)
-    );
-
-    Promise.race([invokePromise, timeoutPromise]).then(({ data, error }) => {
-      console.log('[Auth] Stripe response:', { data, error });
-
-      if (error) {
-        console.error('[Auth] Checkout error:', error);
-        setCheckoutError('Failed to start checkout. Please try again from the pricing page.');
-        setRedirectingToCheckout(false);
-        return;
-      }
-
-      const checkoutUrl = data?.checkout_url || data?.url;
-      if (checkoutUrl) {
-        console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
-        window.location.href = checkoutUrl;
-      } else {
-        console.error('[Auth] No checkout URL returned:', data);
-        setCheckoutError('Checkout unavailable. Please try again from the pricing page.');
-        setRedirectingToCheckout(false);
-      }
-    }).catch((err) => {
-      console.error('[Auth] Checkout network error:', err);
-      setCheckoutError(err?.message || 'Network error. Please check your connection and try again.');
-      setRedirectingToCheckout(false);
-    });
+    startCheckout(selectedPlan!);
   };
 
   const handleCreateNewAccount = async () => {

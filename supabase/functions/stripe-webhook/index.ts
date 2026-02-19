@@ -3,8 +3,8 @@
 // Features: Idempotency tracking to prevent duplicate processing
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
-import Stripe from "https://esm.sh/stripe@14.21.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.3";
+import Stripe from "npm:stripe@14.21.0";
 
 Deno.serve(async (req: Request): Promise<Response> => {
   try {

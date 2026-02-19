@@ -38,7 +38,9 @@ export function useUserLists() {
   return useQuery<UserList[]>({
     queryKey: ["lists"],
     queryFn: getUserLists,
-    staleTime: 30000,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 }
 

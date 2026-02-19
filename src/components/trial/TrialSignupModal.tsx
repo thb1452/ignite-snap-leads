@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Check, Loader2, Zap, TrendingUp, Building2, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase, supabaseUrl } from "@/integrations/supabase/externalClient";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { Link } from "react-router-dom";
 
 const TIER_CONFIG: Record<string, {
@@ -38,7 +38,7 @@ const TIER_CONFIG: Record<string, {
     icon: TrendingUp,
     features: [
       "All Starter features",
-      "Pressure Level\u2122 filtering",
+      "Pressure Level™ filtering",
       "Priority support",
     ],
   },
@@ -53,31 +53,23 @@ const TIER_CONFIG: Record<string, {
   },
 };
 
-/** Create a Stripe Checkout session with a 7-day trial */
-async function createTrialCheckoutSession(tierName: string, token: string): Promise<string> {
-  const response = await fetch(
-    `${supabaseUrl}/functions/v1/create-checkout-session`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        tier_name: tierName,
-        billing_cycle: "monthly",
-        trial: true,
-      }),
-    }
-  );
+/** Create a Stripe Checkout session with a 7-day trial using supabase.functions.invoke */
+async function createTrialCheckoutSession(tierName: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+    body: {
+      tier_name: tierName,
+      billing_cycle: "monthly",
+      trial: true,
+    },
+  });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to create checkout session");
+  if (error) {
+    throw new Error(error.message || "Failed to create checkout session");
   }
 
-  const data = await response.json();
-  return data.url || data.checkout_url;
+  const url = data?.url || data?.checkout_url;
+  if (!url) throw new Error("No checkout URL returned. Please try again.");
+  return url;
 }
 
 interface TrialSignupModalProps {
@@ -91,6 +83,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -107,19 +100,12 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
 
   /** Redirect an authenticated user to Stripe Checkout with trial */
   const redirectToStripeCheckout = async () => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-
-    if (!token) {
-      throw new Error("Not authenticated. Please sign in and try again.");
-    }
-
     toast({
       title: "Redirecting to checkout...",
       description: "You'll enter your payment details on our secure checkout page.",
     });
 
-    const checkoutUrl = await createTrialCheckoutSession(selectedTier, token);
+    const checkoutUrl = await createTrialCheckoutSession(selectedTier);
     window.location.href = checkoutUrl;
   };
 
@@ -138,24 +124,34 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
         return;
       }
 
-      // Sign up new user first, then redirect to Stripe
+      // Validate fields for new signup
+      if (!fullName.trim()) {
+        toast({ variant: "destructive", title: "Please enter your full name" });
+        setIsSubmitting(false);
+        return;
+      }
+
       if (!email || !password) {
         toast({ variant: "destructive", title: "Please enter email and password" });
+        setIsSubmitting(false);
         return;
       }
 
       if (password.length < 8) {
         toast({ variant: "destructive", title: "Password must be at least 8 characters" });
+        setIsSubmitting(false);
         return;
       }
 
       if (!/[0-9]/.test(password)) {
         toast({ variant: "destructive", title: "Password must contain at least one number" });
+        setIsSubmitting(false);
         return;
       }
 
       if (!/[^A-Za-z0-9]/.test(password)) {
         toast({ variant: "destructive", title: "Password must contain at least one special character" });
+        setIsSubmitting(false);
         return;
       }
 
@@ -165,18 +161,30 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
         options: {
           emailRedirectTo: window.location.origin,
           data: {
+            full_name: fullName.trim(),
             trial_tier: selectedTier,
           },
         },
       });
 
       if (signUpError) {
-        toast({ variant: "destructive", title: "Sign Up Failed", description: signUpError.message });
+        // If already registered, guide them to sign in instead
+        if (signUpError.message?.toLowerCase().includes("already registered") || signUpError.message?.toLowerCase().includes("already exists")) {
+          toast({
+            variant: "destructive",
+            title: "Account Already Exists",
+            description: "An account with this email already exists. Please sign in instead.",
+          });
+          onOpenChange(false);
+          navigate(`/auth?mode=signin`);
+        } else {
+          toast({ variant: "destructive", title: "Sign Up Failed", description: signUpError.message });
+        }
         return;
       }
 
       if (!signUpData.user) {
-        toast({ variant: "destructive", title: "Sign Up Failed", description: "No user created" });
+        toast({ variant: "destructive", title: "Sign Up Failed", description: "No user created. Please try again." });
         return;
       }
 
@@ -184,7 +192,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
         // Session exists (auto-confirm enabled) — redirect to Stripe Checkout
         await redirectToStripeCheckout();
       } else {
-        // Email verification required — user must verify first, then start trial
+        // Email verification required
         toast({
           title: "Check Your Email",
           description: "We sent a verification link. After verifying, you'll be able to start your trial.",
@@ -193,7 +201,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
         navigate(`/auth?mode=signin&trial_tier=${selectedTier}`);
       }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message || "Something went wrong" });
+      toast({ variant: "destructive", title: "Error", description: err.message || "Something went wrong. Please try again." });
     } finally {
       setIsSubmitting(false);
     }
@@ -247,11 +255,20 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
           {!user && (
             <div className="space-y-3">
               <Input
+                type="text"
+                placeholder="Full name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                disabled={isSubmitting}
+                autoComplete="name"
+              />
+              <Input
                 type="email"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isSubmitting}
+                autoComplete="email"
               />
               <Input
                 type="password"
@@ -259,6 +276,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isSubmitting}
+                autoComplete="new-password"
               />
             </div>
           )}
@@ -282,7 +300,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
           {/* Submit button */}
           <Button
             onClick={handleStartTrial}
-            disabled={isSubmitting || (!user && (!email || !password)) || !agreedToTerms}
+            disabled={isSubmitting || (!user && (!fullName || !email || !password)) || !agreedToTerms}
             className="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
             size="lg"
           >

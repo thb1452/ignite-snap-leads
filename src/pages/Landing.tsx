@@ -354,8 +354,8 @@ export default function Landing() {
                 transition={{ delay: 0.2 }}
                 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight"
               >
-                Know Which Properties Are Under Pressure—
-                <span className="text-landing-accent">Before Anyone Else</span>
+                See Enforcement Pressure Before It Becomes
+                <span className="text-landing-accent"> Public Knowledge</span>
               </motion.h1>
               
               <motion.p
@@ -364,7 +364,16 @@ export default function Landing() {
                 transition={{ delay: 0.3 }}
                 className="text-xl text-landing-text-muted max-w-2xl"
               >
-                Use Snap alongside PropStream to find motivated sellers 3-6 months before they hit traditional lists. Our SnapScore AI ranks properties by enforcement pressure severity so you act on early signals.
+                Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 900+ counties, updated weekly.
+              </motion.p>
+
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="text-sm text-landing-text-muted max-w-2xl border-l-2 border-landing-accent/40 pl-4"
+              >
+                Snap Ignite is a municipal enforcement intelligence platform. Not a leads tool. Not a list service. An intelligence layer that shows you where enforcement pressure is building — before it resolves or hits the market.
               </motion.p>
               
               <motion.div
@@ -399,7 +408,7 @@ export default function Landing() {
                 transition={{ delay: 0.7 }}
                 className="text-landing-text-muted text-xs"
               >
-                Trusted by wholesalers, flippers, and acquisition teams nationwide
+                Trusted by operators and acquisition teams nationwide
               </motion.p>
             </div>
             
@@ -571,7 +580,7 @@ export default function Landing() {
               {
                 icon: Target,
                 title: "SnapScore Enforcement Intensity",
-                description: "Not all violations are equal. Our system analyzes violation type, municipal priority, duration, and agency involvement to rank properties by enforcement intensity.",
+                description: "SnapScore ranks every property by enforcement intensity — factoring violation type, duration, municipal priority, and agency escalation. You see which properties are under the most pressure right now, not which ones were flagged six months ago.",
                 highlight: true
               },
               {
@@ -722,14 +731,14 @@ export default function Landing() {
               },
               {
                 step: "2",
-                title: "Cross-Reference in PropStream",
-                description: "Verify equity, ownership details, and property comps. Skip trace contact info if needed. Build your target list with confidence.",
+                title: "Cross-Reference Ownership and Equity",
+                description: "Cross-reference ownership and equity data in your existing platform. Build your target list with confidence before taking action.",
                 color: "bg-blue-500/20 text-blue-400"
               },
               {
                 step: "3",
-                title: "Call the Motivated Sellers First",
-                description: "Reach owners facing escalating fines and court dates. While other investors work stale lists, you're calling active enforcement cases.",
+                title: "Act on Enforcement Signals Before They Resolve",
+                description: "Reach property owners while enforcement pressure is active and escalating. You're not working stale data — you're acting on current municipal signals.",
                 color: "bg-green-500/20 text-green-400"
               }
             ].map((item, i) => (
@@ -780,7 +789,7 @@ export default function Landing() {
             </motion.p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          <div className="grid gap-8 max-w-2xl mx-auto">
             {/* Built For You */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
@@ -794,43 +803,16 @@ export default function Landing() {
               </h3>
               <ul className="space-y-4">
                 {[
-                  "You already use PropStream, BatchLeads, or similar tools and want better targeting",
-                  "You value timing over volume—you'd rather work 50 high-pressure properties than chase 500 stale records",
+                  "You already use BatchLeads, similar tools, or work directly with county data and want better targeting",
+                  "You value timing over volume — you'd rather work 50 high-pressure properties than chase 500 stale records",
                   "You're tired of competing on the same data and want an actual information advantage",
-                  "You operate in markets where enforcement activity creates real opportunity",
+                  "You operate in markets where enforcement activity creates early visibility into property pressure",
                   "You're willing to invest in intelligence, not just data",
-                  "You understand that exclusivity (our 500-member Elite cap) protects your competitive advantage"
+                  "You understand that better signal — not more volume — is the real edge"
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-landing-accent flex-shrink-0 mt-0.5" />
                     <span className="text-landing-text">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-            
-            {/* Not For You */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="bg-red-500/10 border border-red-500/30 rounded-xl p-8"
-            >
-              <h3 className="text-2xl font-bold mb-6 text-red-400 flex items-center gap-2">
-                <X className="w-6 h-6" />
-                Not the Right Fit If...
-              </h3>
-              <ul className="space-y-4">
-                {[
-                  "You're looking to replace PropStream or BatchLeads entirely",
-                  "You're brand new to real estate and need basic education first",
-                  "Your strategy is pure volume—quantity over quality",
-                  "You're looking for the cheapest possible data source",
-                  "You need CRM, dialer, and marketing tools in one platform"
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                    <span className="text-landing-text-muted">{item}</span>
                   </li>
                 ))}
               </ul>
@@ -843,7 +825,7 @@ export default function Landing() {
             viewport={{ once: true }}
             className="text-center text-landing-text-muted mt-12 max-w-2xl mx-auto"
           >
-            Still not sure? Our Starter plan at $79/month lets you add enforcement intelligence to your PropStream stack with 1,500 monthly exports. No annual commitment required.
+            Still not sure? Our Starter plan at $79/month gives you enforcement intelligence without the noise. No annual commitment required.
           </motion.p>
         </div>
       </section>
@@ -910,38 +892,39 @@ export default function Landing() {
               {
                 name: "Starter",
                 price: pricing.starter[billingCycle],
-                description: "For PropStream users who want premium targeting",
+                description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
-                  "1,500 monthly exports",
+                  "1,500 monthly enforcement reports",
                   "All properties, all counties",
                   "Code violation data",
                   "Basic filters (location, category, search)",
                   "Weekly data refresh",
                   "Email support"
                 ],
-                tagline: "Built to identify your best 50 leads/week.",
-                highlighted: true,
-                badge: "Most Popular"
+                tagline: "Enforcement intelligence without the noise.",
+                highlighted: false,
+                badge: undefined
               },
               {
                 name: "Pro",
                 price: pricing.professional[billingCycle],
                 description: "For serious operators stacking enforcement data",
                 features: [
-                  "5,000 monthly exports",
+                  "5,000 monthly enforcement reports",
                   "All Starter features",
-                  "Pressure Level™ filtering (prioritize higher-enforcement properties)",
+                  "Pressure Level filtering (prioritize higher-enforcement properties)",
                   "Priority email support"
                 ],
                 tagline: "Built to identify what matters first.",
-                highlighted: false
+                highlighted: true,
+                badge: "Most Popular"
               },
               {
                 name: "Elite",
                 price: pricing.enterprise[billingCycle],
                 description: "For teams running enforcement-first strategies. Limited to 500 members.",
                 features: [
-                  "15,000 monthly exports",
+                  "15,000 monthly enforcement reports",
                   "All Pro features",
                   "Water shutoff data",
                   "API access (coming soon)"
@@ -1037,7 +1020,7 @@ export default function Landing() {
               viewport={{ once: true }}
               className="text-3xl md:text-4xl font-bold text-center mb-12"
             >
-              What PropStream Gives You vs. What Snap Gives You
+              What Traditional Data Platforms Give You vs. What Snap Gives You
             </motion.h2>
 
             <motion.div
@@ -1050,15 +1033,15 @@ export default function Landing() {
                 <thead>
                   <tr className="bg-landing-surface/50">
                     <th className="text-left py-4 px-6 font-semibold">Data Type</th>
-                    <th className="text-center py-4 px-4 font-semibold">PropStream</th>
+                    <th className="text-center py-4 px-4 font-semibold">Traditional Data Platforms</th>
                     <th className="text-center py-4 px-4 font-semibold text-landing-accent">Snap</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-landing-surface/50">
                   {[
-                    { type: "Property records (160M+)", ps: true, snap: "partial", snapNote: "via integration" },
-                    { type: "Ownership & equity data", ps: true, snap: "ref", snapNote: "use PropStream for this" },
-                    { type: "Comparable sales", ps: true, snap: "ref", snapNote: "use PropStream for this" },
+                    { type: "Property records (160M+)", ps: true, snap: "partial", snapNote: "Use your existing platform" },
+                    { type: "Ownership & equity data", ps: true, snap: "ref", snapNote: "Use your existing platform" },
+                    { type: "Comparable sales", ps: true, snap: "ref", snapNote: "Use your existing platform" },
                     { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "900+ counties" },
                     { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
                     { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
@@ -1101,9 +1084,24 @@ export default function Landing() {
               viewport={{ once: true }}
               className="text-center text-landing-text-muted mt-8 text-lg italic"
             >
-              Use them together. PropStream shows you the market. Snap shows you who's motivated.
+              Use them together. Your existing platform shows you the market. Snap shows you where enforcement pressure is building.
             </motion.p>
           </div>
+        </div>
+      </section>
+
+      {/* Data Credibility Section */}
+      <section className="py-16 bg-landing-bg">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="max-w-3xl mx-auto text-center p-10 bg-landing-surface/40 border border-landing-surface rounded-xl"
+          >
+            <p className="text-2xl font-semibold text-landing-text mb-3">Sourced directly from municipal agencies and county jurisdictions.</p>
+            <p className="text-lg text-landing-text-muted">Not scraped. Not aggregated. Primary source data.</p>
+          </motion.div>
         </div>
       </section>
 
@@ -1191,12 +1189,12 @@ export default function Landing() {
             <Accordion type="single" collapsible className="space-y-4">
               {[
                 {
-                  question: "How is Snap Ignite different from PropStream or BatchLeads?",
-                  answer: "PropStream and BatchLeads are excellent platforms for comprehensive property records—ownership info, liens, equity, comparables. Snap gives you something they don't: real-time enforcement pressure intelligence. We track code violations, water shutoffs, escalating fines, and compliance deadlines from 900+ municipal systems. Most successful wholesalers use Snap WITH PropStream: pull violation leads from Snap (sorted by SnapScore urgency), cross-reference ownership and equity in PropStream, then call owners before enforcement escalates further. It's the intelligence layer that makes your existing tools more effective."
+                  question: "Do I need PropStream to use Snap Ignite?",
+                  answer: "No. Snap Ignite is a standalone enforcement intelligence platform. Many users also use PropStream or BatchLeads for ownership and equity data, and Snap fits naturally into that workflow — but it is not required."
                 },
                 {
                   question: "Why the 500-member Elite limit?",
-                  answer: "The 500-member cap applies only to our Elite tier and protects the competitive advantage of our most serious operators. Elite includes water shutoff data and the highest export limits (15,000/month). If we allowed unlimited Elite members, the data advantage would dilute as more investors work the same enforcement signals. The cap ensures Elite members get genuine first-mover advantage on the most urgent enforcement cases. Starter and Professional tiers have no user limits."
+                  answer: "The 500-member cap applies only to our Elite tier and protects the competitive advantage of our most serious operators. Elite includes water shutoff data and the highest export limits (15,000/month). If we allowed unlimited Elite members, the data advantage would dilute as more operators work the same enforcement signals. The cap ensures Elite members get genuine first-mover advantage on the most urgent enforcement cases. Starter and Pro tiers have no user limits."
                 },
                 {
                   question: "What counties do you cover?",
@@ -1217,10 +1215,6 @@ export default function Landing() {
                 {
                   question: "Is there a free trial?",
                   answer: "Yes! Start a 7-day free trial — $0 due today. Enter your payment method at checkout and get 50 property exports to test data quality in your markets. Search unlimited properties, save favorites, and access all features for your selected tier. After 7 days your subscription begins automatically, or cancel anytime before then."
-                },
-                {
-                  question: "How does the free trial work?",
-                  answer: "Start a 7-day trial — $0 due today. Enter your payment method at checkout and get 50 property exports to test data quality. Search unlimited properties, save favorites, and access tier-specific features. Your subscription begins automatically after 7 days, or cancel anytime before then."
                 }
               ].map((faq, i) => (
                 <motion.div
@@ -1259,7 +1253,7 @@ export default function Landing() {
               viewport={{ once: true }}
               className="text-3xl md:text-5xl font-bold mb-6"
             >
-              Ready to See Properties Before the Competition?
+              See Enforcement Pressure Before It Becomes Public Knowledge
             </motion.h2>
             
             <motion.p 
@@ -1269,7 +1263,7 @@ export default function Landing() {
               transition={{ delay: 0.1 }}
               className="text-xl text-landing-text-muted mb-8"
             >
-              Join operators using enforcement intelligence to surface opportunities first.
+              Join operators tracking enforcement pressure before it becomes public knowledge.
             </motion.p>
             
             <motion.div

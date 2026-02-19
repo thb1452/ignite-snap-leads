@@ -83,10 +83,39 @@ serve(async (req: Request) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error("Missing required environment variables");
+    }
+
+    // Authenticate: allow service-role self-invocations OR admin users
+    const authHeader = req.headers.get('authorization') ?? '';
+    const internalSecret = req.headers.get('x-internal-secret');
+    const isInternalCall = internalSecret === SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!isInternalCall) {
+      if (!authHeader.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+      const token = authHeader.replace('Bearer ', '');
+      const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") ?? SUPABASE_SERVICE_ROLE_KEY, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      const { data: authData, error: authErr } = await anonClient.auth.getUser(token);
+      if (authErr || !authData?.user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+      // Require admin role
+      const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const { data: roleData } = await adminClient.from('user_roles').select('role').eq('user_id', authData.user.id).eq('role', 'admin').maybeSingle();
+      if (!roleData) {
+        return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: corsHeaders });
+      }
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Get properties that have coordinates but missing zip
     const { data: properties, error: propsError } = await supabase
@@ -194,12 +223,13 @@ serve(async (req: Request) => {
           await new Promise(resolve => setTimeout(resolve, 1000));
           
           const nextResponse = await fetch(
-            `${Deno.env.get('SUPABASE_URL')}/functions/v1/reverse-geocode-zips`,
+            `${SUPABASE_URL}/functions/v1/reverse-geocode-zips`,
             {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
                 'Content-Type': 'application/json',
+                'x-internal-secret': SUPABASE_SERVICE_ROLE_KEY,
               },
               body: JSON.stringify({}),
             }

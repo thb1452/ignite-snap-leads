@@ -20,7 +20,7 @@ export function BatchRescoreButton() {
    // Poll for progress updates when a job is running
    const checkProgress = useCallback(async () => {
      try {
-       const { supabase } = await import("@/integrations/supabase/client");
+        const { supabase } = await import("@/integrations/supabase/externalClient");
        const [totalRes, scoredRes] = await Promise.all([
          supabase.from("properties").select("id", { count: "exact", head: true }),
          supabase.from("properties").select("id", { count: "exact", head: true }).not("snap_score", "is", null)
@@ -70,7 +70,7 @@ export function BatchRescoreButton() {
   const handleFetchCount = async () => {
     try {
       setIsLoading(true);
-      const { supabase } = await import("@/integrations/supabase/client");
+      const { supabase } = await import("@/integrations/supabase/externalClient");
       
       // Use simpler, faster queries that won't timeout
       const [totalRes, scoredRes] = await Promise.all([

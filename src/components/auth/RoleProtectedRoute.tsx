@@ -178,38 +178,48 @@ export function RoleProtectedRoute({
     );
   }
 
-  // CRITICAL: If we have a user but roles are empty after timeout, show retry UI
+  // CRITICAL: If we have a user but roles are empty after timeout, check subscription/trial first
+  // before showing retry UI — trial/paid users should still get access even without roles
   if (user && loadingTimedOut && rolesEmpty) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
-        <div className="text-center space-y-6 max-w-md">
-          <div className="w-20 h-20 mx-auto rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-            <AlertTriangle className="h-10 w-10 text-yellow-600 dark:text-yellow-400" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Connection Issue</h1>
-          <p className="text-muted-foreground">
-            We couldn't verify your account permissions. This is usually a temporary network issue.
-          </p>
-          <button
-            onClick={handleRetryRoles}
-            disabled={isRetryingRoles}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition font-medium disabled:opacity-50"
-          >
-            {isRetryingRoles ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            {isRetryingRoles ? 'Checking...' : 'Try Again'}
-          </button>
-          {roleRetryCount > 2 && (
-            <p className="text-xs text-muted-foreground">
-              Still having trouble? Try refreshing the page or check your internet connection.
+    // Check if user has active subscription or trial — let them through
+    if (!subLoading && (isOnTrial || hasTrialExpired || (hasActiveSubscription && plan?.name))) {
+      console.log('[RoleProtectedRoute] Roles empty but user has subscription/trial — granting access');
+      return <>{children}</>;
+    }
+
+    // Only show retry UI if they also don't have a subscription/trial
+    if (!subLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
+          <div className="text-center space-y-6 max-w-md">
+            <div className="w-20 h-20 mx-auto rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+              <AlertTriangle className="h-10 w-10 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">Connection Issue</h1>
+            <p className="text-muted-foreground">
+              We couldn't verify your account permissions. This is usually a temporary network issue.
             </p>
-          )}
+            <button
+              onClick={handleRetryRoles}
+              disabled={isRetryingRoles}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition font-medium disabled:opacity-50"
+            >
+              {isRetryingRoles ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {isRetryingRoles ? 'Checking...' : 'Try Again'}
+            </button>
+            {roleRetryCount > 2 && (
+              <p className="text-xs text-muted-foreground">
+                Still having trouble? Try refreshing the page or check your internet connection.
+              </p>
+            )}
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
 
   // Admin and VA bypass

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,9 @@ interface BatchRescoreProgress {
   status: 'idle' | 'running' | 'complete' | 'error';
   error?: string;
   mode?: 'missing' | 'ai_refresh' | 'recent_20d';
+  sinceDays?: number;
+  forceRefresh?: boolean;
+  minScore?: number;
 }
 
 export function BatchInsightsButton() {
@@ -22,6 +25,7 @@ export function BatchInsightsButton() {
   const [isLoading, setIsLoading] = useState(false);
   const [stats, setStats] = useState<{ total: number; hasInsight: number; missing: number; highScore: number } | null>(null);
   const queryClient = useQueryClient();
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -56,6 +60,42 @@ export function BatchInsightsButton() {
     fetchStats();
   }, [fetchStats]);
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
+
+  // Poll stats every 8 seconds while running to reflect real progress
+  useEffect(() => {
+    if (progress?.status === 'running') {
+      pollingRef.current = setInterval(async () => {
+        await fetchStats();
+        // Check if insights count has stabilized (all done)
+        setStats(prev => {
+          if (prev && progress) {
+            const remaining = prev.total - prev.hasInsight;
+            // If there are no more missing for the target segment, mark complete
+            if (progress.mode === 'recent_20d' && remaining === 0) {
+              setProgress(p => p ? { ...p, status: 'complete', processed: p.totalProperties } : p);
+              if (pollingRef.current) clearInterval(pollingRef.current);
+            }
+          }
+          return prev;
+        });
+      }, 8000);
+    } else {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    }
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [progress?.status, fetchStats]);
+
   const handleRefresh = async () => {
     setIsLoading(true);
     await fetchStats();
@@ -87,10 +127,13 @@ export function BatchInsightsButton() {
 
       if (data?.success) {
         const total = data.progress?.total ?? 0;
+        const batchesDone = Math.ceil((data.processed ?? 0) / 200);
+        const totalBatches = Math.ceil(total / 200);
+
         if (data.auto_continuing || total > 0) {
           toast.success(
             sinceDays
-              ? `AI insights started for last ${sinceDays} days! Processing ${total.toLocaleString()} properties in the background.`
+              ? `AI insights running for last ${sinceDays} days! Processing ${total.toLocaleString()} properties in the background.`
               : forceRefresh
               ? `AI insight regeneration started! Processing ${total.toLocaleString()} properties. Running in the background.`
               : `Started! Processing ${total.toLocaleString()} properties. Continues server-side automatically.`
@@ -98,10 +141,13 @@ export function BatchInsightsButton() {
           setProgress({
             totalProperties: total,
             processed: data.processed ?? 0,
-            currentBatch: 1,
-            totalBatches: Math.ceil(total / 200),
-            status: 'running',
+            currentBatch: batchesDone || 1,
+            totalBatches: totalBatches || 1,
+            status: data.progress?.complete ? 'complete' : 'running',
             mode,
+            sinceDays,
+            forceRefresh,
+            minScore,
           });
         } else {
           toast.success(`Generated insights for ${data.processed?.toLocaleString()} properties!`);
@@ -117,7 +163,7 @@ export function BatchInsightsButton() {
         queryClient.invalidateQueries({ queryKey: ["opportunity-funnel"] });
         queryClient.invalidateQueries({ queryKey: ["hot-properties"] });
         queryClient.invalidateQueries({ queryKey: ["properties"] });
-        setTimeout(fetchStats, 3000);
+        setTimeout(fetchStats, 5000);
       }
     } catch (error) {
       console.error("Insight generation failed:", error);
@@ -196,16 +242,21 @@ export function BatchInsightsButton() {
                 <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
                   <RefreshCw className="h-4 w-4 animate-spin" />
                   <span>
-                    {progress?.mode === 'ai_refresh' 
-                      ? '🤖 AI regenerating score 50+ properties...' 
+                    {progress?.mode === 'ai_refresh'
+                      ? '🤖 AI regenerating score 50+ properties...'
+                      : progress?.mode === 'recent_20d'
+                      ? '🤖 AI generating insights (last 20 days)...'
                       : 'Processing missing insights...'}
                   </span>
                 </div>
                 <Progress value={progressPercent} className="h-2" />
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Batch {progress?.currentBatch} of {progress?.totalBatches}</span>
-                  <span>{progress?.processed.toLocaleString()} / {progress?.totalProperties.toLocaleString()}</span>
+                  <span>Running in background — refreshing every 8s</span>
+                  <span>{(stats?.hasInsight ?? 0).toLocaleString()} / {(stats?.total ?? 0).toLocaleString()} have insights</span>
                 </div>
+                <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                  ✓ Processing continues even if you navigate away
+                </p>
               </div>
             )}
 

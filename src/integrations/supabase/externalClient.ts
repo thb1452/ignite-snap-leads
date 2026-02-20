@@ -12,17 +12,16 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 const SUPABASE_URL =
-  import.meta.env.VITE_EXTERNAL_SUPABASE_URL ||
   import.meta.env.VITE_SUPABASE_URL ||
-  'https://dqwolscmceelqpkfclgi.supabase.co';
+  import.meta.env.VITE_EXTERNAL_SUPABASE_URL ||
+  'https://ojyxblegxpdgaqiscxpz.supabase.co';
 
 // Fallback string prevents createClient from throwing "supabaseKey is required"
-// if env vars aren't injected at build time. API calls will return 401 until the
-// correct key is set in Lovable → Settings → Secrets.
+// if env vars aren't injected at build time.
 const SUPABASE_KEY =
-  import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY ||
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  'not-configured';
+  import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXhibGVneHBkZ2FxaXNjeHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMTQ5NTMsImV4cCI6MjA3Mzg5MDk1M30.r9TsZsdtHiYVyyNXpeKB8iHumb3ZZfdDUHN4g8twGrU';
 
 // Export the resolved URL for edge function calls
 export const supabaseUrl = SUPABASE_URL;

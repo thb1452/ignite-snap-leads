@@ -78,6 +78,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       starter: "price_1T2kFABg6vwuzzF0LvKvfUsz",
       professional: "price_1T2kEeBg6vwuzzF0fOjHbxBX",
       enterprise: "price_1T2kDvBg6vwuzzF0PyorUdah",
+      elite: "price_1T2kDvBg6vwuzzF0PyorUdah",
     };
 
     const priceId = STRIPE_PRICE_IDS[tier_name.toLowerCase()];

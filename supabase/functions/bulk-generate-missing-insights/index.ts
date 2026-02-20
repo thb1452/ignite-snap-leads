@@ -56,24 +56,31 @@ serve(async (req) => {
       }
     }
 
-    const { offset = 0, dryRun = false, autoResume = true } = await req.json().catch(() => ({}));
+    const { offset = 0, dryRun = false, autoResume = true, forceRefresh = false, minScore = 0 } = await req.json().catch(() => ({}));
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Count ONLY properties missing insights
-    const { count: totalMissing } = await supabase
-      .from("properties")
-      .select("id", { count: "exact", head: true })
-      .is("snap_insight", null);
+    // Build query — forceRefresh overwrites existing insights for score >= minScore
+    let countQuery = supabase.from("properties").select("id", { count: "exact", head: true });
+    let fetchQuery = supabase.from("properties").select("id, snap_score");
 
-    console.log(`[bulk-missing] Starting at offset ${offset}, total missing: ${totalMissing}`);
+    if (forceRefresh && minScore > 0) {
+      // Re-generate insights for all properties >= minScore (even if already set)
+      countQuery = countQuery.gte("snap_score", minScore);
+      fetchQuery = fetchQuery.gte("snap_score", minScore);
+      console.log(`[bulk-missing] FORCE REFRESH mode: score >= ${minScore}`);
+    } else {
+      // Default: only properties missing insights
+      countQuery = countQuery.is("snap_insight", null);
+      fetchQuery = fetchQuery.is("snap_insight", null);
+    }
 
-    // Fetch batch of properties MISSING insights
-    // Priority ordering: high snap_score first, then by id for consistency
-    const { data: properties, error: fetchError } = await supabase
-      .from("properties")
-      .select("id, snap_score")
-      .is("snap_insight", null)
+    const { count: totalMissing } = await countQuery;
+
+    console.log(`[bulk-missing] Starting at offset ${offset}, total to process: ${totalMissing}`);
+
+    // Fetch batch — high snap_score first
+    const { data: properties, error: fetchError } = await fetchQuery
       .order("snap_score", { ascending: false, nullsFirst: false })
       .order("id")
       .range(offset, offset + BATCH_SIZE - 1);
@@ -177,7 +184,7 @@ serve(async (req) => {
               'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               'x-internal-secret': SUPABASE_SERVICE_ROLE_KEY,
             },
-            body: JSON.stringify({ offset: nextOffset, autoResume }),
+            body: JSON.stringify({ offset: nextOffset, autoResume, forceRefresh, minScore }),
           });
           console.log(`[bulk-missing] Next batch triggered, status: ${res.status}`);
         } catch (err) {

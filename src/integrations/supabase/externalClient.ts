@@ -16,9 +16,13 @@ const SUPABASE_URL =
   import.meta.env.VITE_EXTERNAL_SUPABASE_URL ||
   'https://dqwolscmceelqpkfclgi.supabase.co';
 
+// Fallback string prevents createClient from throwing "supabaseKey is required"
+// if env vars aren't injected at build time. API calls will return 401 until the
+// correct key is set in Lovable → Settings → Secrets.
 const SUPABASE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY;
+  import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY ||
+  'not-configured';
 
 // Export the resolved URL for edge function calls
 export const supabaseUrl = SUPABASE_URL;

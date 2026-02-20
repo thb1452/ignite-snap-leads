@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Check, Loader2, Zap, TrendingUp, Building2, CreditCard, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/externalClient";
 import { Link } from "react-router-dom";
 
 const TIER_CONFIG: Record<string, {

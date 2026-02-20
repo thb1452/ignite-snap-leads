@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { RefreshCw, CheckCircle, AlertCircle, Lightbulb, Sparkles } from "lucide-react";
+import { RefreshCw, CheckCircle, AlertCircle, Lightbulb, Sparkles, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,7 +14,7 @@ interface BatchRescoreProgress {
   totalBatches: number;
   status: 'idle' | 'running' | 'complete' | 'error';
   error?: string;
-  mode?: 'missing' | 'ai_refresh';
+  mode?: 'missing' | 'ai_refresh' | 'recent_20d';
 }
 
 export function BatchInsightsButton() {
@@ -63,17 +63,25 @@ export function BatchInsightsButton() {
     toast.success("Stats refreshed");
   };
 
-  const invokeInsights = async (forceRefresh: boolean, minScore: number, mode: 'missing' | 'ai_refresh') => {
+  const invokeInsights = async (
+    forceRefresh: boolean,
+    minScore: number,
+    mode: 'missing' | 'ai_refresh' | 'recent_20d',
+    sinceDays?: number
+  ) => {
     try {
       setIsLoading(true);
-      const label = forceRefresh
+      const label = sinceDays
+        ? `Generating AI insights for last ${sinceDays} days of properties (score 50+)...`
+        : forceRefresh
         ? `Regenerating AI insights for ${(stats?.highScore ?? 0).toLocaleString()} properties with score 50+...`
         : "Starting server-side insight generation...";
       toast.info(label);
 
-      const { data, error } = await supabase.functions.invoke("bulk-generate-missing-insights", {
-        body: { offset: 0, autoResume: true, forceRefresh, minScore }
-      });
+      const body: Record<string, unknown> = { offset: 0, autoResume: true, forceRefresh, minScore };
+      if (sinceDays) body.sinceDays = sinceDays;
+
+      const { data, error } = await supabase.functions.invoke("bulk-generate-missing-insights", { body });
       
       if (error) throw error;
 
@@ -81,7 +89,9 @@ export function BatchInsightsButton() {
         const total = data.progress?.total ?? 0;
         if (data.auto_continuing || total > 0) {
           toast.success(
-            forceRefresh
+            sinceDays
+              ? `AI insights started for last ${sinceDays} days! Processing ${total.toLocaleString()} properties in the background.`
+              : forceRefresh
               ? `AI insight regeneration started! Processing ${total.toLocaleString()} properties. Running in the background.`
               : `Started! Processing ${total.toLocaleString()} properties. Continues server-side automatically.`
           );
@@ -120,6 +130,7 @@ export function BatchInsightsButton() {
 
   const handleGenerateMissing = () => invokeInsights(false, 0, 'missing');
   const handleAIRefresh = () => invokeInsights(true, 50, 'ai_refresh');
+  const handleRecent20Days = () => invokeInsights(true, 50, 'recent_20d', 20);
 
   const progressPercent = progress 
     ? Math.round((progress.processed / Math.max(progress.totalProperties, 1)) * 100) 
@@ -212,50 +223,68 @@ export function BatchInsightsButton() {
               </div>
             )}
 
-            {/* AI Re-generate button — primary action for demo */}
+            {/* PRIORITY: Last 20 Days AI Insights — demo-ready */}
             <Button 
-              onClick={handleAIRefresh}
+              onClick={handleRecent20Days}
               disabled={isLoading || isRunning}
-              className="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
+              className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white"
             >
-              {isRunning && progress?.mode === 'ai_refresh' ? (
+              {isRunning && progress?.mode === 'recent_20d' ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  AI Generating... {progressPercent}%
+                  AI Generating Last 20 Days... {progressPercent}%
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  AI Insights for Top {stats.highScore.toLocaleString()} Properties (Score 50+)
+                  <Clock className="h-4 w-4 mr-2" />
+                  🤖 AI Insights — Last 20 Days (Score 50+)
                 </>
               )}
             </Button>
             <p className="text-xs text-muted-foreground text-center">
-              Overwrites existing insights with AI-generated summaries using Gemini Flash
+              AI summaries for recently-added high-score properties (shown on dashboard)
             </p>
+
+            {/* AI Re-generate button — full database refresh */}
+            <Button 
+              onClick={handleAIRefresh}
+              disabled={isLoading || isRunning}
+              variant="outline"
+              className="w-full"
+            >
+              {isRunning && progress?.mode === 'ai_refresh' ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  AI Generating All... {progressPercent}%
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  AI Insights — All {stats.highScore.toLocaleString()} Properties (Score 50+)
+                </>
+              )}
+            </Button>
 
             {/* Generate missing button — secondary */}
             {stats.missing > 0 && (
-              <>
-                <Button 
-                  onClick={handleGenerateMissing} 
-                  disabled={isLoading || isRunning}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {isRunning && progress?.mode === 'missing' ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Generating... {progressPercent}%
-                    </>
-                  ) : (
-                    <>
-                      <Lightbulb className="h-4 w-4 mr-2" />
-                      Fill {stats.missing.toLocaleString()} Missing Insights (Rule-based)
-                    </>
-                  )}
-                </Button>
-              </>
+              <Button 
+                onClick={handleGenerateMissing} 
+                disabled={isLoading || isRunning}
+                variant="outline"
+                className="w-full"
+              >
+                {isRunning && progress?.mode === 'missing' ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Generating... {progressPercent}%
+                  </>
+                ) : (
+                  <>
+                    <Lightbulb className="h-4 w-4 mr-2" />
+                    Fill {stats.missing.toLocaleString()} Missing Insights (Rule-based)
+                  </>
+                )}
+              </Button>
             )}
           </>
         )}

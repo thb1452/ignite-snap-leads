@@ -1,4 +1,4 @@
-project_id = "ojyxblegxpdgaqiscxpz"
+project_id = "dqwolscmceelqpkfclgi"
 
 [functions.bulk-generate-missing-insights]
 verify_jwt = false

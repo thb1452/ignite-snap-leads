@@ -217,6 +217,15 @@ export function RoleProtectedRoute({
     return <>{children}</>;
   }
 
+  // Early grant: if user has active subscription or trial, skip role/subscription checks
+  if (user && (emailVerified || loadingTimedOut) && !subLoading) {
+    const hasActiveSub = hasActiveSubscription && plan?.name;
+    if (hasActiveSub || isOnTrial || hasTrialExpired) {
+      console.log('[RoleProtectedRoute] Early access grant - subscription/trial active');
+      return <>{children}</>;
+    }
+  }
+
   // Wait for subscription to load
   if (subLoading && !loadingTimedOut) {
     return (

@@ -1,13 +1,24 @@
 /**
- * Supabase client pointed at the production Pro instance.
- * Configure via VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.
+ * Supabase client pointed at the production Pro instance (dqwolscmceelqpkfclgi).
+ *
+ * Preferred env vars:  VITE_SUPABASE_URL + VITE_SUPABASE_PUBLISHABLE_KEY
+ * Legacy fallbacks:    VITE_EXTERNAL_SUPABASE_URL + VITE_EXTERNAL_SUPABASE_ANON_KEY
+ *
+ * Both sets are checked so the app never throws on startup if only one
+ * pair is present in the current deployment.
  */
 
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://dqwolscmceelqpkfclgi.supabase.co';
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL ||
+  import.meta.env.VITE_EXTERNAL_SUPABASE_URL ||
+  'https://dqwolscmceelqpkfclgi.supabase.co';
+
+const SUPABASE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY;
 
 // Export the resolved URL for edge function calls
 export const supabaseUrl = SUPABASE_URL;

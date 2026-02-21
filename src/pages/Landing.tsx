@@ -822,7 +822,7 @@ export default function Landing() {
                 price: pricing.starter[billingCycle],
                 description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
-                  "1,500 monthly enforcement reports",
+                  "5,000 monthly enforcement reports",
                   "All properties, all counties",
                   "Code violation data",
                   "Basic filters (location, category, search)",
@@ -838,7 +838,7 @@ export default function Landing() {
                 price: pricing.professional[billingCycle],
                 description: "For serious operators stacking enforcement data",
                 features: [
-                  "5,000 monthly enforcement reports",
+                  "15,000 monthly enforcement reports",
                   "All Starter features",
                   "Pressure Level filtering (prioritize higher-enforcement properties)",
                   "Priority email support"
@@ -852,7 +852,7 @@ export default function Landing() {
                 price: pricing.enterprise[billingCycle],
                 description: "For teams running enforcement-first strategies. Limited to 500 members.",
                 features: [
-                  "15,000 monthly enforcement reports",
+                  "25,000 monthly enforcement reports",
                   "All Pro features",
                   "Water shutoff data",
                   "API access (coming soon)"

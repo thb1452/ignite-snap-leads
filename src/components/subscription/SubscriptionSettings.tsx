@@ -314,7 +314,7 @@ export function SubscriptionSettings() {
                 name="Professional"
                 price="$149/mo"
                 features={[
-                  "5,000 monthly exports",
+                  "15,000 monthly exports",
                   "All properties, all counties",
                   "Everything in Starter",
                   "Pressure Level™ filters",
@@ -331,7 +331,7 @@ export function SubscriptionSettings() {
                 name="Elite"
                 price="$299/mo"
                 features={[
-                  "15,000 monthly exports",
+                  "25,000 monthly exports",
                   "All properties, all counties",
                   "Code violation + water shutoff data",
                   "Everything in Pro",

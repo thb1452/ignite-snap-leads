@@ -44,7 +44,7 @@ const PRICING_TIERS: PricingTier[] = [
     price_annual_cents_with_discount: 76000,
     description: 'For PropStream users who want premium targeting',
     features: [
-      '1,500 monthly exports',
+      '5,000 monthly exports',
       'All properties, all counties',
       'Code violation data',
       'Weekly data refresh',
@@ -62,7 +62,7 @@ const PRICING_TIERS: PricingTier[] = [
     price_annual_cents_with_discount: 143000,
     description: 'For serious operators stacking enforcement data',
     features: [
-      '5,000 monthly exports',
+      '15,000 monthly exports',
       'All properties, all counties',
       'Code violation data',
       'Everything in Starter',
@@ -80,7 +80,7 @@ const PRICING_TIERS: PricingTier[] = [
     price_annual_cents_with_discount: 287000,
     description: 'For teams running enforcement-first strategies. Limited to 500 members.',
     features: [
-      '15,000 monthly exports',
+      '25,000 monthly exports',
       'All properties, all counties',
       'Code violation + water shutoff data',
       'Everything in Pro',
@@ -573,14 +573,14 @@ export default function Pricing() {
                 {currentTrialTierName === 'enterprise' && downgradeConfirm?.name !== 'enterprise' && (
                   <>
                     <li>Water shutoff enforcement data</li>
-                    <li>15,000 monthly exports (vs {downgradeConfirm?.name === 'starter' ? '1,500' : '5,000'})</li>
+                    <li>25,000 monthly exports (vs {downgradeConfirm?.name === 'starter' ? '5,000' : '15,000'})</li>
                     {downgradeConfirm?.name === 'starter' && <li>Pressure Level™ filters</li>}
                   </>
                 )}
                 {currentTrialTierName === 'professional' && downgradeConfirm?.name === 'starter' && (
                   <>
                     <li>Pressure Level™ filters</li>
-                    <li>5,000 monthly exports (vs 1,500)</li>
+                    <li>15,000 monthly exports (vs 5,000)</li>
                   </>
                 )}
               </ul>

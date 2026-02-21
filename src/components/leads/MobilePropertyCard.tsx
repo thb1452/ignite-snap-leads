@@ -106,8 +106,8 @@ export function MobilePropertyCard({
                   variant="outline" 
                   className={`text-xs ${
                     (property.open_violations ?? 0) > 0 
-                      ? 'bg-rose-100 text-rose-700 border-rose-200' 
-                      : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                      ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                      : 'bg-rose-100 text-rose-700 border-rose-200'
                   }`}
                 >
                   {(property.open_violations ?? 0) > 0 ? 'open' : 'closed'}

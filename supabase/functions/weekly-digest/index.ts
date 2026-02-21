@@ -258,7 +258,7 @@ const handler = async (req: Request): Promise<Response> => {
         const emailHtml = formatPropertyEmail(user.full_name, weeklyCount, topProperties);
         
         await resend.emails.send({
-          from: "Snap Ignite <digest@ignite-snap-leads.lovable.app>",
+          from: "Snap Ignite <digest@snapignite.com>",
           to: [user.email],
           subject: `${formattedCount} new enforcement actions this week`,
           html: emailHtml,

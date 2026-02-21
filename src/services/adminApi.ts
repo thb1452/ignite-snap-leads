@@ -1,37 +1,17 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+/**
+ * Admin API types and stub actions.
+ *
+ * Data-fetching for the admin console is handled by dedicated hooks
+ * (useAdminStats, useAdminUploads, useAdminUsers, useAdminJurisdictions)
+ * that query the database directly via the authenticated Supabase client.
+ *
+ * The action functions below are placeholders for features that require
+ * dedicated backend functions. They throw immediately so callers surface
+ * a clear error instead of silently failing.
+ */
 
-// Get auth token from localStorage
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken');
-  return {
-    'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
-  };
-};
+// ---- Types (still used by AdminConsole.tsx) ----
 
-// Generic fetch wrapper with error handling
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers: {
-        ...getAuthHeaders(),
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error(`API call failed for ${endpoint}:`, error);
-    throw error;
-  }
-}
-
-// API Response Types
 export interface AdminStats {
   totalLeads: number;
   leadsToday: number;
@@ -101,88 +81,21 @@ export interface GeocodingStatus {
   coverage: number;
 }
 
-// API Functions
-export async function fetchAdminStats(): Promise<AdminStats> {
-  // Backend endpoint not implemented yet
-  console.log('Fetching admin stats from:', `${API_BASE}/api/admin/stats`);
-  return await apiFetch<AdminStats>('/api/admin/stats');
+// ---- Stub action functions ----
+// These throw explicitly so the UI can catch and display a toast.
+
+export async function retryUpload(_uploadId: string): Promise<void> {
+  throw new Error('Retry upload is not yet available. Use the reprocess button on the job detail page.');
 }
 
-export async function fetchUploads(filters?: {
-  status?: string;
-  user?: string;
-  page?: number;
-  limit?: number;
-}): Promise<{ uploads: Upload[]; total: number }> {
-  // Backend endpoint not implemented yet
-  const queryParams = new URLSearchParams();
-  if (filters?.status) queryParams.append('status', filters.status);
-  if (filters?.user) queryParams.append('user', filters.user);
-  if (filters?.page) queryParams.append('page', filters.page.toString());
-  if (filters?.limit) queryParams.append('limit', filters.limit.toString());
-  
-  const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
-  console.log('Fetching uploads from:', `${API_BASE}/api/admin/uploads${query}`);
-  return await apiFetch<{ uploads: Upload[]; total: number }>(`/api/admin/uploads${query}`);
+export async function disableUser(_userId: string): Promise<void> {
+  throw new Error('User management is not yet available from the admin console.');
 }
 
-export async function fetchUsers(): Promise<{ users: User[] }> {
-  // Backend endpoint not implemented yet
-  console.log('Fetching users from:', `${API_BASE}/api/admin/users`);
-  return await apiFetch<{ users: User[] }>('/api/admin/users');
-}
-
-export async function fetchJurisdictions(): Promise<{ jurisdictions: Jurisdiction[] }> {
-  // Backend endpoint not implemented yet
-  console.log('Fetching jurisdictions from:', `${API_BASE}/api/admin/jurisdictions`);
-  return await apiFetch<{ jurisdictions: Jurisdiction[] }>('/api/admin/jurisdictions');
-}
-
-export async function fetchSystemLogs(filters?: { type?: string }): Promise<{ logs: SystemLog[] }> {
-  // Backend endpoint not implemented yet
-  const queryParams = new URLSearchParams();
-  if (filters?.type) queryParams.append('type', filters.type);
-  
-  const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
-  console.log('Fetching logs from:', `${API_BASE}/api/admin/logs${query}`);
-  return await apiFetch<{ logs: SystemLog[] }>(`/api/admin/logs${query}`);
-}
-
-export async function fetchGeocodingStatus(): Promise<GeocodingStatus> {
-  // Backend endpoint not implemented yet
-  console.log('Fetching geocoding status from:', `${API_BASE}/api/admin/geocoding-status`);
-  return await apiFetch<GeocodingStatus>('/api/admin/geocoding-status');
-}
-
-// Action Functions
-export async function retryUpload(uploadId: string): Promise<void> {
-  // Backend endpoint not implemented yet
-  console.log('Retrying upload:', uploadId);
-  return await apiFetch<void>(`/api/admin/uploads/${uploadId}/retry`, {
-    method: 'POST',
-  });
-}
-
-export async function disableUser(userId: string): Promise<void> {
-  // Backend endpoint not implemented yet
-  console.log('Disabling user:', userId);
-  return await apiFetch<void>(`/api/admin/users/${userId}/disable`, {
-    method: 'POST',
-  });
-}
-
-export async function deactivateJurisdiction(jurisdictionId: string): Promise<void> {
-  // Backend endpoint not implemented yet
-  console.log('Deactivating jurisdiction:', jurisdictionId);
-  return await apiFetch<void>(`/api/admin/jurisdictions/${jurisdictionId}/deactivate`, {
-    method: 'POST',
-  });
+export async function deactivateJurisdiction(_jurisdictionId: string): Promise<void> {
+  throw new Error('Jurisdiction deactivation is not yet available.');
 }
 
 export async function retryFailedGeocodes(): Promise<void> {
-  // Backend endpoint not implemented yet
-  console.log('Retrying failed geocodes');
-  return await apiFetch<void>('/api/admin/geocoding/retry-failed', {
-    method: 'POST',
-  });
+  throw new Error('Bulk geocode retry is not yet available.');
 }

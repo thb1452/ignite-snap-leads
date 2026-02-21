@@ -43,6 +43,10 @@
 | 20 | 🔵 LOW | Secrets | Stripe error response reflects `tier_name` back to user verbatim |
 | 21 | 🔵 LOW | Database | Some SECURITY DEFINER functions lack explicit `SET search_path` |
 | 22 | 🔵 LOW | Dependencies | Mixed Deno std library versions across edge functions |
+| 23 | 🔴 CRITICAL | Database | `credit_ledger` INSERT policy allows arbitrary `delta` — any user can mint unlimited credits |
+| 24 | 🟠 HIGH | Database RPC | `fn_increment_usage` missing `auth.uid()` guard — any user can exhaust another user's monthly quota |
+| 25 | 🟡 MEDIUM | Database RPC | `fn_check_subscription_limit` / `fn_get_user_subscription` accept arbitrary `p_user_id` — subscription plan enumeration |
+| 26 | 🔵 LOW | Database | `clean_leads` SELECT policy `USING (true)` — all authenticated users read admin-uploaded staging leads |
 
 ---
 
@@ -791,35 +795,230 @@ if (job.user_id !== authenticatedUserId) {
 
 ---
 
+## Finding 23 — 🔴 CRITICAL: `credit_ledger` INSERT Policy Allows Arbitrary Credit Minting
+
+**File:** `supabase/migrations/20251006021041_52f662d2-70bb-4f35-b984-43426093d16b.sql:202-204`
+
+### What's wrong
+
+The `credit_ledger` table has a broad INSERT policy:
+
+```sql
+CREATE POLICY credit_ledger_insert
+  ON public.credit_ledger FOR INSERT TO authenticated
+  WITH CHECK (user_id = auth.uid());
+```
+
+This policy only checks that the `user_id` column matches the caller's identity. It places **no restriction on the `delta` column value**. The user's credit balance is derived from a view that sums all deltas:
+
+```sql
+CREATE OR REPLACE VIEW public.v_user_credits AS
+SELECT user_id, COALESCE(SUM(delta), 0) AS balance
+FROM public.credit_ledger
+GROUP BY user_id;
+```
+
+Any authenticated user can directly insert a positive `delta` row via the Supabase client or PostgREST API, completely bypassing the `fn_consume_credit` function's controlled deduction logic.
+
+### Attack scenario
+
+```javascript
+// Attacker calls PostgREST directly — no edge function needed
+await supabase
+  .from('credit_ledger')
+  .insert({ user_id: session.user.id, delta: 999999, reason: 'bonus' });
+
+// Balance is now SUM(deltas) = 999999 + initial credits
+// User has effectively unlimited credits
+```
+
+This allows any authenticated user to:
+1. Grant themselves unlimited skip trace credits with a single API call
+2. Bypass all credit-gating on skip traces, exports, and any other credit-gated feature
+
+### Fix
+
+Remove the INSERT policy for `authenticated` users entirely. The `credit_ledger` table should only be written to by `SECURITY DEFINER` functions (like `fn_consume_credit`) that enforce the correct signed delta:
+
+```sql
+DROP POLICY IF EXISTS credit_ledger_insert ON public.credit_ledger;
+-- Only fn_consume_credit (SECURITY DEFINER, runs as postgres) should insert rows
+```
+
+If direct user inserts are needed for any reason, restrict the delta to be negative:
+
+```sql
+CREATE POLICY credit_ledger_insert
+  ON public.credit_ledger FOR INSERT TO authenticated
+  WITH CHECK (user_id = auth.uid() AND delta < 0);
+```
+
+---
+
+## Finding 24 — 🟠 HIGH: `fn_increment_usage` Missing `auth.uid()` Guard — Quota Exhaustion Attack
+
+**File:** `supabase/migrations/20260118211721_a62363c9-7a61-42d0-afc1-4bfa616f34c2.sql:289-326`
+
+### What's wrong
+
+`fn_increment_usage` is a `SECURITY DEFINER` function granted to all `authenticated` users. It accepts an optional `p_user_id` parameter with `DEFAULT auth.uid()`, but **never validates that the caller is the same user as `p_user_id`**:
+
+```sql
+CREATE OR REPLACE FUNCTION public.fn_increment_usage(
+    p_usage_type text,
+    p_amount integer DEFAULT 1,
+    p_user_id uuid DEFAULT auth.uid()   -- ← no auth.uid() guard
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+...
+AS $$
+...
+    UPDATE public.subscription_usage
+    SET exports_count = exports_count + p_amount  -- ← increments for anyone
+    WHERE user_id = p_user_id ...
+$$;
+```
+
+### Attack scenario
+
+1. Attacker looks up victim's UUID (visible in their own JWT or via profile lookups).
+2. Attacker calls:
+   ```bash
+   curl -X POST .../rpc/fn_increment_usage \
+     -d '{"p_usage_type": "exports", "p_amount": 999999, "p_user_id": "<victim_uuid>"}'
+   ```
+3. Victim's `subscription_usage.exports_count` is now at 999999 — far over any plan limit.
+4. When the victim next tries to export, `fn_check_subscription_limit` returns `allowed: false` — the victim is effectively locked out of exporting for the rest of the billing month.
+
+This is a Denial-of-Service attack against any specific user's subscription features.
+
+Note: this same vulnerability class also applies to `fn_get_current_usage(p_user_id uuid DEFAULT auth.uid())` which, on first call for a period, inserts a new `subscription_usage` row for any user.
+
+### Fix
+
+Add a caller-identity guard identical to the fix for Findings 1 and 2:
+
+```sql
+IF p_user_id IS DISTINCT FROM auth.uid() THEN
+  RAISE EXCEPTION 'Permission denied: cannot modify another user''s usage';
+END IF;
+```
+
+---
+
+## Finding 25 — 🟡 MEDIUM: Subscription Plan Enumeration via `fn_check_subscription_limit` and `fn_get_user_subscription`
+
+**File:** `supabase/migrations/20260118211721_a62363c9-7a61-42d0-afc1-4bfa616f34c2.sql:196-398`
+
+### What's wrong
+
+Both `fn_get_user_subscription` and `fn_check_subscription_limit` accept an optional `p_user_id uuid DEFAULT auth.uid()` with no ownership check. Any authenticated user can query the subscription details of any other user:
+
+```sql
+-- fn_get_user_subscription: returns plan name, status, monthly limits, stripe_subscription_id
+CREATE OR REPLACE FUNCTION public.fn_get_user_subscription(p_user_id uuid DEFAULT auth.uid())
+...
+-- fn_check_subscription_limit: returns allowed, current usage, limit, plan_name
+CREATE OR REPLACE FUNCTION public.fn_check_subscription_limit(
+    p_usage_type text,
+    p_amount integer DEFAULT 1,
+    p_user_id uuid DEFAULT auth.uid()
+)
+```
+
+### Impact
+
+An attacker with a list of user UUIDs (obtainable from profile tables or JWT inspection) can:
+1. Enumerate the subscription plan of every user in the database
+2. Determine each user's `stripe_subscription_id` (returned by `fn_get_user_subscription`)
+3. Determine each user's current monthly export and skip-trace usage
+4. Identify high-value targets (Enterprise subscribers) for further attacks
+
+### Fix
+
+Add ownership guard at the start of both functions:
+
+```sql
+IF p_user_id IS DISTINCT FROM auth.uid() THEN
+  RAISE EXCEPTION 'Permission denied';
+END IF;
+```
+
+---
+
+## Finding 26 — 🔵 LOW: `clean_leads` Table Readable by All Authenticated Users
+
+**File:** `supabase/migrations/20251115184248_35418040-0910-47c0-ae9d-e1870d9cd896.sql:199-204`
+
+### What's wrong
+
+The `clean_leads` table is described in the migration comment as "for admin bulk uploads." However, its SELECT RLS policy grants read access to every authenticated user:
+
+```sql
+-- All authenticated users can view clean_leads
+CREATE POLICY "Users can view clean_leads"
+ON public.clean_leads
+FOR SELECT
+TO authenticated
+USING (true);   -- ← every subscriber can read all admin uploads
+```
+
+The table contains admin-curated lead data including `violation_description`, `snap_score`, `snap_insight`, `opened_date`, and property addresses that were uploaded during admin data-import operations. It may include staged data not yet intended for public consumption (e.g., rows mid-import, data for counties not included in a user's plan).
+
+### Design review needed
+
+If this table is the data source that populates `properties` (staging pipeline), rows in-flight during import are prematurely visible to all subscribers.
+
+If this data is intended to be a readable public inventory (same as `properties`), the policy is acceptable — but `USING (true)` should be explicit about this intent in the code comment.
+
+### Fix
+
+If admin-only staging intent was the goal:
+
+```sql
+DROP POLICY IF EXISTS "Users can view clean_leads" ON public.clean_leads;
+-- Only admins can read, via the "Admins full access to clean_leads" policy
+```
+
+If all-user read access is intentional, add a comment clarifying the design decision.
+
+---
+
 ## Summary: What Needs Fixing Before Launch
 
 ### Immediate — fix before any real users or data enter the system:
 
 1. **`bulk-delete-properties` — add admin-only auth guard** — currently any registered user can permanently delete all property data for any US city or state. This is a complete database wipe vector.
-2. **Add `auth.uid()` check to `fn_start_trial`** — prevents unauthorized trial manipulation for other users
-3. **Add `auth.uid()` check to `fn_increment_trial_exports`** — prevents targeted trial quota exhaustion against other users
-4. **Add authentication to `weekly-digest`** — prevents unauthenticated mass email spam
-5. **Add admin-only auth guards to `backfill-scores`, `bulk-rescore`, and `backfill-zips`** — prevents computational DoS by non-admin users
-6. **Wrap `/upload` in `ProtectedRoute`** — unauthenticated visitors can upload 15MB files, exhausting storage quota
-7. **Fix `escapeCSV` to sanitize formula-injection characters** — prevents CSV/DDE injection in exported data
+2. **Drop or restrict `credit_ledger_insert` policy** — currently any authenticated user can insert a row with any positive `delta`, minting unlimited skip trace and feature credits.
+3. **Add `auth.uid()` check to `fn_start_trial`** — prevents unauthorized trial manipulation for other users
+4. **Add `auth.uid()` check to `fn_increment_trial_exports`** — prevents targeted trial quota exhaustion against other users
+5. **Add `auth.uid()` check to `fn_increment_usage`** — prevents any user from exhausting another user's monthly export/skip-trace quota
+6. **Add authentication to `weekly-digest`** — prevents unauthenticated mass email spam
+7. **Add admin-only auth guards to `backfill-scores`, `bulk-rescore`, and `backfill-zips`** — prevents computational DoS by non-admin users
+8. **Wrap `/upload` in `ProtectedRoute`** — unauthenticated visitors can upload 15MB files, exhausting storage quota
+9. **Fix `escapeCSV` to sanitize formula-injection characters** — prevents CSV/DDE injection in exported data
 
 ### Short-term (fix within first week):
 
-8. Add rate limiting to `send-password-reset`, `send-support-message`, and `create-checkout-session`
-9. Restrict `Access-Control-Allow-Origin` to the production domain
-10. Strip `deletionResults` from `delete-user-account` response
-11. Fix weekly-digest `from` address to `digest@snapignite.com`
-12. Remove hardcoded Supabase credentials from `externalClient.ts`
-13. Add job ownership validation to `process-upload`
-14. Add path traversal protection to `sanitizeFilename`
+10. Add `auth.uid()` ownership guard to `fn_check_subscription_limit` and `fn_get_user_subscription` — prevents subscription plan enumeration across all users
+11. Add rate limiting to `send-password-reset`, `send-support-message`, and `create-checkout-session`
+12. Restrict `Access-Control-Allow-Origin` to the production domain
+13. Strip `deletionResults` from `delete-user-account` response
+14. Fix weekly-digest `from` address to `digest@snapignite.com`
+15. Remove hardcoded Supabase credentials from `externalClient.ts`
+16. Add job ownership validation to `process-upload`
+17. Add path traversal protection to `sanitizeFilename`
 
 ### Backlog (harden over time):
 
-15. Replace `===` with constant-time comparison for `x-internal-secret` checks
-16. Sanitize chart `id` before CSS template interpolation
-17. Add TTL to localStorage role cache
-18. Standardize Deno std library version across all functions
-19. Add `SET search_path = public` to any remaining SECURITY DEFINER functions without it
+18. Replace `===` with constant-time comparison for `x-internal-secret` checks
+19. Sanitize chart `id` before CSS template interpolation
+20. Add TTL to localStorage role cache
+21. Standardize Deno std library version across all functions
+22. Add `SET search_path = public` to any remaining SECURITY DEFINER functions without it
+23. Review `clean_leads` SELECT policy — confirm `USING (true)` is intentional and not exposing staging data
 
 ---
 

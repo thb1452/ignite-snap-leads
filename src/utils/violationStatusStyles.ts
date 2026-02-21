@@ -21,8 +21,8 @@ export function getViolationStatusStyle(status: string): ViolationStatusStyle {
     statusLower.includes('in progress')
   ) {
     return {
-      badge: 'bg-rose-100 text-rose-700 border border-rose-200',
-      dot: 'bg-rose-500',
+      badge: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+      dot: 'bg-emerald-500',
       tooltip: null,
     };
   }
@@ -50,8 +50,8 @@ export function getViolationStatusStyle(status: string): ViolationStatusStyle {
     statusLower.includes('complete')
   ) {
     return {
-      badge: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-      dot: 'bg-emerald-500',
+      badge: 'bg-rose-100 text-rose-700 border border-rose-200',
+      dot: 'bg-rose-500',
       tooltip: null,
     };
   }

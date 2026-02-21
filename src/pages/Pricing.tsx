@@ -246,22 +246,10 @@ export default function Pricing() {
 
           {tier.name === 'enterprise' && (
             <div className="mt-3">
-              {isEliteFull ? (
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-destructive/10 border border-destructive/20 text-destructive text-xs">
-                  <Lock className="w-3.5 h-3.5" />
-                  <span className="font-medium">Waitlist Only — 500 member cap reached</span>
-                </div>
-              ) : eliteSpotsRemaining <= 50 ? (
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 text-xs">
-                  <Lock className="w-3.5 h-3.5" />
-                  <span className="font-medium">Only {eliteSpotsRemaining} of 500 spots left</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs">
-                  <Lock className="w-3.5 h-3.5" />
-                  <span className="font-medium">{eliteSpotsRemaining} of 500 Elite spots remaining</span>
-                </div>
-              )}
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs">
+                <Lock className="w-3.5 h-3.5" />
+                <span className="font-medium">Limited to 500 members</span>
+              </div>
             </div>
           )}
 

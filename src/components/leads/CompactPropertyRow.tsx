@@ -68,8 +68,8 @@ export function CompactPropertyRow({
             variant="outline"
             className={`text-xs px-1.5 py-0 h-5 ${
               openCount > 0
-                ? "bg-rose-100 text-rose-700 border-rose-200"
-                : "bg-emerald-100 text-emerald-700 border-emerald-200"
+                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                : "bg-rose-100 text-rose-700 border-rose-200"
             }`}
           >
             {openCount > 0 ? `${openCount} open` : "closed"}

@@ -92,12 +92,12 @@ export function PropertyCard({
           {/* Row 2: Status + Violation types */}
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
             {openCount > 0 ? (
-              <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-rose-100 text-rose-700 border-rose-200 gap-0.5">
+              <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-emerald-100 text-emerald-700 border-emerald-200 gap-0.5">
                 <AlertTriangle className="h-3 w-3" />
                 open
               </Badge>
             ) : totalCount > 0 ? (
-              <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-emerald-100 text-emerald-700 border-emerald-200">
+              <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-rose-100 text-rose-700 border-rose-200">
                 closed
               </Badge>
             ) : null}

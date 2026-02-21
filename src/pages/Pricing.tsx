@@ -4,9 +4,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Lock } from "lucide-react";
+import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Lock, Loader2 } from "lucide-react";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
 import { useEliteCapacity } from "@/hooks/useEliteCapacity";
+import { supabase } from "@/integrations/supabase/externalClient";
+import { useToast } from "@/hooks/use-toast";
 
 // Key to signal Auth page that user was already logged in when they clicked a plan
 const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
@@ -94,10 +96,31 @@ export default function Pricing() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [trialModalOpen, setTrialModalOpen] = useState(false);
   const [selectedTrialTier, setSelectedTrialTier] = useState('starter');
+  const [upgradingTier, setUpgradingTier] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const openTrialModal = (tier: string) => {
     setSelectedTrialTier(tier);
     setTrialModalOpen(true);
+  };
+
+  const handleDirectUpgrade = async (tierName: string) => {
+    setUpgradingTier(tierName);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: { tier_name: tierName, billing_cycle: billingCycle },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.assign(data.url);
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (err: any) {
+      console.error('[Pricing] Upgrade error:', err);
+      toast({ title: 'Checkout failed', description: err.message || 'Please try again.', variant: 'destructive' });
+      setUpgradingTier(null);
+    }
   };
 
   const handleSignOut = async () => {
@@ -289,12 +312,16 @@ export default function Pricing() {
                   <Button
                     onClick={() => {
                       if (tier.name === 'enterprise' && isEliteFull) {
-                        // TODO: Open waitlist modal or redirect to waitlist signup
                         window.location.href = 'mailto:support@snapignite.com?subject=Elite%20Waitlist&body=I%20would%20like%20to%20join%20the%20Elite%20tier%20waitlist.';
                         return;
                       }
-                      openTrialModal(tier.name);
+                      if (isOnTrial) {
+                        handleDirectUpgrade(tier.name);
+                      } else {
+                        openTrialModal(tier.name);
+                      }
                     }}
+                    disabled={upgradingTier === tier.name}
                     className={`w-full mb-2 transition-all ${
                       tier.popular
                         ? "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
@@ -303,13 +330,19 @@ export default function Pricing() {
                     variant={tier.popular ? "default" : "outline"}
                     size="lg"
                   >
-                    {tier.name === 'enterprise' && isEliteFull
-                      ? 'Join Waitlist'
-                      : isOnTrial ? 'Upgrade Early' : 'Start 7-Day Free Trial'}
-                    <ArrowRight className="ml-2 w-4 h-4" />
+                    {upgradingTier === tier.name ? (
+                      <><Loader2 className="mr-2 w-4 h-4 animate-spin" /> Redirecting…</>
+                    ) : tier.name === 'enterprise' && isEliteFull ? (
+                      'Join Waitlist'
+                    ) : isOnTrial ? (
+                      'Upgrade Now'
+                    ) : (
+                      'Start 7-Day Free Trial'
+                    )}
+                    {upgradingTier !== tier.name && <ArrowRight className="ml-2 w-4 h-4" />}
                   </Button>
                   <p className="text-xs text-center text-muted-foreground mb-4">
-                    {isOnTrial ? `Upgrade from your ${trialTier === 'professional' ? 'Pro' : trialTier === 'enterprise' ? 'Elite' : 'Starter'} trial` : `Then ${getMonthlyPrice(tier)}/month • Cancel anytime`}
+                    {isOnTrial ? 'Pay now, upgrade instantly' : `Then ${getMonthlyPrice(tier)}/month • Cancel anytime`}
                   </p>
 
                   <div className="space-y-4">

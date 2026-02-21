@@ -23,19 +23,22 @@
 |---|----------|------|-------|
 | 1 | 🔴 CRITICAL | Database RPC | `fn_start_trial` missing `auth.uid()` guard — any user can start trials for others |
 | 2 | 🔴 CRITICAL | Database RPC | `fn_increment_trial_exports` missing `auth.uid()` guard — any user can drain others' exports |
-| 3 | 🟠 HIGH | Edge Function | `weekly-digest` has no authentication — unauthenticated mass email blast |
-| 4 | 🟠 HIGH | Edge Function | No rate limiting on any endpoint — brute force & abuse risk |
-| 5 | 🟠 HIGH | CORS | `Access-Control-Allow-Origin: *` on all state-mutating functions |
-| 6 | 🟡 MEDIUM | Edge Function | `delete-user-account` leaks full DB schema in error responses |
-| 7 | 🟡 MEDIUM | Edge Function | `backfill-scores` has no authentication at all (verify_jwt not in config = defaults to true, but worth confirming) |
-| 8 | 🟡 MEDIUM | Secrets | Hardcoded Supabase anon key and URL in source code |
-| 9 | 🟡 MEDIUM | XSS | `chart.tsx` `dangerouslySetInnerHTML` with partially user-influenced `id` prop |
-| 10 | 🟡 MEDIUM | Email | `weekly-digest` `from` address hardcoded to Lovable staging domain |
-| 11 | 🟡 MEDIUM | Auth | Role caching in `localStorage` without expiry — stale role data after role change |
-| 12 | 🔵 LOW | Auth | Dual password-reset paths create confusion; edge function requires active session |
-| 13 | 🔵 LOW | Secrets | Stripe error response reflects `tier_name` back to user verbatim |
-| 14 | 🔵 LOW | Database | Some SECURITY DEFINER functions lack explicit `SET search_path` |
-| 15 | 🔵 LOW | Dependencies | Mixed Deno std library versions across edge functions |
+| 3 | 🔴 CRITICAL | Edge Function | `bulk-delete-properties` has zero auth — any authenticated user can wipe the entire database |
+| 4 | 🟠 HIGH | Edge Function | `weekly-digest` has no authentication — unauthenticated mass email blast |
+| 5 | 🟠 HIGH | Edge Function | `backfill-scores` and `bulk-rescore` have no admin check — DoS via expensive operations |
+| 6 | 🟠 HIGH | Edge Function | `backfill-zips` has no authentication at all |
+| 7 | 🟠 HIGH | Edge Function | No rate limiting on any endpoint — brute force & abuse risk |
+| 8 | 🟠 HIGH | CORS | `Access-Control-Allow-Origin: *` on all state-mutating functions |
+| 9 | 🟡 MEDIUM | Edge Function | `delete-user-account` leaks full DB schema in error responses |
+| 10 | 🟡 MEDIUM | Secrets | Hardcoded Supabase anon key and URL in source code |
+| 11 | 🟡 MEDIUM | XSS | `chart.tsx` `dangerouslySetInnerHTML` with partially user-influenced `id` prop |
+| 12 | 🟡 MEDIUM | Email | `weekly-digest` `from` address hardcoded to Lovable staging domain |
+| 13 | 🟡 MEDIUM | Auth | Role caching in `localStorage` without expiry — stale role data after role change |
+| 14 | 🟡 MEDIUM | Crypto | `x-internal-secret` compared with `===` instead of constant-time comparison |
+| 15 | 🔵 LOW | Auth | Dual password-reset paths create confusion; edge function requires active session |
+| 16 | 🔵 LOW | Secrets | Stripe error response reflects `tier_name` back to user verbatim |
+| 17 | 🔵 LOW | Database | Some SECURITY DEFINER functions lack explicit `SET search_path` |
+| 18 | 🔵 LOW | Dependencies | Mixed Deno std library versions across edge functions |
 
 ---
 
@@ -124,7 +127,62 @@ Note: the server-side call in `export-csv` uses the anon key with the user's JWT
 
 ---
 
-## Finding 3 — 🟠 HIGH: `weekly-digest` Has No Authentication
+## Finding 3 — 🔴 CRITICAL: `bulk-delete-properties` Has Zero Authorization
+
+**File:** `supabase/functions/bulk-delete-properties/index.ts`
+**Config:** `verify_jwt = true` (Supabase checks a JWT exists, but does NOT check the role)
+
+### What's wrong
+
+This function instantiates a **service role client** (bypasses all RLS) and then immediately reads `cityOrState` from the request body with **zero authorization check**:
+
+```typescript
+const supabaseClient = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''  // ← Bypasses ALL RLS
+);
+
+const { cityOrState } = await req.json();  // ← No auth check anywhere before this
+
+// Deletes violations, contacts, list_properties, lead_activity, properties...
+```
+
+There is no `Authorization` header inspection, no `getUser()` call, no role check. Any user with a valid Supabase JWT (i.e., any registered account) can call this endpoint.
+
+### Attack scenario
+
+Attacker signs up for a free Snap Ignite account, then:
+
+```bash
+curl -X POST https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/bulk-delete-properties \
+  -H "Authorization: Bearer <any_valid_jwt>" \
+  -H "apikey: <anon_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"cityOrState": "TX"}'
+```
+
+This cascades through `violations`, `property_contacts`, `list_properties`, `lead_activity`, and finally `properties` — permanently deleting **every property record in Texas** from the shared database, affecting all users. Replacing `TX` with a two-letter state abbreviation for each US state would wipe the entire database.
+
+This is **irreversible data loss** affecting every customer.
+
+### Fix
+
+Add an admin-only guard at the top of the handler, before any other processing:
+
+```typescript
+const token = req.headers.get('authorization')?.replace('Bearer ', '');
+const { data: authData } = await supabaseClient.auth.getUser(token);
+if (!authData?.user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+
+const { data: role } = await supabaseClient
+  .from('user_roles').select('role')
+  .eq('user_id', authData.user.id).eq('role', 'admin').maybeSingle();
+if (!role) return new Response(JSON.stringify({ error: 'Admin required' }), { status: 403 });
+```
+
+---
+
+## Finding 4 — 🟠 HIGH: `weekly-digest` Has No Authentication
 
 **File:** `supabase/functions/weekly-digest/index.ts`
 **Config:** `supabase/config.toml` — `verify_jwt = false`
@@ -168,7 +226,49 @@ Alternatively, change `verify_jwt = true` and require an admin JWT.
 
 ---
 
-## Finding 4 — 🟠 HIGH: No Rate Limiting on Any Edge Function
+## Finding 5 — 🟠 HIGH: `backfill-scores` and `bulk-rescore` Lack Admin Authorization
+
+**Files:**
+- `supabase/functions/backfill-scores/index.ts` — `verify_jwt = true` in config, no auth in code
+- `supabase/functions/bulk-rescore/index.ts` — `verify_jwt = true` in config, no auth in code
+
+Both functions use the service role key and begin processing immediately after parsing the request body, with no check on who the caller is:
+
+```typescript
+// backfill-scores — line 29: no auth check
+const { autoResume = true, batchSize = BATCH_SIZE } = await req.json().catch(() => ({}));
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+// → Immediately processes all unscored properties
+```
+
+### Attack scenario
+
+Any authenticated user triggers `backfill-scores` in a loop → continuous re-processing of all property scores → expensive AI calls (if AI scoring is used), large DB write load, service degradation for all users. Also allows any user to re-score (and potentially corrupt) all records.
+
+### Fix
+
+Same admin guard pattern as above.
+
+---
+
+## Finding 6 — 🟠 HIGH: `backfill-zips` Has No Authentication
+
+**File:** `supabase/functions/backfill-zips/index.ts`
+**Config:** `verify_jwt = true` (JWT presence checked by Supabase, not role)
+
+The function reads `city` and `state` from the request body and begins geocoding operations against the US Census API with no authorization check. Any authenticated user can invoke it.
+
+### Attack scenario
+
+Attacker calls repeatedly with different city/state combinations → Census API rate limits exceeded → legitimate geocoding operations fail → ZIP code data goes stale for all users. Also causes unexpected Supabase function invocation costs.
+
+### Fix
+
+Add admin-only guard.
+
+---
+
+## Finding 7 — 🟠 HIGH: No Rate Limiting on Any Edge Function
 
 **Files:** All `supabase/functions/*/index.ts`
 
@@ -210,7 +310,7 @@ if ((count ?? 0) >= 3) {
 
 ---
 
-## Finding 5 — 🟠 HIGH: `Access-Control-Allow-Origin: *` on All State-Mutating Functions
+## Finding 8 — 🟠 HIGH: `Access-Control-Allow-Origin: *` on All State-Mutating Functions
 
 **Files:** All `supabase/functions/*/index.ts` — all set `"Access-Control-Allow-Origin": "*"`
 
@@ -249,7 +349,7 @@ For functions that should only be called server-to-server (like `backfill-*`, `w
 
 ---
 
-## Finding 6 — 🟡 MEDIUM: `delete-user-account` Leaks Database Schema
+## Finding 9 — 🟡 MEDIUM: `delete-user-account` Leaks Database Schema
 
 **File:** `supabase/functions/delete-user-account/index.ts:107-112`
 
@@ -285,29 +385,7 @@ Return only the success/failure status, not the detailed table-by-table results.
 
 ---
 
-## Finding 7 — 🟡 MEDIUM: `backfill-scores` Verify_JWT Status Unclear
-
-**File:** `supabase/functions/backfill-scores/index.ts`
-**Config:** `backfill-scores` is NOT listed in `supabase/config.toml` with explicit `verify_jwt` setting
-
-### What's wrong
-
-`backfill-scores` is not present in `config.toml`. Supabase defaults to `verify_jwt = true` for unlisted functions, **but** the function body itself has no authentication code — it only checks for the presence of env vars, then immediately begins processing:
-
-```typescript
-// Line 29 — immediately reads body, no auth check
-const { autoResume = true, batchSize = BATCH_SIZE } = await req.json().catch(() => ({}));
-```
-
-If the `config.toml` entry is missing due to an oversight, this function processes all unscored properties and self-invokes repeatedly with the service role key — a privileged operation with no explicit access control layer.
-
-### Action
-
-Confirm `backfill-scores` has `verify_jwt = true` in `config.toml` and add an explicit admin/internal-secret check to the function body as defense-in-depth.
-
----
-
-## Finding 8 — 🟡 MEDIUM: Hardcoded Supabase Credentials in Source
+## Finding 10 — 🟡 MEDIUM: Hardcoded Supabase Credentials in Source
 
 **File:** `src/integrations/supabase/externalClient.ts:17-22`
 
@@ -343,7 +421,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 ---
 
-## Finding 9 — 🟡 MEDIUM: `dangerouslySetInnerHTML` CSS Injection in Chart Component
+## Finding 11 — 🟡 MEDIUM: `dangerouslySetInnerHTML` CSS Injection in Chart Component
 
 **File:** `src/components/ui/chart.tsx:70-71`
 
@@ -385,7 +463,7 @@ Or use CSS.escape if available in the Deno/browser environment.
 
 ---
 
-## Finding 10 — 🟡 MEDIUM: `weekly-digest` Hardcoded Lovable `from` Address
+## Finding 12 — 🟡 MEDIUM: `weekly-digest` Hardcoded Lovable `from` Address
 
 **File:** `supabase/functions/weekly-digest/index.ts:261`
 
@@ -403,7 +481,7 @@ Change to `"Snap Ignite <digest@snapignite.com>"` and authorize this sender in R
 
 ---
 
-## Finding 11 — 🟡 MEDIUM: Role Cache in `localStorage` Has No Expiry
+## Finding 13 — 🟡 MEDIUM: Role Cache in `localStorage` Has No Expiry
 
 **File:** `src/hooks/use-auth.ts` (role caching logic) and `src/components/auth/RoleProtectedRoute.tsx`
 
@@ -432,7 +510,46 @@ if (cached && cachedAt && Date.now() - Number(cachedAt) < ROLE_CACHE_TTL_MS) {
 
 ---
 
-## Finding 12 — 🔵 LOW: Dual Password Reset Paths Cause UX Confusion
+## Finding 14 — 🟡 MEDIUM: `x-internal-secret` Uses Non-Constant-Time String Comparison
+
+**Files:**
+- `supabase/functions/bulk-generate-missing-insights/index.ts:37`
+- `supabase/functions/refresh-outdated-insights/index.ts:59`
+- `supabase/functions/reverse-geocode-zips/index.ts:96`
+
+### What's wrong
+
+All three functions authenticate internal calls by checking:
+
+```typescript
+const isInternalCall = internalSecret === SUPABASE_SERVICE_ROLE_KEY;
+```
+
+JavaScript's `===` operator short-circuits on the first non-matching character, creating a measurable timing difference. In theory, an attacker can brute-force the secret byte-by-byte by measuring response times. In practice, the service role key is 200+ characters, making this attack very slow over the internet. But the fix is trivial.
+
+### Fix
+
+```typescript
+import { timingSafeEqual } from "node:crypto"; // or use TextEncoder + crypto.subtle
+
+const encoder = new TextEncoder();
+const a = encoder.encode(internalSecret ?? '');
+const b = encoder.encode(SUPABASE_SERVICE_ROLE_KEY);
+const isInternalCall = a.length === b.length && crypto.subtle
+  ? /* use subtle */ false : timingSafeEqual(a, b);
+```
+
+A simpler Deno-compatible approach:
+```typescript
+// Use crypto.subtle.timingSafeEqual when available in Deno
+const isInternalCall = internalSecret != null &&
+  internalSecret.length === SUPABASE_SERVICE_ROLE_KEY.length &&
+  Buffer.from(internalSecret).equals(Buffer.from(SUPABASE_SERVICE_ROLE_KEY));
+```
+
+---
+
+## Finding 15 — 🔵 LOW: Dual Password Reset Paths Cause UX Confusion
 
 **Files:**
 - `src/hooks/use-auth.ts:324` — uses `supabase.auth.resetPasswordForEmail` (works without session)
@@ -448,7 +565,7 @@ Audit which Supabase SMTP settings are configured so that the native reset email
 
 ---
 
-## Finding 13 — 🔵 LOW: `create-checkout-session` Reflects `tier_name` in Error
+## Finding 16 — 🔵 LOW: `create-checkout-session` Reflects `tier_name` in Error
 
 **File:** `supabase/functions/create-checkout-session/index.ts:85-88`
 
@@ -469,7 +586,7 @@ Return a generic message: `"Invalid plan selection"` without echoing back the in
 
 ---
 
-## Finding 14 — 🔵 LOW: SECURITY DEFINER Functions Without `SET search_path`
+## Finding 17 — 🔵 LOW: SECURITY DEFINER Functions Without `SET search_path`
 
 **Files:** Multiple migration files
 
@@ -488,7 +605,7 @@ WHERE prosecdef = true
 
 ---
 
-## Finding 15 — 🔵 LOW: Mixed Deno Standard Library Versions
+## Finding 18 — 🔵 LOW: Mixed Deno Standard Library Versions
 
 **Files:** Various edge functions
 
@@ -507,26 +624,29 @@ Standardize all functions to use the same (latest stable) Deno std version. Pin 
 
 ## Summary: What Needs Fixing Before Launch
 
-### Immediate (pre-launch blockers):
+### Immediate — fix before any real users or data enter the system:
 
-1. **Add `auth.uid()` check to `fn_start_trial`** — prevents unauthorized trial creation for other users
-2. **Add `auth.uid()` check to `fn_increment_trial_exports`** — prevents targeted export quota exhaustion against other users
-3. **Add authentication to `weekly-digest`** — prevents unauthenticated mass email spam
+1. **`bulk-delete-properties` — add admin-only auth guard** — currently any registered user can permanently delete all property data for any US city or state. This is a complete database wipe vector.
+2. **Add `auth.uid()` check to `fn_start_trial`** — prevents unauthorized trial manipulation for other users
+3. **Add `auth.uid()` check to `fn_increment_trial_exports`** — prevents targeted trial quota exhaustion against other users
+4. **Add authentication to `weekly-digest`** — prevents unauthenticated mass email spam
+5. **Add admin-only auth guards to `backfill-scores`, `bulk-rescore`, and `backfill-zips`** — prevents computational DoS by non-admin users
 
 ### Short-term (fix within first week):
 
-4. Add rate limiting to `send-password-reset`, `send-support-message`, and `create-checkout-session`
-5. Restrict `Access-Control-Allow-Origin` to the production domain
-6. Strip `deletionResults` from `delete-user-account` response
-7. Fix weekly-digest `from` address to `digest@snapignite.com`
-8. Remove hardcoded Supabase credentials from `externalClient.ts`
+6. Add rate limiting to `send-password-reset`, `send-support-message`, and `create-checkout-session`
+7. Restrict `Access-Control-Allow-Origin` to the production domain
+8. Strip `deletionResults` from `delete-user-account` response
+9. Fix weekly-digest `from` address to `digest@snapignite.com`
+10. Remove hardcoded Supabase credentials from `externalClient.ts`
 
 ### Backlog (harden over time):
 
-9. Sanitize chart `id` before CSS template interpolation
-10. Add TTL to localStorage role cache
-11. Standardize Deno std library version across all functions
-12. Add `SET search_path = public` to any remaining SECURITY DEFINER functions without it
+11. Replace `===` with constant-time comparison for `x-internal-secret` checks
+12. Sanitize chart `id` before CSS template interpolation
+13. Add TTL to localStorage role cache
+14. Standardize Deno std library version across all functions
+15. Add `SET search_path = public` to any remaining SECURITY DEFINER functions without it
 
 ---
 

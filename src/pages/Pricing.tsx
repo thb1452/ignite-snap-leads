@@ -4,14 +4,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Lock, Loader2 } from "lucide-react";
+import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Lock, Loader2, Crown, Shield } from "lucide-react";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
 import { useEliteCapacity } from "@/hooks/useEliteCapacity";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
 
-// Key to signal Auth page that user was already logged in when they clicked a plan
 const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
+
 interface PricingTier {
   id: string;
   name: string;
@@ -23,10 +23,8 @@ interface PricingTier {
   notIncluded?: string[];
   icon: any;
   popular?: boolean;
-  highlight?: string;
 }
 
-// Updated pricing tiers - PropStream complementary positioning
 const PRICING_TIERS: PricingTier[] = [
   {
     id: 'starter',
@@ -42,9 +40,7 @@ const PRICING_TIERS: PricingTier[] = [
       'Weekly data refresh',
       'Email support',
     ],
-    notIncluded: [
-      'No water shutoff data',
-    ],
+    notIncluded: ['No water shutoff data'],
     icon: Zap,
     popular: true,
   },
@@ -63,11 +59,8 @@ const PRICING_TIERS: PricingTier[] = [
       'Pressure Level™ filters',
       'Priority email support',
     ],
-    notIncluded: [
-      'No water shutoff data',
-    ],
+    notIncluded: ['No water shutoff data'],
     icon: TrendingUp,
-    popular: false,
   },
   {
     id: 'enterprise',
@@ -84,9 +77,22 @@ const PRICING_TIERS: PricingTier[] = [
       'API access (coming soon)',
     ],
     icon: Building2,
-    popular: false,
   },
 ];
+
+// Map trial tier DB names to display names
+const TRIAL_TIER_DISPLAY: Record<string, string> = {
+  starter: 'Starter',
+  professional: 'Pro',
+  enterprise: 'Elite',
+};
+
+// Map trial tier to the matching PRICING_TIERS name
+const TRIAL_TIER_MAP: Record<string, string> = {
+  starter: 'starter',
+  professional: 'professional',
+  enterprise: 'enterprise',
+};
 
 export default function Pricing() {
   const navigate = useNavigate();
@@ -127,25 +133,7 @@ export default function Pricing() {
     await signOut();
   };
 
-  const handleSelectPlan = (tier: PricingTier) => {
-    // If user is already logged in, set a flag so Auth page knows to show account choice
-    if (user) {
-      try {
-        sessionStorage.setItem(SESSION_KEY_PRE_AUTH_USER, 'true');
-        console.log('[Pricing] User already logged in, setting pre-auth flag');
-      } catch (e) {
-        console.warn('[Pricing] Failed to set pre-auth flag:', e);
-      }
-    }
-    
-    // Redirect to auth page with plan
-    console.log('[Pricing] Redirecting to auth with plan:', tier.name);
-    navigate(`/auth?mode=signup&plan=${tier.name}`);
-  };
-
-  const formatPrice = (cents: number) => {
-    return `$${(cents / 100).toLocaleString()}`;
-  };
+  const formatPrice = (cents: number) => `$${(cents / 100).toLocaleString()}`;
 
   const getMonthlyPrice = (tier: PricingTier) => {
     if (billingCycle === "annual") {
@@ -156,9 +144,178 @@ export default function Pricing() {
 
   const getSavings = (tier: PricingTier) => {
     const annualMonthly = tier.price_annual_cents_with_discount / 12;
-    const savings = Math.round(((tier.price_monthly_cents - annualMonthly) / tier.price_monthly_cents) * 100);
-    return savings;
+    return Math.round(((tier.price_monthly_cents - annualMonthly) / tier.price_monthly_cents) * 100);
   };
+
+  // Find the user's current trial tier object
+  const currentTrialTierName = trialTier ? TRIAL_TIER_MAP[trialTier] : null;
+  const currentTrialTierObj = PRICING_TIERS.find(t => t.name === currentTrialTierName);
+  const trialTierDisplayName = trialTier ? TRIAL_TIER_DISPLAY[trialTier] || trialTier : '';
+
+  // For trial users, reorder tiers: current plan first, then others as "alternatives"
+  const getOrderedTiers = () => {
+    if (!isOnTrial || !currentTrialTierName) return PRICING_TIERS;
+    const current = PRICING_TIERS.find(t => t.name === currentTrialTierName);
+    const others = PRICING_TIERS.filter(t => t.name !== currentTrialTierName);
+    return current ? [current, ...others] : PRICING_TIERS;
+  };
+
+  const isCurrentTrialTier = (tierName: string) => isOnTrial && tierName === currentTrialTierName;
+
+  const renderPlanCard = (tier: PricingTier, isCurrent: boolean) => {
+    const Icon = tier.icon;
+    const isUpgrading = upgradingTier === tier.name;
+
+    return (
+      <Card
+        key={tier.id}
+        className={`relative transition-all hover:shadow-xl ${
+          isCurrent
+            ? "border-cyan-500 border-2 shadow-lg ring-2 ring-cyan-500/20"
+            : tier.popular && !isOnTrial
+              ? "border-blue-500 border-2 shadow-lg scale-105"
+              : "border-border"
+        }`}
+      >
+        {isCurrent && (
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+            <span className="bg-gradient-to-r from-cyan-600 to-teal-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold shadow-md flex items-center gap-1.5">
+              <Crown className="w-3.5 h-3.5" />
+              Your Current Plan
+            </span>
+          </div>
+        )}
+        {!isCurrent && tier.popular && !isOnTrial && (
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold shadow-md">
+              ⭐ Most Popular
+            </span>
+          </div>
+        )}
+
+        <CardHeader className="pb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`p-3 rounded-lg ${
+              isCurrent
+                ? "bg-gradient-to-br from-cyan-500 to-teal-500"
+                : tier.popular && !isOnTrial
+                  ? "bg-gradient-to-br from-blue-500 to-purple-500"
+                  : "bg-muted"
+            }`}>
+              <Icon className={`w-6 h-6 ${
+                isCurrent || (tier.popular && !isOnTrial) ? "text-white" : "text-primary"
+              }`} />
+            </div>
+            <CardTitle className="text-2xl">{tier.display_name}</CardTitle>
+          </div>
+          <CardDescription className="text-base">{tier.description}</CardDescription>
+
+          {tier.name === 'enterprise' && (
+            <div className="mt-3">
+              {isEliteFull ? (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span className="font-medium">Waitlist Only — 500 member cap reached</span>
+                </div>
+              ) : eliteSpotsRemaining <= 50 ? (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 text-xs">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span className="font-medium">Only {eliteSpotsRemaining} of 500 spots left</span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span className="font-medium">{eliteSpotsRemaining} of 500 Elite spots remaining</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mt-6">
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl font-bold">{getMonthlyPrice(tier)}</span>
+              <span className="text-muted-foreground text-lg">/month</span>
+            </div>
+            {billingCycle === "annual" && (
+              <div className="text-sm text-green-600 dark:text-green-400 mt-2 font-medium">
+                Save {getSavings(tier)}% with annual billing
+              </div>
+            )}
+            {billingCycle === "monthly" && (
+              <div className="text-sm text-muted-foreground mt-2">Billed monthly</div>
+            )}
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <Button
+            onClick={() => {
+              if (tier.name === 'enterprise' && isEliteFull) {
+                window.location.href = 'mailto:support@snapignite.com?subject=Elite%20Waitlist&body=I%20would%20like%20to%20join%20the%20Elite%20tier%20waitlist.';
+                return;
+              }
+              if (isOnTrial) {
+                handleDirectUpgrade(tier.name);
+              } else {
+                openTrialModal(tier.name);
+              }
+            }}
+            disabled={isUpgrading}
+            className={`w-full mb-2 transition-all ${
+              isCurrent
+                ? "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
+                : tier.popular && !isOnTrial
+                  ? "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
+                  : ""
+            }`}
+            variant={isCurrent || (tier.popular && !isOnTrial) ? "default" : "outline"}
+            size="lg"
+          >
+            {isUpgrading ? (
+              <><Loader2 className="mr-2 w-4 h-4 animate-spin" /> Redirecting…</>
+            ) : tier.name === 'enterprise' && isEliteFull ? (
+              'Join Waitlist'
+            ) : isOnTrial ? (
+              isCurrent ? `Upgrade to ${tier.display_name} — ${getMonthlyPrice(tier)}/mo` : `Switch to ${tier.display_name}`
+            ) : (
+              'Start 7-Day Free Trial'
+            )}
+            {!isUpgrading && <ArrowRight className="ml-2 w-4 h-4" />}
+          </Button>
+          <p className="text-xs text-center text-muted-foreground mb-4">
+            {isOnTrial
+              ? 'Pay now • Instant activation • Cancel anytime'
+              : `Then ${getMonthlyPrice(tier)}/month • Cancel anytime`
+            }
+          </p>
+
+          <div className="space-y-4">
+            <div className="text-sm font-semibold text-muted-foreground mb-2">What's Included:</div>
+            <ul className="space-y-3">
+              {tier.features.map((feature, index) => (
+                <li key={index} className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                  <span className="text-sm leading-relaxed">{feature}</span>
+                </li>
+              ))}
+            </ul>
+            {tier.notIncluded && tier.notIncluded.length > 0 && (
+              <ul className="space-y-3 mt-4 pt-4 border-t border-border">
+                {tier.notIncluded.map((item, index) => (
+                  <li key={index} className="flex items-start gap-3">
+                    <X className="w-5 h-5 text-muted-foreground/50 shrink-0 mt-0.5" />
+                    <span className="text-sm leading-relaxed text-muted-foreground">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const orderedTiers = getOrderedTiers();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
@@ -170,222 +327,118 @@ export default function Pricing() {
               Signed in as <span className="font-medium">{user.email}</span>
             </span>
             <span className="text-blue-400 dark:text-blue-600">|</span>
-            <button
-              onClick={handleSignOut}
-              className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
-            >
+            <button onClick={handleSignOut} className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
               Not you? Sign out
             </button>
           </div>
         </div>
       )}
 
-      {/* Trial status banner */}
-      {isOnTrial && (
-        <div className="bg-gradient-to-r from-cyan-500/10 to-teal-500/10 border-b border-cyan-200 dark:border-cyan-800">
-          <div className="container max-w-7xl py-3 px-4 flex items-center justify-center gap-3 text-sm">
-            <Clock className="h-4 w-4 text-cyan-600" />
-            <span className="text-cyan-700 dark:text-cyan-300">
-              You're on a <span className="font-semibold">{trialTier === 'professional' ? 'Pro' : trialTier === 'enterprise' ? 'Elite' : 'Starter'} trial</span> with {trialDaysRemaining} day{trialDaysRemaining !== 1 ? 's' : ''} and {trialExportsRemaining} exports remaining.
-            </span>
+      {/* ===== TRIAL USER: Personalized Upgrade Hero ===== */}
+      {isOnTrial && currentTrialTierObj && (
+        <div className="bg-gradient-to-br from-slate-900 via-cyan-950 to-teal-950 text-white">
+          <div className="container max-w-4xl py-10 px-4 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 text-sm font-medium mb-6">
+              <Clock className="w-4 h-4" />
+              {trialDaysRemaining} day{trialDaysRemaining !== 1 ? 's' : ''} left on your {trialTierDisplayName} trial
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl font-bold mb-3">
+              Keep your {trialTierDisplayName} access — upgrade now
+            </h1>
+            <p className="text-lg text-cyan-100/80 mb-8 max-w-2xl mx-auto">
+              Your trial expires soon. Lock in your {trialTierDisplayName} plan at {getMonthlyPrice(currentTrialTierObj)}/month and keep full access to everything you've been using.
+            </p>
+
+            {/* Primary CTA */}
+            <div className="flex flex-col items-center gap-4">
+              <Button
+                onClick={() => handleDirectUpgrade(currentTrialTierName!)}
+                disabled={upgradingTier === currentTrialTierName}
+                size="lg"
+                className="bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white text-lg px-10 py-6 rounded-xl shadow-xl shadow-cyan-500/25"
+              >
+                {upgradingTier === currentTrialTierName ? (
+                  <><Loader2 className="mr-2 w-5 h-5 animate-spin" /> Redirecting…</>
+                ) : (
+                  <>Upgrade to {trialTierDisplayName} — {getMonthlyPrice(currentTrialTierObj)}/mo <ArrowRight className="ml-2 w-5 h-5" /></>
+                )}
+              </Button>
+              <p className="text-sm text-cyan-200/60">
+                Instant activation • Cancel anytime • {trialExportsRemaining} exports remaining in trial
+              </p>
+            </div>
+
+            {/* Billing toggle inside hero for trial users */}
+            <div className="inline-flex items-center gap-3 p-1 bg-white/10 backdrop-blur-sm rounded-lg mt-8">
+              <Button
+                variant={billingCycle === "monthly" ? "default" : "ghost"}
+                onClick={() => setBillingCycle("monthly")}
+                size="sm"
+                className={billingCycle === "monthly" ? "bg-white/20 text-white hover:bg-white/30" : "text-white/60 hover:text-white hover:bg-white/10"}
+              >
+                Monthly
+              </Button>
+              <Button
+                variant={billingCycle === "annual" ? "default" : "ghost"}
+                onClick={() => setBillingCycle("annual")}
+                size="sm"
+                className={billingCycle === "annual" ? "bg-white/20 text-white hover:bg-white/30" : "text-white/60 hover:text-white hover:bg-white/10"}
+              >
+                Annual
+                <span className="ml-2 text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded">Save 20%</span>
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
       <div className="container max-w-7xl py-12 px-4">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Add Enforcement Intelligence to Your Stack
-          </h1>
-          <p className="text-xl text-muted-foreground mb-2">
-            No hidden fees. No per-record charges. No surprises.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Access to 400+ counties across all 50 states (growing weekly)
-          </p>
+        {/* Header — only for non-trial users */}
+        {!isOnTrial && (
+          <div className="text-center mb-12">
+            <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Add Enforcement Intelligence to Your Stack
+            </h1>
+            <p className="text-xl text-muted-foreground mb-2">
+              No hidden fees. No per-record charges. No surprises.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Access to 400+ counties across all 50 states (growing weekly)
+            </p>
 
-          {/* Billing Toggle */}
-          <div className="inline-flex items-center gap-3 p-1 bg-white dark:bg-slate-800 rounded-lg shadow-sm mt-8">
-            <Button
-              variant={billingCycle === "monthly" ? "default" : "ghost"}
-              onClick={() => setBillingCycle("monthly")}
-              size="sm"
-              className="transition-all"
-            >
-              Monthly
-            </Button>
-            <Button
-              variant={billingCycle === "annual" ? "default" : "ghost"}
-              onClick={() => setBillingCycle("annual")}
-              size="sm"
-              className="transition-all"
-            >
-              Annual
-              <span className="ml-2 text-xs bg-green-500/20 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
-                Save 20%
-              </span>
-            </Button>
+            {/* Billing Toggle */}
+            <div className="inline-flex items-center gap-3 p-1 bg-white dark:bg-slate-800 rounded-lg shadow-sm mt-8">
+              <Button
+                variant={billingCycle === "monthly" ? "default" : "ghost"}
+                onClick={() => setBillingCycle("monthly")}
+                size="sm"
+              >
+                Monthly
+              </Button>
+              <Button
+                variant={billingCycle === "annual" ? "default" : "ghost"}
+                onClick={() => setBillingCycle("annual")}
+                size="sm"
+              >
+                Annual
+                <span className="ml-2 text-xs bg-green-500/20 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">Save 20%</span>
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Section label for trial users */}
+        {isOnTrial && (
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-foreground">All Plans</h2>
+            <p className="text-muted-foreground mt-1">Your current trial plan is shown first</p>
+          </div>
+        )}
 
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-3 gap-8 mb-16">
-          {PRICING_TIERS.map((tier) => {
-            const Icon = tier.icon;
-            return (
-              <Card
-                key={tier.id}
-                className={`relative transition-all hover:shadow-xl ${
-                  tier.popular
-                    ? "border-blue-500 border-2 shadow-lg scale-105"
-                    : "border-slate-200 dark:border-slate-700"
-                }`}
-              >
-                {tier.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-                    <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold shadow-md">
-                      ⭐ Most Popular
-                    </span>
-                  </div>
-                )}
-
-                <CardHeader className="pb-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`p-3 rounded-lg ${
-                      tier.popular
-                        ? "bg-gradient-to-br from-blue-500 to-purple-500"
-                        : "bg-slate-100 dark:bg-slate-800"
-                    }`}>
-                      <Icon className={`w-6 h-6 ${
-                        tier.popular ? "text-white" : "text-blue-600 dark:text-blue-400"
-                      }`} />
-                    </div>
-                    <div>
-                      <CardTitle className="text-2xl">{tier.display_name}</CardTitle>
-                    </div>
-                  </div>
-                  <CardDescription className="text-base">{tier.description}</CardDescription>
-
-                  {tier.name === 'enterprise' && (
-                    <div className="mt-3">
-                      {isEliteFull ? (
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs">
-                          <Lock className="w-3.5 h-3.5" />
-                          <span className="font-medium">Waitlist Only — 500 member cap reached</span>
-                        </div>
-                      ) : eliteSpotsRemaining <= 50 ? (
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 text-xs">
-                          <Lock className="w-3.5 h-3.5" />
-                          <span className="font-medium">Only {eliteSpotsRemaining} of 500 spots left</span>
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-xs">
-                          <Lock className="w-3.5 h-3.5" />
-                          <span className="font-medium">{eliteSpotsRemaining} of 500 Elite spots remaining</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="mt-6">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-5xl font-bold">
-                        {getMonthlyPrice(tier)}
-                      </span>
-                      <span className="text-muted-foreground text-lg">/month</span>
-                    </div>
-                    {billingCycle === "annual" && (
-                      <div className="text-sm text-green-600 dark:text-green-400 mt-2 font-medium">
-                        Save {getSavings(tier)}% with annual billing
-                      </div>
-                    )}
-                    {billingCycle === "monthly" && (
-                      <div className="text-sm text-muted-foreground mt-2">
-                        Billed monthly
-                      </div>
-                    )}
-                  </div>
-                </CardHeader>
-
-                <CardContent>
-                  <Button
-                    onClick={() => {
-                      if (tier.name === 'enterprise' && isEliteFull) {
-                        window.location.href = 'mailto:support@snapignite.com?subject=Elite%20Waitlist&body=I%20would%20like%20to%20join%20the%20Elite%20tier%20waitlist.';
-                        return;
-                      }
-                      if (isOnTrial) {
-                        handleDirectUpgrade(tier.name);
-                      } else {
-                        openTrialModal(tier.name);
-                      }
-                    }}
-                    disabled={upgradingTier === tier.name}
-                    className={`w-full mb-2 transition-all ${
-                      tier.popular
-                        ? "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
-                        : ""
-                    }`}
-                    variant={tier.popular ? "default" : "outline"}
-                    size="lg"
-                  >
-                    {upgradingTier === tier.name ? (
-                      <><Loader2 className="mr-2 w-4 h-4 animate-spin" /> Redirecting…</>
-                    ) : tier.name === 'enterprise' && isEliteFull ? (
-                      'Join Waitlist'
-                    ) : isOnTrial ? (
-                      'Upgrade Now'
-                    ) : (
-                      'Start 7-Day Free Trial'
-                    )}
-                    {upgradingTier !== tier.name && <ArrowRight className="ml-2 w-4 h-4" />}
-                  </Button>
-                  <p className="text-xs text-center text-muted-foreground mb-4">
-                    {isOnTrial ? 'Pay now, upgrade instantly' : `Then ${getMonthlyPrice(tier)}/month • Cancel anytime`}
-                  </p>
-
-                  <div className="space-y-4">
-                    <div className="text-sm font-semibold text-muted-foreground mb-2">
-                      What's Included:
-                    </div>
-                    <ul className="space-y-3">
-                      {tier.features.map((feature, index) => (
-                        <li key={index} className="flex items-start gap-3">
-                          <Check className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
-                          <span className="text-sm leading-relaxed">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    
-                    {/* Not included items */}
-                    {tier.notIncluded && tier.notIncluded.length > 0 && (
-                      <ul className="space-y-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                        {tier.notIncluded.map((item, index) => (
-                          <li key={index} className="flex items-start gap-3">
-                            <X className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
-                            <span className="text-sm leading-relaxed text-muted-foreground">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    
-                    {/* Highlight text for Pro tier */}
-                    {tier.highlight && (
-                      <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                        <div className="flex items-center gap-2">
-                          <Droplets className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                            {tier.highlight}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {orderedTiers.map((tier) => renderPlanCard(tier, isCurrentTrialTier(tier.name)))}
         </div>
 
         {/* Water Shutoff Value Prop */}
@@ -408,28 +461,22 @@ export default function Pricing() {
 
         {/* FAQ Section */}
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8 text-center">
-            Frequently Asked Questions
-          </h2>
-
+          <h2 className="text-3xl font-bold mb-8 text-center">Frequently Asked Questions</h2>
           <div className="space-y-4">
+            {!isOnTrial && (
+              <Card>
+                <CardHeader><CardTitle className="text-lg">How does the free trial work?</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">
+                    Start a 7-day trial — $0 due today. Enter your payment method at checkout and get 50 property
+                    exports to test data quality. Search unlimited properties, save favorites, and access tier-specific
+                    features. Your subscription begins automatically after 7 days, or cancel anytime before then.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">How does the free trial work?</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Start a 7-day trial — $0 due today. Enter your payment method at checkout and get 50 property
-                  exports to test data quality. Search unlimited properties, save favorites, and access tier-specific
-                  features. Your subscription begins automatically after 7 days, or cancel anytime before then.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">What's the difference between code violations and water shutoffs?</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-lg">What's the difference between code violations and water shutoffs?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
                   <strong>Code violations</strong> indicate properties where the city is applying enforcement pressure.
@@ -438,11 +485,8 @@ export default function Pricing() {
                 </p>
               </CardContent>
             </Card>
-
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">What are CSV exports?</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-lg">What are CSV exports?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
                   CSV exports let you download property data for use in your own systems, mail campaigns, or CRM.
@@ -450,11 +494,8 @@ export default function Pricing() {
                 </p>
               </CardContent>
             </Card>
-
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Can I change tiers later?</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-lg">Can I change tiers later?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
                   Yes! Upgrade or downgrade anytime. Upgrades take effect immediately with prorated billing.
@@ -462,11 +503,8 @@ export default function Pricing() {
                 </p>
               </CardContent>
             </Card>
-
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">How often is data updated?</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-lg">How often is data updated?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
                   Strategic 60-90 day rotation across 400+ counties (expanding to 2,000+).
@@ -485,12 +523,14 @@ export default function Pricing() {
         </div>
       </div>
 
-      {/* Trial Signup Modal */}
-      <TrialSignupModal
-        open={trialModalOpen}
-        onOpenChange={setTrialModalOpen}
-        selectedTier={selectedTrialTier}
-      />
+      {/* Trial Signup Modal — only rendered for non-trial users */}
+      {!isOnTrial && (
+        <TrialSignupModal
+          open={trialModalOpen}
+          onOpenChange={setTrialModalOpen}
+          selectedTier={selectedTrialTier}
+        />
+      )}
     </div>
   );
 }

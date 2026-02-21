@@ -13,8 +13,8 @@ function getCachedRoles(userId: string): AppRole[] | null {
     const cached = localStorage.getItem(ROLES_CACHE_KEY);
     if (cached) {
       const { userId: cachedUserId, roles, timestamp } = JSON.parse(cached);
-      // Cache valid for 24 hours
-      const isValid = cachedUserId === userId && Date.now() - timestamp < 24 * 60 * 60 * 1000;
+      // Cache valid for 5 minutes (short TTL to prevent stale role access)
+      const isValid = cachedUserId === userId && Date.now() - timestamp < 5 * 60 * 1000;
       if (isValid && roles?.length > 0) {
         console.log('[useAuth] Using cached roles:', roles);
         return roles as AppRole[];

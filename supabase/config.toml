@@ -3,8 +3,8 @@ project_id = "dqwolscmceelqpkfclgi"
 [functions.bulk-generate-missing-insights]
 verify_jwt = false
 
-# Security: Enable JWT verification for all authenticated functions
-# Functions should use Supabase's built-in JWT verification rather than manual auth checks
+# Security: Functions that handle auth internally (x-internal-secret or admin JWT check)
+# must have verify_jwt = false to support self-invocation and cron triggers.
 
 [functions.geocode-properties]
 verify_jwt = true
@@ -22,10 +22,10 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.bulk-delete-properties]
-verify_jwt = true
+verify_jwt = false
 
 [functions.bulk-rescore]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-checkout-session]
 verify_jwt = true
@@ -54,7 +54,7 @@ verify_jwt = true
 [functions.delete-user-account]
 verify_jwt = true
 
-# Public endpoints - no JWT required
+# Functions with internal auth (x-internal-secret or admin JWT)
 [functions.weekly-digest]
 verify_jwt = false
 
@@ -65,6 +65,12 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.backfill-insights]
+verify_jwt = false
+
+[functions.backfill-scores]
+verify_jwt = false
+
+[functions.backfill-zips]
 verify_jwt = false
 
 [functions.migrate-to-external]

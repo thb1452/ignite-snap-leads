@@ -94,7 +94,6 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: "Account deleted successfully",
-        deletionResults 
       }),
       {
         status: 200,

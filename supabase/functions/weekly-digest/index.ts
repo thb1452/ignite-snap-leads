@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
 };
 
 const APP_URL = Deno.env.get("APP_URL") || "https://ignite-snap-leads.lovable.app";
@@ -141,13 +141,11 @@ async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  // Get count of new violations this week
   const { count: weeklyCount } = await supabase
     .from("violations")
     .select("*", { count: "exact", head: true })
     .gte("created_at", sevenDaysAgo.toISOString());
 
-  // Get top 5 highest SnapScore properties added/updated this week
   const { data: topProperties } = await supabase
     .from("properties")
     .select("id, address, city, state, snap_score, total_violations, violation_types")
@@ -165,7 +163,6 @@ async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
 async function getActiveUsers(supabaseUrl: string, supabaseServiceKey: string): Promise<UserDigestData[]> {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
-  // Use auth.admin.listUsers() to get ALL users, not just those with profiles rows
   const allUsers: UserDigestData[] = [];
   let page = 1;
   const perPage = 1000;
@@ -192,7 +189,6 @@ async function getActiveUsers(supabaseUrl: string, supabaseServiceKey: string): 
     page++;
   }
 
-  // Also merge names from profiles table where available
   const { data: profiles } = await supabase
     .from("profiles")
     .select("user_id, full_name");
@@ -204,7 +200,6 @@ async function getActiveUsers(supabaseUrl: string, supabaseServiceKey: string): 
     }
   }
 
-  // Get users who have explicitly disabled digest
   const { data: disabledPrefs } = await supabase
     .from("email_preferences")
     .select("user_id")
@@ -212,7 +207,6 @@ async function getActiveUsers(supabaseUrl: string, supabaseServiceKey: string): 
 
   const disabledUserIds = new Set((disabledPrefs as EmailPrefRow[] || []).map(p => p.user_id));
 
-  // Filter out disabled users
   return allUsers.filter(u => !disabledUserIds.has(u.user_id));
 }
 
@@ -222,15 +216,47 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // SECURITY: Require x-internal-secret matching service role key (same pattern as other admin functions)
+    const internalSecret = req.headers.get("x-internal-secret");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    if (!internalSecret || internalSecret !== serviceRoleKey) {
+      // Also allow admin JWT as fallback
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+      
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const authClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims?.sub) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+      
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: roleData } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", claimsData.claims.sub)
+        .eq("role", "admin")
+        .maybeSingle();
+      
+      if (!roleData) {
+        return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get weekly stats
     const { weeklyCount, topProperties } = await getWeeklyStats(supabaseUrl, supabaseServiceKey);
     console.log(`Weekly stats: ${weeklyCount} violations, ${topProperties.length} top properties`);
 
-    // Get active users
     const users = await getActiveUsers(supabaseUrl, supabaseServiceKey);
     console.log(`Sending digest to ${users.length} users`);
 
@@ -241,7 +267,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Format count for subject
     const formattedCount = weeklyCount >= 1000 
       ? `${Math.round(weeklyCount / 100) * 100}+` 
       : weeklyCount.toString();
@@ -249,10 +274,8 @@ const handler = async (req: Request): Promise<Response> => {
     let sentCount = 0;
     const errors: string[] = [];
 
-    // Initialize Resend client
     const resend = await getResend();
 
-    // Send emails to each user
     for (const user of users) {
       try {
         const emailHtml = formatPropertyEmail(user.full_name, weeklyCount, topProperties);
@@ -264,7 +287,6 @@ const handler = async (req: Request): Promise<Response> => {
           html: emailHtml,
         });
 
-        // Log analytics
         await supabase.from("email_analytics").insert({
           user_id: user.user_id,
           email_type: "weekly_digest",

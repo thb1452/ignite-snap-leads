@@ -1,9 +1,9 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-secret',
 };
 
 serve(async (req) => {
@@ -14,6 +14,29 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // SECURITY: Require internal secret or admin JWT
+    const internalSecret = req.headers.get("x-internal-secret");
+    if (!internalSecret || internalSecret !== SERVICE_ROLE_KEY) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const authClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims?.sub) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+      const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", claimsData.claims.sub).eq("role", "admin").maybeSingle();
+      if (!roleData) {
+        return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
     const body = await req.json().catch(() => ({}));
@@ -23,7 +46,6 @@ serve(async (req) => {
 
     console.log(`[backfill-zips] Starting: city=${city}, state=${state}, batch=${batchSize}`);
 
-    // Use city-scoped centroid function for multi-ZIP cities
     const { data, error } = await supabase.rpc('fn_backfill_zips_by_city_centroids', {
       p_city: city,
       p_state: state,
@@ -40,7 +62,6 @@ serve(async (req) => {
 
     console.log('[backfill-zips] Result:', JSON.stringify(data));
 
-    // Self-invoke for next batch if there are more
     if (data.updated > 0 && data.remaining_with_coords > 0) {
       const nextUrl = `${SUPABASE_URL}/functions/v1/backfill-zips`;
       console.log(`[backfill-zips] Continuing: ${data.remaining_with_coords} remaining`);
@@ -48,7 +69,7 @@ serve(async (req) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+          'x-internal-secret': SERVICE_ROLE_KEY,
         },
         body: JSON.stringify({ city, state, batchSize }),
       });

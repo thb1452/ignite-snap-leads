@@ -50,7 +50,7 @@ const PRICING_TIERS: PricingTier[] = [
       'Weekly data refresh',
       'Email support',
     ],
-    notIncluded: ['No water shutoff data'],
+    notIncluded: ['No Pressure Level™ filters', 'No water shutoff data'],
     icon: Zap,
     popular: true,
   },

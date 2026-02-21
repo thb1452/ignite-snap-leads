@@ -411,12 +411,20 @@ serve(async (req) => {
   }
 });
 
-// Escape CSV field
+// Escape CSV field — also neutralize formula-injection characters
+// Excel/Sheets execute formulas starting with =, +, -, @, |, \t
 function escapeCSV(value: string): string {
   if (!value) return '';
-  // If value contains comma, newline, or quote, wrap in quotes and escape quotes
-  if (value.includes(',') || value.includes('\n') || value.includes('"')) {
-    return `"${value.replace(/"/g, '""')}"`;
+
+  let safe = value;
+  // Prepend a tab character to defuse formula injection
+  if (/^[=+\-@|\t]/.test(safe)) {
+    safe = '\t' + safe;
   }
-  return value;
+
+  // If value contains comma, newline, or quote, wrap in quotes and escape quotes
+  if (safe.includes(',') || safe.includes('\n') || safe.includes('"')) {
+    return `"${safe.replace(/"/g, '""')}"`;
+  }
+  return safe;
 }

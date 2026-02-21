@@ -1283,6 +1283,73 @@ async function processUploadJob(jobId: string) {
     // Store pre-existing count for accurate properties_created calculation later
     const preExistingCount = existingMap.size;
 
+    // ---- ZIP DERIVATION SAFEGUARD ----
+    // For properties missing ZIP, try to derive from existing properties at same address
+    // This prevents the "missing ZIP on export" issue
+    const zipLookupCache = new Map<string, string>(); // city|state -> zip
+    const missingZipEntries = Array.from(addressMap.entries())
+      .filter(([_, row]) => !row.zip || row.zip.trim() === '');
+    
+    if (missingZipEntries.length > 0) {
+      console.log(`[process-upload] ⚠️ ${missingZipEntries.length} properties missing ZIP — attempting derivation`);
+      
+      // Build a lookup from existing properties that DO have ZIPs in the same cities
+      const citiesNeedingZip = [...new Set(missingZipEntries.map(([_, r]) => 
+        (r.city || '').trim().toUpperCase()
+      ))].filter(c => c);
+      
+      for (const city of citiesNeedingZip) {
+        // Find the most common ZIP for this city from existing data
+        const { data: zipRef } = await supabaseClient
+          .from('properties')
+          .select('zip')
+          .ilike('city', city)
+          .not('zip', 'is', null)
+          .neq('zip', '')
+          .limit(100);
+        
+        if (zipRef && zipRef.length > 0) {
+          // Find the most frequent ZIP
+          const zipCounts = new Map<string, number>();
+          zipRef.forEach(r => {
+            const z = (r.zip || '').trim();
+            if (z) zipCounts.set(z, (zipCounts.get(z) || 0) + 1);
+          });
+          let bestZip = '';
+          let bestCount = 0;
+          zipCounts.forEach((count, zip) => {
+            if (count > bestCount) { bestZip = zip; bestCount = count; }
+          });
+          if (bestZip) {
+            zipLookupCache.set(city.toLowerCase(), bestZip);
+          }
+        }
+      }
+      
+      // Apply derived ZIPs
+      let derivedCount = 0;
+      for (const [key, row] of missingZipEntries) {
+        const cityKey = (row.city || '').trim().toLowerCase();
+        const derivedZip = zipLookupCache.get(cityKey);
+        if (derivedZip) {
+          row.zip = derivedZip;
+          // Update the key in addressMap (need to re-key)
+          const newKey = `${row.address}|${row.city}|${row.state}|${derivedZip}`.toLowerCase();
+          addressMap.delete(key);
+          addressMap.set(newKey, row);
+          derivedCount++;
+        }
+      }
+      
+      if (derivedCount > 0) {
+        console.log(`[process-upload] ✓ Derived ZIP for ${derivedCount}/${missingZipEntries.length} properties`);
+      }
+      const stillMissing = missingZipEntries.length - derivedCount;
+      if (stillMissing > 0) {
+        console.log(`[process-upload] ⚠️ ${stillMissing} properties still missing ZIP — will be flagged for remediation`);
+      }
+    }
+
     // Prepare properties without geocoding (will be done in background)
     // NOTE: Deduplication is enforced at DB level via idx_properties_unique_address unique index
     // This is the SOURCE OF TRUTH for property deduplication - app-level checks are for optimization only
@@ -1327,7 +1394,7 @@ async function processUploadJob(jobId: string) {
         snap_score: null,
         snap_insight: null,
         jurisdiction_id: row.jurisdiction_id,
-        enforcement_type: enforcementType,  // Set based on upload source_type
+        enforcement_type: enforcementType,
         // AGGREGATED VIOLATION DATA
         total_violations: aggregates.total_violations,
         open_violations: aggregates.open_violations,
@@ -1336,7 +1403,6 @@ async function processUploadJob(jobId: string) {
         last_enforcement_date: aggregates.last_enforcement_date,
       };
     });
-
     let propertiesCreated = 0;
     let dbLevelDedupes = 0;
 

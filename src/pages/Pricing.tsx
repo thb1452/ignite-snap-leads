@@ -45,7 +45,7 @@ const PRICING_TIERS: PricingTier[] = [
     description: 'For PropStream users who want premium targeting',
     features: [
       '5,000 monthly exports',
-      'All properties, all counties',
+      '4,520+ cities nationwide',
       'Code violation data',
       'Weekly data refresh',
       'Email support',
@@ -63,7 +63,7 @@ const PRICING_TIERS: PricingTier[] = [
     description: 'For serious operators stacking enforcement data',
     features: [
       '15,000 monthly exports',
-      'All properties, all counties',
+      '4,520+ cities nationwide',
       'Code violation data',
       'Everything in Starter',
       'Pressure Level™ filters',
@@ -81,7 +81,7 @@ const PRICING_TIERS: PricingTier[] = [
     description: 'For teams running enforcement-first strategies. Limited to 500 members.',
     features: [
       '25,000 monthly exports',
-      'All properties, all counties',
+      '4,520+ cities nationwide',
       'Code violation + water shutoff data',
       'Everything in Pro',
       'API access (coming soon)',
@@ -416,7 +416,7 @@ export default function Pricing() {
               No hidden fees. No per-record charges. No surprises.
             </p>
             <p className="text-sm text-muted-foreground">
-              Access to 400+ counties across all 50 states (growing weekly)
+              Access to 4,520+ cities nationwide (growing weekly)
             </p>
 
             {/* Billing Toggle */}
@@ -519,8 +519,8 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">How often is data updated?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Strategic 60-90 day rotation across 400+ counties (expanding to 2,000+).
-                  Each county refreshed 4-6 times annually.
+                  Strategic 60-90 day rotation across 4,520+ cities nationwide.
+                  Each city refreshed 4-6 times annually.
                 </p>
               </CardContent>
             </Card>

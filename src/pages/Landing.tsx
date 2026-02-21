@@ -374,7 +374,7 @@ export default function Landing() {
                 transition={{ delay: 0.3 }}
                 className="text-xl text-landing-text-muted max-w-2xl"
               >
-                Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 900+ counties, updated weekly.
+                Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 4,520+ cities nationwide, updated weekly.
               </motion.p>
 
               <motion.p
@@ -823,7 +823,7 @@ export default function Landing() {
                 description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
                   "5,000 monthly enforcement reports",
-                  "All properties, all counties",
+                  "4,520+ cities nationwide",
                   "Code violation data",
                   "Basic filters (location, category, search)",
                   "Weekly data refresh",
@@ -970,7 +970,7 @@ export default function Landing() {
                     { type: "Property records (160M+)", ps: true, snap: "partial", snapNote: "Use your existing platform" },
                     { type: "Ownership & equity data", ps: true, snap: "ref", snapNote: "Use your existing platform" },
                     { type: "Comparable sales", ps: true, snap: "ref", snapNote: "Use your existing platform" },
-                    { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "900+ counties" },
+                    { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "4,520+ cities" },
                     { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
                     { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
                     { type: "Municipal court dates", ps: false, snap: true, snapNote: "" },
@@ -1125,8 +1125,8 @@ export default function Landing() {
                   answer: "The 500-member cap applies only to our Elite tier and protects the competitive advantage of our most serious operators. Elite includes water shutoff data and the highest export limits (15,000/month). If we allowed unlimited Elite members, the data advantage would dilute as more operators work the same enforcement signals. The cap ensures Elite members get genuine first-mover advantage on the most urgent enforcement cases. Starter and Pro tiers have no user limits."
                 },
                 {
-                  question: "What counties do you cover?",
-                  answer: "We cover counties across the United States where we've established FOIA data pipelines. Coverage is expanding as we add more municipal sources. All users get access to all available counties."
+                  question: "What cities do you cover?",
+                  answer: "We cover 4,520+ cities across the United States where we've established FOIA data pipelines. Coverage is expanding as we add more municipal sources. All users get access to all available cities."
                 },
                 {
                   question: "How fresh is the data?",

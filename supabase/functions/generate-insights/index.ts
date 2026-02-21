@@ -16,7 +16,7 @@
  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v4.0";
+const VERSION = "v5.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -73,6 +73,10 @@ const INSIGHT_BLOCKS = {
   RECENT_7_DAYS: "Recent inspection activity indicates continued municipal oversight.",
   RECENT_30_DAYS: "Enforcement records updated within the past 30 days.",
   PRIORITY_UTILITY: "Records include utility service enforcement notices.",
+  PRIORITY_WATER_SHUTOFF: "Municipal water service disconnected — direct enforcement action taken by the utility authority. This represents a formal, process-driven municipal action beyond standard notice issuance.",
+  PRIORITY_WATER_SHUTOFF_WITH_VIOLATIONS: "Water service disconnected with concurrent open code violations — multiple enforcement bodies actively engaged at this address.",
+  PRIORITY_WATER_SHUTOFF_RECENT: "Water disconnection executed within the last 30 days — active municipal oversight currently in effect.",
+  PRIORITY_WATER_SHUTOFF_COMPOUND: "Maximum enforcement pressure: water disconnection combined with multiple open violations and recent activity. Coordinated multi-agency enforcement documented.",
   PRIORITY_CONDEMNATION: "Condemnation or unsafe structure orders documented.",
   PRIORITY_LEGAL: "Case has been referred for legal enforcement action.",
   PRIORITY_FIRE_MARSHAL: "Fire marshal orders or fire safety citations on file.",
@@ -116,13 +120,13 @@ async function generateAIInsight(
     const systemPrompt = `You are a municipal enforcement data analyst. Your job is to write concise, factual, enforcement-pressure summaries for code compliance records.
 
 STRICT RULES:
-1. Write from the perspective of a neutral municipal data observer — NOT a real estate investor.
-2. NEVER use words like: investor, acquisition, opportunity, distress, motivated, deal, profit, upside, buy, purchase, wholesale, flip, value-add, discounted, negotiation leverage, below market, negotiate, motivated seller.
-3. Focus ONLY on: the nature of the violations, enforcement intensity, municipal pressure, duration of open cases, escalation status, and departmental involvement.
+1. Write from the perspective of a neutral municipal enforcement data analyst — NOT a real estate investor.
+2. NEVER use words like: investor, acquisition, opportunity, distress, motivated, deal, profit, upside, buy, purchase, wholesale, flip, value-add, discounted, negotiation leverage, below market, negotiate, motivated seller, financial hardship, financial distress.
+3. Focus ONLY on: what enforcement actions municipalities have taken, how recent they are, and what that signals about ongoing oversight activity. Frame water shutoffs as ACTIVE MUNICIPAL ENFORCEMENT ACTIONS (formal process-driven disconnections), NOT as financial distress signals.
 4. Keep the summary to 1–3 sentences, max 260 characters.
 5. Write in third-person, factual, neutral tone.
-6. Example of GOOD output: "Structural and fire safety citations remain open for 200+ days. Case escalated to municipal court. Cross-departmental enforcement involvement documented."
-7. Example of BAD output: "This distressed property is a great investment opportunity for savvy investors."`;
+6. Example of GOOD output: "Water service disconnected by municipal authority — a formal enforcement action requiring administrative process. Concurrent open code violations indicate coordinated multi-agency oversight."
+7. Example of BAD output: "This distressed property shows signs of financial hardship with utility disconnection."`;
 
     const userPrompt = `Write an enforcement-pressure insight for this property:
 
@@ -528,17 +532,7 @@ function calculateEnforcementIntensity(
     signals.push('vacancy_citation');
   }
   
-  // Utility Enforcement
-  if (openClassified.some(v => v.category === 'Utility')) {
-    signals.push('utility_enforcement');
-  }
-  
-  // Cap score if all violations resolved
-  if (openViolations.length === 0 && violations.length > 0) {
-    score = Math.min(score, 20);
-  }
-  
-  // Recency
+  // Recency (calculated early for water shutoff tiering)
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -558,6 +552,49 @@ function calculateEnforcementIntensity(
   } else if (hasRecent30) {
     score += 20;
     signals.push('current_enforcement');
+  }
+
+  // ── Water Shutoff Enforcement Scoring (tiered) ──
+  // Water shutoff = direct municipal action, not just a notice
+  const hasWaterShutoff = classified.some(v => {
+    const combined = `${(v.original.violation_type || '').toLowerCase()} ${(v.original.raw_description || '').toLowerCase()}`;
+    return combined.includes('water shutoff') || combined.includes('water disconnect') ||
+           combined.includes('no water') || combined.includes('water termination') ||
+           combined.includes('water service disconnect');
+  }) || (violations as any).__enforcement_type === 'water_shutoff';
+  
+  const hasOpenCodeViolations = openClassified.filter(v => v.category !== 'Utility').length > 0;
+  
+  if (hasWaterShutoff) {
+    signals.push('water_shutoff_enforcement');
+    
+    if (hasOpenCodeViolations && intelligence.repeat_offender && (hasRecent7 || hasRecent30)) {
+      // Water shutoff + multiple violations + recent → 85-100 (maximum enforcement pressure)
+      score += 55;
+      signals.push('maximum_enforcement_pressure');
+    } else if (hasRecent7 || hasRecent30) {
+      // Water shutoff + recent activity (last 30 days) → 75-85
+      score += 48;
+      signals.push('active_enforcement_current');
+    } else if (hasOpenCodeViolations) {
+      // Water shutoff + open code violations → 65-75
+      score += 42;
+      signals.push('compounding_enforcement');
+    } else {
+      // Water shutoff alone → 40-50 base points
+      score += 40;
+      signals.push('direct_municipal_action');
+    }
+  }
+
+  // Utility Enforcement (non-water-shutoff)
+  if (!hasWaterShutoff && openClassified.some(v => v.category === 'Utility')) {
+    signals.push('utility_enforcement');
+  }
+  
+  // Cap score if all violations resolved
+  if (openViolations.length === 0 && violations.length > 0) {
+    score = Math.min(score, 20);
   }
   
   const finalScore = Math.min(100, Math.max(0, score));
@@ -683,8 +720,18 @@ function composeEnforcementInsight(
     parts.push(INSIGHT_BLOCKS.RECENT_30_DAYS);
   }
   
-  // Block D - Priority Enforcement
-  if (signals.includes('utility_enforcement') || 
+  // Block D - Priority Enforcement (Water Shutoff takes precedence)
+  if (signals.includes('water_shutoff_enforcement')) {
+    if (signals.includes('maximum_enforcement_pressure')) {
+      parts.push(INSIGHT_BLOCKS.PRIORITY_WATER_SHUTOFF_COMPOUND);
+    } else if (signals.includes('active_enforcement_current')) {
+      parts.push(INSIGHT_BLOCKS.PRIORITY_WATER_SHUTOFF_RECENT);
+    } else if (signals.includes('compounding_enforcement')) {
+      parts.push(INSIGHT_BLOCKS.PRIORITY_WATER_SHUTOFF_WITH_VIOLATIONS);
+    } else {
+      parts.push(INSIGHT_BLOCKS.PRIORITY_WATER_SHUTOFF);
+    }
+  } else if (signals.includes('utility_enforcement') || 
       classified.some(v => v.category === 'Utility' && v.priority === 'high')) {
     parts.push(INSIGHT_BLOCKS.PRIORITY_UTILITY);
   }

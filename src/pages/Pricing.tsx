@@ -4,11 +4,21 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Lock, Loader2, Crown, Shield } from "lucide-react";
+import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Lock, Loader2, Crown, Shield, AlertTriangle } from "lucide-react";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
 import { useEliteCapacity } from "@/hooks/useEliteCapacity";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
 
@@ -103,6 +113,7 @@ export default function Pricing() {
   const [trialModalOpen, setTrialModalOpen] = useState(false);
   const [selectedTrialTier, setSelectedTrialTier] = useState('starter');
   const [upgradingTier, setUpgradingTier] = useState<string | null>(null);
+  const [downgradeConfirm, setDowngradeConfirm] = useState<PricingTier | null>(null);
   const { toast } = useToast();
 
   const openTrialModal = (tier: string) => {
@@ -151,6 +162,29 @@ export default function Pricing() {
   const currentTrialTierName = trialTier ? TRIAL_TIER_MAP[trialTier] : null;
   const currentTrialTierObj = PRICING_TIERS.find(t => t.name === currentTrialTierName);
   const trialTierDisplayName = trialTier ? TRIAL_TIER_DISPLAY[trialTier] || trialTier : '';
+
+  // Tier hierarchy for downgrade detection
+  const TIER_RANK: Record<string, number> = { starter: 1, professional: 2, enterprise: 3 };
+  const isDowngrade = (targetTierName: string) => {
+    if (!isOnTrial || !currentTrialTierName) return false;
+    return (TIER_RANK[targetTierName] || 0) < (TIER_RANK[currentTrialTierName] || 0);
+  };
+
+  const handlePlanClick = (tier: PricingTier) => {
+    if (tier.name === 'enterprise' && isEliteFull) {
+      window.location.href = 'mailto:support@snapignite.com?subject=Elite%20Waitlist&body=I%20would%20like%20to%20join%20the%20Elite%20tier%20waitlist.';
+      return;
+    }
+    if (isOnTrial) {
+      if (isDowngrade(tier.name)) {
+        setDowngradeConfirm(tier);
+      } else {
+        handleDirectUpgrade(tier.name);
+      }
+    } else {
+      openTrialModal(tier.name);
+    }
+  };
 
   // For trial users, reorder tiers: current plan first, then others as "alternatives"
   const getOrderedTiers = () => {
@@ -249,17 +283,7 @@ export default function Pricing() {
 
         <CardContent>
           <Button
-            onClick={() => {
-              if (tier.name === 'enterprise' && isEliteFull) {
-                window.location.href = 'mailto:support@snapignite.com?subject=Elite%20Waitlist&body=I%20would%20like%20to%20join%20the%20Elite%20tier%20waitlist.';
-                return;
-              }
-              if (isOnTrial) {
-                handleDirectUpgrade(tier.name);
-              } else {
-                openTrialModal(tier.name);
-              }
-            }}
+            onClick={() => handlePlanClick(tier)}
             disabled={isUpgrading}
             className={`w-full mb-2 transition-all ${
               isCurrent
@@ -276,7 +300,7 @@ export default function Pricing() {
             ) : tier.name === 'enterprise' && isEliteFull ? (
               'Join Waitlist'
             ) : isOnTrial ? (
-              isCurrent ? `Upgrade to ${tier.display_name} — ${getMonthlyPrice(tier)}/mo` : `Switch to ${tier.display_name}`
+              isCurrent ? `Upgrade to ${tier.display_name} — ${getMonthlyPrice(tier)}/mo` : isDowngrade(tier.name) ? `Switch to ${tier.display_name}` : `Upgrade to ${tier.display_name}`
             ) : (
               'Start 7-Day Free Trial'
             )}
@@ -531,6 +555,54 @@ export default function Pricing() {
           selectedTier={selectedTrialTier}
         />
       )}
+
+      {/* Downgrade Confirmation Dialog */}
+      <AlertDialog open={!!downgradeConfirm} onOpenChange={(open) => !open && setDowngradeConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              You're about to downgrade
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                You're currently trialing <strong>{trialTierDisplayName}</strong>. Switching to{' '}
+                <strong>{downgradeConfirm?.display_name}</strong> means you'll lose access to:
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                {currentTrialTierName === 'enterprise' && downgradeConfirm?.name !== 'enterprise' && (
+                  <>
+                    <li>Water shutoff enforcement data</li>
+                    <li>15,000 monthly exports (vs {downgradeConfirm?.name === 'starter' ? '1,500' : '5,000'})</li>
+                    {downgradeConfirm?.name === 'starter' && <li>Pressure Level™ filters</li>}
+                  </>
+                )}
+                {currentTrialTierName === 'professional' && downgradeConfirm?.name === 'starter' && (
+                  <>
+                    <li>Pressure Level™ filters</li>
+                    <li>5,000 monthly exports (vs 1,500)</li>
+                  </>
+                )}
+              </ul>
+              <p className="text-sm font-medium">Are you sure you want to proceed with {downgradeConfirm?.display_name}?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep {trialTierDisplayName}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (downgradeConfirm) {
+                  handleDirectUpgrade(downgradeConfirm.name);
+                  setDowngradeConfirm(null);
+                }
+              }}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              Switch to {downgradeConfirm?.display_name}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

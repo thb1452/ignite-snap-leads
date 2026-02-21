@@ -48,7 +48,11 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/checkout/success" element={<CheckoutSuccess />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/upload" element={<Upload />} />
+          <Route path="/upload" element={
+            <ProtectedRoute>
+              <Upload />
+            </ProtectedRoute>
+          } />
           <Route path="/app" element={
             <RoleProtectedRoute allowedRoles={['admin']}>
               <Leads />

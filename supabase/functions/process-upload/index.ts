@@ -1982,6 +1982,39 @@ serve(async (req) => {
   }
 
   try {
+    // ---- Auth: verify caller owns the job ----
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    // Allow internal self-invocations (from reprocess-upload-job etc.)
+    const internalSecret = req.headers.get('x-internal-secret');
+    const isInternalCall = internalSecret === supabaseServiceKey;
+
+    let callerUserId: string | null = null;
+
+    if (!isInternalCall) {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const token = authHeader.replace('Bearer ', '');
+      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } }
+      });
+      const { data: authData, error: authErr } = await authClient.auth.getUser(token);
+      if (authErr || !authData?.user) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      callerUserId = authData.user.id;
+    }
+
     const { jobId } = await req.json();
 
     if (!jobId) {
@@ -1992,6 +2025,28 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
+    }
+
+    // Validate job ownership (skip for internal calls)
+    if (callerUserId) {
+      const svcClient = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: jobRow, error: jobErr } = await svcClient
+        .from('upload_jobs')
+        .select('user_id')
+        .eq('id', jobId)
+        .single();
+      if (jobErr || !jobRow) {
+        return new Response(
+          JSON.stringify({ error: 'Job not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (jobRow.user_id !== callerUserId) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     console.log(`[process-upload] Queuing job ${jobId}`);

@@ -18,6 +18,8 @@ export function sanitizeFilename(filename: string): string {
   const ext = lastDotIndex > 0 ? filename.substring(lastDotIndex) : '';
 
   const sanitized = name
+    .replace(/\.\./g, '')           // Block path traversal sequences
+    .replace(/[\/\\]/g, '')         // Remove directory separators
     .replace(/["']/g, '')           // Remove quotes
     .replace(/[()[\]{}]/g, '')      // Remove brackets/parens
     .replace(/\s+/g, '_')           // Spaces → underscores

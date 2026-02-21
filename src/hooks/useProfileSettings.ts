@@ -120,15 +120,13 @@ export function useProfileSettings() {
 
   const requestPasswordReset = useMutation({
     mutationFn: async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-      if (!user?.email) throw new Error("No email found");
-
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const { data, error } = await supabase.functions.invoke('send-password-reset', {
+        method: 'POST',
+        body: {},
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       toast({

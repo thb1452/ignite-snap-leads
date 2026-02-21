@@ -165,15 +165,43 @@ async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
 async function getActiveUsers(supabaseUrl: string, supabaseServiceKey: string): Promise<UserDigestData[]> {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
-  // Get users who have digest enabled or haven't set preferences (default enabled)
-  // Join with auth.users to get email (via profiles table)
-  const { data: profiles, error } = await supabase
-    .from("profiles")
-    .select("user_id, email, full_name");
+  // Use auth.admin.listUsers() to get ALL users, not just those with profiles rows
+  const allUsers: UserDigestData[] = [];
+  let page = 1;
+  const perPage = 1000;
+  
+  while (true) {
+    const { data: { users }, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      console.error("Error listing auth users:", error);
+      break;
+    }
+    if (!users || users.length === 0) break;
+    
+    for (const u of users) {
+      if (u.email) {
+        allUsers.push({
+          user_id: u.id,
+          email: u.email,
+          full_name: u.user_metadata?.full_name || null,
+        });
+      }
+    }
+    
+    if (users.length < perPage) break;
+    page++;
+  }
 
-  if (error || !profiles) {
-    console.error("Error fetching profiles:", error);
-    return [];
+  // Also merge names from profiles table where available
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("user_id, full_name");
+  
+  const profileNames = new Map((profiles || []).map((p: any) => [p.user_id, p.full_name]));
+  for (const u of allUsers) {
+    if (!u.full_name && profileNames.has(u.user_id)) {
+      u.full_name = profileNames.get(u.user_id);
+    }
   }
 
   // Get users who have explicitly disabled digest
@@ -184,14 +212,8 @@ async function getActiveUsers(supabaseUrl: string, supabaseServiceKey: string): 
 
   const disabledUserIds = new Set((disabledPrefs as EmailPrefRow[] || []).map(p => p.user_id));
 
-  // Filter out disabled users and those without email
-  return (profiles as ProfileRow[])
-    .filter(p => p.email && !disabledUserIds.has(p.user_id))
-    .map(p => ({
-      user_id: p.user_id,
-      email: p.email!,
-      full_name: p.full_name
-    }));
+  // Filter out disabled users
+  return allUsers.filter(u => !disabledUserIds.has(u.user_id));
 }
 
 const handler = async (req: Request): Promise<Response> => {

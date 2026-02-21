@@ -42,7 +42,7 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: 'Starter',
     price_monthly_cents: 7900,
     price_annual_cents_with_discount: 76000,
-    description: 'For PropStream users who want premium targeting',
+    description: 'For investors who want premium enforcement targeting',
     features: [
       '5,000 monthly exports',
       '4,520+ cities nationwide',
@@ -519,8 +519,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">How often is data updated?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Strategic 60-90 day rotation across 4,520+ cities nationwide.
-                  Each city refreshed 4-6 times annually.
+                  Data is refreshed monthly across 4,520+ cities nationwide, with continuous expansion underway.
                 </p>
               </CardContent>
             </Card>

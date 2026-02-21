@@ -18,7 +18,8 @@ import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { BatchInsightsButton } from "@/components/intelligence/BatchInsightsButton";
 import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
 import { InsightRefreshDashboard } from "@/components/admin/InsightRefreshDashboard";
- import { BackfillAggregatesButton } from "@/components/intelligence/BackfillAggregatesButton";
+import { DataHealthDashboard } from "@/components/admin/DataHealthDashboard";
+import { BackfillAggregatesButton } from "@/components/intelligence/BackfillAggregatesButton";
 import { 
   Users, 
   Upload, 
@@ -297,6 +298,9 @@ function SystemOverviewTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* Data Health Monitor */}
+      <DataHealthDashboard />
 
       {/* Insight Refresh Dashboard - LIVE STATUS */}
       <InsightRefreshDashboard />

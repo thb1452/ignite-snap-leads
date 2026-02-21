@@ -2131,6 +2131,14 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_backfill_zips_by_city_centroids: {
+        Args: { p_batch_size?: number; p_city: string; p_state: string }
+        Returns: Json
+      }
+      fn_backfill_zips_nearest_neighbor: {
+        Args: { p_batch_size?: number; p_city?: string; p_state?: string }
+        Returns: Json
+      }
       fn_bulk_insert_properties: {
         Args: { p_properties: Json }
         Returns: {
@@ -2185,6 +2193,7 @@ export type Database = {
         Returns: Json
       }
       fn_dashboard_stats: { Args: never; Returns: Json }
+      fn_data_health_report: { Args: never; Returns: Json }
       fn_distinct_cities: {
         Args: { p_state?: string }
         Returns: {

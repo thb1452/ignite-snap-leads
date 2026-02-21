@@ -70,20 +70,23 @@ export function useAdminStats(refreshTrigger?: number) {
         .from("user_roles")
         .select("*", { count: "exact", head: true });
 
-      // Get geocoding stats
+      // Get geocoding stats - use actual property coordinate coverage
+      const { count: propertiesWithCoords } = await supabase
+        .from("properties")
+        .select("*", { count: "exact", head: true })
+        .not("latitude", "is", null)
+        .not("longitude", "is", null)
+        .or("latitude.neq.0,longitude.neq.0");
+
       const { data: geocodingJobs } = await supabase
         .from("geocoding_jobs")
         .select("status, geocoded_count, failed_count, total_properties");
 
       let geocodingQueued = 0;
       let geocodingRunning = 0;
-      let geocodingCompleted = 0;
-      let totalProperties = 0;
+      const geocodingCompleted = propertiesWithCoords || 0;
 
       geocodingJobs?.forEach((job) => {
-        totalProperties += job.total_properties || 0;
-        geocodingCompleted += job.geocoded_count || 0;
-        
         if (job.status === "pending") {
           geocodingQueued += (job.total_properties || 0) - (job.geocoded_count || 0) - (job.failed_count || 0);
         } else if (job.status === "processing") {
@@ -91,8 +94,8 @@ export function useAdminStats(refreshTrigger?: number) {
         }
       });
 
-      const geocodingPercent = totalProperties > 0 
-        ? Math.round((geocodingCompleted / totalProperties) * 100 * 10) / 10
+      const geocodingPercent = (totalLeads || 0) > 0 
+        ? Math.round((geocodingCompleted / (totalLeads || 1)) * 100 * 10) / 10
         : 0;
 
       // Get failed uploads (status = 'FAILED')

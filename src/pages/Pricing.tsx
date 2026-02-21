@@ -109,7 +109,7 @@ export default function Pricing() {
   const { user, signOut } = useAuth();
   const { isOnTrial, trialDaysRemaining, trialExportsRemaining, trialTier } = useTrialStatus();
   const { spotsRemaining: eliteSpotsRemaining, isFull: isEliteFull } = useEliteCapacity();
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+  const billingCycle = "monthly" as const;
   const [trialModalOpen, setTrialModalOpen] = useState(false);
   const [selectedTrialTier, setSelectedTrialTier] = useState('starter');
   const [upgradingTier, setUpgradingTier] = useState<string | null>(null);
@@ -147,15 +147,7 @@ export default function Pricing() {
   const formatPrice = (cents: number) => `$${(cents / 100).toLocaleString()}`;
 
   const getMonthlyPrice = (tier: PricingTier) => {
-    if (billingCycle === "annual") {
-      return formatPrice(Math.round(tier.price_annual_cents_with_discount / 12));
-    }
     return formatPrice(tier.price_monthly_cents);
-  };
-
-  const getSavings = (tier: PricingTier) => {
-    const annualMonthly = tier.price_annual_cents_with_discount / 12;
-    return Math.round(((tier.price_monthly_cents - annualMonthly) / tier.price_monthly_cents) * 100);
   };
 
   // Find the user's current trial tier object
@@ -258,14 +250,7 @@ export default function Pricing() {
               <span className="text-5xl font-bold">{getMonthlyPrice(tier)}</span>
               <span className="text-muted-foreground text-lg">/month</span>
             </div>
-            {billingCycle === "annual" && (
-              <div className="text-sm text-green-600 dark:text-green-400 mt-2 font-medium">
-                Save {getSavings(tier)}% with annual billing
-              </div>
-            )}
-            {billingCycle === "monthly" && (
-              <div className="text-sm text-muted-foreground mt-2">Billed monthly</div>
-            )}
+            <div className="text-sm text-muted-foreground mt-2">Billed monthly</div>
           </div>
         </CardHeader>
 
@@ -381,26 +366,7 @@ export default function Pricing() {
               </p>
             </div>
 
-            {/* Billing toggle inside hero for trial users */}
-            <div className="inline-flex items-center gap-3 p-1 bg-white/10 backdrop-blur-sm rounded-lg mt-8">
-              <Button
-                variant={billingCycle === "monthly" ? "default" : "ghost"}
-                onClick={() => setBillingCycle("monthly")}
-                size="sm"
-                className={billingCycle === "monthly" ? "bg-white/20 text-white hover:bg-white/30" : "text-white/60 hover:text-white hover:bg-white/10"}
-              >
-                Monthly
-              </Button>
-              <Button
-                variant={billingCycle === "annual" ? "default" : "ghost"}
-                onClick={() => setBillingCycle("annual")}
-                size="sm"
-                className={billingCycle === "annual" ? "bg-white/20 text-white hover:bg-white/30" : "text-white/60 hover:text-white hover:bg-white/10"}
-              >
-                Annual
-                <span className="ml-2 text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded">Save 20%</span>
-              </Button>
-            </div>
+            {/* Annual billing coming soon */}
           </div>
         </div>
       )}
@@ -419,24 +385,7 @@ export default function Pricing() {
               Access to 4,520+ cities nationwide (growing weekly)
             </p>
 
-            {/* Billing Toggle */}
-            <div className="inline-flex items-center gap-3 p-1 bg-white dark:bg-slate-800 rounded-lg shadow-sm mt-8">
-              <Button
-                variant={billingCycle === "monthly" ? "default" : "ghost"}
-                onClick={() => setBillingCycle("monthly")}
-                size="sm"
-              >
-                Monthly
-              </Button>
-              <Button
-                variant={billingCycle === "annual" ? "default" : "ghost"}
-                onClick={() => setBillingCycle("annual")}
-                size="sm"
-              >
-                Annual
-                <span className="ml-2 text-xs bg-green-500/20 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">Save 20%</span>
-              </Button>
-            </div>
+            {/* Annual billing coming soon */}
           </div>
         )}
 

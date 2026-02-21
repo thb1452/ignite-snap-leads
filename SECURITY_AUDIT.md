@@ -47,6 +47,7 @@
 | 24 | 🟠 HIGH | Database RPC | `fn_increment_usage` missing `auth.uid()` guard — any user can exhaust another user's monthly quota |
 | 25 | 🟡 MEDIUM | Database RPC | `fn_check_subscription_limit` / `fn_get_user_subscription` accept arbitrary `p_user_id` — subscription plan enumeration |
 | 26 | 🔵 LOW | Database | `clean_leads` SELECT policy `USING (true)` — all authenticated users read admin-uploaded staging leads |
+| 27 | 🟡 MEDIUM | Admin | `adminApi.ts` uses `localStorage.getItem('authToken')` (never set) — admin console broken in prod; insecure pattern for future backend |
 
 ---
 
@@ -986,6 +987,55 @@ If all-user read access is intentional, add a comment clarifying the design deci
 
 ---
 
+## Finding 27 — 🟡 MEDIUM: Admin Console Uses Unimplemented Backend with Insecure Auth Pattern
+
+**File:** `src/services/adminApi.ts:1-10` and `src/pages/AdminConsole.tsx`
+
+### What's wrong
+
+The `/admin-console` route (correctly gated by `RoleProtectedRoute allowedRoles={['admin']}`) calls a completely unimplemented REST backend via `adminApi.ts`:
+
+```typescript
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('authToken');  // ← never set anywhere in the app
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+  };
+};
+```
+
+Every function in `adminApi.ts` is annotated `// Backend endpoint not implemented yet`. Two compounding problems:
+
+1. **In production, all admin console API calls silently fail** — `VITE_API_URL` is not set, so requests go to `http://localhost:3000` which doesn't exist. Admins see an empty/broken dashboard with no error messages.
+
+2. **The auth pattern is insecure for when the backend IS built** — `localStorage.getItem('authToken')` reads a custom token that the app never sets. When someone builds the backend and adds the corresponding `localStorage.setItem('authToken', ...)` call, they will be storing a privileged admin credential in localStorage — accessible to any XSS payload, browser extension, or compromised npm package. The correct pattern for Supabase-backed admin routes is to pass the Supabase session JWT from `supabase.auth.getSession()`, not a separate localStorage token.
+
+### Impact
+
+- **Now:** Admin console is completely broken in production (functional bug, not security bug)
+- **When backend is built:** Admin credentials stored in localStorage are vulnerable to XSS theft, giving an attacker full access to all admin operations (disable users, retry uploads, deactivate jurisdictions)
+
+### Fix
+
+Replace the custom token pattern with the Supabase session JWT:
+
+```typescript
+const getAuthHeaders = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    'Content-Type': 'application/json',
+    ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` }),
+  };
+};
+```
+
+The backend should then verify this JWT using Supabase's JWT secret and confirm the `admin` role via the `user_roles` table before serving any admin response.
+
+---
+
 ## Summary: What Needs Fixing Before Launch
 
 ### Immediate — fix before any real users or data enter the system:
@@ -1010,6 +1060,7 @@ If all-user read access is intentional, add a comment clarifying the design deci
 15. Remove hardcoded Supabase credentials from `externalClient.ts`
 16. Add job ownership validation to `process-upload`
 17. Add path traversal protection to `sanitizeFilename`
+18. Replace `adminApi.ts` localStorage token pattern with Supabase session JWT before building the admin backend
 
 ### Backlog (harden over time):
 

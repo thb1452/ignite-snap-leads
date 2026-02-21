@@ -11,10 +11,38 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // SECURITY: Require valid JWT and admin role
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    // Verify user identity
+    const authClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const userId = claimsData.claims.sub;
+
+    // Check admin role
+    const adminClient = createClient(supabaseUrl, serviceKey);
+    const { data: roleData } = await adminClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (!roleData) {
+      return new Response(JSON.stringify({ error: 'Forbidden: admin role required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     const { cityOrState } = await req.json();
 
@@ -23,11 +51,10 @@ Deno.serve(async (req) => {
     }
 
     const normalized = cityOrState.trim().toUpperCase();
-
-    console.log(`[bulk-delete] Searching for properties in: ${normalized}`);
+    console.log(`[bulk-delete] Admin ${userId} deleting properties in: ${normalized}`);
 
     // Get all property IDs that match
-    const { data: properties, error: fetchError } = await supabaseClient
+    const { data: properties, error: fetchError } = await adminClient
       .from('properties')
       .select('id')
       .or(`city.ilike.${normalized},state.ilike.${normalized}`);
@@ -46,59 +73,21 @@ Deno.serve(async (req) => {
     console.log(`[bulk-delete] Found ${propertyIds.length} properties to delete`);
 
     // Delete all related data in order
-    
-    // 1. Delete violations
-    const { error: violationsError } = await supabaseClient
-      .from('violations')
-      .delete()
-      .in('property_id', propertyIds);
+    const tables = [
+      { table: 'violations', col: 'property_id' },
+      { table: 'property_contacts', col: 'property_id' },
+      { table: 'list_properties', col: 'property_id' },
+      { table: 'lead_activity', col: 'property_id' },
+      { table: 'upload_staging', col: 'property_id' },
+    ];
 
-    if (violationsError) {
-      console.error('[bulk-delete] Violations delete error:', violationsError);
+    for (const { table, col } of tables) {
+      const { error } = await adminClient.from(table).delete().in(col, propertyIds);
+      if (error) console.error(`[bulk-delete] ${table} delete error:`, error);
     }
 
-    // 2. Delete property contacts
-    const { error: contactsError } = await supabaseClient
-      .from('property_contacts')
-      .delete()
-      .in('property_id', propertyIds);
-
-    if (contactsError) {
-      console.error('[bulk-delete] Contacts delete error:', contactsError);
-    }
-
-    // 3. Delete list_properties relationships
-    const { error: listPropsError } = await supabaseClient
-      .from('list_properties')
-      .delete()
-      .in('property_id', propertyIds);
-
-    if (listPropsError) {
-      console.error('[bulk-delete] List properties delete error:', listPropsError);
-    }
-
-    // 4. Delete lead_activity
-    const { error: activityError } = await supabaseClient
-      .from('lead_activity')
-      .delete()
-      .in('property_id', propertyIds);
-
-    if (activityError) {
-      console.error('[bulk-delete] Activity delete error:', activityError);
-    }
-
-    // 5. Delete upload_staging
-    const { error: stagingError } = await supabaseClient
-      .from('upload_staging')
-      .delete()
-      .in('property_id', propertyIds);
-
-    if (stagingError) {
-      console.error('[bulk-delete] Staging delete error:', stagingError);
-    }
-
-    // 6. Finally, delete properties
-    const { error: propertiesError } = await supabaseClient
+    // Finally, delete properties
+    const { error: propertiesError } = await adminClient
       .from('properties')
       .delete()
       .in('id', propertyIds);

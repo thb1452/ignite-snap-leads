@@ -207,7 +207,7 @@ export default function Pricing() {
       return;
     }
     if (tier.name === 'enterprise' && isEliteFull) {
-      window.location.href = 'mailto:support@snapignite.com?subject=Elite%20Waitlist&body=I%20would%20like%20to%20join%20the%20Elite%20tier%20waitlist.';
+      window.location.href = 'mailto:hello@snapignite.com?subject=Elite%20Waitlist&body=I%20would%20like%20to%20join%20the%20Elite%20tier%20waitlist.';
       return;
     }
     if (isOnTrial) {
@@ -581,7 +581,7 @@ export default function Pricing() {
         {/* CTA */}
         <div className="text-center mt-16">
           <p className="text-muted-foreground mb-4">
-            Questions? Email us at <a href="mailto:support@snapignite.com" className="text-blue-600 dark:text-blue-400 hover:underline">support@snapignite.com</a>
+            Questions? Email us at <a href="mailto:hello@snapignite.com" className="text-blue-600 dark:text-blue-400 hover:underline">hello@snapignite.com</a>
           </p>
         </div>
       </div>

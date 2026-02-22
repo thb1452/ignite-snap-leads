@@ -204,7 +204,7 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
                   className="gap-2"
                   asChild
                 >
-                  <a href="mailto:support@snapignite.com?subject=Billing%20Support">
+                  <a href="mailto:hello@snapignite.com?subject=Billing%20Support">
                     <Mail className="h-4 w-4" />
                     Contact Support to Manage Billing
                   </a>

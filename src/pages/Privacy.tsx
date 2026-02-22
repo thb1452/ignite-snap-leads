@@ -123,8 +123,8 @@ export default function Privacy() {
             <h2 className="text-2xl font-semibold text-foreground mb-4">Contact Us</h2>
             <p className="text-muted-foreground">
               <strong>Email:</strong>{" "}
-              <a href="mailto:support@snapignite.com" className="text-primary hover:underline">
-                support@snapignite.com
+              <a href="mailto:hello@snapignite.com" className="text-primary hover:underline">
+                hello@snapignite.com
               </a>
             </p>
             <p className="text-muted-foreground">
@@ -140,7 +140,7 @@ export default function Privacy() {
           <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground mb-4">
             <Link to="/privacy" className="hover:text-foreground transition">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-foreground transition">Terms of Service</Link>
-            <a href="mailto:support@snapignite.com" className="hover:text-foreground transition">Contact</a>
+            <a href="mailto:hello@snapignite.com" className="hover:text-foreground transition">Contact</a>
           </div>
           <p className="text-center text-sm text-muted-foreground">
             © {new Date().getFullYear()} Snap Intelligence LLC. All rights reserved.

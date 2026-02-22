@@ -22,7 +22,7 @@ export default function Blog() {
             Deep dives into municipal enforcement trends, county coverage updates, and practical intelligence for real estate operators will be published here.
           </p>
           <div className="mt-8">
-            <a href="mailto:support@snapignite.com">
+            <a href="mailto:hello@snapignite.com">
               <Button variant="outline">Get notified when we publish</Button>
             </a>
           </div>
@@ -33,7 +33,7 @@ export default function Blog() {
             <Link to="/about" className="hover:text-foreground transition">About</Link>
             <Link to="/privacy" className="hover:text-foreground transition">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-foreground transition">Terms of Service</Link>
-            <a href="mailto:support@snapignite.com" className="hover:text-foreground transition">Contact</a>
+            <a href="mailto:hello@snapignite.com" className="hover:text-foreground transition">Contact</a>
           </div>
           <p className="text-center text-sm text-muted-foreground">
             © {new Date().getFullYear()} Snap Intelligence LLC. All rights reserved.

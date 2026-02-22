@@ -246,7 +246,7 @@ export function SubscriptionSettings() {
                     className="gap-2 self-start sm:self-center flex-shrink-0"
                     asChild
                   >
-                    <a href="mailto:support@snapignite.com?subject=Billing%20Support">
+                    <a href="mailto:hello@snapignite.com?subject=Billing%20Support">
                       <Mail className="h-4 w-4" />
                       Contact Support
                     </a>
@@ -355,7 +355,7 @@ export function SubscriptionSettings() {
             </h3>
             <p className="text-ink-600 text-sm">
               You have access to all features and maximum limits. Need custom solutions?{" "}
-              <a href="mailto:support@snapignite.com" className="text-brand underline">
+              <a href="mailto:hello@snapignite.com" className="text-brand underline">
                 Contact us
               </a>
             </p>

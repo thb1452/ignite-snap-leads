@@ -1192,7 +1192,7 @@ export default function Landing() {
               transition={{ delay: 0.4 }}
               className="text-landing-text-muted mt-6"
             >
-              Questions? Email us at <a href="mailto:support@snapignite.com" className="text-landing-accent hover:underline">support@snapignite.com</a>
+              Questions? Email us at <a href="mailto:hello@snapignite.com" className="text-landing-accent hover:underline">hello@snapignite.com</a>
             </motion.p>
           </div>
         </div>
@@ -1225,7 +1225,7 @@ export default function Landing() {
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-landing-text-muted">
               <li><a href="/about" className="hover:text-landing-text transition">About</a></li>
-                <li><a href="mailto:support@snapignite.com" className="hover:text-landing-text transition">Contact</a></li>
+                <li><a href="mailto:hello@snapignite.com" className="hover:text-landing-text transition">Contact</a></li>
                 <li><a href="/blog" className="hover:text-landing-text transition">Blog</a></li>
               </ul>
             </div>

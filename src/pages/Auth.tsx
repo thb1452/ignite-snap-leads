@@ -64,8 +64,10 @@ export default function Auth() {
     }
   }, [loading, loadingTimedOut]);
 
+  // Redirect effect — runs when user/loading change
   useEffect(() => {
-    if (loading) return;
+    // Allow redirect even if loading hasn't resolved yet, as long as we have a user
+    // This fixes mobile race conditions where onAuthStateChange sets user before initializeAuth finishes
     if (!user) return;
 
     const isFromPricing = mode === 'signup' && selectedPlan;
@@ -82,11 +84,9 @@ export default function Auth() {
     }
 
     // Not from pricing: redirect to dashboard immediately upon sign-in.
-    // Don't wait for wasLoggedInOnMount (async race condition on mobile).
-    // If user is already on /auth and logged in, just send them to the dashboard.
     if (!hasRedirected.current) {
       hasRedirected.current = true;
-      console.log('[Auth] User authenticated, redirecting to dashboard. Roles:', roles);
+      console.log('[Auth] User authenticated, redirecting to dashboard. Roles:', roles, 'Loading:', loading);
       if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
         navigate('/va-dashboard', { replace: true });
       } else {

@@ -64,10 +64,16 @@ export default function Auth() {
     }
   }, [loading, loadingTimedOut]);
 
+  // Reset redirect flag when user becomes null (e.g., stale session expired)
+  // This ensures a fresh sign-in can still trigger the redirect
+  useEffect(() => {
+    if (!user) {
+      hasRedirected.current = false;
+    }
+  }, [user]);
+
   // Redirect effect — runs when user/loading change
   useEffect(() => {
-    // Allow redirect even if loading hasn't resolved yet, as long as we have a user
-    // This fixes mobile race conditions where onAuthStateChange sets user before initializeAuth finishes
     if (!user) return;
 
     const isFromPricing = mode === 'signup' && selectedPlan;

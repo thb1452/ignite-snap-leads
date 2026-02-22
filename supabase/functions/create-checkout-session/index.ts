@@ -96,18 +96,58 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // ---- Get Plan from DB for metadata ----
     const { data: plan } = await supabase
       .from("subscription_plans")
-      .select("id, display_name")
+      .select("id, display_name, name")
       .eq("name", dbTierName)
       .single();
 
     // ---- Get or Create Stripe Customer ----
     const { data: existingSubscription } = await supabase
       .from("user_subscriptions")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id, stripe_subscription_id, status, plan_id")
       .eq("user_id", user.id)
+      .in("status", ["active", "trialing", "trial"])
       .maybeSingle();
 
     let customerId = existingSubscription?.stripe_customer_id;
+
+    // ---- If user already has a trialing subscription for the SAME plan, end trial now ----
+    if (
+      existingSubscription?.stripe_subscription_id &&
+      (existingSubscription.status === "trialing" || existingSubscription.status === "trial") &&
+      plan?.id &&
+      existingSubscription.plan_id === plan.id
+    ) {
+      console.log("[checkout] User already trialing same plan, ending trial now:", existingSubscription.stripe_subscription_id);
+      try {
+        const updated = await stripe.subscriptions.update(existingSubscription.stripe_subscription_id, {
+          trial_end: "now",
+        });
+        console.log("[checkout] Trial ended, subscription status:", updated.status);
+
+        // Update DB record immediately
+        await supabase
+          .from("user_subscriptions")
+          .update({
+            status: "active",
+            trial_exports_used: 0,
+            current_period_start: new Date(updated.current_period_start * 1000).toISOString(),
+            current_period_end: new Date(updated.current_period_end * 1000).toISOString(),
+          })
+          .eq("stripe_subscription_id", existingSubscription.stripe_subscription_id);
+
+        return new Response(
+          JSON.stringify({
+            upgraded: true,
+            message: "Trial converted to active subscription",
+            redirect_url: `${appUrl}/checkout/success`,
+          }),
+          { headers }
+        );
+      } catch (stripeErr: any) {
+        console.error("[checkout] Failed to end trial:", stripeErr.message);
+        // Fall through to create new checkout session
+      }
+    }
 
     if (!customerId) {
       const customer = await stripe.customers.create({

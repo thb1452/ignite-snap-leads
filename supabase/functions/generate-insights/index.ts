@@ -113,9 +113,10 @@ async function generateAIInsight(
     const openCount = intelligence.open_violations;
     const totalCount = intelligence.total_violations;
 
-    const violationSummary = violations.slice(0, 8).map(v =>
-      `- Type: ${v.violation_type || 'Unknown'} | Status: ${v.status || 'Unknown'} | Days open: ${v.days_open ?? 'N/A'}`
-    ).join('\n');
+    const violationSummary = violations.slice(0, 8).map(v => {
+      const desc = v.raw_description ? ` | Description: ${v.raw_description.slice(0, 120)}` : '';
+      return `- Type: ${v.violation_type || 'Unknown'} | Status: ${v.status || 'Unknown'} | Days open: ${v.days_open ?? 'N/A'}${desc}`;
+    }).join('\n');
 
     const isWaterShutoff = property.enforcement_type === 'water_shutoff';
 
@@ -124,7 +125,7 @@ async function generateAIInsight(
 STRICT RULES:
 1. Write from the perspective of a neutral municipal enforcement data analyst — NOT a real estate investor.
 2. NEVER use words like: investor, acquisition, opportunity, distress, motivated, deal, profit, upside, buy, purchase, wholesale, flip, value-add, discounted, negotiation leverage, below market, negotiate, motivated seller, financial hardship, financial distress.
-3. Focus ONLY on: what enforcement actions municipalities have taken, how recent they are, and what that signals about ongoing oversight activity.${isWaterShutoff ? ' This property has a confirmed water service disconnection — frame it as an ACTIVE MUNICIPAL ENFORCEMENT ACTION.' : ' This property does NOT have a water disconnection — do NOT mention water service disconnection or water shutoff in your response.'}
+3. Focus ONLY on: what enforcement actions municipalities have taken, how recent they are, and what that signals about ongoing oversight activity. USE the violation descriptions provided to write specific, grounded insights — reference the actual violation types and details rather than generic statements.${isWaterShutoff ? ' This property has a confirmed water service disconnection — frame it as an ACTIVE MUNICIPAL ENFORCEMENT ACTION.' : ' This property does NOT have a water disconnection — do NOT mention water service disconnection or water shutoff in your response.'}
 4. Keep the summary to 1–3 sentences, max 260 characters.
 5. Write in third-person, factual, neutral tone.
 6. ${isWaterShutoff ? 'Example of GOOD output: "Water service disconnected by municipal authority — a formal enforcement action requiring administrative process. Concurrent open code violations indicate coordinated multi-agency oversight."' : 'Example of GOOD output: "Multiple code violations documented with enforcement actions across several categories. Open citations spanning 180+ days indicate sustained municipal oversight."'}

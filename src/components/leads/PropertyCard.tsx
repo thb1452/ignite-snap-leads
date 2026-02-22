@@ -102,14 +102,22 @@ export function PropertyCard({
               </Badge>
             ) : null}
 
-            {property.violation_types && property.violation_types.slice(0, 2).map((vt, i) => (
-              <Badge key={i} variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-orange-50 text-orange-700 border-orange-200 gap-0.5">
-                <Flame className="h-3 w-3" />
-                {formatViolationType(vt)}
+            {property.enforcement_type === 'water_shutoff' ? (
+              <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-cyan-50 text-cyan-700 border-cyan-200 gap-0.5">
+                💧 Water Disconnection
               </Badge>
-            ))}
-            {extraTypes > 0 && (
-              <span className="text-[11px] text-muted-foreground">+{extraTypes}</span>
+            ) : (
+              <>
+                {property.violation_types && property.violation_types.filter(v => v !== 'Unknown').slice(0, 2).map((vt, i) => (
+                  <Badge key={i} variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-orange-50 text-orange-700 border-orange-200 gap-0.5">
+                    <Flame className="h-3 w-3" />
+                    {formatViolationType(vt)}
+                  </Badge>
+                ))}
+                {extraTypes > 0 && (
+                  <span className="text-[11px] text-muted-foreground">+{extraTypes}</span>
+                )}
+              </>
             )}
           </div>
 

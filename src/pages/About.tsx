@@ -44,7 +44,7 @@ export default function About() {
           <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground mb-4">
             <Link to="/privacy" className="hover:text-foreground transition">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-foreground transition">Terms of Service</Link>
-            <a href="mailto:support@snapignite.com" className="hover:text-foreground transition">Contact</a>
+            <a href="mailto:hello@snapignite.com" className="hover:text-foreground transition">Contact</a>
           </div>
           <p className="text-center text-sm text-muted-foreground">
             © {new Date().getFullYear()} Snap Intelligence LLC. All rights reserved.

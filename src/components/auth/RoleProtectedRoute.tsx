@@ -293,8 +293,8 @@ export function RoleProtectedRoute({
           </button>
           <p className="text-xs text-muted-foreground">
             If this persists, please contact{' '}
-            <a href="mailto:support@snapignite.com" className="text-primary hover:underline">
-              support@snapignite.com
+            <a href="mailto:hello@snapignite.com" className="text-primary hover:underline">
+              hello@snapignite.com
             </a>
           </p>
         </div>

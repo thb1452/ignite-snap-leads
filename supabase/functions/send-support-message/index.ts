@@ -57,7 +57,7 @@ serve(async (req) => {
     const resend = await getResend();
     await resend.emails.send({
       from: "Snap Ignite <noreply@snapignite.com>",
-      to: ["support@snapignite.com"],
+      to: ["hello@snapignite.com"],
       replyTo: email,
       subject: `[${requestType}] from ${fullName}`,
       html: `

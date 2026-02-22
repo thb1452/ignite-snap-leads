@@ -103,14 +103,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // ---- Get or Create Stripe Customer ----
     const { data: existingSubscription } = await supabase
       .from("user_subscriptions")
-      .select("stripe_customer_id, stripe_subscription_id, status, plan_id")
+      .select("id, stripe_customer_id, stripe_subscription_id, status, plan_id")
       .eq("user_id", user.id)
       .in("status", ["active", "trialing", "trial"])
       .maybeSingle();
 
     let customerId = existingSubscription?.stripe_customer_id;
 
-    // ---- If user already has a trialing subscription for the SAME plan, end trial now ----
+    // ---- If user already has a Stripe trialing subscription for the SAME plan, end trial now ----
     if (
       existingSubscription?.stripe_subscription_id &&
       (existingSubscription.status === "trialing" || existingSubscription.status === "trial") &&
@@ -149,13 +149,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    // ---- For internal trials (no stripe_subscription_id), cancel the old record so
+    //      the webhook can cleanly insert the new subscription after checkout ----
+    if (
+      existingSubscription &&
+      !existingSubscription.stripe_subscription_id &&
+      (existingSubscription.status === "trial" || existingSubscription.status === "trialing")
+    ) {
+      console.log("[checkout] Cancelling internal trial record:", existingSubscription.id);
+      await supabase
+        .from("user_subscriptions")
+        .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+        .eq("id", existingSubscription.id);
+    }
+
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: { supabase_user_id: user.id },
-      });
-      customerId = customer.id;
-      console.log("[checkout] Created Stripe customer:", customerId);
+      // Check if a Stripe customer already exists by email before creating a new one
+      const existingCustomers = await stripe.customers.list({ email: user.email, limit: 1 });
+      if (existingCustomers.data.length > 0) {
+        customerId = existingCustomers.data[0].id;
+        console.log("[checkout] Found existing Stripe customer:", customerId);
+      } else {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: { supabase_user_id: user.id },
+        });
+        customerId = customer.id;
+        console.log("[checkout] Created Stripe customer:", customerId);
+      }
     }
 
     // ---- Create Checkout Session with real Stripe Price ----

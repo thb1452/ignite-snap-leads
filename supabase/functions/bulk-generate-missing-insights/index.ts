@@ -185,12 +185,14 @@ serve(async (req) => {
     console.log(`[bulk-missing] Progress: ${Math.min(100, progress)}% (${Math.min(nextOffset, totalMissing || 0)}/${totalMissing})`);
 
     // Auto-continue if enabled and not complete - use waitUntil for reliability
-    if (!isComplete && !dryRun && autoResume) {
-      const selfUrl = `${SUPABASE_URL}/functions/v1/bulk-generate-missing-insights`;
-      
-      // Use EdgeRuntime.waitUntil to ensure the self-invoke completes before shutdown
+    // When current tier is complete AND cascadeDown is true, drop to next score tier
+    // cascadeDown is always true by default — cascade through score tiers
+    
+    const selfUrl = `${SUPABASE_URL}/functions/v1/bulk-generate-missing-insights`;
+    
+    const scheduleNext = (payload: Record<string, unknown>) => {
       const triggerNext = async () => {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
         try {
           const res = await fetch(selfUrl, {
             method: 'POST',
@@ -199,24 +201,39 @@ serve(async (req) => {
               'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               'x-internal-secret': SUPABASE_SERVICE_ROLE_KEY,
             },
-            body: JSON.stringify({ offset: nextOffset, autoResume, forceRefresh, minScore, sinceDays, enforcementType }),
+            body: JSON.stringify(payload),
           });
           console.log(`[bulk-missing] Next batch triggered, status: ${res.status}`);
         } catch (err) {
           console.error('[bulk-missing] Failed to trigger next batch:', err);
         }
       };
-      
       // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
       if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
         // @ts-ignore
         EdgeRuntime.waitUntil(triggerNext());
       } else {
-        // Fallback for local dev
         triggerNext().catch(console.error);
       }
-      
+    };
+
+    if (!isComplete && !dryRun && autoResume) {
+      scheduleNext({ offset: nextOffset, autoResume, forceRefresh, minScore, sinceDays, enforcementType });
       console.log(`[bulk-missing] Scheduled next batch at offset ${nextOffset}`);
+    } else if (isComplete && !dryRun && autoResume && forceRefresh && minScore > 0) {
+      // Cascade down to the next score tier
+      const SCORE_TIERS = [50, 30, 10, 0];
+      const currentTierIndex = SCORE_TIERS.indexOf(minScore);
+      const nextTier = currentTierIndex >= 0 && currentTierIndex < SCORE_TIERS.length - 1
+        ? SCORE_TIERS[currentTierIndex + 1]
+        : null;
+      
+      if (nextTier !== null) {
+        console.log(`[bulk-missing] ✅ Tier score>=${minScore} COMPLETE! Cascading down to score>=${nextTier}`);
+        scheduleNext({ offset: 0, autoResume, forceRefresh, minScore: nextTier, sinceDays, enforcementType });
+      } else {
+        console.log(`[bulk-missing] 🎉 ALL TIERS COMPLETE! Every property has been processed.`);
+      }
     }
 
     return new Response(

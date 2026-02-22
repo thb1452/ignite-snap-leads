@@ -27,7 +27,7 @@ interface PricingTier {
   name: string;
   display_name: string;
   price_monthly_cents: number;
-  price_annual_cents_with_discount: number;
+  
   description: string;
   features: string[];
   notIncluded?: string[];
@@ -41,7 +41,7 @@ const PRICING_TIERS: PricingTier[] = [
     name: 'starter',
     display_name: 'Starter',
     price_monthly_cents: 7900,
-    price_annual_cents_with_discount: 76000,
+    
     description: 'For investors who want premium enforcement targeting',
     features: [
       '5,000 monthly exports',
@@ -59,7 +59,7 @@ const PRICING_TIERS: PricingTier[] = [
     name: 'professional',
     display_name: 'Pro',
     price_monthly_cents: 14900,
-    price_annual_cents_with_discount: 143000,
+    
     description: 'For serious operators stacking enforcement data',
     features: [
       '15,000 monthly exports',
@@ -77,7 +77,7 @@ const PRICING_TIERS: PricingTier[] = [
     name: 'enterprise',
     display_name: 'Elite',
     price_monthly_cents: 29900,
-    price_annual_cents_with_discount: 287000,
+    
     description: 'For teams running enforcement-first strategies. Limited to 500 members.',
     features: [
       '25,000 monthly exports',
@@ -366,7 +366,6 @@ export default function Pricing() {
               </p>
             </div>
 
-            {/* Annual billing coming soon */}
           </div>
         </div>
       )}
@@ -384,8 +383,6 @@ export default function Pricing() {
             <p className="text-sm text-muted-foreground">
               Access to 4,520+ cities nationwide (growing weekly)
             </p>
-
-            {/* Annual billing coming soon */}
           </div>
         )}
 

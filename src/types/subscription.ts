@@ -30,7 +30,6 @@ export interface SubscriptionPlan {
   display_name: string;
   description: string | null;
   price_monthly_cents: number;
-  price_annual_cents: number;
   max_monthly_exports: number;
   max_counties: number;
   max_user_seats: number;

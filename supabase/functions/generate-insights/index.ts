@@ -488,7 +488,7 @@ function calculateEnforcementIntensity(
   }
   score += Math.min(mediumPriorityCount * 15, 30);
   
-  // Repeat Activity
+  // Repeat Activity & Volume
   if (intelligence.repeat_offender) {
     if (violations.length >= 5) {
       score += 25;
@@ -500,6 +500,15 @@ function calculateEnforcementIntensity(
   } else if (violations.length >= 2) {
     score += 5;
     signals.push('multiple_citations');
+  }
+
+  // Open Violation Volume Bonus (rewards active enforcement load)
+  if (openViolations.length >= 5) {
+    score += 15;
+    signals.push('high_violation_volume');
+  } else if (openViolations.length >= 3) {
+    score += 10;
+    signals.push('active_enforcement_load');
   }
   
   // Multi-Agency
@@ -660,6 +669,19 @@ function classifyViolation(violation: Violation): ViolationWithPriority {
   if (combined.includes('plumbing') || combined.includes('electrical') ||
       combined.includes('sewage') || combined.includes('hvac')) {
     return { category: 'Utility', priority: 'medium', original: violation };
+  }
+  
+  // MEDIUM PRIORITY — Zoning & Regulatory
+  if (combined.includes('zoning') || combined.includes('zone violation') ||
+      combined.includes('land use') || combined.includes('code enforcement') ||
+      combined.includes('unpermitted') || combined.includes('without permit') ||
+      combined.includes('permit violation') || combined.includes('illegal construction')) {
+    return { category: 'Zoning', priority: 'medium', original: violation };
+  }
+
+  if (combined.includes('property maintenance') || combined.includes('property inspection') ||
+      combined.includes('code compliance') || combined.includes('nuisance')) {
+    return { category: 'Maintenance', priority: 'medium', original: violation };
   }
   
   // LOW PRIORITY

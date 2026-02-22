@@ -221,6 +221,7 @@ serve(async (req) => {
         city,
         snap_score,
         jurisdiction_id,
+        enforcement_type,
         violations (
           id,
           violation_type,
@@ -263,6 +264,11 @@ serve(async (req) => {
     // Process each property
     for (const property of properties) {
       const violations = (property.violations || []) as Violation[];
+      
+      // Tag violations array with property-level enforcement_type for water shutoff detection
+      if ((property as any).enforcement_type === 'water_shutoff') {
+        (violations as any).__enforcement_type = 'water_shutoff';
+      }
       
       // Aggregate property intelligence
       const intelligence = aggregatePropertyIntelligence(violations);
@@ -556,12 +562,15 @@ function calculateEnforcementIntensity(
 
   // ── Water Shutoff Enforcement Scoring (tiered) ──
   // Water shutoff = direct municipal action, not just a notice
-  const hasWaterShutoff = classified.some(v => {
-    const combined = `${(v.original.violation_type || '').toLowerCase()} ${(v.original.raw_description || '').toLowerCase()}`;
-    return combined.includes('water shutoff') || combined.includes('water disconnect') ||
-           combined.includes('no water') || combined.includes('water termination') ||
-           combined.includes('water service disconnect');
-  }) || (violations as any).__enforcement_type === 'water_shutoff';
+  // Check property-level enforcement_type tag first (set during upload),
+  // then fall back to violation text scanning
+  const hasWaterShutoff = (violations as any).__enforcement_type === 'water_shutoff' ||
+    classified.some(v => {
+      const combined = `${(v.original.violation_type || '').toLowerCase()} ${(v.original.raw_description || '').toLowerCase()}`;
+      return combined.includes('water shutoff') || combined.includes('water disconnect') ||
+             combined.includes('no water') || combined.includes('water termination') ||
+             combined.includes('water service disconnect');
+    });
   
   const hasOpenCodeViolations = openClassified.filter(v => v.category !== 'Utility').length > 0;
   

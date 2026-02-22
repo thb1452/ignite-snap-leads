@@ -56,7 +56,7 @@ serve(async (req) => {
       }
     }
 
-    const { offset = 0, dryRun = false, autoResume = true, forceRefresh = false, minScore = 0, sinceDays = 0 } = await req.json().catch(() => ({}));
+    const { offset = 0, dryRun = false, autoResume = true, forceRefresh = false, minScore = 0, sinceDays = 0, enforcementType = '' } = await req.json().catch(() => ({}));
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -64,18 +64,27 @@ serve(async (req) => {
     let countQuery = supabase.from("properties").select("id", { count: "exact", head: true });
     let fetchQuery = supabase.from("properties").select("id, snap_score");
 
+    // Filter by enforcement_type if specified (e.g., 'water_shutoff')
+    if (enforcementType) {
+      countQuery = countQuery.eq("enforcement_type", enforcementType);
+      fetchQuery = fetchQuery.eq("enforcement_type", enforcementType);
+      console.log(`[bulk-missing] ENFORCEMENT TYPE filter: ${enforcementType}`);
+    }
+
     if (sinceDays > 0) {
       // Target only recent properties created within the last N days, score >= 50 for AI
       const since = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000).toISOString();
       countQuery = countQuery.gte("created_at", since).gte("snap_score", minScore > 0 ? minScore : 50);
       fetchQuery = fetchQuery.gte("created_at", since).gte("snap_score", minScore > 0 ? minScore : 50);
       console.log(`[bulk-missing] RECENT mode: last ${sinceDays} days, score >= ${minScore > 0 ? minScore : 50}`);
-    } else if (forceRefresh && minScore > 0) {
-      // Re-generate insights for all properties >= minScore (even if already set)
-      countQuery = countQuery.gte("snap_score", minScore);
-      fetchQuery = fetchQuery.gte("snap_score", minScore);
-      console.log(`[bulk-missing] FORCE REFRESH mode: score >= ${minScore}`);
-    } else {
+    } else if (forceRefresh && (minScore > 0 || enforcementType)) {
+      // Re-generate insights for matching properties (even if already set)
+      if (minScore > 0) {
+        countQuery = countQuery.gte("snap_score", minScore);
+        fetchQuery = fetchQuery.gte("snap_score", minScore);
+      }
+      console.log(`[bulk-missing] FORCE REFRESH mode${minScore > 0 ? `: score >= ${minScore}` : ''}${enforcementType ? ` enforcement_type=${enforcementType}` : ''}`);
+    } else if (!enforcementType) {
       // Default: only properties missing insights
       countQuery = countQuery.is("snap_insight", null);
       fetchQuery = fetchQuery.is("snap_insight", null);
@@ -190,7 +199,7 @@ serve(async (req) => {
               'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               'x-internal-secret': SUPABASE_SERVICE_ROLE_KEY,
             },
-            body: JSON.stringify({ offset: nextOffset, autoResume, forceRefresh, minScore, sinceDays }),
+            body: JSON.stringify({ offset: nextOffset, autoResume, forceRefresh, minScore, sinceDays, enforcementType }),
           });
           console.log(`[bulk-missing] Next batch triggered, status: ${res.status}`);
         } catch (err) {

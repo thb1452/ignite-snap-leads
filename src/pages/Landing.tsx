@@ -206,7 +206,7 @@ function ShowcaseCarousel() {
 }
 
 export default function Landing() {
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const billingCycle = 'monthly' as const;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [trialModalOpen, setTrialModalOpen] = useState(false);
   const [selectedTrialTier, setSelectedTrialTier] = useState('starter');
@@ -217,9 +217,9 @@ export default function Landing() {
   };
 
   const pricing = {
-    starter: { monthly: 79, annual: 63 },
-    professional: { monthly: 149, annual: 119 },
-    enterprise: { monthly: 299, annual: 239 },
+    starter: { monthly: 79 },
+    professional: { monthly: 149 },
+    enterprise: { monthly: 299 },
   };
 
   const scrollToSection = (id: string) => {
@@ -753,7 +753,7 @@ export default function Landing() {
             viewport={{ once: true }}
             className="text-center text-landing-text-muted mt-12 max-w-2xl mx-auto"
           >
-            Still not sure? Our Starter plan at $79/month gives you enforcement intelligence without the noise. No annual commitment required.
+            Still not sure? Our Starter plan at $79/month gives you enforcement intelligence without the noise. Cancel anytime.
           </motion.p>
         </div>
       </section>
@@ -780,38 +780,6 @@ export default function Landing() {
               No hidden fees. No per-record charges. No surprises.
             </motion.p>
             
-            {/* Billing Toggle */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-4 p-1 bg-landing-surface rounded-lg"
-            >
-              <button
-                onClick={() => setBillingCycle('monthly')}
-                className={`px-4 py-2 rounded-md transition ${
-                  billingCycle === 'monthly' 
-                    ? 'bg-landing-accent text-landing-bg' 
-                    : 'text-landing-text-muted hover:text-landing-text'
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setBillingCycle('annual')}
-                className={`px-4 py-2 rounded-md transition flex items-center gap-2 ${
-                  billingCycle === 'annual' 
-                    ? 'bg-landing-accent text-landing-bg' 
-                    : 'text-landing-text-muted hover:text-landing-text'
-                }`}
-              >
-                Annual
-                <span className="text-xs px-2 py-0.5 rounded-full bg-landing-success/20 text-landing-success">
-                  Save 20%
-                </span>
-              </button>
-            </motion.div>
           </div>
           
           {/* Pricing Cards */}
@@ -886,9 +854,6 @@ export default function Landing() {
                     <span className="text-4xl font-bold">${plan.price}</span>
                     <span className="text-landing-text-muted">/month</span>
                   </div>
-                  {billingCycle === 'annual' && (
-                    <p className="text-sm text-landing-text-muted">billed annually</p>
-                  )}
                   <p className="text-landing-text-muted mt-2">{plan.description}</p>
                   {(plan as any).isElite && (
                     <div className="mt-3">
@@ -1138,7 +1103,7 @@ export default function Landing() {
                 },
                 {
                   question: "Can I cancel anytime?",
-                  answer: "Monthly plans can be cancelled anytime—no long-term commitment required. Annual plans are billed upfront for the full year at a 20% discount. We don't do contracts or cancellation fees."
+                  answer: "Yes — all plans are month-to-month and can be cancelled anytime. No contracts, no cancellation fees."
                 },
                 {
                   question: "Is there a free trial?",

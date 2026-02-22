@@ -139,7 +139,6 @@ export function useSubscription() {
     display_name: subscription.display_name,
     description: null,
     price_monthly_cents: 0,
-    price_annual_cents: 0,
     max_monthly_exports: subscription.max_monthly_exports,
     max_counties: subscription.max_counties,
     max_user_seats: subscription.max_user_seats,

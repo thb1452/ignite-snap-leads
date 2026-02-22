@@ -66,6 +66,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // Normalize tier name: "elite" maps to "enterprise" in DB
+    const TIER_ALIAS: Record<string, string> = { elite: "enterprise" };
+    const dbTierName = TIER_ALIAS[tier_name.toLowerCase()] || tier_name.toLowerCase();
+
     if (!["monthly", "annual"].includes(billing_cycle)) {
       return new Response(
         JSON.stringify({ error: "billing_cycle must be 'monthly' or 'annual'" }),
@@ -93,7 +97,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const { data: plan } = await supabase
       .from("subscription_plans")
       .select("id, display_name")
-      .eq("name", tier_name)
+      .eq("name", dbTierName)
       .single();
 
     // ---- Get or Create Stripe Customer ----

@@ -2135,6 +2135,10 @@ export type Database = {
         Args: { p_batch_size?: number; p_city: string; p_state: string }
         Returns: Json
       }
+      fn_backfill_zips_by_city_mode: {
+        Args: { p_city: string; p_state: string }
+        Returns: number
+      }
       fn_backfill_zips_nearest_neighbor: {
         Args: { p_batch_size?: number; p_city?: string; p_state?: string }
         Returns: Json

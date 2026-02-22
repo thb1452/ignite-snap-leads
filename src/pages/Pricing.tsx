@@ -128,6 +128,14 @@ export default function Pricing() {
         body: { tier_name: tierName, billing_cycle: billingCycle },
       });
       if (error) throw error;
+
+      // If trial was converted directly (no new checkout needed)
+      if (data?.upgraded) {
+        toast({ title: 'Subscription activated!', description: 'Your plan is now active.' });
+        window.location.assign(data.redirect_url || '/leads?checkout=success');
+        return;
+      }
+
       if (data?.url) {
         window.location.assign(data.url);
       } else {

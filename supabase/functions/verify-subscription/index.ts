@@ -105,14 +105,32 @@ Deno.serve(async (req: Request): Promise<Response> => {
         let planName: string | null = null;
 
         if (planId) {
-          const { data: planData } = await supabase
-            .from("subscription_plans")
-            .select("id, name")
-            .eq("id", planId)
-            .maybeSingle();
-          if (planData) {
-            dbPlanId = planData.id;
-            planName = planData.name;
+          // Check if planId is a UUID or a tier name
+          const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (UUID_RE.test(planId)) {
+            const { data: planData } = await supabase
+              .from("subscription_plans")
+              .select("id, name")
+              .eq("id", planId)
+              .maybeSingle();
+            if (planData) {
+              dbPlanId = planData.id;
+              planName = planData.name;
+            }
+          } else {
+            // planId is a tier name like "elite" — resolve it
+            const TIER_ALIAS: Record<string, string> = { elite: "enterprise" };
+            const lookupName = TIER_ALIAS[planId.toLowerCase()] || planId.toLowerCase();
+            const { data: planData } = await supabase
+              .from("subscription_plans")
+              .select("id, name")
+              .eq("name", lookupName)
+              .maybeSingle();
+            if (planData) {
+              dbPlanId = planData.id;
+              planName = planData.name;
+              console.log("[verify-subscription] Resolved plan from name:", planId, "→", planData.id);
+            }
           }
         }
 

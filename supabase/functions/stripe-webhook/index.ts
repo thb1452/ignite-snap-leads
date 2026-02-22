@@ -130,7 +130,7 @@ async function handleCheckoutCompleted(
   console.log("[webhook] Checkout completed:", session.id);
 
   const userId = session.metadata?.user_id;
-  const planId = session.metadata?.plan_id;
+  let planId = session.metadata?.plan_id;
   const customerId = session.customer as string;
   const subscriptionId = session.subscription as string;
   const isTrial = session.metadata?.is_trial === "true";
@@ -138,6 +138,25 @@ async function handleCheckoutCompleted(
   if (!userId || !planId) {
     console.error("[webhook] Missing metadata in checkout session");
     return;
+  }
+
+  // If planId is not a UUID (e.g. "elite"), resolve it from the DB
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(planId)) {
+    const TIER_ALIAS: Record<string, string> = { elite: "enterprise" };
+    const lookupName = TIER_ALIAS[planId.toLowerCase()] || planId.toLowerCase();
+    const { data: resolved } = await supabase
+      .from("subscription_plans")
+      .select("id")
+      .eq("name", lookupName)
+      .maybeSingle();
+    if (resolved?.id) {
+      console.log("[webhook] Resolved plan_id from name:", planId, "→", resolved.id);
+      planId = resolved.id;
+    } else {
+      console.error("[webhook] Could not resolve plan_id:", planId);
+      return;
+    }
   }
 
   // Get subscription details from Stripe

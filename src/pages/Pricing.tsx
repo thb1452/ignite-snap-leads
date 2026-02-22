@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Lock, Loader2, Crown, Shield, AlertTriangle } from "lucide-react";
@@ -107,7 +108,8 @@ const TRIAL_TIER_MAP: Record<string, string> = {
 export default function Pricing() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { isOnTrial, trialDaysRemaining, trialExportsRemaining, trialTier } = useTrialStatus();
+  const { isOnTrial, trialDaysRemaining, trialExportsRemaining, trialTier, hasActiveSubscription: hasTrialActive, subscriptionStatus } = useTrialStatus();
+  const { subscription, hasActiveSubscription: hasPaidSubscription } = useSubscription();
   const { spotsRemaining: eliteSpotsRemaining, isFull: isEliteFull } = useEliteCapacity();
   const billingCycle = "monthly" as const;
   const [trialModalOpen, setTrialModalOpen] = useState(false);
@@ -115,6 +117,10 @@ export default function Pricing() {
   const [upgradingTier, setUpgradingTier] = useState<string | null>(null);
   const [downgradeConfirm, setDowngradeConfirm] = useState<PricingTier | null>(null);
   const { toast } = useToast();
+
+  // Detect active PAID subscription (not trialing)
+  const isActivePaid = hasPaidSubscription && subscription?.status === 'active';
+  const activePlanName = subscription?.plan_name; // e.g. 'enterprise', 'starter', 'professional'
 
   const openTrialModal = (tier: string) => {
     setSelectedTrialTier(tier);
@@ -132,7 +138,7 @@ export default function Pricing() {
       // If trial was converted directly (no new checkout needed)
       if (data?.upgraded) {
         toast({ title: 'Subscription activated!', description: 'Your plan is now active.' });
-        window.location.assign(data.redirect_url || '/leads?checkout=success');
+        navigate('/leads?checkout=success', { replace: true });
         return;
       }
 
@@ -171,6 +177,11 @@ export default function Pricing() {
   };
 
   const handlePlanClick = (tier: PricingTier) => {
+    // If user already has an active paid subscription for this tier, go to settings
+    if (isActivePaid && activePlanName === tier.name) {
+      navigate('/settings');
+      return;
+    }
     if (tier.name === 'enterprise' && isEliteFull) {
       window.location.href = 'mailto:support@snapignite.com?subject=Elite%20Waitlist&body=I%20would%20like%20to%20join%20the%20Elite%20tier%20waitlist.';
       return;
@@ -181,20 +192,28 @@ export default function Pricing() {
       } else {
         handleDirectUpgrade(tier.name);
       }
+    } else if (isActivePaid) {
+      // Active paid user switching tiers
+      handleDirectUpgrade(tier.name);
     } else {
       openTrialModal(tier.name);
     }
   };
 
-  // For trial users, reorder tiers: current plan first, then others as "alternatives"
+  // For trial/active users, reorder tiers: current plan first
   const getOrderedTiers = () => {
-    if (!isOnTrial || !currentTrialTierName) return PRICING_TIERS;
-    const current = PRICING_TIERS.find(t => t.name === currentTrialTierName);
-    const others = PRICING_TIERS.filter(t => t.name !== currentTrialTierName);
+    const currentName = isOnTrial ? currentTrialTierName : (isActivePaid ? activePlanName : null);
+    if (!currentName) return PRICING_TIERS;
+    const current = PRICING_TIERS.find(t => t.name === currentName);
+    const others = PRICING_TIERS.filter(t => t.name !== currentName);
     return current ? [current, ...others] : PRICING_TIERS;
   };
 
-  const isCurrentTrialTier = (tierName: string) => isOnTrial && tierName === currentTrialTierName;
+  const isCurrentPlan = (tierName: string) => {
+    if (isOnTrial) return tierName === currentTrialTierName;
+    if (isActivePaid) return tierName === activePlanName;
+    return false;
+  };
 
   const renderPlanCard = (tier: PricingTier, isCurrent: boolean) => {
     const Icon = tier.icon;
@@ -265,30 +284,34 @@ export default function Pricing() {
         <CardContent>
           <Button
             onClick={() => handlePlanClick(tier)}
-            disabled={isUpgrading}
+            disabled={isUpgrading || (isActivePaid && isCurrent)}
             className={`w-full mb-2 transition-all ${
               isCurrent
                 ? "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
-                : tier.popular && !isOnTrial
+                : tier.popular && !isOnTrial && !isActivePaid
                   ? "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
                   : ""
             }`}
-            variant={isCurrent || (tier.popular && !isOnTrial) ? "default" : "outline"}
+            variant={isCurrent || (tier.popular && !isOnTrial && !isActivePaid) ? "default" : "outline"}
             size="lg"
           >
             {isUpgrading ? (
               <><Loader2 className="mr-2 w-4 h-4 animate-spin" /> Redirecting…</>
             ) : tier.name === 'enterprise' && isEliteFull ? (
               'Join Waitlist'
+            ) : isActivePaid ? (
+              isCurrent ? 'Your Active Plan' : `Switch to ${tier.display_name}`
             ) : isOnTrial ? (
               isCurrent ? `Upgrade to ${tier.display_name} — ${getMonthlyPrice(tier)}/mo` : isDowngrade(tier.name) ? `Switch to ${tier.display_name}` : `Upgrade to ${tier.display_name}`
             ) : (
               'Start 7-Day Free Trial'
             )}
-            {!isUpgrading && <ArrowRight className="ml-2 w-4 h-4" />}
+            {!isUpgrading && !( isActivePaid && isCurrent) && <ArrowRight className="ml-2 w-4 h-4" />}
           </Button>
           <p className="text-xs text-center text-muted-foreground mb-4">
-            {isOnTrial
+            {isActivePaid && isCurrent
+              ? 'Manage your subscription in Settings'
+              : isOnTrial
               ? 'Pay now • Instant activation • Cancel anytime'
               : `Then ${getMonthlyPrice(tier)}/month • Cancel anytime`
             }
@@ -339,8 +362,35 @@ export default function Pricing() {
         </div>
       )}
 
+      {/* ===== ACTIVE PAID USER: Confirmation Hero ===== */}
+      {isActivePaid && activePlanName && (
+        <div className="bg-gradient-to-br from-slate-900 via-emerald-950 to-teal-950 text-white">
+          <div className="container max-w-4xl py-10 px-4 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-sm font-medium mb-6">
+              <Shield className="w-4 h-4" />
+              Active Subscription
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl font-bold mb-3">
+              You're on the {TRIAL_TIER_DISPLAY[activePlanName] || activePlanName} plan
+            </h1>
+            <p className="text-lg text-emerald-100/80 mb-8 max-w-2xl mx-auto">
+              Your subscription is active. Manage billing or switch plans below.
+            </p>
+
+            <Button
+              onClick={() => navigate('/settings')}
+              size="lg"
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-lg px-10 py-6 rounded-xl shadow-xl shadow-emerald-500/25"
+            >
+              Manage Subscription <ArrowRight className="ml-2 w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ===== TRIAL USER: Personalized Upgrade Hero ===== */}
-      {isOnTrial && currentTrialTierObj && (
+      {isOnTrial && !isActivePaid && currentTrialTierObj && (
         <div className="bg-gradient-to-br from-slate-900 via-cyan-950 to-teal-950 text-white">
           <div className="container max-w-4xl py-10 px-4 text-center">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 text-sm font-medium mb-6">
@@ -379,8 +429,8 @@ export default function Pricing() {
       )}
 
       <div className="container max-w-7xl py-12 px-4">
-        {/* Header — only for non-trial users */}
-        {!isOnTrial && (
+        {/* Header — only for non-trial/non-active users */}
+        {!isOnTrial && !isActivePaid && (
           <div className="text-center mb-12">
             <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Add Enforcement Intelligence to Your Stack
@@ -394,17 +444,19 @@ export default function Pricing() {
           </div>
         )}
 
-        {/* Section label for trial users */}
-        {isOnTrial && (
+        {/* Section label for trial/active users */}
+        {(isOnTrial || isActivePaid) && (
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-foreground">All Plans</h2>
-            <p className="text-muted-foreground mt-1">Your current trial plan is shown first</p>
+            <p className="text-muted-foreground mt-1">
+              {isActivePaid ? 'Your active plan is highlighted' : 'Your current trial plan is shown first'}
+            </p>
           </div>
         )}
 
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-3 gap-8 mb-16">
-          {orderedTiers.map((tier) => renderPlanCard(tier, isCurrentTrialTier(tier.name)))}
+          {orderedTiers.map((tier) => renderPlanCard(tier, isCurrentPlan(tier.name)))}
         </div>
 
         {/* Water Shutoff Value Prop */}

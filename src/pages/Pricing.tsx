@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
@@ -109,14 +109,21 @@ export default function Pricing() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { isOnTrial, trialDaysRemaining, trialExportsRemaining, trialTier, hasActiveSubscription: hasTrialActive, subscriptionStatus } = useTrialStatus();
-  const { subscription, hasActiveSubscription: hasPaidSubscription } = useSubscription();
+  const { subscription, hasActiveSubscription: hasPaidSubscription, refetch: refetchSubscription } = useSubscription();
   const { spotsRemaining: eliteSpotsRemaining, isFull: isEliteFull } = useEliteCapacity();
   const billingCycle = "monthly" as const;
   const [trialModalOpen, setTrialModalOpen] = useState(false);
   const [selectedTrialTier, setSelectedTrialTier] = useState('starter');
   const [upgradingTier, setUpgradingTier] = useState<string | null>(null);
   const [downgradeConfirm, setDowngradeConfirm] = useState<PricingTier | null>(null);
+  const [checkoutFallbackUrl, setCheckoutFallbackUrl] = useState<string | null>(null);
   const { toast } = useToast();
+  const upgradeInFlightRef = useRef(false);
+
+  // Refetch subscription on mount to ensure fresh data (e.g. after returning from Stripe)
+  useEffect(() => {
+    refetchSubscription();
+  }, [refetchSubscription]);
 
   // Detect active PAID subscription (not trialing)
   const isActivePaid = hasPaidSubscription && subscription?.status === 'active';
@@ -128,7 +135,11 @@ export default function Pricing() {
   };
 
   const handleDirectUpgrade = async (tierName: string) => {
+    // Prevent double-clicks with a synchronous ref guard
+    if (upgradeInFlightRef.current) return;
+    upgradeInFlightRef.current = true;
     setUpgradingTier(tierName);
+    setCheckoutFallbackUrl(null);
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { tier_name: tierName, billing_cycle: billingCycle },
@@ -142,15 +153,28 @@ export default function Pricing() {
         return;
       }
 
-      if (data?.url) {
-        window.location.assign(data.url);
-      } else {
+      const checkoutUrl = data?.url || data?.checkout_url;
+      if (!checkoutUrl) {
         throw new Error('No checkout URL returned');
       }
+
+      // Try redirect; show fallback link if it doesn't navigate within 2s
+      setCheckoutFallbackUrl(checkoutUrl);
+      window.location.assign(checkoutUrl);
+
+      // If still on page after 2s, the redirect was blocked (iframe/popup blocker)
+      setTimeout(() => {
+        // Only reset if we're still on this page
+        if (document.visibilityState === 'visible') {
+          setUpgradingTier(null);
+          upgradeInFlightRef.current = false;
+        }
+      }, 3000);
     } catch (err: any) {
       console.error('[Pricing] Upgrade error:', err);
-      toast({ title: 'Checkout failed', description: err.message || 'Please try again.', variant: 'destructive' });
+      toast({ title: 'Unable to start checkout', description: err.message || 'Please try again.', variant: 'destructive' });
       setUpgradingTier(null);
+      upgradeInFlightRef.current = false;
     }
   };
 
@@ -307,7 +331,18 @@ export default function Pricing() {
               'Start 7-Day Free Trial'
             )}
             {!isUpgrading && !( isActivePaid && isCurrent) && <ArrowRight className="ml-2 w-4 h-4" />}
-          </Button>
+           </Button>
+          {/* Fallback link if redirect was blocked */}
+          {isUpgrading && checkoutFallbackUrl && (
+            <a
+              href={checkoutFallbackUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-center text-sm text-primary underline mt-2"
+            >
+              Tap here if you're not redirected
+            </a>
+          )}
           <p className="text-xs text-center text-muted-foreground mb-4">
             {isActivePaid && isCurrent
               ? 'Manage your subscription in Settings'
@@ -419,6 +454,17 @@ export default function Pricing() {
                   <>Upgrade to {trialTierDisplayName} — {getMonthlyPrice(currentTrialTierObj)}/mo <ArrowRight className="ml-2 w-5 h-5" /></>
                 )}
               </Button>
+              {/* Fallback link if redirect was blocked */}
+              {upgradingTier === currentTrialTierName && checkoutFallbackUrl && (
+                <a
+                  href={checkoutFallbackUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-cyan-200 underline"
+                >
+                  Tap here if you're not redirected
+                </a>
+              )}
               <p className="text-sm text-cyan-200/60">
                 Instant activation • Cancel anytime • {trialExportsRemaining} exports remaining in trial
               </p>

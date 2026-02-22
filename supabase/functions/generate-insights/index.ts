@@ -97,7 +97,7 @@ const INSIGHT_BLOCKS = {
 // Produces enforcement-pressure summaries; NO investor language allowed
 // ============================================================================
 async function generateAIInsight(
-  property: { address: string; city: string },
+  property: { address: string; city: string; enforcement_type?: string },
   violations: Violation[],
   classified: ViolationWithPriority[],
   intelligence: PropertyIntelligence,
@@ -117,19 +117,22 @@ async function generateAIInsight(
       `- Type: ${v.violation_type || 'Unknown'} | Status: ${v.status || 'Unknown'} | Days open: ${v.days_open ?? 'N/A'}`
     ).join('\n');
 
+    const isWaterShutoff = property.enforcement_type === 'water_shutoff';
+
     const systemPrompt = `You are a municipal enforcement data analyst. Your job is to write concise, factual, enforcement-pressure summaries for code compliance records.
 
 STRICT RULES:
 1. Write from the perspective of a neutral municipal enforcement data analyst — NOT a real estate investor.
 2. NEVER use words like: investor, acquisition, opportunity, distress, motivated, deal, profit, upside, buy, purchase, wholesale, flip, value-add, discounted, negotiation leverage, below market, negotiate, motivated seller, financial hardship, financial distress.
-3. Focus ONLY on: what enforcement actions municipalities have taken, how recent they are, and what that signals about ongoing oversight activity. Frame water shutoffs as ACTIVE MUNICIPAL ENFORCEMENT ACTIONS (formal process-driven disconnections), NOT as financial distress signals.
+3. Focus ONLY on: what enforcement actions municipalities have taken, how recent they are, and what that signals about ongoing oversight activity.${isWaterShutoff ? ' This property has a confirmed water service disconnection — frame it as an ACTIVE MUNICIPAL ENFORCEMENT ACTION.' : ' This property does NOT have a water disconnection — do NOT mention water service disconnection or water shutoff in your response.'}
 4. Keep the summary to 1–3 sentences, max 260 characters.
 5. Write in third-person, factual, neutral tone.
-6. Example of GOOD output: "Water service disconnected by municipal authority — a formal enforcement action requiring administrative process. Concurrent open code violations indicate coordinated multi-agency oversight."
+6. ${isWaterShutoff ? 'Example of GOOD output: "Water service disconnected by municipal authority — a formal enforcement action requiring administrative process. Concurrent open code violations indicate coordinated multi-agency oversight."' : 'Example of GOOD output: "Multiple code violations documented with enforcement actions across several categories. Open citations spanning 180+ days indicate sustained municipal oversight."'}
 7. Example of BAD output: "This distressed property shows signs of financial hardship with utility disconnection."`;
 
     const userPrompt = `Write an enforcement-pressure insight for this property:
 
+Enforcement type: ${isWaterShutoff ? 'WATER DISCONNECTION (confirmed)' : 'CODE VIOLATION (standard — no water disconnection)'}
 Address: ${property.address}, ${property.city}
 Snap Score: ${scoreResult.score}/100
 Open violations: ${openCount} of ${totalCount} total
@@ -290,7 +293,7 @@ serve(async (req) => {
 
       if (shouldUseAI) {
         const aiInsight = await generateAIInsight(
-          { address: property.address, city: property.city },
+          { address: property.address, city: property.city, enforcement_type: (property as any).enforcement_type },
           violations,
           classifiedViolations,
           intelligence,

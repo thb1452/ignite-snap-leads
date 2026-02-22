@@ -114,12 +114,16 @@ export function MobilePropertyCard({
                 </Badge>
               </div>
             )}
-            {property.violation_types && property.violation_types.length > 0 && (
+            {property.enforcement_type === 'water_shutoff' ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-cyan-700 font-medium">Water Disconnection</span>
+              </div>
+            ) : property.violation_types && property.violation_types.length > 0 && (
               <div className="flex items-center gap-1.5">
                 <Flame className="h-3.5 w-3.5 text-orange-500" />
                 <span className="text-xs text-muted-foreground">
-                  {property.violation_types.slice(0, 2).map(formatViolationType).join(", ")}
-                  {property.violation_types.length > 2 && ` +${property.violation_types.length - 2}`}
+                  {property.violation_types.filter(v => v !== 'Unknown').slice(0, 2).map(formatViolationType).join(", ") || "Code Violation"}
+                  {property.violation_types.filter(v => v !== 'Unknown').length > 2 && ` +${property.violation_types.filter(v => v !== 'Unknown').length - 2}`}
                 </span>
               </div>
             )}

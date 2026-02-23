@@ -38,21 +38,40 @@ serve(async (req) => {
 
     if (!isInternalCall) {
       if (!authHeader.startsWith('Bearer ')) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+        console.error('[bulk-missing] No Bearer token provided');
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       const token = authHeader.replace('Bearer ', '');
-      const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") ?? SUPABASE_SERVICE_ROLE_KEY, {
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? SUPABASE_SERVICE_ROLE_KEY;
+      const anonClient = createClient(SUPABASE_URL, anonKey, {
         global: { headers: { Authorization: authHeader } }
       });
-      const { data: authData, error: authErr } = await anonClient.auth.getUser(token);
-      if (authErr || !authData?.user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
-      }
-      // Require admin role
-      const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      const { data: roleData } = await adminClient.from('user_roles').select('role').eq('user_id', authData.user.id).eq('role', 'admin').maybeSingle();
-      if (!roleData) {
-        return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: corsHeaders });
+      // Use getClaims for signing-keys compatibility
+      const { data: claimsData, error: claimsErr } = await anonClient.auth.getClaims(token);
+      if (claimsErr || !claimsData?.claims?.sub) {
+        console.error('[bulk-missing] getClaims failed:', claimsErr?.message ?? 'no claims');
+        // Fallback to getUser if getClaims not available
+        const { data: authData, error: authErr } = await anonClient.auth.getUser(token);
+        if (authErr || !authData?.user) {
+          console.error('[bulk-missing] getUser also failed:', authErr?.message);
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        // Check admin role
+        const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data: roleData } = await adminClient.from('user_roles').select('role').eq('user_id', authData.user.id).eq('role', 'admin').maybeSingle();
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        console.log(`[bulk-missing] Admin verified via getUser: ${authData.user.id}`);
+      } else {
+        const userId = claimsData.claims.sub as string;
+        // Check admin role
+        const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data: roleData } = await adminClient.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle();
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        console.log(`[bulk-missing] Admin verified via getClaims: ${userId}`);
       }
     }
 

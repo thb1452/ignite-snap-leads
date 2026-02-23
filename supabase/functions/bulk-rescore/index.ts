@@ -1,9 +1,14 @@
 /**
- * Bulk Rescore - Admin-only batch processing for ALL properties.
- * Requires admin JWT or x-internal-secret for self-invocation.
+ * Bulk Rescore v5 - Admin-only batch processing for ALL properties.
  * 
- * v4: Supports full rescore of ALL properties (mode=all) or only unscored (mode=unscored).
- * Tracks progress via offset-based pagination.
+ * Modes:
+ *   mode='all' (default) — rescore every property
+ *   mode='unscored' — only properties where snap_score IS NULL
+ * 
+ * Processes ALL fields: total_violations, open_violations, avg_days_open,
+ * snap_score, snap_insight, violation_types, etc.
+ * 
+ * Uses offset-based pagination with auto-continuation.
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -53,23 +58,26 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Count total
-    const { count: totalCount } = await supabase
-      .from("properties")
-      .select("id", { count: "exact", head: true });
+    // Build query based on mode
+    let countQuery = supabase.from("properties").select("id", { count: "exact", head: true });
+    let dataQuery = supabase.from("properties").select("id").order("id");
 
-    console.log(`[bulk-rescore v4] Mode: ${mode} | Offset: ${offset} | Total: ${totalCount}`);
+    if (mode === 'unscored') {
+      countQuery = countQuery.is("snap_score", null);
+      dataQuery = dataQuery.is("snap_score", null);
+    }
+    // mode='all' → no filter, process everything
 
-    // Fetch batch of properties by offset (deterministic order)
-    const { data: properties, error: fetchError } = await supabase
-      .from("properties")
-      .select("id")
-      .order("id")
-      .range(offset, offset + BATCH_SIZE - 1);
+    const { count: totalCount } = await countQuery;
+
+    console.log(`[bulk-rescore v5] Mode: ${mode} | Offset: ${offset} | Total: ${totalCount}`);
+
+    const { data: properties, error: fetchError } = await dataQuery.range(offset, offset + BATCH_SIZE - 1);
 
     if (fetchError) throw fetchError;
 
     if (!properties || properties.length === 0) {
+      console.log(`[bulk-rescore v5] ✅ All properties processed! Mode: ${mode}, Total: ${totalCount}`);
       return new Response(
         JSON.stringify({ success: true, message: "All properties processed!", processed: 0, total: totalCount, complete: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -106,10 +114,10 @@ serve(async (req) => {
             totalRule += result.breakdown?.rule_based || 0;
           } else {
             const errText = await response.text();
-            console.error(`[bulk-rescore v3] Chunk ${i + 1} failed: ${errText}`);
+            console.error(`[bulk-rescore v5] Chunk ${i + 1}/${chunks.length} failed: ${errText}`);
           }
         } catch (err) {
-          console.error(`[bulk-rescore v3] Chunk ${i + 1} error:`, err);
+          console.error(`[bulk-rescore v5] Chunk ${i + 1}/${chunks.length} error:`, err);
         }
         if (i < chunks.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 300));
@@ -122,7 +130,7 @@ serve(async (req) => {
     const isComplete = nextOffset >= (totalCount || 0);
     const progress = Math.round((nextOffset / (totalCount || 1)) * 100);
 
-    console.log(`[bulk-rescore v4] Batch: ${totalProcessed} processed (${totalAI} AI, ${totalRule} rule) in ${elapsed}ms | ${progress}% done (offset ${nextOffset}/${totalCount})`);
+    console.log(`[bulk-rescore v5] Batch done: ${totalProcessed} processed (${totalAI} AI, ${totalRule} rule) in ${elapsed}ms | ${progress}% (offset ${nextOffset}/${totalCount})`);
 
     // Auto-continue if more remain
     if (!isComplete && !dryRun) {
@@ -137,9 +145,9 @@ serve(async (req) => {
             },
             body: JSON.stringify({ mode, offset: nextOffset }),
           });
-          console.log(`[bulk-rescore v4] Next batch triggered (offset ${nextOffset}), status: ${res.status}`);
+          console.log(`[bulk-rescore v5] Next batch triggered (offset ${nextOffset}), status: ${res.status}`);
         } catch (err) {
-          console.error('[bulk-rescore v4] Failed to trigger next batch:', err);
+          console.error('[bulk-rescore v5] Failed to trigger next batch:', err);
         }
       };
 
@@ -166,7 +174,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("[bulk-rescore v4] Fatal error:", error);
+    console.error("[bulk-rescore v5] Fatal error:", error);
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

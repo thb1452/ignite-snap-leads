@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2, Mail } from 'lucide-react';
+import { analytics } from '@/lib/analytics';
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -62,6 +63,13 @@ export function AuthForm() {
   
   const [activeTab, setActiveTab] = useState(getTargetTab());
   const { signIn, signUp, resetPassword } = useAuth();
+
+  // Fire signup_page_view when signup tab is active
+  useEffect(() => {
+    if (activeTab === 'signup') {
+      analytics.signupPageView();
+    }
+  }, [activeTab]);
   
   // Hide tabs when mode is explicitly set (cleaner UX)
   const showTabs = !mode && !inviteToken;
@@ -97,19 +105,29 @@ export function AuthForm() {
 
   const handleSignIn = async (data: SignInFormData) => {
     setIsLoading(true);
-    await signIn(data.email, data.password);
+    const result = await signIn(data.email, data.password);
+    if (result && !('error' in result && result.error)) {
+      analytics.loginSuccess();
+    }
     setIsLoading(false);
   };
 
   const handleSignUp = async (data: SignUpFormData) => {
     console.log('[AuthForm] handleSignUp called with:', { email: data.email, fullName: data.fullName });
+    analytics.signupSubmitted();
     setIsLoading(true);
     try {
       // Pass invite token to signUp if present
       const result = await signUp(data.email, data.password, data.fullName, inviteToken || undefined);
       console.log('[AuthForm] signUp result:', result);
+      if (result && !('error' in result && result.error)) {
+        analytics.signupSuccess();
+      } else {
+        analytics.signupFailed('signup_returned_error');
+      }
     } catch (err) {
       console.error('[AuthForm] signUp error:', err);
+      analytics.signupFailed(err instanceof Error ? err.message : 'unknown');
     } finally {
       setIsLoading(false);
     }

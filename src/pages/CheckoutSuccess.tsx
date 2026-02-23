@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/externalClient";
+import { analytics } from "@/lib/analytics";
 
 export default function CheckoutSuccess() {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function CheckoutSuccess() {
     // If we have an active subscription, redirect
     if (hasActiveSubscription && plan?.name) {
       console.log('[CheckoutSuccess] Subscription confirmed:', plan.name);
+      analytics.paymentSuccess(plan.name);
       setShouldRedirect(true);
       return;
     }

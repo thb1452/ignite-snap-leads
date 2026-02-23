@@ -1,22 +1,17 @@
- /**
-  * SNAP INSIGHT GENERATION v4.0 - HYBRID AI + DETERMINISTIC ENGINE
-  * 
-  * Properties with snap_score >= 50: AI-generated enforcement-pressure insight
-  *   - Uses Lovable AI (Gemini Flash) via gateway
-  *   - Strict enforcement-neutral framing (NO investor/acquisition language)
-  *   - Falls back to deterministic engine if AI credits exhausted or error
-  * 
-  * Properties with snap_score < 50 (or AI unavailable): deterministic rule-based engine v3.0
-  * 
-  * Build Brief Compliance:
-  * - Raw city notes stored in violations.raw_description (INTERNAL)
-  * - Composed summaries stored in properties.snap_insight (PUBLIC)
-  * - NO raw violation details ever displayed to users
-  */
- import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
- import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+/**
+ * SNAP INSIGHT GENERATION v7.1 - HYBRID AI + DETERMINISTIC ENGINE
+ * 
+ * Properties with snap_score >= 50: AI-generated enforcement-pressure insight
+ *   - Uses Lovable AI (Gemini Flash) via gateway
+ *   - Strict enforcement-neutral framing (NO investor/acquisition language)
+ *   - Falls back to deterministic engine if AI credits exhausted or error
+ * 
+ * Properties with snap_score < 50 (or AI unavailable): deterministic rule-based engine v4.1
+ */
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v7.0";
+const VERSION = "v7.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,8 +19,8 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const AI_MODEL = "google/gemini-3-flash-preview"; // Better quality insights
-const SNAP_SCORE_AI_THRESHOLD = 50; // Only use AI for properties >= this score
+const AI_MODEL = "google/gemini-3-flash-preview";
+const SNAP_SCORE_AI_THRESHOLD = 50;
 
 interface Violation {
   id: string;
@@ -59,42 +54,28 @@ interface PropertyIntelligence {
   repeat_offender: boolean;
   multi_department: boolean;
   escalated: boolean;
+  oldest_violation_days: number;
+  high_priority_count: number;
+  medium_priority_count: number;
+  low_priority_count: number;
 }
 
 // ============================================================================
-// DETERMINISTIC INSIGHT BLOCKS (v3.0 - fallback / low score)
+// DETERMINISTIC INSIGHT BLOCKS
 // ============================================================================
 const INSIGHT_BLOCKS = {
-  SCOPE_MULTI_CATEGORY: "Property is subject to enforcement actions across multiple municipal categories.",
-  SCOPE_MULTI_VIOLATION: "Multiple code violations documented at this address.",
-  DURATION_EXTENDED_180: "Several violations have remained open for an extended period exceeding 180 days.",
-  DURATION_EXTENDED_90: "Open enforcement matters have persisted beyond the standard 90-day resolution period.",
-  DURATION_EXTENDED_60: "Active citations remain unresolved past 60 days.",
-  RECENT_7_DAYS: "Recent inspection activity indicates continued municipal oversight.",
-  RECENT_30_DAYS: "Enforcement records updated within the past 30 days.",
-  PRIORITY_UTILITY: "Records include utility service enforcement notices.",
-  PRIORITY_WATER_SHUTOFF: "Municipal water service disconnected — direct enforcement action taken by the utility authority. This represents a formal, process-driven municipal action beyond standard notice issuance.",
-  PRIORITY_WATER_SHUTOFF_WITH_VIOLATIONS: "Water service disconnected with concurrent open code violations — multiple enforcement bodies actively engaged at this address.",
-  PRIORITY_WATER_SHUTOFF_RECENT: "Water disconnection executed within the last 30 days — active municipal oversight currently in effect.",
-  PRIORITY_WATER_SHUTOFF_COMPOUND: "Maximum enforcement pressure: water disconnection combined with multiple open violations and recent activity. Coordinated multi-agency enforcement documented.",
+  PRIORITY_WATER_SHUTOFF: "Municipal water service disconnected — direct enforcement action taken by the utility authority.",
+  PRIORITY_WATER_SHUTOFF_WITH_VIOLATIONS: "Water service disconnected with concurrent open code violations — multiple enforcement bodies actively engaged.",
   PRIORITY_CONDEMNATION: "Condemnation or unsafe structure orders documented.",
-  PRIORITY_LEGAL: "Case has been referred for legal enforcement action.",
+  PRIORITY_LEGAL: "Case referred for legal enforcement action.",
   PRIORITY_FIRE_MARSHAL: "Fire marshal orders or fire safety citations on file.",
-  CATEGORY_STRUCTURAL: "Structural integrity citations documented in inspection records.",
-  CATEGORY_FIRE: "Fire safety violations recorded by municipal inspectors.",
-  CATEGORY_VACANCY: "Vacancy or property abandonment citations on file.",
-  CATEGORY_SAFETY: "Safety hazard violations documented.",
-  CATEGORY_EXTERIOR: "Exterior maintenance and property upkeep violations noted.",
-  ESCALATION_BOARD: "Case scheduled for municipal board hearing.",
-  ESCALATION_COURT: "Enforcement matter referred to municipal court.",
-  ESCALATION_PROSECUTION: "Case under prosecution review.",
-  PATTERN_REPEAT: "Property shows recurring enforcement activity pattern.",
-  PATTERN_MULTI_DEPT: "Cross-departmental enforcement coordination documented.",
 } as const;
 
 // ============================================================================
-// AI INSIGHT GENERATION
-// Produces enforcement-pressure summaries; NO investor language allowed
+// AI INSIGHT GENERATION — v7.1 improvements:
+//   - max_tokens 300, temperature 0.5
+//   - 12 violations passed, severity counts in prompt
+//   - oldest_violation_days in prompt
 // ============================================================================
 async function generateAIInsight(
   property: { address: string; city: string; enforcement_type?: string },
@@ -105,42 +86,41 @@ async function generateAIInsight(
   apiKey: string
 ): Promise<string | null> {
   try {
-    const openViolations = violations.filter(v => (v.status || '').toLowerCase().trim() === 'open');
     const categories = [...new Set(classified.map(v => v.category))].join(', ');
-    const highPriority = classified.filter(v => v.priority === 'high').map(v => v.category);
-    const escalated = intelligence.escalated;
-    const avgDays = intelligence.avg_days_open;
-    const openCount = intelligence.open_violations;
-    const totalCount = intelligence.total_violations;
+    const highPriority = classified.filter(v => v.priority === 'high');
+    const medPriority = classified.filter(v => v.priority === 'medium');
+    const lowPriority = classified.filter(v => v.priority === 'low');
 
-    const violationSummary = violations.slice(0, 8).map(v => {
+    // Pass up to 12 violations (not 8)
+    const violationSummary = violations.slice(0, 12).map(v => {
       const desc = v.raw_description ? ` | Description: ${v.raw_description.slice(0, 120)}` : '';
       return `- Type: ${v.violation_type || 'Unknown'} | Status: ${v.status || 'Unknown'} | Days open: ${v.days_open ?? 'N/A'}${desc}`;
     }).join('\n');
 
     const isWaterShutoff = property.enforcement_type === 'water_shutoff';
 
-    const systemPrompt = `You are a municipal enforcement data analyst. Your job is to write concise, factual, enforcement-pressure summaries for code compliance records.
+    const systemPrompt = `You are a municipal enforcement data analyst. Write concise, factual, enforcement-pressure summaries for code compliance records.
 
 STRICT RULES:
 1. Write from the perspective of a neutral municipal enforcement data analyst — NOT a real estate investor.
 2. NEVER use words like: investor, acquisition, opportunity, distress, motivated, deal, profit, upside, buy, purchase, wholesale, flip, value-add, discounted, negotiation leverage, below market, negotiate, motivated seller, financial hardship, financial distress.
 3. Focus ONLY on: what enforcement actions municipalities have taken, how recent they are, and what that signals about ongoing oversight activity. USE the violation descriptions provided to write specific, grounded insights — reference the actual violation types and details rather than generic statements.${isWaterShutoff ? ' This property has a confirmed water service disconnection — frame it as an ACTIVE MUNICIPAL ENFORCEMENT ACTION.' : ' This property does NOT have a water disconnection — do NOT mention water service disconnection or water shutoff in your response.'}
-4. Keep the summary to 1–3 sentences, max 260 characters.
+4. Keep the summary to 1–3 sentences, max 280 characters.
 5. Write in third-person, factual, neutral tone.
-6. ${isWaterShutoff ? 'Example of GOOD output: "Water service disconnected by municipal authority — a formal enforcement action requiring administrative process. Concurrent open code violations indicate coordinated multi-agency oversight."' : 'Example of GOOD output: "Multiple code violations documented with enforcement actions across several categories. Open citations spanning 180+ days indicate sustained municipal oversight."'}
-7. Example of BAD output: "This distressed property shows signs of financial hardship with utility disconnection."`;
+6. Be SPECIFIC — mention actual violation categories, counts, and timeframes. Do not write generic statements.`;
 
     const userPrompt = `Write an enforcement-pressure insight for this property:
 
 Enforcement type: ${isWaterShutoff ? 'WATER DISCONNECTION (confirmed)' : 'CODE VIOLATION (standard — no water disconnection)'}
 Address: ${property.address}, ${property.city}
 Snap Score: ${scoreResult.score}/100
-Open violations: ${openCount} of ${totalCount} total
+Open violations: ${intelligence.open_violations} of ${intelligence.total_violations} total
+Severity breakdown: ${highPriority.length} high-priority, ${medPriority.length} medium-priority, ${lowPriority.length} low-priority
 Enforcement categories: ${categories}
-${highPriority.length > 0 ? `High-priority categories: ${highPriority.join(', ')}` : ''}
-Average days open: ${avgDays}
-Escalated: ${escalated ? 'Yes' : 'No'}
+${highPriority.length > 0 ? `High-priority categories: ${[...new Set(highPriority.map(v => v.category))].join(', ')}` : ''}
+Average days open: ${intelligence.avg_days_open}
+Oldest violation: ${intelligence.oldest_violation_days} days ago
+Escalated: ${intelligence.escalated ? 'Yes' : 'No'}
 Enforcement signals: ${scoreResult.signals.join(', ') || 'none'}
 
 Violations:
@@ -160,15 +140,14 @@ Write only the insight text (no labels, no preamble):`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        max_tokens: 120,
-        temperature: 0.3,
+        max_tokens: 300,
+        temperature: 0.5,
       }),
     });
 
     if (response.status === 429 || response.status === 402) {
-      // Rate limited or out of credits — signal to caller to stop AI for this batch
       console.warn(`[generate-insights ${VERSION}] AI unavailable (${response.status}), falling back to deterministic`);
-      return null; // null = fallback
+      return null;
     }
 
     if (!response.ok) {
@@ -181,8 +160,13 @@ Write only the insight text (no labels, no preamble):`;
 
     if (!text || text.length < 10) return null;
 
-    // Truncate to 280 chars max
-    return text.length > 280 ? text.substring(0, 277) + '...' : text;
+    // Truncate at 280 chars but never mid-word
+    if (text.length > 280) {
+      const truncated = text.substring(0, 277);
+      const lastSpace = truncated.lastIndexOf(' ');
+      return (lastSpace > 200 ? truncated.substring(0, lastSpace) : truncated) + '...';
+    }
+    return text;
   } catch (err) {
     console.error(`[generate-insights ${VERSION}] AI error:`, err);
     return null;
@@ -216,7 +200,6 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Fetch properties with their violations
     const { data: properties, error: fetchError } = await supabase
       .from("properties")
       .select(`
@@ -226,6 +209,7 @@ serve(async (req) => {
         snap_score,
         jurisdiction_id,
         enforcement_type,
+        escalated,
         violations (
           id,
           violation_type,
@@ -246,77 +230,55 @@ serve(async (req) => {
     if (!properties || properties.length === 0) {
       return new Response(
         JSON.stringify({ 
-          success: true, 
-          processed: 0, 
-          total: propertyIds.length,
-          message: "No properties found to process",
-          _version: VERSION
+          success: true, processed: 0, total: propertyIds.length,
+          message: "No properties found to process", _version: VERSION
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[generate-insights ${VERSION}] Processing ${properties.length} properties (AI threshold: score >= ${SNAP_SCORE_AI_THRESHOLD})`);
+    console.log(`[generate-insights ${VERSION}] Processing ${properties.length} properties`);
 
     const updates = [];
     let successCount = 0;
     let errorCount = 0;
     let aiGeneratedCount = 0;
     let deterministicCount = 0;
-    let aiCreditsExhausted = false; // Once true, skip AI for rest of batch
-    let aiCallCount = 0; // Track AI calls for throttling
+    let aiCreditsExhausted = false;
+    let aiCallCount = 0;
 
-    // Helper: throttle AI calls to avoid 429 rate limits
     const throttleAI = async () => {
       aiCallCount++;
-      // After first AI call, add delay to stay within rate limits
       if (aiCallCount > 1) {
-        await new Promise(resolve => setTimeout(resolve, 1200)); // 1.2s between AI calls
+        await new Promise(resolve => setTimeout(resolve, 1200));
       }
     };
 
-    // Process each property
     for (const property of properties) {
       const violations = (property.violations || []) as Violation[];
       
-      // Tag violations array with property-level enforcement_type for water shutoff detection
       if ((property as any).enforcement_type === 'water_shutoff') {
         (violations as any).__enforcement_type = 'water_shutoff';
       }
       
-      // Aggregate property intelligence
-      const intelligence = aggregatePropertyIntelligence(violations);
-      
-      // Classify violations with enforcement priority
       const classifiedViolations = violations.map(v => classifyViolation(v));
-      
-      // Calculate enforcement intensity score with signals
+      const intelligence = aggregatePropertyIntelligence(violations, classifiedViolations, (property as any).escalated);
       const scoreResult = calculateEnforcementIntensity(violations, classifiedViolations, intelligence);
 
       let snapInsight: string;
       let method: 'ai' | 'deterministic' = 'deterministic';
 
-      // Attempt AI insight for high-pressure properties if credits available
-      // Use the HIGHER of existing DB score or recalculated score for AI threshold
       const effectiveScore = Math.max(property.snap_score ?? 0, scoreResult.score);
-      const shouldUseAI = LOVABLE_API_KEY && 
-                          !aiCreditsExhausted && 
-                          effectiveScore >= SNAP_SCORE_AI_THRESHOLD;
+      const shouldUseAI = LOVABLE_API_KEY && !aiCreditsExhausted && effectiveScore >= SNAP_SCORE_AI_THRESHOLD;
 
       if (shouldUseAI) {
         await throttleAI();
         const aiInsight = await generateAIInsight(
           { address: property.address, city: property.city, enforcement_type: (property as any).enforcement_type },
-          violations,
-          classifiedViolations,
-          intelligence,
-          scoreResult,
-          LOVABLE_API_KEY!
+          violations, classifiedViolations, intelligence, scoreResult, LOVABLE_API_KEY!
         );
 
         if (aiInsight === null) {
-          // null means rate-limited or out of credits — disable AI for rest of this batch only
-          console.warn(`[generate-insights ${VERSION}] AI returned null for ${property.id} (score: ${effectiveScore}), falling back`);
           aiCreditsExhausted = true;
           snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations);
           deterministicCount++;
@@ -330,7 +292,6 @@ serve(async (req) => {
         deterministicCount++;
       }
 
-      // Map activityClass to legacy opportunityClass for database compatibility
       const opportunityClass = scoreResult.activityClass === 'critical' ? 'distressed' :
                                scoreResult.activityClass === 'elevated' ? 'value_add' : 'watch';
 
@@ -353,7 +314,7 @@ serve(async (req) => {
       });
     }
 
-    // Batch update all properties
+    // Batch update
     for (const update of updates) {
       const { error: updateError } = await supabase
         .from("properties")
@@ -383,16 +344,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[generate-insights ${VERSION}] =====================================================`);
-    console.log(`[generate-insights ${VERSION}] Insight Generation Complete (${VERSION})`);
-    console.log(`[generate-insights ${VERSION}]   ✓ Success: ${successCount} properties`);
-    console.log(`[generate-insights ${VERSION}]   ✗ Errors: ${errorCount} properties`);
-    console.log(`[generate-insights ${VERSION}]   🤖 AI-generated: ${aiGeneratedCount} (score >= ${SNAP_SCORE_AI_THRESHOLD})`);
-    console.log(`[generate-insights ${VERSION}]   📋 Deterministic: ${deterministicCount}`);
-    if (aiCreditsExhausted) {
-      console.log(`[generate-insights ${VERSION}]   ⚠️  AI credits exhausted mid-batch, fell back to deterministic`);
-    }
-    console.log(`[generate-insights ${VERSION}] =====================================================`);
+    console.log(`[generate-insights ${VERSION}] Complete: ${successCount} ok, ${errorCount} errors, ${aiGeneratedCount} AI, ${deterministicCount} deterministic`);
 
     return new Response(
       JSON.stringify({
@@ -405,7 +357,6 @@ serve(async (req) => {
           rule_based: deterministicCount,
           ai_credits_exhausted: aiCreditsExhausted,
         },
-        method: aiGeneratedCount > 0 ? 'hybrid' : 'deterministic_rule_based',
         _version: VERSION,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -414,23 +365,26 @@ serve(async (req) => {
   } catch (error) {
     console.error(`[generate-insights ${VERSION}] Fatal error:`, error);
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        _version: VERSION 
-      }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error', _version: VERSION }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
 
 // ============================================================================
-// PROPERTY INTELLIGENCE AGGREGATION
+// PROPERTY INTELLIGENCE AGGREGATION — v7.1
+// Now accepts classified violations for severity counts
+// Checks property-level escalated flag + violation statuses
 // ============================================================================
-function aggregatePropertyIntelligence(violations: Violation[]): PropertyIntelligence {
+function aggregatePropertyIntelligence(
+  violations: Violation[],
+  classified: ViolationWithPriority[],
+  propertyEscalated?: boolean
+): PropertyIntelligence {
   const escalatedStatuses = ['board', 'legal', 'court', 'condemned', 'prosecution'];
   const now = new Date();
   
-  // ── FIX: Derive days_open from opened_date when null ──
+  // Derive days_open from opened_date when null; warn if both null
   for (const v of violations) {
     if (v.days_open == null && v.opened_date) {
       const opened = new Date(v.opened_date);
@@ -438,17 +392,25 @@ function aggregatePropertyIntelligence(violations: Violation[]): PropertyIntelli
         v.days_open = Math.max(0, Math.floor((now.getTime() - opened.getTime()) / (1000 * 60 * 60 * 24)));
       }
     }
+    // Also check last_updated as fallback for days_open
+    if (v.days_open == null && v.last_updated) {
+      const updated = new Date(v.last_updated);
+      if (!isNaN(updated.getTime())) {
+        v.days_open = Math.max(0, Math.floor((now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24)));
+      }
+    }
+    if (v.days_open == null && !v.opened_date && !v.last_updated) {
+      console.warn(`[generate-insights ${VERSION}] Violation ${v.id} has no date info — days_open defaults to 0`);
+    }
   }
   
-  const openViolations = violations.filter(v => {
-    const status = (v.status || '').toLowerCase().trim();
-    return status === 'open';
-  });
+  const openViolations = violations.filter(v => (v.status || '').toLowerCase().trim() === 'open');
   
   const dates = violations
     .map(v => v.opened_date)
     .filter(d => d)
     .map(d => new Date(d!))
+    .filter(d => !isNaN(d.getTime()))
     .sort((a, b) => a.getTime() - b.getTime());
   
   const daysOpen = violations.map(v => v.days_open || 0);
@@ -458,10 +420,30 @@ function aggregatePropertyIntelligence(violations: Violation[]): PropertyIntelli
   
   const violationTypes = [...new Set(violations.map(v => v.violation_type).filter(Boolean))];
   
-  const hasEscalation = violations.some(v => {
+  // Escalation: check property flag OR violation statuses (condemned gets escalation even if closed)
+  const hasStatusEscalation = violations.some(v => {
     const status = (v.status || '').toLowerCase();
     return escalatedStatuses.some(s => status.includes(s));
   });
+  // Also check raw_description for condemned/condemnation even on closed violations
+  const hasDescEscalation = violations.some(v => {
+    const desc = (v.raw_description || '').toLowerCase();
+    return desc.includes('condemned') || desc.includes('condemnation') || desc.includes('unsafe structure');
+  });
+  const isEscalated = !!propertyEscalated || hasStatusEscalation || hasDescEscalation;
+  
+  // Oldest violation in days
+  const oldestDays = dates.length > 0 
+    ? Math.max(0, Math.floor((now.getTime() - dates[0].getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
+
+  // Severity counts from classified violations
+  const highCount = classified.filter(v => v.priority === 'high').length;
+  const medCount = classified.filter(v => v.priority === 'medium').length;
+  const lowCount = classified.filter(v => v.priority === 'low').length;
+
+  // Multi-department: use keyword-derived categories (not just violation_type)
+  const uniqueCategories = [...new Set(classified.map(v => v.category).filter(c => c !== 'Other'))];
   
   return {
     total_violations: violations.length,
@@ -471,13 +453,19 @@ function aggregatePropertyIntelligence(violations: Violation[]): PropertyIntelli
     avg_days_open: avgDays,
     violation_types: violationTypes,
     repeat_offender: violations.length >= 3,
-    multi_department: violationTypes.length >= 2,
-    escalated: hasEscalation,
+    multi_department: uniqueCategories.length >= 2,
+    escalated: isEscalated,
+    oldest_violation_days: oldestDays,
+    high_priority_count: highCount,
+    medium_priority_count: medCount,
+    low_priority_count: lowCount,
   };
 }
 
 // ============================================================================
-// ENFORCEMENT INTENSITY SCORING
+// ENFORCEMENT INTENSITY SCORING — v7.1
+// Fixes: progressive volume scaling (no cap at 50), recency checks last_updated
+// first, escalation for condemned even if closed, multi-category from keywords
 // ============================================================================
 function calculateEnforcementIntensity(
   violations: Violation[],
@@ -487,41 +475,32 @@ function calculateEnforcementIntensity(
   let score = 0;
   const signals: string[] = [];
   
-  const openViolations = violations.filter(v => 
-    (v.status || '').toLowerCase().trim() === 'open'
-  );
-  const openClassified = classified.filter(c => 
-    (c.original.status || '').toLowerCase().trim() === 'open'
-  );
+  const openViolations = violations.filter(v => (v.status || '').toLowerCase().trim() === 'open');
+  const openClassified = classified.filter(c => (c.original.status || '').toLowerCase().trim() === 'open');
   
-  // Duration Factor (unchanged)
+  // ── Duration Factor ──
   const maxDaysOpen = openViolations.length > 0 
     ? Math.max(...openViolations.map(v => v.days_open || 0), 0)
     : 0;
   const monthsOpen = Math.floor(maxDaysOpen / 30);
   score += Math.min(30, monthsOpen * 3);
-  
   if (maxDaysOpen > 180) signals.push('extended_enforcement');
   
-  // Priority Matrix (unchanged)
+  // ── Priority Matrix ──
   const highPriorityCount = openClassified.filter(v => v.priority === 'high').length;
   const mediumPriorityCount = openClassified.filter(v => v.priority === 'medium').length;
   
   if (highPriorityCount > 0) {
     score += 40 + Math.min((highPriorityCount - 1) * 10, 20);
-    if (openClassified.some(v => v.priority === 'high' && v.category === 'Fire')) 
-      signals.push('fire_citation');
-    if (openClassified.some(v => v.priority === 'high' && v.category === 'Structural')) 
-      signals.push('structural_citation');
+    if (openClassified.some(v => v.priority === 'high' && v.category === 'Fire')) signals.push('fire_citation');
+    if (openClassified.some(v => v.priority === 'high' && v.category === 'Structural')) signals.push('structural_citation');
   }
   score += Math.min(mediumPriorityCount * 15, 30);
   
-  // ── IMPROVED: Repeat Activity & Volume (logarithmic scaling) ──
-  // Scale with volume: more violations = more enforcement pressure
+  // ── Repeat Activity & Volume ──
   const totalViolCount = violations.length;
   const openViolCount = openViolations.length;
   
-  // Base repeat scoring
   if (totalViolCount >= 10) {
     score += 30;
     signals.push('recurring_enforcement');
@@ -536,9 +515,15 @@ function calculateEnforcementIntensity(
     signals.push('multiple_citations');
   }
 
-  // Open Violation Volume — scales logarithmically, not flat
-  // 3 open = +10, 5 open = +20, 10 open = +30, 20+ open = +40, 50+ = +50
-  if (openViolCount >= 50) {
+  // ── Open Violation Volume — PROGRESSIVE (no hard cap) ──
+  // Uses log scaling so 200 open scores higher than 50
+  if (openViolCount >= 200) {
+    score += 70;
+    signals.push('extreme_enforcement_load');
+  } else if (openViolCount >= 100) {
+    score += 60;
+    signals.push('massive_enforcement_load');
+  } else if (openViolCount >= 50) {
     score += 50;
     signals.push('massive_enforcement_load');
   } else if (openViolCount >= 20) {
@@ -555,8 +540,8 @@ function calculateEnforcementIntensity(
     signals.push('active_enforcement_load');
   }
   
-  // Multi-Agency
-  const openCategories = [...new Set(openClassified.map(v => v.category))];
+  // ── Multi-Category (keyword-derived, not just violation_type) ──
+  const openCategories = [...new Set(openClassified.map(v => v.category).filter(c => c !== 'Other'))];
   if (openCategories.length >= 3) {
     score += 25;
     signals.push('coordinated_enforcement');
@@ -565,22 +550,25 @@ function calculateEnforcementIntensity(
     signals.push('multi_department');
   }
   
-  // Escalation
+  // ── Escalation — check ALL violations (not just open) for condemned ──
   if (intelligence.escalated) {
-    const statuses = openViolations.map(v => (v.status || '').toLowerCase());
-    if (statuses.some(s => s.includes('condemned') || s.includes('prosecution'))) {
+    const allStatuses = violations.map(v => (v.status || '').toLowerCase());
+    const allDescs = violations.map(v => (v.raw_description || '').toLowerCase());
+    const combined = [...allStatuses, ...allDescs].join(' ');
+    
+    if (combined.includes('condemned') || combined.includes('prosecution') || combined.includes('condemnation')) {
       score += 30;
       signals.push('enforcement_escalation');
-    } else if (statuses.some(s => s.includes('legal') || s.includes('court'))) {
+    } else if (combined.includes('legal') || combined.includes('court')) {
       score += 25;
       signals.push('enforcement_escalation');
-    } else if (statuses.some(s => s.includes('board') || s.includes('hearing'))) {
+    } else if (combined.includes('board') || combined.includes('hearing')) {
       score += 15;
       signals.push('enforcement_escalation');
     }
   }
   
-  // Vacancy Indicators
+  // ── Vacancy ──
   const hasVacancySignals = openClassified.some(v => 
     v.category === 'Vacancy' ||
     (v.original.violation_type || '').toLowerCase().includes('vacant') ||
@@ -591,17 +579,30 @@ function calculateEnforcementIntensity(
     signals.push('vacancy_citation');
   }
   
-  // Recency (calculated early for water shutoff tiering)
+  // ── Recency — check last_updated FIRST, fall back to opened_date ──
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   
+  const getRecentDate = (v: Violation): Date | null => {
+    // Check last_updated first (more recent activity on old violations)
+    if (v.last_updated) {
+      const d = new Date(v.last_updated);
+      if (!isNaN(d.getTime())) return d;
+    }
+    if (v.opened_date) {
+      const d = new Date(v.opened_date);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return null;
+  };
+  
   const hasRecent7 = violations.some(v => {
-    const d = v.opened_date ? new Date(v.opened_date) : v.last_updated ? new Date(v.last_updated) : null;
+    const d = getRecentDate(v);
     return d && d >= sevenDaysAgo;
   });
   const hasRecent30 = !hasRecent7 && violations.some(v => {
-    const d = v.opened_date ? new Date(v.opened_date) : v.last_updated ? new Date(v.last_updated) : null;
+    const d = getRecentDate(v);
     return d && d >= thirtyDaysAgo;
   });
   
@@ -613,10 +614,8 @@ function calculateEnforcementIntensity(
     signals.push('current_enforcement');
   }
 
-  // ── Water Shutoff Enforcement Scoring (tiered) ──
-  // Water shutoff = direct municipal action, not just a notice
-  // Check property-level enforcement_type tag first (set during upload),
-  // then fall back to violation text scanning
+  // ── Water Shutoff ──
+  // Detect via enforcement_type first, then keyword scan — never silently skip
   const hasWaterShutoff = (violations as any).__enforcement_type === 'water_shutoff' ||
     classified.some(v => {
       const combined = `${(v.original.violation_type || '').toLowerCase()} ${(v.original.raw_description || '').toLowerCase()}`;
@@ -631,32 +630,31 @@ function calculateEnforcementIntensity(
     signals.push('water_shutoff_enforcement');
     
     if (hasOpenCodeViolations && intelligence.repeat_offender && (hasRecent7 || hasRecent30)) {
-      // Water shutoff + multiple violations + recent → 85-100 (maximum enforcement pressure)
       score += 55;
       signals.push('maximum_enforcement_pressure');
     } else if (hasRecent7 || hasRecent30) {
-      // Water shutoff + recent activity (last 30 days) → 75-85
       score += 48;
       signals.push('active_enforcement_current');
     } else if (hasOpenCodeViolations) {
-      // Water shutoff + open code violations → 65-75
       score += 42;
       signals.push('compounding_enforcement');
     } else {
-      // Water shutoff alone → 40-50 base points
       score += 40;
       signals.push('direct_municipal_action');
     }
   }
 
-  // Utility Enforcement (non-water-shutoff)
   if (!hasWaterShutoff && openClassified.some(v => v.category === 'Utility')) {
     signals.push('utility_enforcement');
   }
   
-  // Cap score if all violations resolved
+  // Cap score if all violations resolved (but escalated condemned still gets some credit)
   if (openViolations.length === 0 && violations.length > 0) {
-    score = Math.min(score, 20);
+    if (intelligence.escalated) {
+      score = Math.min(score, 35); // Condemned properties keep some score even if closed
+    } else {
+      score = Math.min(score, 20);
+    }
   }
   
   const finalScore = Math.min(100, Math.max(0, score));
@@ -669,7 +667,7 @@ function calculateEnforcementIntensity(
 }
 
 // ============================================================================
-// VIOLATION CLASSIFICATION
+// VIOLATION CLASSIFICATION — uses keyword scan on combined type + description
 // ============================================================================
 function classifyViolation(violation: Violation): ViolationWithPriority {
   const t = (violation.violation_type || '').toLowerCase();
@@ -715,7 +713,6 @@ function classifyViolation(violation: Violation): ViolationWithPriority {
     return { category: 'Utility', priority: 'medium', original: violation };
   }
   
-  // MEDIUM PRIORITY — Zoning & Regulatory
   if (combined.includes('zoning') || combined.includes('zone violation') ||
       combined.includes('land use') || combined.includes('code enforcement') ||
       combined.includes('unpermitted') || combined.includes('without permit') ||
@@ -754,11 +751,9 @@ function classifyViolation(violation: Violation): ViolationWithPriority {
     return { category: 'Exterior', priority: 'low', original: violation };
   }
   
-  // ── FIX: "Unknown" and uncategorized types get baseline medium priority
-  // if the property has open violations, so they contribute to the score ──
+  // Open violations of unknown type → medium priority (not ignored)
   const status = (violation.status || '').toLowerCase().trim();
   if (status === 'open') {
-    // Open violations of unknown type still represent active enforcement
     return { category: 'General Enforcement', priority: 'medium', original: violation };
   }
   
@@ -766,8 +761,8 @@ function classifyViolation(violation: Violation): ViolationWithPriority {
 }
 
 // ============================================================================
-// v4.0 DATA-GROUNDED DETERMINISTIC INSIGHT ENGINE
-// Produces specific insights using actual violation data instead of templates
+// DETERMINISTIC INSIGHT ENGINE v4.1
+// For score <50: includes highest-priority categories, open count, oldest days
 // ============================================================================
 function composeEnforcementInsight(
   signals: string[],
@@ -785,8 +780,11 @@ function composeEnforcementInsight(
   const openCategories = [...new Set(openClassified.map(v => v.category).filter(c => c !== 'Other'))];
   const allCategories = [...new Set(classified.map(v => v.category).filter(c => c !== 'Other'))];
   const maxDaysOpen = openClassified.length > 0 ? Math.max(...openClassified.map(v => v.original.days_open || 0), 0) : 0;
+  
+  // Get highest-priority categories for specificity
+  const highCats = [...new Set(classified.filter(v => v.priority === 'high').map(v => v.category))];
+  const medCats = [...new Set(classified.filter(v => v.priority === 'medium').map(v => v.category))];
 
-  // Helper: get a real violation snippet for specificity
   const getSnippet = (): string | null => {
     const best = classified.find(v => v.original.raw_description && v.original.raw_description.length > 15 && !v.original.raw_description.toLowerCase().includes('unknown'));
     if (!best) return null;
@@ -794,17 +792,14 @@ function composeEnforcementInsight(
     return raw.length > 70 ? raw.slice(0, 67) + '...' : raw;
   };
 
-  // Helper: format duration naturally
   const durationPhrase = (): string | null => {
     if (maxDaysOpen >= 730) return `oldest open ${Math.floor(maxDaysOpen / 365)}+ years`;
     if (maxDaysOpen >= 365) return 'oldest open 1+ year';
-    if (maxDaysOpen >= 180) return `open ${maxDaysOpen} days`;
     if (maxDaysOpen >= 60) return `open ${maxDaysOpen} days`;
     if (maxDaysOpen >= 14) return `open ${Math.floor(maxDaysOpen / 7)} weeks`;
     return null;
   };
 
-  // Helper: format categories naturally
   const catPhrase = (cats: string[]): string => {
     if (cats.length === 0) return '';
     if (cats.length === 1) return cats[0].toLowerCase();
@@ -812,7 +807,7 @@ function composeEnforcementInsight(
     return `${cats.slice(0, 2).map(c => c.toLowerCase()).join(', ')} +${cats.length - 2} more`;
   };
 
-  // ── Water shutoff properties ──
+  // ── Water shutoff ──
   if (signals.includes('water_shutoff_enforcement')) {
     const durStr = durationPhrase();
     if (openCount > 1) {
@@ -826,14 +821,16 @@ function composeEnforcementInsight(
     return truncateInsight(parts);
   }
 
-  // ── Standard properties: build unique insight ──
+  // ── Standard: build unique insight with severity and oldest days ──
   const cats = openCount > 0 ? openCategories : allCategories;
   const durStr = durationPhrase();
   const snippet = getSnippet();
+  const oldestDaysStr = intelligence.oldest_violation_days > 0 ? intelligence.oldest_violation_days : null;
 
-  // Part 1: Quantified lead-in
+  // Part 1: Quantified lead-in with highest-priority categories
   if (openCount > 0) {
-    const catStr = cats.length > 0 ? ` covering ${catPhrase(cats)}` : '';
+    const priorityCats = highCats.length > 0 ? highCats : (medCats.length > 0 ? medCats : cats);
+    const catStr = priorityCats.length > 0 ? ` covering ${catPhrase(priorityCats)}` : '';
     const durSuffix = durStr ? `, ${durStr}` : '';
     parts.push(`${openCount} open citation${openCount > 1 ? 's' : ''}${catStr}${durSuffix}.`);
   } else if (totalCount > 0) {
@@ -843,11 +840,11 @@ function composeEnforcementInsight(
 
   // Part 2: High-priority flags
   if (signals.includes('enforcement_escalation') || intelligence.escalated) {
-    const statuses = classified.map(v => (v.original.status || '').toLowerCase()).join(' ');
-    if (statuses.includes('condemned')) parts.push('Condemnation order active.');
-    else if (statuses.includes('prosecution')) parts.push('Referred for prosecution.');
-    else if (statuses.includes('court')) parts.push('Referred to municipal court.');
-    else if (statuses.includes('board') || statuses.includes('hearing')) parts.push('Scheduled for board hearing.');
+    const allText = classified.map(v => `${(v.original.status || '').toLowerCase()} ${(v.original.raw_description || '').toLowerCase()}`).join(' ');
+    if (allText.includes('condemned') || allText.includes('condemnation')) parts.push('Condemnation order documented.');
+    else if (allText.includes('prosecution')) parts.push('Referred for prosecution.');
+    else if (allText.includes('court')) parts.push('Referred to municipal court.');
+    else if (allText.includes('board') || allText.includes('hearing')) parts.push('Scheduled for board hearing.');
   }
 
   if (signals.includes('fire_citation') && !parts.some(p => p.toLowerCase().includes('fire'))) {
@@ -875,7 +872,12 @@ function composeEnforcementInsight(
     parts.push(`Repeat enforcement pattern (${totalCount} total citations).`);
   }
 
-  // Part 5: Raw description snippet for uniqueness
+  // Part 5: Oldest violation days context
+  if (oldestDaysStr && oldestDaysStr > 365 && !parts.some(p => p.includes('year'))) {
+    parts.push(`Enforcement history spans ${Math.floor(oldestDaysStr / 365)}+ years.`);
+  }
+
+  // Part 6: Raw description snippet
   if (snippet && parts.join(' ').length < 190 && !parts.some(p => p.includes('Noted'))) {
     parts.push(`Noted: "${snippet}".`);
   }
@@ -889,16 +891,19 @@ function composeEnforcementInsight(
 }
 
 function truncateInsight(parts: string[]): string {
-  // Select up to 3 blocks, max 280 chars
-  const prioritizedParts = parts.slice(0, 3);
+  // Select up to 4 blocks, max 280 chars
+  const prioritizedParts = parts.slice(0, 4);
   let result = prioritizedParts.join(' ');
 
   if (result.length > 280) {
-    result = prioritizedParts.slice(0, 2).join(' ');
+    result = prioritizedParts.slice(0, 3).join(' ');
     if (result.length > 280) {
-      result = prioritizedParts[0];
+      result = prioritizedParts.slice(0, 2).join(' ');
       if (result.length > 280) {
-        result = result.substring(0, 277) + '...';
+        result = prioritizedParts[0];
+        if (result.length > 280) {
+          result = result.substring(0, 277) + '...';
+        }
       }
     }
   }

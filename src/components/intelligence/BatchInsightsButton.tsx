@@ -186,6 +186,7 @@ export function BatchInsightsButton() {
   const handleGenerateMissing = () => invokeInsights(false, 0, 'missing');
   const handleAIRefresh = () => invokeInsights(true, 50, 'ai_refresh');
   const handleRecent20Days = () => invokeInsights(true, 50, 'recent_20d', 20);
+  const handleReplaceAll = () => invokeInsights(true, 0, 'ai_refresh');
 
   const progressPercent = progress 
     ? Math.round((progress.processed / Math.max(progress.totalProperties, 1)) * 100) 
@@ -297,7 +298,30 @@ export function BatchInsightsButton() {
               </div>
             )}
 
-            {/* PRIORITY: Last 20 Days AI Insights — demo-ready */}
+            {/* PRIMARY: Replace ALL insights across entire database */}
+            <Button 
+              onClick={handleReplaceAll}
+              disabled={isLoading || isRunning}
+              className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white"
+              size="lg"
+            >
+              {isRunning && progress?.mode === 'ai_refresh' && progress?.minScore === 0 ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Replacing All Insights... {progressPercent}%
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  🔥 Replace ALL {stats.total.toLocaleString()} Insights (Full Rebuild)
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              Overwrites every single insight — generic templates, old text, everything. Uses AI for score 50+ and rule-based for the rest.
+            </p>
+
+            {/* SECONDARY: Last 20 Days AI Insights */}
             <Button 
               onClick={handleRecent20Days}
               disabled={isLoading || isRunning}
@@ -315,18 +339,15 @@ export function BatchInsightsButton() {
                 </>
               )}
             </Button>
-            <p className="text-xs text-muted-foreground text-center">
-              AI summaries for recently-added high-score properties (shown on dashboard)
-            </p>
 
-            {/* AI Re-generate button — full database refresh */}
+            {/* AI Re-generate button — score 50+ only */}
             <Button 
               onClick={handleAIRefresh}
               disabled={isLoading || isRunning}
               variant="outline"
               className="w-full"
             >
-              {isRunning && progress?.mode === 'ai_refresh' ? (
+              {isRunning && progress?.mode === 'ai_refresh' && (progress?.minScore ?? 50) >= 50 ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                   AI Generating All... {progressPercent}%
@@ -334,7 +355,7 @@ export function BatchInsightsButton() {
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  AI Insights — All {stats.highScore.toLocaleString()} Properties (Score 50+)
+                  AI Insights — Only {stats.highScore.toLocaleString()} Properties (Score 50+)
                 </>
               )}
             </Button>

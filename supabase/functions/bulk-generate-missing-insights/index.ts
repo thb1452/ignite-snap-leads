@@ -136,43 +136,31 @@ serve(async (req) => {
     let totalRuleBased = 0;
 
     if (!dryRun) {
-      // Process chunks in parallel (up to 4 concurrent)
-      const results = await Promise.allSettled(
-        chunks.map(async (chunk) => {
-          try {
-            const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-insights`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-              },
-              body: JSON.stringify({ propertyIds: chunk }),
-            });
-            
-            if (response.ok) {
-              const result = await response.json();
-              return {
-                processed: result.processed || 0,
-                ai: result.breakdown?.ai_generated || 0,
-                rule: result.breakdown?.rule_based || 0,
-              };
-            } else {
-              console.error(`[bulk-missing] Chunk failed: ${await response.text()}`);
-              return { processed: 0, ai: 0, rule: 0 };
-            }
-          } catch (err) {
-            console.error(`[bulk-missing] Chunk error:`, err);
-            return { processed: 0, ai: 0, rule: 0 };
+      // Process chunks SEQUENTIALLY to avoid 429 rate limits on AI gateway
+      for (const chunk of chunks) {
+        try {
+          const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-insights`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+            body: JSON.stringify({ propertyIds: chunk }),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            totalProcessed += result.processed || 0;
+            totalAI += result.breakdown?.ai_generated || 0;
+            totalRuleBased += result.breakdown?.rule_based || 0;
+          } else {
+            console.error(`[bulk-missing] Chunk failed: ${await response.text()}`);
           }
-        })
-      );
-
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
-          totalProcessed += result.value.processed;
-          totalAI += result.value.ai;
-          totalRuleBased += result.value.rule;
+        } catch (err) {
+          console.error(`[bulk-missing] Chunk error:`, err);
         }
+        // Small delay between chunks to further ease rate pressure
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
 

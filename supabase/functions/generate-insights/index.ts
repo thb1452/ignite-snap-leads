@@ -24,7 +24,7 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const AI_MODEL = "google/gemini-2.5-flash-lite"; // Fast + cheap for batch processing
+const AI_MODEL = "google/gemini-3-flash-preview"; // Better quality insights
 const SNAP_SCORE_AI_THRESHOLD = 50; // Only use AI for properties >= this score
 
 interface Violation {
@@ -737,7 +737,6 @@ function composeEnforcementInsight(
   intelligence: PropertyIntelligence,
   classified: ViolationWithPriority[]
 ): string {
-  // Zero-violation fallback
   if (intelligence.total_violations === 0 && classified.length === 0) {
     return "No active enforcement actions currently on file.";
   }
@@ -745,108 +744,107 @@ function composeEnforcementInsight(
   const parts: string[] = [];
   const openCount = intelligence.open_violations;
   const totalCount = intelligence.total_violations;
-  const uniqueCategories = [...new Set(classified.map(v => v.category).filter(c => c !== 'Other'))];
   const openClassified = classified.filter(c => (c.original.status || '').toLowerCase().trim() === 'open');
   const openCategories = [...new Set(openClassified.map(v => v.category).filter(c => c !== 'Other'))];
+  const allCategories = [...new Set(classified.map(v => v.category).filter(c => c !== 'Other'))];
+  const maxDaysOpen = openClassified.length > 0 ? Math.max(...openClassified.map(v => v.original.days_open || 0), 0) : 0;
 
-  // ── Part 1: Water shutoff (highest priority, takes precedence) ──
+  // Helper: get a real violation snippet for specificity
+  const getSnippet = (): string | null => {
+    const best = classified.find(v => v.original.raw_description && v.original.raw_description.length > 15 && !v.original.raw_description.toLowerCase().includes('unknown'));
+    if (!best) return null;
+    const raw = best.original.raw_description!.trim();
+    return raw.length > 70 ? raw.slice(0, 67) + '...' : raw;
+  };
+
+  // Helper: format duration naturally
+  const durationPhrase = (): string | null => {
+    if (maxDaysOpen >= 730) return `oldest open ${Math.floor(maxDaysOpen / 365)}+ years`;
+    if (maxDaysOpen >= 365) return 'oldest open 1+ year';
+    if (maxDaysOpen >= 180) return `open ${maxDaysOpen} days`;
+    if (maxDaysOpen >= 60) return `open ${maxDaysOpen} days`;
+    if (maxDaysOpen >= 14) return `open ${Math.floor(maxDaysOpen / 7)} weeks`;
+    return null;
+  };
+
+  // Helper: format categories naturally
+  const catPhrase = (cats: string[]): string => {
+    if (cats.length === 0) return '';
+    if (cats.length === 1) return cats[0].toLowerCase();
+    if (cats.length === 2) return `${cats[0].toLowerCase()} and ${cats[1].toLowerCase()}`;
+    return `${cats.slice(0, 2).map(c => c.toLowerCase()).join(', ')} +${cats.length - 2} more`;
+  };
+
+  // ── Water shutoff properties ──
   if (signals.includes('water_shutoff_enforcement')) {
-    if (signals.includes('maximum_enforcement_pressure')) {
-      parts.push(INSIGHT_BLOCKS.PRIORITY_WATER_SHUTOFF_COMPOUND);
-    } else if (signals.includes('active_enforcement_current')) {
-      parts.push(INSIGHT_BLOCKS.PRIORITY_WATER_SHUTOFF_RECENT);
-    } else if (signals.includes('compounding_enforcement')) {
-      parts.push(INSIGHT_BLOCKS.PRIORITY_WATER_SHUTOFF_WITH_VIOLATIONS);
+    const durStr = durationPhrase();
+    if (openCount > 1) {
+      parts.push(`Water service disconnected with ${openCount} concurrent open citations${openCategories.length > 0 ? ` (${catPhrase(openCategories)})` : ''}.`);
     } else {
-      parts.push(INSIGHT_BLOCKS.PRIORITY_WATER_SHUTOFF);
+      parts.push('Water service disconnected — active municipal enforcement action on record.');
     }
+    if (durStr) parts.push(`${durStr.charAt(0).toUpperCase() + durStr.slice(1)}.`);
+    const snippet = getSnippet();
+    if (snippet && parts.join(' ').length < 200) parts.push(`Noted: "${snippet}".`);
     return truncateInsight(parts);
   }
 
-  // ── Part 1: Quantified lead-in with category specifics ──
-  const categoryLabel = (cats: string[]) => {
-    if (cats.length === 0) return '';
-    if (cats.length === 1) return ` (${cats[0].toLowerCase()})`;
-    if (cats.length === 2) return ` (${cats[0].toLowerCase()}, ${cats[1].toLowerCase()})`;
-    return ` across ${cats.length} categories`;
-  };
+  // ── Standard properties: build unique insight ──
+  const cats = openCount > 0 ? openCategories : allCategories;
+  const durStr = durationPhrase();
+  const snippet = getSnippet();
 
+  // Part 1: Quantified lead-in
   if (openCount > 0) {
-    const catInfo = categoryLabel(openCategories.length > 0 ? openCategories : uniqueCategories);
-    parts.push(`${openCount} open citation${openCount > 1 ? 's' : ''}${catInfo} pending resolution.`);
+    const catStr = cats.length > 0 ? ` covering ${catPhrase(cats)}` : '';
+    const durSuffix = durStr ? `, ${durStr}` : '';
+    parts.push(`${openCount} open citation${openCount > 1 ? 's' : ''}${catStr}${durSuffix}.`);
   } else if (totalCount > 0) {
-    const catInfo = categoryLabel(uniqueCategories);
-    parts.push(`${totalCount} closed citation${totalCount > 1 ? 's' : ''}${catInfo} on record — all resolved.`);
+    const catStr = allCategories.length > 0 ? ` (${catPhrase(allCategories)})` : '';
+    parts.push(`${totalCount} resolved citation${totalCount > 1 ? 's' : ''}${catStr} on record.`);
   }
 
-  // ── Part 2: Duration / age context ──
-  if (openCount > 0) {
-    const maxDaysOpen = Math.max(...openClassified.map(v => v.original.days_open || 0), 0);
-    if (maxDaysOpen >= 365) {
-      const years = Math.floor(maxDaysOpen / 365);
-      parts.push(`Oldest open matter dates back ${years}+ year${years > 1 ? 's' : ''}.`);
-    } else if (maxDaysOpen >= 180) {
-      parts.push(`Enforcement matters open for 180+ days.`);
-    } else if (maxDaysOpen >= 90) {
-      parts.push(`Unresolved past standard 90-day period.`);
-    } else if (maxDaysOpen >= 30) {
-      parts.push(`Open citations aging ${maxDaysOpen}+ days.`);
-    }
-  }
-
-  // ── Part 3: Recency ──
-  if (signals.includes('recent_activity')) {
-    parts.push("New inspection activity within the past 7 days.");
-  } else if (signals.includes('current_enforcement')) {
-    parts.push("Enforcement records updated within 30 days.");
-  }
-
-  // ── Part 4: High-priority flags (condemnation, fire, legal) ──
-  const hasCondemnation = classified.some(v => {
-    const s = (v.original.status || '').toLowerCase();
-    const d = (v.original.raw_description || '').toLowerCase();
-    return s.includes('condemned') || d.includes('condemned') || d.includes('unsafe structure');
-  });
-  if (hasCondemnation) parts.push(INSIGHT_BLOCKS.PRIORITY_CONDEMNATION);
-
-  if (signals.includes('fire_citation')) parts.push(INSIGHT_BLOCKS.PRIORITY_FIRE_MARSHAL);
-
+  // Part 2: High-priority flags
   if (signals.includes('enforcement_escalation') || intelligence.escalated) {
     const statuses = classified.map(v => (v.original.status || '').toLowerCase()).join(' ');
-    if (statuses.includes('prosecution')) parts.push(INSIGHT_BLOCKS.ESCALATION_PROSECUTION);
-    else if (statuses.includes('court')) parts.push(INSIGHT_BLOCKS.ESCALATION_COURT);
-    else if (statuses.includes('board') || statuses.includes('hearing')) parts.push(INSIGHT_BLOCKS.ESCALATION_BOARD);
+    if (statuses.includes('condemned')) parts.push('Condemnation order active.');
+    else if (statuses.includes('prosecution')) parts.push('Referred for prosecution.');
+    else if (statuses.includes('court')) parts.push('Referred to municipal court.');
+    else if (statuses.includes('board') || statuses.includes('hearing')) parts.push('Scheduled for board hearing.');
   }
 
-  // ── Part 5: Vacancy ──
-  if (signals.includes('vacancy_citation') || classified.some(v => v.category === 'Vacancy')) {
-    parts.push(INSIGHT_BLOCKS.CATEGORY_VACANCY);
+  if (signals.includes('fire_citation') && !parts.some(p => p.toLowerCase().includes('fire'))) {
+    parts.push('Fire safety citations on file.');
   }
 
-  // ── Part 6: Patterns ──
+  if (signals.includes('vacancy_citation') && !parts.some(p => p.toLowerCase().includes('vacan'))) {
+    parts.push('Vacancy/abandonment citations documented.');
+  }
+
+  // Part 3: Recency
+  if (signals.includes('recent_activity')) {
+    parts.push('New activity within 7 days.');
+  } else if (signals.includes('current_enforcement')) {
+    parts.push('Updated within 30 days.');
+  }
+
+  // Part 4: Pattern signals
   if (signals.includes('coordinated_enforcement') || signals.includes('multi_department')) {
-    parts.push("Cross-departmental enforcement coordination documented.");
+    if (!parts.some(p => p.includes('department') || p.includes('categories'))) {
+      parts.push('Multi-department enforcement coordination.');
+    }
   }
-  if (signals.includes('recurring_enforcement') && !parts.some(p => p.includes('recurring'))) {
-    parts.push("Recurring enforcement pattern at this address.");
+  if (signals.includes('recurring_enforcement') && !parts.some(p => p.includes('recurring') || p.includes('repeat'))) {
+    parts.push(`Repeat enforcement pattern (${totalCount} total citations).`);
   }
 
-  // ── Part 7: Raw description snippet for specificity ──
-  if (parts.length <= 2) {
-    const bestViolation = classified.find(v => v.original.raw_description && v.original.raw_description.length > 10);
-    if (bestViolation) {
-      const snippet = bestViolation.original.raw_description!.slice(0, 80).trim();
-      // Only add if it provides real info (not just "Unknown" etc)
-      if (snippet.length > 15 && !snippet.toLowerCase().includes('unknown')) {
-        parts.push(`Noted: "${snippet}".`);
-      }
-    }
+  // Part 5: Raw description snippet for uniqueness
+  if (snippet && parts.join(' ').length < 190 && !parts.some(p => p.includes('Noted'))) {
+    parts.push(`Noted: "${snippet}".`);
   }
 
   if (parts.length === 0) {
-    if (totalCount > 0) {
-      return `${totalCount} municipal citation${totalCount > 1 ? 's' : ''} on record.`;
-    }
+    if (totalCount > 0) return `${totalCount} municipal citation${totalCount > 1 ? 's' : ''} on record.`;
     return "No active enforcement actions currently on file.";
   }
 

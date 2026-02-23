@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { analytics } from "@/lib/analytics";
 
 // Session storage key to track if a user was logged in BEFORE visiting pricing/auth
 const SESSION_KEY_PRE_AUTH_USER = 'snap_pre_auth_user_existed';
@@ -114,6 +115,7 @@ export default function Auth() {
     }
 
     console.log('[Auth] Direct checkout for fresh signup, plan:', selectedPlan);
+    analytics.paymentStarted(selectedPlan || undefined);
 
     const TIMEOUT_MS = 15000;
     const invokePromise = supabase.functions.invoke('create-checkout-session', {

@@ -1,8 +1,8 @@
 /**
- * Bulk Rescore - Admin-only batch processing for all properties.
+ * Bulk Rescore - Admin-only batch processing for unscored properties only.
  * Requires admin JWT or x-internal-secret for self-invocation.
  * 
- * v2: Sequential processing, larger batches, reliable self-invocation.
+ * v3: Only processes properties missing snap_insight, skips already-scored ones.
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -12,8 +12,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-secret',
 };
 
-// Process 200 properties per batch, split into 4 sequential chunks of 50
-const BATCH_SIZE = 200;
+const BATCH_SIZE = 500;
 const CHUNK_SIZE = 50;
 
 serve(async (req) => {
@@ -49,28 +48,43 @@ serve(async (req) => {
   const startTime = Date.now();
   
   try {
-    const { offset = 0, dryRun = false } = await req.json().catch(() => ({}));
+    const { dryRun = false } = await req.json().catch(() => ({}));
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // Count total and remaining
     const { count: totalCount } = await supabase
       .from("properties")
       .select("id", { count: "exact", head: true });
 
-    console.log(`[bulk-rescore] Starting at offset ${offset}, total: ${totalCount}`);
+    const { count: remainingCount } = await supabase
+      .from("properties")
+      .select("id", { count: "exact", head: true })
+      .is("snap_insight", null);
 
+    console.log(`[bulk-rescore v3] Remaining without insight: ${remainingCount} / ${totalCount} total`);
+
+    if (!remainingCount || remainingCount === 0) {
+      console.log(`[bulk-rescore v3] ✅ ALL DONE - every property has an insight`);
+      return new Response(
+        JSON.stringify({ success: true, message: "All properties already scored!", remaining: 0, total: totalCount, complete: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Fetch only unscored properties (no offset needed - just grab the next batch)
     const { data: properties, error: fetchError } = await supabase
       .from("properties")
       .select("id")
+      .is("snap_insight", null)
       .order("id")
-      .range(offset, offset + BATCH_SIZE - 1);
+      .limit(BATCH_SIZE);
 
     if (fetchError) throw fetchError;
 
     if (!properties || properties.length === 0) {
-      console.log(`[bulk-rescore] ✅ ALL DONE at offset ${offset}`);
       return new Response(
-        JSON.stringify({ success: true, message: "All properties processed!", processed: offset, total: totalCount, complete: true }),
+        JSON.stringify({ success: true, message: "All properties processed!", remaining: 0, total: totalCount, complete: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -80,7 +94,6 @@ serve(async (req) => {
     let totalRule = 0;
 
     if (!dryRun) {
-      // Split into chunks and process SEQUENTIALLY
       const allIds = properties.map(p => p.id);
       const chunks: string[][] = [];
       for (let i = 0; i < allIds.length; i += CHUNK_SIZE) {
@@ -106,12 +119,11 @@ serve(async (req) => {
             totalRule += result.breakdown?.rule_based || 0;
           } else {
             const errText = await response.text();
-            console.error(`[bulk-rescore] Chunk ${i + 1} failed: ${errText}`);
+            console.error(`[bulk-rescore v3] Chunk ${i + 1} failed: ${errText}`);
           }
         } catch (err) {
-          console.error(`[bulk-rescore] Chunk ${i + 1} error:`, err);
+          console.error(`[bulk-rescore v3] Chunk ${i + 1} error:`, err);
         }
-        // Small delay between chunks
         if (i < chunks.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 300));
         }
@@ -119,13 +131,14 @@ serve(async (req) => {
     }
 
     const elapsed = Date.now() - startTime;
-    const nextOffset = offset + properties.length;
-    const isComplete = nextOffset >= (totalCount || 0);
-    const progress = Math.round((nextOffset / (totalCount || 1)) * 100);
+    const newRemaining = (remainingCount || 0) - totalProcessed;
+    const isComplete = newRemaining <= 0;
+    const scored = (totalCount || 0) - newRemaining;
+    const progress = Math.round((scored / (totalCount || 1)) * 100);
 
-    console.log(`[bulk-rescore] Batch complete: ${totalProcessed} processed (${totalAI} AI, ${totalRule} rule) in ${elapsed}ms | ${Math.min(100, progress)}% (${nextOffset}/${totalCount})`);
+    console.log(`[bulk-rescore v3] Batch: ${totalProcessed} processed (${totalAI} AI, ${totalRule} rule) in ${elapsed}ms | ${progress}% done, ~${newRemaining} remaining`);
 
-    // Schedule next batch using EdgeRuntime.waitUntil for reliability
+    // Auto-continue if more remain
     if (!isComplete && !dryRun) {
       const triggerNext = async () => {
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -136,15 +149,15 @@ serve(async (req) => {
               'Content-Type': 'application/json',
               'x-internal-secret': SUPABASE_SERVICE_ROLE_KEY,
             },
-            body: JSON.stringify({ offset: nextOffset }),
+            body: JSON.stringify({}),
           });
-          console.log(`[bulk-rescore] Next batch triggered at offset ${nextOffset}, status: ${res.status}`);
+          console.log(`[bulk-rescore v3] Next batch triggered, status: ${res.status}`);
         } catch (err) {
-          console.error('[bulk-rescore] Failed to trigger next batch:', err);
+          console.error('[bulk-rescore v3] Failed to trigger next batch:', err);
         }
       };
 
-      // @ts-ignore - EdgeRuntime available in Supabase
+      // @ts-ignore
       if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
         // @ts-ignore
         EdgeRuntime.waitUntil(triggerNext());
@@ -160,15 +173,14 @@ serve(async (req) => {
         ai_generated: totalAI,
         rule_based: totalRule,
         elapsed_ms: elapsed,
-        progress: { current: Math.min(nextOffset, totalCount || 0), total: totalCount, percentage: Math.min(100, progress), complete: isComplete },
-        next_offset: isComplete ? null : nextOffset,
+        progress: { scored, total: totalCount, remaining: newRemaining, percentage: Math.min(100, progress), complete: isComplete },
         auto_continuing: !isComplete && !dryRun
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error("[bulk-rescore] Fatal error:", error);
+    console.error("[bulk-rescore v3] Fatal error:", error);
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

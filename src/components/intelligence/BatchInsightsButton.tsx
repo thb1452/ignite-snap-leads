@@ -24,7 +24,7 @@ interface BatchRescoreProgress {
 export function BatchInsightsButton() {
   const [progress, setProgress] = useState<BatchRescoreProgress | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [stats, setStats] = useState<{ total: number; hasInsight: number; missing: number; highScore: number } | null>(null);
+  const [stats, setStats] = useState<{ total: number; hasInsight: number; missing: number; highScore: number; generic: number } | null>(null);
   const queryClient = useQueryClient();
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -43,6 +43,14 @@ export function BatchInsightsButton() {
         .from("properties")
         .select("id", { count: "exact", head: true })
         .gte("snap_score", 50);
+
+      // Count generic/template insights that need replacement
+      const { count: genericCount } = await supabase
+        .from("properties")
+        .select("id", { count: "exact", head: true })
+        .not("snap_insight", "is", null)
+        .lt("snap_insight", "S") // short generic insights sort before "S"
+        .or("snap_insight.like.Routine%,snap_insight.like.Minimal%,snap_insight.like.Standard%");
       
       const totalCount = total ?? 0;
       const insightCount = hasInsight ?? 0;
@@ -51,6 +59,7 @@ export function BatchInsightsButton() {
         hasInsight: insightCount, 
         missing: totalCount - insightCount,
         highScore: highScore ?? 0,
+        generic: genericCount ?? 0,
       });
     } catch (error) {
       console.error("Failed to fetch insight stats:", error);
@@ -227,14 +236,28 @@ export function BatchInsightsButton() {
                   <span className="font-semibold text-amber-500">{stats.missing.toLocaleString()}</span>
                 </div>
               )}
+              {stats.generic > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">⚠️ Generic / template:</span>
+                  <span className="font-semibold text-red-500">{stats.generic.toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Score 50+ (AI eligible):</span>
                 <span className="font-semibold text-cyan-600">{stats.highScore.toLocaleString()}</span>
               </div>
-              <Progress value={(stats.hasInsight / stats.total) * 100} className="h-2 mt-2" />
-              <div className="text-xs text-muted-foreground text-center">
-                {Math.round((stats.hasInsight / stats.total) * 100)}% have insights
-              </div>
+              {(() => {
+                const qualityCount = stats.hasInsight - stats.generic;
+                const qualityPct = stats.total > 0 ? Math.round((qualityCount / stats.total) * 100) : 0;
+                return (
+                  <>
+                    <Progress value={qualityPct} className="h-2 mt-2" />
+                    <div className="text-xs text-muted-foreground text-center">
+                      {qualityPct}% have quality insights ({stats.generic > 0 ? `${stats.generic.toLocaleString()} need replacement` : 'all good'})
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {isRunning && (

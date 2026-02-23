@@ -96,13 +96,14 @@ serve(async (req) => {
       countQuery = countQuery.gte("created_at", since).gte("snap_score", minScore > 0 ? minScore : 50);
       fetchQuery = fetchQuery.gte("created_at", since).gte("snap_score", minScore > 0 ? minScore : 50);
       console.log(`[bulk-missing] RECENT mode: last ${sinceDays} days, score >= ${minScore > 0 ? minScore : 50}`);
-    } else if (forceRefresh && (minScore > 0 || enforcementType)) {
-      // Re-generate insights for matching properties (even if already set)
+    } else if (forceRefresh) {
+      // Re-generate insights for ALL matching properties (even if already set)
       if (minScore > 0) {
         countQuery = countQuery.gte("snap_score", minScore);
         fetchQuery = fetchQuery.gte("snap_score", minScore);
       }
-      console.log(`[bulk-missing] FORCE REFRESH mode${minScore > 0 ? `: score >= ${minScore}` : ''}${enforcementType ? ` enforcement_type=${enforcementType}` : ''}`);
+      // When minScore=0 and forceRefresh=true, NO filter = process ALL properties
+      console.log(`[bulk-missing] FORCE REFRESH mode: ${minScore > 0 ? `score >= ${minScore}` : 'ALL PROPERTIES'}${enforcementType ? ` enforcement_type=${enforcementType}` : ''}`);
     } else if (!enforcementType) {
       // Default: only properties missing insights
       countQuery = countQuery.is("snap_insight", null);

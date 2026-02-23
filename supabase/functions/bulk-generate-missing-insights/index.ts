@@ -13,8 +13,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Process 10 properties per batch — keeps each invocation well under timeout
-const BATCH_SIZE = 10;
+// Process 50 properties per batch — split into 5 parallel chunks of 10
+const BATCH_SIZE = 50;
+const CHUNK_SIZE = 10; // Each generate-insights call handles 10 properties
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -144,35 +145,55 @@ serve(async (req) => {
     console.log(`[bulk-missing] Processing ${propertyIds.length} properties (offset ${offset})`);
     console.log(`[bulk-missing] Priority batch: max_score=${maxScore}, avg_score=${avgScore} (high-value first)`);
 
-    // Process the batch
+    // Process the batch in parallel chunks of CHUNK_SIZE
     let totalProcessed = 0;
     let totalAI = 0;
     let totalRuleBased = 0;
 
     if (!dryRun) {
-      try {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-insights`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          },
-          body: JSON.stringify({ propertyIds }),
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          totalProcessed = result.processed || 0;
-          totalAI = result.breakdown?.ai_generated || 0;
-          totalRuleBased = result.breakdown?.rule_based || 0;
-          console.log(`[bulk-missing] Chunk result: ${totalProcessed} processed (${totalAI} AI, ${totalRuleBased} rule-based)`);
-        } else {
-          const errText = await response.text().catch(() => 'no body');
-          console.error(`[bulk-missing] Chunk failed (${response.status}): ${errText}`);
-        }
-      } catch (err) {
-        console.error(`[bulk-missing] Chunk error:`, err);
+      // Split into chunks and process in parallel
+      const chunks: string[][] = [];
+      for (let i = 0; i < propertyIds.length; i += CHUNK_SIZE) {
+        chunks.push(propertyIds.slice(i, i + CHUNK_SIZE));
       }
+      
+      console.log(`[bulk-missing] Sending ${chunks.length} parallel chunks of up to ${CHUNK_SIZE}`);
+      
+      const results = await Promise.allSettled(
+        chunks.map(async (chunk, idx) => {
+          try {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-insights`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              },
+              body: JSON.stringify({ propertyIds: chunk }),
+            });
+            if (response.ok) {
+              const result = await response.json();
+              console.log(`[bulk-missing] Chunk ${idx + 1}/${chunks.length}: ${result.processed || 0} processed`);
+              return result;
+            } else {
+              const errText = await response.text().catch(() => 'no body');
+              console.error(`[bulk-missing] Chunk ${idx + 1} failed (${response.status}): ${errText}`);
+              return null;
+            }
+          } catch (err) {
+            console.error(`[bulk-missing] Chunk ${idx + 1} error:`, err);
+            return null;
+          }
+        })
+      );
+      
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) {
+          totalProcessed += r.value.processed || 0;
+          totalAI += r.value.breakdown?.ai_generated || 0;
+          totalRuleBased += r.value.breakdown?.rule_based || 0;
+        }
+      }
+      console.log(`[bulk-missing] All chunks done: ${totalProcessed} processed (${totalAI} AI, ${totalRuleBased} rule-based)`);
     }
 
     const elapsed = Date.now() - startTime;

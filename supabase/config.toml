@@ -1,4 +1,4 @@
-project_id = "dqwolscmceelqpkfclgi"
+project_id = "ojyxblegxpdgaqiscxpz"
 
 [functions.bulk-generate-missing-insights]
 verify_jwt = false
@@ -13,7 +13,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.generate-insights]
-verify_jwt = true
+verify_jwt = false
 
 [functions.export-csv]
 verify_jwt = true

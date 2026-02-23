@@ -729,44 +729,27 @@ function classifyViolation(violation: Violation): ViolationWithPriority {
 }
 
 // ============================================================================
-// v3.0 DETERMINISTIC INSIGHT COMPOSITION ENGINE (fallback / low score)
+// v4.0 DATA-GROUNDED DETERMINISTIC INSIGHT ENGINE
+// Produces specific insights using actual violation data instead of templates
 // ============================================================================
 function composeEnforcementInsight(
   signals: string[],
   intelligence: PropertyIntelligence,
   classified: ViolationWithPriority[]
 ): string {
+  // Zero-violation fallback
+  if (intelligence.total_violations === 0 && classified.length === 0) {
+    return "No active enforcement actions currently on file.";
+  }
+
   const parts: string[] = [];
-  
-  // Block A - Enforcement Scope
-  const uniqueCategories = [...new Set(classified.map(v => v.category))];
-  if (uniqueCategories.length >= 3) {
-    parts.push(INSIGHT_BLOCKS.SCOPE_MULTI_CATEGORY);
-  } else if (intelligence.open_violations >= 2 || uniqueCategories.length >= 2) {
-    parts.push(INSIGHT_BLOCKS.SCOPE_MULTI_VIOLATION);
-  }
-  
-  // Block B - Duration
-  const maxDaysOpen = classified.length > 0 
-    ? Math.max(...classified.map(v => v.original.days_open || 0), 0)
-    : 0;
-  
-  if (maxDaysOpen >= 180 || signals.includes('extended_enforcement')) {
-    parts.push(INSIGHT_BLOCKS.DURATION_EXTENDED_180);
-  } else if (maxDaysOpen >= 90 || intelligence.avg_days_open >= 90) {
-    parts.push(INSIGHT_BLOCKS.DURATION_EXTENDED_90);
-  } else if (maxDaysOpen >= 60 || intelligence.avg_days_open >= 60) {
-    parts.push(INSIGHT_BLOCKS.DURATION_EXTENDED_60);
-  }
-  
-  // Block C - Recent Activity
-  if (signals.includes('recent_activity')) {
-    parts.push(INSIGHT_BLOCKS.RECENT_7_DAYS);
-  } else if (signals.includes('current_enforcement')) {
-    parts.push(INSIGHT_BLOCKS.RECENT_30_DAYS);
-  }
-  
-  // Block D - Priority Enforcement (Water Shutoff takes precedence)
+  const openCount = intelligence.open_violations;
+  const totalCount = intelligence.total_violations;
+  const uniqueCategories = [...new Set(classified.map(v => v.category).filter(c => c !== 'Other'))];
+  const openClassified = classified.filter(c => (c.original.status || '').toLowerCase().trim() === 'open');
+  const openCategories = [...new Set(openClassified.map(v => v.category).filter(c => c !== 'Other'))];
+
+  // ── Part 1: Water shutoff (highest priority, takes precedence) ──
   if (signals.includes('water_shutoff_enforcement')) {
     if (signals.includes('maximum_enforcement_pressure')) {
       parts.push(INSIGHT_BLOCKS.PRIORITY_WATER_SHUTOFF_COMPOUND);
@@ -777,100 +760,104 @@ function composeEnforcementInsight(
     } else {
       parts.push(INSIGHT_BLOCKS.PRIORITY_WATER_SHUTOFF);
     }
-  } else if (signals.includes('utility_enforcement') || 
-      classified.some(v => v.category === 'Utility' && v.priority === 'high')) {
-    parts.push(INSIGHT_BLOCKS.PRIORITY_UTILITY);
+    return truncateInsight(parts);
   }
-  
+
+  // ── Part 1: Quantified lead-in with category specifics ──
+  const categoryLabel = (cats: string[]) => {
+    if (cats.length === 0) return '';
+    if (cats.length === 1) return ` (${cats[0].toLowerCase()})`;
+    if (cats.length === 2) return ` (${cats[0].toLowerCase()}, ${cats[1].toLowerCase()})`;
+    return ` across ${cats.length} categories`;
+  };
+
+  if (openCount > 0) {
+    const catInfo = categoryLabel(openCategories.length > 0 ? openCategories : uniqueCategories);
+    parts.push(`${openCount} open citation${openCount > 1 ? 's' : ''}${catInfo} pending resolution.`);
+  } else if (totalCount > 0) {
+    const catInfo = categoryLabel(uniqueCategories);
+    parts.push(`${totalCount} closed citation${totalCount > 1 ? 's' : ''}${catInfo} on record — all resolved.`);
+  }
+
+  // ── Part 2: Duration / age context ──
+  if (openCount > 0) {
+    const maxDaysOpen = Math.max(...openClassified.map(v => v.original.days_open || 0), 0);
+    if (maxDaysOpen >= 365) {
+      const years = Math.floor(maxDaysOpen / 365);
+      parts.push(`Oldest open matter dates back ${years}+ year${years > 1 ? 's' : ''}.`);
+    } else if (maxDaysOpen >= 180) {
+      parts.push(`Enforcement matters open for 180+ days.`);
+    } else if (maxDaysOpen >= 90) {
+      parts.push(`Unresolved past standard 90-day period.`);
+    } else if (maxDaysOpen >= 30) {
+      parts.push(`Open citations aging ${maxDaysOpen}+ days.`);
+    }
+  }
+
+  // ── Part 3: Recency ──
+  if (signals.includes('recent_activity')) {
+    parts.push("New inspection activity within the past 7 days.");
+  } else if (signals.includes('current_enforcement')) {
+    parts.push("Enforcement records updated within 30 days.");
+  }
+
+  // ── Part 4: High-priority flags (condemnation, fire, legal) ──
   const hasCondemnation = classified.some(v => {
-    const status = (v.original.status || '').toLowerCase();
-    const desc = (v.original.raw_description || '').toLowerCase();
-    return status.includes('condemned') || desc.includes('condemned') || 
-           desc.includes('unsafe structure') || desc.includes('imminent danger');
+    const s = (v.original.status || '').toLowerCase();
+    const d = (v.original.raw_description || '').toLowerCase();
+    return s.includes('condemned') || d.includes('condemned') || d.includes('unsafe structure');
   });
-  if (hasCondemnation) {
-    parts.push(INSIGHT_BLOCKS.PRIORITY_CONDEMNATION);
-  }
-  
-  const hasLegal = classified.some(v => {
-    const status = (v.original.status || '').toLowerCase();
-    return status.includes('legal') || status.includes('court') || status.includes('prosecution');
-  });
-  if (hasLegal && !hasCondemnation) {
-    parts.push(INSIGHT_BLOCKS.PRIORITY_LEGAL);
-  }
-  
-  if (signals.includes('fire_citation') || 
-      classified.some(v => v.category === 'Fire' && v.priority === 'high')) {
-    parts.push(INSIGHT_BLOCKS.PRIORITY_FIRE_MARSHAL);
-  }
-  
-  // Block E - Category Specific
-  const hasStructural = classified.some(v => v.category === 'Structural');
-  const hasVacancy = classified.some(v => v.category === 'Vacancy');
-  const hasSafety = classified.some(v => v.category === 'Safety');
-  const hasExterior = classified.some(v => v.category === 'Exterior');
-  
-  if (hasStructural && !hasCondemnation && signals.includes('structural_citation')) {
-    parts.push(INSIGHT_BLOCKS.CATEGORY_STRUCTURAL);
-  }
-  if (hasVacancy || signals.includes('vacancy_citation')) {
-    parts.push(INSIGHT_BLOCKS.CATEGORY_VACANCY);
-  }
-  if (hasSafety && !hasCondemnation) {
-    parts.push(INSIGHT_BLOCKS.CATEGORY_SAFETY);
-  }
-  
-  // Block F - Escalation
+  if (hasCondemnation) parts.push(INSIGHT_BLOCKS.PRIORITY_CONDEMNATION);
+
+  if (signals.includes('fire_citation')) parts.push(INSIGHT_BLOCKS.PRIORITY_FIRE_MARSHAL);
+
   if (signals.includes('enforcement_escalation') || intelligence.escalated) {
     const statuses = classified.map(v => (v.original.status || '').toLowerCase()).join(' ');
-    if (statuses.includes('prosecution')) {
-      parts.push(INSIGHT_BLOCKS.ESCALATION_PROSECUTION);
-    } else if (statuses.includes('court')) {
-      parts.push(INSIGHT_BLOCKS.ESCALATION_COURT);
-    } else if (statuses.includes('board') || statuses.includes('hearing')) {
-      parts.push(INSIGHT_BLOCKS.ESCALATION_BOARD);
-    }
+    if (statuses.includes('prosecution')) parts.push(INSIGHT_BLOCKS.ESCALATION_PROSECUTION);
+    else if (statuses.includes('court')) parts.push(INSIGHT_BLOCKS.ESCALATION_COURT);
+    else if (statuses.includes('board') || statuses.includes('hearing')) parts.push(INSIGHT_BLOCKS.ESCALATION_BOARD);
   }
-  
-  // Block G - Pattern
-  if (signals.includes('recurring_enforcement') || intelligence.repeat_offender) {
-    parts.push(INSIGHT_BLOCKS.PATTERN_REPEAT);
+
+  // ── Part 5: Vacancy ──
+  if (signals.includes('vacancy_citation') || classified.some(v => v.category === 'Vacancy')) {
+    parts.push(INSIGHT_BLOCKS.CATEGORY_VACANCY);
   }
-  if (signals.includes('coordinated_enforcement') || signals.includes('multi_department') || intelligence.multi_department) {
-    parts.push(INSIGHT_BLOCKS.PATTERN_MULTI_DEPT);
+
+  // ── Part 6: Patterns ──
+  if (signals.includes('coordinated_enforcement') || signals.includes('multi_department')) {
+    parts.push("Cross-departmental enforcement coordination documented.");
   }
-  
-  // Fallback if no blocks triggered
-  if (parts.length === 0) {
-    const highPriority = classified.filter(v => v.priority === 'high');
-    const mediumPriority = classified.filter(v => v.priority === 'medium');
-    
-    if (highPriority.length > 0) {
-      const category = highPriority[0].category;
-      parts.push(`High-priority ${category.toLowerCase()} enforcement actions documented.`);
-    } else if (mediumPriority.length > 0) {
-      const category = mediumPriority[0].category;
-      parts.push(`Active ${category.toLowerCase()} compliance matters under review.`);
-    } else if (hasExterior) {
-      parts.push(INSIGHT_BLOCKS.CATEGORY_EXTERIOR);
-    } else if (intelligence.total_violations > 0) {
-      const count = intelligence.total_violations;
-      const open = intelligence.open_violations;
-      if (open > 0) {
-        parts.push(`${open} open municipal citation${open > 1 ? 's' : ''} pending resolution.`);
-      } else {
-        parts.push(`${count} municipal citation${count > 1 ? 's' : ''} on record.`);
+  if (signals.includes('recurring_enforcement') && !parts.some(p => p.includes('recurring'))) {
+    parts.push("Recurring enforcement pattern at this address.");
+  }
+
+  // ── Part 7: Raw description snippet for specificity ──
+  if (parts.length <= 2) {
+    const bestViolation = classified.find(v => v.original.raw_description && v.original.raw_description.length > 10);
+    if (bestViolation) {
+      const snippet = bestViolation.original.raw_description!.slice(0, 80).trim();
+      // Only add if it provides real info (not just "Unknown" etc)
+      if (snippet.length > 15 && !snippet.toLowerCase().includes('unknown')) {
+        parts.push(`Noted: "${snippet}".`);
       }
-    } else {
-      parts.push("Minimal enforcement activity documented.");
     }
   }
-  
+
+  if (parts.length === 0) {
+    if (totalCount > 0) {
+      return `${totalCount} municipal citation${totalCount > 1 ? 's' : ''} on record.`;
+    }
+    return "No active enforcement actions currently on file.";
+  }
+
+  return truncateInsight(parts);
+}
+
+function truncateInsight(parts: string[]): string {
   // Select up to 3 blocks, max 280 chars
   const prioritizedParts = parts.slice(0, 3);
   let result = prioritizedParts.join(' ');
-  
+
   if (result.length > 280) {
     result = prioritizedParts.slice(0, 2).join(' ');
     if (result.length > 280) {
@@ -880,6 +867,6 @@ function composeEnforcementInsight(
       }
     }
   }
-  
+
   return result;
 }

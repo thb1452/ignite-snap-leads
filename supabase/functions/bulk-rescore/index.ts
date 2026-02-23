@@ -60,12 +60,12 @@ serve(async (req) => {
     const { count: remainingCount } = await supabase
       .from("properties")
       .select("id", { count: "exact", head: true })
-      .is("snap_insight", null);
+      .is("snap_score", null);
 
-    console.log(`[bulk-rescore v3] Remaining without insight: ${remainingCount} / ${totalCount} total`);
+    console.log(`[bulk-rescore v3] Remaining without score: ${remainingCount} / ${totalCount} total`);
 
     if (!remainingCount || remainingCount === 0) {
-      console.log(`[bulk-rescore v3] ✅ ALL DONE - every property has an insight`);
+      console.log(`[bulk-rescore v3] ✅ ALL DONE - every property has a score`);
       return new Response(
         JSON.stringify({ success: true, message: "All properties already scored!", remaining: 0, total: totalCount, complete: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -76,7 +76,7 @@ serve(async (req) => {
     const { data: properties, error: fetchError } = await supabase
       .from("properties")
       .select("id")
-      .is("snap_insight", null)
+      .is("snap_score", null)
       .order("id")
       .limit(BATCH_SIZE);
 

@@ -4,6 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCw, CheckCircle, AlertCircle, Lightbulb, Sparkles, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/externalClient";
+import { callFn } from "@/integrations/http/functions";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -121,9 +122,8 @@ export function BatchInsightsButton() {
       const body: Record<string, unknown> = { offset: 0, autoResume: true, forceRefresh, minScore };
       if (sinceDays) body.sinceDays = sinceDays;
 
-      const { data, error } = await supabase.functions.invoke("bulk-generate-missing-insights", { body });
-      
-      if (error) throw error;
+      const data = await callFn("bulk-generate-missing-insights", body);
+      const error = null;
 
       if (data?.success) {
         const total = data.progress?.total ?? 0;

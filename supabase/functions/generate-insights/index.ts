@@ -16,7 +16,7 @@
  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v6.0";
+const VERSION = "v7.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -428,6 +428,17 @@ serve(async (req) => {
 // ============================================================================
 function aggregatePropertyIntelligence(violations: Violation[]): PropertyIntelligence {
   const escalatedStatuses = ['board', 'legal', 'court', 'condemned', 'prosecution'];
+  const now = new Date();
+  
+  // ── FIX: Derive days_open from opened_date when null ──
+  for (const v of violations) {
+    if (v.days_open == null && v.opened_date) {
+      const opened = new Date(v.opened_date);
+      if (!isNaN(opened.getTime())) {
+        v.days_open = Math.max(0, Math.floor((now.getTime() - opened.getTime()) / (1000 * 60 * 60 * 24)));
+      }
+    }
+  }
   
   const openViolations = violations.filter(v => {
     const status = (v.status || '').toLowerCase().trim();
@@ -741,6 +752,14 @@ function classifyViolation(violation: Violation): ViolationWithPriority {
   
   if (combined.includes('exterior') || combined.includes('facade')) {
     return { category: 'Exterior', priority: 'low', original: violation };
+  }
+  
+  // ── FIX: "Unknown" and uncategorized types get baseline medium priority
+  // if the property has open violations, so they contribute to the score ──
+  const status = (violation.status || '').toLowerCase().trim();
+  if (status === 'open') {
+    // Open violations of unknown type still represent active enforcement
+    return { category: 'General Enforcement', priority: 'medium', original: violation };
   }
   
   return { category: 'Other', priority: 'low', original: violation };

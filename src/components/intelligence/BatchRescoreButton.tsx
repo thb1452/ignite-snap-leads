@@ -137,17 +137,8 @@ export function BatchRescoreButton() {
                 <span className="text-muted-foreground">Total properties:</span>
                 <span className="font-semibold">{propertyCount.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Already scored:</span>
-                <span className="font-semibold text-green-600">{scoredCount?.toLocaleString() ?? 0}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Need scoring:</span>
-                <span className="font-semibold text-amber-500">{((propertyCount ?? 0) - (scoredCount ?? 0)).toLocaleString()}</span>
-              </div>
-              <Progress value={((scoredCount ?? 0) / (propertyCount ?? 1)) * 100} className="h-2 mt-2" />
-              <div className="text-xs text-muted-foreground text-center">
-                {Math.round(((scoredCount ?? 0) / (propertyCount ?? 1)) * 100)}% scored
+              <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs">
+                ⚠️ Re-score will reprocess <strong>all {propertyCount.toLocaleString()}</strong> properties with the v7.1 algorithm — new scores, new insights, all fields refreshed. Existing scores are overwritten.
               </div>
             </div>
 

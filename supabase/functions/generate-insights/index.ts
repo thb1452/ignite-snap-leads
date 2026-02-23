@@ -16,7 +16,7 @@
  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v5.0";
+const VERSION = "v6.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -483,7 +483,7 @@ function calculateEnforcementIntensity(
     (c.original.status || '').toLowerCase().trim() === 'open'
   );
   
-  // Duration Factor
+  // Duration Factor (unchanged)
   const maxDaysOpen = openViolations.length > 0 
     ? Math.max(...openViolations.map(v => v.days_open || 0), 0)
     : 0;
@@ -492,7 +492,7 @@ function calculateEnforcementIntensity(
   
   if (maxDaysOpen > 180) signals.push('extended_enforcement');
   
-  // Priority Matrix
+  // Priority Matrix (unchanged)
   const highPriorityCount = openClassified.filter(v => v.priority === 'high').length;
   const mediumPriorityCount = openClassified.filter(v => v.priority === 'medium').length;
   
@@ -505,25 +505,41 @@ function calculateEnforcementIntensity(
   }
   score += Math.min(mediumPriorityCount * 15, 30);
   
-  // Repeat Activity & Volume
-  if (intelligence.repeat_offender) {
-    if (violations.length >= 5) {
-      score += 25;
-      signals.push('recurring_enforcement');
-    } else if (violations.length >= 3) {
-      score += 15;
-      signals.push('multiple_citations');
-    }
-  } else if (violations.length >= 2) {
+  // ── IMPROVED: Repeat Activity & Volume (logarithmic scaling) ──
+  // Scale with volume: more violations = more enforcement pressure
+  const totalViolCount = violations.length;
+  const openViolCount = openViolations.length;
+  
+  // Base repeat scoring
+  if (totalViolCount >= 10) {
+    score += 30;
+    signals.push('recurring_enforcement');
+  } else if (totalViolCount >= 5) {
+    score += 25;
+    signals.push('recurring_enforcement');
+  } else if (totalViolCount >= 3) {
+    score += 15;
+    signals.push('multiple_citations');
+  } else if (totalViolCount >= 2) {
     score += 5;
     signals.push('multiple_citations');
   }
 
-  // Open Violation Volume Bonus (rewards active enforcement load)
-  if (openViolations.length >= 5) {
-    score += 15;
+  // Open Violation Volume — scales logarithmically, not flat
+  // 3 open = +10, 5 open = +20, 10 open = +30, 20+ open = +40, 50+ = +50
+  if (openViolCount >= 50) {
+    score += 50;
+    signals.push('massive_enforcement_load');
+  } else if (openViolCount >= 20) {
+    score += 40;
     signals.push('high_violation_volume');
-  } else if (openViolations.length >= 3) {
+  } else if (openViolCount >= 10) {
+    score += 30;
+    signals.push('high_violation_volume');
+  } else if (openViolCount >= 5) {
+    score += 20;
+    signals.push('active_enforcement_load');
+  } else if (openViolCount >= 3) {
     score += 10;
     signals.push('active_enforcement_load');
   }

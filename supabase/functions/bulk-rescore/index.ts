@@ -1,6 +1,8 @@
 /**
  * Bulk Rescore - Admin-only batch processing for all properties.
  * Requires admin JWT or x-internal-secret for self-invocation.
+ * 
+ * v2: Sequential processing, larger batches, reliable self-invocation.
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -10,7 +12,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-secret',
 };
 
-const BATCH_SIZE = 50;
+// Process 200 properties per batch, split into 4 sequential chunks of 50
+const BATCH_SIZE = 200;
+const CHUNK_SIZE = 50;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -31,12 +35,12 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims?.sub) {
+    const { data: userData, error: authError } = await authClient.auth.getUser(token);
+    if (authError || !userData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", claimsData.claims.sub).eq("role", "admin").maybeSingle();
+    const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", userData.user.id).eq("role", "admin").maybeSingle();
     if (!roleData) {
       return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -53,7 +57,7 @@ serve(async (req) => {
       .from("properties")
       .select("id", { count: "exact", head: true });
 
-    console.log(`[bulk-rescore] Starting at offset ${offset}, total properties: ${totalCount}`);
+    console.log(`[bulk-rescore] Starting at offset ${offset}, total: ${totalCount}`);
 
     const { data: properties, error: fetchError } = await supabase
       .from("properties")
@@ -64,68 +68,99 @@ serve(async (req) => {
     if (fetchError) throw fetchError;
 
     if (!properties || properties.length === 0) {
+      console.log(`[bulk-rescore] ✅ ALL DONE at offset ${offset}`);
       return new Response(
         JSON.stringify({ success: true, message: "All properties processed!", processed: offset, total: totalCount, complete: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const propertyIds = properties.map(p => p.id);
+    let totalProcessed = 0;
+    let totalAI = 0;
+    let totalRule = 0;
 
-    let insightResult = { processed: 0, ai_generated: 0, rule_based: 0 };
-    
     if (!dryRun) {
-      try {
-        const insightResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-insights`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          },
-          body: JSON.stringify({ propertyIds }),
-        });
-        
-        if (insightResponse.ok) {
-          const result = await insightResponse.json();
-          insightResult = {
-            processed: result.processed || 0,
-            ai_generated: result.breakdown?.ai_generated || 0,
-            rule_based: result.breakdown?.rule_based || 0,
-          };
-        } else {
-          console.error(`[bulk-rescore] generate-insights failed: ${await insightResponse.text()}`);
+      // Split into chunks and process SEQUENTIALLY
+      const allIds = properties.map(p => p.id);
+      const chunks: string[][] = [];
+      for (let i = 0; i < allIds.length; i += CHUNK_SIZE) {
+        chunks.push(allIds.slice(i, i + CHUNK_SIZE));
+      }
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        try {
+          const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-insights`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+            body: JSON.stringify({ propertyIds: chunk }),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            totalProcessed += result.processed || 0;
+            totalAI += result.breakdown?.ai_generated || 0;
+            totalRule += result.breakdown?.rule_based || 0;
+          } else {
+            const errText = await response.text();
+            console.error(`[bulk-rescore] Chunk ${i + 1} failed: ${errText}`);
+          }
+        } catch (err) {
+          console.error(`[bulk-rescore] Chunk ${i + 1} error:`, err);
         }
-      } catch (insightError) {
-        console.error(`[bulk-rescore] Error calling generate-insights:`, insightError);
+        // Small delay between chunks
+        if (i < chunks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
       }
     }
 
     const elapsed = Date.now() - startTime;
-    const nextOffset = offset + BATCH_SIZE;
+    const nextOffset = offset + properties.length;
     const isComplete = nextOffset >= (totalCount || 0);
     const progress = Math.round((nextOffset / (totalCount || 1)) * 100);
 
+    console.log(`[bulk-rescore] Batch complete: ${totalProcessed} processed (${totalAI} AI, ${totalRule} rule) in ${elapsed}ms | ${Math.min(100, progress)}% (${nextOffset}/${totalCount})`);
+
+    // Schedule next batch using EdgeRuntime.waitUntil for reliability
     if (!isComplete && !dryRun) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      fetch(`${SUPABASE_URL}/functions/v1/bulk-rescore`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-internal-secret': SUPABASE_SERVICE_ROLE_KEY,
-        },
-        body: JSON.stringify({ offset: nextOffset }),
-      }).catch(err => console.error('[bulk-rescore] Failed to trigger next batch:', err));
+      const triggerNext = async () => {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/bulk-rescore`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-internal-secret': SUPABASE_SERVICE_ROLE_KEY,
+            },
+            body: JSON.stringify({ offset: nextOffset }),
+          });
+          console.log(`[bulk-rescore] Next batch triggered at offset ${nextOffset}, status: ${res.status}`);
+        } catch (err) {
+          console.error('[bulk-rescore] Failed to trigger next batch:', err);
+        }
+      };
+
+      // @ts-ignore - EdgeRuntime available in Supabase
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(triggerNext());
+      } else {
+        triggerNext().catch(console.error);
+      }
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        processed: insightResult.processed,
-        ai_generated: insightResult.ai_generated,
-        rule_based: insightResult.rule_based,
+        processed: totalProcessed,
+        ai_generated: totalAI,
+        rule_based: totalRule,
         elapsed_ms: elapsed,
-        progress: { current: nextOffset, total: totalCount, percentage: Math.min(100, progress), complete: isComplete },
+        progress: { current: Math.min(nextOffset, totalCount || 0), total: totalCount, percentage: Math.min(100, progress), complete: isComplete },
         next_offset: isComplete ? null : nextOffset,
         auto_continuing: !isComplete && !dryRun
       }),

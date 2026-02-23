@@ -264,6 +264,16 @@ serve(async (req) => {
     let aiGeneratedCount = 0;
     let deterministicCount = 0;
     let aiCreditsExhausted = false; // Once true, skip AI for rest of batch
+    let aiCallCount = 0; // Track AI calls for throttling
+
+    // Helper: throttle AI calls to avoid 429 rate limits
+    const throttleAI = async () => {
+      aiCallCount++;
+      // After first AI call, add delay to stay within rate limits
+      if (aiCallCount > 1) {
+        await new Promise(resolve => setTimeout(resolve, 1200)); // 1.2s between AI calls
+      }
+    };
 
     // Process each property
     for (const property of properties) {
@@ -293,6 +303,7 @@ serve(async (req) => {
                           scoreResult.score >= SNAP_SCORE_AI_THRESHOLD;
 
       if (shouldUseAI) {
+        await throttleAI();
         const aiInsight = await generateAIInsight(
           { address: property.address, city: property.city, enforcement_type: (property as any).enforcement_type },
           violations,

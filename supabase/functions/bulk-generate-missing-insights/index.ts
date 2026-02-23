@@ -13,8 +13,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Process 50 properties per batch — keeps each invocation under 60s timeout
-const BATCH_SIZE = 50;
+// Process 10 properties per batch — keeps each invocation well under timeout
+const BATCH_SIZE = 10;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -144,7 +144,11 @@ serve(async (req) => {
     console.log(`[bulk-missing] Processing ${propertyIds.length} properties (offset ${offset})`);
     console.log(`[bulk-missing] Priority batch: max_score=${maxScore}, avg_score=${avgScore} (high-value first)`);
 
-    // Process the entire batch as one chunk (BATCH_SIZE is already 50)
+    // Process the batch
+    let totalProcessed = 0;
+    let totalAI = 0;
+    let totalRuleBased = 0;
+
     if (!dryRun) {
       try {
         const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-insights`, {
@@ -158,9 +162,9 @@ serve(async (req) => {
         
         if (response.ok) {
           const result = await response.json();
-          totalProcessed += result.processed || 0;
-          totalAI += result.breakdown?.ai_generated || 0;
-          totalRuleBased += result.breakdown?.rule_based || 0;
+          totalProcessed = result.processed || 0;
+          totalAI = result.breakdown?.ai_generated || 0;
+          totalRuleBased = result.breakdown?.rule_based || 0;
           console.log(`[bulk-missing] Chunk result: ${totalProcessed} processed (${totalAI} AI, ${totalRuleBased} rule-based)`);
         } else {
           const errText = await response.text().catch(() => 'no body');

@@ -297,10 +297,11 @@ serve(async (req) => {
       let method: 'ai' | 'deterministic' = 'deterministic';
 
       // Attempt AI insight for high-pressure properties if credits available
-      const existingScore = property.snap_score ?? scoreResult.score;
+      // Use the HIGHER of existing DB score or recalculated score for AI threshold
+      const effectiveScore = Math.max(property.snap_score ?? 0, scoreResult.score);
       const shouldUseAI = LOVABLE_API_KEY && 
                           !aiCreditsExhausted && 
-                          scoreResult.score >= SNAP_SCORE_AI_THRESHOLD;
+                          effectiveScore >= SNAP_SCORE_AI_THRESHOLD;
 
       if (shouldUseAI) {
         await throttleAI();
@@ -314,7 +315,8 @@ serve(async (req) => {
         );
 
         if (aiInsight === null) {
-          // null means rate-limited or out of credits — disable AI for this batch
+          // null means rate-limited or out of credits — disable AI for rest of this batch only
+          console.warn(`[generate-insights ${VERSION}] AI returned null for ${property.id} (score: ${effectiveScore}), falling back`);
           aiCreditsExhausted = true;
           snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations);
           deterministicCount++;

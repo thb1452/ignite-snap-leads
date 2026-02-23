@@ -132,33 +132,7 @@ serve(async (req) => {
 
     console.log(`[bulk-rescore v5] Batch done: ${totalProcessed} processed (${totalAI} AI, ${totalRule} rule) in ${elapsed}ms | ${progress}% (offset ${nextOffset}/${totalCount})`);
 
-    // Auto-continue if more remain
-    if (!isComplete && !dryRun) {
-      const triggerNext = async () => {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        try {
-          const res = await fetch(`${SUPABASE_URL}/functions/v1/bulk-rescore`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-internal-secret': SUPABASE_SERVICE_ROLE_KEY,
-            },
-            body: JSON.stringify({ mode, offset: nextOffset }),
-          });
-          console.log(`[bulk-rescore v5] Next batch triggered (offset ${nextOffset}), status: ${res.status}`);
-        } catch (err) {
-          console.error('[bulk-rescore v5] Failed to trigger next batch:', err);
-        }
-      };
-
-      // @ts-ignore
-      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
-        // @ts-ignore
-        EdgeRuntime.waitUntil(triggerNext());
-      } else {
-        triggerNext().catch(console.error);
-      }
-    }
+    // No auto-continuation — the frontend drives the loop now
 
     return new Response(
       JSON.stringify({
@@ -168,7 +142,6 @@ serve(async (req) => {
         rule_based: totalRule,
         elapsed_ms: elapsed,
         progress: { scored: nextOffset, total: totalCount, remaining: (totalCount || 0) - nextOffset, percentage: Math.min(100, progress), complete: isComplete },
-        auto_continuing: !isComplete && !dryRun
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

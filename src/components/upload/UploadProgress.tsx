@@ -134,8 +134,21 @@ export function UploadProgress({ job, onReset, onRefresh }: UploadProgressProps)
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Violations Created:</span>
-                  <span className="font-medium">{job.violations_created?.toLocaleString()}</span>
+                  <span className="text-muted-foreground">Violations:</span>
+                  <span className="font-medium">
+                    {job.violations_created ? (
+                      <>
+                        <span className="text-green-600">{job.violations_created.toLocaleString()} new</span>
+                        {job.violations_updated && job.violations_updated > 0 && (
+                          <span className="text-muted-foreground"> + {job.violations_updated.toLocaleString()} updated</span>
+                        )}
+                      </>
+                    ) : job.violations_updated && job.violations_updated > 0 ? (
+                      <span className="text-muted-foreground">{job.violations_updated.toLocaleString()} updated</span>
+                    ) : (
+                      '0'
+                    )}
+                  </span>
                 </div>
                 
                 {/* Bad Addresses Warning */}

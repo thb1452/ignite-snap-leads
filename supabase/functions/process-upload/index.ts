@@ -931,6 +931,7 @@ async function processUploadJob(jobId: string) {
         const existingViolationsCreated = job.violations_created || 0;
         let stagingOffset = existingViolationsCreated;
         let violationsCreatedTotal = existingViolationsCreated;
+        let violationsUpdatedTotal = 0;
         
         console.log(`[process-upload] RESUMING violations from offset ${stagingOffset}...`);
         
@@ -1013,15 +1014,16 @@ async function processUploadJob(jobId: string) {
               consecutiveErrors = 0;
               batchTotalInserted += upsertResult?.inserted || 0;
               batchTotalUpdated += upsertResult?.updated || 0;
+              violationsUpdatedTotal += upsertResult?.updated || 0;
             }
           }
 
-          violationsCreatedTotal += batchTotalInserted + batchTotalUpdated;
+          violationsCreatedTotal += batchTotalInserted;
           console.log(`[process-upload] Violations progress: ${violationsCreatedTotal} created, ${skippedRows} skipped`);
 
           await supabaseClient
             .from('upload_jobs')
-            .update({ violations_created: violationsCreatedTotal })
+            .update({ violations_created: violationsCreatedTotal, violations_updated: violationsUpdatedTotal })
             .eq('id', jobId);
 
           stagingOffset += STAGING_FETCH_BATCH;
@@ -1036,6 +1038,7 @@ async function processUploadJob(jobId: string) {
           .update({
             status: 'COMPLETE',
             violations_created: violationsCreatedTotal,
+            violations_updated: violationsUpdatedTotal,
             finished_at: new Date().toISOString()
           })
           .eq('id', jobId);
@@ -1591,6 +1594,7 @@ async function processUploadJob(jobId: string) {
     const existingViolationsCreated = job.violations_created || 0;
     let stagingOffset = 0;
     let violationsCreatedTotal = 0;
+    let violationsUpdatedTotal = 0;
     
     if (existingViolationsCreated > 0) {
       // Resume from where we left off - estimate offset based on violations created
@@ -1726,8 +1730,9 @@ async function processUploadJob(jobId: string) {
               violationsUpdated += batchUpdated;
               console.log(`[process-upload] Upsert batch: ${batchInserted} new, ${batchUpdated} updated`);
             }
-            // Use actual counts from RPC, not batch length
-            violationsCreatedTotal += batchInserted + batchUpdated;
+            // Track new vs updated separately
+            violationsCreatedTotal += batchInserted;
+            violationsUpdatedTotal += batchUpdated;
             break;
           }
           
@@ -1754,7 +1759,8 @@ async function processUploadJob(jobId: string) {
       await supabaseClient
         .from('upload_jobs')
         .update({ 
-          violations_created: violationsCreatedTotal
+          violations_created: violationsCreatedTotal,
+          violations_updated: violationsUpdatedTotal
         })
         .eq('id', jobId);
 
@@ -1837,6 +1843,7 @@ async function processUploadJob(jobId: string) {
         properties_created: propertiesCreated,
         properties_matched: propertiesMatched > 0 ? propertiesMatched : 0,
         violations_created: violationsCreatedTotal,
+        violations_updated: violationsUpdatedTotal,
         total_rows: totalRows,
         warnings: warnings.length > 0 ? warnings : null
       })

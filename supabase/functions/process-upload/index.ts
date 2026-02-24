@@ -959,8 +959,23 @@ async function processUploadJob(jobId: string) {
 
           const violations: any[] = [];
           for (const row of stagingBatch) {
-            const key = `${row.address}|${row.city || 'unincorporated'}|${row.state}|${row.zip || ''}`.toLowerCase();
-            const propertyId = existingMap.get(key);
+            const zip = row.zip || '';
+            const addr = row.address;
+            const city = row.city || 'unincorporated';
+            const state = row.state || '';
+            const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
+            let propertyId = existingMap.get(key);
+
+            // FALLBACK: If ZIP was empty, try matching without ZIP
+            if (!propertyId && (!zip || zip === '')) {
+              const keyPrefix = `${addr}|${city}|${state}|`.toLowerCase();
+              for (const [mapKey, mapId] of existingMap.entries()) {
+                if (mapKey.startsWith(keyPrefix)) {
+                  propertyId = mapId;
+                  break;
+                }
+              }
+            }
 
             if (!propertyId) {
               skippedRows++;
@@ -981,9 +996,11 @@ async function processUploadJob(jobId: string) {
           }
 
           // Upsert violations
+          let batchTotalInserted = 0;
+          let batchTotalUpdated = 0;
           for (let i = 0; i < violations.length; i += VIOL_INSERT_BATCH) {
             const upsertBatch = violations.slice(i, i + VIOL_INSERT_BATCH);
-            const { error: violError } = await supabaseClient
+            const { data: upsertResult, error: violError } = await supabaseClient
               .rpc('bulk_upsert_violations', { p_violations: upsertBatch });
 
             if (violError) {
@@ -994,10 +1011,12 @@ async function processUploadJob(jobId: string) {
               }
             } else {
               consecutiveErrors = 0;
+              batchTotalInserted += upsertResult?.inserted || 0;
+              batchTotalUpdated += upsertResult?.updated || 0;
             }
           }
 
-          violationsCreatedTotal += violations.length;
+          violationsCreatedTotal += batchTotalInserted + batchTotalUpdated;
           console.log(`[process-upload] Violations progress: ${violationsCreatedTotal} created, ${skippedRows} skipped`);
 
           await supabaseClient
@@ -1700,11 +1719,15 @@ async function processUploadJob(jobId: string) {
             consecutiveErrors = 0; // Reset on success
             
             // Track lifecycle stats
+            const batchInserted = upsertResult?.inserted || 0;
+            const batchUpdated = upsertResult?.updated || 0;
             if (upsertResult) {
-              violationsInserted += upsertResult.inserted || 0;
-              violationsUpdated += upsertResult.updated || 0;
-              console.log(`[process-upload] Upsert batch: ${upsertResult.inserted} new, ${upsertResult.updated} updated`);
+              violationsInserted += batchInserted;
+              violationsUpdated += batchUpdated;
+              console.log(`[process-upload] Upsert batch: ${batchInserted} new, ${batchUpdated} updated`);
             }
+            // Use actual counts from RPC, not batch length
+            violationsCreatedTotal += batchInserted + batchUpdated;
             break;
           }
           
@@ -1721,8 +1744,6 @@ async function processUploadJob(jobId: string) {
           }
           continue; // Skip this batch but continue trying
         }
-
-        violationsCreatedTotal += upsertBatch.length;
       }
       
       console.log(`[process-upload] Lifecycle stats: ${violationsInserted} inserted, ${violationsUpdated} updated`);

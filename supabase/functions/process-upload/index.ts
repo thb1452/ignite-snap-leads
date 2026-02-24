@@ -1637,7 +1637,19 @@ async function processUploadJob(jobId: string) {
         }
         
         const key = `${addr}|${city}|${state}|${zip}`.toLowerCase();
-        const propertyId = existingMap.get(key);
+        let propertyId = existingMap.get(key);
+
+        // FALLBACK: If ZIP was empty in staging but derived during property creation,
+        // try matching without ZIP by scanning existingMap for addr|city|state prefix
+        if (!propertyId && (!zip || zip === '')) {
+          const keyPrefix = `${addr}|${city}|${state}|`.toLowerCase();
+          for (const [mapKey, mapId] of existingMap.entries()) {
+            if (mapKey.startsWith(keyPrefix)) {
+              propertyId = mapId;
+              break;
+            }
+          }
+        }
 
         if (!propertyId) {
           skippedRows++;

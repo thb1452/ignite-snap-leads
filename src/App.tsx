@@ -7,6 +7,18 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
 import { usePageTracking } from "@/hooks/usePageTracking";
+// FOIA Platform
+import FoiaLogin from "./pages/FoiaLogin";
+import { FoiaAuthGuard } from "@/components/foia/shared/FoiaAuthGuard";
+import FoiaAdminDashboard from "./pages/foia/admin/FoiaAdminDashboard";
+import FoiaAdminInvite from "./pages/foia/admin/FoiaAdminInvite";
+import FoiaAdminImport from "./pages/foia/admin/FoiaAdminImport";
+import FoiaAdminRotation from "./pages/foia/admin/FoiaAdminRotation";
+import FoiaAdminPressAccounts from "./pages/foia/admin/FoiaAdminPressAccounts";
+import FoiaAdminAssignments from "./pages/foia/admin/FoiaAdminAssignments";
+import FoiaVADashboard from "./pages/foia/va/FoiaVADashboard";
+import FoiaVAQueue from "./pages/foia/va/FoiaVAQueue";
+import FoiaVAHistory from "./pages/foia/va/FoiaVAHistory";
 import Upload from "./pages/Upload";
 import Leads from "./pages/Leads";
 import Landing from "./pages/Landing";
@@ -152,6 +164,57 @@ const App = () => (
           <Route path="/terms" element={<Terms />} />
           <Route path="/about" element={<About />} />
           <Route path="/blog" element={<Blog />} />
+          {/* ============================================================ */}
+          {/* FOIA VA PLATFORM ROUTES */}
+          {/* ============================================================ */}
+          <Route path="/foia/login" element={<FoiaLogin />} />
+          {/* Admin routes */}
+          <Route path="/foia/admin" element={
+            <FoiaAuthGuard requiredRole="admin">
+              <FoiaAdminDashboard />
+            </FoiaAuthGuard>
+          } />
+          <Route path="/foia/admin/invite" element={
+            <FoiaAuthGuard requiredRole="admin">
+              <FoiaAdminInvite />
+            </FoiaAuthGuard>
+          } />
+          <Route path="/foia/admin/import" element={
+            <FoiaAuthGuard requiredRole="admin">
+              <FoiaAdminImport />
+            </FoiaAuthGuard>
+          } />
+          <Route path="/foia/admin/rotation" element={
+            <FoiaAuthGuard requiredRole="admin">
+              <FoiaAdminRotation />
+            </FoiaAuthGuard>
+          } />
+          <Route path="/foia/admin/press-accounts" element={
+            <FoiaAuthGuard requiredRole="admin">
+              <FoiaAdminPressAccounts />
+            </FoiaAuthGuard>
+          } />
+          <Route path="/foia/admin/assignments" element={
+            <FoiaAuthGuard requiredRole="admin">
+              <FoiaAdminAssignments />
+            </FoiaAuthGuard>
+          } />
+          {/* VA routes */}
+          <Route path="/foia/va" element={
+            <FoiaAuthGuard>
+              <FoiaVADashboard />
+            </FoiaAuthGuard>
+          } />
+          <Route path="/foia/va/queue" element={
+            <FoiaAuthGuard>
+              <FoiaVAQueue />
+            </FoiaAuthGuard>
+          } />
+          <Route path="/foia/va/history" element={
+            <FoiaAuthGuard>
+              <FoiaVAHistory />
+            </FoiaAuthGuard>
+          } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

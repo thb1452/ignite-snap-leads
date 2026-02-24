@@ -1357,6 +1357,7 @@ export type Database = {
           updated_at: string
           user_id: string
           violations_created: number | null
+          violations_updated: number | null
           warnings: Json | null
         }
         Insert: {
@@ -1384,6 +1385,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           violations_created?: number | null
+          violations_updated?: number | null
           warnings?: Json | null
         }
         Update: {
@@ -1411,6 +1413,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           violations_created?: number | null
+          violations_updated?: number | null
           warnings?: Json | null
         }
         Relationships: [

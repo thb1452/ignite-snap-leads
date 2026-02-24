@@ -10,6 +10,7 @@ export interface UploadJob {
   properties_created: number | null;
   properties_matched: number | null;
   violations_created: number | null;
+  violations_updated: number | null;
   error_message: string | null;
   started_at: string | null;
   finished_at: string | null;

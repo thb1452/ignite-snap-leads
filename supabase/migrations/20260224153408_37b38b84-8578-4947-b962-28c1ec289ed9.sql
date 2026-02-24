@@ -1,0 +1,1 @@
+ALTER TABLE public.upload_jobs ADD COLUMN violations_updated integer DEFAULT 0;

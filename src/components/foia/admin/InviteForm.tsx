@@ -30,7 +30,7 @@ export function InviteForm({ adminId, onInviteCreated }: InviteFormProps) {
     try {
       const token = generateToken();
 
-      const { error: insertError } = await supabase.from('foia_invites').upsert(
+      const { error: insertError } = await (supabase as any).from('foia_invites').upsert(
         {
           email: email.toLowerCase().trim(),
           invited_by: adminId,

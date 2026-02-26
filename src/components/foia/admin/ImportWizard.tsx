@@ -118,12 +118,12 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     const BATCH_SIZE = 100;
 
     // Fetch existing url_hashes from DB to check against
-    const { data: existingHashes } = await supabase
+    const { data: existingHashes } = await (supabase as any)
       .from('targets')
       .select('url_hash')
       .not('url_hash', 'is', null);
 
-    const dbHashes = new Set((existingHashes || []).map((r: { url_hash: string }) => r.url_hash));
+    const dbHashes = new Set((existingHashes || []).map((r: any) => r.url_hash as string));
     const batchHashes = new Set<string>();
 
     const inserts: Record<string, unknown>[] = [];
@@ -173,7 +173,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
       });
 
       if (inserts.length >= BATCH_SIZE) {
-        const { error } = await supabase.from('targets').insert(inserts);
+        const { error } = await (supabase as any).from('targets').insert(inserts);
         if (error) {
           errors += inserts.length;
         } else {
@@ -186,7 +186,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
 
     // Flush remaining
     if (inserts.length > 0) {
-      const { error } = await supabase.from('targets').insert(inserts);
+      const { error } = await (supabase as any).from('targets').insert(inserts);
       if (error) {
         errors += inserts.length;
       } else {

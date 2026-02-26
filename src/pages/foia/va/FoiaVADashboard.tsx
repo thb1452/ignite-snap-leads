@@ -8,6 +8,8 @@ import { getCurrentMonth } from '@/lib/foia/rotation';
 import type { QueueItem, FoiaRequest } from '@/types/foia';
 import { STATUS_LABELS, STATUS_COLORS, TARGET_TYPE_LABELS } from '@/types/foia';
 
+const db = supabase as any;
+
 interface VAStats {
   sent_this_week: number;
   total_assigned: number;
@@ -32,16 +34,14 @@ export default function FoiaVADashboard() {
         weekStart.setDate(weekStart.getDate() - weekStart.getDay());
         weekStart.setHours(0, 0, 0, 0);
 
-        // Fetch assignments
-        const { data: assignments } = await supabase
+        const { data: assignments } = await db
           .from('foia_assignments')
           .select('target_id, target:targets(*)')
           .eq('va_id', profile.id);
 
-        const targetIds = (assignments || []).map((a: { target_id: string }) => a.target_id);
+        const targetIds = (assignments || []).map((a: any) => a.target_id);
 
-        // Fetch all requests for this VA
-        const { data: requests } = await supabase
+        const { data: requests } = await db
           .from('foia_requests')
           .select('*')
           .eq('va_id', profile.id);
@@ -59,9 +59,8 @@ export default function FoiaVADashboard() {
           }
         }
 
-        // Fetch press rotation for current month
         const { data: rotations } = targetIds.length > 0
-          ? await supabase
+          ? await db
               .from('press_rotation')
               .select('*, press_account:press_accounts(*)')
               .eq('rotation_month', currentMonth)
@@ -73,10 +72,9 @@ export default function FoiaVADashboard() {
           if (r.press_account) rotationMap.set(r.target_id, r.press_account);
         }
 
-        // Build queue items with priority
         const items: QueueItem[] = (assignments || [])
-          .filter((a: { target: unknown }) => a.target)
-          .map((a: { target: unknown; target_id: string }) => {
+          .filter((a: any) => a.target)
+          .map((a: any) => {
             const target = a.target as QueueItem;
             const latestReq = latestRequestMap.get(a.target_id);
             const pressAccount = rotationMap.get(a.target_id);
@@ -95,7 +93,6 @@ export default function FoiaVADashboard() {
             };
           });
 
-        // Sort by priority: never sent > 60 days > 30 days > recent
         items.sort((a, b) => {
           const aSent = a.latest_request?.sent_at;
           const bSent = b.latest_request?.sent_at;
@@ -122,7 +119,7 @@ export default function FoiaVADashboard() {
           response_rate: sent.length > 0 ? (fulfilled.length / sent.length) * 100 : 0,
         });
 
-        setPriorityItems(items.slice(0, 10)); // top 10 priority items
+        setPriorityItems(items.slice(0, 10));
       } catch (err) {
         console.error('Failed to load VA dashboard:', err);
       } finally {
@@ -143,7 +140,6 @@ export default function FoiaVADashboard() {
   return (
     <FoiaLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
             Welcome back, {profile?.full_name?.split(' ')[0]} 👋
@@ -151,7 +147,6 @@ export default function FoiaVADashboard() {
           <p className="text-slate-400 text-sm mt-0.5">{today}</p>
         </div>
 
-        {/* Stats */}
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
@@ -188,7 +183,6 @@ export default function FoiaVADashboard() {
           </div>
         )}
 
-        {/* Priority queue preview */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>

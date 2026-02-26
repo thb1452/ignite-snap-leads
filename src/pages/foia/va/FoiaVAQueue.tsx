@@ -8,6 +8,8 @@ import { getCurrentMonth } from '@/lib/foia/rotation';
 import type { QueueItem, FoiaRequest, FoiaRequestStatus, PressAccount, Target } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 
+const db = supabase as any;
+
 const STATUS_OPTIONS: Array<{ value: FoiaRequestStatus | ''; label: string }> = [
   { value: '', label: 'All Statuses' },
   { value: 'pending', label: 'Pending' },
@@ -33,8 +35,7 @@ export default function FoiaVAQueue() {
     try {
       const currentMonth = getCurrentMonth();
 
-      // Fetch assignments with targets
-      const { data: assignments } = await supabase
+      const { data: assignments } = await db
         .from('foia_assignments')
         .select('target_id, target:targets(*)')
         .eq('va_id', profile.id);
@@ -44,10 +45,9 @@ export default function FoiaVAQueue() {
         return;
       }
 
-      const targetIds = assignments.map((a: { target_id: string }) => a.target_id);
+      const targetIds = assignments.map((a: any) => a.target_id);
 
-      // Fetch latest requests
-      const { data: requests } = await supabase
+      const { data: requests } = await db
         .from('foia_requests')
         .select('*')
         .eq('va_id', profile.id)
@@ -61,8 +61,7 @@ export default function FoiaVAQueue() {
         }
       }
 
-      // Fetch press rotation
-      const { data: rotations } = await supabase
+      const { data: rotations } = await db
         .from('press_rotation')
         .select('target_id, press_account:press_accounts(*)')
         .eq('rotation_month', currentMonth)
@@ -74,14 +73,13 @@ export default function FoiaVAQueue() {
       }
 
       const queueItems: QueueItem[] = assignments
-        .filter((a: { target: unknown }) => a.target)
-        .map((a: { target: unknown; target_id: string }) => ({
+        .filter((a: any) => a.target)
+        .map((a: any) => ({
           ...(a.target as Target),
           latest_request: latestRequestMap.get(a.target_id),
           press_account_this_month: rotationMap.get(a.target_id),
         }));
 
-      // Sort: never sent > sent > 60 days > 30 days > recent
       queueItems.sort((a, b) => {
         const aSent = a.latest_request?.sent_at;
         const bSent = b.latest_request?.sent_at;
@@ -117,7 +115,6 @@ export default function FoiaVAQueue() {
     );
   };
 
-  // Filter in memory
   const filtered = items.filter((item) => {
     if (search && !item.jurisdiction_name.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterState && item.state !== filterState) return false;
@@ -141,7 +138,6 @@ export default function FoiaVAQueue() {
           </p>
         </div>
 
-        {/* Filters */}
         <div className="flex flex-wrap gap-3 bg-white border border-slate-200 rounded-xl p-4">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -179,7 +175,6 @@ export default function FoiaVAQueue() {
           </select>
         </div>
 
-        {/* Queue list */}
         {loading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-blue-600" />

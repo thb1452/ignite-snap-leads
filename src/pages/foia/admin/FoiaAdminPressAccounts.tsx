@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import type { PressAccount } from '@/types/foia';
 import { cn } from '@/lib/utils';
 
+const db = supabase as any;
+
 interface PressAccountFormData {
   name: string;
   domain: string;
@@ -31,7 +33,7 @@ export default function FoiaAdminPressAccounts() {
 
   const fetchAccounts = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await db
       .from('press_accounts')
       .select('*')
       .order('name');
@@ -77,7 +79,7 @@ export default function FoiaAdminPressAccounts() {
 
     try {
       if (editingId === 'new') {
-        const { error: e } = await supabase.from('press_accounts').insert({
+        const { error: e } = await db.from('press_accounts').insert({
           name: form.name.trim(),
           domain: form.domain.trim().toLowerCase(),
           email: form.email.trim() || null,
@@ -86,7 +88,7 @@ export default function FoiaAdminPressAccounts() {
         });
         if (e) throw e;
       } else {
-        const { error: e } = await supabase
+        const { error: e } = await db
           .from('press_accounts')
           .update({
             name: form.name.trim(),
@@ -110,12 +112,12 @@ export default function FoiaAdminPressAccounts() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this press account? This may affect rotation history.')) return;
-    await supabase.from('press_accounts').delete().eq('id', id);
+    await db.from('press_accounts').delete().eq('id', id);
     await fetchAccounts();
   };
 
   const handleToggleActive = async (account: PressAccount) => {
-    await supabase
+    await db
       .from('press_accounts')
       .update({ is_active: !account.is_active })
       .eq('id', account.id);
@@ -139,7 +141,6 @@ export default function FoiaAdminPressAccounts() {
           </button>
         </div>
 
-        {/* New account form */}
         {editingId === 'new' && (
           <div className="bg-white rounded-xl border border-blue-200 p-6">
             <h3 className="font-semibold text-slate-900 mb-4">New Press Account</h3>

@@ -7,7 +7,9 @@ import type { FoiaRequest, FoiaRequestStatus } from '@/types/foia';
 import { STATUS_LABELS, STATUS_COLORS } from '@/types/foia';
 import { cn } from '@/lib/utils';
 
-interface HistoryItem extends FoiaRequest {
+const db = supabase as any;
+
+interface HistoryItem extends Omit<FoiaRequest, 'target' | 'press_account'> {
   target?: { jurisdiction_name: string; state: string; target_type: string };
   press_account?: { name: string };
 }
@@ -35,7 +37,7 @@ export default function FoiaVAHistory() {
     const fetchHistory = async () => {
       setLoading(true);
       try {
-        const { data } = await supabase
+        const { data } = await db
           .from('foia_requests')
           .select(`
             *,
@@ -73,7 +75,6 @@ export default function FoiaVAHistory() {
           </p>
         </div>
 
-        {/* Filters */}
         <div className="flex flex-wrap gap-3">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />

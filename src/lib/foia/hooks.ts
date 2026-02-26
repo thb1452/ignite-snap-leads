@@ -24,7 +24,7 @@ export function useFoiaAuth(): UseFoiaAuthReturn {
         return;
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('foia_profiles')
         .select('*')
         .eq('id', user.id)

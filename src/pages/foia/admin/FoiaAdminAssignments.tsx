@@ -7,6 +7,8 @@ import type { Target, FoiaProfile } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 import { cn } from '@/lib/utils';
 
+const db = supabase as any;
+
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
   'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
@@ -32,14 +34,14 @@ export default function FoiaAdminAssignments() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: vaData } = await supabase
+      const { data: vaData } = await db
         .from('foia_profiles')
         .select('*')
         .eq('role', 'va')
         .eq('is_active', true);
       setVas((vaData || []) as FoiaProfile[]);
 
-      let query = supabase
+      let query = db
         .from('targets')
         .select('*')
         .eq('is_duplicate', false)
@@ -53,8 +55,7 @@ export default function FoiaAdminAssignments() {
 
       const { data: targetData } = await query;
 
-      // Get assignments
-      const { data: assignments } = await supabase
+      const { data: assignments } = await db
         .from('foia_assignments')
         .select('target_id, va_id');
 
@@ -69,8 +70,8 @@ export default function FoiaAdminAssignments() {
       }));
 
       let filtered = enriched;
-      if (filterAssigned === 'unassigned') filtered = enriched.filter((t) => !t.assigned_va_id);
-      if (filterAssigned === 'assigned') filtered = enriched.filter((t) => t.assigned_va_id);
+      if (filterAssigned === 'unassigned') filtered = enriched.filter((t: any) => !t.assigned_va_id);
+      if (filterAssigned === 'assigned') filtered = enriched.filter((t: any) => t.assigned_va_id);
 
       setTargets(filtered);
     } finally {
@@ -104,13 +105,11 @@ export default function FoiaAdminAssignments() {
     setAssigning(true);
 
     try {
-      // Remove old assignments for selected targets
-      await supabase
+      await db
         .from('foia_assignments')
         .delete()
         .in('target_id', Array.from(selectedIds));
 
-      // Insert new assignments
       const inserts = Array.from(selectedIds).map((targetId) => ({
         target_id: targetId,
         va_id: bulkVaId,
@@ -119,7 +118,7 @@ export default function FoiaAdminAssignments() {
 
       const BATCH = 100;
       for (let i = 0; i < inserts.length; i += BATCH) {
-        await supabase.from('foia_assignments').insert(inserts.slice(i, i + BATCH));
+        await db.from('foia_assignments').insert(inserts.slice(i, i + BATCH));
       }
 
       setSelectedIds(new Set());
@@ -275,7 +274,6 @@ export default function FoiaAdminAssignments() {
               )}
             </div>
 
-            {/* Pagination */}
             <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
               <button
                 onClick={() => setPage((p) => Math.max(0, p - 1))}

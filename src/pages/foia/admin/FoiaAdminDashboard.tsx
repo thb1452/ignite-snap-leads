@@ -5,6 +5,8 @@ import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
 import { VABreakdownTable } from '@/components/foia/admin/VABreakdownTable';
 import type { AdminStats, VABreakdown, FoiaProfile } from '@/types/foia';
 
+const db = supabase as any;
+
 function StatCard({ icon: Icon, label, value, color }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
@@ -34,38 +36,33 @@ export default function FoiaAdminDashboard() {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        // Total targets
-        const { count: totalTargets } = await supabase
+        const { count: totalTargets } = await db
           .from('targets')
           .select('*', { count: 'exact', head: true })
           .eq('is_duplicate', false);
 
-        // Today's requests
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
-        const { count: requestsToday } = await supabase
+        const { count: requestsToday } = await db
           .from('foia_requests')
           .select('*', { count: 'exact', head: true })
           .gte('sent_at', todayStart.toISOString());
 
-        // This week's requests
         const weekStart = new Date();
         weekStart.setDate(weekStart.getDate() - weekStart.getDay());
         weekStart.setHours(0, 0, 0, 0);
-        const { count: requestsThisWeek } = await supabase
+        const { count: requestsThisWeek } = await db
           .from('foia_requests')
           .select('*', { count: 'exact', head: true })
           .gte('sent_at', weekStart.toISOString());
 
-        // Pending targets (no request ever sent)
-        const { data: targetsWithRequests } = await supabase
+        const { data: targetsWithRequests } = await db
           .from('foia_requests')
           .select('target_id');
-        const assignedTargetIds = new Set((targetsWithRequests || []).map((r: { target_id: string }) => r.target_id));
+        const assignedTargetIds = new Set((targetsWithRequests || []).map((r: any) => r.target_id));
         const pendingTargets = (totalTargets ?? 0) - assignedTargetIds.size;
 
-        // VA breakdown
-        const { data: vas } = await supabase
+        const { data: vas } = await db
           .from('foia_profiles')
           .select('*')
           .eq('role', 'va')
@@ -74,22 +71,22 @@ export default function FoiaAdminDashboard() {
         const breakdowns: VABreakdown[] = [];
 
         for (const va of (vas || []) as FoiaProfile[]) {
-          const { data: allRequests } = await supabase
+          const { data: allRequests } = await db
             .from('foia_requests')
             .select('status, sent_at')
             .eq('va_id', va.id);
 
           const all = allRequests || [];
-          const todayReqs = all.filter((r: { sent_at: string | null }) =>
+          const todayReqs = all.filter((r: any) =>
             r.sent_at && new Date(r.sent_at) >= todayStart
           );
-          const weekReqs = all.filter((r: { sent_at: string | null }) =>
+          const weekReqs = all.filter((r: any) =>
             r.sent_at && new Date(r.sent_at) >= weekStart
           );
-          const sent = all.filter((r: { status: string }) => ['sent', 'fulfilled', 'rejected'].includes(r.status));
-          const fulfilled = all.filter((r: { status: string }) => r.status === 'fulfilled');
+          const sent = all.filter((r: any) => ['sent', 'fulfilled', 'rejected'].includes(r.status));
+          const fulfilled = all.filter((r: any) => r.status === 'fulfilled');
 
-          const { count: assignedCount } = await supabase
+          const { count: assignedCount } = await db
             .from('foia_assignments')
             .select('*', { count: 'exact', head: true })
             .eq('va_id', va.id);

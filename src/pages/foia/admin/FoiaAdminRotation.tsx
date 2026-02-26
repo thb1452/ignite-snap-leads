@@ -6,6 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { getCurrentMonth, generateMonthlyRotation, getPriorMonths } from '@/lib/foia/rotation';
 import type { PressAccount, PressRotation } from '@/types/foia';
 
+const db = supabase as any;
+
 interface RotationRowData {
   target_id: string;
   jurisdiction_name: string;
@@ -26,16 +28,14 @@ export default function FoiaAdminRotation() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch press accounts
-      const { data: accounts } = await supabase
+      const { data: accounts } = await db
         .from('press_accounts')
         .select('*')
         .eq('is_active', true)
         .order('name');
       setPressAccounts((accounts || []) as PressAccount[]);
 
-      // Fetch targets with FOIA URLs
-      const { data: targets } = await supabase
+      const { data: targets } = await db
         .from('targets')
         .select('id, jurisdiction_name, state')
         .not('foia_url', 'is', null)
@@ -48,18 +48,16 @@ export default function FoiaAdminRotation() {
         return;
       }
 
-      const targetIds = targets.map((t: { id: string }) => t.id);
+      const targetIds = targets.map((t: any) => t.id);
 
-      // Fetch current month rotations
-      const { data: currentRotations } = await supabase
+      const { data: currentRotations } = await db
         .from('press_rotation')
         .select('*, press_account:press_accounts(*)')
         .eq('rotation_month', currentMonth)
         .in('target_id', targetIds);
 
-      // Fetch last 3 months history
       const priorMonths = getPriorMonths(currentMonth, 3);
-      const { data: historyData } = await supabase
+      const { data: historyData } = await db
         .from('press_rotation')
         .select('*, press_account:press_accounts(*)')
         .in('rotation_month', priorMonths)
@@ -77,7 +75,7 @@ export default function FoiaAdminRotation() {
         historyMap.get(r.target_id)!.push(r);
       }
 
-      const rowData: RotationRowData[] = targets.map((t: { id: string; jurisdiction_name: string; state: string }) => ({
+      const rowData: RotationRowData[] = targets.map((t: any) => ({
         target_id: t.id,
         jurisdiction_name: t.jurisdiction_name,
         state: t.state,
@@ -117,7 +115,7 @@ export default function FoiaAdminRotation() {
 
   function getNextMonth(month: string): string {
     const [year, m] = month.split('-').map(Number);
-    const d = new Date(year, m, 1); // m is already 1-indexed so this gives next month
+    const d = new Date(year, m, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
 

@@ -6,6 +6,8 @@ import type { FoiaRequest, FoiaRequestStatus, QueueItem } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 import { cn } from '@/lib/utils';
 
+const db = supabase as any;
+
 interface QueueRowProps {
   item: QueueItem;
   vaId: string;
@@ -29,8 +31,7 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
       const pressAccountId = pressAccount?.id ?? item.latest_request?.press_account_id ?? null;
 
       if (item.latest_request) {
-        // Update existing
-        const { data, error } = await supabase
+        const { data, error } = await db
           .from('foia_requests')
           .update({
             status,
@@ -47,8 +48,7 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
         if (error) throw error;
         onSaved(data as FoiaRequest);
       } else {
-        // Insert new
-        const { data, error } = await supabase
+        const { data, error } = await db
           .from('foia_requests')
           .insert({
             target_id: item.id,
@@ -82,7 +82,6 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
     <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
       {/* Main row */}
       <div className="flex items-center gap-3 px-4 py-3">
-        {/* Jurisdiction info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-medium text-slate-900 truncate">{item.jurisdiction_name}</span>
@@ -98,7 +97,6 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
           )}
         </div>
 
-        {/* Controls */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <StatusDropdown value={status} onChange={setStatus} />
 
@@ -122,7 +120,6 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
         </div>
       </div>
 
-      {/* Expanded notes + save */}
       {expanded && (
         <div className="px-4 pb-3 border-t border-slate-100 pt-3 bg-slate-50">
           <div className="flex gap-3 items-end">

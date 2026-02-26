@@ -32,7 +32,7 @@ export function RotationMap({ rows, pressAccounts, currentMonth, loading, onRefr
   const handleSave = async (targetId: string) => {
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('press_rotation')
         .upsert(
           { target_id: targetId, press_account_id: editValue, rotation_month: currentMonth },

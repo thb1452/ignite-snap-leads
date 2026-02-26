@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Loader2, RefreshCw, Edit2, Check, X } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import type { PressAccount, PressRotation } from '@/types/foia';
 
 interface RotationRowData {
@@ -32,7 +32,7 @@ export function RotationMap({ rows, pressAccounts, currentMonth, loading, onRefr
   const handleSave = async (targetId: string) => {
     setSaving(true);
     try {
-      const { error } = await (supabase as any)
+      const { error } = await db
         .from('press_rotation')
         .upsert(
           { target_id: targetId, press_account_id: editValue, rotation_month: currentMonth },

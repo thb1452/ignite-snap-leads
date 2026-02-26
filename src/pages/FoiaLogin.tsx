@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import { ensureFoiaProfile } from '@/lib/foia/auth';
 
-const db = supabase as any;
 
 export default function FoiaLogin() {
   const [searchParams] = useSearchParams();

@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react';
 import { Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
 import { RotationMap } from '@/components/foia/admin/RotationMap';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import { getCurrentMonth, generateMonthlyRotation, getPriorMonths } from '@/lib/foia/rotation';
 import type { PressAccount, PressRotation } from '@/types/foia';
 
-const db = supabase as any;
 
 interface RotationRowData {
   target_id: string;

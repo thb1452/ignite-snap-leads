@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { ExternalLink, Save, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import { StatusDropdown } from './StatusDropdown';
 import type { FoiaRequest, FoiaRequestStatus, QueueItem } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 import { cn } from '@/lib/utils';
 
-const db = supabase as any;
 
 interface QueueRowProps {
   item: QueueItem;

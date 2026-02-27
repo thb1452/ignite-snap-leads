@@ -86,7 +86,14 @@ export default function FoiaLogin() {
           .maybeSingle(),
         'Profile lookup timed out. Please try signing in again.'
       );
-      const { data: profile } = profileResult;
+      const { data: profile, error: profileErr } = profileResult;
+
+      // Surface any profile-lookup error rather than silently treating it as
+      // "no profile" — which would wrongly send the user down the auto-create
+      // path and ultimately show a misleading "No FOIA platform access" error.
+      if (profileErr) {
+        throw profileErr;
+      }
 
       if (!profile) {
         // Auth succeeded but no foia_profile row exists — the user signed up

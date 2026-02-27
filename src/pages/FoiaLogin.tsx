@@ -50,7 +50,26 @@ export default function FoiaLogin() {
         .select('role')
         .eq('id', user.id)
         .maybeSingle();
-      if (!profile) throw new Error('No FOIA platform access. Contact your administrator.');
+
+      if (!profile) {
+        // Auth succeeded but no foia_profile row exists — the user signed up
+        // before but the profile creation step failed (e.g. RLS was blocking it).
+        // Auto-create the profile now that we have a valid authenticated session.
+        const derivedName = user.user_metadata?.full_name
+          ?? user.email?.split('@')[0]
+          ?? 'User';
+        const { error: createErr } = await supabase.rpc('complete_foia_signup', {
+          p_user_id: user.id,
+          p_email: user.email ?? email,
+          p_full_name: derivedName,
+          p_role: 'va',
+          p_token: null,
+        });
+        if (createErr) throw new Error('No FOIA platform access. Contact your administrator.');
+        navigate('/foia/va');
+        return;
+      }
+
       navigate(profile.role === 'admin' ? '/foia/admin' : '/foia/va');
     } catch (err: unknown) {
       const msg =

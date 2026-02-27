@@ -13,11 +13,21 @@ export default function FoiaLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup' | 'reset' | 'update-password'>('login');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [inviteValid, setInviteValid] = useState<boolean | null>(null);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+
+  // Detect when Supabase redirects back after the user clicks the reset link.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setMode('update-password');
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -141,7 +151,40 @@ export default function FoiaLogin() {
     }
   };
 
-  if (awaitingConfirmation) {
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/foia/login`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to send reset email');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      navigate('/foia/va');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (awaitingConfirmation || resetSent) {
+    const isReset = resetSent;
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="w-full max-w-sm text-center">
@@ -150,9 +193,16 @@ export default function FoiaLogin() {
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Check your email</h1>
           <p className="text-slate-400 text-sm">
-            A confirmation link has been sent to <span className="text-white">{email}</span>.
-            Click the link to activate your account.
+            {isReset
+              ? <>A password reset link has been sent to <span className="text-white">{email}</span>. Click the link in that email to set a new password.</>
+              : <>A confirmation link has been sent to <span className="text-white">{email}</span>. Click the link to activate your account.</>
+            }
           </p>
+          {isReset && (
+            <button onClick={() => { setResetSent(false); setMode('login'); }} className="mt-4 text-blue-400 hover:text-blue-300 text-sm">
+              Back to sign in
+            </button>
+          )}
         </div>
       </div>
     );
@@ -182,29 +232,74 @@ export default function FoiaLogin() {
             </div>
           )}
 
-          <form onSubmit={mode === 'login' ? handleLogin : handleSignup} className="space-y-4">
-            {mode === 'signup' && (
+          {/* ── Set new password (after clicking reset link in email) ── */}
+          {mode === 'update-password' && (
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
+              <p className="text-slate-300 text-sm mb-2">Enter your new password below.</p>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Full Name</label>
-                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" required className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500" />
+                <label className="block text-sm font-medium text-slate-300 mb-1">New Password</label>
+                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 8 chars)" required minLength={8} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500" />
               </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required disabled={mode === 'signup' && !!token && inviteValid === true} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === 'signup' ? 'Create a password' : 'Your password'} required minLength={8} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500" />
-            </div>
-            {error && <p className="text-red-400 text-sm bg-red-900/30 rounded-lg p-2">{error}</p>}
-            <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {mode === 'login' ? 'Sign In' : 'Create Account'}
-            </button>
-          </form>
+              {error && <p className="text-red-400 text-sm bg-red-900/30 rounded-lg p-2">{error}</p>}
+              <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                Set New Password
+              </button>
+            </form>
+          )}
 
-          {!token && (
+          {/* ── Forgot password form ── */}
+          {mode === 'reset' && (
+            <form onSubmit={handleReset} className="space-y-4">
+              <p className="text-slate-300 text-sm">Enter your email and we'll send you a reset link.</p>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500" />
+              </div>
+              {error && <p className="text-red-400 text-sm bg-red-900/30 rounded-lg p-2">{error}</p>}
+              <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                Send Reset Link
+              </button>
+              <p className="text-center text-slate-500 text-xs">
+                <button type="button" onClick={() => { setMode('login'); setError(''); }} className="text-blue-400 hover:text-blue-300">Back to sign in</button>
+              </p>
+            </form>
+          )}
+
+          {/* ── Login / Signup forms ── */}
+          {(mode === 'login' || mode === 'signup') && (
+            <form onSubmit={mode === 'login' ? handleLogin : handleSignup} className="space-y-4">
+              {mode === 'signup' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Full Name</label>
+                  <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" required className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500" />
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required disabled={mode === 'signup' && !!token && inviteValid === true} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60" />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-slate-300">Password</label>
+                  {mode === 'login' && (
+                    <button type="button" onClick={() => { setMode('reset'); setError(''); }} className="text-xs text-blue-400 hover:text-blue-300">
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === 'signup' ? 'Create a password' : 'Your password'} required minLength={8} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500" />
+              </div>
+              {error && <p className="text-red-400 text-sm bg-red-900/30 rounded-lg p-2">{error}</p>}
+              <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {mode === 'login' ? 'Sign In' : 'Create Account'}
+              </button>
+            </form>
+          )}
+
+          {!token && (mode === 'login' || mode === 'signup') && (
             <p className="text-center text-slate-500 text-xs mt-4">
               {mode === 'login' ? (
                 <>Need access?{' '}<button onClick={() => setMode('signup')} className="text-blue-400 hover:text-blue-300">Sign up</button></>

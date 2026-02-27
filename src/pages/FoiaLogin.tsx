@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/foia/db';
-import { ensureFoiaProfile } from '@/lib/foia/auth';
 
 
 export default function FoiaLogin() {
@@ -18,22 +17,21 @@ export default function FoiaLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [inviteValid, setInviteValid] = useState<boolean | null>(null);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
   useEffect(() => {
     if (!token) return;
     setMode('signup');
 
     const checkInvite = async () => {
-      const { data, error } = await db
-        .from('foia_invites')
-        .select('email, accepted, expires_at')
-        .eq('token', token)
-        .maybeSingle();
-
-      if (error || !data) { setInviteValid(false); return; }
-      const expired = new Date(data.expires_at) < new Date();
-      if (data.accepted || expired) { setInviteValid(false); return; }
-      setEmail(data.email);
+      // Use SECURITY DEFINER RPC — unauthenticated users can't query
+      // foia_invites directly due to RLS.
+      const { data, error } = await supabase.rpc('check_foia_invite', { p_token: token });
+      if (error || !data || data.length === 0) { setInviteValid(false); return; }
+      const invite = data[0] as { email: string; accepted: boolean; expires_at: string };
+      const expired = new Date(invite.expires_at) < new Date();
+      if (invite.accepted || expired) { setInviteValid(false); return; }
+      setEmail(invite.email);
       setInviteValid(true);
     };
     checkInvite();
@@ -71,9 +69,23 @@ export default function FoiaLogin() {
       if (error) throw error;
       const user = data.user;
       if (!user) throw new Error('Signup failed — no user returned');
-      await ensureFoiaProfile(user.id, email, fullName, 'va');
-      if (token) {
-        await db.from('foia_invites').update({ accepted: true }).eq('token', token);
+
+      // Create profile via SECURITY DEFINER RPC so it works regardless of
+      // whether Supabase email confirmation is enabled (no session yet)
+      // and regardless of the foia_profiles INSERT RLS policy.
+      const { error: profileError } = await supabase.rpc('complete_foia_signup', {
+        p_user_id: user.id,
+        p_email: email,
+        p_full_name: fullName,
+        p_role: 'va',
+        p_token: token ?? null,
+      });
+      if (profileError) throw profileError;
+
+      // If email confirmation is enabled, data.session is null.
+      if (!data.session) {
+        setAwaitingConfirmation(true);
+        return;
       }
       navigate('/foia/va');
     } catch (err: unknown) {
@@ -82,6 +94,23 @@ export default function FoiaLogin() {
       setLoading(false);
     }
   };
+
+  if (awaitingConfirmation) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-xl mb-4">
+            <FileText className="h-7 w-7 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Check your email</h1>
+          <p className="text-slate-400 text-sm">
+            A confirmation link has been sent to <span className="text-white">{email}</span>.
+            Click the link to activate your account.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">

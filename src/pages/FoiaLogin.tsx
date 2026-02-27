@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, FileText } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/externalClient';
 import { db } from '@/lib/foia/db';
 
 // Use `db` (untyped alias) for RPC calls not in generated types
@@ -63,6 +63,22 @@ export default function FoiaLogin() {
     checkInvite();
   }, [token]);
 
+  // Helper: determine the correct FOIA role for a user.
+  // If they have 'admin' in user_roles (main app), they should be FOIA admin too.
+  const resolveFoiaRole = async (userId: string): Promise<'admin' | 'va'> => {
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+      return data ? 'admin' : 'va';
+    } catch {
+      return 'va';
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -99,22 +115,24 @@ export default function FoiaLogin() {
         // Auth succeeded but no foia_profile row exists — the user signed up
         // before but the profile creation step failed (e.g. RLS was blocking it).
         // Auto-create the profile now that we have a valid authenticated session.
+        // Preserve their main-app admin role if they have one.
         const derivedName = user.user_metadata?.full_name
           ?? user.email?.split('@')[0]
           ?? 'User';
+        const derivedRole = await resolveFoiaRole(user.id);
         const signupResult: any = await withTimeout(
           rpc('complete_foia_signup', {
             p_user_id: user.id,
             p_email: user.email ?? email,
             p_full_name: derivedName,
-            p_role: 'va',
+            p_role: derivedRole,
             p_token: null,
           }),
           'Account provisioning timed out. Please try again.'
         );
         const { error: createErr } = signupResult;
         if (createErr) throw new Error('No FOIA platform access. Contact your administrator.');
-        navigate('/foia/va');
+        navigate(derivedRole === 'admin' ? '/foia/admin' : '/foia/va');
         return;
       }
 
@@ -243,13 +261,15 @@ export default function FoiaLogin() {
         const derivedName = user.user_metadata?.full_name
           ?? user.email?.split('@')[0]
           ?? 'User';
+        // Preserve their main-app admin role if they have one.
+        const derivedRole = await resolveFoiaRole(user.id);
 
         const signupResult: any = await withTimeout(
           rpc('complete_foia_signup', {
             p_user_id: user.id,
             p_email: user.email ?? email,
             p_full_name: derivedName,
-            p_role: 'va',
+            p_role: derivedRole,
             p_token: null,
           }),
           'Account provisioning timed out. Please sign in with your new password.'
@@ -264,7 +284,7 @@ export default function FoiaLogin() {
           return;
         }
 
-        navigate('/foia/va');
+        navigate(derivedRole === 'admin' ? '/foia/admin' : '/foia/va');
         return;
       }
 

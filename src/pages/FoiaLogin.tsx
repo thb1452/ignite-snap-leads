@@ -23,17 +23,30 @@ export default function FoiaLogin() {
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [statusMsg, setStatusMsg] = useState('');
 
+  // Supabase free-tier projects pause after inactivity. Auth is a separate
+  // microservice (always up) but Postgres can take 20-40 s to wake.
+  // We give it 45 s and show a status message after 5 s so the user knows
+  // we're still working.
   const withTimeout = async <T,>(
     promise: PromiseLike<T>,
     message: string,
-    ms = 12000
+    ms = 45000
   ): Promise<T> => {
+    const wakeTimer = setTimeout(
+      () => setStatusMsg('Connecting to database — this can take up to 30 s on first sign-in…'),
+      5000
+    );
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error(message)), ms)
     );
-
-    return (await Promise.race([Promise.resolve(promise), timeoutPromise])) as T;
+    try {
+      return (await Promise.race([Promise.resolve(promise), timeoutPromise])) as T;
+    } finally {
+      clearTimeout(wakeTimer);
+      setStatusMsg('');
+    }
   };
 
   // Detect when Supabase redirects back after the user clicks the reset link.
@@ -362,6 +375,7 @@ export default function FoiaLogin() {
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {mode === 'login' ? 'Sign In' : 'Create Account'}
               </button>
+              {statusMsg && <p className="text-slate-400 text-xs text-center">{statusMsg}</p>}
             </form>
           )}
 

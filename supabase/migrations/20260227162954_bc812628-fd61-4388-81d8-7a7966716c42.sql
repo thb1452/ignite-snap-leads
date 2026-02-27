@@ -1,6 +1,9 @@
 
--- Create foia_profiles table
-CREATE TABLE public.foia_profiles (
+-- Create foia_profiles table (IF NOT EXISTS — table may already exist from a
+-- previous migration; this migration must be idempotent so that the subsequent
+-- 20260227200000_fix_foia_recursive_rls migration can apply and replace the
+-- policies with non-recursive equivalents).
+CREATE TABLE IF NOT EXISTS public.foia_profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email text NOT NULL,
   full_name text NOT NULL,
@@ -11,28 +14,8 @@ CREATE TABLE public.foia_profiles (
 
 ALTER TABLE public.foia_profiles ENABLE ROW LEVEL SECURITY;
 
--- Authenticated users can read their own profile
-CREATE POLICY "Users can view own foia_profile"
-  ON public.foia_profiles FOR SELECT
-  USING (auth.uid() = id);
-
--- Admins can view all profiles
-CREATE POLICY "Admins can view all foia_profiles"
-  ON public.foia_profiles FOR SELECT
-  USING (public.has_role(auth.uid(), 'admin'));
-
--- Admins can update any profile
-CREATE POLICY "Admins can update foia_profiles"
-  ON public.foia_profiles FOR UPDATE
-  USING (public.has_role(auth.uid(), 'admin'));
-
--- Users can update their own profile
-CREATE POLICY "Users can update own foia_profile"
-  ON public.foia_profiles FOR UPDATE
-  USING (auth.uid() = id);
-
--- Create foia_invites table
-CREATE TABLE public.foia_invites (
+-- Create foia_invites table (IF NOT EXISTS — same reason as above)
+CREATE TABLE IF NOT EXISTS public.foia_invites (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text NOT NULL,
   invited_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -43,12 +26,6 @@ CREATE TABLE public.foia_invites (
 );
 
 ALTER TABLE public.foia_invites ENABLE ROW LEVEL SECURITY;
-
--- Admins can manage invites
-CREATE POLICY "Admins can manage foia_invites"
-  ON public.foia_invites FOR ALL
-  USING (public.has_role(auth.uid(), 'admin'))
-  WITH CHECK (public.has_role(auth.uid(), 'admin'));
 
 -- SECURITY DEFINER RPC: check invite token (callable by unauthenticated users)
 CREATE OR REPLACE FUNCTION public.check_foia_invite(p_token text)

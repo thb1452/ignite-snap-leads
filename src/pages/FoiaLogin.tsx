@@ -24,6 +24,18 @@ export default function FoiaLogin() {
   const [resetSent, setResetSent] = useState(false);
   const [newPassword, setNewPassword] = useState('');
 
+  const withTimeout = async <T,>(
+    promise: PromiseLike<T>,
+    message: string,
+    ms = 12000
+  ): Promise<T> => {
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(message)), ms)
+    );
+
+    return (await Promise.race([Promise.resolve(promise), timeoutPromise])) as T;
+  };
+
   // Detect when Supabase redirects back after the user clicks the reset link.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -56,14 +68,25 @@ export default function FoiaLogin() {
     setLoading(true);
     setError('');
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const signInResult: any = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        'Sign in timed out. Please check your connection and try again.'
+      );
+      const { data, error } = signInResult;
       if (error) throw error;
+
       const user = data.user;
-      const { data: profile } = await db
-        .from('foia_profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
+      if (!user) throw new Error('Login failed — no user returned');
+
+      const profileResult: any = await withTimeout(
+        db
+          .from('foia_profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle(),
+        'Profile lookup timed out. Please try signing in again.'
+      );
+      const { data: profile } = profileResult;
 
       if (!profile) {
         // Auth succeeded but no foia_profile row exists — the user signed up
@@ -72,13 +95,17 @@ export default function FoiaLogin() {
         const derivedName = user.user_metadata?.full_name
           ?? user.email?.split('@')[0]
           ?? 'User';
-        const { error: createErr } = await rpc('complete_foia_signup', {
-          p_user_id: user.id,
-          p_email: user.email ?? email,
-          p_full_name: derivedName,
-          p_role: 'va',
-          p_token: null,
-        });
+        const signupResult: any = await withTimeout(
+          rpc('complete_foia_signup', {
+            p_user_id: user.id,
+            p_email: user.email ?? email,
+            p_full_name: derivedName,
+            p_role: 'va',
+            p_token: null,
+          }),
+          'Account provisioning timed out. Please try again.'
+        );
+        const { error: createErr } = signupResult;
         if (createErr) throw new Error('No FOIA platform access. Contact your administrator.');
         navigate('/foia/va');
         return;

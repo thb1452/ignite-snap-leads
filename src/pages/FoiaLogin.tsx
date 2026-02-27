@@ -214,27 +214,47 @@ export default function FoiaLogin() {
         return;
       }
 
-      const { data: profile } = await db
-        .from('foia_profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
+      const profileResult: any = await withTimeout(
+        db
+          .from('foia_profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle(),
+        'Profile lookup timed out. Please sign in with your new password.'
+      );
+      const { data: profile, error: profileErr } = profileResult;
+
+      // If the profile lookup itself failed (e.g. RLS timeout), fall back to
+      // the login form — the password has already been updated successfully.
+      if (profileErr) {
+        setMode('login');
+        setError('Password updated! Please sign in with your new password.');
+        return;
+      }
 
       if (!profile) {
         const derivedName = user.user_metadata?.full_name
           ?? user.email?.split('@')[0]
           ?? 'User';
 
-        const { error: createErr } = await rpc('complete_foia_signup', {
-          p_user_id: user.id,
-          p_email: user.email ?? email,
-          p_full_name: derivedName,
-          p_role: 'va',
-          p_token: null,
-        });
+        const signupResult: any = await withTimeout(
+          rpc('complete_foia_signup', {
+            p_user_id: user.id,
+            p_email: user.email ?? email,
+            p_full_name: derivedName,
+            p_role: 'va',
+            p_token: null,
+          }),
+          'Account provisioning timed out. Please sign in with your new password.'
+        );
+        const { error: createErr } = signupResult;
 
         if (createErr) {
-          throw new Error('Password updated, but no FOIA platform access. Contact your administrator.');
+          // Password was updated successfully — send the user to sign in.
+          // An admin will need to invite them to the FOIA platform.
+          setMode('login');
+          setError('Password updated! Sign in below. If you still can\'t access the platform, contact your administrator.');
+          return;
         }
 
         navigate('/foia/va');

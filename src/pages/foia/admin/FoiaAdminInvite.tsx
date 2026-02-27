@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
 import { InviteForm, InviteList } from '@/components/foia/admin/InviteForm';
 import { useFoiaAuth } from '@/lib/foia/hooks';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import type { FoiaInvite } from '@/types/foia';
 
-const db = supabase as any;
 
 export default function FoiaAdminInvite() {
   const { profile } = useFoiaAuth();

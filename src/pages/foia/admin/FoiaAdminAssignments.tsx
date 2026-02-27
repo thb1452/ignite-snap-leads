@@ -1,13 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Loader2, Search, UserPlus, Filter } from 'lucide-react';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import { useFoiaAuth } from '@/lib/foia/hooks';
 import type { Target, FoiaProfile } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 import { cn } from '@/lib/utils';
 
-const db = supabase as any;
 
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',

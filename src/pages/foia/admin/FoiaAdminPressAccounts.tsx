@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Save, X, Loader2, Newspaper } from 'lucide-react';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import type { PressAccount } from '@/types/foia';
 import { cn } from '@/lib/utils';
 
-const db = supabase as any;
 
 interface PressAccountFormData {
   name: string;

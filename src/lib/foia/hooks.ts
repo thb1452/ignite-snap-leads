@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import type { FoiaProfile, FoiaRole } from '@/types/foia';
 
 interface UseFoiaAuthReturn {
@@ -24,7 +25,7 @@ export function useFoiaAuth(): UseFoiaAuthReturn {
         return;
       }
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from('foia_profiles')
         .select('*')
         .eq('id', user.id)

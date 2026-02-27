@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Copy, Check, Mail, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import type { FoiaInvite } from '@/types/foia';
 
 function generateToken(): string {
@@ -30,7 +30,7 @@ export function InviteForm({ adminId, onInviteCreated }: InviteFormProps) {
     try {
       const token = generateToken();
 
-      const { error: insertError } = await (supabase as any).from('foia_invites').upsert(
+      const { error: insertError } = await db.from('foia_invites').upsert(
         {
           email: email.toLowerCase().trim(),
           invited_by: adminId,

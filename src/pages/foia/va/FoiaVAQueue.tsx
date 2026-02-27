@@ -3,12 +3,11 @@ import { Search, Filter, Loader2 } from 'lucide-react';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
 import { QueueRow } from '@/components/foia/va/QueueRow';
 import { useFoiaAuth } from '@/lib/foia/hooks';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import { getCurrentMonth } from '@/lib/foia/rotation';
 import type { QueueItem, FoiaRequest, FoiaRequestStatus, PressAccount, Target } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 
-const db = supabase as any;
 
 const STATUS_OPTIONS: Array<{ value: FoiaRequestStatus | ''; label: string }> = [
   { value: '', label: 'All Statuses' },

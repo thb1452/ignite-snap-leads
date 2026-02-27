@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Database, Send, Clock, Users, CheckCircle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
 import { VABreakdownTable } from '@/components/foia/admin/VABreakdownTable';
 import type { AdminStats, VABreakdown, FoiaProfile } from '@/types/foia';
 
-const db = supabase as any;
 
 function StatCard({ icon: Icon, label, value, color }: {
   icon: React.ComponentType<{ className?: string }>;

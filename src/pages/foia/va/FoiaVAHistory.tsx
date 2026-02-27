@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
 import { useFoiaAuth } from '@/lib/foia/hooks';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import type { FoiaRequest, FoiaRequestStatus } from '@/types/foia';
 import { STATUS_LABELS, STATUS_COLORS } from '@/types/foia';
 import { cn } from '@/lib/utils';
 
-const db = supabase as any;
 
 interface HistoryItem extends Omit<FoiaRequest, 'target' | 'press_account'> {
   target?: { jurisdiction_name: string; state: string; target_type: string };

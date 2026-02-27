@@ -3,12 +3,11 @@ import { Link } from 'react-router-dom';
 import { Send, CheckCircle, MapPin, ArrowRight, Loader2 } from 'lucide-react';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
 import { useFoiaAuth } from '@/lib/foia/hooks';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import { getCurrentMonth } from '@/lib/foia/rotation';
 import type { QueueItem, FoiaRequest } from '@/types/foia';
 import { STATUS_LABELS, STATUS_COLORS, TARGET_TYPE_LABELS } from '@/types/foia';
 
-const db = supabase as any;
 
 interface VAStats {
   sent_this_week: number;

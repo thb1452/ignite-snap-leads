@@ -1,7 +1,6 @@
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import type { PressAccount, PressRotation, Target } from '@/types/foia';
 
-const db = supabase as any;
 
 export function getCurrentMonth(): string {
   const now = new Date();

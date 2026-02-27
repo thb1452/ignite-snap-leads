@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import type { FoiaProfile, FoiaRole } from '@/types/foia';
 
 let cachedProfile: FoiaProfile | null = null;
@@ -7,7 +8,7 @@ export async function getFoiaProfile(): Promise<FoiaProfile | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from('foia_profiles')
     .select('*')
     .eq('id', user.id)
@@ -39,7 +40,7 @@ export async function ensureFoiaProfile(
   fullName: string,
   role: FoiaRole = 'va'
 ): Promise<FoiaProfile> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from('foia_profiles')
     .upsert(
       { id: userId, email, full_name: fullName, role },

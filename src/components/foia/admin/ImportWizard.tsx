@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { Upload, FileText, AlertCircle, CheckCircle, Loader2, X } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/foia/db';
 import { hashUrl } from '@/lib/foia/dedup';
 import type { ColumnMapping, ImportResult, TargetType } from '@/types/foia';
 import { cn } from '@/lib/utils';
@@ -118,7 +118,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     const BATCH_SIZE = 100;
 
     // Fetch existing url_hashes from DB to check against
-    const { data: existingHashes } = await (supabase as any)
+    const { data: existingHashes } = await db
       .from('targets')
       .select('url_hash')
       .not('url_hash', 'is', null);
@@ -173,7 +173,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
       });
 
       if (inserts.length >= BATCH_SIZE) {
-        const { error } = await (supabase as any).from('targets').insert(inserts);
+        const { error } = await db.from('targets').insert(inserts);
         if (error) {
           errors += inserts.length;
         } else {
@@ -186,7 +186,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
 
     // Flush remaining
     if (inserts.length > 0) {
-      const { error } = await (supabase as any).from('targets').insert(inserts);
+      const { error } = await db.from('targets').insert(inserts);
       if (error) {
         errors += inserts.length;
       } else {

@@ -50,10 +50,34 @@ export default function FoiaLogin() {
         .select('role')
         .eq('id', user.id)
         .maybeSingle();
-      if (!profile) throw new Error('No FOIA platform access. Contact your administrator.');
+
+      if (!profile) {
+        // Auth succeeded but no foia_profile row exists — the user signed up
+        // before but the profile creation step failed (e.g. RLS was blocking it).
+        // Auto-create the profile now that we have a valid authenticated session.
+        const derivedName = user.user_metadata?.full_name
+          ?? user.email?.split('@')[0]
+          ?? 'User';
+        const { error: createErr } = await supabase.rpc('complete_foia_signup', {
+          p_user_id: user.id,
+          p_email: user.email ?? email,
+          p_full_name: derivedName,
+          p_role: 'va',
+          p_token: null,
+        });
+        if (createErr) throw new Error('No FOIA platform access. Contact your administrator.');
+        navigate('/foia/va');
+        return;
+      }
+
       navigate(profile.role === 'admin' ? '/foia/admin' : '/foia/va');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const msg =
+        err instanceof Error ? err.message
+        : typeof err === 'object' && err !== null && 'message' in err
+        ? String((err as { message: unknown }).message)
+        : 'Login failed';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -70,11 +94,28 @@ export default function FoiaLogin() {
       const user = data.user;
       if (!user) throw new Error('Signup failed — no user returned');
 
-      // Create profile via SECURITY DEFINER RPC so it works regardless of
-      // whether Supabase email confirmation is enabled (no session yet)
-      // and regardless of the foia_profiles INSERT RLS policy.
+      // When email confirmation is enabled and the email is already registered,
+      // Supabase returns the user with identities:[] instead of an error.
+      // In that case sign them in directly so we can create their missing profile.
+      const alreadyRegistered = Array.isArray((user as any).identities) &&
+        (user as any).identities.length === 0;
+
+      let finalUserId = user.id;
+      let hasSession = !!data.session;
+
+      if (alreadyRegistered) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          throw new Error('This email is already registered. Please sign in with your existing password.');
+        }
+        finalUserId = signInData.user.id;
+        hasSession = true;
+      }
+
+      // Create profile via SECURITY DEFINER RPC — bypasses RLS and works
+      // even when there is no session yet (email confirmation enabled).
       const { error: profileError } = await supabase.rpc('complete_foia_signup', {
-        p_user_id: user.id,
+        p_user_id: finalUserId,
         p_email: email,
         p_full_name: fullName,
         p_role: 'va',
@@ -82,14 +123,19 @@ export default function FoiaLogin() {
       });
       if (profileError) throw profileError;
 
-      // If email confirmation is enabled, data.session is null.
-      if (!data.session) {
+      if (!hasSession) {
         setAwaitingConfirmation(true);
         return;
       }
       navigate('/foia/va');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Signup failed');
+      // PostgrestError is a plain object (not an Error instance) — unwrap .message explicitly
+      const msg =
+        err instanceof Error ? err.message
+        : typeof err === 'object' && err !== null && 'message' in err
+        ? String((err as { message: unknown }).message)
+        : 'Signup failed';
+      setError(msg);
     } finally {
       setLoading(false);
     }

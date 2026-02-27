@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/externalClient';
 import { db } from '@/lib/foia/db';
 import type { FoiaProfile, FoiaRole } from '@/types/foia';
 

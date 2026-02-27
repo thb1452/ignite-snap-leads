@@ -39,9 +39,10 @@ export default function FoiaLogin() {
     const checkInvite = async () => {
       // Use SECURITY DEFINER RPC — unauthenticated users can't query
       // foia_invites directly due to RLS.
-      const { data, error } = await supabase.rpc('check_foia_invite', { p_token: token });
-      if (error || !data || data.length === 0) { setInviteValid(false); return; }
-      const invite = data[0] as { email: string; accepted: boolean; expires_at: string };
+      const { data, error } = await rpc('check_foia_invite', { p_token: token });
+      const invites = (data ?? []) as Array<{ email: string; accepted: boolean; expires_at: string }>;
+      if (error || invites.length === 0) { setInviteValid(false); return; }
+      const invite = invites[0];
       const expired = new Date(invite.expires_at) < new Date();
       if (invite.accepted || expired) { setInviteValid(false); return; }
       setEmail(invite.email);
@@ -71,7 +72,7 @@ export default function FoiaLogin() {
         const derivedName = user.user_metadata?.full_name
           ?? user.email?.split('@')[0]
           ?? 'User';
-        const { error: createErr } = await supabase.rpc('complete_foia_signup', {
+        const { error: createErr } = await rpc('complete_foia_signup', {
           p_user_id: user.id,
           p_email: user.email ?? email,
           p_full_name: derivedName,
@@ -127,7 +128,7 @@ export default function FoiaLogin() {
 
       // Create profile via SECURITY DEFINER RPC — bypasses RLS and works
       // even when there is no session yet (email confirmation enabled).
-      const { error: profileError } = await supabase.rpc('complete_foia_signup', {
+      const { error: profileError } = await rpc('complete_foia_signup', {
         p_user_id: finalUserId,
         p_email: email,
         p_full_name: fullName,
@@ -178,7 +179,42 @@ export default function FoiaLogin() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      navigate('/foia/va');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setMode('login');
+        setError('Password updated. Please sign in with your new password.');
+        return;
+      }
+
+      const { data: profile } = await db
+        .from('foia_profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!profile) {
+        const derivedName = user.user_metadata?.full_name
+          ?? user.email?.split('@')[0]
+          ?? 'User';
+
+        const { error: createErr } = await rpc('complete_foia_signup', {
+          p_user_id: user.id,
+          p_email: user.email ?? email,
+          p_full_name: derivedName,
+          p_role: 'va',
+          p_token: null,
+        });
+
+        if (createErr) {
+          throw new Error('Password updated, but no FOIA platform access. Contact your administrator.');
+        }
+
+        navigate('/foia/va');
+        return;
+      }
+
+      navigate(profile.role === 'admin' ? '/foia/admin' : '/foia/va');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update password');
     } finally {

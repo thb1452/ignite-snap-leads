@@ -406,6 +406,63 @@ export type Database = {
         }
         Relationships: []
       }
+      foia_invites: {
+        Row: {
+          accepted: boolean
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          token: string
+        }
+        Insert: {
+          accepted?: boolean
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          token?: string
+        }
+        Update: {
+          accepted?: boolean
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          token?: string
+        }
+        Relationships: []
+      }
+      foia_profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id: string
+          is_active?: boolean
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          role?: string
+        }
+        Relationships: []
+      }
       foia_requests: {
         Row: {
           county_id: string | null
@@ -2087,6 +2144,24 @@ export type Database = {
         }[]
       }
       bulk_upsert_violations: { Args: { p_violations: Json }; Returns: Json }
+      check_foia_invite: {
+        Args: { p_token: string }
+        Returns: {
+          accepted: boolean
+          email: string
+          expires_at: string
+        }[]
+      }
+      complete_foia_signup: {
+        Args: {
+          p_email: string
+          p_full_name: string
+          p_role?: string
+          p_token?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       consume_credit: { Args: { p_user_id: string }; Returns: number }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:

@@ -108,6 +108,19 @@ export default function FoiaLogin() {
       // "no profile" — which would wrongly send the user down the auto-create
       // path and ultimately show a misleading "No FOIA platform access" error.
       if (profileErr) {
+        // PGRST200 means PostgREST can't find the table in its schema cache,
+        // which happens when the FOIA database migrations have not yet been
+        // applied to the Supabase project. Show a clear, actionable message
+        // instead of the raw PostgREST error.
+        const isSchemaError =
+          (profileErr as any)?.code === 'PGRST200' ||
+          String((profileErr as any)?.message ?? '').includes('schema cache');
+        if (isSchemaError) {
+          throw new Error(
+            'The FOIA platform database is not yet configured. ' +
+            'Please ask your administrator to apply the pending database migrations.'
+          );
+        }
         throw profileErr;
       }
 

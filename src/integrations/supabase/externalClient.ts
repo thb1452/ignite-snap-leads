@@ -1,5 +1,5 @@
 /**
- * Supabase client pointed at the production Pro instance (dqwolscmceelqpkfclgi).
+ * Supabase client pointed at the production Pro instance (ojyxblegxpdgaqiscxpz).
  *
  * Preferred env vars:  VITE_SUPABASE_URL + VITE_SUPABASE_PUBLISHABLE_KEY
  * Legacy fallbacks:    VITE_EXTERNAL_SUPABASE_URL + VITE_EXTERNAL_SUPABASE_ANON_KEY

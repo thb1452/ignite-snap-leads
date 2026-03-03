@@ -29,6 +29,8 @@ interface VirtualizedPropertyListProps {
   selectedIds: string[];
   onToggleSelect: (id: string) => void;
   onPropertyClick: (id: string) => void;
+  savedSet?: Set<string>;
+  onToggleSaved?: (id: string) => void;
 }
 
 // Rich card height - accommodates full insight text, violation badges, freshness
@@ -39,6 +41,8 @@ export function VirtualizedPropertyList({
   selectedIds,
   onToggleSelect,
   onPropertyClick,
+  savedSet,
+  onToggleSaved,
 }: VirtualizedPropertyListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -78,6 +82,8 @@ export function VirtualizedPropertyList({
                 isSelected={isSelected}
                 onToggleSelect={onToggleSelect}
                 onClick={() => onPropertyClick(property.id)}
+                isSaved={savedSet?.has(property.id) ?? false}
+                onToggleSaved={onToggleSaved}
               />
             </div>
           );

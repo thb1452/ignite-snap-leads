@@ -3,6 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, AlertTriangle, Flame } from "lucide-react";
+import { SaveHeartButton } from "./SaveHeartButton";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 
@@ -32,13 +33,17 @@ interface MobilePropertyCardProps {
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onClick: () => void;
+  isSaved?: boolean;
+  onToggleSaved?: (id: string) => void;
 }
 
 export function MobilePropertyCard({
   property,
   isSelected,
   onToggleSelect,
-  onClick
+  onClick,
+  isSaved = false,
+  onToggleSaved,
 }: MobilePropertyCardProps) {
   const [insightExpanded, setInsightExpanded] = useState(false);
   
@@ -59,7 +64,15 @@ export function MobilePropertyCard({
       onClick={onClick}
     >
       {/* Badges - Top Right */}
-      <div className="absolute top-3 right-3 flex items-center gap-1.5">
+      <div className="absolute top-3 right-3 flex items-center gap-1">
+        {/* Save heart */}
+        {onToggleSaved && (
+          <SaveHeartButton
+            isSaved={isSaved}
+            onToggle={() => onToggleSaved(property.id)}
+            size="md"
+          />
+        )}
         {/* Water shutoff indicator */}
         {property.enforcement_type === 'water_shutoff' && (
           <Badge variant="outline" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200 px-1.5 py-0.5">

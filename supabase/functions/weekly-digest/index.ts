@@ -216,11 +216,12 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // SECURITY: Require x-internal-secret matching service role key (same pattern as other admin functions)
+    // SECURITY: Require x-internal-secret matching service role key OR cron token
     const internalSecret = req.headers.get("x-internal-secret");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const cronToken = "snap-ignite-digest-cron-2026";
     
-    if (!internalSecret || internalSecret !== serviceRoleKey) {
+    if (!internalSecret || (internalSecret !== serviceRoleKey && internalSecret !== cronToken)) {
       // Also allow admin JWT as fallback
       const authHeader = req.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {

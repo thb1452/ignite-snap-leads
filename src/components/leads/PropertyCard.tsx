@@ -67,6 +67,14 @@ export function PropertyCard({
     ? formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })
     : null;
 
+  // "Heating Up" badge: property updated or new violation in last 7 days
+  const isHeatingUp = (() => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const updatedAt = property.updated_at ? new Date(property.updated_at).getTime() : 0;
+    const newestViolation = (property as any).newest_violation_date ? new Date((property as any).newest_violation_date).getTime() : 0;
+    return updatedAt > sevenDaysAgo || newestViolation > sevenDaysAgo;
+  })();
+
   return (
     <div
       className={`group px-3 py-2.5 border-b hover:bg-accent/50 transition-colors cursor-pointer ${
@@ -102,8 +110,14 @@ export function PropertyCard({
             </div>
           </div>
 
-          {/* Row 2: Status + Violation types */}
+          {/* Row 2: Status + Violation types + Heating Up */}
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            {isHeatingUp && (
+              <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-amber-50 text-amber-700 border-amber-300 gap-0.5 animate-pulse">
+                <Flame className="h-3 w-3" />
+                New Activity
+              </Badge>
+            )}
             {openCount > 0 ? (
               <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-emerald-100 text-emerald-700 border-emerald-200 gap-0.5">
                 <AlertTriangle className="h-3 w-3" />

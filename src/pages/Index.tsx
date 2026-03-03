@@ -2,18 +2,20 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, ListChecks, Zap, TrendingUp, Users, Lock } from "lucide-react";
+import { Phone, Mail, ListChecks, Zap, TrendingUp, Users, Lock, Heart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { IntelligenceDashboard } from "@/components/intelligence/IntelligenceDashboard";
 import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
 import { useDashboardStats } from "@/hooks/useIntelligenceDashboard";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
+import { useSavedProperties } from "@/hooks/useSavedProperties";
 
 export default function Index() {
   const navigate = useNavigate();
   const { data: dashboardStats, isLoading: statsLoading, error: statsError } = useDashboardStats();
   const { hasFeature } = useFeatureAccess();
   const hasRollingIntelligence = hasFeature('rolling_intelligence');
+  const { savedCount, isLoading: savedLoading } = useSavedProperties();
   
   const [extraStats, setExtraStats] = useState({
     tracedLeads: 0,
@@ -177,16 +179,22 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white">
+        <Card className="border-red-200 bg-gradient-to-br from-red-50 to-white cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/saved")}>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-amber-700">Avg SnapScore</CardTitle>
-              <TrendingUp className="h-4 w-4 text-amber-600" />
+              <CardTitle className="text-sm font-medium text-red-700">Saved Properties</CardTitle>
+              <Heart className="h-4 w-4 text-red-500 fill-current" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-amber-700">{dashboardStats?.avg_snap_score ?? 0}</div>
-            <p className="text-xs text-amber-600 mt-1">Opportunity indicator</p>
+            <div className="text-3xl font-bold text-red-700">{savedLoading ? "..." : savedCount.toLocaleString()}</div>
+            <Button
+              variant="link"
+              className="text-xs text-red-600 p-0 h-auto mt-1"
+              onClick={(e) => { e.stopPropagation(); navigate("/saved"); }}
+            >
+              View saved →
+            </Button>
           </CardContent>
         </Card>
       </div>

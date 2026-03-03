@@ -7,6 +7,7 @@ import "leaflet.markercluster";
 import { Button } from "@/components/ui/button";
 import { Map as MapIcon, Flame, Loader2 } from "lucide-react";
 import { useViewportMarkers, type MapBounds } from "@/hooks/useViewportMarkers";
+import { supabase } from "@/integrations/supabase/externalClient";
 import type { LeadFilters } from "@/schemas";
 
 // USA center coordinates and default zoom - defined outside component
@@ -205,91 +206,79 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
 
       mapRef.current.addLayer(markerClusterGroupRef.current);
     } else {
-      // Heatmap mode - use gradient circles with blur effect
+      // ZIP Pressure Heatmap mode - aggregated circles by ZIP code
       heatLayerRef.current = L.layerGroup();
       
-      // Sort by score so higher scores render on top
-      const sortedMarkers = [...markers].sort((a, b) => (a.snap_score || 0) - (b.snap_score || 0));
-      
-      sortedMarkers.forEach(property => {
-        if (property.latitude && property.longitude && mapRef.current) {
-          const score = property.snap_score || 0;
-          const intensity = score / 100;
+      // Fetch ZIP pressure data
+      const fetchZipPressure = async () => {
+        const { data: zipData, error: zipError } = await supabase
+          .rpc("fn_zip_pressure", {
+            p_state: filters.state || null,
+            p_city: filters.cities?.length === 1 ? filters.cities[0] : null,
+          });
+        
+        if (zipError || !zipData) {
+          console.error("[LeadsMap] ZIP pressure error:", zipError);
+          return;
+        }
+        
+        if (!mapRef.current || !heatLayerRef.current) return;
+        
+        (zipData as any[]).forEach((zip: any) => {
+          if (!zip.avg_lat || !zip.avg_lng) return;
           
-          // Color based on score with gradient effect
+          const score = Number(zip.avg_score) || 0;
+          const count = Number(zip.property_count) || 1;
+          
+          // Color based on avg score
           let color: string;
           let opacity: number;
-          if (score >= 80) {
-            color = "#ef4444"; // Red
-            opacity = 0.7;
-          } else if (score >= 60) {
-            color = "#f97316"; // Orange
-            opacity = 0.6;
-          } else if (score >= 40) {
-            color = "#eab308"; // Yellow
-            opacity = 0.5;
-          } else {
-            color = "#22c55e"; // Green
-            opacity = 0.4;
-          }
+          if (score >= 75) { color = "#ef4444"; opacity = 0.7; }
+          else if (score >= 50) { color = "#f97316"; opacity = 0.6; }
+          else if (score >= 25) { color = "#eab308"; opacity = 0.5; }
+          else { color = "#22c55e"; opacity = 0.4; }
           
-          // Create multiple overlapping circles for a glow/heat effect
+          // Size based on property count (log scale)
+          const radius = Math.max(15, Math.min(50, 12 + Math.log2(count) * 8));
+          
           // Outer glow
-          const outerCircle = L.circleMarker(
-            [property.latitude, property.longitude],
+          const outerCircle = L.circle(
+            [Number(zip.avg_lat), Number(zip.avg_lng)],
             {
-              radius: 20 + (intensity * 15),
+              radius: radius * 80,
               fillColor: color,
               color: "transparent",
-              fillOpacity: opacity * 0.3,
+              fillOpacity: opacity * 0.2,
               weight: 0,
             }
           );
           
-          // Middle ring
-          const middleCircle = L.circleMarker(
-            [property.latitude, property.longitude],
-            {
-              radius: 12 + (intensity * 8),
-              fillColor: color,
-              color: "transparent",
-              fillOpacity: opacity * 0.5,
-              weight: 0,
-            }
-          );
-          
-          // Core point
+          // Core circle
           const coreCircle = L.circleMarker(
-            [property.latitude, property.longitude],
+            [Number(zip.avg_lat), Number(zip.avg_lng)],
             {
-              radius: 6 + (intensity * 4),
+              radius: radius,
               fillColor: color,
               color: "#fff",
-              fillOpacity: opacity * 0.9,
-              weight: 1,
+              fillOpacity: opacity,
+              weight: 2,
             }
           );
           
           coreCircle.bindPopup(`
             <div class="text-sm">
-              <strong>${property.address}</strong><br/>
-              <span class="text-muted-foreground">${property.city}, ${property.state}</span><br/>
-              Score: ${score}
+              <strong>ZIP ${zip.zip}</strong><br/>
+              <span>Avg Score: <strong>${score}</strong></span><br/>
+              <span>${count} ${count === 1 ? 'property' : 'properties'}</span>
             </div>
           `);
           
-          coreCircle.on("click", () => {
-            if (onPropertyClick) {
-              onPropertyClick(property.id);
-            }
-          });
-          
           heatLayerRef.current!.addLayer(outerCircle);
-          heatLayerRef.current!.addLayer(middleCircle);
           heatLayerRef.current!.addLayer(coreCircle);
-        }
-      });
-
+        });
+      };
+      
+      fetchZipPressure();
       mapRef.current.addLayer(heatLayerRef.current);
     }
   }, [markers, onPropertyClick, viewMode, mapReady]);
@@ -341,7 +330,7 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
       {/* Legend - show for both modes */}
       <div className="absolute top-4 right-4 z-[1000] bg-background/95 backdrop-blur rounded-lg p-3 shadow-md text-xs">
         <div className="font-semibold mb-2">
-          {viewMode === "heatmap" ? "Heat Intensity by Score" : "SnapScore Legend"}
+          {viewMode === "heatmap" ? "ZIP Pressure Heatmap" : "SnapScore Legend"}
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />

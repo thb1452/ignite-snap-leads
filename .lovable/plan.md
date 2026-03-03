@@ -1,55 +1,60 @@
 
 
-## Problem: Weekly Digest Authentication Mismatch
+## Feature Analysis: #1, #3, #8, #11
 
-### Root Cause
+### #11 — Personal Dashboard (on Index page)
+**What**: Replace the current Index dashboard stats with a personalized summary showing saved properties count, lists count, recent activity, and a "Your Top Saved" mini-list.
 
-The `pg_cron` job sends the **anon key** as `Authorization: Bearer <anon_key>`, but the `weekly-digest` Edge Function's auth logic requires either:
-1. An `x-internal-secret` header matching the **service role key**, OR
-2. A valid **admin user JWT** in the Authorization header
+**Where it shows**: `src/pages/Index.tsx` — the existing dashboard already fetches `activeLists`, `tracedLeads`, `outreachToday`. We'd add a "Your Saved" stat card and a small "Top Saved Properties" section using `useSavedProperties`.
 
-The anon key is neither — it's not a service role key and it's not a user JWT. So the function returns **401 Unauthorized** on every cron invocation. The cron reports "succeeded" because the HTTP call itself completed (it got a response), but the function rejected the request.
+**Risk of bugs**: Very low. It's purely additive UI on an existing page using hooks that already work (`useSavedProperties`, `useUserLists`).
 
-The analytics from Feb 21 were likely from a manual test invocation before the auth check was tightened.
+**Effort**: ~1-2 hours. Just adding cards and a small component to the existing Index page grid.
 
-### Fix
+---
 
-Update the cron job to include the `x-internal-secret` header set to the service role key. This requires:
+### #1 — "Heating Up" Badges on Saved Properties
+**What**: When a user views their saved properties (or the property list), show a small flame/badge on properties whose `updated_at` or `newest_violation_date` changed in the last 7 days. This signals "new activity on a property you're watching."
 
-1. **Drop the existing cron job** (`weekly-digest-email`)
-2. **Re-create it** with the correct headers including `x-internal-secret`
+**Where it shows**: On `PropertyCard` and `CompactPropertyRow` — a small badge like "🔥 New Activity" next to properties that have recent updates. Also on the `SavedPropertiesCard` in Lists tab showing "X properties with new activity."
 
-Since the service role key is sensitive and must be referenced in the cron SQL, this will be done via a direct SQL insert (not a migration, as it contains secrets).
+**Risk of bugs**: Very low. The data already exists — `updated_at` and `newest_violation_date` are on every property row. It's just a date comparison in the UI component, no new queries or database changes needed.
 
-The cron command will look like:
-```sql
-SELECT cron.unschedule('weekly-digest-email');
+**Effort**: ~1-2 hours. Add a conditional badge to `PropertyCard`, and a count query to `SavedPropertiesCard`.
 
-SELECT cron.schedule(
-  'weekly-digest-email',
-  '0 13 * * 1',  -- Mondays at 1 PM UTC (8 AM ET)
-  $$
-  SELECT net.http_post(
-    url := 'https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/weekly-digest',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'x-internal-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'SUPABASE_SERVICE_ROLE_KEY' LIMIT 1)
-    ),
-    body := '{}'::jsonb
-  ) AS request_id;
-  $$
-);
-```
+---
 
-If the service role key is not in the vault, we'll use a simpler approach: hardcode the `x-internal-secret` header in the cron job using the actual service role key value (retrieved securely).
+### #3 — ZIP Code Pressure Heatmap
+**What**: Add a heatmap layer to the existing Leaflet map that colors ZIP code areas by average SnapScore density — red for high-pressure ZIPs, blue for low.
 
-### Verification
+**Where it shows**: `src/components/leads/LeadsMap.tsx` — there's already a `viewMode` toggle between "map" and "heatmap" (line 31). Currently the heatmap mode uses a basic `LayerGroup`. We'd replace it with a proper choropleth or circle-based heat layer aggregated by ZIP.
 
-After fixing, we can manually invoke the function with the correct header to confirm it sends emails successfully.
+**Risk of bugs**: Medium. The map component is complex (365 lines) with marker clustering, viewport-based loading, and multiple layers. Adding a ZIP-aggregated heat layer requires:
+- A new SQL RPC (`fn_zip_pressure`) that does `SELECT zip, AVG(snap_score), COUNT(*) FROM properties GROUP BY zip` with lat/lng averages
+- Rendering colored circles sized by property count at each ZIP centroid
+- The existing heatmap toggle infrastructure helps, but there could be layer conflict issues
 
-### Technical Details
-- **Cron schedule**: `0 13 * * 1` = Every Monday at 1 PM UTC (8 AM ET)
-- **Last successful email send**: Feb 21, 2026
-- **Cron executions since**: Feb 23 and Mar 2 (both returned 401 silently)
-- **RESEND_API_KEY**: Already configured in secrets
+**Effort**: ~3-4 hours. New RPC function + map layer rendering + toggle integration.
+
+---
+
+### #8 — Auto-Archive / "Dead Deal" Filter
+**What**: Add a quick filter toggle that hides properties with `open_violations = 0` (all violations resolved). These are "dead deals" — no active enforcement pressure. The inverse toggle ("Active Only") would be the default smart view.
+
+**Where it shows**: `src/components/leads/PressureLevelFilter.tsx` or as a new toggle in the filter bar. Could also be a banner: "Hiding X resolved properties. Show all?"
+
+**Risk of bugs**: Low. The `open_violations` column already exists and is indexed. The `fn_properties_paged` RPC already supports `p_open_violations_only`. This is mostly a UI toggle that sets `openViolationsOnly: true` as default behavior.
+
+**Effort**: ~1 hour. Add a toggle/chip to the filter bar, possibly default it to on.
+
+---
+
+### Recommended Build Order
+
+1. **#8 — Dead Deal Filter** (~1 hr) — Fastest win, immediately improves data quality users see
+2. **#11 — Personal Dashboard** (~1-2 hrs) — Makes the home page feel personalized
+3. **#1 — Heating Up Badges** (~1-2 hrs) — Adds intelligence feel to property cards
+4. **#3 — ZIP Heatmap** (~3-4 hrs) — Most complex, but biggest visual impact
+
+Total estimated time: ~6-9 hours across all four features. No database schema changes needed for #1, #8, or #11. Only #3 requires a new SQL function.
 

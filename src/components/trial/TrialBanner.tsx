@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { X, Clock, Download, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -18,10 +19,15 @@ export function TrialBanner() {
     trialEndsAt,
     loading,
   } = useTrialStatus();
+  const { subscription, loading: subLoading } = useSubscription();
 
   const [dismissed, setDismissed] = useState(false);
 
-  if (loading || dismissed) return null;
+  if (loading || subLoading || dismissed) return null;
+
+  // If user has an active paid subscription, never show trial UI
+  const isPaidActive = subscription && ['active', 'past_due'].includes(subscription.status) && !['trial', 'trialing'].includes(subscription.status);
+  if (isPaidActive) return null;
 
   const tierDisplay = trialTier === 'professional' ? 'Pro' : trialTier === 'enterprise' ? 'Elite' : 'Starter';
   const exportPercent = (trialExportsUsed / trialExportsLimit) * 100;

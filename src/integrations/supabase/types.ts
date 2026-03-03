@@ -2551,7 +2551,7 @@ export type Database = {
         Returns: Json
       }
       fn_start_trial: {
-        Args: { p_trial_tier?: string; p_user_id: string }
+        Args: { p_trial_tier: string; p_user_id: string }
         Returns: Json
       }
       fn_update_user_states: { Args: { p_states: string[] }; Returns: Json }

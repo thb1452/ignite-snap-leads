@@ -409,7 +409,7 @@ export default function Landing() {
                 className="text-landing-text-muted text-sm flex items-center gap-2"
               >
                 <Lock className="w-4 h-4" />
-                7-day free trial • 50 property exports • Then $79/month • Cancel anytime
+                7-day free trial • 25 property exports • Then $79/month • Cancel anytime
               </motion.p>
               
               <motion.p 
@@ -1107,7 +1107,7 @@ export default function Landing() {
                 },
                 {
                   question: "Is there a free trial?",
-                  answer: "Yes! Start a 7-day free trial — $0 due today. Enter your payment method at checkout and get 50 property exports to test data quality in your markets. Search unlimited properties, save favorites, and access all features for your selected tier. After 7 days your subscription begins automatically, or cancel anytime before then."
+                  answer: "Yes! Start a 7-day free trial — $0 due today. Enter your payment method at checkout and get 25 property exports to test data quality in your markets. Search unlimited properties, save favorites, and access all features for your selected tier. After 7 days your subscription begins automatically, or cancel anytime before then."
                 }
               ].map((faq, i) => (
                 <motion.div

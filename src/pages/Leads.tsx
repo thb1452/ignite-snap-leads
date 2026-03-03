@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LeadsMap } from "@/components/leads/LeadsMap";
@@ -111,7 +112,19 @@ function Leads() {
   }, [searchInput, searchQuery]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
+
+  // Auto-select property from URL param (e.g. from digest email)
+  useEffect(() => {
+    const propertyIdParam = searchParams.get("propertyId");
+    if (propertyIdParam && !selectedPropertyId) {
+      setSelectedPropertyId(propertyIdParam);
+      // Clean up URL param after consuming it
+      searchParams.delete("propertyId");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams]);
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);

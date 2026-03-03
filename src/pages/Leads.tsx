@@ -25,6 +25,7 @@ import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
+import { PersonalStatsBar } from "@/components/leads/PersonalStatsBar";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
@@ -589,6 +590,7 @@ function Leads() {
 
         {/* Spacer + Actions */}
         <div className="flex-1" />
+        <PersonalStatsBar />
         <FreshnessIndicator />
         <Button variant="ghost" size="sm" onClick={handleClearFilters} disabled={!activeFilterCount} className="h-7 px-2 text-xs gap-1">
           <X className="h-3 w-3" /> Clear
@@ -643,7 +645,10 @@ function Leads() {
 
         {/* Freshness indicator + Saved toggle + View Toggle */}
         <div className="flex items-center justify-between px-3 pb-2">
-          <FreshnessIndicator />
+          <div className="flex items-center gap-3">
+            <PersonalStatsBar />
+            <FreshnessIndicator />
+          </div>
           <div className="inline-flex rounded-lg border bg-muted p-1">
             <button
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${

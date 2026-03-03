@@ -2599,6 +2599,16 @@ export type Database = {
           violation_type: string
         }[]
       }
+      fn_zip_pressure: {
+        Args: { p_city?: string; p_state?: string }
+        Returns: {
+          avg_lat: number
+          avg_lng: number
+          avg_score: number
+          property_count: number
+          zip: string
+        }[]
+      }
       generate_enforcement_insight: {
         Args: {
           p_avg_days_open: number

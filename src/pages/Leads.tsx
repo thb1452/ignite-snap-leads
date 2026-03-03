@@ -84,7 +84,7 @@ function Leads() {
   const [selectedSignal, setSelectedSignal] = useState<string | null>(null);
   
   // Pressure level filter state
-  const [openViolationsOnly, setOpenViolationsOnly] = useState(false);
+  const [openViolationsOnly, setOpenViolationsOnly] = useState(true); // Default: hide dead deals
   const [multipleViolationsOnly, setMultipleViolationsOnly] = useState(false);
   const [repeatOffenderOnly, setRepeatOffenderOnly] = useState(false);
   
@@ -209,7 +209,7 @@ function Leads() {
     setSelectedCity(null);
     setSelectedState(null);
     setSelectedSignal(null);
-    setOpenViolationsOnly(false);
+    setOpenViolationsOnly(true); // Keep dead deal filter on by default
     setMultipleViolationsOnly(false);
     setRepeatOffenderOnly(false);
     setSnapScoreRange([0, 100]);

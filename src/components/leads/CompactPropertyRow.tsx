@@ -1,5 +1,6 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Flame } from "lucide-react";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 
 interface CompactPropertyRowProps {
@@ -13,6 +14,8 @@ interface CompactPropertyRowProps {
     total_violations?: number | null;
     open_violations?: number | null;
     violation_types?: string[] | null;
+    updated_at?: string | null;
+    newest_violation_date?: string | null;
   };
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
@@ -35,6 +38,14 @@ export function CompactPropertyRow({
 
   const openCount = property.open_violations ?? 0;
   const totalCount = property.total_violations ?? 0;
+
+  // "Heating Up" badge
+  const isHeatingUp = (() => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const updatedAt = property.updated_at ? new Date(property.updated_at).getTime() : 0;
+    const newestViolation = property.newest_violation_date ? new Date(property.newest_violation_date).getTime() : 0;
+    return updatedAt > sevenDaysAgo || newestViolation > sevenDaysAgo;
+  })();
 
   return (
     <div
@@ -61,7 +72,13 @@ export function CompactPropertyRow({
         </p>
       </div>
 
-      {/* Status Badge */}
+      {/* Heating Up + Status Badge */}
+      {isHeatingUp && (
+        <Badge variant="outline" className="text-[10px] px-1 py-0 h-[16px] bg-amber-50 text-amber-700 border-amber-300 gap-0.5 shrink-0">
+          <Flame className="h-2.5 w-2.5" />
+          🔥
+        </Badge>
+      )}
       <div className="shrink-0">
         {totalCount > 0 ? (
           <Badge

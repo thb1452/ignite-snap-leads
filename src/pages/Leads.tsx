@@ -41,6 +41,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { useTrialExportNotifications } from "@/hooks/useTrialExportNotifications";
 import { TrialExportGate } from "@/components/trial/TrialExportGate";
+import { TrialPaywall } from "@/components/trial/TrialPaywall";
 import { useSavedProperties } from "@/hooks/useSavedProperties";
 
 const PAGE_SIZE = 50;
@@ -49,7 +50,7 @@ function Leads() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
-  const { plan, usage, refetch: refetchSubscription, getRemainingCount } = useSubscription();
+  const { plan, usage, refetch: refetchSubscription, getRemainingCount, hasActiveSubscription } = useSubscription();
   useSubscriptionGate({ showToast: false }); // Still needed for subscription context
   const {
     isOnTrial,
@@ -526,9 +527,13 @@ function Leads() {
     [mappedProperties, selectedPropertyId]
   );
 
+  // Determine if user should be fully gated (expired trial, no paid plan)
+  const isFullyGated = hasTrialExpired && !hasActiveSubscription;
+
   return (
     <AppLayout>
-      <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+      <div className="relative flex flex-col h-[calc(100vh-3.5rem)]">
+      {isFullyGated && <TrialPaywall />}
       <OnboardingFlow
         open={showOnboarding}
         onOpenChange={setShowOnboarding}

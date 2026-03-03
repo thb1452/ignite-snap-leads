@@ -60,9 +60,9 @@ export function TrialExpiredModal() {
         </DialogHeader>
 
         <DialogFooter className="flex-col gap-2 sm:flex-col">
-          <Link to={`/auth?mode=signup&plan=${trialTier || 'starter'}`} className="w-full">
+          <Link to="/pricing" className="w-full">
             <Button className="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700" size="lg">
-              Upgrade to {tierDisplay} — ${price}/mo
+              Subscribe to {tierDisplay} — ${price}/mo
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </Link>

@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Settings, CreditCard, LayoutDashboard, ListChecks, Clock } from "lucide-react";
+import { LogOut, User, Settings, CreditCard, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
@@ -135,21 +135,6 @@ export function AppLayout({ children }: AppLayoutProps) {
                  </>
                )}
                
-               <DropdownMenuItem asChild>
-                <Link to="/leads" className="flex items-center gap-2 cursor-pointer">
-                  <LayoutDashboard className="h-4 w-4" />
-                  Properties
-                </Link>
-              </DropdownMenuItem>
-              
-              <DropdownMenuItem asChild>
-                <Link to="/lists" className="flex items-center gap-2 cursor-pointer">
-                  <ListChecks className="h-4 w-4" />
-                  My Lists
-                </Link>
-              </DropdownMenuItem>
-              
-              <DropdownMenuSeparator />
               
               {/* Only show Settings link when not on settings page */}
               {location.pathname !== '/settings' && (

@@ -418,7 +418,7 @@ export default function Landing() {
                 transition={{ delay: 0.7 }}
                 className="text-landing-text-muted text-xs"
               >
-                Trusted by operators and acquisition teams nationwide
+                Trusted by investors and wholesalers who track enforcement pressure nationwide
               </motion.p>
             </div>
             

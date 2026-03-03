@@ -211,7 +211,7 @@ async function handleCheckoutCompleted(
     subscriptionRecord.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
     subscriptionRecord.trial_tier = trialTier;
     subscriptionRecord.trial_exports_used = 0;
-    subscriptionRecord.trial_exports_limit = 50;
+    subscriptionRecord.trial_exports_limit = 25;
   }
 
   // Create new subscription record

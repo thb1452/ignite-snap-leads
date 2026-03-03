@@ -21,7 +21,7 @@ export function useTrialExportNotifications() {
         return;
       }
 
-      // At limit (50 used)
+      // At limit (25 used)
       if (remaining <= 0) {
         toast({
           variant: "destructive",

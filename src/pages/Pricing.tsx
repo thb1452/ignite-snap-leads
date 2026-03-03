@@ -532,7 +532,7 @@ export default function Pricing() {
                 <CardHeader><CardTitle className="text-lg">How does the free trial work?</CardTitle></CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    Start a 7-day trial — $0 due today. Enter your payment method at checkout and get 50 property
+                    Start a 7-day trial — $0 due today. Enter your payment method at checkout and get 25 property
                     exports to test data quality. Search unlimited properties, save favorites, and access tier-specific
                     features. Your subscription begins automatically after 7 days, or cancel anytime before then.
                   </p>

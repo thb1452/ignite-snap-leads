@@ -146,13 +146,27 @@ async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
     .select("*", { count: "exact", head: true })
     .gte("created_at", sevenDaysAgo.toISOString());
 
-  const { data: topProperties } = await supabase
+  // Fetch more than 5 to account for filtering out parcel IDs
+  const { data: candidateProperties } = await supabase
     .from("properties")
     .select("id, address, city, state, snap_score, total_violations, violation_types")
     .gte("updated_at", sevenDaysAgo.toISOString())
     .not("snap_score", "is", null)
     .order("snap_score", { ascending: false })
-    .limit(5);
+    .limit(20);
+
+  // Filter out parcel IDs and non-street addresses, then take top 5
+  const topProperties = (candidateProperties || []).filter((p: any) => {
+    const addr = (p.address || "").trim();
+    if (!addr) return false;
+    // Exclude "Parcel-based" addresses
+    if (/^parcel[- ]based/i.test(addr)) return false;
+    // Exclude pure parcel IDs (e.g. "11-11-40-135-013", "92003034")
+    if (/^[\d]+[-.][\d\-.]+$/.test(addr)) return false;
+    // Exclude addresses that are just numbers (no letters)
+    if (!/[a-zA-Z]/.test(addr)) return false;
+    return true;
+  }).slice(0, 5);
 
   return {
     weeklyCount: weeklyCount || 0,

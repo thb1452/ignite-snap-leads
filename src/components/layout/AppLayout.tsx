@@ -25,7 +25,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAdmin, isVA } = useUserRole();
-  const { isOnTrial, hasTrialExpired, trialDaysRemaining, trialTier } = useTrialStatus();
+  const { isOnTrial, hasTrialExpired, trialDaysRemaining, trialTier, hasActiveSubscription, subscriptionStatus } = useTrialStatus();
+
+  // Determine if user has a paid (non-trial) subscription
+  const isPaidSubscriber = hasActiveSubscription && subscriptionStatus && !['trial', 'trialing'].includes(subscriptionStatus);
 
   const trialTierDisplay = trialTier === 'professional' ? 'Pro' : trialTier === 'enterprise' ? 'Elite' : 'Starter';
 
@@ -108,8 +111,8 @@ export function AppLayout({ children }: AppLayoutProps) {
                  </>
                )}
 
-               {/* Trial status in dropdown */}
-               {(isOnTrial || hasTrialExpired) && (
+               {/* Trial status in dropdown - hide if user has paid subscription */}
+               {(isOnTrial || hasTrialExpired) && !isPaidSubscriber && (
                  <>
                    <div className="px-2 py-1.5">
                      <p className="text-sm font-medium">

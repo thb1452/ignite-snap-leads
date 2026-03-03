@@ -17,8 +17,11 @@ export function ExportQuotaDisplay() {
 
   const loading = subLoading || trialLoading;
 
-  // Trial user: show trial exports
-  if (isOnTrial || hasTrialExpired) {
+  // If user has an active paid subscription, skip trial display entirely
+  const isPaidSubscriber = !subLoading && plan && usage;
+
+  // Trial user: show trial exports (only if NOT on a paid plan)
+  if ((isOnTrial || hasTrialExpired) && !isPaidSubscriber) {
     const usedPercentage = (trialExportsUsed / trialExportsLimit) * 100;
     const isLow = trialExportsRemaining <= 10 && trialExportsRemaining > 0;
     const isExhausted = trialExportsRemaining === 0;

@@ -109,13 +109,20 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
   const planConfig = plan ? PLAN_CONFIGS[plan.name as keyof typeof PLAN_CONFIGS] : null;
   const PlanIcon = planConfig?.icon || Zap;
 
-  // For trial users, show trial export counts instead of plan limits
-  const csvExportsUsed = isOnTrial ? trialExportsUsed : (usage?.exports_count || 0);
-  const csvExportsLimit = isOnTrial ? trialExportsLimit : (plan?.max_monthly_exports || 0);
+  // Only show trial export counts if user is on trial AND doesn't have a paid plan
+  const isPaidPlan = subscription && !['trial', 'trialing'].includes(subscription.status);
+  const showTrialUsage = isOnTrial && !isPaidPlan;
+  const csvExportsUsed = showTrialUsage ? trialExportsUsed : (usage?.exports_count || 0);
+  const csvExportsLimit = showTrialUsage ? trialExportsLimit : (plan?.max_monthly_exports || 0);
   const csvExportsPercent = csvExportsLimit === -1 ? 0 : Math.min(100, (csvExportsUsed / Math.max(1, csvExportsLimit)) * 100);
 
+  // Use local date components to avoid timezone shift showing past dates
   const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;
-  const formattedRenewal = periodEnd ? periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+  const formattedRenewal = periodEnd ? new Date(
+    periodEnd.getFullYear(),
+    periodEnd.getMonth(),
+    periodEnd.getDate()
+  ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 
   // No subscription
   if (!subscription || !plan) {

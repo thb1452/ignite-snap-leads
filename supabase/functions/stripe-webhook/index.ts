@@ -98,6 +98,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
         break;
       }
 
+      case "customer.subscription.trial_will_end": {
+        const subscription = event.data.object as Stripe.Subscription;
+        console.log("[webhook] Trial will end soon for subscription:", subscription.id);
+        // No DB change needed — this is informational. The actual
+        // status change happens via customer.subscription.updated.
+        break;
+      }
+
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
         await handlePaymentSucceeded(supabase, invoice);
@@ -244,7 +252,8 @@ async function handleSubscriptionChange(
   if (subscription.status === "trialing") status = "trialing";
   else if (subscription.status === "canceled") status = "cancelled";
   else if (subscription.status === "past_due") status = "past_due";
-  else if (subscription.status === "unpaid") status = "unpaid";
+  else if (subscription.status === "unpaid") status = "cancelled"; // Treat unpaid as cancelled — full lockout
+  else if (subscription.status === "incomplete_expired") status = "cancelled";
   else if (subscription.cancel_at_period_end) status = "active"; // Still active until period ends
 
   // Build update payload

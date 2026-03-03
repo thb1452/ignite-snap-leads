@@ -108,7 +108,7 @@ const TRIAL_TIER_MAP: Record<string, string> = {
 export default function Pricing() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { isOnTrial, trialDaysRemaining, trialExportsRemaining, trialTier, hasActiveSubscription: hasTrialActive, subscriptionStatus } = useTrialStatus();
+  const { isOnTrial, hasTrialExpired, trialDaysRemaining, trialExportsRemaining, trialTier, hasActiveSubscription: hasTrialActive, subscriptionStatus } = useTrialStatus();
   const { subscription, hasActiveSubscription: hasPaidSubscription, refetch: refetchSubscription } = useSubscription();
   const { spotsRemaining: eliteSpotsRemaining, isFull: isEliteFull } = useEliteCapacity();
   const billingCycle = "monthly" as const;
@@ -128,6 +128,9 @@ export default function Pricing() {
   // Detect active PAID subscription (not trialing)
   const isActivePaid = hasPaidSubscription && subscription?.status === 'active';
   const activePlanName = subscription?.plan_name; // e.g. 'enterprise', 'starter', 'professional'
+
+  // Has user already used a trial? (expired or currently on trial)
+  const hasUsedTrial = isOnTrial || hasTrialExpired;
 
   const openTrialModal = (tier: string) => {
     setSelectedTrialTier(tier);
@@ -218,6 +221,9 @@ export default function Pricing() {
       }
     } else if (isActivePaid) {
       // Active paid user switching tiers
+      handleDirectUpgrade(tier.name);
+    } else if (hasUsedTrial) {
+      // User already used a trial — go directly to checkout (no new trial)
       handleDirectUpgrade(tier.name);
     } else {
       openTrialModal(tier.name);
@@ -327,6 +333,8 @@ export default function Pricing() {
               isCurrent ? 'Your Active Plan' : `Switch to ${tier.display_name}`
             ) : isOnTrial ? (
               isCurrent ? `Upgrade to ${tier.display_name} — ${getMonthlyPrice(tier)}/mo` : isDowngrade(tier.name) ? `Switch to ${tier.display_name}` : `Upgrade to ${tier.display_name}`
+            ) : hasUsedTrial ? (
+              `Subscribe to ${tier.display_name}`
             ) : (
               'Start 7-Day Free Trial'
             )}
@@ -348,6 +356,8 @@ export default function Pricing() {
               ? 'Manage your subscription in Settings'
               : isOnTrial
               ? 'Pay now • Instant activation • Cancel anytime'
+              : hasUsedTrial
+              ? `${getMonthlyPrice(tier)}/month • Cancel anytime`
               : `Then ${getMonthlyPrice(tier)}/month • Cancel anytime`
             }
           </p>
@@ -470,6 +480,24 @@ export default function Pricing() {
               </p>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ===== EXPIRED TRIAL USER: Upgrade Hero ===== */}
+      {hasTrialExpired && !isOnTrial && !isActivePaid && (
+        <div className="bg-gradient-to-br from-slate-900 via-red-950 to-orange-950 text-white">
+          <div className="container max-w-4xl py-10 px-4 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-500/20 border border-red-400/30 text-red-300 text-sm font-medium mb-6">
+              <AlertTriangle className="w-4 h-4" />
+              Trial Expired
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold mb-3">
+              Your free trial has ended
+            </h1>
+            <p className="text-lg text-red-100/80 mb-4 max-w-2xl mx-auto">
+              Subscribe to a plan below to unlock property data, exports, and enforcement intelligence.
+            </p>
           </div>
         </div>
       )}

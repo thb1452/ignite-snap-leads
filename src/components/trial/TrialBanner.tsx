@@ -11,6 +11,7 @@ export function TrialBanner() {
   const {
     isOnTrial,
     hasTrialExpired,
+    hasActiveSubscription,
     trialDaysRemaining,
     trialExportsUsed,
     trialExportsRemaining,
@@ -26,8 +27,9 @@ export function TrialBanner() {
   if (loading || subLoading || dismissed) return null;
 
   // If user has an active paid subscription, never show trial UI
+  // Check both the subscription object status AND the trial hook's hasActiveSubscription flag
   const isPaidActive = subscription && ['active', 'past_due'].includes(subscription.status) && !['trial', 'trialing'].includes(subscription.status);
-  if (isPaidActive) return null;
+  if (isPaidActive || hasActiveSubscription) return null;
 
   const tierDisplay = trialTier === 'professional' ? 'Pro' : trialTier === 'enterprise' ? 'Elite' : 'Starter';
   const exportPercent = (trialExportsUsed / trialExportsLimit) * 100;

@@ -260,19 +260,12 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-4 pt-2">
+            <div className="grid grid-cols-1 gap-4 pt-2">
               <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
                 <List className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Lists Created</p>
                   <p className="text-lg font-semibold">{listsCount}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Properties Tracked</p>
-                  <p className="text-lg font-semibold">{propertiesCount.toLocaleString()}</p>
                 </div>
               </div>
             </div>

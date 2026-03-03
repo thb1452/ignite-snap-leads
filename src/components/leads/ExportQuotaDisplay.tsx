@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Download, Infinity } from "lucide-react";
 
 export function ExportQuotaDisplay() {
-  const { plan, usage, loading: subLoading } = useSubscription();
+  const { plan, usage, subscription, loading: subLoading } = useSubscription();
   const {
     isOnTrial,
     hasTrialExpired,
@@ -17,8 +17,11 @@ export function ExportQuotaDisplay() {
 
   const loading = subLoading || trialLoading;
 
-  // If user has an active paid subscription, skip trial display entirely
-  const isPaidSubscriber = !subLoading && plan && usage;
+  // A paid subscriber must have an active/past_due status that is NOT a trial
+  const isPaidSubscriber = !subLoading && subscription && 
+    ['active', 'past_due'].includes(subscription.status) && 
+    !['trial', 'trialing'].includes(subscription.status) &&
+    plan && usage;
 
   // Trial user: show trial exports (only if NOT on a paid plan)
   if ((isOnTrial || hasTrialExpired) && !isPaidSubscriber) {
@@ -64,8 +67,8 @@ export function ExportQuotaDisplay() {
     );
   }
 
-  // Paid subscriber: show subscription exports
-  if (loading || !plan || !usage) {
+  // Paid subscriber: show subscription exports (only for truly active paid plans)
+  if (loading || !isPaidSubscriber || !plan || !usage) {
     return null;
   }
 

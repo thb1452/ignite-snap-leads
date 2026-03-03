@@ -136,6 +136,69 @@ function formatPropertyEmail(
   `.trim();
 }
 
+/**
+ * Selects a diverse set of properties across score tiers and cities.
+ * Instead of showing 5 properties all at score 100, this picks from
+ * different score buckets and avoids repeating the same city.
+ */
+function selectDiverseProperties(properties: any[], count: number): any[] {
+  if (properties.length <= count) return properties;
+
+  const selected: any[] = [];
+  const usedCities = new Set<string>();
+
+  // Define score tiers: 80-100, 60-79, 40-59, 20-39, 0-19
+  const tiers = [
+    { min: 80, max: 100 },
+    { min: 60, max: 79 },
+    { min: 40, max: 59 },
+    { min: 20, max: 39 },
+    { min: 0, max: 19 },
+  ];
+
+  // First pass: pick the best from each tier, preferring unique cities
+  for (const tier of tiers) {
+    if (selected.length >= count) break;
+    const tierCandidates = properties.filter(
+      (p) => (p.snap_score ?? 0) >= tier.min && (p.snap_score ?? 0) <= tier.max
+    );
+    // Prefer a city we haven't used yet
+    const uniqueCity = tierCandidates.find(
+      (p) => !usedCities.has(`${p.city}-${p.state}`)
+    );
+    const pick = uniqueCity || tierCandidates[0];
+    if (pick && !selected.some((s) => s.id === pick.id)) {
+      selected.push(pick);
+      usedCities.add(`${pick.city}-${pick.state}`);
+    }
+  }
+
+  // Second pass: fill remaining slots from highest-scored unused properties
+  // preferring unique cities
+  if (selected.length < count) {
+    const remaining = properties.filter((p) => !selected.some((s) => s.id === p.id));
+    for (const p of remaining) {
+      if (selected.length >= count) break;
+      if (!usedCities.has(`${p.city}-${p.state}`)) {
+        selected.push(p);
+        usedCities.add(`${p.city}-${p.state}`);
+      }
+    }
+  }
+
+  // Final fill: if still under count, add any remaining by score
+  if (selected.length < count) {
+    const remaining = properties.filter((p) => !selected.some((s) => s.id === p.id));
+    for (const p of remaining) {
+      if (selected.length >= count) break;
+      selected.push(p);
+    }
+  }
+
+  // Sort final selection by score descending for display
+  return selected.sort((a, b) => (b.snap_score ?? 0) - (a.snap_score ?? 0));
+}
+
 async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   const sevenDaysAgo = new Date();
@@ -146,27 +209,28 @@ async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
     .select("*", { count: "exact", head: true })
     .gte("created_at", sevenDaysAgo.toISOString());
 
-  // Fetch more than 5 to account for filtering out parcel IDs
+  // Fetch a larger pool for diversity selection
   const { data: candidateProperties } = await supabase
     .from("properties")
-    .select("id, address, city, state, snap_score, total_violations, violation_types")
+    .select("id, address, city, state, snap_score, total_violations, violation_types, escalated, open_violations")
     .gte("updated_at", sevenDaysAgo.toISOString())
     .not("snap_score", "is", null)
     .order("snap_score", { ascending: false })
-    .limit(20);
+    .order("total_violations", { ascending: false })
+    .limit(100);
 
-  // Filter out parcel IDs and non-street addresses, then take top 5
-  const topProperties = (candidateProperties || []).filter((p: any) => {
+  // Filter out parcel IDs and non-street addresses
+  const validProperties = (candidateProperties || []).filter((p: any) => {
     const addr = (p.address || "").trim();
     if (!addr) return false;
-    // Exclude "Parcel-based" addresses
     if (/^parcel[- ]based/i.test(addr)) return false;
-    // Exclude pure parcel IDs (e.g. "11-11-40-135-013", "92003034")
     if (/^[\d]+[-.][\d\-.]+$/.test(addr)) return false;
-    // Exclude addresses that are just numbers (no letters)
     if (!/[a-zA-Z]/.test(addr)) return false;
     return true;
-  }).slice(0, 5);
+  });
+
+  // Select diverse top-5 across score tiers and cities
+  const topProperties = selectDiverseProperties(validProperties, 5);
 
   return {
     weeklyCount: weeklyCount || 0,

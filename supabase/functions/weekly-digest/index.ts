@@ -73,7 +73,7 @@ function formatPropertyEmail(
               </div>
             </td>
             <td style="padding: 12px 0; vertical-align: middle; text-align: right; width: 100px;">
-              <a href="${APP_URL}/leads?search=${encodeURIComponent(p.address)}" 
+              <a href="${APP_URL}/leads?propertyId=${p.id}" 
                  style="display: inline-block; padding: 8px 16px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 500;">
                 View →
               </a>

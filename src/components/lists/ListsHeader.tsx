@@ -11,7 +11,7 @@ export function ListsHeader({ listCount, totalProperties }: ListsHeaderProps) {
       <div>
         <h1 className="text-2xl font-bold text-foreground">My Lists</h1>
         <p className="text-muted-foreground mt-0.5">
-          Organize and manage your lead collections
+          Organize and track your enforcement targets
         </p>
       </div>
 

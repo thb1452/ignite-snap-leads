@@ -14,7 +14,7 @@ import { AddAllToListDialog } from "@/components/leads/AddAllToListDialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2, Heart } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2 } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
@@ -91,8 +91,6 @@ function Leads() {
   // SnapScore range filter state (Enterprise only)
   const [snapScoreRange, setSnapScoreRange] = useState<[number, number]>([0, 100]);
   
-  // Saved filter state
-  const [savedOnly, setSavedOnly] = useState(false);
 
   // Sort state - default to newest violations
   const [sortBy, setSortBy] = useState<SortOption>('newest_violation');
@@ -149,11 +147,10 @@ function Leads() {
     if (openViolationsOnly) count++;
     if (multipleViolationsOnly) count++;
     if (repeatOffenderOnly) count++;
-    if (savedOnly) count++;
     // Count SnapScore if not default range
     if (snapScoreRange[0] !== 0 || snapScoreRange[1] !== 100) count++;
     return count;
-  }, [lastSeenDays, selectedCity, selectedState, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly, snapScoreRange, savedOnly]);
+  }, [lastSeenDays, selectedCity, selectedState, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly, snapScoreRange]);
 
   // Build filters object for the hook - only include truthy values
   const filters = useMemo(() => {
@@ -216,7 +213,6 @@ function Leads() {
     setMultipleViolationsOnly(false);
     setRepeatOffenderOnly(false);
     setSnapScoreRange([0, 100]);
-    setSavedOnly(false);
     setPage(1);
   };
 
@@ -513,13 +509,8 @@ function Leads() {
       violations: violationsByPropertyId.get(p.id) || [],
     }));
 
-    // Client-side saved filter
-    if (savedOnly) {
-      result = result.filter(p => savedSet.has(p.id));
-    }
-
     return result;
-  }, [properties, violationsData, savedOnly, savedSet]);
+  }, [properties, violationsData]);
 
   // Keep performance optimization with useMemo
   const selectedProperty = useMemo(() =>
@@ -596,17 +587,6 @@ function Leads() {
           onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
         />
 
-        {/* Saved Filter */}
-        <Button
-          variant={savedOnly ? "default" : "outline"}
-          size="sm"
-          onClick={() => { setSavedOnly(!savedOnly); setPage(1); }}
-          className={`h-7 px-2 text-xs gap-1 ${savedOnly ? '' : ''}`}
-        >
-          <Heart className={`h-3 w-3 ${savedOnly ? 'fill-current' : ''}`} />
-          Saved
-        </Button>
-
         {/* Spacer + Actions */}
         <div className="flex-1" />
         <FreshnessIndicator />
@@ -663,18 +643,7 @@ function Leads() {
 
         {/* Freshness indicator + Saved toggle + View Toggle */}
         <div className="flex items-center justify-between px-3 pb-2">
-          <div className="flex items-center gap-2">
-            <FreshnessIndicator />
-            <Button
-              variant={savedOnly ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setSavedOnly(!savedOnly); setPage(1); }}
-              className="h-7 px-2 text-xs gap-1"
-            >
-              <Heart className={`h-3 w-3 ${savedOnly ? 'fill-current' : ''}`} />
-              Saved
-            </Button>
-          </div>
+          <FreshnessIndicator />
           <div className="inline-flex rounded-lg border bg-muted p-1">
             <button
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${

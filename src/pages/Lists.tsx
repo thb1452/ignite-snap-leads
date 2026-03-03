@@ -35,6 +35,7 @@ import { ListCard } from "@/components/lists/ListCard";
 import { CreateListCard } from "@/components/lists/CreateListCard";
 import { ListsHeader } from "@/components/lists/ListsHeader";
 import { EmptyListsState } from "@/components/lists/EmptyListsState";
+import { SavedPropertiesCard } from "@/components/lists/SavedPropertiesCard";
 
 export function Lists() {
   const { toast } = useToast();
@@ -298,9 +299,15 @@ export function Lists() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : lists.length === 0 ? (
-          <EmptyListsState onCreateClick={() => setCreateDialogOpen(true)} />
+          <div className="space-y-6">
+            <SavedPropertiesCard />
+            <EmptyListsState onCreateClick={() => setCreateDialogOpen(true)} />
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {/* Saved Properties - always first */}
+            <SavedPropertiesCard />
+
             {/* Create new list card - desktop only */}
             <div className="hidden sm:block">
               <CreateListCard onClick={() => setCreateDialogOpen(true)} />

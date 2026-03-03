@@ -24,6 +24,7 @@ import Leads from "./pages/Leads";
 import Landing from "./pages/Landing";
 import { Lists } from "./pages/Lists";
 import ListDetail from "./pages/ListDetail";
+import SavedProperties from "./pages/SavedProperties";
 import { Settings } from "./pages/Settings";
 import JobDetail from "./pages/JobDetail";
 import Jobs from "./pages/Jobs";
@@ -90,6 +91,11 @@ const App = () => (
           <Route path="/lists/:listId" element={
             <RoleProtectedRoute allowedRoles={['admin', 'user']}>
               <ListDetail />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/saved" element={
+            <RoleProtectedRoute allowedRoles={['admin', 'user']}>
+              <SavedProperties />
             </RoleProtectedRoute>
           } />
           <Route path="/settings" element={

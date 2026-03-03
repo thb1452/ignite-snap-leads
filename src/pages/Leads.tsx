@@ -92,8 +92,8 @@ function Leads() {
   const [snapScoreRange, setSnapScoreRange] = useState<[number, number]>([0, 100]);
   
 
-  // Sort state - default to newest violations
-  const [sortBy, setSortBy] = useState<SortOption>('newest_violation');
+  // Sort state - default to recently updated for freshest data
+  const [sortBy, setSortBy] = useState<SortOption>('recently_updated');
 
   // Mobile view state
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');

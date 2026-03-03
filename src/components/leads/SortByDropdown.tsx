@@ -10,8 +10,8 @@ interface SortByDropdownProps {
 }
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'newest_violation', label: 'Newest Violations' },
   { value: 'recently_updated', label: 'Recently Updated' },
+  { value: 'newest_violation', label: 'Newest Violations' },
 ];
 
 export function SortByDropdown({ value, onChange }: SortByDropdownProps) {

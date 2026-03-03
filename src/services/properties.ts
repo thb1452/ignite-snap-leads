@@ -65,7 +65,7 @@ export async function fetchPropertiesPaged(
     p_snap_min: filters.snapScoreRange?.[0] ?? null,
     p_snap_max: filters.snapScoreRange?.[1] ?? null,
     p_last_seen_days: filters.lastSeenDays ?? null,
-    p_sort_by: filters.sortBy || 'newest_violation',
+    p_sort_by: filters.sortBy || 'recently_updated',
     p_open_violations_only: filters.openViolationsOnly ?? false,
     p_multiple_violations_only: filters.multipleViolationsOnly ?? false,
     p_repeat_offender_only: filters.repeatOffenderOnly ?? false,
@@ -99,7 +99,7 @@ async function fetchPropertiesByCategory(
     p_last_seen_days: filters.lastSeenDays ?? null,
     p_page: page,
     p_page_size: pageSize,
-    p_sort_by: filters.sortBy || 'newest_violation',
+    p_sort_by: filters.sortBy || 'recently_updated',
     p_open_violations_only: filters.openViolationsOnly ?? false,
     p_multiple_violations_only: filters.multipleViolationsOnly ?? false,
     p_repeat_offender_only: filters.repeatOffenderOnly ?? false,
@@ -202,11 +202,11 @@ async function fetchPropertiesPagedLegacy(
   }
 
   // Sort based on sortBy filter
-  if (filters.sortBy === 'recently_updated') {
-    q = q.order("updated_at", { ascending: false, nullsFirst: false });
-  } else {
-    // Default: newest_violation
+  if (filters.sortBy === 'newest_violation') {
     q = q.order("newest_violation_date", { ascending: false, nullsFirst: false });
+  } else {
+    // Default: recently_updated
+    q = q.order("updated_at", { ascending: false, nullsFirst: false });
   }
 
   // Paginate

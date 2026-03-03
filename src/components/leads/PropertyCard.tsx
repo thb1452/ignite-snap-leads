@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { AlertTriangle, Flame, Clock } from "lucide-react";
+import { SaveHeartButton } from "./SaveHeartButton";
 import { formatDistanceToNow } from "date-fns";
 
 interface Violation {
@@ -32,13 +33,17 @@ interface PropertyCardProps {
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onClick: () => void;
+  isSaved?: boolean;
+  onToggleSaved?: (id: string) => void;
 }
 
 export function PropertyCard({
   property,
   isSelected,
   onToggleSelect,
-  onClick
+  onClick,
+  isSaved = false,
+  onToggleSaved,
 }: PropertyCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -82,11 +87,19 @@ export function PropertyCard({
             <span className="font-semibold text-sm leading-tight">
               {formatAddress(property.address)}, {formatCity(property.city)}, {property.state} {property.zip}
             </span>
-            <Badge
-              className={`${getScoreColor(property.snap_score)} text-white text-xs px-2 py-0.5 h-5 shrink-0 font-bold`}
-            >
-              {property.snap_score || 0}
-            </Badge>
+            <div className="flex items-center gap-1 shrink-0">
+              {onToggleSaved && (
+                <SaveHeartButton
+                  isSaved={isSaved}
+                  onToggle={() => onToggleSaved(property.id)}
+                />
+              )}
+              <Badge
+                className={`${getScoreColor(property.snap_score)} text-white text-xs px-2 py-0.5 h-5 shrink-0 font-bold`}
+              >
+                {property.snap_score || 0}
+              </Badge>
+            </div>
           </div>
 
           {/* Row 2: Status + Violation types */}

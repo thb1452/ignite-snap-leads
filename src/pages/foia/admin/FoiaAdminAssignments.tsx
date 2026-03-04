@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Loader2, Search, UserPlus, Filter } from 'lucide-react';
+import { Loader2, Search, UserPlus, Shuffle } from 'lucide-react';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
 import { db } from '@/lib/foia/db';
 import { useFoiaAuth } from '@/lib/foia/hooks';
 import type { Target, FoiaProfile } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 import { cn } from '@/lib/utils';
-
+import { useToast } from '@/hooks/use-toast';
 
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
@@ -15,9 +15,20 @@ const US_STATES = [
   'VA','WA','WV','WI','WY'
 ];
 
+/** Fisher-Yates shuffle — mutates in place */
+function shuffleArray<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export default function FoiaAdminAssignments() {
   const { profile } = useFoiaAuth();
+  const { toast } = useToast();
   const [targets, setTargets] = useState<(Target & { assigned_va_id: string | null })[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [vas, setVas] = useState<FoiaProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -26,9 +37,10 @@ export default function FoiaAdminAssignments() {
   const [filterAssigned, setFilterAssigned] = useState<'all' | 'unassigned' | 'assigned'>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkVaId, setBulkVaId] = useState('');
+  const [assignCount, setAssignCount] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 200;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -40,9 +52,10 @@ export default function FoiaAdminAssignments() {
         .eq('is_active', true);
       setVas((vaData || []) as FoiaProfile[]);
 
+      // Build base query for targets
       let query = db
         .from('targets')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('is_duplicate', false)
         .order('state')
         .order('jurisdiction_name')
@@ -52,8 +65,10 @@ export default function FoiaAdminAssignments() {
       if (filterType) query = query.eq('target_type', filterType);
       if (search) query = query.ilike('jurisdiction_name', `%${search}%`);
 
-      const { data: targetData } = await query;
+      const { data: targetData, count } = await query;
+      setTotalCount(count ?? 0);
 
+      // Fetch ALL assignments (not paginated)
       const { data: assignments } = await db
         .from('foia_assignments')
         .select('target_id, va_id');
@@ -91,12 +106,27 @@ export default function FoiaAdminAssignments() {
     });
   };
 
-  const handleSelectAll = () => {
-    if (selectedIds.size === targets.length) {
+  const handleSelectAllPage = () => {
+    if (selectedIds.size === targets.length && targets.length > 0) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(targets.map((t) => t.id)));
     }
+  };
+
+  const handleSelectAllUnassigned = () => {
+    const unassigned = targets.filter((t) => !t.assigned_va_id);
+    setSelectedIds(new Set(unassigned.map((t) => t.id)));
+  };
+
+  const handleSelectCount = () => {
+    const count = parseInt(assignCount, 10);
+    if (!count || count <= 0) return;
+    // Prefer unassigned targets first
+    const unassigned = targets.filter((t) => !t.assigned_va_id);
+    const pool = unassigned.length > 0 ? unassigned : targets;
+    const toSelect = pool.slice(0, Math.min(count, pool.length));
+    setSelectedIds(new Set(toSelect.map((t) => t.id)));
   };
 
   const handleBulkAssign = async () => {
@@ -104,25 +134,44 @@ export default function FoiaAdminAssignments() {
     setAssigning(true);
 
     try {
-      await db
-        .from('foia_assignments')
-        .delete()
-        .in('target_id', Array.from(selectedIds));
+      // Delete existing assignments for selected targets
+      const selectedArr = Array.from(selectedIds);
+      const DEL_BATCH = 500;
+      for (let i = 0; i < selectedArr.length; i += DEL_BATCH) {
+        await db
+          .from('foia_assignments')
+          .delete()
+          .in('target_id', selectedArr.slice(i, i + DEL_BATCH));
+      }
 
-      const inserts = Array.from(selectedIds).map((targetId) => ({
+      // Shuffle target IDs randomly (Fisher-Yates) so assignments
+      // aren't in alphabetical/sequential order
+      const shuffled = shuffleArray([...selectedArr]);
+
+      const inserts = shuffled.map((targetId) => ({
         target_id: targetId,
         va_id: bulkVaId,
         assigned_by: profile.id,
       }));
 
-      const BATCH = 100;
+      const BATCH = 200;
       for (let i = 0; i < inserts.length; i += BATCH) {
-        await db.from('foia_assignments').insert(inserts.slice(i, i + BATCH));
+        const { error } = await db.from('foia_assignments').insert(inserts.slice(i, i + BATCH));
+        if (error) throw error;
       }
+
+      toast({
+        title: 'Assigned!',
+        description: `${inserts.length.toLocaleString()} targets assigned (shuffled randomly)`,
+      });
 
       setSelectedIds(new Set());
       setBulkVaId('');
+      setAssignCount('');
       await fetchData();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Assignment failed';
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
     } finally {
       setAssigning(false);
     }
@@ -130,12 +179,16 @@ export default function FoiaAdminAssignments() {
 
   const getVaName = (vaId: string) => vas.find((v) => v.id === vaId)?.full_name ?? 'Unknown';
 
+  const unassignedOnPage = targets.filter((t) => !t.assigned_va_id).length;
+
   return (
     <FoiaLayout>
       <div className="space-y-5">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Assign Targets</h1>
-          <p className="text-slate-500 text-sm mt-1">Bulk assign FOIA targets to virtual assistants</p>
+          <p className="text-slate-500 text-sm mt-1">
+            Bulk assign FOIA targets to VAs · {totalCount.toLocaleString()} total targets
+          </p>
         </div>
 
         {/* Filters */}
@@ -171,16 +224,47 @@ export default function FoiaAdminAssignments() {
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
           >
             <option value="all">All</option>
-            <option value="unassigned">Unassigned</option>
+            <option value="unassigned">Unassigned ({unassignedOnPage})</option>
             <option value="assigned">Assigned</option>
           </select>
+        </div>
+
+        {/* Selection helpers */}
+        <div className="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-xl p-4">
+          <button
+            onClick={handleSelectAllUnassigned}
+            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            Select All Unassigned
+          </button>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={5000}
+              value={assignCount}
+              onChange={(e) => setAssignCount(e.target.value)}
+              placeholder="# to select"
+              className="w-32 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+            />
+            <button
+              onClick={handleSelectCount}
+              disabled={!assignCount || parseInt(assignCount, 10) <= 0}
+              className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-colors"
+            >
+              Select
+            </button>
+          </div>
+          <span className="text-sm text-slate-400">
+            {selectedIds.size > 0 ? `${selectedIds.size.toLocaleString()} selected` : 'No selection'}
+          </span>
         </div>
 
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
           <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-5 py-3">
             <span className="text-blue-800 text-sm font-medium">
-              {selectedIds.size} selected
+              {selectedIds.size.toLocaleString()} selected
             </span>
             <select
               value={bulkVaId}
@@ -197,8 +281,8 @@ export default function FoiaAdminAssignments() {
               disabled={!bulkVaId || assigning}
               className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium disabled:opacity-60 transition-colors"
             >
-              {assigning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
-              Assign
+              {assigning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Shuffle className="h-3.5 w-3.5" />}
+              Assign (Shuffled)
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
@@ -219,11 +303,11 @@ export default function FoiaAdminAssignments() {
               <input
                 type="checkbox"
                 checked={selectedIds.size === targets.length && targets.length > 0}
-                onChange={handleSelectAll}
+                onChange={handleSelectAllPage}
                 className="rounded"
               />
               <span className="text-slate-500">
-                {targets.length.toLocaleString()} targets shown
+                {targets.length.toLocaleString()} targets on this page
               </span>
             </div>
             <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
@@ -281,7 +365,7 @@ export default function FoiaAdminAssignments() {
               >
                 Previous
               </button>
-              <span>Page {page + 1}</span>
+              <span>Page {page + 1} · {PAGE_SIZE} per page</span>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={targets.length < PAGE_SIZE}

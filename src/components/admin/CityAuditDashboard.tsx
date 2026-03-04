@@ -84,10 +84,10 @@ export function CityAuditDashboard() {
     if (!flagged.suggested) return;
     setFixing(`${flagged.city}|${flagged.state}`);
     try {
-      const { data, error } = await supabase.rpc("fn_fix_city_names", {
-        mappings: JSON.stringify([
+      const { data, error } = await supabase.rpc("fn_fix_city_names" as any, {
+        mappings: [
           { old_city: flagged.city, old_state: flagged.state, new_city: flagged.suggested },
-        ]),
+        ],
       });
       if (error) throw error;
       const updated = (data as any)?.updated || 0;

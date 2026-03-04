@@ -91,7 +91,8 @@ export function CityAuditDashboard() {
       });
       if (error) throw error;
       const updated = (data as any)?.updated || 0;
-      toast.success(`Updated ${updated} properties: "${flagged.city}" → "${flagged.suggested}"`);
+      const merged = (data as any)?.merged || 0;
+      toast.success(`Fixed ${updated + merged} properties (${merged} merged): "${flagged.city}" → "${flagged.suggested}"`);
       // Remove from report
       if (report) {
         setReport({

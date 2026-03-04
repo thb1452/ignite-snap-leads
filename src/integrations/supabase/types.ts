@@ -65,6 +65,30 @@ export type Database = {
           },
         ]
       }
+      census_places: {
+        Row: {
+          id: string
+          name: string
+          place_fips: string
+          state_abbr: string
+          state_fips: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          place_fips: string
+          state_abbr: string
+          state_fips: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          place_fips?: string
+          state_abbr?: string
+          state_fips?: string
+        }
+        Relationships: []
+      }
       clean_leads: {
         Row: {
           address: string
@@ -2687,6 +2711,7 @@ export type Database = {
           state: string
         }[]
       }
+      fn_fix_city_names: { Args: { mappings: Json }; Returns: Json }
       fn_fulfillment_overview: {
         Args: never
         Returns: {
@@ -3208,6 +3233,8 @@ export type Database = {
           remaining: number
         }[]
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: unknown

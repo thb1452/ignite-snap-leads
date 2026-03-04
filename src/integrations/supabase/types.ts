@@ -192,6 +192,42 @@ export type Database = {
         }
         Relationships: []
       }
+      credential_target_cooldown: {
+        Row: {
+          id: string
+          press_account_id: string
+          target_id: string
+          used_at: string
+        }
+        Insert: {
+          id?: string
+          press_account_id: string
+          target_id: string
+          used_at?: string
+        }
+        Update: {
+          id?: string
+          press_account_id?: string
+          target_id?: string
+          used_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credential_target_cooldown_press_account_id_fkey"
+            columns: ["press_account_id"]
+            isOneToOne: false
+            referencedRelation: "press_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credential_target_cooldown_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_ledger: {
         Row: {
           created_at: string
@@ -1114,6 +1150,61 @@ export type Database = {
           },
         ]
       }
+      rotation_alerts: {
+        Row: {
+          acknowledged: boolean
+          created_at: string
+          id: string
+          new_press_account_id: string | null
+          old_press_account_id: string | null
+          reason: string
+          targets_assigned: number
+          va_id: string
+        }
+        Insert: {
+          acknowledged?: boolean
+          created_at?: string
+          id?: string
+          new_press_account_id?: string | null
+          old_press_account_id?: string | null
+          reason?: string
+          targets_assigned?: number
+          va_id: string
+        }
+        Update: {
+          acknowledged?: boolean
+          created_at?: string
+          id?: string
+          new_press_account_id?: string | null
+          old_press_account_id?: string | null
+          reason?: string
+          targets_assigned?: number
+          va_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rotation_alerts_new_press_account_id_fkey"
+            columns: ["new_press_account_id"]
+            isOneToOne: false
+            referencedRelation: "press_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rotation_alerts_old_press_account_id_fkey"
+            columns: ["old_press_account_id"]
+            isOneToOne: false
+            referencedRelation: "press_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rotation_alerts_va_id_fkey"
+            columns: ["va_id"]
+            isOneToOne: false
+            referencedRelation: "foia_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_properties: {
         Row: {
           created_at: string
@@ -1979,6 +2070,51 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      va_credential_slots: {
+        Row: {
+          batch_number: number
+          created_at: string
+          id: string
+          is_active: boolean
+          press_account_id: string
+          slot_number: number
+          va_id: string
+        }
+        Insert: {
+          batch_number?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          press_account_id: string
+          slot_number?: number
+          va_id: string
+        }
+        Update: {
+          batch_number?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          press_account_id?: string
+          slot_number?: number
+          va_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "va_credential_slots_press_account_id_fkey"
+            columns: ["press_account_id"]
+            isOneToOne: false
+            referencedRelation: "press_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "va_credential_slots_va_id_fkey"
+            columns: ["va_id"]
+            isOneToOne: false
+            referencedRelation: "foia_profiles"
             referencedColumns: ["id"]
           },
         ]

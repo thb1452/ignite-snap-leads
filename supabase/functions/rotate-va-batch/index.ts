@@ -356,31 +356,74 @@ async function rotateVACredential(db: any, vaId: string, reason: string) {
 
   unassigned = unassigned.filter((id: string) => !cooledSet.has(id));
 
-  // If no targets available due to cooldown, force-rotate to next credential
+  // If no targets available due to cooldown, try all remaining credentials before giving up
   if (unassigned.length === 0) {
-    // Already rotated once, try one more
-    const furtherSlotNumber = nextSlotNumber < 3 ? nextSlotNumber + 1 : 1;
-    if (furtherSlotNumber !== activeSlot.slot_number) {
-      await db.from("va_credential_slots").update({ is_active: false }).eq("id", nextSlot.id);
-      const furtherSlot = slots.find((s: any) => s.slot_number === furtherSlotNumber);
-      if (furtherSlot) {
-        await db
-          .from("va_credential_slots")
-          .update({ is_active: true, batch_number: furtherSlot.batch_number + 1 })
-          .eq("id", furtherSlot.id);
+    const triedSlots = new Set([activeSlot.slot_number, nextSlotNumber]);
+    let foundTargets = false;
 
-        // Create alert about forced rotation
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const trySlotNum = ((nextSlotNumber + attempt) % 3) + 1;
+      if (triedSlots.has(trySlotNum)) continue;
+      triedSlots.add(trySlotNum);
+
+      const trySlot = slots.find((s: any) => s.slot_number === trySlotNum);
+      if (!trySlot) continue;
+
+      const { data: tryCooldown } = await db
+        .from("credential_target_cooldown")
+        .select("target_id")
+        .eq("press_account_id", trySlot.press_account_id)
+        .gte("used_at", cooldownDate.toISOString());
+      const tryCooledSet = new Set((tryCooldown || []).map((c: any) => c.target_id));
+
+      const { data: tryAllTargets } = await db.from("targets").select("id").eq("is_duplicate", false);
+      const { data: tryAssigned } = await db.from("foia_assignments").select("target_id");
+      const tryAssignedSet = new Set((tryAssigned || []).map((a: any) => a.target_id));
+
+      const tryAvailable = (tryAllTargets || [])
+        .filter((t: any) => !tryAssignedSet.has(t.id) && !tryCooledSet.has(t.id))
+        .map((t: any) => t.id);
+
+      if (tryAvailable.length > 0) {
+        await db.from("va_credential_slots").update({ is_active: false }).eq("id", nextSlot.id);
+        await db.from("va_credential_slots")
+          .update({ is_active: true, batch_number: trySlot.batch_number + 1 })
+          .eq("id", trySlot.id);
+
+        shuffle(tryAvailable);
+        const tryBatch = tryAvailable.slice(0, BATCH_SIZE);
+        for (let i = 0; i < tryBatch.length; i += 200) {
+          const chunk = tryBatch.slice(i, i + 200).map((targetId: string) => ({
+            target_id: targetId, va_id: vaId, assigned_by: vaId,
+          }));
+          await db.from("foia_assignments").insert(chunk);
+        }
+
         await db.from("rotation_alerts").insert({
-          va_id: vaId,
-          old_press_account_id: newCredentialId,
-          new_press_account_id: furtherSlot.press_account_id,
-          targets_assigned: 0,
-          reason: "cooldown_exhausted",
+          va_id: vaId, old_press_account_id: newCredentialId,
+          new_press_account_id: trySlot.press_account_id,
+          targets_assigned: tryBatch.length, reason: "cooldown_fallback",
         });
+
+        await sendAdminNotification(db,
+          `⚠️ Cooldown exhausted for VA ${vaId}: fell back to slot ${trySlotNum} with ${tryBatch.length} targets.`
+        );
+        foundTargets = true;
+        return { rotated: true, reason: "cooldown_fallback", assigned: tryBatch.length };
       }
     }
 
-    return { rotated: true, reason: "cooldown_exhausted", assigned: 0 };
+    if (!foundTargets) {
+      await db.from("rotation_alerts").insert({
+        va_id: vaId, old_press_account_id: oldCredentialId,
+        new_press_account_id: newCredentialId, targets_assigned: 0,
+        reason: "all_credentials_exhausted",
+      });
+      await sendAdminNotification(db,
+        `🚨 CRITICAL: VA ${vaId} has 0 available targets across ALL credentials. Admin intervention required.`
+      );
+      return { rotated: true, reason: "all_credentials_exhausted", assigned: 0, warning: "Admin action required." };
+    }
   }
 
   // 6. Shuffle and assign

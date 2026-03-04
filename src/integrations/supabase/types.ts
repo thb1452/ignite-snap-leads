@@ -3133,6 +3133,7 @@ export type Database = {
         Returns: boolean
       }
       is_foia_admin: { Args: never; Returns: boolean }
+      is_foia_va: { Args: never; Returns: boolean }
       longtransactionsenabled: { Args: never; Returns: boolean }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }

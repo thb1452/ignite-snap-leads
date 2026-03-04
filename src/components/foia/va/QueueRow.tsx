@@ -149,6 +149,7 @@ export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRo
             press_account_id: pressAccountId,
             updated_at: nowIso,
             ...(nextStatus === 'sent' && !persistedRequest.sent_at ? { sent_at: nowIso } : {}),
+            ...(nextStatus === 'fulfilled' && !persistedRequest.response_received_at ? { response_received_at: nowIso } : {}),
           })
           .eq('id', persistedRequest.id)
           .select('*')
@@ -156,9 +157,10 @@ export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRo
         if (error) throw error;
         result = data as FoiaRequest;
       } else {
+        // Optimistic lock: use upsert with unique constraint to prevent duplicate inserts
         const { data, error } = await db
           .from('foia_requests')
-          .insert({
+          .upsert({
             target_id: item.id,
             va_id: vaId,
             requested_by: vaId,
@@ -166,8 +168,9 @@ export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRo
             status: nextStatus,
             notes: nextNotes,
             sent_at: nextStatus === 'sent' ? nowIso : null,
+            response_received_at: nextStatus === 'fulfilled' ? nowIso : null,
             updated_at: nowIso,
-          })
+          }, { onConflict: 'target_id,va_id' })
           .select('*')
           .single();
         if (error) throw error;

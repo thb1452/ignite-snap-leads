@@ -47,7 +47,8 @@ export function InviteForm({ adminId, onInviteCreated }: InviteFormProps) {
 
       if (insertError) throw insertError;
 
-      const link = `${window.location.origin}/foia/login?token=${token}`;
+      const siteOrigin = import.meta.env.VITE_SITE_URL || 'https://ignite-snap-leads.lovable.app';
+      const link = `${siteOrigin}/foia/login?token=${token}`;
       setGeneratedLink(link);
 
       // Send invite email

@@ -20,6 +20,7 @@ import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton
 import { InsightRefreshDashboard } from "@/components/admin/InsightRefreshDashboard";
 import { DataHealthDashboard } from "@/components/admin/DataHealthDashboard";
 import { BackfillAggregatesButton } from "@/components/intelligence/BackfillAggregatesButton";
+import { CityAuditDashboard } from "@/components/admin/CityAuditDashboard";
 import { 
   Users, 
   Upload, 
@@ -301,6 +302,9 @@ function SystemOverviewTab({
 
       {/* Data Health Monitor */}
       <DataHealthDashboard />
+
+      {/* City Name Audit */}
+      <CityAuditDashboard />
 
       {/* Insight Refresh Dashboard - LIVE STATUS */}
       <InsightRefreshDashboard />

@@ -7,6 +7,16 @@ import { db } from '@/lib/foia/db';
 import type { QueueItem, FoiaRequest, FoiaRequestStatus, PressAccount, Target } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 
+const FLAGGED_KEY = 'foia_flagged_targets';
+
+function loadFlagged(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(FLAGGED_KEY) || '[]'));
+  } catch { return new Set(); }
+}
+function saveFlagged(s: Set<string>) {
+  localStorage.setItem(FLAGGED_KEY, JSON.stringify([...s]));
+}
 
 const STATUS_OPTIONS: Array<{ value: FoiaRequestStatus | ''; label: string }> = [
   { value: '', label: 'All Statuses' },
@@ -26,6 +36,17 @@ export default function FoiaVAQueue() {
   const [filterStatus, setFilterStatus] = useState<FoiaRequestStatus | ''>('');
   const [filterState, setFilterState] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [filterCredential, setFilterCredential] = useState('');
+  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(loadFlagged);
+
+  const toggleFlag = useCallback((targetId: string) => {
+    setFlaggedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(targetId)) next.delete(targetId); else next.add(targetId);
+      saveFlagged(next);
+      return next;
+    });
+  }, []);
 
   const fetchQueue = useCallback(async () => {
     if (!profile) return;
@@ -43,7 +64,6 @@ export default function FoiaVAQueue() {
 
       const targetIds = assignments.map((a: any) => a.target_id);
 
-      // Fetch requests in batches to avoid query limits
       const latestRequestMap = new Map<string, FoiaRequest>();
       for (let i = 0; i < targetIds.length; i += 500) {
         const batch = targetIds.slice(i, i + 500);
@@ -61,7 +81,6 @@ export default function FoiaVAQueue() {
         }
       }
 
-      // Get active credential from va_credential_slots (new system)
       let activeCredential: PressAccount | undefined;
       const { data: activeSlot } = await db
         .from('va_credential_slots')
@@ -87,7 +106,13 @@ export default function FoiaVAQueue() {
           press_account_this_month: activeCredential,
         }));
 
+      // Sort: flagged first, then by staleness
+      const flagged = loadFlagged();
       queueItems.sort((a, b) => {
+        const aF = flagged.has(a.id) ? 0 : 1;
+        const bF = flagged.has(b.id) ? 0 : 1;
+        if (aF !== bF) return aF - bF;
+
         const aSent = a.latest_request?.sent_at;
         const bSent = b.latest_request?.sent_at;
         if (!aSent && !bSent) return a.jurisdiction_name.localeCompare(b.jurisdiction_name);
@@ -108,16 +133,12 @@ export default function FoiaVAQueue() {
     }
   }, [profile]);
 
-  useEffect(() => {
-    fetchQueue();
-  }, [fetchQueue]);
+  useEffect(() => { fetchQueue(); }, [fetchQueue]);
 
   const handleSaved = (request: FoiaRequest) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === request.target_id
-          ? { ...item, latest_request: request }
-          : item
+    setItems(prev =>
+      prev.map(item =>
+        item.id === request.target_id ? { ...item, latest_request: request } : item
       )
     );
   };
@@ -126,6 +147,7 @@ export default function FoiaVAQueue() {
     if (search && !item.jurisdiction_name.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterState && item.state !== filterState) return false;
     if (filterType && item.target_type !== filterType) return false;
+    if (filterCredential && item.press_account_this_month?.id !== filterCredential) return false;
     if (filterStatus) {
       const itemStatus = item.latest_request?.status ?? 'pending';
       if (itemStatus !== filterStatus) return false;
@@ -133,7 +155,12 @@ export default function FoiaVAQueue() {
     return true;
   });
 
-  const states = [...new Set(items.map((i) => i.state))].sort();
+  const states = [...new Set(items.map(i => i.state))].sort();
+  const credentials = items.reduce<Map<string, string>>((map, i) => {
+    const pa = i.press_account_this_month;
+    if (pa && !map.has(pa.id)) map.set(pa.id, pa.name);
+    return map;
+  }, new Map());
 
   return (
     <FoiaLayout>
@@ -155,31 +182,23 @@ export default function FoiaVAQueue() {
               className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
             />
           </div>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as FoiaRequestStatus | '')}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-          >
-            {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as FoiaRequestStatus | '')} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          <select
-            value={filterState}
-            onChange={(e) => setFilterState(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-          >
+          <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
             <option value="">All States</option>
-            {states.map((s) => <option key={s} value={s}>{s}</option>)}
+            {states.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-          >
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
             <option value="">All Types</option>
-            {Object.entries(TARGET_TYPE_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
+            {Object.entries(TARGET_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
+          {credentials.size > 0 && (
+            <select value={filterCredential} onChange={(e) => setFilterCredential(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+              <option value="">All Credentials</option>
+              {[...credentials.entries()].map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+          )}
         </div>
 
         {loading ? (
@@ -194,12 +213,14 @@ export default function FoiaVAQueue() {
           </div>
         ) : (
           <div className="space-y-2">
-            {filtered.map((item) => (
+            {filtered.map(item => (
               <QueueRow
                 key={item.id}
                 item={item}
                 vaId={profile!.id}
                 onSaved={handleSaved}
+                flagged={flaggedIds.has(item.id)}
+                onToggleFlag={toggleFlag}
               />
             ))}
           </div>

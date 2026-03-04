@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ExternalLink, Save, Loader2 } from 'lucide-react';
+import { ExternalLink, Save, Loader2, ChevronDown, ChevronUp, Bookmark, Users } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/foia/db';
 import { supabase } from '@/integrations/supabase/client';
 import { StatusDropdown } from './StatusDropdown';
+import { StatusTimeline } from './StatusTimeline';
+import { Badge } from '@/components/ui/badge';
 import type { FoiaRequest, FoiaRequestStatus, QueueItem } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 import { cn } from '@/lib/utils';
@@ -13,31 +15,55 @@ interface QueueRowProps {
   item: QueueItem;
   vaId: string;
   onSaved: (request: FoiaRequest) => void;
+  flagged: boolean;
+  onToggleFlag: (targetId: string) => void;
 }
 
-export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
+function getFollowUpBadge(sentAt: string | null | undefined, status: FoiaRequestStatus) {
+  if (!sentAt || status === 'fulfilled' || status === 'rejected') return null;
+  const days = Math.floor((Date.now() - new Date(sentAt).getTime()) / 86400000);
+  if (days >= 60) return { label: 'Overdue', className: 'bg-red-100 text-red-700 border-red-200' };
+  if (days >= 30) return { label: 'Follow Up', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+  return null;
+}
+
+function formatDaysAgo(sentAt: string | null | undefined) {
+  if (!sentAt) return null;
+  const days = Math.floor((Date.now() - new Date(sentAt).getTime()) / 86400000);
+  if (days === 0) return 'Sent today';
+  if (days === 1) return 'Sent 1 day ago';
+  return `Sent ${days} days ago`;
+}
+
+function formatPopulation(pop: number | null | undefined) {
+  if (!pop) return null;
+  if (pop >= 1_000_000) return `${(pop / 1_000_000).toFixed(1)}M`;
+  if (pop >= 1_000) return `${(pop / 1_000).toFixed(0)}K`;
+  return pop.toLocaleString();
+}
+
+export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRowProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Track the persisted request locally so we always know whether to UPDATE vs INSERT
-  const [persistedRequest, setPersistedRequest] = useState<FoiaRequest | undefined>(
-    item.latest_request
-  );
-
-  const [status, setStatus] = useState<FoiaRequestStatus>(
-    (persistedRequest?.status as FoiaRequestStatus) ?? 'pending'
-  );
+  const [persistedRequest, setPersistedRequest] = useState<FoiaRequest | undefined>(item.latest_request);
+  const [status, setStatus] = useState<FoiaRequestStatus>((persistedRequest?.status as FoiaRequestStatus) ?? 'pending');
   const [notes, setNotes] = useState(persistedRequest?.notes ?? '');
   const [foiaUrl, setFoiaUrl] = useState(item.foia_url ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editingUrl, setEditingUrl] = useState(false);
   const [savingUrl, setSavingUrl] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const noteSaveTimerRef = useRef<number | null>(null);
 
   const pressAccount = item.press_account_this_month;
+  const followUpBadge = getFollowUpBadge(persistedRequest?.sent_at, status);
+  const sentAgoText = formatDaysAgo(persistedRequest?.sent_at);
+  const popLabel = formatPopulation(item.population);
 
-  // Sync if parent pushes new data (e.g. from refetch)
   useEffect(() => {
     if (item.latest_request) {
       setPersistedRequest(item.latest_request);
@@ -50,6 +76,21 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
     };
   }, []);
 
+  // Fetch status history when expanded
+  useEffect(() => {
+    if (!expanded) return;
+    setHistoryLoading(true);
+    db.from('foia_requests')
+      .select('id, status, notes, updated_at, sent_at, va:foia_profiles!foia_requests_va_id_fkey(full_name)')
+      .eq('target_id', item.id)
+      .order('updated_at', { ascending: false })
+      .limit(20)
+      .then(({ data }: any) => {
+        setHistory(data ?? []);
+      })
+      .finally(() => setHistoryLoading(false));
+  }, [expanded, item.id]);
+
   const persistRequest = async (
     nextStatus: FoiaRequestStatus,
     nextNotes: string,
@@ -60,11 +101,9 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
       const pressAccountId = pressAccount?.id ?? persistedRequest?.press_account_id ?? null;
       const showSavedBadge = options?.showSavedBadge ?? true;
       const nowIso = new Date().toISOString();
-
       let result: FoiaRequest;
 
       if (persistedRequest) {
-        // UPDATE existing request
         const { data, error } = await db
           .from('foia_requests')
           .update({
@@ -72,18 +111,14 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
             notes: nextNotes,
             press_account_id: pressAccountId,
             updated_at: nowIso,
-            ...(nextStatus === 'sent' && !persistedRequest.sent_at
-              ? { sent_at: nowIso }
-              : {}),
+            ...(nextStatus === 'sent' && !persistedRequest.sent_at ? { sent_at: nowIso } : {}),
           })
           .eq('id', persistedRequest.id)
           .select('*')
           .single();
-
         if (error) throw error;
         result = data as FoiaRequest;
       } else {
-        // INSERT new request
         const { data, error } = await db
           .from('foia_requests')
           .insert({
@@ -98,17 +133,14 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
           })
           .select('*')
           .single();
-
         if (error) throw error;
         result = data as FoiaRequest;
       }
 
-      // Update local persisted reference so next save does UPDATE
       setPersistedRequest(result);
       onSaved(result);
       queryClient.invalidateQueries({ queryKey: ['va-dashboard', vaId] });
 
-      // Check if batch is complete (fire-and-forget)
       const terminalStatuses = new Set(['sent', 'fulfilled', 'rejected']);
       if (terminalStatuses.has(nextStatus)) {
         supabase.functions.invoke('rotate-va-batch', {
@@ -129,23 +161,17 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
     }
   };
 
-  const handleSave = async () => {
-    await persistRequest(status, notes, { showSavedBadge: true });
-  };
-
-  const handleStatusChange = async (nextStatus: FoiaRequestStatus) => {
+  const handleSave = () => persistRequest(status, notes, { showSavedBadge: true });
+  const handleStatusChange = (nextStatus: FoiaRequestStatus) => {
     setStatus(nextStatus);
-    await persistRequest(nextStatus, notes, { showSavedBadge: false });
+    persistRequest(nextStatus, notes, { showSavedBadge: false });
   };
 
   const handleSaveUrl = async () => {
     setSavingUrl(true);
     try {
       const trimmed = foiaUrl.trim();
-      const { error } = await db
-        .from('targets')
-        .update({ foia_url: trimmed || null })
-        .eq('id', item.id);
+      const { error } = await db.from('targets').update({ foia_url: trimmed || null }).eq('id', item.id);
       if (error) throw error;
       setEditingUrl(false);
       toast({ title: 'URL saved', description: 'FOIA portal URL updated.' });
@@ -160,7 +186,6 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
   const handleNotesChange = (value: string) => {
     setNotes(value);
     if (noteSaveTimerRef.current) window.clearTimeout(noteSaveTimerRef.current);
-
     noteSaveTimerRef.current = window.setTimeout(() => {
       const originalNotes = persistedRequest?.notes ?? '';
       if (value !== originalNotes) {
@@ -185,8 +210,18 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
     notes !== (persistedRequest?.notes ?? '');
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+    <div className={cn('bg-white border rounded-lg overflow-hidden', flagged ? 'border-amber-300 ring-1 ring-amber-200' : 'border-slate-200')}>
+      {/* Header row */}
       <div className="flex items-center gap-3 px-4 py-3">
+        {/* Flag / bookmark */}
+        <button
+          onClick={() => onToggleFlag(item.id)}
+          className={cn('flex-shrink-0 transition-colors', flagged ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400')}
+          title={flagged ? 'Remove reminder' : 'Remind me'}
+        >
+          <Bookmark className={cn('h-4 w-4', flagged && 'fill-amber-500')} />
+        </button>
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-medium text-slate-900 truncate">{item.jurisdiction_name}</span>
@@ -194,11 +229,29 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
             <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
               {TARGET_TYPE_LABELS[item.target_type]}
             </span>
+            {popLabel && (
+              <span className="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                <Users className="h-3 w-3" /> {popLabel}
+              </span>
+            )}
+            {followUpBadge && (
+              <span className={cn('text-xs font-medium px-1.5 py-0.5 rounded border', followUpBadge.className)}>
+                {followUpBadge.label}
+              </span>
+            )}
           </div>
+
+          {/* Press credential label */}
           {pressAccount && (
             <p className="text-xs text-blue-600 mt-0.5">
               Submit as: <strong>{pressAccount.name}</strong>
+              {pressAccount.domain && <span className="text-blue-400 ml-1">— {pressAccount.domain}</span>}
             </p>
+          )}
+
+          {/* Sent ago text */}
+          {sentAgoText && (
+            <p className="text-xs text-slate-400 mt-0.5">{sentAgoText}</p>
           )}
         </div>
 
@@ -217,16 +270,18 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
               Open FOIA <ExternalLink className="h-3 w-3" />
             </a>
           ) : !editingUrl ? (
-            <button
-              onClick={() => setEditingUrl(true)}
-              className="text-xs text-blue-600 hover:text-blue-800 underline"
-            >
+            <button onClick={() => setEditingUrl(true)} className="text-xs text-blue-600 hover:text-blue-800 underline">
               + Add URL
             </button>
           ) : null}
+
+          <button onClick={() => setExpanded(!expanded)} className="text-slate-400 hover:text-slate-600">
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
+      {/* URL editor */}
       {editingUrl && (
         <div className="px-4 py-2 border-t border-slate-100 bg-blue-50 flex items-center gap-2">
           <input
@@ -235,22 +290,16 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
             placeholder="https://foia-portal-url.gov..."
             className="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500"
           />
-          <button
-            onClick={handleSaveUrl}
-            disabled={savingUrl}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium"
-          >
+          <button onClick={handleSaveUrl} disabled={savingUrl} className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium">
             {savingUrl ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save URL'}
           </button>
-          <button
-            onClick={() => { setEditingUrl(false); setFoiaUrl(item.foia_url ?? ''); }}
-            className="text-xs text-slate-500 hover:text-slate-700"
-          >
+          <button onClick={() => { setEditingUrl(false); setFoiaUrl(item.foia_url ?? ''); }} className="text-xs text-slate-500 hover:text-slate-700">
             Cancel
           </button>
         </div>
       )}
 
+      {/* Notes - always visible */}
       <div className="px-4 pb-3 pt-1">
         <div className="flex gap-2 items-end">
           <div className="flex-1">
@@ -269,28 +318,23 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
               disabled={saving || (!isDirty && !saved)}
               className={cn(
                 'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                saved
-                  ? 'bg-green-600 text-white'
-                  : isDirty
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                saved ? 'bg-green-600 text-white' : isDirty ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
               )}
             >
-              {saving ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Save className="h-3 w-3" />
-              )}
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
               {saved ? 'Saved!' : 'Save'}
             </button>
           )}
         </div>
-        {persistedRequest?.sent_at && (
-          <p className="text-xs text-slate-400 mt-1">
-            Last sent: {new Date(persistedRequest.sent_at).toLocaleDateString()}
-          </p>
-        )}
       </div>
+
+      {/* Expanded: Status History Timeline */}
+      {expanded && (
+        <div className="px-4 pb-4 border-t border-slate-100 pt-3 bg-slate-50">
+          <h4 className="text-xs font-semibold text-slate-600 mb-2">Status History</h4>
+          <StatusTimeline entries={history} loading={historyLoading} />
+        </div>
+      )}
     </div>
   );
 }

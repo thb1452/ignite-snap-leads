@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ExternalLink, Save, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ExternalLink, Save, Loader2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/foia/db';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,7 +31,6 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
   const [foiaUrl, setFoiaUrl] = useState(item.foia_url ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [editingUrl, setEditingUrl] = useState(false);
   const [savingUrl, setSavingUrl] = useState(false);
   const noteSaveTimerRef = useRef<number | null>(null);
@@ -225,13 +224,6 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
               + Add URL
             </button>
           ) : null}
-
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-slate-400 hover:text-slate-600"
-          >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
         </div>
       </div>
 
@@ -259,25 +251,24 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
         </div>
       )}
 
-      {expanded && (
-        <div className="px-4 pb-3 border-t border-slate-100 pt-3 bg-slate-50">
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Notes</label>
-              <textarea
-                value={notes}
-                onChange={(e) => handleNotesChange(e.target.value)}
-                onBlur={handleNotesBlur}
-                placeholder="Add notes about this request..."
-                rows={2}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none"
-              />
-            </div>
+      <div className="px-4 pb-3 pt-1">
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <textarea
+              value={notes}
+              onChange={(e) => handleNotesChange(e.target.value)}
+              onBlur={handleNotesBlur}
+              placeholder="Notes..."
+              rows={1}
+              className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 resize-none bg-slate-50"
+            />
+          </div>
+          {(isDirty || saving || saved) && (
             <button
               onClick={handleSave}
               disabled={saving || (!isDirty && !saved)}
               className={cn(
-                'flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
                 saved
                   ? 'bg-green-600 text-white'
                   : isDirty
@@ -286,21 +277,20 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
               )}
             >
               {saving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Save className="h-3.5 w-3.5" />
+                <Save className="h-3 w-3" />
               )}
               {saved ? 'Saved!' : 'Save'}
             </button>
-          </div>
-
-          {persistedRequest?.sent_at && (
-            <p className="text-xs text-slate-400 mt-2">
-              Last sent: {new Date(persistedRequest.sent_at).toLocaleDateString()}
-            </p>
           )}
         </div>
-      )}
+        {persistedRequest?.sent_at && (
+          <p className="text-xs text-slate-400 mt-1">
+            Last sent: {new Date(persistedRequest.sent_at).toLocaleDateString()}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

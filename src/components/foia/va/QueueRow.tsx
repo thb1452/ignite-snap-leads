@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/foia/db';
 import { supabase } from '@/integrations/supabase/client';
 import { StatusDropdown } from './StatusDropdown';
+import { PortalDifficultyRating } from './PortalDifficultyRating';
 import type { FoiaRequest, FoiaRequestStatus, QueueItem } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 import { cn } from '@/lib/utils';
@@ -203,6 +204,15 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
           </button>
         </div>
       </div>
+
+      {(status === 'sent' || status === 'fulfilled' || status === 'rejected') && (
+        <div className="px-4 pb-2">
+          <PortalDifficultyRating
+            targetId={item.id}
+            currentScore={item.portal_difficulty_score ?? null}
+          />
+        </div>
+      )}
 
       {expanded && (
         <div className="px-4 pb-3 border-t border-slate-100 pt-3 bg-slate-50">

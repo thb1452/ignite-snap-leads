@@ -16,6 +16,7 @@ import FoiaAdminImport from "./pages/foia/admin/FoiaAdminImport";
 import FoiaAdminRotation from "./pages/foia/admin/FoiaAdminRotation";
 import FoiaAdminPressAccounts from "./pages/foia/admin/FoiaAdminPressAccounts";
 import FoiaAdminAssignments from "./pages/foia/admin/FoiaAdminAssignments";
+import FoiaAdminIntelligence from "./pages/foia/admin/FoiaAdminIntelligence";
 import FoiaVADashboard from "./pages/foia/va/FoiaVADashboard";
 import FoiaVAQueue from "./pages/foia/va/FoiaVAQueue";
 import FoiaVAHistory from "./pages/foia/va/FoiaVAHistory";
@@ -203,6 +204,11 @@ const App = () => (
           <Route path="/foia/admin/assignments" element={
             <FoiaAuthGuard requiredRole="admin">
               <FoiaAdminAssignments />
+            </FoiaAuthGuard>
+          } />
+          <Route path="/foia/admin/intelligence" element={
+            <FoiaAuthGuard requiredRole="admin">
+              <FoiaAdminIntelligence />
             </FoiaAuthGuard>
           } />
           {/* VA routes */}

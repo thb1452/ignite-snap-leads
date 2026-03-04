@@ -42,6 +42,7 @@ export interface Target {
   url_hash: string | null;
   source_file: string | null;
   is_duplicate: boolean;
+  portal_difficulty_score: number | null;
   created_at: string;
 }
 

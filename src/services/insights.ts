@@ -13,8 +13,8 @@ export async function generateInsights(propertyIds: string[]): Promise<{
       const batch = propertyIds.slice(i, i + BATCH_SIZE);
       console.log(`Generating insights for batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} properties)`);
       
-      const result = await callFn("generate-insights", { propertyIds: batch });
-      totalProcessed += (result as any)?.processed ?? 0;
+      const result = await callFn<{ processed?: number }>("generate-insights", { propertyIds: batch });
+      totalProcessed += result.processed ?? 0;
     }
 
     return { 

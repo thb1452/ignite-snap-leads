@@ -23,7 +23,10 @@ export async function callFn<T = any>(
     const err = isCSV ? await res.text() : await res.json().catch(() => ({}));
     throw new Error(typeof err === "string" ? err : err?.error || `Function ${name} failed`);
   }
-  return (isCSV ? (await res.text() as any) : await res.json()) as T;
+  if (isCSV) {
+    return (await res.text()) as unknown as T;
+  }
+  return (await res.json()) as T;
 }
 
 export function assert(ok: any, msg = "Unexpected empty result"): asserts ok {

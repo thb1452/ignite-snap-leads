@@ -156,7 +156,7 @@ export function useAssignCounty() {
         if (newAssignments > 0) {
           // Check limit via RPC - using type assertion since types are auto-generated
           const { data: limitCheck, error: limitError } = await supabase
-            .rpc('fn_check_county_limit' as any, { p_amount: newAssignments }) as {
+            .rpc('fn_check_county_limit', { p_amount: newAssignments }) as {
               data: { allowed: boolean; message?: string } | null;
               error: any;
             };

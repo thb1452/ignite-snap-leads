@@ -84,14 +84,15 @@ export function CityAuditDashboard() {
     if (!flagged.suggested) return;
     setFixing(`${flagged.city}|${flagged.state}`);
     try {
-      const { data, error } = await supabase.rpc("fn_fix_city_names" as any, {
+      const { data, error } = await supabase.rpc("fn_fix_city_names", {
         mappings: [
           { old_city: flagged.city, old_state: flagged.state, new_city: flagged.suggested },
         ],
       });
       if (error) throw error;
-      const updated = (data as any)?.updated || 0;
-      const merged = (data as any)?.merged || 0;
+      const result = data as { updated?: number; merged?: number } | null;
+      const updated = result?.updated ?? 0;
+      const merged = result?.merged ?? 0;
       toast.success(`Fixed ${updated + merged} properties (${merged} merged): "${flagged.city}" → "${flagged.suggested}"`);
       // Remove from report
       if (report) {

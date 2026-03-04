@@ -75,7 +75,10 @@ export function JobLedgerTable({ jobId }: JobLedgerTableProps) {
           <TableBody>
             {ledgerEntries.map((entry) => {
               const isCharge = entry.delta < 0;
-              const propertyId = (entry.meta as any)?.property_id;
+              const propertyId =
+                entry.meta && typeof entry.meta === "object" && "property_id" in entry.meta
+                  ? String((entry.meta as { property_id: string | null }).property_id ?? "")
+                  : "";
               
               return (
                 <TableRow key={entry.id}>
@@ -88,7 +91,7 @@ export function JobLedgerTable({ jobId }: JobLedgerTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm font-mono">
-                    {propertyId ? propertyId.slice(0, 8) : '-'}
+                    {propertyId ? propertyId.slice(0, 8) : "-"}
                   </TableCell>
                   <TableCell className="text-right">
                     <span className={isCharge ? "text-red-600" : "text-green-600"}>

@@ -191,8 +191,8 @@ export async function batchRefreshOutdatedInsights(
       onProgress?.(progress);
 
       try {
-        const result = await callFn("generate-insights", { propertyIds: batch });
-        processed += (result as any)?.processed ?? batch.length;
+        const result = await callFn<{ processed?: number }>("generate-insights", { propertyIds: batch });
+        processed += result.processed ?? batch.length;
       } catch (batchError) {
         console.error(`[RefreshOutdated] Batch ${batchNumber} error:`, batchError);
         // Continue with next batch even if one fails
@@ -274,8 +274,8 @@ export async function batchRescoreAllProperties(
       onProgress?.(progress);
 
       try {
-        const result = await callFn("generate-insights", { propertyIds: batch });
-        processed += (result as any)?.processed ?? batch.length;
+        const result = await callFn<{ processed?: number }>("generate-insights", { propertyIds: batch });
+        processed += result.processed ?? batch.length;
       } catch (batchError) {
         console.error(`[BatchRescore] Batch ${batchNumber} error:`, batchError);
         // Continue with next batch even if one fails
@@ -340,8 +340,8 @@ export async function batchGenerateMissingInsights(
       onProgress?.(progress);
 
       try {
-        const result = await callFn("generate-insights", { propertyIds: batch });
-        processed += (result as any)?.processed ?? batch.length;
+        const result = await callFn<{ processed?: number }>("generate-insights", { propertyIds: batch });
+        processed += result.processed ?? batch.length;
       } catch (batchError) {
         console.error(`[BatchInsights] Batch ${batchNumber} error:`, batchError);
         // Continue with next batch even if one fails

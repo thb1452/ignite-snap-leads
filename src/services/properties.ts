@@ -27,7 +27,13 @@ export async function fetchPropertiesByBBox(
 
   if (error) throw error;
   
-  const result = data as any; // PostGIS function returns jsonb
+  type BBoxResult = {
+    items?: unknown[];
+    total?: number;
+    bbox?: [number, number, number, number];
+  };
+
+  const result = data as BBoxResult | null; // PostGIS function returns jsonb
   return {
     items: result?.items ?? [],
     total: result?.total ?? 0,

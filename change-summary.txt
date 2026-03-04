@@ -1,0 +1,16 @@
+Change Summary (uncommitted changes)
+====================================
+
+- **CityAuditDashboard**: Typed the `fn_fix_city_names` RPC result and removed `any` casting when reading `updated`/`merged` counts.
+- **BackfillAggregatesButton**: Added generic typing to `callFn` for the backfill function and simplified how `remaining`/progress values are read.
+- **JobLedgerTable**: Safely derived `property_id` from `entry.meta` with runtime checks and normalized display formatting.
+- **LeadsMap**: Removed custom properties from Leaflet markers, added a typed shape for zip pressure rows, and tightened map/heat layer typing.
+- **useFoiaCounties**: Called `fn_check_county_limit` without `any` on the RPC name while keeping a typed response shape.
+- **useSavedProperties**: Removed `any` casts around `saved_properties` queries, introduced a typed row interface, and tightened insert/delete calls.
+- **useSubscription / useTrialAnalytics / useTrialStatus**: Improved typing around RPC responses and trial/subscription state, handling both object and array legacy shapes.
+- **HTTP `functions` integration**: Strengthened the `callFn` helper generics so callers get typed results from edge functions.
+- **FOIA `db` and `rotation`**: Switched the FOIA Supabase alias to a typed client and added typed row interfaces for rotation history and existing rotations.
+- **FoiaLogin**: Removed `any` from error and user handling, using typed `profileErr` codes/messages and `user.identities` access.
+- **Batch rescore/insights services**: Updated `generate-insights` callers to use typed `processed` counts instead of `(any)` indexing.
+- **Properties service**: Introduced a typed result shape for `fetchPropertiesByBBox` PostGIS RPC output.
+- **Stripe webhook**: Hardened subscription change/delete handlers to resolve `user_id` from metadata, `user_subscriptions` by `stripe_subscription_id`, or Stripe customer metadata, logging when no user can be found.

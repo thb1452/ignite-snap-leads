@@ -172,18 +172,14 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
         const lng = property.longitude;
         
         if (lat && lng && mapRef.current) {
-          const marker = L.circleMarker(
-            [lat, lng],
-            {
-              radius: 8,
-              fillColor: getMarkerColor(property.snap_score),
-              color: "#fff",
-              weight: 2,
-              opacity: 1,
-              fillOpacity: 0.9,
-              snapScore: property.snap_score, // Store for cluster calculations
-            } as any
-          );
+          const marker = L.circleMarker([lat, lng], {
+            radius: 8,
+            fillColor: getMarkerColor(property.snap_score),
+            color: "#fff",
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.9,
+          });
 
           marker.bindPopup(`
             <div class="text-sm">
@@ -224,7 +220,15 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
         
         if (!mapRef.current || !heatLayerRef.current) return;
         
-        (zipData as any[]).forEach((zip: any) => {
+        type ZipPressureRow = {
+          avg_lat: number | null;
+          avg_lng: number | null;
+          avg_score: number | null;
+          property_count: number | null;
+          zip: string;
+        };
+
+        (zipData as ZipPressureRow[]).forEach((zip) => {
           if (!zip.avg_lat || !zip.avg_lng) return;
           
           const score = Number(zip.avg_score) || 0;

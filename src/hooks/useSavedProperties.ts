@@ -14,7 +14,7 @@ export function useSavedProperties() {
     queryKey: [QUERY_KEY, user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("saved_properties" as any)
+        .from("saved_properties")
         .select("property_id")
         .eq("user_id", user!.id);
 
@@ -22,7 +22,9 @@ export function useSavedProperties() {
         console.error("[useSavedProperties] fetch error:", error);
         return [] as string[];
       }
-      return (data as any[]).map((r: any) => r.property_id as string);
+
+      type SavedRow = { property_id: string };
+      return (data as SavedRow[]).map((r) => r.property_id);
     },
     enabled: !!user?.id,
     staleTime: 60_000,
@@ -43,7 +45,7 @@ export function useSavedProperties() {
       const currently = savedSet.has(propertyId);
       if (currently) {
         const { error } = await supabase
-          .from("saved_properties" as any)
+          .from("saved_properties")
           .delete()
           .eq("user_id", user.id)
           .eq("property_id", propertyId);
@@ -51,8 +53,8 @@ export function useSavedProperties() {
         return { propertyId, action: "removed" as const };
       } else {
         const { error } = await supabase
-          .from("saved_properties" as any)
-          .insert({ user_id: user.id, property_id: propertyId } as any);
+          .from("saved_properties")
+          .insert({ user_id: user.id, property_id: propertyId });
         if (error) throw error;
         return { propertyId, action: "added" as const };
       }

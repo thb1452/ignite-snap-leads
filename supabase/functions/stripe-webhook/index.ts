@@ -241,9 +241,39 @@ async function handleSubscriptionChange(
 ) {
   console.log("[webhook] Subscription changed:", subscription.id, "stripe_status:", subscription.status);
 
-  const userId = subscription.metadata?.user_id;
+  // Try to get user_id from subscription metadata first
+  let userId = subscription.metadata?.user_id;
+  
+  // If not in metadata, look up from database using stripe_subscription_id
   if (!userId) {
-    console.error("[webhook] No user_id in subscription metadata");
+    const { data: existingSub } = await supabase
+      .from("user_subscriptions")
+      .select("user_id")
+      .eq("stripe_subscription_id", subscription.id)
+      .maybeSingle();
+    
+    if (existingSub?.user_id) {
+      userId = existingSub.user_id;
+      console.log("[webhook] Resolved user_id from database:", userId);
+    } else {
+      // Last resort: try to get from customer metadata
+      const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
+        apiVersion: "2023-10-16",
+        httpClient: Stripe.createFetchHttpClient(),
+      });
+      
+      if (subscription.customer) {
+        const customer = await stripe.customers.retrieve(subscription.customer as string);
+        if (customer && !customer.deleted && customer.metadata?.supabase_user_id) {
+          userId = customer.metadata.supabase_user_id;
+          console.log("[webhook] Resolved user_id from customer metadata:", userId);
+        }
+      }
+    }
+  }
+  
+  if (!userId) {
+    console.error("[webhook] No user_id found for subscription:", subscription.id);
     return;
   }
 
@@ -308,10 +338,26 @@ async function handleSubscriptionDeleted(
 ) {
   console.log("[webhook] Subscription deleted:", subscription.id);
 
-  const userId = subscription.metadata?.user_id;
+  // Try to get user_id from subscription metadata first
+  let userId = subscription.metadata?.user_id;
+  
+  // If not in metadata, look up from database using stripe_subscription_id
   if (!userId) {
-    console.error("[webhook] No user_id in subscription metadata");
-    return;
+    const { data: existingSub } = await supabase
+      .from("user_subscriptions")
+      .select("user_id")
+      .eq("stripe_subscription_id", subscription.id)
+      .maybeSingle();
+    
+    if (existingSub?.user_id) {
+      userId = existingSub.user_id;
+      console.log("[webhook] Resolved user_id from database:", userId);
+    }
+  }
+  
+  if (!userId) {
+    console.error("[webhook] No user_id found for subscription:", subscription.id);
+    // Still try to cancel by stripe_subscription_id even without user_id
   }
 
   // Mark subscription as cancelled

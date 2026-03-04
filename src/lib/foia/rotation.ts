@@ -50,7 +50,10 @@ export async function generateMonthlyRotation(
     .select('target_id')
     .eq('rotation_month', month);
 
-  const alreadyRotated = new Set((existing || []).map((r: any) => r.target_id));
+  type ExistingRotationRow = { target_id: string };
+  const alreadyRotated = new Set(
+    (existing ?? []).map((r: ExistingRotationRow) => r.target_id)
+  );
 
   const pastMonths = getPriorMonths(month, 12);
   const { data: historyAll } = await db
@@ -59,8 +62,14 @@ export async function generateMonthlyRotation(
     .in('rotation_month', pastMonths)
     .order('rotation_month', { ascending: false });
 
+  type RotationHistoryRow = {
+    target_id: string;
+    press_account_id: string;
+    rotation_month: string;
+  };
+
   const historyMap = new Map<string, Array<{ press_account_id: string; rotation_month: string }>>();
-  for (const row of (historyAll || []) as any[]) {
+  for (const row of (historyAll ?? []) as RotationHistoryRow[]) {
     if (!historyMap.has(row.target_id)) {
       historyMap.set(row.target_id, []);
     }

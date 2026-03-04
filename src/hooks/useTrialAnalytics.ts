@@ -27,10 +27,11 @@ export function useTrialAnalytics() {
 
     try {
       // Try to insert into events table if it exists
-      await supabase.from('events' as any).insert({
-        event_type: event,
-        properties,
-        created_at: new Date().toISOString(),
+      await supabase.from('events').insert({
+        job_id: 'trial-events',
+        type: event,
+        ts: new Date().toISOString(),
+        payload: properties as unknown as import("@/integrations/supabase/types").Json,
       });
     } catch {
       // Events table may not exist — silent fail

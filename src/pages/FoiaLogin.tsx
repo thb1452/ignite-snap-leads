@@ -140,8 +140,8 @@ export default function FoiaLogin() {
       // cache is stale by provisioning the FOIA profile via RPC.
       if (profileErr) {
         const isSchemaError =
-          (profileErr as any)?.code === 'PGRST200' ||
-          String((profileErr as any)?.message ?? '').includes('schema cache');
+          profileErr?.code === 'PGRST200' ||
+          String(profileErr?.message ?? '').includes('schema cache');
 
         if (isSchemaError) {
           if (!hasSession) {
@@ -236,8 +236,8 @@ export default function FoiaLogin() {
       // When email confirmation is enabled and the email is already registered,
       // Supabase returns the user with identities:[] instead of an error.
       // In that case sign them in directly so we can create their missing profile.
-      const alreadyRegistered = Array.isArray((user as any).identities) &&
-        (user as any).identities.length === 0;
+      const alreadyRegistered = Array.isArray(user.identities) &&
+        user.identities.length === 0;
 
       let finalUserId = user.id;
       let hasSession = !!data.session;

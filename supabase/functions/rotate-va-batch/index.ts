@@ -133,33 +133,25 @@ async function handleAutoAssignAll(db: any, json: Function) {
   }
   await db.from("va_credential_slots").insert(slotInserts);
 
-  // 4. Get all unassigned targets
-  const { data: existingAssignments } = await db
-    .from("foia_assignments")
-    .select("target_id");
-  const assignedSet = new Set((existingAssignments || []).map((a: any) => a.target_id));
-
+  // 4. Get ALL non-duplicate targets (full pool — assignments are cleared below)
   const { data: allTargets } = await db
     .from("targets")
     .select("id")
     .eq("is_duplicate", false);
 
-  let unassigned = (allTargets || [])
-    .filter((t: any) => !assignedSet.has(t.id))
-    .map((t: any) => t.id);
+  let remainingTargets = (allTargets || []).map((t: any) => t.id);
 
-  // 5. Apply 5-month cooldown filter per credential
+  // 5. Apply 5-month cooldown date
   const cooldownDate = new Date();
   cooldownDate.setMonth(cooldownDate.getMonth() - COOLDOWN_MONTHS);
 
-  // 6. Shuffle unassigned targets
-  shuffle(unassigned);
+  // 6. Shuffle the full pool
+  shuffle(remainingTargets);
 
-  // 7. Clear existing assignments and reassign
+  // 7. Clear ALL existing assignments, then reassign from scratch
   await db.from("foia_assignments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
   const results: any[] = [];
-  let offset = 0;
 
   for (let vi = 0; vi < vas.length; vi++) {
     const va = vas[vi];
@@ -174,10 +166,13 @@ async function handleAutoAssignAll(db: any, json: Function) {
       .gte("used_at", cooldownDate.toISOString());
     const cooledSet = new Set((cooldownEntries || []).map((c: any) => c.target_id));
 
-    // Filter available targets (not on cooldown for this credential)
-    const available = unassigned.slice(offset).filter((id: string) => !cooledSet.has(id));
+    // Filter from remaining pool (not on cooldown for this credential)
+    const available = remainingTargets.filter((id: string) => !cooledSet.has(id));
     const batch = available.slice(0, BATCH_SIZE);
-    offset += batch.length;
+    const batchSet = new Set(batch);
+
+    // Splice assigned targets out of the shared pool so next VA never sees them
+    remainingTargets = remainingTargets.filter((id: string) => !batchSet.has(id));
 
     // Insert assignments in batches of 200
     for (let i = 0; i < batch.length; i += 200) {

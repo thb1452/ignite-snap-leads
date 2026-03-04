@@ -24,6 +24,7 @@ interface PropertyCardProps {
     snap_score: number | null;
     snap_insight: string | null;
     updated_at: string | null;
+    newest_violation_date?: string | null;
     violations?: Violation[];
     total_violations?: number | null;
     open_violations?: number | null;
@@ -71,7 +72,7 @@ export function PropertyCard({
   const isHeatingUp = (() => {
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const updatedAt = property.updated_at ? new Date(property.updated_at).getTime() : 0;
-    const newestViolation = (property as any).newest_violation_date ? new Date((property as any).newest_violation_date).getTime() : 0;
+    const newestViolation = property.newest_violation_date ? new Date(property.newest_violation_date).getTime() : 0;
     return updatedAt > sevenDaysAgo || newestViolation > sevenDaysAgo;
   })();
 

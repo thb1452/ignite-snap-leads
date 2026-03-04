@@ -1,0 +1,1 @@
+ALTER TABLE public.foia_invites ADD CONSTRAINT foia_invites_email_key UNIQUE (email);

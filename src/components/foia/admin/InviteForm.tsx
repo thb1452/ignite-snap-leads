@@ -30,16 +30,17 @@ export function InviteForm({ adminId, onInviteCreated }: InviteFormProps) {
     try {
       const token = generateToken();
 
-      const { error: insertError } = await db.from('foia_invites').upsert(
-        {
-          email: email.toLowerCase().trim(),
-          invited_by: adminId,
-          token,
-          accepted: false,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        { onConflict: 'email' }
-      );
+      // Delete any existing invite for this email first, then insert fresh
+      const trimmedEmail = email.toLowerCase().trim();
+      await db.from('foia_invites').delete().eq('email', trimmedEmail);
+
+      const { error: insertError } = await db.from('foia_invites').insert({
+        email: trimmedEmail,
+        invited_by: adminId,
+        token,
+        accepted: false,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      });
 
       if (insertError) throw insertError;
 

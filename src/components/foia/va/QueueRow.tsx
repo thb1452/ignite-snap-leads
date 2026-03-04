@@ -17,10 +17,16 @@ interface QueueRowProps {
 export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [status, setStatus] = useState<FoiaRequestStatus>(
-    item.latest_request?.status ?? 'pending'
+
+  // Track the persisted request locally so we always know whether to UPDATE vs INSERT
+  const [persistedRequest, setPersistedRequest] = useState<FoiaRequest | undefined>(
+    item.latest_request
   );
-  const [notes, setNotes] = useState(item.latest_request?.notes ?? '');
+
+  const [status, setStatus] = useState<FoiaRequestStatus>(
+    (persistedRequest?.status as FoiaRequestStatus) ?? 'pending'
+  );
+  const [notes, setNotes] = useState(persistedRequest?.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -28,11 +34,16 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
 
   const pressAccount = item.press_account_this_month;
 
+  // Sync if parent pushes new data (e.g. from refetch)
+  useEffect(() => {
+    if (item.latest_request) {
+      setPersistedRequest(item.latest_request);
+    }
+  }, [item.latest_request]);
+
   useEffect(() => {
     return () => {
-      if (noteSaveTimerRef.current) {
-        window.clearTimeout(noteSaveTimerRef.current);
-      }
+      if (noteSaveTimerRef.current) window.clearTimeout(noteSaveTimerRef.current);
     };
   }, []);
 
@@ -43,11 +54,14 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
   ) => {
     setSaving(true);
     try {
-      const pressAccountId = pressAccount?.id ?? item.latest_request?.press_account_id ?? null;
+      const pressAccountId = pressAccount?.id ?? persistedRequest?.press_account_id ?? null;
       const showSavedBadge = options?.showSavedBadge ?? true;
       const nowIso = new Date().toISOString();
 
-      if (item.latest_request) {
+      let result: FoiaRequest;
+
+      if (persistedRequest) {
+        // UPDATE existing request
         const { data, error } = await db
           .from('foia_requests')
           .update({
@@ -55,17 +69,18 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
             notes: nextNotes,
             press_account_id: pressAccountId,
             updated_at: nowIso,
-            ...(nextStatus === 'sent' && !item.latest_request.sent_at
+            ...(nextStatus === 'sent' && !persistedRequest.sent_at
               ? { sent_at: nowIso }
               : {}),
           })
-          .eq('id', item.latest_request.id)
+          .eq('id', persistedRequest.id)
           .select('*')
           .single();
 
         if (error) throw error;
-        onSaved(data as FoiaRequest);
+        result = data as FoiaRequest;
       } else {
+        // INSERT new request
         const { data, error } = await db
           .from('foia_requests')
           .insert({
@@ -82,9 +97,12 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
           .single();
 
         if (error) throw error;
-        onSaved(data as FoiaRequest);
+        result = data as FoiaRequest;
       }
 
+      // Update local persisted reference so next save does UPDATE
+      setPersistedRequest(result);
+      onSaved(result);
       queryClient.invalidateQueries({ queryKey: ['va-dashboard', vaId] });
 
       if (showSavedBadge) {
@@ -111,17 +129,14 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
 
   const handleNotesChange = (value: string) => {
     setNotes(value);
-
-    if (noteSaveTimerRef.current) {
-      window.clearTimeout(noteSaveTimerRef.current);
-    }
+    if (noteSaveTimerRef.current) window.clearTimeout(noteSaveTimerRef.current);
 
     noteSaveTimerRef.current = window.setTimeout(() => {
-      const originalNotes = item.latest_request?.notes ?? '';
+      const originalNotes = persistedRequest?.notes ?? '';
       if (value !== originalNotes) {
         void persistRequest(status, value, { showSavedBadge: true });
       }
-    }, 350);
+    }, 800);
   };
 
   const handleNotesBlur = async () => {
@@ -129,16 +144,15 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
       window.clearTimeout(noteSaveTimerRef.current);
       noteSaveTimerRef.current = null;
     }
-
-    const originalNotes = item.latest_request?.notes ?? '';
+    const originalNotes = persistedRequest?.notes ?? '';
     if (notes !== originalNotes) {
       await persistRequest(status, notes, { showSavedBadge: true });
     }
   };
 
   const isDirty =
-    status !== (item.latest_request?.status ?? 'pending') ||
-    notes !== (item.latest_request?.notes ?? '');
+    status !== ((persistedRequest?.status as FoiaRequestStatus) ?? 'pending') ||
+    notes !== (persistedRequest?.notes ?? '');
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
@@ -153,7 +167,7 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
           </div>
           {pressAccount && (
             <p className="text-xs text-blue-600 mt-0.5">
-              Use: <strong>{pressAccount.name}</strong> ({pressAccount.domain})
+              Submit as: <strong>{pressAccount.name}</strong>
             </p>
           )}
         </div>
@@ -216,9 +230,9 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
             </button>
           </div>
 
-          {item.latest_request?.sent_at && (
+          {persistedRequest?.sent_at && (
             <p className="text-xs text-slate-400 mt-2">
-              Last sent: {new Date(item.latest_request.sent_at).toLocaleDateString()}
+              Last sent: {new Date(persistedRequest.sent_at).toLocaleDateString()}
             </p>
           )}
         </div>
@@ -226,5 +240,3 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
     </div>
   );
 }
-
-

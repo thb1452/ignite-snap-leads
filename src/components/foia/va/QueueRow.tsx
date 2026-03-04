@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ExternalLink, Save, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/foia/db';
+import { supabase } from '@/integrations/supabase/client';
 import { StatusDropdown } from './StatusDropdown';
 import type { FoiaRequest, FoiaRequestStatus, QueueItem } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
@@ -104,6 +105,14 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
       setPersistedRequest(result);
       onSaved(result);
       queryClient.invalidateQueries({ queryKey: ['va-dashboard', vaId] });
+
+      // Check if batch is complete (fire-and-forget)
+      const terminalStatuses = new Set(['sent', 'fulfilled', 'rejected']);
+      if (terminalStatuses.has(nextStatus)) {
+        supabase.functions.invoke('rotate-va-batch', {
+          body: { action: 'check-batch-completion', va_id: vaId },
+        }).catch(() => {});
+      }
 
       if (showSavedBadge) {
         setSaved(true);

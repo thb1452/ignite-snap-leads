@@ -3,6 +3,8 @@ import { Database, Send, Clock, Users, CheckCircle } from 'lucide-react';
 import { db } from '@/lib/foia/db';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
 import { VABreakdownTable } from '@/components/foia/admin/VABreakdownTable';
+import { RotationAlertsPanel } from '@/components/foia/admin/RotationAlertsPanel';
+import { CredentialSlotsOverview } from '@/components/foia/admin/CredentialSlotsOverview';
 import type { AdminStats, VABreakdown, FoiaProfile } from '@/types/foia';
 
 
@@ -142,6 +144,10 @@ export default function FoiaAdminDashboard() {
             <StatCard icon={CheckCircle} label="Pending (No Request)" value={stats.pending_targets} color="bg-orange-500" />
           </div>
         )}
+
+        <RotationAlertsPanel />
+
+        <CredentialSlotsOverview />
 
         <VABreakdownTable
           breakdowns={stats?.va_breakdown ?? []}

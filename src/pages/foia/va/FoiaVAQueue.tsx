@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Search, Filter, Loader2 } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
 import { QueueRow } from '@/components/foia/va/QueueRow';
 import { useFoiaAuth } from '@/lib/foia/hooks';
 import { db } from '@/lib/foia/db';
-import { getCurrentMonth } from '@/lib/foia/rotation';
 import type { QueueItem, FoiaRequest, FoiaRequestStatus, PressAccount, Target } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 
@@ -32,8 +31,6 @@ export default function FoiaVAQueue() {
     if (!profile) return;
     setLoading(true);
     try {
-      const currentMonth = getCurrentMonth();
-
       const { data: assignments } = await db
         .from('foia_assignments')
         .select('target_id, target:targets(*)')
@@ -46,29 +43,40 @@ export default function FoiaVAQueue() {
 
       const targetIds = assignments.map((a: any) => a.target_id);
 
-      const { data: requests } = await db
-        .from('foia_requests')
-        .select('*')
-        .eq('va_id', profile.id)
-        .in('target_id', targetIds);
-
+      // Fetch requests in batches to avoid query limits
       const latestRequestMap = new Map<string, FoiaRequest>();
-      for (const req of (requests || []) as FoiaRequest[]) {
-        const existing = latestRequestMap.get(req.target_id);
-        if (!existing || new Date(req.updated_at) > new Date(existing.updated_at)) {
-          latestRequestMap.set(req.target_id, req);
+      for (let i = 0; i < targetIds.length; i += 500) {
+        const batch = targetIds.slice(i, i + 500);
+        const { data: requests } = await db
+          .from('foia_requests')
+          .select('*')
+          .eq('va_id', profile.id)
+          .in('target_id', batch);
+
+        for (const req of (requests || []) as FoiaRequest[]) {
+          const existing = latestRequestMap.get(req.target_id);
+          if (!existing || new Date(req.updated_at) > new Date(existing.updated_at)) {
+            latestRequestMap.set(req.target_id, req);
+          }
         }
       }
 
-      const { data: rotations } = await db
-        .from('press_rotation')
-        .select('target_id, press_account:press_accounts(*)')
-        .eq('rotation_month', currentMonth)
-        .in('target_id', targetIds);
+      // Get active credential from va_credential_slots (new system)
+      let activeCredential: PressAccount | undefined;
+      const { data: activeSlot } = await db
+        .from('va_credential_slots')
+        .select('press_account_id')
+        .eq('va_id', profile.id)
+        .eq('is_active', true)
+        .single();
 
-      const rotationMap = new Map<string, PressAccount>();
-      for (const r of (rotations || [])) {
-        if (r.press_account) rotationMap.set(r.target_id, r.press_account as PressAccount);
+      if (activeSlot?.press_account_id) {
+        const { data: pressData } = await db
+          .from('press_accounts')
+          .select('*')
+          .eq('id', activeSlot.press_account_id)
+          .single();
+        if (pressData) activeCredential = pressData as PressAccount;
       }
 
       const queueItems: QueueItem[] = assignments
@@ -76,7 +84,7 @@ export default function FoiaVAQueue() {
         .map((a: any) => ({
           ...(a.target as Target),
           latest_request: latestRequestMap.get(a.target_id),
-          press_account_this_month: rotationMap.get(a.target_id),
+          press_account_this_month: activeCredential,
         }));
 
       queueItems.sort((a, b) => {

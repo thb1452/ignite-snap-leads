@@ -127,6 +127,7 @@ export interface QueueItem extends Target {
   assignment?: FoiaAssignment;
   latest_request?: FoiaRequest;
   press_account_this_month?: PressAccount;
+  portal_difficulty_score?: number | null;
 }
 
 export interface AdminStats {

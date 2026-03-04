@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ExternalLink, Save, Loader2, ChevronDown, ChevronUp, Bookmark, Users } from 'lucide-react';
+import { ExternalLink, Save, Loader2, ChevronDown, ChevronUp, Bookmark, Users, Star } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/foia/db';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +10,43 @@ import type { FoiaRequest, FoiaRequestStatus, QueueItem } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+
+function PortalDifficultyRating({ targetId, currentScore }: { targetId: string; currentScore: number | null }) {
+  const [score, setScore] = useState(currentScore);
+  const [saving, setSaving] = useState(false);
+
+  const handleRate = async (value: number) => {
+    setSaving(true);
+    setScore(value);
+    try {
+      await db.from('targets').update({ portal_difficulty_score: value }).eq('id', targetId);
+    } catch (err) {
+      console.error('Failed to save difficulty:', err);
+      setScore(currentScore);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="px-4 pb-2 flex items-center gap-2">
+      <span className="text-xs text-slate-500">Portal difficulty:</span>
+      <span className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map(i => (
+          <button
+            key={i}
+            onClick={() => handleRate(i)}
+            disabled={saving}
+            className="transition-colors disabled:opacity-50"
+          >
+            <Star className={cn('h-3.5 w-3.5', i <= (score ?? 0) ? 'text-amber-400 fill-amber-400' : 'text-slate-300 hover:text-amber-300')} />
+          </button>
+        ))}
+      </span>
+      {score && <span className="text-xs text-slate-400">{score}/5</span>}
+    </div>
+  );
+}
 
 interface QueueRowProps {
   item: QueueItem;
@@ -327,6 +364,11 @@ export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRo
           )}
         </div>
       </div>
+
+      {/* Portal difficulty rating - shown after marking "sent" */}
+      {(status === 'sent' || status === 'fulfilled' || status === 'rejected') && (
+        <PortalDifficultyRating targetId={item.id} currentScore={item.portal_difficulty_score ?? null} />
+      )}
 
       {/* Expanded: Status History Timeline */}
       {expanded && (

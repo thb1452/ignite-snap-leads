@@ -11,6 +11,7 @@ import { usePageTracking } from "@/hooks/usePageTracking";
 import FoiaLogin from "./pages/FoiaLogin";
 import { FoiaAuthGuard } from "@/components/foia/shared/FoiaAuthGuard";
 import FoiaAdminDashboard from "./pages/foia/admin/FoiaAdminDashboard";
+import FoiaAdminIntelligence from "./pages/foia/admin/FoiaAdminIntelligence";
 import FoiaAdminInvite from "./pages/foia/admin/FoiaAdminInvite";
 import FoiaAdminImport from "./pages/foia/admin/FoiaAdminImport";
 import FoiaAdminRotation from "./pages/foia/admin/FoiaAdminRotation";
@@ -198,6 +199,11 @@ const App = () => (
           <Route path="/foia/admin/press-accounts" element={
             <FoiaAuthGuard requiredRole="admin">
               <FoiaAdminPressAccounts />
+            </FoiaAuthGuard>
+          } />
+          <Route path="/foia/admin/intelligence" element={
+            <FoiaAuthGuard requiredRole="admin">
+              <FoiaAdminIntelligence />
             </FoiaAuthGuard>
           } />
           <Route path="/foia/admin/assignments" element={

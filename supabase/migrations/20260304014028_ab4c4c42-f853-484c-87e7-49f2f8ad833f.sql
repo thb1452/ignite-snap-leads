@@ -1,0 +1,1 @@
+UPDATE public.foia_profiles SET role = 'admin' WHERE id = '242fb409-b137-46d5-9aa6-2696710f5fcd';

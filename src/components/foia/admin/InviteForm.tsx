@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Copy, Check, Mail, Loader2 } from 'lucide-react';
+import { Copy, Check, Mail, Loader2, Send } from 'lucide-react';
 import { db } from '@/lib/foia/db';
+import { supabase } from '@/integrations/supabase/client';
 import type { FoiaInvite } from '@/types/foia';
 
 function generateToken(): string {
@@ -20,12 +21,14 @@ export function InviteForm({ adminId, onInviteCreated }: InviteFormProps) {
   const [error, setError] = useState('');
   const [generatedLink, setGeneratedLink] = useState('');
   const [copied, setCopied] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     setGeneratedLink('');
+    setEmailSent(false);
 
     try {
       const token = generateToken();
@@ -46,6 +49,21 @@ export function InviteForm({ adminId, onInviteCreated }: InviteFormProps) {
 
       const link = `${window.location.origin}/foia/login?token=${token}`;
       setGeneratedLink(link);
+
+      // Send invite email
+      try {
+        const { error: emailError } = await supabase.functions.invoke('send-foia-invite', {
+          body: { email: trimmedEmail, inviteLink: link },
+        });
+        if (!emailError) {
+          setEmailSent(true);
+        } else {
+          console.warn('Email send failed, link still available to copy:', emailError);
+        }
+      } catch (emailErr) {
+        console.warn('Email send failed, link still available to copy:', emailErr);
+      }
+
       setEmail('');
       onInviteCreated();
     } catch (err: unknown) {
@@ -90,7 +108,14 @@ export function InviteForm({ adminId, onInviteCreated }: InviteFormProps) {
 
       {generatedLink && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-green-800 text-sm font-medium mb-2">Invite link created!</p>
+          <p className="text-green-800 text-sm font-medium mb-2">
+            {emailSent ? '✉️ Invite email sent!' : 'Invite link created!'}
+          </p>
+          {emailSent && (
+            <p className="text-green-700 text-sm mb-3">
+              The VA will receive an email with the invite link. You can also copy it below:
+            </p>
+          )}
           <div className="flex items-center gap-2">
             <code className="flex-1 text-xs bg-white border border-green-200 rounded px-2 py-1.5 text-slate-700 truncate">
               {generatedLink}
@@ -103,7 +128,7 @@ export function InviteForm({ adminId, onInviteCreated }: InviteFormProps) {
               {copied ? 'Copied!' : 'Copy'}
             </button>
           </div>
-          <p className="text-green-600 text-xs mt-2">Expires in 7 days. Share this link with the VA.</p>
+          <p className="text-green-600 text-xs mt-2">Expires in 7 days.</p>
         </div>
       )}
     </div>

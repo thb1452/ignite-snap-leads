@@ -75,3 +75,6 @@ verify_jwt = false
 
 [functions.migrate-to-external]
 verify_jwt = true
+
+[functions.send-foia-invite]
+verify_jwt = true

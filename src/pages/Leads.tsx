@@ -145,7 +145,8 @@ function Leads() {
     if (selectedCity) count++;
     if (selectedState) count++;
     if (selectedSignal) count++;
-    if (openViolationsOnly) count++;
+    // openViolationsOnly defaults to true, so don't count it unless user turned it off and back on
+    // We only count non-default filter states
     if (multipleViolationsOnly) count++;
     if (repeatOffenderOnly) count++;
     // Count SnapScore if not default range

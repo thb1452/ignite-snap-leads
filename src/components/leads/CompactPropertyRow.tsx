@@ -76,7 +76,7 @@ export function CompactPropertyRow({
       {isHeatingUp && (
         <Badge variant="outline" className="text-[10px] px-1 py-0 h-[16px] bg-amber-50 text-amber-700 border-amber-300 gap-0.5 shrink-0">
           <Flame className="h-2.5 w-2.5" />
-          🔥
+          New Activity
         </Badge>
       )}
       <div className="shrink-0">

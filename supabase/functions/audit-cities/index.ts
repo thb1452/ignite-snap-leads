@@ -62,16 +62,12 @@ Deno.serve(async (req) => {
 
     // ── Step 1: Populate census_places if requested or table is empty ──
     if (action === "populate") {
-      // Get distinct states from properties
-      const { data: stateRows } = await sb
-        .from("properties")
-        .select("state")
-        .not("state", "is", null);
-
+      // Get distinct states using server-side aggregation (avoids 1000-row limit)
+      const { data: cityCounts } = await sb.rpc("fn_distinct_city_counts");
       const states = [
         ...new Set(
-          (stateRows || [])
-            .map((r: any) => r.state?.toUpperCase()?.trim())
+          (cityCounts || [])
+            .map((r: any) => r.state?.trim())
             .filter((s: string) => s && s.length === 2 && ABBR_TO_FIPS[s])
         ),
       ] as string[];
@@ -126,48 +122,22 @@ Deno.serve(async (req) => {
     }
 
     // ── Step 2: Generate comparison report ──
-    // Get all distinct city/state pairs with counts
-    const { data: cityRows, error: cityErr } = await sb.rpc("fn_dashboard_stats").then(() => null as any).catch(() => null);
-
-    // Direct query for distinct cities
-    const allCities: { city: string; state: string; count: number }[] = [];
-    const pageSize = 1000;
-    let offset = 0;
-    let hasMore = true;
-
-    // We need to aggregate - fetch raw and count client-side
-    const cityMap = new Map<string, { city: string; state: string; count: number }>();
-
-    while (hasMore) {
-      const { data, error } = await sb
-        .from("properties")
-        .select("city, state")
-        .not("city", "is", null)
-        .not("state", "is", null)
-        .range(offset, offset + pageSize - 1);
-
-      if (error || !data || data.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      for (const r of data) {
-        const key = `${r.city?.toUpperCase()?.trim()}|${r.state?.toUpperCase()?.trim()}`;
-        const existing = cityMap.get(key);
-        if (existing) {
-          existing.count++;
-        } else {
-          cityMap.set(key, {
-            city: r.city?.trim() || "",
-            state: r.state?.toUpperCase()?.trim() || "",
-            count: 1,
-          });
-        }
-      }
-
-      offset += pageSize;
-      hasMore = data.length === pageSize;
+    // Use server-side aggregation for performance
+    const { data: cityCounts, error: cityErr } = await sb.rpc("fn_distinct_city_counts");
+    if (cityErr) {
+      return new Response(JSON.stringify({ error: `City query failed: ${cityErr.message}` }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+
+    const cityMap = new Map<string, { city: string; state: string; count: number }>();
+    for (const r of (cityCounts || [])) {
+      const key = `${r.city?.toUpperCase()}|${r.state}`;
+      cityMap.set(key, { city: r.city, state: r.state, count: Number(r.cnt) });
+    }
+
+    const pageSize = 1000;
 
     // Get all census places
     const censusMap = new Map<string, string>();

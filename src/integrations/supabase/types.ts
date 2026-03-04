@@ -2705,6 +2705,14 @@ export type Database = {
           city: string
         }[]
       }
+      fn_distinct_city_counts: {
+        Args: never
+        Returns: {
+          city: string
+          cnt: number
+          state: string
+        }[]
+      }
       fn_distinct_states: {
         Args: never
         Returns: {

@@ -30,10 +30,10 @@ export function PersonalStatsBar() {
   });
 
   return (
-    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+    <div className="flex items-center gap-3 sm:gap-4 text-xs text-muted-foreground flex-wrap">
       <button
         onClick={() => navigate("/saved")}
-        className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+        className="flex items-center gap-1.5 hover:text-foreground transition-colors whitespace-nowrap"
       >
         <Heart className="h-3.5 w-3.5 text-red-500 fill-current" />
         <span className="font-medium text-foreground">
@@ -46,7 +46,7 @@ export function PersonalStatsBar() {
 
       <button
         onClick={() => navigate("/lists")}
-        className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+        className="flex items-center gap-1.5 hover:text-foreground transition-colors whitespace-nowrap"
       >
         <ListChecks className="h-3.5 w-3.5 text-primary" />
         <span className="font-medium text-foreground">
@@ -57,7 +57,7 @@ export function PersonalStatsBar() {
 
       <span className="text-border">|</span>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 whitespace-nowrap">
         <Flame className="h-3.5 w-3.5 text-orange-500" />
         <span className="font-medium text-foreground">
           {heatingUpCount.toLocaleString()}

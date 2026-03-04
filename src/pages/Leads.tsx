@@ -644,35 +644,37 @@ function Leads() {
           />
         </div>
 
-        {/* Freshness indicator + Saved toggle + View Toggle */}
-        <div className="flex items-center justify-between px-3 pb-2">
-          <div className="flex items-center gap-3">
+        {/* Stats + View Toggle */}
+        <div className="flex flex-col gap-1.5 px-3 pb-2">
+          <div className="flex items-center justify-between">
             <PersonalStatsBar />
-            <FreshnessIndicator />
           </div>
-          <div className="inline-flex rounded-lg border bg-muted p-1">
-            <button
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                mobileView === 'list'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => setMobileView('list')}
-            >
-              <List className="h-4 w-4" />
-              List
-            </button>
-            <button
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                mobileView === 'map'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => setMobileView('map')}
-            >
-              <MapIcon className="h-4 w-4" />
-              Map
-            </button>
+          <div className="flex items-center justify-between">
+            <FreshnessIndicator />
+            <div className="inline-flex rounded-lg border bg-muted p-1">
+              <button
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  mobileView === 'list'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setMobileView('list')}
+              >
+                <List className="h-4 w-4" />
+                List
+              </button>
+              <button
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  mobileView === 'map'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setMobileView('map')}
+              >
+                <MapIcon className="h-4 w-4" />
+                Map
+              </button>
+            </div>
           </div>
         </div>
 

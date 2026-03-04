@@ -552,6 +552,8 @@ export type Database = {
           data_format: string | null
           data_quality_score: number | null
           data_years_requested: string | null
+          estimated_row_count: number | null
+          fee_amount: number | null
           fulfillment_file_url: string | null
           fulfillment_received_at: string | null
           id: string
@@ -561,6 +563,7 @@ export type Database = {
           notes: string | null
           parsed_status: string | null
           press_account_id: string | null
+          redaction_flag: boolean | null
           request_date: string
           request_method: string | null
           requested_by: string
@@ -578,6 +581,8 @@ export type Database = {
           data_format?: string | null
           data_quality_score?: number | null
           data_years_requested?: string | null
+          estimated_row_count?: number | null
+          fee_amount?: number | null
           fulfillment_file_url?: string | null
           fulfillment_received_at?: string | null
           id?: string
@@ -587,6 +592,7 @@ export type Database = {
           notes?: string | null
           parsed_status?: string | null
           press_account_id?: string | null
+          redaction_flag?: boolean | null
           request_date?: string
           request_method?: string | null
           requested_by: string
@@ -604,6 +610,8 @@ export type Database = {
           data_format?: string | null
           data_quality_score?: number | null
           data_years_requested?: string | null
+          estimated_row_count?: number | null
+          fee_amount?: number | null
           fulfillment_file_url?: string | null
           fulfillment_received_at?: string | null
           id?: string
@@ -613,6 +621,7 @@ export type Database = {
           notes?: string | null
           parsed_status?: string | null
           press_account_id?: string | null
+          redaction_flag?: boolean | null
           request_date?: string
           request_method?: string | null
           requested_by?: string
@@ -2681,6 +2690,8 @@ export type Database = {
       fn_fulfillment_overview: {
         Args: never
         Returns: {
+          avg_estimated_rows: number
+          avg_fee: number
           avg_quality: number
           avg_response_days: number
           file_upload_rate: number
@@ -2689,6 +2700,8 @@ export type Database = {
           format_mixed: number
           format_other: number
           format_pdf: number
+          redacted_count: number
+          total_fees: number
           total_fulfilled: number
           with_file: number
         }[]
@@ -2757,6 +2770,7 @@ export type Database = {
         Args: never
         Returns: {
           avg_data_quality: number
+          avg_fee_amount: number
           avg_response_days: number
           county: string
           fulfilled_count: number
@@ -2768,6 +2782,7 @@ export type Database = {
           no_portal_count: number
           population: number
           portal_difficulty_score: number
+          redaction_pct: number
           rejected_count: number
           rejection_rate: number
           state: string
@@ -2986,9 +3001,11 @@ export type Database = {
         Args: never
         Returns: {
           avg_data_quality: number
+          avg_fee_amount: number
           avg_response_days: number
           fulfilled_count: number
           fulfillment_rate: number
+          redaction_pct: number
           rejection_rate: number
           state: string
           total_requests: number

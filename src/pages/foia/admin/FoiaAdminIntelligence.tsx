@@ -26,6 +26,8 @@ interface JurisdictionIntel {
   rejection_rate: number;
   avg_response_days: number;
   avg_data_quality: number;
+  avg_fee_amount: number;
+  redaction_pct: number;
   hostility_score: number;
   jis: number;
 }
@@ -38,6 +40,8 @@ interface StateAnalytics {
   fulfillment_rate: number;
   rejection_rate: number;
   avg_data_quality: number;
+  avg_fee_amount: number;
+  redaction_pct: number;
 }
 
 interface FulfillmentOverview {
@@ -51,6 +55,10 @@ interface FulfillmentOverview {
   format_mixed: number;
   format_other: number;
   avg_response_days: number;
+  avg_fee: number;
+  total_fees: number;
+  redacted_count: number;
+  avg_estimated_rows: number;
 }
 
 // ---- Helpers ----
@@ -133,6 +141,8 @@ export default function FoiaAdminIntelligence() {
           rejection_rate: Number(r.rejection_rate),
           avg_response_days: Number(r.avg_response_days),
           avg_data_quality: Number(r.avg_data_quality),
+          avg_fee_amount: Number(r.avg_fee_amount || 0),
+          redaction_pct: Number(r.redaction_pct || 0),
           hostility_score: Number(r.hostility_score),
           jis: Number(r.jis),
         })));
@@ -144,6 +154,8 @@ export default function FoiaAdminIntelligence() {
           fulfillment_rate: Number(r.fulfillment_rate),
           rejection_rate: Number(r.rejection_rate),
           avg_data_quality: Number(r.avg_data_quality),
+          avg_fee_amount: Number(r.avg_fee_amount || 0),
+          redaction_pct: Number(r.redaction_pct || 0),
         })));
         if (oData) {
           const o = Array.isArray(oData) ? oData[0] : oData;
@@ -158,6 +170,10 @@ export default function FoiaAdminIntelligence() {
             format_mixed: Number(o.format_mixed),
             format_other: Number(o.format_other),
             avg_response_days: Number(o.avg_response_days || 0),
+            avg_fee: Number(o.avg_fee || 0),
+            total_fees: Number(o.total_fees || 0),
+            redacted_count: Number(o.redacted_count || 0),
+            avg_estimated_rows: Number(o.avg_estimated_rows || 0),
           });
         }
       } catch (err) {
@@ -224,6 +240,16 @@ export default function FoiaAdminIntelligence() {
             <StatCard icon={Clock} label="Avg Response Days" value={overview?.avg_response_days ?? '—'} color="bg-blue-600" />
             <StatCard icon={Star} label="Avg Data Quality" value={`${overview?.avg_quality ?? 0} / 5`} color="bg-amber-500" />
             <StatCard icon={AlertTriangle} label="Hostile Jurisdictions" value={hostile.filter(h => h.hostility_score > 30).length} color="bg-red-600" sub="Hostility > 30" />
+          </div>
+        )}
+
+        {/* Fee & Redaction Intelligence */}
+        {overview && !loading && (overview.avg_fee > 0 || overview.redacted_count > 0 || overview.avg_estimated_rows > 0) && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard icon={BarChart3} label="Avg Fee" value={overview.avg_fee > 0 ? `$${overview.avg_fee.toFixed(2)}` : 'None'} color="bg-indigo-600" sub={overview.total_fees > 0 ? `$${overview.total_fees.toFixed(2)} total` : undefined} />
+            <StatCard icon={Shield} label="Redacted Responses" value={overview.redacted_count} color="bg-orange-600" />
+            <StatCard icon={TrendingUp} label="Avg Data Rows" value={overview.avg_estimated_rows > 0 ? overview.avg_estimated_rows.toLocaleString() : '—'} color="bg-cyan-600" />
+            <StatCard icon={FileCheck} label="Total Fulfilled" value={overview.total_fulfilled} color="bg-emerald-600" />
           </div>
         )}
 

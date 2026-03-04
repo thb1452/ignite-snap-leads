@@ -5,6 +5,7 @@ import { db } from '@/lib/foia/db';
 import { supabase } from '@/integrations/supabase/client';
 import { StatusDropdown } from './StatusDropdown';
 import { StatusTimeline } from './StatusTimeline';
+import { FulfillmentModal, type FulfillmentMetadata } from './FulfillmentModal';
 import { Badge } from '@/components/ui/badge';
 import type { FoiaRequest, FoiaRequestStatus, QueueItem } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
@@ -95,6 +96,8 @@ export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRo
   const [history, setHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const noteSaveTimerRef = useRef<number | null>(null);
+  const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
+  const [pendingFulfillmentStatus, setPendingFulfillmentStatus] = useState(false);
 
   const pressAccount = item.press_account_this_month;
   const followUpBadge = getFollowUpBadge(persistedRequest?.sent_at, status);
@@ -204,7 +207,90 @@ export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRo
   const handleSave = () => persistRequest(status, notes, { showSavedBadge: true });
   const handleStatusChange = (nextStatus: FoiaRequestStatus) => {
     setStatus(nextStatus);
-    persistRequest(nextStatus, notes, { showSavedBadge: false });
+    if (nextStatus === 'fulfilled') {
+      // Open fulfillment modal instead of saving immediately
+      setPendingFulfillmentStatus(true);
+      setShowFulfillmentModal(true);
+    } else {
+      persistRequest(nextStatus, notes, { showSavedBadge: false });
+    }
+  };
+
+  const handleFulfillmentSubmit = async (metadata: FulfillmentMetadata) => {
+    setShowFulfillmentModal(false);
+    setPendingFulfillmentStatus(false);
+    setSaving(true);
+    try {
+      const pressAccountId = pressAccount?.id ?? persistedRequest?.press_account_id ?? null;
+      const nowIso = new Date().toISOString();
+      let result: FoiaRequest;
+
+      const fulfillmentFields = {
+        status: 'fulfilled' as const,
+        notes,
+        press_account_id: pressAccountId,
+        updated_at: nowIso,
+        response_received_at: nowIso,
+        data_quality_score: metadata.data_quality_score,
+        data_format: metadata.data_format,
+        fee_amount: metadata.fee_amount,
+        redaction_flag: metadata.redaction_flag,
+        estimated_row_count: metadata.estimated_row_count,
+        is_snap_usable: metadata.is_snap_usable,
+        fulfillment_file_url: metadata.fulfillment_file_url,
+        fulfillment_received_at: nowIso,
+      };
+
+      if (persistedRequest) {
+        const { data, error } = await db
+          .from('foia_requests')
+          .update(fulfillmentFields)
+          .eq('id', persistedRequest.id)
+          .select('*')
+          .single();
+        if (error) throw error;
+        result = data as FoiaRequest;
+      } else {
+        const { data, error } = await db
+          .from('foia_requests')
+          .upsert({
+            target_id: item.id,
+            va_id: vaId,
+            requested_by: vaId,
+            ...fulfillmentFields,
+            sent_at: null,
+          }, { onConflict: 'target_id,va_id' })
+          .select('*')
+          .single();
+        if (error) throw error;
+        result = data as FoiaRequest;
+      }
+
+      setPersistedRequest(result);
+      onSaved(result);
+      queryClient.invalidateQueries({ queryKey: ['va-dashboard', vaId] });
+
+      supabase.functions.invoke('rotate-va-batch', {
+        body: { action: 'check-batch-completion', va_id: vaId },
+      }).catch(() => {});
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save fulfillment';
+      toast({ title: 'Save failed', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleFulfillmentClose = () => {
+    setShowFulfillmentModal(false);
+    if (pendingFulfillmentStatus) {
+      // Revert status if they close without completing
+      setStatus((persistedRequest?.status as FoiaRequestStatus) ?? 'pending');
+      setPendingFulfillmentStatus(false);
+    }
   };
 
   const handleSaveUrl = async () => {
@@ -380,6 +466,15 @@ export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRo
           <StatusTimeline entries={history} loading={historyLoading} />
         </div>
       )}
+
+      {/* Fulfillment Intelligence Modal */}
+      <FulfillmentModal
+        open={showFulfillmentModal}
+        onClose={handleFulfillmentClose}
+        onSubmit={handleFulfillmentSubmit}
+        requestId={persistedRequest?.id ?? null}
+        jurisdictionName={item.jurisdiction_name}
+      />
     </div>
   );
 }

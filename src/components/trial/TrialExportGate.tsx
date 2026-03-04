@@ -42,7 +42,7 @@ export function TrialExportGate({ open, onOpenChange, type, trialTier, trialEnds
           <DialogDescription className="text-center">
             {type === 'exhausted'
               ? "You've used all 25 trial exports. Upgrade to continue exporting properties."
-              : `Your 7-day trial ended${expiredDate ? ` on ${expiredDate}` : ''}. Upgrade to continue exporting.`
+              : `Your 3-day trial ended${expiredDate ? ` on ${expiredDate}` : ''}. Upgrade to continue exporting.`
             }
           </DialogDescription>
         </DialogHeader>

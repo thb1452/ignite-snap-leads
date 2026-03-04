@@ -6,7 +6,7 @@ import { StatusDropdown } from './StatusDropdown';
 import type { FoiaRequest, FoiaRequestStatus, QueueItem } from '@/types/foia';
 import { TARGET_TYPE_LABELS } from '@/types/foia';
 import { cn } from '@/lib/utils';
-
+import { useToast } from '@/hooks/use-toast';
 
 interface QueueRowProps {
   item: QueueItem;
@@ -16,6 +16,7 @@ interface QueueRowProps {
 
 export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [status, setStatus] = useState<FoiaRequestStatus>(
     item.latest_request?.status ?? 'pending'
   );
@@ -26,19 +27,24 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
 
   const pressAccount = item.press_account_this_month;
 
-  const handleSave = async () => {
+  const persistRequest = async (
+    nextStatus: FoiaRequestStatus,
+    nextNotes: string,
+    options?: { showSavedBadge?: boolean }
+  ) => {
     setSaving(true);
     try {
       const pressAccountId = pressAccount?.id ?? item.latest_request?.press_account_id ?? null;
+      const showSavedBadge = options?.showSavedBadge ?? true;
 
       if (item.latest_request) {
         const { data, error } = await db
           .from('foia_requests')
           .update({
-            status,
-            notes,
+            status: nextStatus,
+            notes: nextNotes,
             press_account_id: pressAccountId,
-            ...(status === 'sent' && !item.latest_request.sent_at
+            ...(nextStatus === 'sent' && !item.latest_request.sent_at
               ? { sent_at: new Date().toISOString() }
               : {}),
           })
@@ -54,10 +60,11 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
           .insert({
             target_id: item.id,
             va_id: vaId,
+            requested_by: vaId,
             press_account_id: pressAccountId,
-            status,
-            notes,
-            sent_at: status === 'sent' ? new Date().toISOString() : null,
+            status: nextStatus,
+            notes: nextNotes,
+            sent_at: nextStatus === 'sent' ? new Date().toISOString() : null,
           })
           .select('*')
           .single();
@@ -66,13 +73,34 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
         onSaved(data as FoiaRequest);
       }
 
-      setSaved(true);
-      queryClient.invalidateQueries({ queryKey: ['va-dashboard'] });
-      setTimeout(() => setSaved(false), 2000);
+      queryClient.invalidateQueries({ queryKey: ['va-dashboard', vaId] });
+
+      if (showSavedBadge) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save changes';
+      toast({ title: 'Save failed', description: message, variant: 'destructive' });
       console.error('Save failed:', err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    await persistRequest(status, notes, { showSavedBadge: true });
+  };
+
+  const handleStatusChange = async (nextStatus: FoiaRequestStatus) => {
+    setStatus(nextStatus);
+    await persistRequest(nextStatus, notes, { showSavedBadge: false });
+  };
+
+  const handleNotesBlur = async () => {
+    const originalNotes = item.latest_request?.notes ?? '';
+    if (notes !== originalNotes) {
+      await persistRequest(status, notes, { showSavedBadge: true });
     }
   };
 
@@ -100,7 +128,7 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <StatusDropdown value={status} onChange={setStatus} />
+          <StatusDropdown value={status} onChange={handleStatusChange} disabled={saving} />
 
           {item.foia_url && (
             <a
@@ -130,6 +158,7 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                onBlur={handleNotesBlur}
                 placeholder="Add notes about this request..."
                 rows={2}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none"
@@ -166,3 +195,4 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
     </div>
   );
 }
+

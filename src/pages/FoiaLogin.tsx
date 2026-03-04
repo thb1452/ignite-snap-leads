@@ -243,9 +243,12 @@ export default function FoiaLogin() {
       let hasSession = !!data.session;
 
       if (alreadyRegistered) {
+        // Try signing in with the password they provided
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) {
-          throw new Error('This email is already registered. Please sign in with your existing password.');
+          // Switch to login mode so they can use their existing password
+          setMode('login');
+          throw new Error('You already have a Snap Ignite account. Please sign in with your existing password — your FOIA access will be activated automatically.');
         }
         finalUserId = signInData.user.id;
         hasSession = true;

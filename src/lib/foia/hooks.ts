@@ -16,8 +16,10 @@ export function useFoiaAuth(): UseFoiaAuthReturn {
   const [profile, setProfile] = useState<FoiaProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async () => {
-    setLoading(true);
+  const fetchProfile = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setLoading(true);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
@@ -36,7 +38,7 @@ export function useFoiaAuth(): UseFoiaAuthReturn {
     } catch {
       setProfile(null);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -44,7 +46,7 @@ export function useFoiaAuth(): UseFoiaAuthReturn {
     fetchProfile();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      fetchProfile();
+      fetchProfile({ silent: true });
     });
 
     return () => subscription.unsubscribe();

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, AlertCircle, CheckCircle, Loader2, X } from 'lucide-react';
+import { useDropzone, type FileRejection } from 'react-dropzone';
+import { Upload, FileText, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { db } from '@/lib/foia/db';
@@ -39,31 +39,81 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState('');
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
-    setFileName(file.name);
-
+  const parseUploadedFile = useCallback(async (file: File): Promise<RawRow[]> => {
     const ext = file.name.split('.').pop()?.toLowerCase();
-    let rows: RawRow[] = [];
 
-    if (ext === 'csv') {
+    const isLikelyCsv =
+      ext === 'csv' ||
+      file.type === 'text/csv' ||
+      file.type === 'application/csv' ||
+      file.type === 'text/plain';
+
+    const isLikelyExcel =
+      ext === 'xlsx' ||
+      ext === 'xls' ||
+      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      file.type === 'application/vnd.ms-excel';
+
+    if (isLikelyCsv) {
       const text = await file.text();
-      const result = Papa.parse<RawRow>(text, { header: true, skipEmptyLines: true });
-      rows = result.data;
-    } else if (ext === 'xlsx' || ext === 'xls') {
+      const parsed = Papa.parse<RawRow>(text, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => header.replace(/^\uFEFF/, '').trim(),
+      });
+      return parsed.data;
+    }
+
+    if (isLikelyExcel) {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      rows = XLSX.utils.sheet_to_json<RawRow>(ws, { defval: '' });
-    } else {
+      const firstSheetName = wb.SheetNames[0];
+      if (!firstSheetName) return [];
+      const ws = wb.Sheets[firstSheetName];
+      return XLSX.utils.sheet_to_json<RawRow>(ws, { defval: '' });
+    }
+
+    throw new Error('Unsupported file type. Please upload .csv, .xlsx, or .xls');
+  }, []);
+
+  const onDrop = useCallback(async (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
+    setImportError('');
+    const file = acceptedFiles[0];
+
+    if (!file) {
+      const rejectionReason = rejectedFiles[0]?.errors?.[0]?.message;
+      setImportError(rejectionReason || 'File was not accepted. Please upload .csv, .xlsx, or .xls');
       return;
     }
 
-    if (rows.length === 0) return;
+    setFileName(file.name);
 
-    setRawRows(rows);
-    const cols = Object.keys(rows[0]);
+    let rows: RawRow[] = [];
+    try {
+      rows = await parseUploadedFile(file);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Unable to read this file');
+      return;
+    }
+
+    const cleanedRows = rows
+      .map((row) =>
+        Object.fromEntries(
+          Object.entries(row).map(([key, value]) => [
+            key.replace(/^\uFEFF/, '').trim(),
+            String(value ?? '').trim(),
+          ])
+        ) as RawRow
+      )
+      .filter((row) => Object.values(row).some((value) => value !== ''));
+
+    if (cleanedRows.length === 0) {
+      setImportError('No rows were found. Make sure the first row contains column headers.');
+      return;
+    }
+
+    setRawRows(cleanedRows);
+    const cols = Object.keys(cleanedRows[0]);
     setColumns(cols);
 
     // Auto-detect column mapping
@@ -81,24 +131,31 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
       if (!autoMap.jurisdiction_name && (n.includes('jurisdiction') || n.includes('name') || n.includes('county') || n.includes('city'))) {
         autoMap.jurisdiction_name = col;
       }
-      if (!autoMap.state && n === 'state') autoMap.state = col;
+      if (!autoMap.state && n.includes('state')) autoMap.state = col;
+      if (!autoMap.county && n === 'county') autoMap.county = col;
       if (!autoMap.population && n.includes('pop')) autoMap.population = col;
+      if (!autoMap.target_type && (n.includes('targettype') || n === 'type')) autoMap.target_type = col;
       if (!autoMap.foia_url && (n.includes('url') || n.includes('link') || n.includes('foia'))) {
         autoMap.foia_url = col;
       }
     }
     setMapping(autoMap);
     setStep('map');
-  }, []);
+  }, [parseUploadedFile]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
+    useFsAccessApi: false,
+    noClick: true,
     accept: {
       'text/csv': ['.csv'],
+      'application/csv': ['.csv'],
+      'text/plain': ['.csv'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.ms-excel': ['.xls', '.xlsx', '.csv'],
     },
     maxFiles: 1,
+    multiple: false,
   });
 
   const handleImport = async () => {
@@ -204,22 +261,31 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
   return (
     <div className="space-y-6">
       {step === 'upload' && (
-        <div
-          {...getRootProps()}
-          className={cn(
-            'border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors',
-            isDragActive
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
+        <div className="space-y-3">
+          <div
+            {...getRootProps({ onClick: open })}
+            className={cn(
+              'border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors',
+              isDragActive
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
+            )}
+          >
+            <input {...getInputProps()} />
+            <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+            <p className="text-slate-700 font-medium">
+              {isDragActive ? 'Drop your file here' : 'Drop a CSV or Excel file here'}
+            </p>
+            <p className="text-slate-400 text-sm mt-1">or tap to choose a file</p>
+            <p className="text-slate-400 text-xs mt-3">Supports .csv, .xlsx, .xls</p>
+          </div>
+
+          {importError && (
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-lg px-4 py-2">
+              <AlertCircle className="h-4 w-4" />
+              {importError}
+            </div>
           )}
-        >
-          <input {...getInputProps()} />
-          <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-          <p className="text-slate-700 font-medium">
-            {isDragActive ? 'Drop your file here' : 'Drop a CSV or Excel file here'}
-          </p>
-          <p className="text-slate-400 text-sm mt-1">or click to browse</p>
-          <p className="text-slate-400 text-xs mt-3">Supports .csv, .xlsx, .xls</p>
         </div>
       )}
 

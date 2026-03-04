@@ -36,6 +36,36 @@ export default function FoiaLogin() {
     return (await Promise.race([Promise.resolve(promise), timeoutPromise])) as T;
   };
 
+  const getErrorMessage = (err: unknown, fallback: string) => {
+    if (err instanceof Error) return err.message;
+    if (typeof err === 'object' && err !== null && 'message' in err) {
+      return String((err as { message: unknown }).message);
+    }
+    return fallback;
+  };
+
+  const ensureAuthenticatedSession = async (
+    seedSession?: { access_token: string; refresh_token: string } | null
+  ): Promise<boolean> => {
+    try {
+      if (seedSession?.access_token && seedSession?.refresh_token) {
+        const { error: setSessionError } = await supabase.auth.setSession({
+          access_token: seedSession.access_token,
+          refresh_token: seedSession.refresh_token,
+        });
+        if (!setSessionError) return true;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) return true;
+
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      return !refreshError && !!refreshed.session?.access_token;
+    } catch {
+      return false;
+    }
+  };
+
   // Detect when Supabase redirects back after the user clicks the reset link.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -94,6 +124,8 @@ export default function FoiaLogin() {
       const user = data.user;
       if (!user) throw new Error('Login failed — no user returned');
 
+      const hasSession = await ensureAuthenticatedSession(data.session ?? null);
+
       const profileResult: any = await withTimeout(
         db
           .from('foia_profiles')
@@ -112,6 +144,10 @@ export default function FoiaLogin() {
           String((profileErr as any)?.message ?? '').includes('schema cache');
 
         if (isSchemaError) {
+          if (!hasSession) {
+            throw new Error('Signed in, but your secure session is still initializing. Please tap Sign In again.');
+          }
+
           const derivedName = user.user_metadata?.full_name
             ?? user.email?.split('@')[0]
             ?? 'User';
@@ -129,7 +165,11 @@ export default function FoiaLogin() {
           );
           const { error: createErr } = signupResult;
           if (createErr) {
-            throw new Error('FOIA access is not available on this deployment yet. Please contact your administrator.');
+            const createErrMsg = getErrorMessage(createErr, 'Profile provisioning failed');
+            if (createErrMsg.includes('Unauthorized profile provisioning attempt')) {
+              throw new Error('Signed in, but your session was not fully established. Please tap Sign In once more.');
+            }
+            throw new Error('FOIA access is not available for this account. Please contact your administrator.');
           }
 
           navigate(derivedRole === 'admin' ? '/foia/admin' : '/foia/va');
@@ -140,6 +180,10 @@ export default function FoiaLogin() {
       }
 
       if (!profile) {
+        if (!hasSession) {
+          throw new Error('Signed in, but your secure session is still initializing. Please tap Sign In again.');
+        }
+
         // Auth succeeded but no foia_profile row exists — the user signed up
         // before but the profile creation step failed (e.g. RLS was blocking it).
         // Auto-create the profile now that we have a valid authenticated session.
@@ -159,19 +203,20 @@ export default function FoiaLogin() {
           'Account provisioning timed out. Please try again.'
         );
         const { error: createErr } = signupResult;
-        if (createErr) throw new Error('No FOIA platform access. Contact your administrator.');
+        if (createErr) {
+          const createErrMsg = getErrorMessage(createErr, 'Profile provisioning failed');
+          if (createErrMsg.includes('Unauthorized profile provisioning attempt')) {
+            throw new Error('Signed in, but your session was not fully established. Please tap Sign In once more.');
+          }
+          throw new Error('No FOIA platform access. Contact your administrator.');
+        }
         navigate(derivedRole === 'admin' ? '/foia/admin' : '/foia/va');
         return;
       }
 
       navigate(profile.role === 'admin' ? '/foia/admin' : '/foia/va');
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message
-        : typeof err === 'object' && err !== null && 'message' in err
-        ? String((err as { message: unknown }).message)
-        : 'Login failed';
-      setError(msg);
+      setError(getErrorMessage(err, 'Login failed'));
     } finally {
       setLoading(false);
     }

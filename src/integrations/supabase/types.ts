@@ -549,11 +549,17 @@ export type Database = {
         Row: {
           county_id: string | null
           created_at: string | null
+          data_format: string | null
+          data_quality_score: number | null
           data_years_requested: string | null
+          fulfillment_file_url: string | null
+          fulfillment_received_at: string | null
           id: string
           invoice_amount: number | null
           invoice_paid: boolean | null
+          is_snap_usable: boolean | null
           notes: string | null
+          parsed_status: string | null
           press_account_id: string | null
           request_date: string
           request_method: string | null
@@ -569,11 +575,17 @@ export type Database = {
         Insert: {
           county_id?: string | null
           created_at?: string | null
+          data_format?: string | null
+          data_quality_score?: number | null
           data_years_requested?: string | null
+          fulfillment_file_url?: string | null
+          fulfillment_received_at?: string | null
           id?: string
           invoice_amount?: number | null
           invoice_paid?: boolean | null
+          is_snap_usable?: boolean | null
           notes?: string | null
+          parsed_status?: string | null
           press_account_id?: string | null
           request_date?: string
           request_method?: string | null
@@ -589,11 +601,17 @@ export type Database = {
         Update: {
           county_id?: string | null
           created_at?: string | null
+          data_format?: string | null
+          data_quality_score?: number | null
           data_years_requested?: string | null
+          fulfillment_file_url?: string | null
+          fulfillment_received_at?: string | null
           id?: string
           invoice_amount?: number | null
           invoice_paid?: boolean | null
+          is_snap_usable?: boolean | null
           notes?: string | null
+          parsed_status?: string | null
           press_account_id?: string | null
           request_date?: string
           request_method?: string | null
@@ -1637,6 +1655,7 @@ export type Database = {
           is_duplicate: boolean
           jurisdiction_name: string
           population: number | null
+          portal_difficulty_score: number | null
           source_file: string | null
           state: string
           target_type: string
@@ -1650,6 +1669,7 @@ export type Database = {
           is_duplicate?: boolean
           jurisdiction_name: string
           population?: number | null
+          portal_difficulty_score?: number | null
           source_file?: string | null
           state: string
           target_type: string
@@ -1663,6 +1683,7 @@ export type Database = {
           is_duplicate?: boolean
           jurisdiction_name?: string
           population?: number | null
+          portal_difficulty_score?: number | null
           source_file?: string | null
           state?: string
           target_type?: string
@@ -2657,6 +2678,21 @@ export type Database = {
           state: string
         }[]
       }
+      fn_fulfillment_overview: {
+        Args: never
+        Returns: {
+          avg_quality: number
+          avg_response_days: number
+          file_upload_rate: number
+          format_csv: number
+          format_image: number
+          format_mixed: number
+          format_other: number
+          format_pdf: number
+          total_fulfilled: number
+          with_file: number
+        }[]
+      }
       fn_get_current_usage: { Args: { p_user_id: string }; Returns: Json }
       fn_get_list_properties: {
         Args: { p_list_id: string; p_page?: number; p_page_size?: number }
@@ -2717,6 +2753,29 @@ export type Database = {
             Returns: boolean
           }
       fn_job_status: { Args: { p_job_id: string }; Returns: Json }
+      fn_jurisdiction_intelligence: {
+        Args: never
+        Returns: {
+          avg_data_quality: number
+          avg_response_days: number
+          county: string
+          fulfilled_count: number
+          fulfillment_rate: number
+          hostility_score: number
+          jis: number
+          jurisdiction_name: string
+          needs_review_count: number
+          no_portal_count: number
+          population: number
+          portal_difficulty_score: number
+          rejected_count: number
+          rejection_rate: number
+          state: string
+          target_id: string
+          target_type: string
+          total_requests: number
+        }[]
+      }
       fn_jurisdiction_stats: {
         Args: never
         Returns: {
@@ -2922,6 +2981,18 @@ export type Database = {
       fn_start_trial: {
         Args: { p_trial_tier: string; p_user_id: string }
         Returns: Json
+      }
+      fn_state_response_analytics: {
+        Args: never
+        Returns: {
+          avg_data_quality: number
+          avg_response_days: number
+          fulfilled_count: number
+          fulfillment_rate: number
+          rejection_rate: number
+          state: string
+          total_requests: number
+        }[]
       }
       fn_update_user_states: { Args: { p_states: string[] }; Returns: Json }
       fn_user_needs_state_selection: { Args: never; Returns: boolean }

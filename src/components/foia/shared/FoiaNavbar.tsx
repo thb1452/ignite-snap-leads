@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, FileText, Users, Database, RotateCw, Newspaper, ClipboardList } from 'lucide-react';
+import { LogOut, FileText, Users, Database, RotateCw, Newspaper, ClipboardList, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFoiaAuth } from '@/lib/foia/hooks';
 import { clearProfileCache } from '@/lib/foia/auth';
@@ -23,6 +23,7 @@ export function FoiaNavbar() {
     { href: '/foia/admin/assignments', label: 'Assign', icon: ClipboardList },
     { href: '/foia/admin/rotation', label: 'Rotation', icon: RotateCw },
     { href: '/foia/admin/press-accounts', label: 'Press Accounts', icon: Newspaper },
+    { href: '/foia/admin/intelligence', label: 'Intelligence', icon: BarChart3 },
   ];
 
   const vaLinks = [

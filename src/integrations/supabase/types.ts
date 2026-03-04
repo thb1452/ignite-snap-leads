@@ -406,6 +406,52 @@ export type Database = {
         }
         Relationships: []
       }
+      foia_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          target_id: string
+          va_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          target_id: string
+          va_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          target_id?: string
+          va_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foia_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "foia_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foia_assignments_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foia_assignments_va_id_fkey"
+            columns: ["va_id"]
+            isOneToOne: false
+            referencedRelation: "foia_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       foia_invites: {
         Row: {
           accepted: boolean
@@ -472,11 +518,17 @@ export type Database = {
           invoice_amount: number | null
           invoice_paid: boolean | null
           notes: string | null
+          press_account_id: string | null
           request_date: string
           request_method: string | null
           requested_by: string
           response_date: string | null
+          response_received_at: string | null
+          sent_at: string | null
           status: string | null
+          target_id: string | null
+          updated_at: string
+          va_id: string | null
         }
         Insert: {
           county_id?: string | null
@@ -486,11 +538,17 @@ export type Database = {
           invoice_amount?: number | null
           invoice_paid?: boolean | null
           notes?: string | null
+          press_account_id?: string | null
           request_date?: string
           request_method?: string | null
           requested_by: string
           response_date?: string | null
+          response_received_at?: string | null
+          sent_at?: string | null
           status?: string | null
+          target_id?: string | null
+          updated_at?: string
+          va_id?: string | null
         }
         Update: {
           county_id?: string | null
@@ -500,11 +558,17 @@ export type Database = {
           invoice_amount?: number | null
           invoice_paid?: boolean | null
           notes?: string | null
+          press_account_id?: string | null
           request_date?: string
           request_method?: string | null
           requested_by?: string
           response_date?: string | null
+          response_received_at?: string | null
+          sent_at?: string | null
           status?: string | null
+          target_id?: string | null
+          updated_at?: string
+          va_id?: string | null
         }
         Relationships: [
           {
@@ -512,6 +576,27 @@ export type Database = {
             columns: ["county_id"]
             isOneToOne: false
             referencedRelation: "counties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foia_requests_press_account_id_fkey"
+            columns: ["press_account_id"]
+            isOneToOne: false
+            referencedRelation: "press_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foia_requests_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foia_requests_va_id_fkey"
+            columns: ["va_id"]
+            isOneToOne: false
+            referencedRelation: "foia_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -756,6 +841,75 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      press_accounts: {
+        Row: {
+          created_at: string
+          domain: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
+      press_rotation: {
+        Row: {
+          created_at: string
+          id: string
+          press_account_id: string
+          rotation_month: string
+          target_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          press_account_id: string
+          rotation_month: string
+          target_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          press_account_id?: string
+          rotation_month?: string
+          target_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "press_rotation_press_account_id_fkey"
+            columns: ["press_account_id"]
+            isOneToOne: false
+            referencedRelation: "press_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "press_rotation_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1380,6 +1534,48 @@ export type Database = {
           skip_traces_count?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      targets: {
+        Row: {
+          county: string | null
+          created_at: string
+          foia_url: string | null
+          id: string
+          is_duplicate: boolean
+          jurisdiction_name: string
+          population: number | null
+          source_file: string | null
+          state: string
+          target_type: string
+          url_hash: string | null
+        }
+        Insert: {
+          county?: string | null
+          created_at?: string
+          foia_url?: string | null
+          id?: string
+          is_duplicate?: boolean
+          jurisdiction_name: string
+          population?: number | null
+          source_file?: string | null
+          state: string
+          target_type: string
+          url_hash?: string | null
+        }
+        Update: {
+          county?: string | null
+          created_at?: string
+          foia_url?: string | null
+          id?: string
+          is_duplicate?: boolean
+          jurisdiction_name?: string
+          population?: number | null
+          source_file?: string | null
+          state?: string
+          target_type?: string
+          url_hash?: string | null
         }
         Relationships: []
       }
@@ -2728,6 +2924,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_foia_admin: { Args: never; Returns: boolean }
       longtransactionsenabled: { Args: never; Returns: boolean }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }

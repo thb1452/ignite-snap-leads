@@ -2395,6 +2395,7 @@ export type Database = {
         Returns: undefined
       }
       consume_credit: { Args: { p_user_id: string }; Returns: number }
+      current_user_email: { Args: never; Returns: string }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
         | {

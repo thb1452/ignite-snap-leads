@@ -28,9 +28,12 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
     (persistedRequest?.status as FoiaRequestStatus) ?? 'pending'
   );
   const [notes, setNotes] = useState(persistedRequest?.notes ?? '');
+  const [foiaUrl, setFoiaUrl] = useState(item.foia_url ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [editingUrl, setEditingUrl] = useState(false);
+  const [savingUrl, setSavingUrl] = useState(false);
   const noteSaveTimerRef = useRef<number | null>(null);
 
   const pressAccount = item.press_account_this_month;
@@ -136,6 +139,25 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
     await persistRequest(nextStatus, notes, { showSavedBadge: false });
   };
 
+  const handleSaveUrl = async () => {
+    setSavingUrl(true);
+    try {
+      const trimmed = foiaUrl.trim();
+      const { error } = await db
+        .from('targets')
+        .update({ foia_url: trimmed || null })
+        .eq('id', item.id);
+      if (error) throw error;
+      setEditingUrl(false);
+      toast({ title: 'URL saved', description: 'FOIA portal URL updated.' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save URL';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    } finally {
+      setSavingUrl(false);
+    }
+  };
+
   const handleNotesChange = (value: string) => {
     setNotes(value);
     if (noteSaveTimerRef.current) window.clearTimeout(noteSaveTimerRef.current);
@@ -184,16 +206,25 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
         <div className="flex items-center gap-2 flex-shrink-0">
           <StatusDropdown value={status} onChange={handleStatusChange} disabled={saving} />
 
-          {item.foia_url && (
+          {foiaUrl && !editingUrl ? (
             <a
-              href={item.foia_url}
+              href={foiaUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 bg-slate-900 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
+              onDoubleClick={(e) => { e.preventDefault(); setEditingUrl(true); }}
+              title="Double-click to edit URL"
             >
               Open FOIA <ExternalLink className="h-3 w-3" />
             </a>
-          )}
+          ) : !editingUrl ? (
+            <button
+              onClick={() => setEditingUrl(true)}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              + Add URL
+            </button>
+          ) : null}
 
           <button
             onClick={() => setExpanded(!expanded)}
@@ -203,6 +234,30 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
           </button>
         </div>
       </div>
+
+      {editingUrl && (
+        <div className="px-4 py-2 border-t border-slate-100 bg-blue-50 flex items-center gap-2">
+          <input
+            value={foiaUrl}
+            onChange={(e) => setFoiaUrl(e.target.value)}
+            placeholder="https://foia-portal-url.gov..."
+            className="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500"
+          />
+          <button
+            onClick={handleSaveUrl}
+            disabled={savingUrl}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium"
+          >
+            {savingUrl ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save URL'}
+          </button>
+          <button
+            onClick={() => { setEditingUrl(false); setFoiaUrl(item.foia_url ?? ''); }}
+            className="text-xs text-slate-500 hover:text-slate-700"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       {expanded && (
         <div className="px-4 pb-3 border-t border-slate-100 pt-3 bg-slate-50">

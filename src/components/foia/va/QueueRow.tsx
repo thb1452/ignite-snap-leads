@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ExternalLink, Save, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/foia/db';
 import { StatusDropdown } from './StatusDropdown';
 import type { FoiaRequest, FoiaRequestStatus, QueueItem } from '@/types/foia';
@@ -14,6 +15,7 @@ interface QueueRowProps {
 }
 
 export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<FoiaRequestStatus>(
     item.latest_request?.status ?? 'pending'
   );
@@ -65,6 +67,7 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
       }
 
       setSaved(true);
+      queryClient.invalidateQueries({ queryKey: ['va-dashboard'] });
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       console.error('Save failed:', err);

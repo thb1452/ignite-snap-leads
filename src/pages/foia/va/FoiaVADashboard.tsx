@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Send, CheckCircle, MapPin, ArrowRight, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { FoiaLayout } from '@/components/foia/shared/FoiaLayout';
 import { useFoiaAuth } from '@/lib/foia/hooks';
 import { db } from '@/lib/foia/db';
@@ -18,116 +19,109 @@ interface VAStats {
 
 export default function FoiaVADashboard() {
   const { profile } = useFoiaAuth();
-  const [stats, setStats] = useState<VAStats | null>(null);
-  const [priorityItems, setPriorityItems] = useState<QueueItem[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!profile) return;
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['va-dashboard', profile?.id],
+    queryFn: async () => {
+      if (!profile) throw new Error('No profile');
+      const currentMonth = getCurrentMonth();
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      weekStart.setHours(0, 0, 0, 0);
 
-    const fetch = async () => {
-      setLoading(true);
-      try {
-        const currentMonth = getCurrentMonth();
-        const weekStart = new Date();
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-        weekStart.setHours(0, 0, 0, 0);
+      const { data: assignments } = await db
+        .from('foia_assignments')
+        .select('target_id, target:targets(*)')
+        .eq('va_id', profile.id);
 
-        const { data: assignments } = await db
-          .from('foia_assignments')
-          .select('target_id, target:targets(*)')
-          .eq('va_id', profile.id);
+      const targetIds = (assignments || []).map((a: any) => a.target_id);
 
-        const targetIds = (assignments || []).map((a: any) => a.target_id);
+      const { data: requests } = await db
+        .from('foia_requests')
+        .select('*')
+        .eq('va_id', profile.id);
 
-        const { data: requests } = await db
-          .from('foia_requests')
-          .select('*')
-          .eq('va_id', profile.id);
+      const allRequests = (requests || []) as FoiaRequest[];
+      const weekRequests = allRequests.filter((r) =>
+        r.sent_at && new Date(r.sent_at) >= weekStart
+      );
 
-        const allRequests = (requests || []) as FoiaRequest[];
-        const weekRequests = allRequests.filter((r) =>
-          r.sent_at && new Date(r.sent_at) >= weekStart
-        );
-
-        const latestRequestMap = new Map<string, FoiaRequest>();
-        for (const req of allRequests) {
-          const existing = latestRequestMap.get(req.target_id);
-          if (!existing || new Date(req.updated_at) > new Date(existing.updated_at)) {
-            latestRequestMap.set(req.target_id, req);
-          }
+      const latestRequestMap = new Map<string, FoiaRequest>();
+      for (const req of allRequests) {
+        const existing = latestRequestMap.get(req.target_id);
+        if (!existing || new Date(req.updated_at) > new Date(existing.updated_at)) {
+          latestRequestMap.set(req.target_id, req);
         }
-
-        const { data: rotations } = targetIds.length > 0
-          ? await db
-              .from('press_rotation')
-              .select('*, press_account:press_accounts(*)')
-              .eq('rotation_month', currentMonth)
-              .in('target_id', targetIds)
-          : { data: [] };
-
-        const rotationMap = new Map<string, { name: string; domain: string; id: string }>();
-        for (const r of (rotations || [])) {
-          if (r.press_account) rotationMap.set(r.target_id, r.press_account);
-        }
-
-        const items: QueueItem[] = (assignments || [])
-          .filter((a: any) => a.target)
-          .map((a: any) => {
-            const target = a.target as QueueItem;
-            const latestReq = latestRequestMap.get(a.target_id);
-            const pressAccount = rotationMap.get(a.target_id);
-            return {
-              ...target,
-              latest_request: latestReq,
-              press_account_this_month: pressAccount ? {
-                id: pressAccount.id,
-                name: pressAccount.name,
-                domain: pressAccount.domain,
-                email: null,
-                notes: null,
-                is_active: true,
-                created_at: '',
-              } : undefined,
-            };
-          });
-
-        items.sort((a, b) => {
-          const aSent = a.latest_request?.sent_at;
-          const bSent = b.latest_request?.sent_at;
-          if (!aSent && !bSent) return 0;
-          if (!aSent) return -1;
-          if (!bSent) return 1;
-          const now = Date.now();
-          const aAge = now - new Date(aSent).getTime();
-          const bAge = now - new Date(bSent).getTime();
-          const sixtyDays = 60 * 24 * 60 * 60 * 1000;
-          const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-          const aScore = aAge > sixtyDays ? 2 : aAge > thirtyDays ? 1 : 0;
-          const bScore = bAge > sixtyDays ? 2 : bAge > thirtyDays ? 1 : 0;
-          return bScore - aScore;
-        });
-
-        const fulfilled = allRequests.filter((r) => r.status === 'fulfilled');
-        const sent = allRequests.filter((r) => ['sent', 'fulfilled', 'rejected'].includes(r.status));
-
-        setStats({
-          sent_this_week: weekRequests.length,
-          total_assigned: targetIds.length,
-          fulfilled: fulfilled.length,
-          response_rate: sent.length > 0 ? (fulfilled.length / sent.length) * 100 : 0,
-        });
-
-        setPriorityItems(items.slice(0, 10));
-      } catch (err) {
-        console.error('Failed to load VA dashboard:', err);
-      } finally {
-        setLoading(false);
       }
-    };
 
-    fetch();
-  }, [profile]);
+      const { data: rotations } = targetIds.length > 0
+        ? await db
+            .from('press_rotation')
+            .select('*, press_account:press_accounts(*)')
+            .eq('rotation_month', currentMonth)
+            .in('target_id', targetIds)
+        : { data: [] };
+
+      const rotationMap = new Map<string, { name: string; domain: string; id: string }>();
+      for (const r of (rotations || [])) {
+        if (r.press_account) rotationMap.set(r.target_id, r.press_account);
+      }
+
+      const items: QueueItem[] = (assignments || [])
+        .filter((a: any) => a.target)
+        .map((a: any) => {
+          const target = a.target as QueueItem;
+          const latestReq = latestRequestMap.get(a.target_id);
+          const pressAccount = rotationMap.get(a.target_id);
+          return {
+            ...target,
+            latest_request: latestReq,
+            press_account_this_month: pressAccount ? {
+              id: pressAccount.id,
+              name: pressAccount.name,
+              domain: pressAccount.domain,
+              email: null,
+              notes: null,
+              is_active: true,
+              created_at: '',
+            } : undefined,
+          };
+        });
+
+      items.sort((a, b) => {
+        const aSent = a.latest_request?.sent_at;
+        const bSent = b.latest_request?.sent_at;
+        if (!aSent && !bSent) return 0;
+        if (!aSent) return -1;
+        if (!bSent) return 1;
+        const now = Date.now();
+        const aAge = now - new Date(aSent).getTime();
+        const bAge = now - new Date(bSent).getTime();
+        const sixtyDays = 60 * 24 * 60 * 60 * 1000;
+        const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+        const aScore = aAge > sixtyDays ? 2 : aAge > thirtyDays ? 1 : 0;
+        const bScore = bAge > sixtyDays ? 2 : bAge > thirtyDays ? 1 : 0;
+        return bScore - aScore;
+      });
+
+      const fulfilled = allRequests.filter((r) => r.status === 'fulfilled');
+      const sent = allRequests.filter((r) => ['sent', 'fulfilled', 'rejected'].includes(r.status));
+
+      const stats: VAStats = {
+        sent_this_week: weekRequests.length,
+        total_assigned: targetIds.length,
+        fulfilled: fulfilled.length,
+        response_rate: sent.length > 0 ? (fulfilled.length / sent.length) * 100 : 0,
+      };
+
+      return { stats, priorityItems: items.slice(0, 10) };
+    },
+    enabled: !!profile,
+    staleTime: 0, // Always refetch when navigating back
+  });
+
+  const stats = data?.stats ?? null;
+  const priorityItems = data?.priorityItems ?? [];
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',

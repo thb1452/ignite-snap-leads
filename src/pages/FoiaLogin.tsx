@@ -129,6 +129,20 @@ export default function FoiaLogin() {
           );
           const { error: createErr } = signupResult;
           if (createErr) {
+            // If the RPC itself is also missing from the schema cache, the
+            // database migrations still haven't been applied — show the original
+            // actionable message instead of a misleading "access" error.
+            const isRpcSchemaError =
+              (createErr as any)?.code === 'PGRST200' ||
+              (createErr as any)?.code === 'PGRST202' ||
+              String((createErr as any)?.message ?? '').toLowerCase().includes('schema cache') ||
+              String((createErr as any)?.message ?? '').toLowerCase().includes('could not find the function');
+            if (isRpcSchemaError) {
+              throw new Error(
+                'The FOIA platform database is not yet configured. ' +
+                'Please ask your administrator to apply the pending database migrations.'
+              );
+            }
             throw new Error('FOIA access is not available on this deployment yet. Please contact your administrator.');
           }
 

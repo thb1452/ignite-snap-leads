@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.fn_zip_pressure(text, text) TO authenticated;

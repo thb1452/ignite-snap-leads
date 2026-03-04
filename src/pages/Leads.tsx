@@ -25,6 +25,7 @@ import { useDemoCredits } from "@/hooks/useDemoCredits";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
+import { PersonalStatsBar } from "@/components/leads/PersonalStatsBar";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
@@ -144,7 +145,8 @@ function Leads() {
     if (selectedCity) count++;
     if (selectedState) count++;
     if (selectedSignal) count++;
-    if (openViolationsOnly) count++;
+    // openViolationsOnly defaults to true, so don't count it unless user turned it off and back on
+    // We only count non-default filter states
     if (multipleViolationsOnly) count++;
     if (repeatOffenderOnly) count++;
     // Count SnapScore if not default range
@@ -589,6 +591,7 @@ function Leads() {
 
         {/* Spacer + Actions */}
         <div className="flex-1" />
+        <PersonalStatsBar />
         <FreshnessIndicator />
         <Button variant="ghost" size="sm" onClick={handleClearFilters} disabled={!activeFilterCount} className="h-7 px-2 text-xs gap-1">
           <X className="h-3 w-3" /> Clear
@@ -641,32 +644,37 @@ function Leads() {
           />
         </div>
 
-        {/* Freshness indicator + Saved toggle + View Toggle */}
-        <div className="flex items-center justify-between px-3 pb-2">
-          <FreshnessIndicator />
-          <div className="inline-flex rounded-lg border bg-muted p-1">
-            <button
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                mobileView === 'list'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => setMobileView('list')}
-            >
-              <List className="h-4 w-4" />
-              List
-            </button>
-            <button
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                mobileView === 'map'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => setMobileView('map')}
-            >
-              <MapIcon className="h-4 w-4" />
-              Map
-            </button>
+        {/* Stats + View Toggle */}
+        <div className="flex flex-col gap-1.5 px-3 pb-2">
+          <div className="flex items-center justify-between">
+            <PersonalStatsBar />
+          </div>
+          <div className="flex items-center justify-between">
+            <FreshnessIndicator />
+            <div className="inline-flex rounded-lg border bg-muted p-1">
+              <button
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  mobileView === 'list'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setMobileView('list')}
+              >
+                <List className="h-4 w-4" />
+                List
+              </button>
+              <button
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  mobileView === 'map'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setMobileView('map')}
+              >
+                <MapIcon className="h-4 w-4" />
+                Map
+              </button>
+            </div>
           </div>
         </div>
 

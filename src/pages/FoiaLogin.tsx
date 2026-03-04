@@ -104,23 +104,38 @@ export default function FoiaLogin() {
       );
       const { data: profile, error: profileErr } = profileResult;
 
-      // Surface any profile-lookup error rather than silently treating it as
-      // "no profile" — which would wrongly send the user down the auto-create
-      // path and ultimately show a misleading "No FOIA platform access" error.
+      // Surface profile-lookup errors, but auto-recover when PostgREST schema
+      // cache is stale by provisioning the FOIA profile via RPC.
       if (profileErr) {
-        // PGRST200 means PostgREST can't find the table in its schema cache,
-        // which happens when the FOIA database migrations have not yet been
-        // applied to the Supabase project. Show a clear, actionable message
-        // instead of the raw PostgREST error.
         const isSchemaError =
           (profileErr as any)?.code === 'PGRST200' ||
           String((profileErr as any)?.message ?? '').includes('schema cache');
+
         if (isSchemaError) {
-          throw new Error(
-            'The FOIA platform database is not yet configured. ' +
-            'Please ask your administrator to apply the pending database migrations.'
+          const derivedName = user.user_metadata?.full_name
+            ?? user.email?.split('@')[0]
+            ?? 'User';
+          const derivedRole = await resolveFoiaRole(user.id);
+
+          const signupResult: any = await withTimeout(
+            rpc('complete_foia_signup', {
+              p_user_id: user.id,
+              p_email: user.email ?? email,
+              p_full_name: derivedName,
+              p_role: derivedRole,
+              p_token: null,
+            }),
+            'Account provisioning timed out. Please try again.'
           );
+          const { error: createErr } = signupResult;
+          if (createErr) {
+            throw new Error('FOIA access is not available on this deployment yet. Please contact your administrator.');
+          }
+
+          navigate(derivedRole === 'admin' ? '/foia/admin' : '/foia/va');
+          return;
         }
+
         throw profileErr;
       }
 

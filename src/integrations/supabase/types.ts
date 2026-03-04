@@ -2691,9 +2691,10 @@ export type Database = {
         Args: never
         Returns: {
           avg_estimated_rows: number
-          avg_fee: number
+          avg_fee_nonzero: number
           avg_quality: number
           avg_response_days: number
+          fee_incidence_rate: number
           file_upload_rate: number
           format_csv: number
           format_image: number
@@ -2771,8 +2772,11 @@ export type Database = {
         Returns: {
           avg_data_quality: number
           avg_fee_amount: number
+          avg_fee_nonzero: number
           avg_response_days: number
           county: string
+          fee_incidence_rate: number
+          fee_risk: string
           fulfilled_count: number
           fulfillment_rate: number
           hostility_score: number
@@ -2782,9 +2786,12 @@ export type Database = {
           no_portal_count: number
           population: number
           portal_difficulty_score: number
+          redaction_pattern: string
           redaction_pct: number
           rejected_count: number
           rejection_rate: number
+          rejection_tier: string
+          speed_tier: string
           state: string
           target_id: string
           target_type: string
@@ -3002,7 +3009,9 @@ export type Database = {
         Returns: {
           avg_data_quality: number
           avg_fee_amount: number
+          avg_fee_nonzero: number
           avg_response_days: number
+          fee_incidence_rate: number
           fulfilled_count: number
           fulfillment_rate: number
           redaction_pct: number

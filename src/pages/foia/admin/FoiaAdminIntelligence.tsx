@@ -27,9 +27,15 @@ interface JurisdictionIntel {
   avg_response_days: number;
   avg_data_quality: number;
   avg_fee_amount: number;
+  fee_incidence_rate: number;
+  avg_fee_nonzero: number;
   redaction_pct: number;
   hostility_score: number;
   jis: number;
+  speed_tier: string;
+  rejection_tier: string;
+  fee_risk: string;
+  redaction_pattern: string;
 }
 
 interface StateAnalytics {
@@ -41,6 +47,8 @@ interface StateAnalytics {
   rejection_rate: number;
   avg_data_quality: number;
   avg_fee_amount: number;
+  fee_incidence_rate: number;
+  avg_fee_nonzero: number;
   redaction_pct: number;
 }
 
@@ -55,7 +63,8 @@ interface FulfillmentOverview {
   format_mixed: number;
   format_other: number;
   avg_response_days: number;
-  avg_fee: number;
+  fee_incidence_rate: number;
+  avg_fee_nonzero: number;
   total_fees: number;
   redacted_count: number;
   avg_estimated_rows: number;
@@ -109,6 +118,11 @@ function DifficultyStars({ score }: { score: number | null }) {
   );
 }
 
+function TierBadge({ tier, map }: { tier: string; map: Record<string, string> }) {
+  const style = map[tier] ?? 'bg-slate-100 text-slate-600';
+  return <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded', style)}>{tier}</span>;
+}
+
 type SortField = 'jis' | 'fulfillment_rate' | 'avg_response_days' | 'rejection_rate' | 'hostility_score' | 'avg_data_quality';
 type Tab = 'ranking' | 'states' | 'hostile' | 'fastest' | 'slowest';
 
@@ -142,9 +156,15 @@ export default function FoiaAdminIntelligence() {
           avg_response_days: Number(r.avg_response_days),
           avg_data_quality: Number(r.avg_data_quality),
           avg_fee_amount: Number(r.avg_fee_amount || 0),
+          fee_incidence_rate: Number(r.fee_incidence_rate || 0),
+          avg_fee_nonzero: Number(r.avg_fee_nonzero || 0),
           redaction_pct: Number(r.redaction_pct || 0),
           hostility_score: Number(r.hostility_score),
           jis: Number(r.jis),
+          speed_tier: r.speed_tier || 'DEAD',
+          rejection_tier: r.rejection_tier || 'LOW',
+          fee_risk: r.fee_risk || 'NONE',
+          redaction_pattern: r.redaction_pattern || 'CLEAN',
         })));
         setStateAnalytics((sData || []).map((r: any) => ({
           ...r,
@@ -155,6 +175,8 @@ export default function FoiaAdminIntelligence() {
           rejection_rate: Number(r.rejection_rate),
           avg_data_quality: Number(r.avg_data_quality),
           avg_fee_amount: Number(r.avg_fee_amount || 0),
+          fee_incidence_rate: Number(r.fee_incidence_rate || 0),
+          avg_fee_nonzero: Number(r.avg_fee_nonzero || 0),
           redaction_pct: Number(r.redaction_pct || 0),
         })));
         if (oData) {
@@ -170,7 +192,8 @@ export default function FoiaAdminIntelligence() {
             format_mixed: Number(o.format_mixed),
             format_other: Number(o.format_other),
             avg_response_days: Number(o.avg_response_days || 0),
-            avg_fee: Number(o.avg_fee || 0),
+            fee_incidence_rate: Number(o.fee_incidence_rate || 0),
+            avg_fee_nonzero: Number(o.avg_fee_nonzero || 0),
             total_fees: Number(o.total_fees || 0),
             redacted_count: Number(o.redacted_count || 0),
             avg_estimated_rows: Number(o.avg_estimated_rows || 0),
@@ -244,12 +267,12 @@ export default function FoiaAdminIntelligence() {
         )}
 
         {/* Fee & Redaction Intelligence */}
-        {overview && !loading && (overview.avg_fee > 0 || overview.redacted_count > 0 || overview.avg_estimated_rows > 0) && (
+        {overview && !loading && (overview.fee_incidence_rate > 0 || overview.redacted_count > 0 || overview.avg_estimated_rows > 0) && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard icon={BarChart3} label="Avg Fee" value={overview.avg_fee > 0 ? `$${overview.avg_fee.toFixed(2)}` : 'None'} color="bg-indigo-600" sub={overview.total_fees > 0 ? `$${overview.total_fees.toFixed(2)} total` : undefined} />
+            <StatCard icon={BarChart3} label="Fee Incidence" value={`${overview.fee_incidence_rate}%`} color="bg-indigo-600" sub={overview.avg_fee_nonzero > 0 ? `Avg $${overview.avg_fee_nonzero.toFixed(2)} when charged` : undefined} />
             <StatCard icon={Shield} label="Redacted Responses" value={overview.redacted_count} color="bg-orange-600" />
             <StatCard icon={TrendingUp} label="Avg Data Rows" value={overview.avg_estimated_rows > 0 ? overview.avg_estimated_rows.toLocaleString() : '—'} color="bg-cyan-600" />
-            <StatCard icon={FileCheck} label="Total Fulfilled" value={overview.total_fulfilled} color="bg-emerald-600" />
+            <StatCard icon={FileCheck} label="Total Fulfilled" value={overview.total_fulfilled} color="bg-emerald-600" sub={overview.total_fees > 0 ? `$${overview.total_fees.toFixed(2)} total fees` : undefined} />
           </div>
         )}
 
@@ -305,6 +328,7 @@ export default function FoiaAdminIntelligence() {
                   <TableHead>Difficulty</TableHead>
                   <SortHeader field="hostility_score">Hostility</SortHeader>
                   <SortHeader field="jis">JIS</SortHeader>
+                  <TableHead>Flags</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -328,10 +352,18 @@ export default function FoiaAdminIntelligence() {
                       </span>
                     </TableCell>
                     <TableCell><JisBar value={j.jis} /></TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        <TierBadge tier={j.speed_tier} map={{ FAST: 'bg-green-100 text-green-700', MEDIUM: 'bg-yellow-100 text-yellow-700', SLOW: 'bg-orange-100 text-orange-700', DEAD: 'bg-red-100 text-red-700' }} />
+                        {j.rejection_tier !== 'LOW' && <TierBadge tier={j.rejection_tier} map={{ MODERATE: 'bg-amber-100 text-amber-700', HIGH: 'bg-red-100 text-red-700' }} />}
+                        {j.fee_risk !== 'NONE' && <TierBadge tier={j.fee_risk} map={{ OCCASIONAL: 'bg-blue-100 text-blue-700', FREQUENT: 'bg-purple-100 text-purple-700' }} />}
+                        {j.redaction_pattern !== 'CLEAN' && <TierBadge tier={j.redaction_pattern} map={{ PARTIAL: 'bg-orange-100 text-orange-700', HEAVY: 'bg-red-100 text-red-700' }} />}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {sorted.length === 0 && (
-                  <TableRow><TableCell colSpan={10} className="text-center text-slate-400 py-8">No request data yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center text-slate-400 py-8">No request data yet</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

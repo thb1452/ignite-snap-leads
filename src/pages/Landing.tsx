@@ -768,7 +768,7 @@ export default function Landing() {
               {
                 name: "Elite",
                 price: pricing.enterprise[billingCycle],
-                description: "For teams running enforcement-first strategies. Limited to 500 members.",
+                description: "For teams running enforcement-first strategies.",
                 features: [
                   "25,000 monthly enforcement reports",
                   "All Pro features",
@@ -1029,10 +1029,6 @@ export default function Landing() {
                 {
                   question: "Do I need PropStream to use Snap Ignite?",
                   answer: "No. Snap Ignite is a standalone enforcement intelligence platform. Many users also use PropStream or BatchLeads for ownership and equity data, and Snap fits naturally into that workflow — but it is not required."
-                },
-                {
-                  question: "Why the 500-member Elite limit?",
-                  answer: "The 500-member cap applies only to our Elite tier and protects the competitive advantage of our most serious operators. Elite includes water shutoff data and the highest export limits (15,000/month). If we allowed unlimited Elite members, the data advantage would dilute as more operators work the same enforcement signals. The cap ensures Elite members get genuine first-mover advantage on the most urgent enforcement cases. Starter and Pro tiers have no user limits."
                 },
                 {
                   question: "What cities do you cover?",

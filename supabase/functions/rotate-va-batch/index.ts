@@ -133,33 +133,24 @@ async function handleAutoAssignAll(db: any, json: Function) {
   }
   await db.from("va_credential_slots").insert(slotInserts);
 
-  // 4. Get all unassigned targets
-  const { data: existingAssignments } = await db
-    .from("foia_assignments")
-    .select("target_id");
-  const assignedSet = new Set((existingAssignments || []).map((a: any) => a.target_id));
-
+  // 4. Get ALL non-duplicate targets — we clear all assignments below, so every
+  //    target (previously assigned or not) must be re-distributed.
   const { data: allTargets } = await db
     .from("targets")
     .select("id")
     .eq("is_duplicate", false);
 
-  let unassigned = (allTargets || [])
-    .filter((t: any) => !assignedSet.has(t.id))
-    .map((t: any) => t.id);
+  // 5. Shuffle the full target pool once (Fisher-Yates via the shared helper)
+  let remainingTargets: string[] = shuffle((allTargets || []).map((t: any) => t.id));
 
-  // 5. Apply 5-month cooldown filter per credential
+  // 6. Clear ALL existing assignments — full redistribution
+  await db.from("foia_assignments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+  // 7. Cooldown cutoff date
   const cooldownDate = new Date();
   cooldownDate.setMonth(cooldownDate.getMonth() - COOLDOWN_MONTHS);
 
-  // 6. Shuffle unassigned targets
-  shuffle(unassigned);
-
-  // 7. Clear existing assignments and reassign
-  await db.from("foia_assignments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-
   const results: any[] = [];
-  let offset = 0;
 
   for (let vi = 0; vi < vas.length; vi++) {
     const va = vas[vi];
@@ -174,10 +165,13 @@ async function handleAutoAssignAll(db: any, json: Function) {
       .gte("used_at", cooldownDate.toISOString());
     const cooledSet = new Set((cooldownEntries || []).map((c: any) => c.target_id));
 
-    // Filter available targets (not on cooldown for this credential)
-    const available = unassigned.slice(offset).filter((id: string) => !cooledSet.has(id));
+    // Filter the shared remaining pool by this credential's cooldown
+    const available = remainingTargets.filter((id: string) => !cooledSet.has(id));
     const batch = available.slice(0, BATCH_SIZE);
-    offset += batch.length;
+
+    // Remove assigned targets from the remaining pool so no VA gets duplicates
+    const batchSet = new Set(batch);
+    remainingTargets = remainingTargets.filter((id: string) => !batchSet.has(id));
 
     // Insert assignments in batches of 200
     for (let i = 0; i < batch.length; i += 200) {

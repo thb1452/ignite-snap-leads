@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Lock, Loader2, Crown, Shield, AlertTriangle } from "lucide-react";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
-import { useEliteCapacity } from "@/hooks/useEliteCapacity";
+
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -110,7 +110,7 @@ export default function Pricing() {
   const { user, signOut } = useAuth();
   const { isOnTrial, hasTrialExpired, trialDaysRemaining, trialExportsRemaining, trialTier, hasActiveSubscription: hasTrialActive, subscriptionStatus } = useTrialStatus();
   const { subscription, hasActiveSubscription: hasPaidSubscription, refetch: refetchSubscription } = useSubscription();
-  const { spotsRemaining: eliteSpotsRemaining, isFull: isEliteFull } = useEliteCapacity();
+  
   const billingCycle = "monthly" as const;
   const [trialModalOpen, setTrialModalOpen] = useState(false);
   const [selectedTrialTier, setSelectedTrialTier] = useState('starter');
@@ -207,10 +207,6 @@ export default function Pricing() {
     // If user already has an active paid subscription for this tier, go to settings
     if (isActivePaid && activePlanName === tier.name) {
       navigate('/settings');
-      return;
-    }
-    if (tier.name === 'enterprise' && isEliteFull) {
-      window.location.href = 'mailto:hello@snapignite.com?subject=Elite%20Waitlist&body=I%20would%20like%20to%20join%20the%20Elite%20tier%20waitlist.';
       return;
     }
     if (isOnTrial) {
@@ -327,8 +323,6 @@ export default function Pricing() {
           >
             {isUpgrading ? (
               <><Loader2 className="mr-2 w-4 h-4 animate-spin" /> Redirecting…</>
-            ) : tier.name === 'enterprise' && isEliteFull ? (
-              'Join Waitlist'
             ) : isActivePaid ? (
               isCurrent ? 'Your Active Plan' : `Switch to ${tier.display_name}`
             ) : isOnTrial ? (

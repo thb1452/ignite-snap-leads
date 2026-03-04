@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
-import { useEliteCapacity } from "@/hooks/useEliteCapacity";
+
 import { 
   Target, 
   Clock, 
@@ -56,56 +56,6 @@ function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number; s
   return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
 }
 
-// Elite tier scarcity badge - shows live counter of remaining Elite spots
-function EliteScarcityBadge({ compact = false }: { compact?: boolean }) {
-  const { spotsRemaining, isFull, loading } = useEliteCapacity();
-
-  if (loading) return null;
-
-  if (isFull) {
-    return (
-      <div className={`inline-flex items-center gap-2 ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} rounded-full bg-red-500/20 border border-red-500/40 text-red-400`}>
-        <Lock className="w-3.5 h-3.5" />
-        <span className="font-medium">Waitlist Only — 500 member cap reached</span>
-      </div>
-    );
-  }
-
-  if (spotsRemaining <= 10) {
-    return (
-      <div className={`inline-flex items-center gap-2 ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} rounded-full bg-red-500/20 border border-red-500/40 text-red-400 animate-pulse`}>
-        <Lock className="w-3.5 h-3.5" />
-        <span className="font-medium">Only {spotsRemaining} Elite spots remaining</span>
-      </div>
-    );
-  }
-
-  if (spotsRemaining <= 50) {
-    return (
-      <div className={`inline-flex items-center gap-2 ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} rounded-full bg-landing-warning/20 border border-landing-warning/40 text-landing-warning`}>
-        <Lock className="w-3.5 h-3.5" />
-        <span className="font-medium">Only {spotsRemaining} Elite spots left</span>
-      </div>
-    );
-  }
-
-  if (spotsRemaining <= 100) {
-    return (
-      <div className={`inline-flex items-center gap-2 ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} rounded-full bg-landing-warning/20 border border-landing-warning/40 text-landing-warning`}>
-        <Lock className="w-3.5 h-3.5" />
-        <span className="font-medium">{spotsRemaining} of 500 Elite spots remaining</span>
-      </div>
-    );
-  }
-
-  // > 100 spots: softer messaging
-  return (
-    <div className={`inline-flex items-center gap-2 ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent`}>
-      <Lock className="w-3.5 h-3.5" />
-      <span className="font-medium">Limited to 500 Elite members</span>
-    </div>
-  );
-}
 
 const showcaseSlides = [
   { src: "/images/screenshot-map.png", alt: "Live Enforcement Map", address: "1247 Oakridge DR NW, Atlanta", score: 87, feature: "Live Enforcement Map" },
@@ -855,11 +805,6 @@ export default function Landing() {
                     <span className="text-landing-text-muted">/month</span>
                   </div>
                   <p className="text-landing-text-muted mt-2">{plan.description}</p>
-                  {(plan as any).isElite && (
-                    <div className="mt-3">
-                      <EliteScarcityBadge compact />
-                    </div>
-                  )}
                   {plan.tagline && (
                     <p className="text-xs text-landing-accent mt-2 font-medium italic">{plan.tagline}</p>
                   )}
@@ -1166,7 +1111,7 @@ export default function Landing() {
               transition={{ delay: 0.2 }}
               className="mb-8"
             >
-              <EliteScarcityBadge />
+              
             </motion.div>
             
             <motion.div 

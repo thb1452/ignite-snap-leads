@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ExternalLink, Save, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/foia/db';
@@ -24,8 +24,17 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const noteSaveTimerRef = useRef<number | null>(null);
 
   const pressAccount = item.press_account_this_month;
+
+  useEffect(() => {
+    return () => {
+      if (noteSaveTimerRef.current) {
+        window.clearTimeout(noteSaveTimerRef.current);
+      }
+    };
+  }, []);
 
   const persistRequest = async (
     nextStatus: FoiaRequestStatus,
@@ -36,6 +45,7 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
     try {
       const pressAccountId = pressAccount?.id ?? item.latest_request?.press_account_id ?? null;
       const showSavedBadge = options?.showSavedBadge ?? true;
+      const nowIso = new Date().toISOString();
 
       if (item.latest_request) {
         const { data, error } = await db
@@ -44,8 +54,9 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
             status: nextStatus,
             notes: nextNotes,
             press_account_id: pressAccountId,
+            updated_at: nowIso,
             ...(nextStatus === 'sent' && !item.latest_request.sent_at
-              ? { sent_at: new Date().toISOString() }
+              ? { sent_at: nowIso }
               : {}),
           })
           .eq('id', item.latest_request.id)
@@ -64,7 +75,8 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
             press_account_id: pressAccountId,
             status: nextStatus,
             notes: nextNotes,
-            sent_at: nextStatus === 'sent' ? new Date().toISOString() : null,
+            sent_at: nextStatus === 'sent' ? nowIso : null,
+            updated_at: nowIso,
           })
           .select('*')
           .single();
@@ -77,7 +89,7 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
 
       if (showSavedBadge) {
         setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+        setTimeout(() => setSaved(false), 1500);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save changes';
@@ -97,7 +109,27 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
     await persistRequest(nextStatus, notes, { showSavedBadge: false });
   };
 
+  const handleNotesChange = (value: string) => {
+    setNotes(value);
+
+    if (noteSaveTimerRef.current) {
+      window.clearTimeout(noteSaveTimerRef.current);
+    }
+
+    noteSaveTimerRef.current = window.setTimeout(() => {
+      const originalNotes = item.latest_request?.notes ?? '';
+      if (value !== originalNotes) {
+        void persistRequest(status, value, { showSavedBadge: true });
+      }
+    }, 350);
+  };
+
   const handleNotesBlur = async () => {
+    if (noteSaveTimerRef.current) {
+      window.clearTimeout(noteSaveTimerRef.current);
+      noteSaveTimerRef.current = null;
+    }
+
     const originalNotes = item.latest_request?.notes ?? '';
     if (notes !== originalNotes) {
       await persistRequest(status, notes, { showSavedBadge: true });
@@ -110,7 +142,6 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-      {/* Main row */}
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -157,7 +188,7 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
               <label className="block text-xs font-medium text-slate-500 mb-1">Notes</label>
               <textarea
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => handleNotesChange(e.target.value)}
                 onBlur={handleNotesBlur}
                 placeholder="Add notes about this request..."
                 rows={2}
@@ -195,4 +226,5 @@ export function QueueRow({ item, vaId, onSaved }: QueueRowProps) {
     </div>
   );
 }
+
 

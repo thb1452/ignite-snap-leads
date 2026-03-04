@@ -189,9 +189,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       },
     };
 
-    // Add 7-day trial period when requested
+    // Add 3-day trial period when requested
     if (trial) {
-      subscriptionData.trial_period_days = 7;
+      subscriptionData.trial_period_days = 3;
     }
 
     const session = await stripe.checkout.sessions.create({

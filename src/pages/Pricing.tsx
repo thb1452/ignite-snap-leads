@@ -330,7 +330,7 @@ export default function Pricing() {
             ) : hasUsedTrial ? (
               `Subscribe to ${tier.display_name}`
             ) : (
-              'Start 7-Day Free Trial'
+              'Start 3-Day Free Trial'
             )}
             {!isUpgrading && !( isActivePaid && isCurrent) && <ArrowRight className="ml-2 w-4 h-4" />}
            </Button>
@@ -554,9 +554,9 @@ export default function Pricing() {
                 <CardHeader><CardTitle className="text-lg">How does the free trial work?</CardTitle></CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    Start a 7-day trial — $0 due today. Enter your payment method at checkout and get 25 property
+                    Start a 3-day trial — $0 due today. Enter your payment method at checkout and get 25 property
                     exports to test data quality. Search unlimited properties, save favorites, and access tier-specific
-                    features. Your subscription begins automatically after 7 days, or cancel anytime before then.
+                    features. Your subscription begins automatically after 3 days, or cancel anytime before then.
                   </p>
                 </CardContent>
               </Card>

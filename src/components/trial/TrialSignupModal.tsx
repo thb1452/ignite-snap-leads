@@ -343,7 +343,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
           )}
 
           <p className="text-xs text-center text-muted-foreground">
-            Your trial starts immediately. No charges for 7 days.
+            Your trial starts immediately. No charges for 3 days.
             <br />
             Then ${tier.price}/month. Cancel anytime.
           </p>

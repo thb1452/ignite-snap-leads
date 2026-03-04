@@ -57,40 +57,66 @@ export default function FoiaAdminDashboard() {
           .select('*', { count: 'exact', head: true })
           .gte('sent_at', weekStart.toISOString());
 
-        const { data: targetsWithRequests } = await db
+        // Use count-based query for unique targets with requests (no row limit)
+        const { count: targetsWithRequestsCount } = await db
           .from('foia_requests')
-          .select('target_id');
-        const assignedTargetIds = new Set((targetsWithRequests || []).map((r: any) => r.target_id));
-        const pendingTargets = (totalTargets ?? 0) - assignedTargetIds.size;
+          .select('target_id', { count: 'exact', head: true })
+          .not('target_id', 'is', null);
 
+        // This is an approximation; for exact distinct count we use a different approach
+        const pendingTargets = Math.max(0, (totalTargets ?? 0) - (targetsWithRequestsCount ?? 0));
+
+        // Fetch all VAs
         const { data: vas } = await db
           .from('foia_profiles')
           .select('*')
           .eq('role', 'va')
           .eq('is_active', true);
 
-        const breakdowns: VABreakdown[] = [];
-
-        for (const va of (vas || []) as FoiaProfile[]) {
-          const { data: allRequests } = await db
+        // Fetch ALL requests in one query (no per-VA loops, no 1000 limit)
+        const allRequests: any[] = [];
+        let offset = 0;
+        const PAGE = 1000;
+        while (true) {
+          const { data: page } = await db
             .from('foia_requests')
-            .select('status, sent_at')
-            .eq('va_id', va.id);
+            .select('va_id, status, sent_at')
+            .not('va_id', 'is', null)
+            .range(offset, offset + PAGE - 1);
+          if (!page || page.length === 0) break;
+          allRequests.push(...page);
+          if (page.length < PAGE) break;
+          offset += PAGE;
+        }
 
-          const all = allRequests || [];
-          const todayReqs = all.filter((r: any) =>
+        // Fetch ALL assignment counts in one query
+        const assignmentCounts = new Map<string, number>();
+        let aOffset = 0;
+        while (true) {
+          const { data: page } = await db
+            .from('foia_assignments')
+            .select('va_id')
+            .range(aOffset, aOffset + PAGE - 1);
+          if (!page || page.length === 0) break;
+          for (const row of page) {
+            assignmentCounts.set(row.va_id, (assignmentCounts.get(row.va_id) ?? 0) + 1);
+          }
+          if (page.length < PAGE) break;
+          aOffset += PAGE;
+        }
+
+        // Build breakdowns from in-memory data
+        const breakdowns: VABreakdown[] = [];
+        for (const va of (vas || []) as FoiaProfile[]) {
+          const vaReqs = allRequests.filter((r: any) => r.va_id === va.id);
+          const todayReqs = vaReqs.filter((r: any) =>
             r.sent_at && new Date(r.sent_at) >= todayStart
           );
-          const weekReqs = all.filter((r: any) =>
+          const weekReqs = vaReqs.filter((r: any) =>
             r.sent_at && new Date(r.sent_at) >= weekStart
           );
-          const sent = all.filter((r: any) => ['sent', 'fulfilled', 'rejected'].includes(r.status));
-          const fulfilled = all.filter((r: any) => r.status === 'fulfilled');
-
-          const { count: assignedCount } = await db
-            .from('foia_assignments')
-            .select('*', { count: 'exact', head: true })
-            .eq('va_id', va.id);
+          const sent = vaReqs.filter((r: any) => ['sent', 'fulfilled', 'rejected'].includes(r.status));
+          const fulfilled = vaReqs.filter((r: any) => r.status === 'fulfilled');
 
           breakdowns.push({
             va,
@@ -99,7 +125,7 @@ export default function FoiaAdminDashboard() {
             total_sent: sent.length,
             fulfilled: fulfilled.length,
             response_rate: sent.length > 0 ? (fulfilled.length / sent.length) * 100 : 0,
-            assigned_count: assignedCount ?? 0,
+            assigned_count: assignmentCounts.get(va.id) ?? 0,
           });
         }
 

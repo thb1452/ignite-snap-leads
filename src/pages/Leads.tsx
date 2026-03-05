@@ -62,6 +62,7 @@ function Leads() {
     trialExportsLimit,
     trialTier,
     trialEndsAt,
+    subscriptionStatus,
     incrementTrialExports,
     refetch: refetchTrial,
   } = useTrialStatus();
@@ -519,8 +520,9 @@ function Leads() {
     [mappedProperties, selectedPropertyId]
   );
 
-  // Determine if user should be fully gated (expired trial, no paid plan)
-  const isFullyGated = hasTrialExpired && !hasActiveSubscription;
+  // Determine if user should be gated (expired trial or cancelled subscription, no active paid plan)
+  const isCancelled = subscriptionStatus === 'cancelled' || subscriptionStatus === 'expired';
+  const isFullyGated = (hasTrialExpired || isCancelled) && !hasActiveSubscription;
 
   return (
     <AppLayout>
@@ -723,11 +725,12 @@ function Leads() {
               </div>
               <Button
                 onClick={handleExportCSV}
-                disabled={selectedIds.length === 0 || (hasTrialExpired && !trialCanExport)}
+                disabled={selectedIds.length === 0 || isFullyGated || (hasTrialExpired && !trialCanExport)}
                 variant="ghost"
                 size="sm"
-                className={`h-7 px-2 text-xs ${hasTrialExpired ? 'opacity-50' : ''}`}
-                title={hasTrialExpired ? 'Trial expired — upgrade to export' : undefined}
+                className={`h-7 px-2 text-xs ${isFullyGated || hasTrialExpired ? 'opacity-50' : ''}`}
+                title={isFullyGated ? 'Subscribe to unlock exports' : hasTrialExpired ? 'Trial expired — upgrade to export' : undefined}
+                data-blur-gated={isFullyGated ? "export" : undefined}
               >
                 <Download className="h-3.5 w-3.5 mr-1" />
                 Export

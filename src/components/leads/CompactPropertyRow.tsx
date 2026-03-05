@@ -64,7 +64,7 @@ export function CompactPropertyRow({
 
       {/* Address - Main Column */}
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm truncate leading-tight">
+        <p className="property-address font-medium text-sm truncate leading-tight">
           {formatAddress(property.address)}
         </p>
         <p className="text-xs text-muted-foreground truncate">
@@ -104,7 +104,7 @@ export function CompactPropertyRow({
       </div>
 
       {/* Score Badge */}
-      <Badge className={`${getScoreColor(property.snap_score)} w-10 justify-center shrink-0`}>
+      <Badge className={`snap-score-value ${getScoreColor(property.snap_score)} w-10 justify-center shrink-0`}>
         {property.snap_score ?? "—"}
       </Badge>
     </div>

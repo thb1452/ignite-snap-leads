@@ -230,7 +230,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
       });
 
       if (inserts.length >= BATCH_SIZE) {
-        const { error } = await db.from('targets').insert(inserts);
+        const { error } = await db.from('targets').insert(inserts as any);
         if (error) {
           errors += inserts.length;
         } else {
@@ -243,7 +243,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
 
     // Flush remaining
     if (inserts.length > 0) {
-      const { error } = await db.from('targets').insert(inserts);
+      const { error } = await db.from('targets').insert(inserts as any);
       if (error) {
         errors += inserts.length;
       } else {

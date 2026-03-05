@@ -79,7 +79,7 @@ export default function FoiaAdminAssignments() {
         assignmentMap.set(a.target_id, a.va_id);
       }
 
-      const enriched = (targetData || []).map((t: Target) => ({
+      const enriched = (targetData || []).map((t: any) => ({
         ...t,
         assigned_va_id: assignmentMap.get(t.id) ?? null,
       }));

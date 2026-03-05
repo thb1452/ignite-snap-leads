@@ -125,10 +125,10 @@ export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRo
       .eq('target_id', item.id)
       .order('updated_at', { ascending: false })
       .limit(20)
-      .then(({ data }: any) => {
-        setHistory(data ?? []);
-      })
-      .finally(() => setHistoryLoading(false));
+      .then((result: any) => {
+        setHistory(result?.data ?? []);
+        setHistoryLoading(false);
+      });
   }, [expanded, item.id]);
 
   const persistRequest = async (

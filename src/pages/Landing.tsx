@@ -372,7 +372,7 @@ export default function Landing() {
       </section>
 
       {/* Platform Showcase Section */}
-      <section className="py-24 bg-landing-bg">
+      <section className="pt-24 pb-12 bg-landing-bg">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center mb-16">
             <motion.h2 
@@ -401,6 +401,9 @@ export default function Landing() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
+              <p className="text-center mb-3 text-sm font-medium text-landing-text-muted">
+                See enforcement pressure mapped in real time
+              </p>
               <div className="rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
                 <video
                   src="/videos/platform-map.mp4"
@@ -411,9 +414,6 @@ export default function Landing() {
                   className="w-full h-auto"
                 />
               </div>
-              <p className="text-center mt-4 text-sm text-landing-text-muted">
-                See enforcement pressure mapped in real time
-              </p>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -421,6 +421,9 @@ export default function Landing() {
               viewport={{ once: true }}
               transition={{ delay: 0.15 }}
             >
+              <p className="text-center mb-3 text-sm font-medium text-landing-text-muted">
+                Instant intelligence on every property
+              </p>
               <div className="rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
                 <video
                   src="/videos/platform-intel.mp4"
@@ -431,9 +434,6 @@ export default function Landing() {
                   className="w-full h-auto"
                 />
               </div>
-              <p className="text-center mt-4 text-sm text-landing-text-muted">
-                Instant intelligence on every property
-              </p>
             </motion.div>
           </div>
         </div>

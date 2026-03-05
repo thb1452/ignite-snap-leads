@@ -61,12 +61,6 @@ const LIMIT_MESSAGES: Record<LimitType, { title: string; description: string; ic
     icon: Sparkles,
     color: "text-purple-500",
   },
-  api_access: {
-    title: "API Access Not Available",
-    description: "API access is available on Elite plans only.",
-    icon: Sparkles,
-    color: "text-purple-500",
-  },
 };
 
 const PLAN_FEATURES = {
@@ -99,7 +93,6 @@ const PLAN_FEATURES = {
       "All properties, all counties",
       "15,000 property exports/month",
       "Water shutoff data",
-      "API access (coming soon)",
     ],
     badge: "Best Value",
   },

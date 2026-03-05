@@ -335,7 +335,6 @@ export function SubscriptionSettings() {
                   "All properties, all counties",
                   "Code violation + water shutoff data",
                   "Everything in Pro",
-                  "API access (coming soon)",
                 ]}
                 badge="Best Value"
                 onUpgrade={() => handleUpgrade('enterprise')}

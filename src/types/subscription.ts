@@ -15,8 +15,7 @@ export type FeatureType =
   | 'advanced_filters'
   | 'violation_filtering'
   | 'rolling_intelligence'
-  | 'escalation_alerts'
-  | 'api_access';
+  | 'escalation_alerts';
 
 // Limit types that can appear in upgrade prompts (usage + feature combinations)
 export type LimitType = UsageType | FeatureType;

@@ -773,7 +773,6 @@ export default function Landing() {
                   "25,000 monthly enforcement reports",
                   "All Pro features",
                   "Water shutoff data",
-                  "API access (coming soon)"
                 ],
                 tagline: "Built for maximum signal, urgency, and scale.",
                 highlighted: false,

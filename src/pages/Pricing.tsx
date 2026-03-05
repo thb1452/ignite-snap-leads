@@ -5,7 +5,7 @@ import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Lock, Loader2, Crown, Shield, AlertTriangle } from "lucide-react";
+import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Loader2, Crown, Shield, AlertTriangle } from "lucide-react";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
 
 import { supabase } from "@/integrations/supabase/externalClient";
@@ -79,13 +79,11 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: 'Elite',
     price_monthly_cents: 29900,
     
-    description: 'For teams running enforcement-first strategies. Limited to 500 members.',
+    description: 'For teams running enforcement-first strategies.',
     features: [
-      '25,000 monthly exports',
-      '4,520+ cities nationwide',
-      'Code violation + water shutoff data',
-      'Everything in Pro',
-      'API access (coming soon)',
+      '25,000 monthly enforcement reports',
+      'All Pro features',
+      'Water shutoff data',
     ],
     icon: Building2,
   },
@@ -289,14 +287,6 @@ export default function Pricing() {
           </div>
           <CardDescription className="text-base">{tier.description}</CardDescription>
 
-          {tier.name === 'enterprise' && (
-            <div className="mt-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs">
-                <Lock className="w-3.5 h-3.5" />
-                <span className="font-medium">Limited to 500 members</span>
-              </div>
-            </div>
-          )}
 
           <div className="mt-6">
             <div className="flex items-baseline gap-2">

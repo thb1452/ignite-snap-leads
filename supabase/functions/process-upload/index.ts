@@ -269,8 +269,12 @@ function isValidCityName(value: string): boolean {
   if (value.includes('#') || value.includes('@')) return false;
   if (value.includes('*') || value.includes('&')) return false;
 
-  // Reject if starts with special chars
-  if (/^[\-#•@*&]/.test(value)) return false;
+  // Reject if starts with special chars or quotes
+  if (/^[\-#•@*&"']/.test(value)) return false;
+  
+  // Reject programmatic values
+  const programmaticValues = ['undefined', 'null', 'none', 'n/a', 'na', 'nan', 'true', 'false'];
+  if (programmaticValues.includes(lowerValue)) return false;
 
   // City names should be mostly letters, spaces, hyphens, apostrophes, and periods
   // But NOT contain multiple words with numbers mixed in (like "123 Main St")
@@ -328,6 +332,38 @@ function isValidAddress(value: string): { valid: boolean; reason?: string } {
   if (!startsWithNumber && !startsWithDirection && !startsWithPO && 
       !startsWithPlacePrefix && !startsWithHighway && !startsWithWordNumber && !looksLikeStreetName) {
     return { valid: false, reason: 'no_street_number' };
+  }
+  
+  // Reject case number prefixes (e.g., "CE-2026-04026 CE - INOPERATIVE VEHICLE CLOSED MURRIETA 26900...")
+  if (/^[A-Z]{2}-\d{4}-\d+/i.test(trimmed)) {
+    return { valid: false, reason: 'case_number_prefix' };
+  }
+  
+  // Reject ATTN: prefix (mailing instructions, not property addresses)
+  if (/^ATTN:/i.test(trimmed)) {
+    return { valid: false, reason: 'attn_prefix' };
+  }
+  
+  // Reject addresses with concatenated status fields (e.g., "816 E 2ND CLOS ED 1/21/2026 484...")
+  if (/\b(CL\s*OS\s*ED|ACT\s*IVE|IN\s+VIOLATION|INVESTIGATING|CLOSED)\s+\d{1,2}\/\d{1,2}\/\d{2,4}\b/i.test(trimmed)) {
+    return { valid: false, reason: 'concatenated_status' };
+  }
+  
+  // Reject AI-generated conversational text
+  const aiTextPatterns = [
+    /\bnextdoor\b/i,
+    /\bposting\s+says\b/i,
+    /\bthanks\s+(as\s+)?always\b/i,
+    /\bsocial\s+website\b/i,
+    /\bcurrent\s+posting\b/i,
+    /\bSERVICE\s+REQUEST\s+DESCRIPTION/i,
+    /\bPUBLIC\s+ACCESS\s+TO\b.*\bEVERYONE\b/i,
+  ];
+  
+  for (const pattern of aiTextPatterns) {
+    if (pattern.test(trimmed)) {
+      return { valid: false, reason: 'ai_or_narrative_text' };
+    }
   }
   
   // Reject text that looks like complaint narratives or descriptions

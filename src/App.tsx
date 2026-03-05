@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
@@ -74,12 +74,10 @@ const App = () => (
               <Upload />
             </ProtectedRoute>
           } />
-          <Route path="/app" element={
-            <RoleProtectedRoute allowedRoles={['admin', 'user']}>
-              <Leads />
-            </RoleProtectedRoute>
-          } />
-          <Route path="/leads" element={
+          {/* Redirect old /app and /leads URLs */}
+          <Route path="/app" element={<Navigate to="/properties" replace />} />
+          <Route path="/leads" element={<Navigate to="/properties" replace />} />
+          <Route path="/properties" element={
             <RoleProtectedRoute allowedRoles={['admin', 'user']}>
               <Leads />
             </RoleProtectedRoute>

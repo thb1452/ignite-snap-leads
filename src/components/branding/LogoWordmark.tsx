@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 export function LogoWordmark({ className = "" }: { className?: string }) {
   return (
-    <Link to="/leads" aria-label="Snap Ignite" className={`flex items-baseline gap-2 select-none ${className}`}>
+    <Link to="/properties" aria-label="Snap Ignite" className={`flex items-baseline gap-2 select-none ${className}`}>
       <span className="font-extrabold tracking-wide text-slate-900 dark:text-white text-lg">SNAP</span>
       {/* green bolt */}
       <svg viewBox="0 0 24 24" className="h-5 w-5 -mx-1" aria-hidden="true">

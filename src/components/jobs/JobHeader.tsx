@@ -45,7 +45,7 @@ export function JobHeader({ job }: JobHeaderProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate('/leads')}
+          onClick={() => navigate('/properties')}
           className="shrink-0"
         >
           <ArrowLeft className="h-5 w-5" />

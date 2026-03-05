@@ -220,8 +220,8 @@ export function OnboardingFlow({ open, onOpenChange, onComplete }: OnboardingFlo
     onOpenChange(false);
     // Store onboarding completion in localStorage
     localStorage.setItem('snap_onboarding_completed', 'true');
-    // Navigate to leads dashboard
-    navigate('/leads');
+    // Navigate to properties dashboard
+    navigate('/properties');
   };
 
   const handleSkip = () => {

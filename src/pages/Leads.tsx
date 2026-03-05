@@ -85,7 +85,7 @@ function Leads() {
   const [selectedSignal, setSelectedSignal] = useState<string | null>(null);
   
   // Pressure level filter state
-  const [openViolationsOnly, setOpenViolationsOnly] = useState(true); // Default: hide dead deals
+  const [openViolationsOnly, setOpenViolationsOnly] = useState(false); // Show all violations by default
   const [multipleViolationsOnly, setMultipleViolationsOnly] = useState(false);
   const [repeatOffenderOnly, setRepeatOffenderOnly] = useState(false);
   
@@ -145,8 +145,7 @@ function Leads() {
     if (selectedCity) count++;
     if (selectedState) count++;
     if (selectedSignal) count++;
-    // openViolationsOnly defaults to true, so don't count it unless user turned it off and back on
-    // We only count non-default filter states
+    if (openViolationsOnly) count++;
     if (multipleViolationsOnly) count++;
     if (repeatOffenderOnly) count++;
     // Count SnapScore if not default range
@@ -211,7 +210,7 @@ function Leads() {
     setSelectedCity(null);
     setSelectedState(null);
     setSelectedSignal(null);
-    setOpenViolationsOnly(true); // Keep dead deal filter on by default
+    setOpenViolationsOnly(false); // Show all violations by default
     setMultipleViolationsOnly(false);
     setRepeatOffenderOnly(false);
     setSnapScoreRange([0, 100]);

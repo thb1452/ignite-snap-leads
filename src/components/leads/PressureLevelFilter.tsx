@@ -1,15 +1,5 @@
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, Lock } from "lucide-react";
-import { useFeatureAccess } from "@/hooks/useFeatureAccess";
-import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 interface PressureLevelFilterProps {
   openViolationsOnly: boolean;
@@ -28,61 +18,6 @@ export function PressureLevelFilter({
   repeatOffenderOnly,
   onRepeatOffenderChange,
 }: PressureLevelFilterProps) {
-  const { hasFeature } = useFeatureAccess();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  const hasViolationFiltering = hasFeature('violation_filtering');
-
-  const handleUpgrade = () => {
-    navigate('/pricing');
-  };
-
-  // Locked state for plans without violation filtering (Starter)
-  if (!hasViolationFiltering) {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-          Pressure Level
-          <Lock className="h-3 w-3 text-amber-500" />
-        </span>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-2 border-dashed border-amber-300 text-muted-foreground hover:border-amber-500"
-            >
-              <AlertCircle className="h-3.5 w-3.5" />
-              Filter by enforcement pressure
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-64" align="start">
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium">Unlock Pressure Filters</p>
-              <p className="text-xs text-muted-foreground">
-                Find properties under enforcement pressure:
-              </p>
-              <ul className="text-xs text-muted-foreground space-y-0.5 ml-3 list-disc">
-                <li>Open Violations Only</li>
-                <li>Multiple Violations</li>
-                <li>Repeat Offenders</li>
-              </ul>
-              <Button
-                size="sm"
-                className="w-full gap-1.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
-                onClick={handleUpgrade}
-              >
-                <Lock className="h-3 w-3" />
-                Upgrade to Pro
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
-    );
-  }
-
   return (
     <div className="flex items-center gap-2">
       <div className="flex items-center gap-1">

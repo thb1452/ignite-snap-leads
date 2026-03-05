@@ -57,104 +57,6 @@ function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number; s
 }
 
 
-const showcaseSlides = [
-  { src: "/images/screenshot-map.png", alt: "Live Enforcement Map", address: "1247 Oakridge DR NW, Atlanta", score: 87, feature: "Live Enforcement Map" },
-  { src: "/images/screenshot-leads.png", alt: "Scored Lead Lists", address: "580 Montego DR SE, Grand Rapids", score: 72, feature: "Scored Lead Pipeline" },
-  { src: "/images/screenshot-detail.png", alt: "Property Detail View", address: "3301 Peachtree RD NE, Atlanta", score: 94, feature: "Deep Property Intel" },
-  { src: "/images/screenshot-filters.png", alt: "Pressure Level Filters", address: "Filter by enforcement pressure", score: null, feature: "Smart Pressure Filters" },
-  { src: "/images/screenshot-categories.png", alt: "Violation Categories", address: "7 categories incl. water shutoffs", score: null, feature: "Violation Category Breakdown" },
-];
-
-function ShowcaseCarousel() {
-  const [current, setCurrent] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % showcaseSlides.length);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const goPrev = () => setCurrent((prev) => (prev - 1 + showcaseSlides.length) % showcaseSlides.length);
-  const goNext = () => setCurrent((prev) => (prev + 1) % showcaseSlides.length);
-  const slide = showcaseSlides[current];
-
-  return (
-    <div className="max-w-5xl mx-auto">
-      {/* Fixed-height wrapper with overflow:hidden so slide transitions never affect page layout */}
-      <div className="relative group/carousel overflow-hidden rounded-2xl" style={{ height: "520px" }}>
-        {/* Arrows */}
-        <button
-          onClick={goPrev}
-          className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-landing-bg/70 backdrop-blur border border-landing-surface flex items-center justify-center text-landing-text-muted hover:text-landing-text hover:bg-landing-surface transition opacity-0 group-hover/carousel:opacity-100"
-          aria-label="Previous slide"
-          tabIndex={-1}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
-        <button
-          onClick={goNext}
-          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-landing-bg/70 backdrop-blur border border-landing-surface flex items-center justify-center text-landing-text-muted hover:text-landing-text hover:bg-landing-surface transition opacity-0 group-hover/carousel:opacity-100"
-          aria-label="Next slide"
-          tabIndex={-1}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-        </button>
-
-        {/* Slide image — absolutely positioned so it never contributes to layout height */}
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={current}
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -40 }}
-            transition={{ duration: 0.4 }}
-            className="absolute inset-0"
-          >
-            <div className="w-full h-full border border-landing-surface shadow-2xl overflow-hidden">
-              <img
-                src={slide.src}
-                alt={slide.alt}
-                className="w-full h-full object-contain"
-                loading="lazy"
-                tabIndex={-1}
-              />
-            </div>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Caption */}
-      <div className="text-center mt-6 space-y-1">
-        <p className="text-lg font-semibold text-landing-text">{slide.feature}</p>
-        <p className="text-sm text-landing-text-muted">
-          {slide.address}
-          {slide.score !== null && (
-            <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-landing-accent/15 text-landing-accent text-xs font-bold">
-              SnapScore {slide.score}
-            </span>
-          )}
-        </p>
-      </div>
-
-      {/* Dots + slide counter */}
-      <div className="flex items-center justify-center gap-3 mt-5">
-        {showcaseSlides.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setCurrent(i)}
-            className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-              i === current ? "bg-landing-accent w-7" : "bg-landing-surface hover:bg-landing-text-muted"
-            }`}
-            aria-label={`Go to slide ${i + 1}`}
-          />
-        ))}
-        <span className="text-xs text-landing-text-muted ml-2">{current + 1}/{showcaseSlides.length}</span>
-      </div>
-    </div>
-  );
-}
-
 export default function Landing() {
   const billingCycle = 'monthly' as const;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -492,8 +394,48 @@ export default function Landing() {
             </motion.p>
           </div>
           
-          {/* Screenshot Carousel */}
-          <ShowcaseCarousel />
+          {/* Platform Videos */}
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <div className="rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
+                <video
+                  src="/videos/platform-map.mp4"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-auto"
+                />
+              </div>
+              <p className="text-center mt-4 text-sm text-landing-text-muted">
+                See enforcement pressure mapped in real time
+              </p>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.15 }}
+            >
+              <div className="rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
+                <video
+                  src="/videos/platform-intel.mp4"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-auto"
+                />
+              </div>
+              <p className="text-center mt-4 text-sm text-landing-text-muted">
+                Instant intelligence on every property
+              </p>
+            </motion.div>
+          </div>
         </div>
       </section>
 

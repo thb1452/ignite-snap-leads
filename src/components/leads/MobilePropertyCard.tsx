@@ -81,7 +81,7 @@ export function MobilePropertyCard({
         )}
         {/* SnapScore Badge */}
         <Badge
-          className={`${getScoreColor(property.snap_score)} text-sm font-bold px-2.5 py-1`}
+          className={`snap-score-value ${getScoreColor(property.snap_score)} text-sm font-bold px-2.5 py-1`}
         >
           {property.snap_score || 0}
         </Badge>
@@ -102,7 +102,7 @@ export function MobilePropertyCard({
         
         <div className="flex-1 min-w-0">
           {/* Address - Full width, no truncation */}
-          <h3 className="font-semibold text-base leading-snug text-foreground">
+          <h3 className="property-address font-semibold text-base leading-snug text-foreground">
             {formatAddress(property.address)}
           </h3>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -144,7 +144,7 @@ export function MobilePropertyCard({
 
           {/* AI Insight - Collapsible */}
           <div className="mt-3">
-            <p className={`text-sm text-muted-foreground leading-relaxed ${!insightExpanded && shouldShowExpand ? 'line-clamp-2' : ''}`}>
+            <p className={`snap-insight-text text-sm text-muted-foreground leading-relaxed ${!insightExpanded && shouldShowExpand ? 'line-clamp-2' : ''}`}>
               {insightText}
             </p>
             {shouldShowExpand && (

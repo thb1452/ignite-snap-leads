@@ -93,7 +93,7 @@ export function PropertyCard({
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-semibold text-sm leading-tight">
+            <span className="property-address font-semibold text-sm leading-tight">
               {formatAddress(property.address)}, {formatCity(property.city)}, {property.state} {property.zip}
             </span>
             <div className="flex items-center gap-1 shrink-0">
@@ -104,7 +104,7 @@ export function PropertyCard({
                 />
               )}
               <Badge
-                className={`${getScoreColor(property.snap_score)} text-white text-xs px-2 py-0.5 h-5 shrink-0 font-bold`}
+                className={`snap-score-value ${getScoreColor(property.snap_score)} text-white text-xs px-2 py-0.5 h-5 shrink-0 font-bold`}
               >
                 {property.snap_score || 0}
               </Badge>
@@ -152,7 +152,7 @@ export function PropertyCard({
           {/* Row 3: AI Insight */}
           {insightText && (
             <div className="mt-1.5">
-              <p className="text-xs text-muted-foreground leading-relaxed">
+              <p className="snap-insight-text text-xs text-muted-foreground leading-relaxed">
                 {displayInsight}
               </p>
               {isLong && (

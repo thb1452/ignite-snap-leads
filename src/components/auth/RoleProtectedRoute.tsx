@@ -25,7 +25,8 @@ export function RoleProtectedRoute({
 }: RoleProtectedRouteProps) {
   const { user, loading, hasRole, emailVerified, roles } = useAuth();
   const { plan, loading: subLoading, hasActiveSubscription, refetch } = useSubscription();
-  const { isOnTrial, hasTrialExpired } = useTrialStatus();
+  const { isOnTrial, hasTrialExpired, subscriptionStatus } = useTrialStatus();
+  const isCancelledOrExpired = subscriptionStatus === 'cancelled' || subscriptionStatus === 'expired';
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -182,7 +183,7 @@ export function RoleProtectedRoute({
   // before showing retry UI — trial/paid users should still get access even without roles
   if (user && loadingTimedOut && rolesEmpty) {
     // Check if user has active subscription or trial — let them through
-    if (!subLoading && (isOnTrial || hasTrialExpired || (hasActiveSubscription && plan?.name))) {
+    if (!subLoading && (isOnTrial || hasTrialExpired || isCancelledOrExpired || (hasActiveSubscription && plan?.name))) {
       console.log('[RoleProtectedRoute] Roles empty but user has subscription/trial — granting access');
       return <>{children}</>;
     }
@@ -230,7 +231,7 @@ export function RoleProtectedRoute({
   // Early grant: if user has active subscription or trial, skip role/subscription checks
   if (user && (emailVerified || loadingTimedOut) && !subLoading) {
     const hasActiveSub = hasActiveSubscription && plan?.name;
-    if (hasActiveSub || isOnTrial || hasTrialExpired) {
+    if (hasActiveSub || isOnTrial || hasTrialExpired || isCancelledOrExpired) {
       console.log('[RoleProtectedRoute] Early access grant - subscription/trial active');
       return <>{children}</>;
     }
@@ -317,8 +318,8 @@ export function RoleProtectedRoute({
   const grantAccessFromPayment = inCheckoutFlow && (hasPaidSubscription || hasGivenUp);
 
   // PAID USERS or TRIAL USERS: grant access
-  if (hasPaidSubscription || grantAccessFromPayment || isOnTrial || hasTrialExpired) {
-    console.log('[RoleProtectedRoute] Granting access:', { hasPaidSubscription, grantAccessFromPayment, isOnTrial, hasTrialExpired });
+  if (hasPaidSubscription || grantAccessFromPayment || isOnTrial || hasTrialExpired || isCancelledOrExpired) {
+    console.log('[RoleProtectedRoute] Granting access:', { hasPaidSubscription, grantAccessFromPayment, isOnTrial, hasTrialExpired, isCancelledOrExpired });
     return <>{children}</>;
   }
 

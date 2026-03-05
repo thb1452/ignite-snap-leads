@@ -527,7 +527,7 @@ function Leads() {
   return (
     <AppLayout>
       <div className="relative flex flex-col h-[calc(100vh-3.5rem)]">
-      {isFullyGated && <TrialPaywall />}
+      {isFullyGated && <TrialPaywall trialEndsAt={trialEndsAt} />}
       <OnboardingFlow
         open={showOnboarding}
         onOpenChange={setShowOnboarding}

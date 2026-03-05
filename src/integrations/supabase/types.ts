@@ -2943,54 +2943,24 @@ export type Database = {
             }
             Returns: Json
           }
-      fn_properties_by_category:
-        | {
-            Args: {
-              p_category: string
-              p_city?: string
-              p_last_seen_days?: number
-              p_page?: number
-              p_page_size?: number
-              p_search?: string
-              p_snap_max?: number
-              p_snap_min?: number
-              p_state?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_category: string
-              p_city?: string
-              p_last_seen_days?: number
-              p_multiple_violations_only?: boolean
-              p_open_violations_only?: boolean
-              p_page?: number
-              p_page_size?: number
-              p_repeat_offender_only?: boolean
-              p_search?: string
-              p_snap_max?: number
-              p_snap_min?: number
-              p_sort_by?: string
-              p_state?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_category: string
-              p_city?: string
-              p_last_seen_days?: number
-              p_page?: number
-              p_page_size?: number
-              p_search?: string
-              p_snap_max?: number
-              p_snap_min?: number
-              p_sort_by?: string
-              p_state?: string
-            }
-            Returns: Json
-          }
+      fn_properties_by_category: {
+        Args: {
+          p_category: string
+          p_city?: string
+          p_last_seen_days?: number
+          p_multiple_violations_only?: boolean
+          p_open_violations_only?: boolean
+          p_page?: number
+          p_page_size?: number
+          p_repeat_offender_only?: boolean
+          p_search?: string
+          p_snap_max?: number
+          p_snap_min?: number
+          p_sort_by?: string
+          p_state?: string
+        }
+        Returns: Json
+      }
       fn_properties_paged: {
         Args: {
           p_city?: string

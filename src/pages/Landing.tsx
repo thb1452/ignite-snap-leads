@@ -402,11 +402,11 @@ export default function Landing() {
               viewport={{ once: true }}
             >
               <p className="text-center mb-3 text-sm font-medium text-landing-text-muted">
-                See enforcement pressure mapped in real time
+                Instant intelligence on every property
               </p>
               <div className="rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
                 <video
-                  src="/videos/platform-map.mp4"
+                  src="/videos/platform-intel.mp4"
                   autoPlay
                   loop
                   muted
@@ -422,11 +422,11 @@ export default function Landing() {
               transition={{ delay: 0.15 }}
             >
               <p className="text-center mb-3 text-sm font-medium text-landing-text-muted">
-                Instant intelligence on every property
+                See enforcement pressure mapped in real time
               </p>
               <div className="rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
                 <video
-                  src="/videos/platform-intel.mp4"
+                  src="/videos/platform-map.mp4"
                   autoPlay
                   loop
                   muted

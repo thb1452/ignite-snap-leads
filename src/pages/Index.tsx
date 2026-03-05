@@ -127,7 +127,7 @@ export default function Index() {
             <Button
               variant="link"
               className="text-xs text-brand p-0 h-auto mt-1"
-              onClick={() => navigate("/leads")}
+              onClick={() => navigate("/properties")}
             >
               View all →
             </Button>
@@ -207,7 +207,7 @@ export default function Index() {
         {hasRollingIntelligence ? (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
             <div className="lg:col-span-3">
-              <IntelligenceDashboard onPropertyClick={(id) => navigate(`/leads?property=${id}`)} />
+              <IntelligenceDashboard onPropertyClick={(id) => navigate(`/properties?property=${id}`)} />
             </div>
             <div className="lg:col-span-1">
               <BatchRescoreButton />
@@ -242,9 +242,9 @@ export default function Index() {
           <CardDescription>Jump to key workflows</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button onClick={() => navigate("/leads")} className="h-auto py-4 flex-col gap-2">
+          <Button onClick={() => navigate("/properties")} className="h-auto py-4 flex-col gap-2">
             <Users className="h-5 w-5" />
-            <span className="text-sm">Browse Leads</span>
+            <span className="text-sm">Browse Properties</span>
           </Button>
           <Button onClick={() => navigate("/lists")} variant="outline" className="h-auto py-4 flex-col gap-2">
             <ListChecks className="h-5 w-5" />

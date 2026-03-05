@@ -355,7 +355,7 @@ export function ListDetail() {
         ) : properties.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">No properties in this list yet</p>
-            <Button className="mt-4" onClick={() => navigate("/leads")}>
+            <Button className="mt-4" onClick={() => navigate("/properties")}>
               Add Properties from Search
             </Button>
           </Card>

@@ -97,7 +97,7 @@ export default function Auth() {
       if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
         navigate('/va-dashboard', { replace: true });
       } else {
-        navigate('/leads', { replace: true });
+        navigate('/properties', { replace: true });
       }
     }
   }, [user, roles, loading, navigate, selectedPlan, redirectingToCheckout, mode, showAccountChoice]);
@@ -211,7 +211,7 @@ export default function Auth() {
     if (roles.includes('va') && !roles.includes('admin') && !roles.includes('user')) {
       navigate('/va-dashboard');
     } else {
-      navigate('/leads');
+      navigate('/properties');
     }
   };
 

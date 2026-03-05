@@ -68,8 +68,8 @@ export default function CheckoutSuccess() {
   useEffect(() => {
     if (shouldRedirect) {
       const timer = setTimeout(() => {
-        console.log('[CheckoutSuccess] Navigating to /leads?checkout=success');
-        navigate('/leads?checkout=success', { replace: true });
+        console.log('[CheckoutSuccess] Navigating to /properties?checkout=success');
+        navigate('/properties?checkout=success', { replace: true });
       }, 1500);
       return () => clearTimeout(timer);
     }

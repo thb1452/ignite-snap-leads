@@ -21,7 +21,7 @@ interface RoleProtectedRouteProps {
 export function RoleProtectedRoute({
   children,
   allowedRoles,
-  redirectTo = '/leads'
+  redirectTo = '/properties'
 }: RoleProtectedRouteProps) {
   const { user, loading, hasRole, emailVerified, roles } = useAuth();
   const { plan, loading: subLoading, hasActiveSubscription, refetch } = useSubscription();

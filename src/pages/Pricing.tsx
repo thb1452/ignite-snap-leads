@@ -150,7 +150,7 @@ export default function Pricing() {
       // If trial was converted directly (no new checkout needed)
       if (data?.upgraded) {
         toast({ title: 'Subscription activated!', description: 'Your plan is now active.' });
-        navigate('/leads?checkout=success', { replace: true });
+        navigate('/properties?checkout=success', { replace: true });
         return;
       }
 

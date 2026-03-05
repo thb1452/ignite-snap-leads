@@ -12,7 +12,7 @@ import type { FeatureType } from "@/types/subscription";
 const TRIAL_TIER_FEATURES: Record<string, FeatureType[]> = {
   starter: [],
   professional: ['advanced_filters', 'violation_filtering', 'rolling_intelligence'],
-  enterprise: ['advanced_filters', 'violation_filtering', 'rolling_intelligence', 'escalation_alerts', 'api_access'],
+  enterprise: ['advanced_filters', 'violation_filtering', 'rolling_intelligence', 'escalation_alerts'],
 };
 
 /**
@@ -38,8 +38,6 @@ export function useFeatureAccess() {
             return subscription.has_rolling_intelligence;
           case "escalation_alerts":
             return subscription.has_escalation_alerts;
-          case "api_access":
-            return subscription.has_api_access;
           default:
             return false;
         }

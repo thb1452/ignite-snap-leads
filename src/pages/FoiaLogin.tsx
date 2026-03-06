@@ -126,57 +126,72 @@ export default function FoiaLogin() {
 
       const hasSession = await ensureAuthenticatedSession(data.session ?? null);
 
-      const profileResult: any = await withTimeout(
-        db
-          .from('foia_profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle(),
-        'Profile lookup timed out. Please try signing in again.'
-      );
-      const { data: profile, error: profileErr } = profileResult;
+      // Try profile lookup with one automatic retry on transient errors
+      const fetchProfile = async () => {
+        const res: any = await withTimeout(
+          db.from('foia_profiles').select('role').eq('id', user.id).maybeSingle(),
+          'Profile lookup timed out. Please try signing in again.'
+        );
+        return res;
+      };
 
-      // Surface profile-lookup errors, but auto-recover when PostgREST schema
-      // cache is stale by provisioning the FOIA profile via RPC.
+      let { data: profile, error: profileErr } = await fetchProfile();
+
+      // Retry once on schema cache or transient errors
       if (profileErr) {
-        const isSchemaError =
+        const isTransient =
           profileErr?.code === 'PGRST200' ||
-          String(profileErr?.message ?? '').includes('schema cache');
+          String(profileErr?.message ?? '').includes('schema cache') ||
+          String(profileErr?.message ?? '').includes('JWT');
 
-        if (isSchemaError) {
+        if (isTransient) {
+          // Wait briefly for session/cache to stabilize, then retry
+          await new Promise(r => setTimeout(r, 1500));
           if (!hasSession) {
-            throw new Error('Signed in, but your secure session is still initializing. Please tap Sign In again.');
+            await ensureAuthenticatedSession(data.session ?? null);
           }
+          const retry = await fetchProfile();
+          profile = retry.data;
+          profileErr = retry.error;
+        }
+      }
 
-          const derivedName = user.user_metadata?.full_name
-            ?? user.email?.split('@')[0]
-            ?? 'User';
-          const derivedRole = await resolveFoiaRole(user.id);
-
-          const signupResult: any = await withTimeout(
-            rpc('complete_foia_signup', {
-              p_user_id: user.id,
-              p_email: user.email ?? email,
-              p_full_name: derivedName,
-              p_role: derivedRole,
-              p_token: null,
-            }),
-            'Account provisioning timed out. Please try again.'
-          );
-          const { error: createErr } = signupResult;
-          if (createErr) {
-            const createErrMsg = getErrorMessage(createErr, 'Profile provisioning failed');
-            if (createErrMsg.includes('Unauthorized profile provisioning attempt')) {
-              throw new Error('Signed in, but your session was not fully established. Please tap Sign In once more.');
-            }
-            throw new Error('FOIA access is not available for this account. Please contact your administrator.');
-          }
-
-          navigate(derivedRole === 'admin' ? '/foia/admin' : '/foia/va');
-          return;
+      // If still erroring, try RPC auto-provision as last resort
+      if (profileErr) {
+        if (!hasSession) {
+          throw new Error('Signed in, but your secure session is still initializing. Please tap Sign In again.');
         }
 
-        throw profileErr;
+        const derivedName = user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'User';
+        const derivedRole = await resolveFoiaRole(user.id);
+
+        const signupResult: any = await withTimeout(
+          rpc('complete_foia_signup', {
+            p_user_id: user.id,
+            p_email: user.email ?? email,
+            p_full_name: derivedName,
+            p_role: derivedRole,
+            p_token: null,
+          }),
+          'Account provisioning timed out. Please try again.'
+        );
+        const { error: createErr } = signupResult;
+        if (createErr) {
+          // Last chance: maybe the profile actually exists despite the errors
+          const finalCheck = await fetchProfile();
+          if (finalCheck.data) {
+            navigate(finalCheck.data.role === 'admin' ? '/foia/admin' : '/foia/va');
+            return;
+          }
+          const createErrMsg = getErrorMessage(createErr, 'Profile provisioning failed');
+          if (createErrMsg.includes('Unauthorized profile provisioning attempt')) {
+            throw new Error('Signed in, but your session was not fully established. Please tap Sign In once more.');
+          }
+          throw new Error('FOIA access is not available for this account. Please contact your administrator.');
+        }
+
+        navigate(derivedRole === 'admin' ? '/foia/admin' : '/foia/va');
+        return;
       }
 
       if (!profile) {

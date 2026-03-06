@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import SEOHead from "@/components/SEOHead";
 
 export default function Blog() {
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Enforcement Intelligence Insights | Snap Ignite Blog" description="Analysis, data trends, and operator resources for real estate investors using municipal enforcement intelligence. Deep dives into county coverage and enforcement patterns." canonical="https://snapignite.com/blog" />
       <div className="max-w-3xl mx-auto px-6 py-16">
         <Link to="/">
           <Button variant="ghost" className="mb-8 -ml-2">

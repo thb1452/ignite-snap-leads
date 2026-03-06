@@ -1,9 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import BrandLogo from "@/components/brand/BrandLogo";
+import SEOHead from "@/components/SEOHead";
 import { ArrowRight, MapPin, AlertTriangle, BarChart3, Building2, ArrowLeft } from "lucide-react";
 
 function slugToCity(slug: string) {
@@ -62,18 +63,11 @@ export default function CityViolations() {
     ? `Code Violations in ${jurisdiction.city}, ${jurisdiction.state} | Snap Ignite`
     : `Code Violations – ${citySearch} | Snap Ignite`;
 
-  useEffect(() => {
-    document.title = pageTitle;
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) {
-      meta.setAttribute(
-        "content",
-        jurisdiction
-          ? `Track ${jurisdiction.propertyCount.toLocaleString()} properties with code violations in ${jurisdiction.city}, ${jurisdiction.state}. Enforcement intelligence for real estate investors.`
-          : `Explore code violation data and enforcement intelligence. Snap Ignite tracks 500K+ properties across 4,500+ cities.`
-      );
-    }
-  }, [jurisdiction, pageTitle]);
+  const pageDesc = jurisdiction
+    ? `Track ${jurisdiction.propertyCount.toLocaleString()} properties with code violations in ${jurisdiction.city}, ${jurisdiction.state}. Enforcement intelligence for real estate investors.`
+    : `Explore code violation data and enforcement intelligence. Snap Ignite tracks 500K+ properties across 4,500+ cities.`;
+
+  const pageCanonical = `https://snapignite.com/code-violations/${citySlug}`;
 
   const profile = jurisdiction?.enforcement_profile;
   const totalCited = (profile?.total_properties_cited as number) || 0;
@@ -82,6 +76,7 @@ export default function CityViolations() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
+      <SEOHead title={pageTitle} description={pageDesc} canonical={pageCanonical} />
       {jurisdiction && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           "@context": "https://schema.org",

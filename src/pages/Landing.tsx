@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import SEOHead from "@/components/SEOHead";
 import { trackEvent } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -89,6 +90,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-landing-bg text-landing-text overflow-x-hidden">
+      <SEOHead title="Code Violation Intelligence for Real Estate Investors | Snap Ignite" description="Track code violations and enforcement pressure across 500K+ properties in 4,500+ cities. Find distressed real estate leads before they hit the market. Start free." canonical="https://snapignite.com/" />
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-landing-surface/50 bg-landing-bg/80 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">

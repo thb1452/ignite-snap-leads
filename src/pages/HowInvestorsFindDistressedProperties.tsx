@@ -1,18 +1,14 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import BrandLogo from "@/components/brand/BrandLogo";
+import SEOHead from "@/components/SEOHead";
 import { ArrowRight, Car, FileText, Home, Landmark, Zap, CheckCircle2 } from "lucide-react";
 
 export default function HowInvestorsFindDistressedProperties() {
-  useEffect(() => {
-    document.title = "How Investors Find Distressed Properties in 2026 | Snap Ignite";
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "How do real estate investors find distressed properties in 2026? Compare driving for dollars, tax liens, probate, foreclosures, and the newest method: enforcement intelligence.");
-  }, []);
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
+      <SEOHead title="How Investors Find Distressed Properties in 2026 | Snap Ignite" description="How do real estate investors find distressed properties in 2026? Compare driving for dollars, tax liens, probate, foreclosures, and the newest method: enforcement intelligence." canonical="https://snapignite.com/how-investors-find-distressed-properties" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",

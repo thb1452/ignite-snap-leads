@@ -244,7 +244,7 @@ export default function Landing() {
                 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight"
               >
                 Enforcement Intelligence for{' '}
-                <span className="text-landing-accent">441k+ Properties</span>
+                <span className="text-landing-accent">500k+ Properties</span>
               </motion.h1>
               
               {/* Condensed subtext */}

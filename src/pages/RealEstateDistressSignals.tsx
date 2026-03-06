@@ -1,18 +1,14 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import BrandLogo from "@/components/brand/BrandLogo";
+import SEOHead from "@/components/SEOHead";
 import { ArrowRight, AlertTriangle, Flame, Droplets, FileWarning, Timer, TrendingDown } from "lucide-react";
 
 export default function RealEstateDistressSignals() {
-  useEffect(() => {
-    document.title = "Real Estate Distress Signals: The Enforcement Layer | Snap Ignite";
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "Discover real estate distress signals most investors miss. Code violations, enforcement fines, water shutoffs, and compliance deadlines reveal motivated sellers before foreclosure lists do.");
-  }, []);
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
+      <SEOHead title="Real Estate Distress Signals: The Enforcement Layer | Snap Ignite" description="Discover real estate distress signals most investors miss. Code violations, enforcement fines, water shutoffs, and compliance deadlines reveal motivated sellers before foreclosure lists do." canonical="https://snapignite.com/real-estate-distress-signals" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",

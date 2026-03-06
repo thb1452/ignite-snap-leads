@@ -1,18 +1,14 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import BrandLogo from "@/components/brand/BrandLogo";
+import SEOHead from "@/components/SEOHead";
 import { ArrowRight, Eye, EyeOff, Target, AlertTriangle, Droplets, Gavel, Clock } from "lucide-react";
 
 export default function OffMarketPropertyLeads() {
-  useEffect(() => {
-    document.title = "Off-Market Property Leads from Enforcement Data | Snap Ignite";
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "Find off-market property leads most investors miss. Snap Ignite surfaces properties under active enforcement pressure — code violations, compliance deadlines, and water shutoffs — before they hit any list.");
-  }, []);
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
+      <SEOHead title="Off-Market Property Leads from Enforcement Data | Snap Ignite" description="Find off-market property leads most investors miss. Snap Ignite surfaces properties under active enforcement pressure — code violations, compliance deadlines, and water shutoffs — before they hit any list." canonical="https://snapignite.com/off-market-property-leads" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",

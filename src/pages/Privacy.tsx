@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import SEOHead from "@/components/SEOHead";
 
 export default function Privacy() {
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Privacy Policy | Snap Ignite" description="Learn how Snap Ignite collects, uses, and protects your personal information. We do not sell your data to third parties." canonical="https://snapignite.com/privacy" />
       <div className="max-w-3xl mx-auto px-6 py-16">
         <Link to="/">
           <Button variant="ghost" className="mb-8 -ml-2">

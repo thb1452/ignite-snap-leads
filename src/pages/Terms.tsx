@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import SEOHead from "@/components/SEOHead";
 
 export default function Terms() {
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Terms of Service | Snap Ignite" description="Terms of service for Snap Ignite municipal enforcement intelligence platform. Subscription terms, data usage, intellectual property, and limitation of liability." canonical="https://snapignite.com/terms" />
       <div className="max-w-3xl mx-auto px-6 py-16">
         <Link to="/">
           <Button variant="ghost" className="mb-8 -ml-2">

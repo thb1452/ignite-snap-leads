@@ -1,18 +1,14 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import BrandLogo from "@/components/brand/BrandLogo";
+import SEOHead from "@/components/SEOHead";
 import { Search, TrendingUp, MapPin, ArrowRight, Shield, Zap, BarChart3 } from "lucide-react";
 
 export default function CodeViolationLeads() {
-  useEffect(() => {
-    document.title = "Code Violation Leads for Real Estate Investors | Snap Ignite";
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "Find code violation leads across 500K+ properties in 4,500+ cities. Track enforcement pressure, identify distressed owners, and close deals before the competition. Start free.");
-  }, []);
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
+      <SEOHead title="Code Violation Leads for Real Estate Investors | Snap Ignite" description="Find code violation leads across 500K+ properties in 4,500+ cities. Track enforcement pressure, identify distressed owners, and close deals before the competition. Start free." canonical="https://snapignite.com/code-violation-leads" />
       {/* JSON-LD */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",

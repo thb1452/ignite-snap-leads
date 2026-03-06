@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import BrandLogo from "@/components/brand/BrandLogo";
+import SEOHead from "@/components/SEOHead";
 import { ArrowRight, Search, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -21,12 +22,6 @@ function cityToSlug(city: string) {
 
 export default function CityViolationsIndex() {
   const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    document.title = "Code Violations by City | Snap Ignite";
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "Browse code violation data across 4,500+ cities. Find enforcement intelligence for any city in the United States. Snap Ignite tracks 500K+ properties.");
-  }, []);
 
   const { data: jurisdictions = [], isLoading } = useQuery({
     queryKey: ["jurisdictions-index"],
@@ -59,6 +54,7 @@ export default function CityViolationsIndex() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
+      <SEOHead title="Code Violations by City | Snap Ignite" description="Browse code violation data across 4,500+ cities. Find enforcement intelligence for any city in the United States. Snap Ignite tracks 500K+ properties." canonical="https://snapignite.com/code-violations" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",

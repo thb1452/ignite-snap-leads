@@ -1,18 +1,14 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import BrandLogo from "@/components/brand/BrandLogo";
+import SEOHead from "@/components/SEOHead";
 import { ArrowRight, Database, Activity, Target, Layers, Filter, Download } from "lucide-react";
 
 export default function DistressedPropertyData() {
-  useEffect(() => {
-    document.title = "Distressed Property Data Powered by Enforcement Intelligence | Snap Ignite";
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "Access distressed property data sourced from municipal enforcement records. 500K+ properties scored by enforcement pressure across 4,500+ U.S. cities. Start free.");
-  }, []);
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
+      <SEOHead title="Distressed Property Data Powered by Enforcement Intelligence | Snap Ignite" description="Access distressed property data sourced from municipal enforcement records. 500K+ properties scored by enforcement pressure across 4,500+ U.S. cities. Start free." canonical="https://snapignite.com/distressed-property-data" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",

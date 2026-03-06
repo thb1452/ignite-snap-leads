@@ -1,42 +1,29 @@
 
 
-## Plan: Enhance FOIA Import to Support Your VA Tracking Sheets
+## Plan: Fix Future Dates in Violation Data
 
-Your three CSVs contain not just target jurisdiction info, but also contact emails, submission methods, request statuses, dates, and notes — all critical context for VAs. The current ImportWizard only imports basic target data into the `targets` table and loses this history. Here is the plan to fix that.
+### Problem
+98 violations have `opened_date` values in the future (2026-2029), likely compliance deadlines or expiration dates from CSV imports that were incorrectly mapped as violation open dates. These bubble up to `newest_violation_date` on properties, breaking the "Newest Violations" sort.
 
-### What the CSVs contain beyond current support
-
-| Field | Water Shutoff | MASTER_SHEET | 2K_MASTER |
-|-------|--------------|--------------|-----------|
-| Contact email | FOIA_Email | Contact Value | Contact Value |
-| Submission method | Method | Submission Method | Submission Method |
-| Request status | Status | Status (2nd col) | Status (2nd col) |
-| Request date | Date Requested | Date | Date Submitted |
-| Notes | Notes | Notes (2nd col) | Notes (2nd col) |
+### Root Cause
+The `sanitizeDateString` function in `process-upload` accepts dates up to year 2100. It should cap at today's date for violation `opened_date` fields, since a violation cannot have been opened in the future.
 
 ### Changes
 
-**1. Database migration — add columns to `targets` table**
-- `contact_email text` — store the clerk email or contact value
-- `submission_method text` — email, portal, pdf_form, manual, etc.
-- `notes text` — general notes from the sheet
+**1. Fix existing bad data (SQL data update)**
+- Cap all `violations.opened_date` values that are in the future to today's date
+- Cap all `properties.newest_violation_date` values that are in the future to today's date
 
-**2. Enhance ImportWizard column mapping**
-- Add mappings for: Contact Email, Submission Method, Notes, Request Status, Request Date
-- Auto-detect these columns from CSV headers (e.g., "FOIA_Email" or "Contact Value" maps to contact_email)
-- Each CSV has slightly different headers; the auto-detect logic handles all three formats
+**2. Harden the ingestion pipeline (`supabase/functions/process-upload/index.ts`)**
+- Update `sanitizeDateString` to reject dates more than 30 days in the future (small buffer for timezone edge cases), returning `null` instead
+- Change the year upper bound from 2100 to `current year + 1` as a secondary safeguard
 
-**3. Seed `foia_requests` for rows with existing status/date**
-- After inserting targets, for any row that has a status and date, create a corresponding `foia_requests` record linked to that target
-- Map CSV statuses ("Sent", "Fulfilled", "Fee Quote", "Already Sent") to the system's status enum (sent, fulfilled, needs_review, sent)
-- This preserves historical request tracking so VAs see what has already been done
+**3. Harden the aggregation logic (`supabase/functions/generate-insights/index.ts`)**
+- When computing `newest_violation_date`, filter out any `opened_date` values that are in the future before taking the max
 
-**4. File-level target type auto-detection**
-- Water_Shut_Off_Sheet defaults to `water_shutoff` target type
-- MASTER_SHEET and 2K_MASTER_SHEET default to `city_foia` (with county rows detected by name containing "County")
-
-### Files modified
-- `supabase/migrations/` — new migration adding 3 columns to targets
-- `src/components/foia/admin/ImportWizard.tsx` — expanded column mapping, status seeding logic, auto-detect improvements
-- `src/types/foia.ts` — update `ColumnMapping` and `Target` types with new fields
+### Scope
+- 98 violations affected
+- 98 properties affected  
+- 2 edge function files edited
+- 1 data fix query
 

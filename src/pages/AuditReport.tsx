@@ -137,17 +137,15 @@ export default function AuditReport() {
 
         {/* 6. Feature System */}
         <Section title="6. Feature System">
-          <Table headers={["Feature", "Starter", "Professional", "Elite"]} rows={[
-            ["Max Counties", "1", "3", "10"],
-            ["Monthly Exports", "5", "25", "Unlimited"],
-            ["Skip Traces/Month", "10", "50", "200"],
-            ["Violation Filtering", "Basic", "✓", "✓"],
-            ["Advanced Filters", "—", "✓", "✓"],
-            ["Escalation Alerts", "—", "✓", "✓"],
-            ["Rolling Intelligence", "—", "—", "✓"],
-            ["API Access", "—", "—", "✓"],
-            ["Dedicated Manager", "—", "—", "✓"],
-            ["User Seats", "1", "3", "10"],
+          <Table headers={["Feature", "Starter ($79/mo)", "Professional ($149/mo)", "Elite ($299/mo)"]} rows={[
+            ["Monthly Enforcement Reports", "5,000", "15,000", "25,000"],
+            ["Cities Nationwide", "4,520+", "4,520+", "4,520+"],
+            ["Code Violation Data", "✓", "✓", "✓"],
+            ["Basic Filters (location, category, search)", "✓", "✓", "✓"],
+            ["Weekly Data Refresh", "✓", "✓", "✓"],
+            ["Email Support", "✓", "Priority", "Priority"],
+            ["Pressure Level Filtering", "—", "✓", "✓"],
+            ["Water Shutoff Data", "—", "—", "✓"],
           ]} />
         </Section>
 

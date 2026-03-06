@@ -1,29 +1,56 @@
 
 
-## Plan: Fix Future Dates in Violation Data
+## Plan: Fix FAQ Language + Build SEO Landing Pages
 
-### Problem
-98 violations have `opened_date` values in the future (2026-2029), likely compliance deadlines or expiration dates from CSV imports that were incorrectly mapped as violation open dates. These bubble up to `newest_violation_date` on properties, breaking the "Newest Violations" sort.
+### Task 1: Fix FAQ Data Freshness Language (2 min)
 
-### Root Cause
-The `sanitizeDateString` function in `process-upload` accepts dates up to year 2100. It should cap at today's date for violation `opened_date` fields, since a violation cannot have been opened in the future.
+Update the "How fresh is the data?" answer in **two places**:
+- `index.html` (JSON-LD structured data, line 106)
+- `src/pages/Landing.tsx` (visible FAQ section, line 1034)
 
-### Changes
+**New text:**
+> "Enforcement records appear in Snap Ignite as municipal sources update. Most jurisdictions refresh monthly, ensuring you're working with current enforcement signals — not the stale, outdated lists traditional providers deliver 30–90 days late."
 
-**1. Fix existing bad data (SQL data update)**
-- Cap all `violations.opened_date` values that are in the future to today's date
-- Cap all `properties.newest_violation_date` values that are in the future to today's date
+---
 
-**2. Harden the ingestion pipeline (`supabase/functions/process-upload/index.ts`)**
-- Update `sanitizeDateString` to reject dates more than 30 days in the future (small buffer for timezone edge cases), returning `null` instead
-- Change the year upper bound from 2100 to `current year + 1` as a secondary safeguard
+### Task 2: Create SEO Landing Pages (3 pages)
 
-**3. Harden the aggregation logic (`supabase/functions/generate-insights/index.ts`)**
-- When computing `newest_violation_date`, filter out any `opened_date` values that are in the future before taking the max
+Build keyword-targeted pages that rank for high-intent investor searches. Each page will follow a consistent template: hero with H1 keyword, value props, stats from the platform, CTA to sign up.
 
-### Scope
-- 98 violations affected
-- 98 properties affected  
-- 2 edge function files edited
-- 1 data fix query
+**Pages to create:**
+
+| Route | Target Keyword | H1 |
+|---|---|---|
+| `/code-violation-leads` | code violation leads | Code Violation Leads for Real Estate Investors |
+| `/distressed-property-data` | distressed property data | Distressed Property Data Powered by Enforcement Intelligence |
+| `/code-enforcement-data` | code enforcement data | Code Enforcement Data Across 4,500+ Cities |
+
+**Each page includes:**
+- Keyword-optimized `<title>` and meta description (via `document.title` or react-helmet equivalent)
+- H1 → H2 → H3 heading hierarchy with semantic keywords
+- 3–4 content sections (what it is, how it works, coverage, CTA)
+- Internal links to `/pricing` and `/auth`
+- Consistent footer matching Landing page
+- JSON-LD `WebPage` structured data
+
+**Route registration** in `App.tsx` — public routes (no auth required), lazy-loaded.
+
+### Task 3: Update `robots.txt` and add `sitemap.xml`
+
+- Add a `sitemap.xml` to `/public` listing all public pages (landing, pricing, about, privacy, terms, blog, and the 3 new SEO pages)
+- Update `robots.txt` to reference the sitemap
+
+---
+
+### Files to create
+- `src/pages/CodeViolationLeads.tsx`
+- `src/pages/DistressedPropertyData.tsx`
+- `src/pages/CodeEnforcementData.tsx`
+- `public/sitemap.xml`
+
+### Files to edit
+- `index.html` (line 106 — FAQ answer)
+- `src/pages/Landing.tsx` (line 1034 — FAQ answer)
+- `src/App.tsx` (add 3 lazy routes)
+- `public/robots.txt` (add sitemap reference)
 

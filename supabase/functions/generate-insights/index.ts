@@ -406,11 +406,12 @@ function aggregatePropertyIntelligence(
   
   const openViolations = violations.filter(v => (v.status || '').toLowerCase().trim() === 'open');
   
+  const now_ts = now.getTime();
   const dates = violations
     .map(v => v.opened_date)
     .filter(d => d)
     .map(d => new Date(d!))
-    .filter(d => !isNaN(d.getTime()))
+    .filter(d => !isNaN(d.getTime()) && d.getTime() <= now_ts) // Filter out future dates
     .sort((a, b) => a.getTime() - b.getTime());
   
   const daysOpen = violations.map(v => v.days_open || 0);

@@ -104,17 +104,20 @@ function sanitizeDateString(dateStr: string | null): string | null {
   if (!dateStr || !dateStr.trim()) return null;
   
   const str = dateStr.trim();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const maxYear = currentYear + 1; // Secondary safeguard
+  // 30-day buffer for timezone edge cases
+  const maxDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   
   // Try to parse as ISO date (YYYY-MM-DD) or common date formats
-  // First check for obviously invalid dates like 2025-00-11, 2025-91-30
   const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) {
     const year = parseInt(isoMatch[1], 10);
     const month = parseInt(isoMatch[2], 10);
     const day = parseInt(isoMatch[3], 10);
     
-    // Validate ranges
-    if (year < 1900 || year > 2100) return null;
+    if (year < 1900 || year > maxYear) return null;
     if (month < 1 || month > 12) return null;
     if (day < 1 || day > 31) return null;
   }
@@ -136,11 +139,15 @@ function sanitizeDateString(dateStr: string | null): string | null {
     const parsed = new Date(str);
     if (isNaN(parsed.getTime())) return null;
     
-    // Check if date is reasonable (between 1950 and 2100)
     const year = parsed.getFullYear();
-    if (year < 1950 || year > 2100) return null;
+    if (year < 1950 || year > maxYear) return null;
     
-    // Return original string if valid
+    // Reject dates more than 30 days in the future
+    if (parsed > maxDate) {
+      console.log(`[process-upload] Rejecting future date: ${str} (parsed as ${parsed.toISOString()})`);
+      return null;
+    }
+    
     return str;
   } catch {
     return null;

@@ -5,7 +5,7 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { db } from '@/lib/foia/db';
 import { hashUrl } from '@/lib/foia/dedup';
-import type { ColumnMapping, ImportResult, TargetType } from '@/types/foia';
+import type { ColumnMapping, ImportResult, TargetType, FoiaRequestStatus } from '@/types/foia';
 import { cn } from '@/lib/utils';
 
 type RawRow = Record<string, string>;
@@ -17,6 +17,53 @@ const TARGET_TYPE_OPTIONS: { value: TargetType; label: string }[] = [
   { value: 'population_list', label: 'Population List' },
 ];
 
+/** Map CSV status strings to our system enum */
+function mapCsvStatus(raw: string): FoiaRequestStatus {
+  const s = raw.toLowerCase().trim();
+  if (s === 'fulfilled' || s === 'received') return 'fulfilled';
+  if (s === 'sent' || s === 'already sent' || s === 'submitted') return 'sent';
+  if (s === 'fee quote' || s === 'fee' || s === 'needs review') return 'needs_review';
+  if (s === 'rejected' || s === 'denied') return 'rejected';
+  if (s === 'no portal') return 'no_portal';
+  return 'pending';
+}
+
+/** Detect default target type from filename */
+function detectTargetType(fileName: string): TargetType {
+  const lower = fileName.toLowerCase();
+  if (lower.includes('water') || lower.includes('shut')) return 'water_shutoff';
+  return 'city_foia';
+}
+
+/** All column mapping fields with labels */
+const MAPPING_FIELDS: Array<{ key: keyof ColumnMapping; label: string; required?: boolean }> = [
+  { key: 'jurisdiction_name', label: 'Jurisdiction Name *', required: true },
+  { key: 'state', label: 'State (2-letter) *', required: true },
+  { key: 'county', label: 'Parent County' },
+  { key: 'population', label: 'Population' },
+  { key: 'foia_url', label: 'FOIA URL' },
+  { key: 'contact_email', label: 'Contact Email' },
+  { key: 'submission_method', label: 'Submission Method' },
+  { key: 'notes', label: 'Notes' },
+  { key: 'request_status', label: 'Request Status' },
+  { key: 'request_date', label: 'Request Date' },
+  { key: 'target_type', label: 'Target Type (override)' },
+];
+
+const EMPTY_MAPPING: ColumnMapping = {
+  jurisdiction_name: '',
+  state: '',
+  county: '',
+  population: '',
+  target_type: '',
+  foia_url: '',
+  contact_email: '',
+  submission_method: '',
+  notes: '',
+  request_status: '',
+  request_date: '',
+};
+
 interface ImportWizardProps {
   onComplete: (result: ImportResult) => void;
 }
@@ -27,32 +74,15 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
   const [columns, setColumns] = useState<string[]>([]);
   const [fileName, setFileName] = useState('');
   const [defaultType, setDefaultType] = useState<TargetType>('county_foia');
-  const [mapping, setMapping] = useState<ColumnMapping>({
-    jurisdiction_name: '',
-    state: '',
-    county: '',
-    population: '',
-    target_type: '',
-    foia_url: '',
-  });
+  const [mapping, setMapping] = useState<ColumnMapping>({ ...EMPTY_MAPPING });
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState('');
 
   const parseUploadedFile = useCallback(async (file: File): Promise<RawRow[]> => {
     const ext = file.name.split('.').pop()?.toLowerCase();
-
-    const isLikelyCsv =
-      ext === 'csv' ||
-      file.type === 'text/csv' ||
-      file.type === 'application/csv' ||
-      file.type === 'text/plain';
-
-    const isLikelyExcel =
-      ext === 'xlsx' ||
-      ext === 'xls' ||
-      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-      file.type === 'application/vnd.ms-excel';
+    const isLikelyCsv = ext === 'csv' || file.type === 'text/csv' || file.type === 'application/csv' || file.type === 'text/plain';
+    const isLikelyExcel = ext === 'xlsx' || ext === 'xls' || file.type.includes('spreadsheetml') || file.type.includes('ms-excel');
 
     if (isLikelyCsv) {
       const text = await file.text();
@@ -63,7 +93,6 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
       });
       return parsed.data;
     }
-
     if (isLikelyExcel) {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'array' });
@@ -72,14 +101,51 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
       const ws = wb.Sheets[firstSheetName];
       return XLSX.utils.sheet_to_json<RawRow>(ws, { defval: '' });
     }
-
     throw new Error('Unsupported file type. Please upload .csv, .xlsx, or .xls');
   }, []);
+
+  /** Auto-detect column mapping from headers */
+  function autoDetectMapping(cols: string[]): ColumnMapping {
+    const autoMap: ColumnMapping = { ...EMPTY_MAPPING };
+    const norm = (c: string) => c.toLowerCase().replace(/[\s_-]/g, '');
+
+    for (const col of cols) {
+      const n = norm(col);
+
+      // Jurisdiction name
+      if (!autoMap.jurisdiction_name && (n.includes('jurisdiction') || n === 'name' || n === 'city' || n === 'county' || n.includes('cityname') || n.includes('countyname'))) {
+        autoMap.jurisdiction_name = col;
+      }
+      if (!autoMap.state && n.includes('state')) autoMap.state = col;
+      if (!autoMap.county && n === 'county') autoMap.county = col;
+      if (!autoMap.population && n.includes('pop')) autoMap.population = col;
+      if (!autoMap.target_type && (n.includes('targettype') || n === 'type')) autoMap.target_type = col;
+      if (!autoMap.foia_url && (n.includes('url') || n.includes('link') || (n.includes('foia') && !n.includes('email')))) {
+        autoMap.foia_url = col;
+      }
+      // New fields
+      if (!autoMap.contact_email && (n.includes('foiaemail') || n.includes('contactvalue') || n.includes('contactemail') || n === 'email')) {
+        autoMap.contact_email = col;
+      }
+      if (!autoMap.submission_method && (n.includes('submissionmethod') || n === 'method')) {
+        autoMap.submission_method = col;
+      }
+      if (!autoMap.notes && n === 'notes') {
+        autoMap.notes = col;
+      }
+      if (!autoMap.request_status && n === 'status') {
+        autoMap.request_status = col;
+      }
+      if (!autoMap.request_date && (n.includes('daterequested') || n.includes('datesubmitted') || n === 'date')) {
+        autoMap.request_date = col;
+      }
+    }
+    return autoMap;
+  }
 
   const onDrop = useCallback(async (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
     setImportError('');
     const file = acceptedFiles[0];
-
     if (!file) {
       const rejectionReason = rejectedFiles[0]?.errors?.[0]?.message;
       setImportError(rejectionReason || 'File was not accepted. Please upload .csv, .xlsx, or .xls');
@@ -87,6 +153,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     }
 
     setFileName(file.name);
+    setDefaultType(detectTargetType(file.name));
 
     let rows: RawRow[] = [];
     try {
@@ -99,10 +166,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     const cleanedRows = rows
       .map((row) =>
         Object.fromEntries(
-          Object.entries(row).map(([key, value]) => [
-            key.replace(/^\uFEFF/, '').trim(),
-            String(value ?? '').trim(),
-          ])
+          Object.entries(row).map(([key, value]) => [key.replace(/^\uFEFF/, '').trim(), String(value ?? '').trim()])
         ) as RawRow
       )
       .filter((row) => Object.values(row).some((value) => value !== ''));
@@ -115,31 +179,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     setRawRows(cleanedRows);
     const cols = Object.keys(cleanedRows[0]);
     setColumns(cols);
-
-    // Auto-detect column mapping
-    const autoMap: ColumnMapping = {
-      jurisdiction_name: '',
-      state: '',
-      county: '',
-      population: '',
-      target_type: '',
-      foia_url: '',
-    };
-    const normalizeCol = (c: string) => c.toLowerCase().replace(/[\s_-]/g, '');
-    for (const col of cols) {
-      const n = normalizeCol(col);
-      if (!autoMap.jurisdiction_name && (n.includes('jurisdiction') || n.includes('name') || n.includes('county') || n.includes('city'))) {
-        autoMap.jurisdiction_name = col;
-      }
-      if (!autoMap.state && n.includes('state')) autoMap.state = col;
-      if (!autoMap.county && n === 'county') autoMap.county = col;
-      if (!autoMap.population && n.includes('pop')) autoMap.population = col;
-      if (!autoMap.target_type && (n.includes('targettype') || n === 'type')) autoMap.target_type = col;
-      if (!autoMap.foia_url && (n.includes('url') || n.includes('link') || n.includes('foia'))) {
-        autoMap.foia_url = col;
-      }
-    }
-    setMapping(autoMap);
+    setMapping(autoDetectMapping(cols));
     setStep('map');
   }, [parseUploadedFile]);
 
@@ -174,7 +214,6 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
 
     const BATCH_SIZE = 100;
 
-    // Fetch existing url_hashes from DB to check against
     const { data: existingHashes } = await db
       .from('targets')
       .select('url_hash')
@@ -184,6 +223,8 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     const batchHashes = new Set<string>();
 
     const inserts: Record<string, unknown>[] = [];
+    // Track rows that need foia_requests seeding (index in rawRows -> row data)
+    const requestSeedRows: { rowIndex: number; status: string; date: string; insertIndex: number }[] = [];
 
     for (let i = 0; i < rawRows.length; i++) {
       const row = rawRows[i];
@@ -198,12 +239,10 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
 
       const foiaUrl = mapping.foia_url ? String(row[mapping.foia_url] || '').trim() : '';
       let urlHash: string | null = null;
-      let isDuplicate = false;
 
       if (foiaUrl) {
         urlHash = hashUrl(foiaUrl);
         if (dbHashes.has(urlHash) || batchHashes.has(urlHash)) {
-          isDuplicate = true;
           duplicates.push(`${jurisdictionName}, ${state}`);
           skipped++;
           continue;
@@ -211,10 +250,21 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
         batchHashes.add(urlHash);
       }
 
-      const targetType: TargetType = mapping.target_type
-        ? (String(row[mapping.target_type] || '').trim() as TargetType) || defaultType
-        : defaultType;
+      // Detect target type: use override column, or infer county from name
+      let targetType: TargetType = defaultType;
+      if (mapping.target_type) {
+        const overrideType = String(row[mapping.target_type] || '').trim() as TargetType;
+        if (overrideType) targetType = overrideType;
+      }
+      if (targetType === 'city_foia' && jurisdictionName.toLowerCase().includes('county')) {
+        targetType = 'county_foia';
+      }
 
+      const contactEmail = mapping.contact_email ? String(row[mapping.contact_email] || '').trim() || null : null;
+      const submissionMethod = mapping.submission_method ? String(row[mapping.submission_method] || '').trim() || null : null;
+      const notes = mapping.notes ? String(row[mapping.notes] || '').trim() || null : null;
+
+      const insertIdx = inserts.length;
       inserts.push({
         jurisdiction_name: jurisdictionName,
         state,
@@ -226,28 +276,44 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
         foia_url: foiaUrl || null,
         url_hash: urlHash,
         source_file: fileName,
-        is_duplicate: isDuplicate,
+        is_duplicate: false,
+        contact_email: contactEmail,
+        submission_method: submissionMethod,
+        notes,
       });
 
+      // Check if this row has request status/date for seeding
+      const rawStatus = mapping.request_status ? String(row[mapping.request_status] || '').trim() : '';
+      const rawDate = mapping.request_date ? String(row[mapping.request_date] || '').trim() : '';
+      if (rawStatus) {
+        requestSeedRows.push({ rowIndex: i, status: rawStatus, date: rawDate, insertIndex: insertIdx });
+      }
+
       if (inserts.length >= BATCH_SIZE) {
-        const { error } = await db.from('targets').insert(inserts as any);
+        const batchToInsert = [...inserts];
+        const { data: inserted, error } = await db.from('targets').insert(batchToInsert as any).select('id');
         if (error) {
-          errors += inserts.length;
+          errors += batchToInsert.length;
         } else {
-          imported += inserts.length;
+          imported += batchToInsert.length;
+          // Seed foia_requests for this batch
+          await seedRequestsForBatch(inserted || [], requestSeedRows, batchToInsert.length, inserts.length - batchToInsert.length);
         }
         inserts.length = 0;
+        // Clear seed rows for flushed batch
+        requestSeedRows.length = 0;
         setProgress(Math.round((i / rawRows.length) * 100));
       }
     }
 
     // Flush remaining
     if (inserts.length > 0) {
-      const { error } = await db.from('targets').insert(inserts as any);
+      const { data: inserted, error } = await db.from('targets').insert(inserts as any).select('id');
       if (error) {
         errors += inserts.length;
       } else {
         imported += inserts.length;
+        await seedRequestsForBatch(inserted || [], requestSeedRows, inserts.length, 0);
       }
     }
 
@@ -257,6 +323,53 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     setStep('done');
     onComplete(finalResult);
   };
+
+  /** Seed foia_requests for rows that had an existing status in the CSV */
+  async function seedRequestsForBatch(
+    insertedTargets: Array<{ id: string }>,
+    seedRows: Array<{ rowIndex: number; status: string; date: string; insertIndex: number }>,
+    batchSize: number,
+    batchOffset: number
+  ) {
+    if (seedRows.length === 0 || insertedTargets.length === 0) return;
+
+    // Get current user for requested_by
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return;
+
+    const requestInserts: Record<string, unknown>[] = [];
+
+    for (const seed of seedRows) {
+      const targetIdx = seed.insertIndex - batchOffset;
+      if (targetIdx < 0 || targetIdx >= insertedTargets.length) continue;
+
+      const targetId = insertedTargets[targetIdx].id;
+      const mappedStatus = mapCsvStatus(seed.status);
+
+      // Parse date loosely
+      let requestDate: string | null = null;
+      if (seed.date) {
+        const d = new Date(seed.date);
+        if (!isNaN(d.getTime())) {
+          requestDate = d.toISOString().split('T')[0];
+        }
+      }
+
+      requestInserts.push({
+        target_id: targetId,
+        requested_by: user.id,
+        va_id: user.id,
+        status: mappedStatus,
+        request_date: requestDate || new Date().toISOString().split('T')[0],
+        sent_at: mappedStatus === 'sent' || mappedStatus === 'fulfilled' ? (requestDate ? new Date(requestDate).toISOString() : new Date().toISOString()) : null,
+        notes: `Imported from ${fileName}`,
+      });
+    }
+
+    if (requestInserts.length > 0) {
+      await db.from('foia_requests').insert(requestInserts as any);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -299,16 +412,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h3 className="font-semibold text-slate-900 mb-4">Map Columns</h3>
             <div className="grid grid-cols-2 gap-4">
-              {(
-                [
-                  { key: 'jurisdiction_name', label: 'Jurisdiction Name *', required: true },
-                  { key: 'state', label: 'State (2-letter) *', required: true },
-                  { key: 'county', label: 'Parent County' },
-                  { key: 'population', label: 'Population' },
-                  { key: 'foia_url', label: 'FOIA URL' },
-                  { key: 'target_type', label: 'Target Type (override)' },
-                ] as Array<{ key: keyof ColumnMapping; label: string; required?: boolean }>
-              ).map(({ key, label, required }) => (
+              {MAPPING_FIELDS.map(({ key, label, required }) => (
                 <div key={key}>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
                   <select
@@ -336,7 +440,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
-              <p className="text-slate-400 text-xs mt-1">Used when the type column is empty or not mapped</p>
+              <p className="text-slate-400 text-xs mt-1">Auto-detected from filename · Used when type column is empty or not mapped</p>
             </div>
           </div>
 
@@ -349,7 +453,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
               <table className="text-xs w-full">
                 <thead>
                   <tr className="bg-slate-50">
-                    {columns.slice(0, 8).map((col) => (
+                    {columns.slice(0, 10).map((col) => (
                       <th key={col} className="text-left px-3 py-2 text-slate-500 font-medium whitespace-nowrap">
                         {col}
                       </th>
@@ -359,7 +463,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
                 <tbody className="divide-y divide-slate-100">
                   {rawRows.slice(0, 5).map((row, i) => (
                     <tr key={i}>
-                      {columns.slice(0, 8).map((col) => (
+                      {columns.slice(0, 10).map((col) => (
                         <td key={col} className="px-3 py-2 text-slate-700 max-w-[150px] truncate">
                           {String(row[col] || '')}
                         </td>

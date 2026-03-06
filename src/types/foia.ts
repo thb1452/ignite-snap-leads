@@ -42,6 +42,9 @@ export interface Target {
   url_hash: string | null;
   source_file: string | null;
   is_duplicate: boolean;
+  contact_email: string | null;
+  submission_method: string | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -105,6 +108,11 @@ export interface ImportRow {
   population?: number;
   target_type: TargetType;
   foia_url?: string;
+  contact_email?: string;
+  submission_method?: string;
+  notes?: string;
+  request_status?: string;
+  request_date?: string;
 }
 
 export interface ImportResult {
@@ -121,6 +129,11 @@ export interface ColumnMapping {
   population?: string;
   target_type?: string;
   foia_url?: string;
+  contact_email?: string;
+  submission_method?: string;
+  notes?: string;
+  request_status?: string;
+  request_date?: string;
 }
 
 export interface QueueItem extends Target {

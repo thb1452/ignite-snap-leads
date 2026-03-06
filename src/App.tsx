@@ -35,6 +35,12 @@ const Blog = lazy(() => import("./pages/Blog"));
 const CodeViolationLeads = lazy(() => import("./pages/CodeViolationLeads"));
 const DistressedPropertyData = lazy(() => import("./pages/DistressedPropertyData"));
 const CodeEnforcementData = lazy(() => import("./pages/CodeEnforcementData"));
+const MunicipalEnforcementData = lazy(() => import("./pages/MunicipalEnforcementData"));
+const OffMarketPropertyLeads = lazy(() => import("./pages/OffMarketPropertyLeads"));
+const RealEstateDistressSignals = lazy(() => import("./pages/RealEstateDistressSignals"));
+const HowInvestorsFindDistressedProperties = lazy(() => import("./pages/HowInvestorsFindDistressedProperties"));
+const CityViolationsIndex = lazy(() => import("./pages/CityViolationsIndex"));
+const CityViolations = lazy(() => import("./pages/CityViolations"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // VA pages
@@ -206,6 +212,12 @@ const App = () => (
           <Route path="/code-violation-leads" element={<CodeViolationLeads />} />
           <Route path="/distressed-property-data" element={<DistressedPropertyData />} />
           <Route path="/code-enforcement-data" element={<CodeEnforcementData />} />
+          <Route path="/municipal-enforcement-data" element={<MunicipalEnforcementData />} />
+          <Route path="/off-market-property-leads" element={<OffMarketPropertyLeads />} />
+          <Route path="/real-estate-distress-signals" element={<RealEstateDistressSignals />} />
+          <Route path="/how-investors-find-distressed-properties" element={<HowInvestorsFindDistressedProperties />} />
+          <Route path="/code-violations" element={<CityViolationsIndex />} />
+          <Route path="/code-violations/:citySlug" element={<CityViolations />} />
           {/* FOIA VA PLATFORM ROUTES */}
           <Route path="/foia/login" element={<FoiaLogin />} />
           <Route path="/foia/admin" element={

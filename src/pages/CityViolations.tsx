@@ -19,6 +19,7 @@ interface JurisdictionWithCounts {
   county: string | null;
   enforcement_profile: Record<string, unknown> | null;
   propertyCount: number;
+  ai_summary: string | null;
 }
 
 export default function CityViolations() {
@@ -54,6 +55,7 @@ export default function CityViolations() {
         county: j.county,
         enforcement_profile: profile,
         propertyCount: count || 0,
+        ai_summary: (j as any).ai_summary || null,
       };
     },
     enabled: !!citySlug,
@@ -144,6 +146,20 @@ export default function CityViolations() {
               </div>
             </div>
           </section>
+
+          {/* AI Enforcement Summary */}
+          {jurisdiction.ai_summary && (
+            <section className="py-16 px-6 border-t border-[hsl(var(--landing-surface))]">
+              <div className="max-w-4xl mx-auto">
+                <h2 className="text-3xl font-bold mb-6 text-center">{jurisdiction.city} Enforcement Intelligence</h2>
+                <div className="bg-[hsl(var(--landing-surface))]/30 border border-[hsl(var(--landing-surface))] rounded-xl p-8">
+                  <p className="text-[hsl(var(--landing-text-muted))] leading-relaxed text-base whitespace-pre-line">
+                    {jurisdiction.ai_summary}
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* What You Get */}
           <section className="py-16 px-6 border-t border-[hsl(var(--landing-surface))]">

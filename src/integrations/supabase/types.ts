@@ -762,6 +762,7 @@ export type Database = {
       }
       jurisdictions: {
         Row: {
+          ai_summary: string | null
           city: string
           county: string | null
           created_at: string
@@ -772,6 +773,7 @@ export type Database = {
           state: string
         }
         Insert: {
+          ai_summary?: string | null
           city: string
           county?: string | null
           created_at?: string
@@ -782,6 +784,7 @@ export type Database = {
           state: string
         }
         Update: {
+          ai_summary?: string | null
           city?: string
           county?: string | null
           created_at?: string

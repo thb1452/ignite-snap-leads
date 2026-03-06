@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
@@ -191,94 +192,118 @@ export default function Landing() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-24 pb-20 overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-landing-primary/20 via-landing-bg to-landing-bg" />
+      <section className="relative pt-28 pb-24 overflow-hidden">
+        {/* Animated dot grid background */}
+        <div 
+          className="absolute inset-0 animate-dot-grid opacity-20"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgba(56,178,172,0.3) 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-landing-primary/20 via-landing-bg/80 to-landing-bg" />
         <div className="absolute top-1/4 right-0 w-[600px] h-[600px] bg-landing-accent/5 rounded-full blur-3xl" />
         
         <div className="container mx-auto px-4 relative z-10">
-          <div className="grid lg:grid-cols-5 gap-12 items-center">
-            {/* Left side - Copy (60%) */}
+          <motion.div 
+            initial="hidden"
+            animate="visible"
+            variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+            className="grid lg:grid-cols-5 gap-12 items-center"
+          >
+            {/* Left column: stats + text */}
             <div className="lg:col-span-3 space-y-8">
               
-              <motion.p 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="text-landing-accent font-semibold tracking-wide uppercase text-sm"
+              {/* Giant stats row */}
+              <motion.div 
+                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                className="grid grid-cols-3 gap-4 md:gap-8"
               >
-                Enforcement Intelligence Platform
-              </motion.p>
-              
+                {[
+                  { end: 441501, suffix: '+', label: 'Properties' },
+                  { end: 4520, suffix: '+', label: 'Cities' },
+                  { end: 406000, suffix: '+', label: 'Violations' },
+                ].map((stat, i) => (
+                  <motion.div 
+                    key={stat.label}
+                    variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                    className="text-center"
+                  >
+                    <div className="text-2xl sm:text-3xl md:text-5xl font-bold text-landing-accent tabular-nums">
+                      <AnimatedCounter end={stat.end} suffix={stat.suffix} />
+                    </div>
+                    <div className="text-xs sm:text-sm text-landing-text-muted mt-1">{stat.label}</div>
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              {/* Headline */}
               <motion.h1 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight"
+                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight"
               >
-                See Enforcement Pressure Before It Becomes
-                <span className="text-landing-accent"> Public Knowledge</span>
+                Enforcement Intelligence for{' '}
+                <span className="text-landing-accent">441k+ Properties</span>
               </motion.h1>
               
+              {/* Condensed subtext */}
               <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="text-xl text-landing-text-muted max-w-2xl"
+                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                className="text-lg md:text-xl text-landing-text-muted max-w-2xl"
               >
-                Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 4,520+ cities nationwide, updated weekly.
-              </motion.p>
-
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
-                className="text-sm text-landing-text-muted max-w-2xl border-l-2 border-landing-accent/40 pl-4"
-              >
-                Snap Ignite is a municipal enforcement intelligence platform. Not a leads tool. Not a list service. An intelligence layer that shows you where enforcement pressure is building — before it resolves or hits the market.
+                Real‑time violation monitoring across 4,520+ cities. Join 400+ early‑access investors already tracking enforcement pressure before it hits the market.
               </motion.p>
               
+              {/* CTA group + FOMO badge */}
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="flex flex-col sm:flex-row gap-4"
+                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                className="flex flex-col sm:flex-row items-start sm:items-center gap-4"
               >
-                <Button 
-                  size="lg"
-                  onClick={() => scrollToSection('pricing')}
-                  className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6"
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+                  <Button 
+                    size="lg"
+                    onClick={() => {
+                      trackEvent('hero_cta_click', { location: 'hero' });
+                      scrollToSection('pricing');
+                    }}
+                    className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
+                  >
+                    Get Early Access
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </motion.div>
+                
+                <button 
+                  onClick={() => {
+                    trackEvent('scroll_to_platform', { location: 'hero' });
+                    scrollToSection('features');
+                  }}
+                  className="text-sm font-medium text-landing-text-muted hover:text-landing-text transition-colors"
                 >
-                  Start Free Trial
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
+                  See the Platform in Action ↓
+                </button>
+
+                {/* FOMO pill */}
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-xs font-semibold animate-pulse-soft">
+                  <Zap className="w-3 h-3" />
+                  Early Access — First 200 Investors
+                </span>
               </motion.div>
               
+              {/* Trust line */}
               <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 }}
+                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
                 className="text-landing-text-muted text-sm flex items-center gap-2"
               >
                 <Lock className="w-4 h-4" />
-                3-day free trial • 25 property exports • Then $79/month • Cancel anytime
-              </motion.p>
-              
-              <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 }}
-                className="text-landing-text-muted text-xs"
-              >
-                Trusted by investors and wholesalers who track enforcement pressure nationwide
+                Trusted by 400+ investors during pilot • Cancel anytime
               </motion.p>
             </div>
             
-            {/* Right side - Dashboard mockup (40%) */}
+            {/* Right column: video */}
             <motion.div 
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
+              variants={{ hidden: { opacity: 0, x: 50 }, visible: { opacity: 1, x: 0, transition: { duration: 0.8 } } }}
               className="lg:col-span-2 relative"
             >
               <div className="relative rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
@@ -291,13 +316,31 @@ export default function Landing() {
                   className="w-full h-auto rounded-2xl"
                 />
               </div>
-              
-              {/* Floating glow effect */}
               <div className="absolute -inset-4 bg-landing-accent/10 rounded-3xl blur-2xl -z-10 animate-pulse-soft" />
             </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Live Stats Bar */}
+      <section className="py-6 bg-landing-surface/20 backdrop-blur-xl border-y border-landing-accent/20 animate-gradient-border">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+            {[
+              { end: 441501, label: 'Properties Tracked', suffix: '+' },
+              { end: 4520, label: 'Cities Covered', suffix: '+' },
+              { end: 406000, label: 'Violations Monitored', suffix: '+' },
+              { end: 52, label: 'Weekly Updates', suffix: '/yr' },
+            ].map((stat) => (
+              <div key={stat.label} className="text-center py-3">
+                <div className="text-2xl md:text-4xl font-bold text-landing-text tabular-nums">
+                  <AnimatedCounter end={stat.end} suffix={stat.suffix} />
+                </div>
+                <div className="text-xs md:text-sm text-landing-text-muted mt-1">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
-        
       </section>
 
       {/* Problem Agitation Section */}
@@ -347,7 +390,7 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="bg-landing-bg/50 border border-landing-surface rounded-xl p-8"
+                className="bg-landing-bg/50 border border-landing-surface rounded-xl p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(56,178,172,0.15)]"
               >
                 <div className="w-14 h-14 rounded-lg bg-red-500/10 flex items-center justify-center mb-6">
                   <problem.icon className="w-7 h-7 text-red-400" />
@@ -362,7 +405,7 @@ export default function Landing() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-3xl mx-auto text-center mt-16 p-8 bg-landing-primary/20 border border-landing-primary/30 rounded-xl"
+            className="max-w-3xl mx-auto text-center mt-16 p-8 bg-landing-primary/20 border border-landing-accent/30 rounded-xl animate-gradient-border"
           >
             <p className="text-xl text-landing-text">
               What if you could see which properties are under pressure <span className="text-landing-accent font-semibold">RIGHT NOW</span>—before everyone else notices?
@@ -490,7 +533,7 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className={`bg-landing-surface/50 border rounded-xl p-8 ${
+                className={`bg-landing-surface/50 border rounded-xl p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(56,178,172,0.15)] ${
                   feature.highlight ? 'border-landing-accent/50 ring-2 ring-landing-accent/20' : 'border-landing-surface'
                 }`}
               >

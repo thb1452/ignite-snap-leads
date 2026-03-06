@@ -142,6 +142,14 @@ export default {
           "0%, 100%": { boxShadow: "0 0 20px rgba(56, 178, 172, 0.3)" },
           "50%": { boxShadow: "0 0 40px rgba(56, 178, 172, 0.6)" },
         },
+        "dot-grid": {
+          "0%": { backgroundPosition: "0 0" },
+          "100%": { backgroundPosition: "40px 40px" },
+        },
+        "gradient-border": {
+          "0%, 100%": { borderColor: "rgba(56, 178, 172, 0.3)" },
+          "50%": { borderColor: "rgba(56, 178, 172, 0.8)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -151,6 +159,8 @@ export default {
         "count-up": "count-up 0.5s ease-out forwards",
         "float": "float 6s ease-in-out infinite",
         "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "dot-grid": "dot-grid 60s linear infinite",
+        "gradient-border": "gradient-border 3s ease infinite",
       },
     },
   },

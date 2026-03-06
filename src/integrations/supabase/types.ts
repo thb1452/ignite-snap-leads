@@ -442,6 +442,51 @@ export type Database = {
         }
         Relationships: []
       }
+      error_logs: {
+        Row: {
+          component_stack: string | null
+          created_at: string
+          error_message: string
+          error_stack: string | null
+          id: string
+          metadata: Json | null
+          resolved: boolean
+          resolved_at: string | null
+          severity: string
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          component_stack?: string | null
+          created_at?: string
+          error_message: string
+          error_stack?: string | null
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean
+          resolved_at?: string | null
+          severity?: string
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          component_stack?: string | null
+          created_at?: string
+          error_message?: string
+          error_stack?: string | null
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean
+          resolved_at?: string | null
+          severity?: string
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           job_id: string

@@ -252,7 +252,7 @@ export default function Landing() {
                 variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
                 className="text-lg md:text-xl text-landing-text-muted max-w-2xl"
               >
-                Real‑time violation monitoring across 4,520+ cities. Join 400+ early‑access investors already tracking enforcement pressure before it hits the market.
+                Real‑time violation monitoring across 4,520+ cities. Join 400+ early‑access operators already tracking enforcement pressure before it hits the market.
               </motion.p>
               
               {/* CTA group + FOMO badge */}
@@ -287,7 +287,7 @@ export default function Landing() {
                 {/* FOMO pill */}
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-xs font-semibold animate-pulse-soft">
                   <Zap className="w-3 h-3" />
-                  Early Access — First 200 Investors
+                  Early Access — First 200 Users
                 </span>
               </motion.div>
               
@@ -297,7 +297,7 @@ export default function Landing() {
                 className="text-landing-text-muted text-sm flex items-center gap-2"
               >
                 <Lock className="w-4 h-4" />
-                Trusted by 400+ investors during pilot • Cancel anytime
+                Trusted by 400+ professionals during pilot • Cancel anytime
               </motion.p>
             </div>
             
@@ -962,7 +962,7 @@ export default function Landing() {
               {
                 initials: "MT",
                 name: "Marcus T.",
-                role: "Fix & Flip Investor, Dallas-Fort Worth",
+                role: "Fix & Flip Operator, Dallas-Fort Worth",
                 quote: "I was skeptical because I've tried a lot of data tools. What's different here is the enforcement focus — it's not just violation counts, it's pressure patterns. Water shutoff data alone flagged properties in my market that had zero visibility anywhere else. That's a real intelligence advantage.",
                 result: "First deal paid for 2 years of subscription"
               }
@@ -1135,7 +1135,7 @@ export default function Landing() {
                 <span className="text-landing-text"> IGNITE</span>
               </span>
               <p className="text-landing-text-muted text-sm mt-4">
-                Enforcement intelligence for real estate investors.
+                Enforcement intelligence for real estate professionals.
               </p>
             </div>
             

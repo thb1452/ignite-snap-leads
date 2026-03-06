@@ -1,6 +1,7 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { logErrorToDb } from "@/services/errorLogger";
 
 interface Props {
   children: ReactNode;
@@ -27,6 +28,13 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error("[ErrorBoundary] Caught error:", error);
     console.error("[ErrorBoundary] Error info:", errorInfo);
     this.setState({ errorInfo });
+
+    logErrorToDb({
+      error_message: error.message,
+      error_stack: error.stack,
+      component_stack: errorInfo.componentStack ?? undefined,
+      severity: "fatal",
+    });
   }
 
   handleReset = () => {

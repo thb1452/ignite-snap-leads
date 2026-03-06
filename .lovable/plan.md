@@ -1,21 +1,16 @@
 
 
-## Fix Positioning Language — Remove "Investor" References
+## Plan: Update Landing Page — Remove "leads" references and fix data freshness to "monthly"
 
-The platform is positioned as **municipal enforcement intelligence**, not a leads/investor tool. The current landing page has 5 locations using "investor(s)" that contradict this positioning.
+### Changes needed in `src/pages/Landing.tsx`:
 
-### Changes to `src/pages/Landing.tsx`
+1. **Line 392** — "chase more leads" → "chase more records"
+2. **Line 530** — "tracks escalation patterns weekly" → "tracks escalation patterns monthly"
+3. **Line 612** — "chasing stale leads" → "chasing stale records"
+4. **Line 679** — "BatchLeads" → "BatchData, similar tools" (or keep as product name since it's a competitor reference)
+5. **Line 742** — "Weekly data refresh" → "Monthly data refresh"
+6. **Line 882** — "Weekly data refresh" → "Monthly data refresh"
+7. **Line 1033** — "We update weekly." → "We update monthly."
 
-| Location | Current Copy | Replacement |
-|----------|-------------|-------------|
-| Hero subtext (line 255) | "Join 400+ early-access **investors** already tracking..." | "Join 400+ early-access **operators** already tracking..." |
-| FOMO badge (line 290) | "First 200 **Investors**" | "First 200 **Users**" |
-| Trust line (line 300) | "Trusted by 400+ **investors** during pilot" | "Trusted by 400+ **professionals** during pilot" |
-| Testimonial role (line 965) | "Fix & Flip **Investor**, Dallas-Fort Worth" | "Fix & Flip Operator, Dallas-Fort Worth" |
-| Footer tagline (line 1138) | "Enforcement intelligence for real estate **investors**" | "Enforcement intelligence for real estate professionals" |
-
-### Rationale
-- "Operators" and "professionals" are neutral terms that fit enforcement intelligence positioning
-- Testimonial roles shift to "operator" to stay consistent
-- No structural or layout changes — copy-only swap
+All changes are in a single file, straightforward text replacements.
 

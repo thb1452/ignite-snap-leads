@@ -389,7 +389,7 @@ export default function Landing() {
               {
                 icon: Phone,
                 title: "Volume Over Intelligence",
-                description: "The current playbook: blast through more data, chase more leads, hope something sticks. It's exhausting, expensive, and everyone else is doing the same thing."
+                description: "The current playbook: blast through more data, chase more records, hope something sticks. It's exhausting, expensive, and everyone else is doing the same thing."
               }
             ].map((problem, i) => (
               <motion.div
@@ -527,7 +527,7 @@ export default function Landing() {
               {
                 icon: BarChart3,
                 title: "The 30-Day Window",
-                description: "Municipal enforcement moves fast. A code violation today becomes a lien next month. Snap Ignite tracks escalation patterns weekly so you see pressure building—not after it's resolved or sold."
+                description: "Municipal enforcement moves fast. A code violation today becomes a lien next month. Snap Ignite tracks escalation patterns monthly so you see pressure building—not after it's resolved or sold."
               },
               {
                 icon: Map,
@@ -609,7 +609,7 @@ export default function Landing() {
               {
                 step: "03",
                 title: "Act Before Competition",
-                description: "Export your targeted list while the data is fresh. You're not chasing stale leads—you're acting on current enforcement signals."
+                description: "Export your targeted list while the data is fresh. You're not chasing stale records—you're acting on current enforcement signals."
               }
             ].map((step, i) => (
               <motion.div
@@ -676,7 +676,7 @@ export default function Landing() {
               </h3>
               <ul className="space-y-4">
                 {[
-                  "You already use BatchLeads, similar tools, or work directly with county data and want better targeting",
+                  "You already use BatchData, similar tools, or work directly with county data and want better targeting",
                   "You value timing over volume — you'd rather work 50 high-pressure properties than chase 500 stale records",
                   "You're tired of competing on the same data and want an actual information advantage",
                   "You operate in markets where enforcement activity creates early visibility into property pressure",
@@ -739,7 +739,7 @@ export default function Landing() {
                   "4,520+ cities nationwide",
                   "Code violation data",
                   "Basic filters (location, category, search)",
-                  "Weekly data refresh",
+                  "Monthly data refresh",
                   "Email support"
                 ],
                 tagline: "Enforcement intelligence without the noise.",
@@ -879,7 +879,7 @@ export default function Landing() {
                     { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
                     { type: "Municipal court dates", ps: false, snap: true, snapNote: "" },
                     { type: "Real-time escalation alerts", ps: false, snap: true, snapNote: "" },
-                    { type: "Weekly data refresh", ps: false, snap: true, snapNote: "" },
+                    { type: "Monthly data refresh", ps: false, snap: true, snapNote: "" },
                   ].map((row, i) => (
                     <tr key={i} className="bg-landing-bg/30">
                       <td className="py-3 px-6">{row.type}</td>
@@ -1030,7 +1030,7 @@ export default function Landing() {
                 },
                 {
                   question: "How fresh is the data?",
-                  answer: "Most enforcement data appears in Snap Ignite within 7-14 days of the violation being recorded—compared to 30-90 days (or longer) with traditional data providers. We update weekly."
+                  answer: "Most enforcement data appears in Snap Ignite within 7-14 days of the violation being recorded—compared to 30-90 days (or longer) with traditional data providers. We update monthly."
                 },
                 {
                   question: "Do you include owner contact information?",

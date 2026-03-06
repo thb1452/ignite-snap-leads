@@ -21,6 +21,7 @@ import { InsightRefreshDashboard } from "@/components/admin/InsightRefreshDashbo
 import { DataHealthDashboard } from "@/components/admin/DataHealthDashboard";
 import { BackfillAggregatesButton } from "@/components/intelligence/BackfillAggregatesButton";
 import { CityAuditDashboard } from "@/components/admin/CityAuditDashboard";
+import { ErrorLogsDashboard } from "@/components/admin/ErrorLogsDashboard";
 import { 
   Users, 
   Upload, 
@@ -37,7 +38,7 @@ import {
   Plus
 } from "lucide-react";
 
-type Tab = "overview" | "uploads" | "users" | "jurisdictions" | "logs";
+type Tab = "overview" | "uploads" | "users" | "jurisdictions" | "logs" | "errors";
 
 export default function AdminConsole() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -121,6 +122,12 @@ export default function AdminConsole() {
           >
             System Logs
           </Button>
+          <Button
+            variant={activeTab === "errors" ? "default" : "ghost"}
+            onClick={() => setActiveTab("errors")}
+          >
+            Error Logs
+          </Button>
         </div>
 
         {/* Tab Content */}
@@ -129,6 +136,7 @@ export default function AdminConsole() {
         {activeTab === "users" && <UserManagementTab refreshTrigger={refreshCounter} />}
         {activeTab === "jurisdictions" && <JurisdictionsTab refreshTrigger={refreshCounter} />}
         {activeTab === "logs" && <SystemLogsTab refreshTrigger={refreshCounter} />}
+        {activeTab === "errors" && <ErrorLogsDashboard />}
       </div>
     </AppLayout>
   );

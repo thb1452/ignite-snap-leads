@@ -78,3 +78,6 @@ verify_jwt = true
 
 [functions.send-foia-invite]
 verify_jwt = true
+
+[functions.dynamic-sitemap]
+verify_jwt = false

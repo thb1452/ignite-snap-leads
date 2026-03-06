@@ -254,6 +254,14 @@ export default function Landing() {
               >
                 Real‑time violation monitoring across 4,520+ cities. Join 400+ early‑access operators already tracking enforcement pressure before it hits the market.
               </motion.p>
+
+              {/* Positioning blockquote */}
+              <motion.blockquote
+                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                className="border-l-2 border-landing-accent/40 pl-5 text-landing-text-muted text-base md:text-lg max-w-2xl"
+              >
+                Snap Ignite is a municipal enforcement intelligence platform. Not a leads tool. Not a list service. An intelligence layer that shows you where enforcement pressure is building — before it resolves or hits the market.
+              </motion.blockquote>
               
               {/* CTA group + FOMO badge */}
               <motion.div

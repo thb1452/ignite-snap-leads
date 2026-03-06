@@ -15,12 +15,21 @@ export const VIOLATION_CATEGORIES: ViolationCategory[] = [
   {
     id: 'exterior',
     label: 'Exterior Issues',
-    description: 'Paint, siding, windows, doors, gutters',
+    description: 'Paint, siding, windows, doors, gutters, yard maintenance',
     keywords: [
       'exterior', 'siding', 'paint', 'peeling', 'fascia', 'soffit', 
       'window', 'door', 'gutter', 'downspout', 'trim', 'corrosion',
       '304.2', '304.6', '304.7', '304.13', '304.15', 
-      'protective treatment', 'weather tight', 'frames'
+      'protective treatment', 'weather tight', 'frames',
+      'weed', 'grass', 'overgrown', 'vegetation', 'trash', 'debris',
+      'rubbish', 'garbage', 'litter', 'junk', 'abandoned', 'storage',
+      'inoperable vehicle', 'accumulation', 'blight',
+      '302.4', '308.1', 'mowing', 'clean-up', 'ce-cl', 'solid waste',
+      'tree removal', 'snow', 'ice removal', 'property maintenance',
+      'property inspection', 'code compliance', 'ce inspection',
+      'ipmc 304', 'ipmc 308', 'cco ', 'landscaping',
+      'hg', 'is', 'tr', 'e4', 'e1', 'e2', 'fm', 'gc', 'mo', 'ot',
+      '1a', '1c', '1d'
     ]
   },
   {
@@ -31,48 +40,35 @@ export const VIOLATION_CATEGORIES: ViolationCategory[] = [
       'structural', 'foundation', 'roof', 'wall', 'floor', 'ceiling',
       'load', 'bearing', 'collapse', 'unsafe structure', 'dangerous',
       'accessory structure', 'deck', 'porch', 'balcony', 'stair',
-      '302.7', '304.4', '305.3', '305.4', '305.5', '305.6'
+      '302.7', '304.4', '305.3', '305.4', '305.5', '305.6',
+      'dangerous building', 'building code', 'interior housing',
+      'rr', 'bi'
     ]
   },
   {
     id: 'safety',
     label: 'Safety Hazards',
-    description: 'Electrical, fire, smoke detectors, hazards',
+    description: 'Electrical, fire, smoke detectors, hazards, sanitation',
     keywords: [
-      'safety', 'electrical', 'fire', 'smoke', 'carbon monoxide',
-      'hazard', 'luminaire', 'wiring', 'circuit', 'egress',
-      'handrail', 'guardrail', 'railing', '605.1', '605.3', '702'
+      'safety', 'hazard', 'danger', 'unsafe', 'egress',
+      'handrail', 'guardrail', 'railing', 'carbon monoxide',
+      'attractive nuisance', 'nuisance affecting', 'health',
+      'rodent', 'vermin', 'sanitar', 'animal carcass',
+      'dead', 'dying', 'ha', 'an', 'sc'
     ]
   },
   {
     id: 'zoning',
     label: 'Zoning',
-    description: 'Parking, setbacks, unpermitted work',
+    description: 'Parking, setbacks, unpermitted work, land use',
     keywords: [
       'zoning', 'parking', 'setback', 'permit', 'unpermitted',
       'variance', 'land use', 'occupancy', 'commercial', 'residential',
-      'right of way', 'obstruction'
-    ]
-  },
-  {
-    id: 'maintenance',
-    label: 'Maintenance',
-    description: 'Weeds, trash, general neglect',
-    keywords: [
-      'weed', 'grass', 'overgrown', 'vegetation', 'trash', 'debris',
-      'rubbish', 'garbage', 'litter', 'junk', 'abandoned', 'storage',
-      'inoperable vehicle', 'accumulation', 'nuisance', 'blight',
-      '302.4', '308.1'
-    ]
-  },
-  {
-    id: 'interior',
-    label: 'Interior',
-    description: 'Plumbing, HVAC, interior conditions',
-    keywords: [
-      'interior', 'plumbing', 'hvac', 'furnace', 'heating', 'cooling',
-      'bathroom', 'kitchen', 'toilet', 'sink', 'sanitary', 'water',
-      'ventilation', '504', '505', '506', '602', '603'
+      'right of way', 'obstruction', 'illegal sign', 'signage',
+      'without permit', 'w/out permit', 'illegal construction',
+      'home occupation', 'short term rental', 'municipal code',
+      'lafayette development code', 'carts out',
+      'ls', 'iv', 'jv'
     ]
   },
   {
@@ -82,7 +78,28 @@ export const VIOLATION_CATEGORIES: ViolationCategory[] = [
     keywords: [
       'vacant', 'vacancy', 'boarded', 'unoccupied', 'abandoned property',
       'register', 'registration', 'condemnation', 'closing', 'unfit',
-      '109.1', '109.2'
+      '109.1', '109.2', 'placarded'
+    ]
+  },
+  {
+    id: 'utility',
+    label: 'Utility',
+    description: 'Plumbing, electrical, HVAC, water issues',
+    keywords: [
+      'utilit', 'electric', 'plumbing', 'sewage', 'hvac', 'furnace',
+      'heating', 'water disconnect', 'water shutoff', 'lighting',
+      'stagnant water', 'watercourse', 'illicit discharge', 'stormwater',
+      '605.', '602.', '603.', '504.', '505.', '506.', '403.2',
+      'bathroom', 'toilet', 'ventilation', 'furnace report', 'energy'
+    ]
+  },
+  {
+    id: 'fire',
+    label: 'Fire',
+    description: 'Fire damage, smoke alarms, flammable vegetation',
+    keywords: [
+      'fire', 'burn', 'smoke', 'charred', 'flammable vegetation',
+      '704.6', 'smoke alarm', 'fire alarm', 'fire damage', 'arson'
     ]
   }
 ];

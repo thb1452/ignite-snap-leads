@@ -1,0 +1,1 @@
+ALTER TABLE public.jurisdictions ADD COLUMN IF NOT EXISTS ai_summary text DEFAULT NULL;

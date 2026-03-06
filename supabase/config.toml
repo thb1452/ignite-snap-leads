@@ -81,3 +81,6 @@ verify_jwt = true
 
 [functions.dynamic-sitemap]
 verify_jwt = false
+
+[functions.generate-city-summaries]
+verify_jwt = false

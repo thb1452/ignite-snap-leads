@@ -347,6 +347,7 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
   }, [selectedPropertyId, mapReady, markers]);
 
 
+  return (
     <div className="relative h-full z-0">
       <div ref={mapContainerRef} className="absolute inset-0 rounded-lg" />
       

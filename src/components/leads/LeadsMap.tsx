@@ -28,6 +28,7 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.CircleMarker[]>([]);
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
+  const highlightRef = useRef<L.LayerGroup | null>(null);
   const heatLayerRef = useRef<L.LayerGroup | null>(null);
   const [viewMode, setViewMode] = useState<"map" | "heatmap">("map");
   const [mapReady, setMapReady] = useState(false);

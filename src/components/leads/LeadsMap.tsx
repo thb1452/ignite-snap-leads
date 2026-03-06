@@ -288,7 +288,65 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
     }
   }, [markers, onPropertyClick, viewMode, mapReady]);
 
-  return (
+  // Fly to selected property and add highlight
+  useEffect(() => {
+    if (!mapRef.current || !mapReady) return;
+
+    // Clear previous highlight
+    if (highlightRef.current) {
+      mapRef.current.removeLayer(highlightRef.current);
+      highlightRef.current = null;
+    }
+
+    if (!selectedPropertyId) return;
+
+    const flyToCoords = async (lat: number, lng: number) => {
+      if (!mapRef.current) return;
+      mapRef.current.flyTo([lat, lng], 16, { duration: 1.2 });
+
+      // Add pulsing highlight ring
+      const highlight = L.layerGroup();
+      const outerRing = L.circleMarker([lat, lng], {
+        radius: 18,
+        fillColor: "transparent",
+        color: "#fff",
+        weight: 4,
+        opacity: 0.9,
+      });
+      const innerRing = L.circleMarker([lat, lng], {
+        radius: 18,
+        fillColor: "transparent",
+        color: "hsl(var(--primary))",
+        weight: 2,
+        opacity: 1,
+      });
+      highlight.addLayer(outerRing);
+      highlight.addLayer(innerRing);
+      highlight.addTo(mapRef.current);
+      highlightRef.current = highlight;
+    };
+
+    // Try to find in current markers first
+    const found = markers.find((m) => m.id === selectedPropertyId);
+    if (found?.latitude && found?.longitude) {
+      flyToCoords(found.latitude, found.longitude);
+      return;
+    }
+
+    // Fallback: fetch from DB
+    (async () => {
+      const { data } = await supabase
+        .from("properties")
+        .select("latitude, longitude")
+        .eq("id", selectedPropertyId)
+        .single();
+      if (data?.latitude && data?.longitude) {
+        flyToCoords(Number(data.latitude), Number(data.longitude));
+      }
+    })();
+  }, [selectedPropertyId, mapReady, markers]);
+
+
     <div className="relative h-full z-0">
       <div ref={mapContainerRef} className="absolute inset-0 rounded-lg" />
       

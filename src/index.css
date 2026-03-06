@@ -197,3 +197,19 @@ All colors MUST be HSL.
     pointer-events: none !important;
   }
 }
+
+/* Print styles for audit report */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+  }
+  nav, header, .print\\:hidden, [class*="sidebar"], [class*="Toaster"] {
+    display: none !important;
+  }
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+}

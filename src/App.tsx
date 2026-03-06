@@ -38,6 +38,7 @@ import AdminConsole from "./pages/AdminConsole";
 import AdminImportCounties from "./pages/AdminImportCounties";
 import AdminAssignCounties from "./pages/AdminAssignCounties";
 import AdminMigration from "./pages/AdminMigration";
+import AuditReport from "./pages/AuditReport";
 import ResetPassword from "./pages/ResetPassword";
 import HowSnapWorks from "./pages/HowSnapWorks";
 import Pricing from "./pages/Pricing";
@@ -157,6 +158,11 @@ const App = () => (
           <Route path="/admin/migration" element={
             <RoleProtectedRoute allowedRoles={['admin']}>
               <AdminMigration />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/audit-report" element={
+            <RoleProtectedRoute allowedRoles={['admin']}>
+              <AuditReport />
             </RoleProtectedRoute>
           } />
           <Route path="/how-snap-works" element={

@@ -411,6 +411,7 @@ export default function Landing() {
                   loop
                   muted
                   playsInline
+                  preload="none"
                   className="w-full h-auto"
                 />
               </div>
@@ -431,6 +432,7 @@ export default function Landing() {
                   loop
                   muted
                   playsInline
+                  preload="none"
                   className="w-full h-auto"
                 />
               </div>

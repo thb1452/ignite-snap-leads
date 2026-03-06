@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,48 +8,69 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
 import { usePageTracking } from "@/hooks/usePageTracking";
-// FOIA Platform
-import FoiaLogin from "./pages/FoiaLogin";
 import { FoiaAuthGuard } from "@/components/foia/shared/FoiaAuthGuard";
-import FoiaAdminDashboard from "./pages/foia/admin/FoiaAdminDashboard";
-import FoiaAdminIntelligence from "./pages/foia/admin/FoiaAdminIntelligence";
-import FoiaAdminInvite from "./pages/foia/admin/FoiaAdminInvite";
-import FoiaAdminImport from "./pages/foia/admin/FoiaAdminImport";
-import FoiaAdminRotation from "./pages/foia/admin/FoiaAdminRotation";
-import FoiaAdminPressAccounts from "./pages/foia/admin/FoiaAdminPressAccounts";
-import FoiaAdminAssignments from "./pages/foia/admin/FoiaAdminAssignments";
-import FoiaVADashboard from "./pages/foia/va/FoiaVADashboard";
-import FoiaVAQueue from "./pages/foia/va/FoiaVAQueue";
-import FoiaVAHistory from "./pages/foia/va/FoiaVAHistory";
-import Upload from "./pages/Upload";
-import Leads from "./pages/Leads";
+
+// ── Eagerly loaded (landing / auth – critical path) ──────────
 import Landing from "./pages/Landing";
-import { Lists } from "./pages/Lists";
-import ListDetail from "./pages/ListDetail";
-import SavedProperties from "./pages/SavedProperties";
-import { Settings } from "./pages/Settings";
-import JobDetail from "./pages/JobDetail";
-import Jobs from "./pages/Jobs";
-import UploadJobDetail from "./pages/UploadJobDetail";
-import VADashboard from "./pages/VADashboard";
-import VAWorkspace from "./pages/VAWorkspace";
-import VACountyDetail from "./pages/VACountyDetail";
-import VATemplates from "./pages/VATemplates";
-import AdminConsole from "./pages/AdminConsole";
-import AdminImportCounties from "./pages/AdminImportCounties";
-import AdminAssignCounties from "./pages/AdminAssignCounties";
-import AdminMigration from "./pages/AdminMigration";
-import AuditReport from "./pages/AuditReport";
-import ResetPassword from "./pages/ResetPassword";
-import HowSnapWorks from "./pages/HowSnapWorks";
-import Pricing from "./pages/Pricing";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
-import About from "./pages/About";
-import Blog from "./pages/Blog";
-import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
-import CheckoutSuccess from "./pages/CheckoutSuccess";
+
+// ── Lazy-loaded pages (code-split into separate chunks) ──────
+const Upload = lazy(() => import("./pages/Upload"));
+const Leads = lazy(() => import("./pages/Leads"));
+const Lists = lazy(() => import("./pages/Lists").then(m => ({ default: m.Lists })));
+const ListDetail = lazy(() => import("./pages/ListDetail"));
+const SavedProperties = lazy(() => import("./pages/SavedProperties"));
+const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })));
+const JobDetail = lazy(() => import("./pages/JobDetail"));
+const Jobs = lazy(() => import("./pages/Jobs"));
+const UploadJobDetail = lazy(() => import("./pages/UploadJobDetail"));
+const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const HowSnapWorks = lazy(() => import("./pages/HowSnapWorks"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const About = lazy(() => import("./pages/About"));
+const Blog = lazy(() => import("./pages/Blog"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+// VA pages
+const VADashboard = lazy(() => import("./pages/VADashboard"));
+const VAWorkspace = lazy(() => import("./pages/VAWorkspace"));
+const VACountyDetail = lazy(() => import("./pages/VACountyDetail"));
+const VATemplates = lazy(() => import("./pages/VATemplates"));
+
+// Admin pages
+const AdminConsole = lazy(() => import("./pages/AdminConsole"));
+const AdminImportCounties = lazy(() => import("./pages/AdminImportCounties"));
+const AdminAssignCounties = lazy(() => import("./pages/AdminAssignCounties"));
+const AdminMigration = lazy(() => import("./pages/AdminMigration"));
+const AuditReport = lazy(() => import("./pages/AuditReport"));
+
+// FOIA pages
+const FoiaLogin = lazy(() => import("./pages/FoiaLogin"));
+const FoiaAdminDashboard = lazy(() => import("./pages/foia/admin/FoiaAdminDashboard"));
+const FoiaAdminIntelligence = lazy(() => import("./pages/foia/admin/FoiaAdminIntelligence"));
+const FoiaAdminInvite = lazy(() => import("./pages/foia/admin/FoiaAdminInvite"));
+const FoiaAdminImport = lazy(() => import("./pages/foia/admin/FoiaAdminImport"));
+const FoiaAdminRotation = lazy(() => import("./pages/foia/admin/FoiaAdminRotation"));
+const FoiaAdminPressAccounts = lazy(() => import("./pages/foia/admin/FoiaAdminPressAccounts"));
+const FoiaAdminAssignments = lazy(() => import("./pages/foia/admin/FoiaAdminAssignments"));
+const FoiaVADashboard = lazy(() => import("./pages/foia/va/FoiaVADashboard"));
+const FoiaVAQueue = lazy(() => import("./pages/foia/va/FoiaVAQueue"));
+const FoiaVAHistory = lazy(() => import("./pages/foia/va/FoiaVAHistory"));
+
+// ── Suspense fallback ────────────────────────────────────────
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <span className="text-sm text-muted-foreground">Loading…</span>
+      </div>
+    </div>
+  );
+}
 
 const queryClient = new QueryClient();
 
@@ -65,9 +87,13 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
         <PageTracker />
+        <Suspense fallback={<PageLoader />}>
         <Routes>
+          {/* Eagerly loaded */}
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
+
+          {/* Lazy loaded */}
           <Route path="/checkout/success" element={<CheckoutSuccess />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/upload" element={
@@ -75,7 +101,6 @@ const App = () => (
               <Upload />
             </ProtectedRoute>
           } />
-          {/* Redirect old /app and /leads URLs */}
           <Route path="/app" element={<Navigate to="/properties" replace />} />
           <Route path="/leads" element={<Navigate to="/properties" replace />} />
           <Route path="/properties" element={
@@ -175,11 +200,8 @@ const App = () => (
           <Route path="/terms" element={<Terms />} />
           <Route path="/about" element={<About />} />
           <Route path="/blog" element={<Blog />} />
-          {/* ============================================================ */}
           {/* FOIA VA PLATFORM ROUTES */}
-          {/* ============================================================ */}
           <Route path="/foia/login" element={<FoiaLogin />} />
-          {/* Admin routes */}
           <Route path="/foia/admin" element={
             <FoiaAuthGuard requiredRole="admin">
               <FoiaAdminDashboard />
@@ -215,7 +237,6 @@ const App = () => (
               <FoiaAdminAssignments />
             </FoiaAuthGuard>
           } />
-          {/* VA routes */}
           <Route path="/foia/va" element={
             <FoiaAuthGuard>
               <FoiaVADashboard />
@@ -231,9 +252,9 @@ const App = () => (
               <FoiaVAHistory />
             </FoiaAuthGuard>
           } />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

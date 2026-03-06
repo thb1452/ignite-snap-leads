@@ -223,7 +223,7 @@ export default function Landing() {
                 {[
                   { end: 500000, suffix: '+', label: 'Properties' },
                   { end: 4520, suffix: '+', label: 'Cities' },
-                  { end: 406000, suffix: '+', label: 'Violations' },
+                  { end: 488636, suffix: '+', label: 'Violations' },
                 ].map((stat, i) => (
                   <motion.div 
                     key={stat.label}
@@ -337,7 +337,7 @@ export default function Landing() {
             {[
               { end: 500000, label: 'Properties Tracked', suffix: '+' },
               { end: 4520, label: 'Cities Covered', suffix: '+' },
-              { end: 406000, label: 'Violations Monitored', suffix: '+' },
+              { end: 488636, label: 'Violations Monitored', suffix: '+' },
               { end: 52, label: 'Weekly Updates', suffix: '/yr' },
             ].map((stat) => (
               <div key={stat.label} className="text-center py-3">

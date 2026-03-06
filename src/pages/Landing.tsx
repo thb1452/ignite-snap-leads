@@ -321,6 +321,7 @@ export default function Landing() {
                   loop
                   muted
                   playsInline
+                  aria-label="Snap Ignite platform demo showing enforcement intelligence dashboard with violation tracking and SnapScore rankings"
                   className="w-full h-auto rounded-2xl"
                 />
               </div>

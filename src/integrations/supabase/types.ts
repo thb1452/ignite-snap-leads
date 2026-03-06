@@ -2899,6 +2899,17 @@ export type Database = {
           state: string
         }[]
       }
+      fn_normalize_violation_type: {
+        Args: { raw_type: string }
+        Returns: string
+      }
+      fn_normalize_violation_types_batch: {
+        Args: { p_batch_size?: number }
+        Returns: {
+          processed: number
+          remaining: number
+        }[]
+      }
       fn_opportunity_funnel: {
         Args: never
         Returns: {

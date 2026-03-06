@@ -1,25 +1,62 @@
 
 
-## Plan: Fly-to-selected-property in LeadsMap
+## Assessment
 
-### What changes
+This strategy is sharp. You already have 3 of the 7 pages built (`/code-violation-leads`, `/distressed-property-data`, `/code-enforcement-data`). The remaining 4 static pages are straightforward. The programmatic city pages are the real power play.
 
-**File: `src/components/leads/LeadsMap.tsx`** — Add one `useEffect` (~30 lines) after the existing marker-rendering effect:
+**One tension to flag:** Your in-app positioning says "not a leads tool" and uses "properties" / "professionals." But SEO pages *should* use investor language because that is what people search for. This is fine -- marketing pages speak Google's language, the product speaks its own. Just keep them separate.
 
-1. **Watch `selectedPropertyId`** — when it changes to a non-null value:
-   - Search `markers` array for a match by ID to get lat/lng
-   - If not found (property outside viewport), do a single-row fetch: `supabase.from('properties').select('latitude, longitude').eq('id', selectedPropertyId).single()`
-   - Call `mapRef.current.flyTo([lat, lng], 16)` to smoothly pan/zoom
+## Plan: Build Remaining SEO Pages + Programmatic City Framework
 
-2. **Visual highlight** — add a pulsing ring marker around the selected property:
-   - Store a `highlightRef = useRef<L.CircleMarker | null>(null)`
-   - On selection, remove previous highlight, create a new `L.circleMarker` with larger radius (14), a bright border (white + colored ring), and add it to the map at high z-index
-   - Clear highlight when `selectedPropertyId` becomes null
+### Task 1: Create 4 New Static SEO Pages
 
-3. **No other files change** — no database migration, no new hooks. The `properties` table already has `latitude`/`longitude` columns accessible to authenticated users.
+Each follows the same template as existing pages (nav, hero H1, 3-4 content sections, stats, CTA, footer, JSON-LD).
 
-### Why this is safe
-- `flyTo` triggers `moveend`, which naturally reloads viewport markers — the selected property will appear in the marker set
-- The single-row DB fallback only fires when the property isn't already in the viewport cache
-- The highlight marker is independent of the cluster group, so it persists through re-renders
+| Route | Target Keyword | H1 |
+|---|---|---|
+| `/municipal-enforcement-data` | municipal enforcement data | Municipal Enforcement Data for Real Estate Professionals |
+| `/off-market-property-leads` | off market property leads | Off-Market Property Leads Powered by Enforcement Intelligence |
+| `/real-estate-distress-signals` | real estate distress signals | Real Estate Distress Signals: The Enforcement Layer Most Investors Miss |
+| `/how-investors-find-distressed-properties` | how investors find distressed properties | How Investors Find Distressed Properties in 2026 |
+
+**Files to create:** 4 new page components in `src/pages/`
+
+### Task 2: Register Routes + Update Sitemap
+
+- Add 4 lazy-loaded public routes in `App.tsx`
+- Add all 4 URLs to `public/sitemap.xml`
+
+### Task 3: Programmatic City Pages (the 4,000-page engine)
+
+This is the high-leverage move. Build a single dynamic route that pulls real jurisdiction data from the database.
+
+**Route:** `/code-violations/:citySlug` (e.g., `/code-violations/miami`)
+
+**How it works:**
+- Create `src/pages/CityViolations.tsx` -- a single template page
+- On mount, extract `citySlug` from URL params, query the `jurisdictions` table for matching city
+- Display: city name, state, property count, violation stats, enforcement pressure summary
+- Include JSON-LD `WebPage` schema with city-specific data
+- Dynamic `<title>`: "Code Violations in Miami, FL | Snap Ignite"
+- CTA to sign up and access the full data
+- If city not found, show a generic "coverage expanding" page with CTA
+
+**For Google discoverability**, create a city index page at `/code-violations` that lists all tracked cities as internal links (pulled from `jurisdictions` table). This acts as a crawlable directory.
+
+**Files to create:**
+- `src/pages/CityViolations.tsx` (dynamic template)
+- `src/pages/CityViolationsIndex.tsx` (directory of all cities)
+
+**Files to edit:**
+- `src/App.tsx` (add routes)
+- `public/sitemap.xml` (add static pages; note: for 4,000+ city pages, you'd eventually want a dynamic sitemap via edge function, but the index page handles crawlability for now)
+
+### Summary of All Changes
+
+| Action | Files |
+|---|---|
+| Create 4 static SEO pages | `src/pages/MunicipalEnforcementData.tsx`, `OffMarketPropertyLeads.tsx`, `RealEstateDistressSignals.tsx`, `HowInvestorsFindDistressedProperties.tsx` |
+| Create city template + index | `src/pages/CityViolations.tsx`, `src/pages/CityViolationsIndex.tsx` |
+| Register 7 new routes | `src/App.tsx` |
+| Update sitemap | `public/sitemap.xml` |
 

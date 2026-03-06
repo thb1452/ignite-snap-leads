@@ -32,6 +32,9 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const About = lazy(() => import("./pages/About"));
 const Blog = lazy(() => import("./pages/Blog"));
+const CodeViolationLeads = lazy(() => import("./pages/CodeViolationLeads"));
+const DistressedPropertyData = lazy(() => import("./pages/DistressedPropertyData"));
+const CodeEnforcementData = lazy(() => import("./pages/CodeEnforcementData"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // VA pages
@@ -200,6 +203,9 @@ const App = () => (
           <Route path="/terms" element={<Terms />} />
           <Route path="/about" element={<About />} />
           <Route path="/blog" element={<Blog />} />
+          <Route path="/code-violation-leads" element={<CodeViolationLeads />} />
+          <Route path="/distressed-property-data" element={<DistressedPropertyData />} />
+          <Route path="/code-enforcement-data" element={<CodeEnforcementData />} />
           {/* FOIA VA PLATFORM ROUTES */}
           <Route path="/foia/login" element={<FoiaLogin />} />
           <Route path="/foia/admin" element={

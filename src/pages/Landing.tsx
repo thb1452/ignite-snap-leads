@@ -1031,7 +1031,7 @@ export default function Landing() {
                 },
                 {
                   question: "How fresh is the data?",
-                  answer: "Enforcement records typically appear in Snap Ignite within days of being filed—while traditional providers lag 30-90 days or more. Our sources refresh monthly, so you're always working with current enforcement signals, not stale lists."
+                  answer: "Enforcement records appear in Snap Ignite as municipal sources update. Most jurisdictions refresh monthly, ensuring you're working with current enforcement signals — not the stale, outdated lists traditional providers deliver 30–90 days late."
                 },
                 {
                   question: "Do you include owner contact information?",

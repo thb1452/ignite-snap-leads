@@ -1,56 +1,62 @@
 
 
-## Plan: Fix FAQ Language + Build SEO Landing Pages
+## Assessment
 
-### Task 1: Fix FAQ Data Freshness Language (2 min)
+This strategy is sharp. You already have 3 of the 7 pages built (`/code-violation-leads`, `/distressed-property-data`, `/code-enforcement-data`). The remaining 4 static pages are straightforward. The programmatic city pages are the real power play.
 
-Update the "How fresh is the data?" answer in **two places**:
-- `index.html` (JSON-LD structured data, line 106)
-- `src/pages/Landing.tsx` (visible FAQ section, line 1034)
+**One tension to flag:** Your in-app positioning says "not a leads tool" and uses "properties" / "professionals." But SEO pages *should* use investor language because that is what people search for. This is fine -- marketing pages speak Google's language, the product speaks its own. Just keep them separate.
 
-**New text:**
-> "Enforcement records appear in Snap Ignite as municipal sources update. Most jurisdictions refresh monthly, ensuring you're working with current enforcement signals — not the stale, outdated lists traditional providers deliver 30–90 days late."
+## Plan: Build Remaining SEO Pages + Programmatic City Framework
 
----
+### Task 1: Create 4 New Static SEO Pages
 
-### Task 2: Create SEO Landing Pages (3 pages)
-
-Build keyword-targeted pages that rank for high-intent investor searches. Each page will follow a consistent template: hero with H1 keyword, value props, stats from the platform, CTA to sign up.
-
-**Pages to create:**
+Each follows the same template as existing pages (nav, hero H1, 3-4 content sections, stats, CTA, footer, JSON-LD).
 
 | Route | Target Keyword | H1 |
 |---|---|---|
-| `/code-violation-leads` | code violation leads | Code Violation Leads for Real Estate Investors |
-| `/distressed-property-data` | distressed property data | Distressed Property Data Powered by Enforcement Intelligence |
-| `/code-enforcement-data` | code enforcement data | Code Enforcement Data Across 4,500+ Cities |
+| `/municipal-enforcement-data` | municipal enforcement data | Municipal Enforcement Data for Real Estate Professionals |
+| `/off-market-property-leads` | off market property leads | Off-Market Property Leads Powered by Enforcement Intelligence |
+| `/real-estate-distress-signals` | real estate distress signals | Real Estate Distress Signals: The Enforcement Layer Most Investors Miss |
+| `/how-investors-find-distressed-properties` | how investors find distressed properties | How Investors Find Distressed Properties in 2026 |
 
-**Each page includes:**
-- Keyword-optimized `<title>` and meta description (via `document.title` or react-helmet equivalent)
-- H1 → H2 → H3 heading hierarchy with semantic keywords
-- 3–4 content sections (what it is, how it works, coverage, CTA)
-- Internal links to `/pricing` and `/auth`
-- Consistent footer matching Landing page
-- JSON-LD `WebPage` structured data
+**Files to create:** 4 new page components in `src/pages/`
 
-**Route registration** in `App.tsx` — public routes (no auth required), lazy-loaded.
+### Task 2: Register Routes + Update Sitemap
 
-### Task 3: Update `robots.txt` and add `sitemap.xml`
+- Add 4 lazy-loaded public routes in `App.tsx`
+- Add all 4 URLs to `public/sitemap.xml`
 
-- Add a `sitemap.xml` to `/public` listing all public pages (landing, pricing, about, privacy, terms, blog, and the 3 new SEO pages)
-- Update `robots.txt` to reference the sitemap
+### Task 3: Programmatic City Pages (the 4,000-page engine)
 
----
+This is the high-leverage move. Build a single dynamic route that pulls real jurisdiction data from the database.
 
-### Files to create
-- `src/pages/CodeViolationLeads.tsx`
-- `src/pages/DistressedPropertyData.tsx`
-- `src/pages/CodeEnforcementData.tsx`
-- `public/sitemap.xml`
+**Route:** `/code-violations/:citySlug` (e.g., `/code-violations/miami`)
 
-### Files to edit
-- `index.html` (line 106 — FAQ answer)
-- `src/pages/Landing.tsx` (line 1034 — FAQ answer)
-- `src/App.tsx` (add 3 lazy routes)
-- `public/robots.txt` (add sitemap reference)
+**How it works:**
+- Create `src/pages/CityViolations.tsx` -- a single template page
+- On mount, extract `citySlug` from URL params, query the `jurisdictions` table for matching city
+- Display: city name, state, property count, violation stats, enforcement pressure summary
+- Include JSON-LD `WebPage` schema with city-specific data
+- Dynamic `<title>`: "Code Violations in Miami, FL | Snap Ignite"
+- CTA to sign up and access the full data
+- If city not found, show a generic "coverage expanding" page with CTA
+
+**For Google discoverability**, create a city index page at `/code-violations` that lists all tracked cities as internal links (pulled from `jurisdictions` table). This acts as a crawlable directory.
+
+**Files to create:**
+- `src/pages/CityViolations.tsx` (dynamic template)
+- `src/pages/CityViolationsIndex.tsx` (directory of all cities)
+
+**Files to edit:**
+- `src/App.tsx` (add routes)
+- `public/sitemap.xml` (add static pages; note: for 4,000+ city pages, you'd eventually want a dynamic sitemap via edge function, but the index page handles crawlability for now)
+
+### Summary of All Changes
+
+| Action | Files |
+|---|---|
+| Create 4 static SEO pages | `src/pages/MunicipalEnforcementData.tsx`, `OffMarketPropertyLeads.tsx`, `RealEstateDistressSignals.tsx`, `HowInvestorsFindDistressedProperties.tsx` |
+| Create city template + index | `src/pages/CityViolations.tsx`, `src/pages/CityViolationsIndex.tsx` |
+| Register 7 new routes | `src/App.tsx` |
+| Update sitemap | `public/sitemap.xml` |
 

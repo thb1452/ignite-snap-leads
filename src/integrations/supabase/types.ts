@@ -1681,44 +1681,53 @@ export type Database = {
       }
       targets: {
         Row: {
+          contact_email: string | null
           county: string | null
           created_at: string
           foia_url: string | null
           id: string
           is_duplicate: boolean
           jurisdiction_name: string
+          notes: string | null
           population: number | null
           portal_difficulty_score: number | null
           source_file: string | null
           state: string
+          submission_method: string | null
           target_type: string
           url_hash: string | null
         }
         Insert: {
+          contact_email?: string | null
           county?: string | null
           created_at?: string
           foia_url?: string | null
           id?: string
           is_duplicate?: boolean
           jurisdiction_name: string
+          notes?: string | null
           population?: number | null
           portal_difficulty_score?: number | null
           source_file?: string | null
           state: string
+          submission_method?: string | null
           target_type: string
           url_hash?: string | null
         }
         Update: {
+          contact_email?: string | null
           county?: string | null
           created_at?: string
           foia_url?: string | null
           id?: string
           is_duplicate?: boolean
           jurisdiction_name?: string
+          notes?: string | null
           population?: number | null
           portal_difficulty_score?: number | null
           source_file?: string | null
           state?: string
+          submission_method?: string | null
           target_type?: string
           url_hash?: string | null
         }

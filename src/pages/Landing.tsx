@@ -221,7 +221,7 @@ export default function Landing() {
                 className="grid grid-cols-3 gap-4 md:gap-8"
               >
                 {[
-                  { end: 441501, suffix: '+', label: 'Properties' },
+                  { end: 500000, suffix: '+', label: 'Properties' },
                   { end: 4520, suffix: '+', label: 'Cities' },
                   { end: 406000, suffix: '+', label: 'Violations' },
                 ].map((stat, i) => (
@@ -335,7 +335,7 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {[
-              { end: 441501, label: 'Properties Tracked', suffix: '+' },
+              { end: 500000, label: 'Properties Tracked', suffix: '+' },
               { end: 4520, label: 'Cities Covered', suffix: '+' },
               { end: 406000, label: 'Violations Monitored', suffix: '+' },
               { end: 52, label: 'Weekly Updates', suffix: '/yr' },

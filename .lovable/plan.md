@@ -1,23 +1,47 @@
 
 
-## Plan: Full System Audit as Downloadable PDF
+## Landing Page Redesign — Stats-Forward Hero + Motion
 
-Create a standalone HTML page at `/audit-report` that renders the complete Snap Ignite system audit in a print-optimized layout. The user can then use their browser's "Print → Save as PDF" to get a clean PDF document.
+Your detailed spec is solid. Here's the implementation plan:
 
-### What gets built
+### Files to modify
 
-1. **New page**: `src/pages/AuditReport.tsx` — a full-page, print-optimized report containing all 13 sections from the audit (Platform Overview, Database Overview, Data Pipeline, Backend Architecture, Core Algorithms, Feature System, Subscription System, Frontend Architecture, Security, Known Issues, Growth Infrastructure, Competitive Moat, System Metrics).
+**1. `tailwind.config.ts`** — Add two keyframes + animations:
+- `dot-grid`: slow background-position shift for the hero grid pattern
+- `gradient-border`: pulsing border color on the problem callout box
 
-2. **New route**: Add `/audit-report` to `App.tsx` (admin-protected).
+**2. `src/pages/Landing.tsx`** — Three changes:
 
-3. **Print styling**: Add `@media print` CSS rules to hide navigation/sidebar and render clean pages with proper margins, page breaks, and table formatting.
+#### A. Hero rewrite (lines 193–301)
+Replace the current hero with:
+- **Animated dot-grid background** (CSS `background-image` radial dots, `animate-dot-grid`)
+- **Three giant stat counters** in a row (441,501+ / 4,520+ / 406,000+) with staggered framer-motion entrance and `AnimatedCounter` (already defined in the file)
+- **Shorter headline**: "Enforcement Intelligence for 441k+ Properties"
+- **Single-line subtext** replacing the two paragraphs + blockquote
+- **CTA with hover scale/glow** via `motion.button` `whileHover`
+- **Secondary anchor CTA**: "See the Platform in Action ↓" with `scrollToSection('features')` + `trackEvent`
+- **FOMO pill**: "Early Access — First 200 Investors" with `animate-pulse-soft`
+- **Trust line**: "Trusted by 400+ investors during pilot"
+- Video stays in right column but visually secondary
 
-4. **Print button**: A "Download as PDF" button at the top that triggers `window.print()`.
+#### B. Live Stats Bar (new section, inserted after hero at line 301, before Problem section)
+- Full-width glassmorphism strip: `bg-landing-surface/20 backdrop-blur-xl border border-landing-accent/20 animate-gradient-border`
+- Four counters in a grid (2x2 on mobile, 4-col on desktop): Properties Tracked, Cities Covered, Violations Monitored, Weekly Updates
+- `useInView` + `trackEvent('stats_bar_visible')` for analytics
 
-### Technical approach
+#### C. Motion enhancements (scattered)
+- Feature cards (lines 487–504): add `transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(56,178,172,0.15)]`
+- Problem callout box (line 365): add `animate-gradient-border` class
+- Problem cards (line 350): add same hover lift effect
 
-- Static content page — no API calls needed, all data is hardcoded from the audit results already gathered.
-- Uses existing UI components (Card, Table, Badge) for consistent styling.
-- Print media query strips chrome, forces white background, and sets A4-friendly margins.
-- Protected behind admin role check.
+### What stays untouched
+- Nav, pricing, FAQ, footer, mobile menu
+- `AnimatedCounter` component (reused as-is from line 36)
+- Color system, all sections below hero
+- Platform videos section
+
+### Performance notes
+- Dot grid is pure CSS (`background-image: radial-gradient`), no canvas/JS
+- All motion is CSS transforms or lightweight framer-motion — no new bundles
+- Hero video keeps `autoPlay` but stats take visual priority
 

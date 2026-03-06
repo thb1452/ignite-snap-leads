@@ -1030,7 +1030,7 @@ export default function Landing() {
                 },
                 {
                   question: "How fresh is the data?",
-                  answer: "Most enforcement data appears in Snap Ignite within 7-14 days of the violation being recorded—compared to 30-90 days (or longer) with traditional data providers. We update monthly."
+                  answer: "Enforcement records typically appear in Snap Ignite within days of being filed—while traditional providers lag 30-90 days or more. Our sources refresh monthly, so you're always working with current enforcement signals, not stale lists."
                 },
                 {
                   question: "Do you include owner contact information?",

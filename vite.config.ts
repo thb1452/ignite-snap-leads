@@ -15,4 +15,17 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor: split heavy libs into their own cached chunks
+          'vendor-map': ['leaflet', 'react-leaflet', 'leaflet.markercluster', 'react-leaflet-cluster'],
+          'vendor-charts': ['recharts'],
+          'vendor-xlsx': ['xlsx'],
+          'vendor-motion': ['framer-motion'],
+        },
+      },
+    },
+  },
 }));

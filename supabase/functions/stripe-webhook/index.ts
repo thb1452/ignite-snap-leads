@@ -34,11 +34,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let event: Stripe.Event;
 
     try {
-      event = await stripe.webhooks.constructEventAsync(
-        body,
-        signature,
-        webhookSecret
-      );
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch (err: any) {
       console.error("[webhook] Signature verification failed:", err.message);
       return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 400 });
@@ -60,13 +56,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // Record event before processing (prevents race conditions)
-    const { error: insertError } = await supabase
-      .from("webhook_events")
-      .insert({
-        event_id: event.id,
-        event_type: event.type,
-        payload: event.data.object
-      });
+    const { error: insertError } = await supabase.from("webhook_events").insert({
+      event_id: event.id,
+      event_type: event.type,
+      payload: event.data.object,
+    });
 
     if (insertError) {
       // Unique constraint violation means another request is processing
@@ -131,10 +125,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
 // ---- Event Handlers ----
 
-async function handleCheckoutCompleted(
-  supabase: any,
-  session: Stripe.Checkout.Session
-) {
+async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.Session) {
   console.log("[webhook] Checkout completed:", session.id);
 
   const userId = session.metadata?.user_id;
@@ -180,7 +171,7 @@ async function handleCheckoutCompleted(
     .from("user_subscriptions")
     .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
     .eq("user_id", userId)
-    .in("status", ["active", "trial", "trialing"]);
+    .in("status", ["active", "trial", "trialing", "past_due"]);
 
   if (cancelError) {
     console.error("[webhook] Error cancelling old subscriptions:", cancelError);
@@ -194,11 +185,7 @@ async function handleCheckoutCompleted(
   let trialTier: string | null = null;
   if (isTrialing || isTrial) {
     // Try to get tier name from subscription_plans table
-    const { data: planData } = await supabase
-      .from("subscription_plans")
-      .select("name")
-      .eq("id", planId)
-      .maybeSingle();
+    const { data: planData } = await supabase.from("subscription_plans").select("name").eq("id", planId).maybeSingle();
     trialTier = planData?.name || planId; // Fallback to planId if it's already the tier name
   }
 
@@ -223,9 +210,7 @@ async function handleCheckoutCompleted(
   }
 
   // Create new subscription record
-  const { error: insertError } = await supabase
-    .from("user_subscriptions")
-    .insert(subscriptionRecord);
+  const { error: insertError } = await supabase.from("user_subscriptions").insert(subscriptionRecord);
 
   if (insertError) {
     console.error("[webhook] Error creating subscription:", insertError);
@@ -235,15 +220,12 @@ async function handleCheckoutCompleted(
   console.log("[webhook] Subscription created for user:", userId, "status:", status, isTrialing ? "(trial)" : "");
 }
 
-async function handleSubscriptionChange(
-  supabase: any,
-  subscription: Stripe.Subscription
-) {
+async function handleSubscriptionChange(supabase: any, subscription: Stripe.Subscription) {
   console.log("[webhook] Subscription changed:", subscription.id, "stripe_status:", subscription.status);
 
   // Try to get user_id from subscription metadata first
   let userId = subscription.metadata?.user_id;
-  
+
   // If not in metadata, look up from database using stripe_subscription_id
   if (!userId) {
     const { data: existingSub } = await supabase
@@ -251,7 +233,7 @@ async function handleSubscriptionChange(
       .select("user_id")
       .eq("stripe_subscription_id", subscription.id)
       .maybeSingle();
-    
+
     if (existingSub?.user_id) {
       userId = existingSub.user_id;
       console.log("[webhook] Resolved user_id from database:", userId);
@@ -261,7 +243,7 @@ async function handleSubscriptionChange(
         apiVersion: "2023-10-16",
         httpClient: Stripe.createFetchHttpClient(),
       });
-      
+
       if (subscription.customer) {
         const customer = await stripe.customers.retrieve(subscription.customer as string);
         if (customer && !customer.deleted && customer.metadata?.supabase_user_id) {
@@ -271,7 +253,7 @@ async function handleSubscriptionChange(
       }
     }
   }
-  
+
   if (!userId) {
     console.error("[webhook] No user_id found for subscription:", subscription.id);
     return;
@@ -282,7 +264,8 @@ async function handleSubscriptionChange(
   if (subscription.status === "trialing") status = "trialing";
   else if (subscription.status === "canceled") status = "cancelled";
   else if (subscription.status === "past_due") status = "past_due";
-  else if (subscription.status === "unpaid") status = "cancelled"; // Treat unpaid as cancelled — full lockout
+  else if (subscription.status === "unpaid")
+    status = "cancelled"; // Treat unpaid as cancelled — full lockout
   else if (subscription.status === "incomplete_expired") status = "cancelled";
   else if (subscription.cancel_at_period_end) status = "active"; // Still active until period ends
 
@@ -291,9 +274,7 @@ async function handleSubscriptionChange(
     status,
     current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
     current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-    cancel_at: subscription.cancel_at
-      ? new Date(subscription.cancel_at * 1000).toISOString()
-      : null,
+    cancel_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
   };
 
   // If transitioning from trialing → active (trial ended, card charged),
@@ -332,15 +313,12 @@ async function handleSubscriptionChange(
   console.log("[webhook] Subscription updated for user:", userId, "status:", status);
 }
 
-async function handleSubscriptionDeleted(
-  supabase: any,
-  subscription: Stripe.Subscription
-) {
+async function handleSubscriptionDeleted(supabase: any, subscription: Stripe.Subscription) {
   console.log("[webhook] Subscription deleted:", subscription.id);
 
   // Try to get user_id from subscription metadata first
   let userId = subscription.metadata?.user_id;
-  
+
   // If not in metadata, look up from database using stripe_subscription_id
   if (!userId) {
     const { data: existingSub } = await supabase
@@ -348,13 +326,13 @@ async function handleSubscriptionDeleted(
       .select("user_id")
       .eq("stripe_subscription_id", subscription.id)
       .maybeSingle();
-    
+
     if (existingSub?.user_id) {
       userId = existingSub.user_id;
       console.log("[webhook] Resolved user_id from database:", userId);
     }
   }
-  
+
   if (!userId) {
     console.error("[webhook] No user_id found for subscription:", subscription.id);
     // Still try to cancel by stripe_subscription_id even without user_id
@@ -377,10 +355,7 @@ async function handleSubscriptionDeleted(
   console.log("[webhook] Subscription cancelled for user:", userId);
 }
 
-async function handlePaymentSucceeded(
-  supabase: any,
-  invoice: Stripe.Invoice
-) {
+async function handlePaymentSucceeded(supabase: any, invoice: Stripe.Invoice) {
   console.log("[webhook] Payment succeeded:", invoice.id);
 
   const subscriptionId = invoice.subscription as string;
@@ -397,10 +372,7 @@ async function handlePaymentSucceeded(
   }
 }
 
-async function handlePaymentFailed(
-  supabase: any,
-  invoice: Stripe.Invoice
-) {
+async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
   console.log("[webhook] Payment failed:", invoice.id);
 
   const subscriptionId = invoice.subscription as string;

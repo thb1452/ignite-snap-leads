@@ -47,7 +47,7 @@ const PRICING_TIERS: PricingTier[] = [
     description: 'For investors who want premium enforcement targeting',
     features: [
       '5,000 monthly exports',
-      '4,520+ cities nationwide',
+      '3,800+ cities nationwide',
       'Code violation data',
       'Monthly data refresh',
       'Email support',
@@ -65,7 +65,7 @@ const PRICING_TIERS: PricingTier[] = [
     description: 'For serious operators stacking enforcement data',
     features: [
       '15,000 monthly exports',
-      '4,520+ cities nationwide',
+      '3,800+ cities nationwide',
       'Code violation data',
       'Everything in Starter',
       'Pressure Level™ filters',
@@ -377,7 +377,7 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      <SEOHead title="Pricing — Plans from $79/mo | Snap Ignite" description="Choose your Snap Ignite plan. Starter ($79/mo), Professional ($149/mo), or Enterprise ($299/mo). All plans include 4,520+ cities, code violation data, and enforcement scoring. Start with a free trial." canonical="https://snapignite.com/pricing" />
+      <SEOHead title="Pricing — Plans from $79/mo | Snap Ignite" description="Choose your Snap Ignite plan. Starter ($79/mo), Professional ($149/mo), or Enterprise ($299/mo). All plans include 3,800+ cities, code violation data, and enforcement scoring. Start with a free trial." canonical="https://snapignite.com/pricing" />
       {/* Signed-in user banner */}
       {user && (
         <div className="bg-blue-50 dark:bg-blue-950/50 border-b border-blue-200 dark:border-blue-800">
@@ -499,7 +499,7 @@ export default function Pricing() {
               No hidden fees. No per-record charges. No surprises.
             </p>
             <p className="text-sm text-muted-foreground">
-              Access to 4,520+ cities nationwide (growing weekly)
+              Access to 3,800+ cities nationwide (growing monthly)
             </p>
           </div>
         )}
@@ -585,7 +585,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">How often is data updated?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Data is refreshed monthly across 4,520+ cities nationwide, with continuous expansion underway.
+                  Data is refreshed monthly across 3,800+ cities nationwide, with continuous expansion underway.
                 </p>
               </CardContent>
             </Card>

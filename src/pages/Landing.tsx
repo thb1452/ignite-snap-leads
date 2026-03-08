@@ -235,7 +235,7 @@ export default function Landing() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="text-lg md:text-xl text-landing-text-muted max-w-2xl"
             >
-              Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 4,520+ cities nationwide, updated monthly.
+              Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 3,800+ cities nationwide, updated monthly.
             </motion.p>
 
             {/* Positioning blockquote */}
@@ -698,7 +698,7 @@ export default function Landing() {
                 description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
                   "5,000 monthly enforcement reports",
-                  "4,520+ cities nationwide",
+                  "3,800+ cities nationwide",
                   "Code violation data",
                   "Basic filters (location, category, search)",
                   "Monthly data refresh",
@@ -836,7 +836,7 @@ export default function Landing() {
                     { type: "Property records (160M+)", ps: true, snap: "partial", snapNote: "Use your existing platform" },
                     { type: "Ownership & equity data", ps: true, snap: "ref", snapNote: "Use your existing platform" },
                     { type: "Comparable sales", ps: true, snap: "ref", snapNote: "Use your existing platform" },
-                    { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "4,520+ cities" },
+                    { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "3,800+ cities" },
                     { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
                     { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
                     { type: "Municipal court dates", ps: false, snap: true, snapNote: "" },
@@ -988,7 +988,7 @@ export default function Landing() {
                 },
                 {
                   question: "What cities do you cover?",
-                  answer: "We cover 4,520+ cities across the United States where we've established FOIA data pipelines. Coverage is expanding as we add more municipal sources. All users get access to all available cities."
+                  answer: "We cover 3,800+ cities across the United States where we've established FOIA data pipelines. Coverage is expanding as we add more municipal sources. All users get access to all available cities."
                 },
                 {
                   question: "How fresh is the data?",

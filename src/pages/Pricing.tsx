@@ -499,7 +499,7 @@ export default function Pricing() {
               No hidden fees. No per-record charges. No surprises.
             </p>
             <p className="text-sm text-muted-foreground">
-              Access to 4,520+ cities nationwide (growing weekly)
+              Access to 3,800+ cities nationwide (growing monthly)
             </p>
           </div>
         )}

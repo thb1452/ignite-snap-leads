@@ -17,7 +17,7 @@ export function FreshnessIndicator({ className = "" }: FreshnessIndicatorProps) 
     <span className={`text-sm font-medium text-muted-foreground flex items-center gap-1.5 ${className}`}>
       <RefreshCw className="h-3.5 w-3.5 text-primary animate-pulse" />
       <span className="text-primary font-semibold">{data?.formattedCount ?? "0"}</span>
-      {" "}new enforcement actions this week
+      {" "}new enforcement actions this month
     </span>
   );
 }

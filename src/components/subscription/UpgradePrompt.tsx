@@ -72,7 +72,7 @@ const PLAN_FEATURES = {
       "All properties, all counties",
       "1,500 property exports/month",
       "Code violation data",
-      "Weekly data refresh",
+      "Monthly data refresh",
     ],
   },
   professional: {

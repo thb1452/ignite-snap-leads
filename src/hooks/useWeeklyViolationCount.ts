@@ -1,26 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
 
-interface WeeklyViolationStats {
+interface MonthlyViolationStats {
   count: number;
   formattedCount: string;
 }
 
 export function useWeeklyViolationCount() {
-  return useQuery<WeeklyViolationStats>({
-    queryKey: ["weekly-violation-count"],
+  return useQuery<MonthlyViolationStats>({
+    queryKey: ["monthly-violation-count"],
     queryFn: async () => {
-      // Count violations created in the last 7 days
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      // Count violations created in the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
       const { count, error } = await supabase
         .from("violations")
         .select("*", { count: "exact", head: true })
-        .gte("created_at", sevenDaysAgo.toISOString());
+        .gte("created_at", thirtyDaysAgo.toISOString());
       
       if (error) {
-        console.error("[useWeeklyViolationCount] Error:", error);
+        console.error("[useMonthlyViolationCount] Error:", error);
         throw error;
       }
       
@@ -40,7 +40,7 @@ export function useWeeklyViolationCount() {
         formattedCount
       };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 }

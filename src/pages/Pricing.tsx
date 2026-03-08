@@ -585,7 +585,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">How often is data updated?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Data is refreshed monthly across 4,520+ cities nationwide, with continuous expansion underway.
+                  Data is refreshed monthly across 3,800+ cities nationwide, with continuous expansion underway.
                 </p>
               </CardContent>
             </Card>

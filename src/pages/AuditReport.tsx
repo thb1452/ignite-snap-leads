@@ -142,7 +142,7 @@ export default function AuditReport() {
             ["Cities Nationwide", "4,520+", "4,520+", "4,520+"],
             ["Code Violation Data", "✓", "✓", "✓"],
             ["Basic Filters (location, category, search)", "✓", "✓", "✓"],
-            ["Weekly Data Refresh", "✓", "✓", "✓"],
+            ["Monthly Data Refresh", "✓", "✓", "✓"],
             ["Email Support", "✓", "Priority", "Priority"],
             ["Pressure Level Filtering", "—", "✓", "✓"],
             ["Water Shutoff Data", "—", "—", "✓"],

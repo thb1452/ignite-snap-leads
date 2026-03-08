@@ -20,7 +20,7 @@ export default function About() {
 
         <div className="prose prose-slate max-w-none space-y-8">
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Snap Ignite is a municipal enforcement intelligence platform built for serious real estate operators. We track code violations, water shutoffs, escalating fines, and compliance deadlines across 900+ counties nationwide — sourced directly from municipal agencies, updated weekly.
+            Snap Ignite is a municipal enforcement intelligence platform built for serious real estate operators. We track code violations, water shutoffs, escalating fines, and compliance deadlines across 900+ counties nationwide — sourced directly from municipal agencies, Snap Ignite is a municipal enforcement intelligence platform built for serious real estate operators. We track code violations, water shutoffs, escalating fines, and compliance deadlines across 900+ counties nationwide — sourced directly from municipal agencies, updated monthly.
           </p>
 
           <p className="text-lg text-muted-foreground leading-relaxed">

@@ -49,7 +49,7 @@ const PRICING_TIERS: PricingTier[] = [
       '5,000 monthly exports',
       '4,520+ cities nationwide',
       'Code violation data',
-      'Weekly data refresh',
+      'Monthly data refresh',
       'Email support',
     ],
     notIncluded: ['No Pressure Level™ filters', 'No water shutoff data'],

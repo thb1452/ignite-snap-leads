@@ -205,129 +205,69 @@ export default function Landing() {
         />
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-landing-primary/20 via-landing-bg/80 to-landing-bg" />
-        <div className="absolute top-1/4 right-0 w-[600px] h-[600px] bg-landing-accent/5 rounded-full blur-3xl" />
         
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 relative z-10 max-w-3xl">
           <motion.div 
             initial="hidden"
             animate="visible"
-            variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-            className="grid lg:grid-cols-5 gap-12 items-center"
+            variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+            className="space-y-8"
           >
-            {/* Left column: stats + text */}
-            <div className="lg:col-span-3 space-y-8">
-              
-              {/* Giant stats row */}
-              <motion.div 
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                className="grid grid-cols-3 gap-4 md:gap-8"
-              >
-                {[
-                  { end: 500000, suffix: '+', label: 'Properties' },
-                  { end: 4520, suffix: '+', label: 'Cities' },
-                  { end: 488636, suffix: '+', label: 'Violations' },
-                ].map((stat, i) => (
-                  <motion.div 
-                    key={stat.label}
-                    variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                    className="text-center"
-                  >
-                    <div className="text-2xl sm:text-3xl md:text-5xl font-bold text-landing-accent tabular-nums">
-                      <AnimatedCounter end={stat.end} suffix={stat.suffix} />
-                    </div>
-                    <div className="text-xs sm:text-sm text-landing-text-muted mt-1">{stat.label}</div>
-                  </motion.div>
-                ))}
-              </motion.div>
-
-              {/* Headline */}
-              <motion.h1 
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight"
-              >
-                Enforcement Intelligence for{' '}
-                <span className="text-landing-accent">500k+ Properties</span>
-              </motion.h1>
-              
-              {/* Condensed subtext */}
-              <motion.p
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                className="text-lg md:text-xl text-landing-text-muted max-w-2xl"
-              >
-                Real‑time violation monitoring across 4,520+ cities. Join 400+ early‑access operators already tracking enforcement pressure before it hits the market.
-              </motion.p>
-
-              {/* Positioning blockquote */}
-              <motion.blockquote
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                className="border-l-2 border-landing-accent/40 pl-5 text-landing-text-muted text-base md:text-lg max-w-2xl"
-              >
-                Snap Ignite is a municipal enforcement intelligence platform. Not a leads tool. Not a list service. An intelligence layer that shows you where enforcement pressure is building — before it resolves or hits the market.
-              </motion.blockquote>
-              
-              {/* CTA group + FOMO badge */}
-              <motion.div
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                className="flex flex-col sm:flex-row items-start sm:items-center gap-4"
-              >
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
-                  <Button 
-                    size="lg"
-                    onClick={() => {
-                      trackEvent('hero_cta_click', { location: 'hero' });
-                      scrollToSection('pricing');
-                    }}
-                    className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
-                  >
-                    Get Early Access
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </Button>
-                </motion.div>
-                
-                <button 
-                  onClick={() => {
-                    trackEvent('scroll_to_platform', { location: 'hero' });
-                    scrollToSection('features');
-                  }}
-                  className="text-sm font-medium text-landing-text-muted hover:text-landing-text transition-colors"
-                >
-                  See the Platform in Action ↓
-                </button>
-
-                {/* FOMO pill */}
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-xs font-semibold animate-pulse-soft">
-                  <Zap className="w-3 h-3" />
-                  Early Access — First 200 Users
-                </span>
-              </motion.div>
-              
-              {/* Trust line */}
-              <motion.p 
-                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
-                className="text-landing-text-muted text-sm flex items-center gap-2"
-              >
-                <Lock className="w-4 h-4" />
-                Trusted by 400+ professionals during pilot • Cancel anytime
-              </motion.p>
-            </div>
-            
-            {/* Right column: video */}
-            <motion.div 
-              variants={{ hidden: { opacity: 0, x: 50 }, visible: { opacity: 1, x: 0, transition: { duration: 0.8 } } }}
-              className="lg:col-span-2 relative"
+            {/* Label */}
+            <motion.p
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+              className="text-landing-accent font-semibold tracking-widest text-sm uppercase"
             >
-              <div className="relative rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
-                <video
-                  src="/demo-video.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  aria-label="Snap Ignite platform demo showing enforcement intelligence dashboard with violation tracking and SnapScore rankings"
-                  className="w-full h-auto rounded-2xl"
-                />
-              </div>
-              <div className="absolute -inset-4 bg-landing-accent/10 rounded-3xl blur-2xl -z-10 animate-pulse-soft" />
+              Enforcement Intelligence Platform
+            </motion.p>
+
+            {/* Headline */}
+            <motion.h1 
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+              className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight"
+            >
+              See Enforcement Pressure Before It Becomes{' '}
+              <span className="text-landing-accent">Public Knowledge</span>
+            </motion.h1>
+            
+            {/* Subtext */}
+            <motion.p
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+              className="text-lg md:text-xl text-landing-text-muted max-w-2xl"
+            >
+              Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 4,520+ cities nationwide, updated weekly.
+            </motion.p>
+
+            {/* Positioning blockquote */}
+            <motion.blockquote
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+              className="border-l-2 border-landing-accent/40 pl-5 text-landing-text-muted text-base md:text-lg max-w-2xl"
+            >
+              Snap Ignite is a municipal enforcement intelligence platform. Not a leads tool. Not a list service. An intelligence layer that shows you where enforcement pressure is building — before it resolves or hits the market.
+            </motion.blockquote>
+            
+            {/* CTA */}
+            <motion.div
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+              className="flex flex-col items-start gap-4"
+            >
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className="w-full sm:w-auto">
+                <Button 
+                  size="lg"
+                  onClick={() => {
+                    trackEvent('hero_cta_click', { location: 'hero' });
+                    scrollToSection('pricing');
+                  }}
+                  className="w-full sm:w-auto bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
+                >
+                  Start Free Trial
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </motion.div>
+              
+              <p className="text-landing-text-muted text-sm">
+                3 day free trial · 25 property exports · Then $79/month · Cancel anytime
+              </p>
             </motion.div>
           </motion.div>
         </div>

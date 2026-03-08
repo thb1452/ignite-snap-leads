@@ -36,7 +36,7 @@ export default function AuditReport() {
           <Table headers={["Metric", "Value"]} rows={[
             ["Total Properties Tracked", "441,501"],
             ["Total Violations", "406,000+"],
-            ["Cities Covered", "4,520+"],
+            ["Cities Covered", "3,800+"],
             ["Scoring Engine Version", "v7.1"],
             ["AI Engine", "v4.1 Hybrid (Gemini 3 Flash Preview)"],
             ["Subscription Tiers", "Starter ($79/mo) · Professional ($149/mo) · Elite ($299/mo)"],

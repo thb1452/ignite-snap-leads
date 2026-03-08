@@ -698,7 +698,7 @@ export default function Landing() {
                 description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
                   "5,000 monthly enforcement reports",
-                  "4,520+ cities nationwide",
+                  "3,800+ cities nationwide",
                   "Code violation data",
                   "Basic filters (location, category, search)",
                   "Monthly data refresh",

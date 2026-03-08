@@ -269,6 +269,25 @@ export default function Landing() {
                 3 day free trial · 25 property exports · Then $79/month · Cancel anytime
               </p>
             </motion.div>
+
+            {/* Demo Video */}
+            <motion.div
+              variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8 } } }}
+              className="relative mt-4"
+            >
+              <div className="relative rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
+                <video
+                  src="/demo-video.mp4"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  aria-label="Snap Ignite platform demo showing enforcement intelligence dashboard with violation tracking and SnapScore rankings"
+                  className="w-full h-auto rounded-2xl"
+                />
+              </div>
+              <div className="absolute -inset-4 bg-landing-accent/10 rounded-3xl blur-2xl -z-10 animate-pulse-soft" />
+            </motion.div>
           </motion.div>
         </div>
       </section>

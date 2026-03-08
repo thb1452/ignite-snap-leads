@@ -104,7 +104,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
   const tier = TIER_CONFIG[selectedTier] || TIER_CONFIG.starter;
   const TierIcon = tier.icon;
 
-  const trialEndDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+  const trialEndDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
@@ -235,7 +235,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
             Start Your {tier.display} Trial
           </DialogTitle>
           <DialogDescription>
-            7 days free &bull; 25 property exports &bull; Cancel anytime
+            3 days free &bull; 25 property exports &bull; Cancel anytime
           </DialogDescription>
         </DialogHeader>
 

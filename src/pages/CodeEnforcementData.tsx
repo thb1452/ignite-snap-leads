@@ -8,7 +8,7 @@ export default function CodeEnforcementData() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Code Enforcement Data Across 4,500+ Cities | Snap Ignite" description="Access code enforcement data from 4,500+ U.S. cities. FOIA-sourced violation records, enforcement pressure scoring, and distress signals for real estate investors." canonical="https://snapignite.com/code-enforcement-data" />
+      <SEOHead title="Code Enforcement Data Across 3,800+ Cities | Snap Ignite" description="Access code enforcement data from 3,800+ U.S. cities. FOIA-sourced violation records, enforcement pressure scoring, and distress signals for real estate investors." canonical="https://snapignite.com/code-enforcement-data" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",

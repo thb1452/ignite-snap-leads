@@ -1727,6 +1727,36 @@ export type Database = {
         }
         Relationships: []
       }
+      system_logs: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          source: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          source?: string
+          type?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          source?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       targets: {
         Row: {
           contact_email: string | null
@@ -2328,6 +2358,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      webhook_errors: {
+        Row: {
+          created_at: string
+          error_message: string
+          event_id: string | null
+          event_type: string | null
+          id: string
+          payload: Json | null
+          resolved: boolean
+          resolved_at: string | null
+          webhook_type: string
+        }
+        Insert: {
+          created_at?: string
+          error_message: string
+          event_id?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json | null
+          resolved?: boolean
+          resolved_at?: string | null
+          webhook_type?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string
+          event_id?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json | null
+          resolved?: boolean
+          resolved_at?: string | null
+          webhook_type?: string
+        }
+        Relationships: []
       }
       webhook_events: {
         Row: {

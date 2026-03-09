@@ -66,7 +66,7 @@ export default function CodeViolationLeads() {
             {[
               { icon: Search, title: "Enforcement-Sourced", desc: "Every lead comes directly from municipal enforcement records — not scraped or estimated." },
               { icon: TrendingUp, title: "Pressure-Scored", desc: "Our SnapScore algorithm ranks properties by enforcement severity, repeat violations, and escalation risk." },
-              { icon: MapPin, title: "Nationwide Coverage", desc: "Access code violation leads across 4,500+ cities and 500K+ properties in the United States." },
+              { icon: MapPin, title: "Nationwide Coverage", desc: "Access code violation leads across 3,800+ cities and 500K+ properties in the United States." },
             ].map((item, i) => (
               <div key={i} className="bg-[hsl(var(--landing-surface))]/50 border border-[hsl(var(--landing-surface))] rounded-xl p-6">
                 <item.icon className="h-8 w-8 text-[hsl(var(--landing-accent))] mb-4" />

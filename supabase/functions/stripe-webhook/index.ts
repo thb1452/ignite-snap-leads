@@ -42,6 +42,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     console.log("[webhook] Received event:", event.type, event.id);
 
+    // ---- Helper: log webhook errors ----
+    async function logWebhookError(eventType: string | null, eventId: string | null, errorMessage: string, payload: any) {
+      try {
+        await supabase.from("webhook_errors").insert({
+          webhook_type: "stripe",
+          event_type: eventType,
+          event_id: eventId,
+          error_message: errorMessage.slice(0, 2000),
+          payload,
+        });
+      } catch { /* silent */ }
+    }
+
     // ---- Idempotency Check ----
     // Check if we've already processed this event
     const { data: existingEvent } = await supabase

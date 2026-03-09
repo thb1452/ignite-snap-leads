@@ -411,8 +411,7 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
         .from("properties")
         .select("latitude, longitude")
         .eq("id", selectedPropertyId)
-        .single()
-        .abortSignal(controller.signal);
+        .single();
       
       if (controller.signal.aborted) return;
       if (data?.latitude && data?.longitude) {

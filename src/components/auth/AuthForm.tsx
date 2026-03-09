@@ -124,6 +124,7 @@ export function AuthForm() {
       console.log('[AuthForm] signUp result:', result);
       if (result && !('error' in result && result.error)) {
         analytics.signupSuccess();
+        logActivity({ action: 'signup' });
       } else {
         analytics.signupFailed('signup_returned_error');
       }

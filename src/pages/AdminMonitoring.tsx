@@ -56,7 +56,7 @@ function useSystemLogs() {
         .select("*")
         .gte("created_at", since)
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(500);
       if (error) throw error;
       return (data ?? []) as SystemLog[];
     },

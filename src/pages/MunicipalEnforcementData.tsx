@@ -8,7 +8,7 @@ export default function MunicipalEnforcementData() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Municipal Enforcement Data for Real Estate Professionals | Snap Ignite" description="Access municipal enforcement data from 4,500+ cities. Code violations, compliance orders, and enforcement actions — sourced directly from local governments via FOIA. Start free." canonical="https://snapignite.com/municipal-enforcement-data" />
+      <SEOHead title="Municipal Enforcement Data for Real Estate Professionals | Snap Ignite" description="Access municipal enforcement data from 3,800+ cities. Code violations, compliance orders, and enforcement actions — sourced directly from local governments via FOIA. Start free." canonical="https://snapignite.com/municipal-enforcement-data" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",

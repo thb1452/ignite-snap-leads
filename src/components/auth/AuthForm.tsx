@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2, Mail } from 'lucide-react';
 import { analytics } from '@/lib/analytics';
+import { logActivity } from '@/services/activityLogger';
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -108,6 +109,7 @@ export function AuthForm() {
     const result = await signIn(data.email, data.password);
     if (result && !('error' in result && result.error)) {
       analytics.loginSuccess();
+      logActivity({ action: 'login' });
     }
     setIsLoading(false);
   };
@@ -122,6 +124,7 @@ export function AuthForm() {
       console.log('[AuthForm] signUp result:', result);
       if (result && !('error' in result && result.error)) {
         analytics.signupSuccess();
+        logActivity({ action: 'signup' });
       } else {
         analytics.signupFailed('signup_returned_error');
       }

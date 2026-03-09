@@ -38,7 +38,9 @@ import {
   Plus
 } from "lucide-react";
 
-type Tab = "overview" | "uploads" | "users" | "jurisdictions" | "logs" | "errors";
+import { UserActivityDashboard } from "@/components/admin/UserActivityDashboard";
+
+type Tab = "overview" | "uploads" | "users" | "jurisdictions" | "logs" | "errors" | "activity";
 
 export default function AdminConsole() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -128,6 +130,12 @@ export default function AdminConsole() {
           >
             Error Logs
           </Button>
+          <Button
+            variant={activeTab === "activity" ? "default" : "ghost"}
+            onClick={() => setActiveTab("activity")}
+          >
+            User Activity
+          </Button>
         </div>
 
         {/* Tab Content */}
@@ -137,6 +145,7 @@ export default function AdminConsole() {
         {activeTab === "jurisdictions" && <JurisdictionsTab refreshTrigger={refreshCounter} />}
         {activeTab === "logs" && <SystemLogsTab refreshTrigger={refreshCounter} />}
         {activeTab === "errors" && <ErrorLogsDashboard />}
+        {activeTab === "activity" && <UserActivityDashboard />}
       </div>
     </AppLayout>
   );

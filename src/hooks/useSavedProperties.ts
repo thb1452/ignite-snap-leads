@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { logActivity } from "@/services/activityLogger";
 
 const QUERY_KEY = "saved-properties";
 

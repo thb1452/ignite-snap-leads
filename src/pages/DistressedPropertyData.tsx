@@ -13,7 +13,7 @@ export default function DistressedPropertyData() {
         "@context": "https://schema.org",
         "@type": "WebPage",
         "name": "Distressed Property Data Powered by Enforcement Intelligence",
-        "description": "Access distressed property data sourced from municipal enforcement records across 4,500+ U.S. cities.",
+        "description": "Access distressed property data sourced from municipal enforcement records across 3,800+ U.S. cities.",
         "url": "https://snapignite.com/distressed-property-data",
         "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" }
       })}} />

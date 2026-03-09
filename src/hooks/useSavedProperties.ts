@@ -51,12 +51,14 @@ export function useSavedProperties() {
           .eq("user_id", user.id)
           .eq("property_id", propertyId);
         if (error) throw error;
+        logActivity({ action: "property_unsaved", metadata: { property_id: propertyId } });
         return { propertyId, action: "removed" as const };
       } else {
         const { error } = await supabase
           .from("saved_properties")
           .insert({ user_id: user.id, property_id: propertyId });
         if (error) throw error;
+        logActivity({ action: "property_saved", metadata: { property_id: propertyId } });
         return { propertyId, action: "added" as const };
       }
     },

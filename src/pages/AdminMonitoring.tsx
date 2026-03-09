@@ -51,13 +51,17 @@ function useSystemLogs() {
     queryKey: ["monitoring-system-logs"],
     queryFn: async () => {
       const since = new Date(Date.now() - 86400000).toISOString();
-      const { data, error } = await (supabase as any)
+      const { data, error, count } = await (supabase as any)
         .from("system_logs")
-        .select("*")
+        .select("*", { count: "exact" })
         .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(200);
-      if (error) throw error;
+      if (error) {
+        console.error("[SystemLogs] query error:", error.message, error.code, error.hint);
+        throw error;
+      }
+      console.log("[SystemLogs] fetched", data?.length, "rows, count:", count);
       return (data ?? []) as SystemLog[];
     },
     refetchInterval: 15000,

@@ -266,7 +266,7 @@ export default function Landing() {
               </motion.div>
               
               <p className="text-landing-text-muted text-sm">
-                3 day free trial · 25 property exports · Then $79/month · Cancel anytime
+                3 day free trial · 500 property exports · Then $79/month · Cancel anytime
               </p>
             </motion.div>
 

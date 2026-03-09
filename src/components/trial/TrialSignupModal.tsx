@@ -235,7 +235,7 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
             Start Your {tier.display} Trial
           </DialogTitle>
           <DialogDescription>
-            3 days free &bull; 25 property exports &bull; Cancel anytime
+            3 days free &bull; 500 property exports &bull; Cancel anytime
           </DialogDescription>
         </DialogHeader>
 

@@ -170,7 +170,7 @@ export function useTrialStatus() {
       trialDaysRemaining: 0,
       trialExportsUsed: 0,
       trialExportsRemaining: 0,
-      trialExportsLimit: 25,
+      trialExportsLimit: 500,
       trialTier: null,
       trialEndsAt: null,
       trialStartedAt: null,

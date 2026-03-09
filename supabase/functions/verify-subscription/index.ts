@@ -185,7 +185,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           record.trial_ends_at = new Date(sub.trial_end * 1000).toISOString();
           record.trial_tier = planName;
           record.trial_exports_used = 0;
-          record.trial_exports_limit = 25;
+          record.trial_exports_limit = 500;
         }
 
         const { error: insertErr } = await supabase

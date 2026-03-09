@@ -206,7 +206,7 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
     subscriptionRecord.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
     subscriptionRecord.trial_tier = trialTier;
     subscriptionRecord.trial_exports_used = 0;
-    subscriptionRecord.trial_exports_limit = 25;
+    subscriptionRecord.trial_exports_limit = 500;
   }
 
   // Create new subscription record

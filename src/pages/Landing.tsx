@@ -1004,7 +1004,7 @@ export default function Landing() {
                 },
                 {
                   question: "Is there a free trial?",
-                  answer: "Yes! Start a 3-day free trial — $0 due today. Enter your payment method at checkout and get 25 property exports to test data quality in your markets. Search unlimited properties, save favorites, and access all features for your selected tier. After 3 days your subscription begins automatically, or cancel anytime before then."
+                  answer: "Yes! Start a 3-day free trial — $0 due today. Enter your payment method at checkout and get 500 property exports to test data quality in your markets. Search unlimited properties, save favorites, and access all features for your selected tier. After 3 days your subscription begins automatically, or cancel anytime before then."
                 }
               ].map((faq, i) => (
                 <motion.div

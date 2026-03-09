@@ -34,7 +34,7 @@ export default function CodeEnforcementData() {
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
             Code Enforcement Data Across{" "}
-            <span className="text-[hsl(var(--landing-accent))]">4,500+ Cities</span>
+            <span className="text-[hsl(var(--landing-accent))]">3,800+ Cities</span>
           </h1>
           <p className="text-lg md:text-xl text-[hsl(var(--landing-text-muted))] max-w-2xl mx-auto mb-8">
             The most comprehensive municipal enforcement database for real estate investors. FOIA-sourced records from thousands of jurisdictions, scored and searchable in one platform.

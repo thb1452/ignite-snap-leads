@@ -10,6 +10,7 @@ export default function LiveFeed() {
       <SEOHead
         title="Live Enforcement Feed | Snap Ignite"
         description="Watch enforcement actions happen in real-time across 3,800+ municipalities. Code violations, water shutoffs, and municipal court filings updated live."
+        canonical="https://ignite-snap-leads.lovable.app/live-feed"
       />
 
       <div className="min-h-screen bg-background">

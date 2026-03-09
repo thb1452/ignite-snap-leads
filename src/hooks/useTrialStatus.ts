@@ -68,7 +68,7 @@ async function fetchTrialStatus(userId: string): Promise<TrialStatus> {
     trialDaysRemaining: Math.ceil(row?.trial_days_remaining ?? 0),
     trialExportsUsed: row?.trial_exports_used ?? 0,
     trialExportsRemaining: row?.trial_exports_remaining ?? 0,
-    trialExportsLimit: row?.trial_exports_limit ?? 25,
+    trialExportsLimit: row?.trial_exports_limit ?? 500,
     trialTier: row?.trial_tier ?? null,
     trialEndsAt: row?.trial_ends_at ?? null,
     trialStartedAt: row?.trial_started_at ?? null,

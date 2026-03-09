@@ -4,6 +4,8 @@ import { trackEvent } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
+import { LiveEnforcementCounter } from "@/components/live-feed/LiveEnforcementCounter";
+import { LiveActivityFeed } from "@/components/live-feed/LiveActivityFeed";
 
 import { 
   Target, 
@@ -941,6 +943,39 @@ export default function Landing() {
             <p className="text-2xl font-semibold text-landing-text mb-3">Sourced directly from municipal agencies and county jurisdictions.</p>
             <p className="text-lg text-landing-text-muted">Not scraped. Not aggregated. Primary source data.</p>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Live Enforcement Activity Section */}
+      <section className="py-24 bg-landing-bg">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center mb-12">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="flex items-center justify-center gap-3 mb-4"
+            >
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+              </span>
+              <h2 className="text-3xl md:text-4xl font-bold">Live Enforcement Activity</h2>
+            </motion.div>
+            <p className="text-lg text-landing-text-muted">Watch enforcement actions as they're tracked across the platform.</p>
+          </div>
+
+          <div className="max-w-5xl mx-auto space-y-8">
+            {/* Counter - restyle for landing dark theme */}
+            <div className="[&_.rounded-xl]:bg-landing-surface/50 [&_.rounded-xl]:border-landing-surface [&_.text-foreground]:text-landing-text [&_.text-muted-foreground]:text-landing-text-muted [&_.text-primary]:text-landing-accent [&_.bg-gradient-to-br]:from-landing-accent/5">
+              <LiveEnforcementCounter />
+            </div>
+
+            {/* Feed - restyle for landing dark theme */}
+            <div className="[&_.rounded-xl]:bg-landing-surface/50 [&_.rounded-xl]:border-landing-surface [&_.text-foreground]:text-landing-text [&_.text-muted-foreground]:text-landing-text-muted [&_.text-primary]:text-landing-accent [&_.bg-muted\/30]:bg-landing-surface/30 [&_.hover\:bg-muted\/40]:hover:bg-landing-surface/40 [&_.divide-border>*+*]:border-landing-surface/50">
+              <LiveActivityFeed />
+            </div>
+          </div>
         </div>
       </section>
 

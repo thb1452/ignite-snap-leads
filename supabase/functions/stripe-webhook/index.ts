@@ -85,48 +85,52 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // ---- Handle Event ----
-    switch (event.type) {
-      case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutCompleted(supabase, session);
-        break;
-      }
+    try {
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const session = event.data.object as Stripe.Checkout.Session;
+          await handleCheckoutCompleted(supabase, session);
+          break;
+        }
 
-      case "customer.subscription.created":
-      case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription;
-        await handleSubscriptionChange(supabase, subscription);
-        break;
-      }
+        case "customer.subscription.created":
+        case "customer.subscription.updated": {
+          const subscription = event.data.object as Stripe.Subscription;
+          await handleSubscriptionChange(supabase, subscription);
+          break;
+        }
 
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
-        await handleSubscriptionDeleted(supabase, subscription);
-        break;
-      }
+        case "customer.subscription.deleted": {
+          const subscription = event.data.object as Stripe.Subscription;
+          await handleSubscriptionDeleted(supabase, subscription);
+          break;
+        }
 
-      case "customer.subscription.trial_will_end": {
-        const subscription = event.data.object as Stripe.Subscription;
-        console.log("[webhook] Trial will end soon for subscription:", subscription.id);
-        // No DB change needed — this is informational. The actual
-        // status change happens via customer.subscription.updated.
-        break;
-      }
+        case "customer.subscription.trial_will_end": {
+          const subscription = event.data.object as Stripe.Subscription;
+          console.log("[webhook] Trial will end soon for subscription:", subscription.id);
+          break;
+        }
 
-      case "invoice.payment_succeeded": {
-        const invoice = event.data.object as Stripe.Invoice;
-        await handlePaymentSucceeded(supabase, invoice);
-        break;
-      }
+        case "invoice.payment_succeeded": {
+          const invoice = event.data.object as Stripe.Invoice;
+          await handlePaymentSucceeded(supabase, invoice);
+          break;
+        }
 
-      case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice;
-        await handlePaymentFailed(supabase, invoice);
-        break;
-      }
+        case "invoice.payment_failed": {
+          const invoice = event.data.object as Stripe.Invoice;
+          await handlePaymentFailed(supabase, invoice);
+          break;
+        }
 
-      default:
-        console.log("[webhook] Unhandled event type:", event.type);
+        default:
+          console.log("[webhook] Unhandled event type:", event.type);
+      }
+    } catch (handlerErr: any) {
+      console.error("[webhook] Handler error for", event.type, handlerErr?.message);
+      await logWebhookError(event.type, event.id, handlerErr?.message ?? String(handlerErr), event.data.object);
+      throw handlerErr; // re-throw so Stripe retries
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 });

@@ -143,7 +143,7 @@ export function TopPressureProperties() {
           const violationLabel = isWater
             ? "Water Disconnection"
             : property.violation_types
-                ?.filter((v) => v !== "Unknown")
+                ?.filter(isValidViolationType)
                 .slice(0, 1)
                 .map(formatViolationType)[0] ?? "Code Violation";
 

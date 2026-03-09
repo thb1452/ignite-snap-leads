@@ -56,6 +56,7 @@ const AdminImportCounties = lazy(() => import("./pages/AdminImportCounties"));
 const AdminAssignCounties = lazy(() => import("./pages/AdminAssignCounties"));
 const AdminMigration = lazy(() => import("./pages/AdminMigration"));
 const AuditReport = lazy(() => import("./pages/AuditReport"));
+const AdminMonitoring = lazy(() => import("./pages/AdminMonitoring"));
 
 // FOIA pages
 const FoiaLogin = lazy(() => import("./pages/FoiaLogin"));
@@ -198,6 +199,11 @@ const App = () => (
           <Route path="/audit-report" element={
             <RoleProtectedRoute allowedRoles={['admin']}>
               <AuditReport />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/admin/monitoring" element={
+            <RoleProtectedRoute allowedRoles={['admin']}>
+              <AdminMonitoring />
             </RoleProtectedRoute>
           } />
           <Route path="/how-snap-works" element={

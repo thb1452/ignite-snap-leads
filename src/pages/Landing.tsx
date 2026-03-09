@@ -4,7 +4,7 @@ import { trackEvent } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
-import { LiveEnforcementCounter } from "@/components/live-feed/LiveEnforcementCounter";
+
 import { TopPressureProperties } from "@/components/live-feed/TopPressureProperties";
 
 import { 

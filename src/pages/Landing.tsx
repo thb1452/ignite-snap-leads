@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
 import { LiveEnforcementCounter } from "@/components/live-feed/LiveEnforcementCounter";
-import { LiveActivityFeed } from "@/components/live-feed/LiveActivityFeed";
+import { TopPressureProperties } from "@/components/live-feed/TopPressureProperties";
 
 import { 
   Target, 

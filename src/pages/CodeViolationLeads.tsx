@@ -14,7 +14,7 @@ export default function CodeViolationLeads() {
         "@context": "https://schema.org",
         "@type": "WebPage",
         "name": "Code Violation Leads for Real Estate Investors",
-        "description": "Find code violation leads across 500K+ properties in 4,500+ cities. Track enforcement pressure and identify distressed owners.",
+        "description": "Find code violation leads across 500K+ properties in 3,800+ cities. Track enforcement pressure and identify distressed owners.",
         "url": "https://snapignite.com/code-violation-leads",
         "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" }
       })}} />

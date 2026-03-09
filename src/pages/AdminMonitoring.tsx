@@ -50,11 +50,13 @@ function useSystemLogs() {
   return useQuery({
     queryKey: ["monitoring-system-logs"],
     queryFn: async () => {
+      const since = new Date(Date.now() - 86400000).toISOString();
       const { data, error } = await (supabase as any)
         .from("system_logs")
         .select("*")
+        .gte("created_at", since)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(200);
       if (error) throw error;
       return (data ?? []) as SystemLog[];
     },

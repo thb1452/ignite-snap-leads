@@ -8,7 +8,7 @@ export default function CodeViolationLeads() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Code Violation Leads for Real Estate Investors | Snap Ignite" description="Find code violation leads across 500K+ properties in 4,500+ cities. Track enforcement pressure, identify distressed owners, and close deals before the competition. Start free." canonical="https://snapignite.com/code-violation-leads" />
+      <SEOHead title="Code Violation Leads for Real Estate Investors | Snap Ignite" description="Find code violation leads across 500K+ properties in 3,800+ cities. Track enforcement pressure, identify distressed owners, and close deals before the competition. Start free." canonical="https://snapignite.com/code-violation-leads" />
       {/* JSON-LD */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",

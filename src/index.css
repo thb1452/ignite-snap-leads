@@ -213,3 +213,18 @@ All colors MUST be HSL.
     size: A4;
   }
 }
+
+/* Map selection pulse animation */
+@keyframes snap-pulse {
+  0% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.2; transform: scale(1.4); }
+  100% { opacity: 0.5; transform: scale(1); }
+}
+.snap-pulse-ring {
+  animation: snap-pulse 2s ease-in-out infinite;
+  transform-origin: center;
+}
+.snap-cluster {
+  background: transparent !important;
+  border: none !important;
+}

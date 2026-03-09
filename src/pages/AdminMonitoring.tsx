@@ -50,11 +50,13 @@ function useSystemLogs() {
   return useQuery({
     queryKey: ["monitoring-system-logs"],
     queryFn: async () => {
+      const since = new Date(Date.now() - 86400000).toISOString();
       const { data, error } = await (supabase as any)
         .from("system_logs")
         .select("*")
+        .gte("created_at", since)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(200);
       if (error) throw error;
       return (data ?? []) as SystemLog[];
     },
@@ -187,7 +189,7 @@ export default function AdminMonitoring() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard label="Unresolved Errors" value={unresolvedErrors} icon={Bug} variant={unresolvedErrors > 0 ? "destructive" : "default"} />
           <StatCard label="Webhook Failures" value={unresolvedWebhooks} icon={Webhook} variant={unresolvedWebhooks > 0 ? "warning" : "default"} />
-          <StatCard label="System Logs (24h)" value={systemLogs.filter(l => new Date(l.created_at) > new Date(Date.now() - 86400000)).length} icon={Server} />
+          <StatCard label="System Logs (24h)" value={systemLogs.length} icon={Server} />
           <StatCard label="Total Errors (24h)" value={errorLogs.filter(l => new Date(l.created_at) > new Date(Date.now() - 86400000)).length} icon={AlertTriangle} variant={errorLogs.filter(l => new Date(l.created_at) > new Date(Date.now() - 86400000)).length > 0 ? "warning" : "default"} />
         </div>
 

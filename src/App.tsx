@@ -271,7 +271,7 @@ const App = () => (
               <FoiaVAHistory />
             </FoiaAuthGuard>
           } />
-          <Route path="/live-feed" element={<LiveFeed />} />
+          {/* /live-feed removed – components now live on Landing */}
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>

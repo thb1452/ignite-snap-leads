@@ -300,7 +300,6 @@ export default function Landing() {
               { end: 500000, label: 'Properties Tracked', suffix: '+' },
               { end: 3800, label: 'Cities Covered', suffix: '+' },
               { end: 488636, label: 'Violations Monitored', suffix: '+' },
-              { end: 0, label: 'Updated Monthly', suffix: '', displayValue: 'Monthly' },
             ].map((stat) => (
               <div key={stat.label} className="text-center py-3">
                 <div className="text-2xl md:text-4xl font-bold text-landing-text tabular-nums">
@@ -309,6 +308,12 @@ export default function Landing() {
                 <div className="text-xs md:text-sm text-landing-text-muted mt-1">{stat.label}</div>
               </div>
             ))}
+            <div className="text-center py-3">
+              <div className="text-2xl md:text-4xl font-bold text-landing-text">
+                Monthly
+              </div>
+              <div className="text-xs md:text-sm text-landing-text-muted mt-1">Updated Monthly</div>
+            </div>
           </div>
         </div>
       </section>

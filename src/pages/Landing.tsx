@@ -298,9 +298,9 @@ export default function Landing() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {[
               { end: 500000, label: 'Properties Tracked', suffix: '+' },
-              { end: 4520, label: 'Cities Covered', suffix: '+' },
+              { end: 3800, label: 'Cities Covered', suffix: '+' },
               { end: 488636, label: 'Violations Monitored', suffix: '+' },
-              { end: 12, label: 'Monthly Updates', suffix: '/yr' },
+              { end: 0, label: 'Updated Monthly', suffix: '', displayValue: 'Monthly' },
             ].map((stat) => (
               <div key={stat.label} className="text-center py-3">
                 <div className="text-2xl md:text-4xl font-bold text-landing-text tabular-nums">

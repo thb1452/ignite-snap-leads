@@ -1,47 +1,62 @@
 
 
-## Update Trial Export Limit from 25 to 500
+## Assessment
 
-### Frontend Files (UI copy changes)
+This strategy is sharp. You already have 3 of the 7 pages built (`/code-violation-leads`, `/distressed-property-data`, `/code-enforcement-data`). The remaining 4 static pages are straightforward. The programmatic city pages are the real power play.
 
-1. **`src/pages/Landing.tsx`**
-   - Line 269: `25 property exports` → `500 property exports`
-   - Line 1007: FAQ answer — change "25 property exports" → "500 property exports"
+**One tension to flag:** Your in-app positioning says "not a leads tool" and uses "properties" / "professionals." But SEO pages *should* use investor language because that is what people search for. This is fine -- marketing pages speak Google's language, the product speaks its own. Just keep them separate.
 
-2. **`src/pages/Pricing.tsx`**
-   - Line 549: `25 property exports` → `500 property exports`
+## Plan: Build Remaining SEO Pages + Programmatic City Framework
 
-3. **`src/pages/CheckoutSuccess.tsx`**
-   - Line 105: `25 property exports` → `500 property exports`
+### Task 1: Create 4 New Static SEO Pages
 
-4. **`src/components/trial/TrialSignupModal.tsx`**
-   - Line 238: `25 property exports` → `500 property exports`
-   - Line 257: `25 total property exports` → `500 total property exports`
+Each follows the same template as existing pages (nav, hero H1, 3-4 content sections, stats, CTA, footer, JSON-LD).
 
-5. **`src/components/trial/TrialExportGate.tsx`**
-   - Line 44: `all 25 trial exports` → `all 500 trial exports`
+| Route | Target Keyword | H1 |
+|---|---|---|
+| `/municipal-enforcement-data` | municipal enforcement data | Municipal Enforcement Data for Real Estate Professionals |
+| `/off-market-property-leads` | off market property leads | Off-Market Property Leads Powered by Enforcement Intelligence |
+| `/real-estate-distress-signals` | real estate distress signals | Real Estate Distress Signals: The Enforcement Layer Most Investors Miss |
+| `/how-investors-find-distressed-properties` | how investors find distressed properties | How Investors Find Distressed Properties in 2026 |
 
-6. **`src/hooks/useTrialStatus.ts`**
-   - Lines 52, 71, 173: Default fallback `25` → `500`
+**Files to create:** 4 new page components in `src/pages/`
 
-### Backend Files (enforcement logic)
+### Task 2: Register Routes + Update Sitemap
 
-7. **`supabase/functions/export-csv/index.ts`**
-   - Line 255: Fallback `|| 25` → `|| 500`
+- Add 4 lazy-loaded public routes in `App.tsx`
+- Add all 4 URLs to `public/sitemap.xml`
 
-8. **`supabase/functions/verify-subscription/index.ts`**
-   - Line 188: `trial_exports_limit = 25` → `500`
+### Task 3: Programmatic City Pages (the 4,000-page engine)
 
-9. **`supabase/functions/stripe-webhook/index.ts`**
-   - Line 209: `trial_exports_limit = 25` → `500`
+This is the high-leverage move. Build a single dynamic route that pulls real jurisdiction data from the database.
 
-### Database Migration
+**Route:** `/code-violations/:citySlug` (e.g., `/code-violations/miami`)
 
-10. **New migration** to:
-    - Update `fn_get_trial_status` default from 25 to 500
-    - Update `fn_increment_trial_exports` default from 25 to 500
-    - Update `fn_start_trial` to set limit to 500
-    - Update any existing active trial users: `UPDATE user_subscriptions SET trial_exports_limit = 500 WHERE status IN ('trial', 'trialing') AND trial_exports_limit = 25`
+**How it works:**
+- Create `src/pages/CityViolations.tsx` -- a single template page
+- On mount, extract `citySlug` from URL params, query the `jurisdictions` table for matching city
+- Display: city name, state, property count, violation stats, enforcement pressure summary
+- Include JSON-LD `WebPage` schema with city-specific data
+- Dynamic `<title>`: "Code Violations in Miami, FL | Snap Ignite"
+- CTA to sign up and access the full data
+- If city not found, show a generic "coverage expanding" page with CTA
 
-Total: 9 files + 1 DB migration. All changes are simple find-and-replace of the number 25 to 500 in trial-export contexts.
+**For Google discoverability**, create a city index page at `/code-violations` that lists all tracked cities as internal links (pulled from `jurisdictions` table). This acts as a crawlable directory.
+
+**Files to create:**
+- `src/pages/CityViolations.tsx` (dynamic template)
+- `src/pages/CityViolationsIndex.tsx` (directory of all cities)
+
+**Files to edit:**
+- `src/App.tsx` (add routes)
+- `public/sitemap.xml` (add static pages; note: for 4,000+ city pages, you'd eventually want a dynamic sitemap via edge function, but the index page handles crawlability for now)
+
+### Summary of All Changes
+
+| Action | Files |
+|---|---|
+| Create 4 static SEO pages | `src/pages/MunicipalEnforcementData.tsx`, `OffMarketPropertyLeads.tsx`, `RealEstateDistressSignals.tsx`, `HowInvestorsFindDistressedProperties.tsx` |
+| Create city template + index | `src/pages/CityViolations.tsx`, `src/pages/CityViolationsIndex.tsx` |
+| Register 7 new routes | `src/App.tsx` |
+| Update sitemap | `public/sitemap.xml` |
 

@@ -252,7 +252,7 @@ serve(async (req) => {
     if (isTrialUser) {
       // Trial users: check and increment trial exports atomically via DB function
       const trialUsed = subData.trial_exports_used || 0;
-      const trialLimit = subData.trial_exports_limit || 25;
+      const trialLimit = subData.trial_exports_limit || 500;
       const trialRemaining = trialLimit - trialUsed;
 
       if (exportCount > trialRemaining) {

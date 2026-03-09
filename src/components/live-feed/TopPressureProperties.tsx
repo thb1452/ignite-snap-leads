@@ -35,6 +35,7 @@ function getScoreBg(score: number | null) {
 
 // Known violation-related keywords to validate violation_types entries
 const VIOLATION_KEYWORDS = /water|fire|code|violation|struct|vacan|zone|zon|weed|trash|debris|nuisance|safety|electric|plumb|heat|graffiti|rodent|abandon|sanit|permit|construct|fence|tree|shrub|grass|stagnant|shutoff|disconnect|occupy|condemn|hazard|maintenance|inspection|enforcement|animal|noise|sign|parking|vehicle|property|building|roof|window|door|yard|pool|dump|junk|litter|sewage|drain|mold|pest|neglect|blight|complaint/i;
+const NOISY_TYPES = /home occupation|illegal occupancy certificate|^illi/i;
 
 /** Returns true if the string looks like an actual violation type, not a person name */
 /** Masks the street number for public display: "4948 W 21st PL" → "4●●● W 21st PL" */

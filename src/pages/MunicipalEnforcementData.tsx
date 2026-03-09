@@ -13,7 +13,7 @@ export default function MunicipalEnforcementData() {
         "@context": "https://schema.org",
         "@type": "WebPage",
         "name": "Municipal Enforcement Data for Real Estate Professionals",
-        "description": "Access municipal enforcement data from 4,500+ cities. Code violations, compliance orders, and enforcement actions sourced directly from local governments.",
+        "description": "Access municipal enforcement data from 3,800+ cities. Code violations, compliance orders, and enforcement actions sourced directly from local governments.",
         "url": "https://snapignite.com/municipal-enforcement-data",
         "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" }
       })}} />

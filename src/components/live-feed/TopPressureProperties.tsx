@@ -37,21 +37,50 @@ export function TopPressureProperties() {
   const { data: properties = [], isLoading } = useQuery<PressureProperty[]>({
     queryKey: ["top-pressure-properties"],
     queryFn: async () => {
-      // Get properties updated within last 30 days, prioritize critical scores
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
+      // Fetch recent high-score properties, ordered by recency
       const { data, error } = await supabase
         .from("properties")
         .select("id, address, city, state, zip, snap_score, snap_insight, updated_at, newest_violation_date, total_violations, open_violations, violation_types, enforcement_type, escalated")
         .not("snap_score", "is", null)
         .gte("snap_score", 50)
-        .gte("updated_at", thirtyDaysAgo)
-        .order("snap_score", { ascending: false })
+        .gte("updated_at", fourteenDaysAgo)
         .order("updated_at", { ascending: false })
-        .limit(8);
+        .limit(100);
 
       if (error) throw error;
-      return (data ?? []) as PressureProperty[];
+      const rows = (data ?? []) as PressureProperty[];
+
+      // Pick a diverse mix: prioritize critical (75+) but ensure score variety
+      const critical = rows.filter((r) => (r.snap_score ?? 0) >= 75);
+      const high = rows.filter((r) => (r.snap_score ?? 0) >= 50 && (r.snap_score ?? 0) < 75);
+
+      // Deduplicate by score to get variety
+      const seen = new Set<number>();
+      const diverse: PressureProperty[] = [];
+      for (const p of critical) {
+        if (diverse.length >= 6) break;
+        const s = p.snap_score ?? 0;
+        if (!seen.has(s)) {
+          seen.add(s);
+          diverse.push(p);
+        }
+      }
+      // If we don't have enough unique scores, fill with remaining critical
+      if (diverse.length < 6) {
+        for (const p of critical) {
+          if (diverse.length >= 6) break;
+          if (!diverse.includes(p)) diverse.push(p);
+        }
+      }
+      // Fill remaining slots with high-score properties
+      for (const p of high) {
+        if (diverse.length >= 8) break;
+        diverse.push(p);
+      }
+
+      return diverse;
     },
     staleTime: 120_000,
     refetchOnWindowFocus: false,

@@ -642,7 +642,7 @@ export default function Landing() {
             </motion.p>
           </div>
           
-          <div className="grid gap-8 max-w-2xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {/* Built For You */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
@@ -666,6 +666,33 @@ export default function Landing() {
                   <li key={i} className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-landing-accent flex-shrink-0 mt-0.5" />
                     <span className="text-landing-text">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            {/* Not For You */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="bg-red-500/10 border border-red-500/30 rounded-xl p-8"
+            >
+              <h3 className="text-2xl font-bold mb-6 text-red-400 flex items-center gap-2">
+                <X className="w-6 h-6" />
+                Not For You If...
+              </h3>
+              <ul className="space-y-4">
+                {[
+                  "You're happy competing for the same stale records as everyone else",
+                  "You prefer volume over signal",
+                  "You don't believe enforcement data creates early visibility",
+                  "You're not willing to invest in intelligence, just data",
+                  "You're looking for a free list service"
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <span className="text-landing-text-muted">{item}</span>
                   </li>
                 ))}
               </ul>

@@ -105,7 +105,7 @@ export default function CodeEnforcementData() {
           <h2 className="text-3xl font-bold mb-10 text-center">Nationwide Enforcement Coverage</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
-              { stat: "4,500+", label: "Cities & Counties" },
+              { stat: "3,800+", label: "Cities & Counties" },
               { stat: "500K+", label: "Properties in Database" },
               { stat: "50", label: "States" },
               { stat: "FOIA", label: "Data Source" },

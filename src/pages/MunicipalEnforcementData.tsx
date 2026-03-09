@@ -105,7 +105,7 @@ export default function MunicipalEnforcementData() {
           <h2 className="text-3xl font-bold mb-10 text-center">Enforcement Data at Scale</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
-              { stat: "4,500+", label: "Municipalities" },
+              { stat: "3,800+", label: "Municipalities" },
               { stat: "500K+", label: "Properties Tracked" },
               { stat: "900+", label: "Counties Covered" },
               { stat: "Monthly", label: "Data Refresh" },

@@ -50,13 +50,7 @@ function useSystemLogs() {
   return useQuery({
     queryKey: ["monitoring-system-logs"],
     queryFn: async () => {
-      const since = new Date(Date.now() - 86400000).toISOString();
-      const { data, error } = await (supabase as any)
-        .from("system_logs")
-        .select("*")
-        .gte("created_at", since)
-        .order("created_at", { ascending: false })
-        .limit(500);
+      const { data, error } = await supabase.rpc("get_system_logs_24h" as any);
       if (error) throw error;
       return (data ?? []) as SystemLog[];
     },
@@ -68,11 +62,7 @@ function useWebhookErrors() {
   return useQuery({
     queryKey: ["monitoring-webhook-errors"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("webhook_errors")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
+      const { data, error } = await supabase.rpc("get_webhook_errors_recent" as any);
       if (error) throw error;
       return (data ?? []) as WebhookError[];
     },
@@ -84,11 +74,7 @@ function useErrorLogs() {
   return useQuery({
     queryKey: ["monitoring-error-logs"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("error_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
+      const { data, error } = await supabase.rpc("get_error_logs_recent" as any);
       if (error) throw error;
       return (data ?? []) as ErrorLog[];
     },

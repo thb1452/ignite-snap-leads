@@ -3299,6 +3299,67 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_error_logs_recent: {
+        Args: never
+        Returns: {
+          component_stack: string | null
+          created_at: string
+          error_message: string
+          error_stack: string | null
+          id: string
+          metadata: Json | null
+          resolved: boolean
+          resolved_at: string | null
+          severity: string
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "error_logs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_system_logs_24h: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          source: string
+          type: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "system_logs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_webhook_errors_recent: {
+        Args: never
+        Returns: {
+          created_at: string
+          error_message: string
+          event_id: string | null
+          event_type: string | null
+          id: string
+          payload: Json | null
+          resolved: boolean
+          resolved_at: string | null
+          webhook_type: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "webhook_errors"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       gettransactionid: { Args: never; Returns: unknown }
       has_role: {
         Args: {

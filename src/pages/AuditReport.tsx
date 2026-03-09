@@ -139,7 +139,7 @@ export default function AuditReport() {
         <Section title="6. Feature System">
           <Table headers={["Feature", "Starter ($79/mo)", "Professional ($149/mo)", "Elite ($299/mo)"]} rows={[
             ["Monthly Enforcement Reports", "5,000", "15,000", "25,000"],
-            ["Cities Nationwide", "3,800+", "3,800+", "3,800+"],
+            ["Cities Nationwide", "4,500+", "4,500+", "4,500+"],
             ["Code Violation Data", "✓", "✓", "✓"],
             ["Basic Filters (location, category, search)", "✓", "✓", "✓"],
             ["Monthly Data Refresh", "✓", "✓", "✓"],

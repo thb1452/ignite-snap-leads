@@ -2,13 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatDistanceToNow } from "date-fns";
-import { AlertTriangle, Flame, Clock } from "lucide-react";
+import { AlertTriangle, Flame, Clock, Droplets } from "lucide-react";
 
 interface PressureProperty {
   id: string;
@@ -27,25 +25,30 @@ interface PressureProperty {
   escalated: boolean | null;
 }
 
-function getScoreColor(score: number | null) {
+function getScoreBg(score: number | null) {
   if (!score) return "bg-[hsl(var(--muted))]";
   if (score >= 75) return "bg-[hsl(var(--score-red))]";
   if (score >= 50) return "bg-[hsl(var(--score-orange))]";
   if (score >= 25) return "bg-[hsl(var(--score-yellow))]";
-  return "bg-[hsl(var(--score-blue))]";
+  return "bg-[hsl(var(--muted))]";
 }
 
 export function TopPressureProperties() {
   const { data: properties = [], isLoading } = useQuery<PressureProperty[]>({
     queryKey: ["top-pressure-properties"],
     queryFn: async () => {
+      // Get properties updated within last 30 days, prioritize critical scores
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
       const { data, error } = await supabase
         .from("properties")
         .select("id, address, city, state, zip, snap_score, snap_insight, updated_at, newest_violation_date, total_violations, open_violations, violation_types, enforcement_type, escalated")
         .not("snap_score", "is", null)
         .gte("snap_score", 50)
+        .gte("updated_at", thirtyDaysAgo)
         .order("snap_score", { ascending: false })
-        .limit(15);
+        .order("updated_at", { ascending: false })
+        .limit(8);
 
       if (error) throw error;
       return (data ?? []) as PressureProperty[];
@@ -56,10 +59,16 @@ export function TopPressureProperties() {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-[hsl(var(--landing-surface))] bg-[hsl(var(--landing-surface)/0.3)] p-6 space-y-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 w-full bg-[hsl(var(--landing-surface)/0.5)]" />
-        ))}
+      <div className="space-y-4">
+        <div className="text-center space-y-2 mb-6">
+          <Skeleton className="h-7 w-64 mx-auto bg-[hsl(var(--landing-surface)/0.5)]" />
+          <Skeleton className="h-4 w-80 mx-auto bg-[hsl(var(--landing-surface)/0.3)]" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-40 w-full rounded-xl bg-[hsl(var(--landing-surface)/0.5)]" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -67,115 +76,122 @@ export function TopPressureProperties() {
   if (properties.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-[hsl(var(--landing-surface))] bg-[hsl(var(--landing-surface)/0.2)] overflow-hidden backdrop-blur-sm">
-      <div className="px-6 py-4 border-b border-[hsl(var(--landing-surface)/0.5)]">
-        <h3 className="text-sm font-semibold text-[hsl(var(--landing-text-muted))] uppercase tracking-wider">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="text-center space-y-1">
+        <h3 className="text-xl font-bold text-[hsl(var(--landing-text))]">
           Properties Under Pressure Now
         </h3>
+        <p className="text-sm text-[hsl(var(--landing-text-muted))]">
+          Highest SnapScore properties with active enforcement
+        </p>
       </div>
 
-      <ScrollArea className="h-[600px]">
-        <div>
-          {properties.map((property, i) => {
-            const openCount = property.open_violations ?? 0;
-            const totalCount = property.total_violations ?? 0;
-            const extraTypes = (property.violation_types?.length ?? 0) > 2 ? (property.violation_types!.length - 2) : 0;
+      {/* Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {properties.map((property, i) => {
+          const openCount = property.open_violations ?? 0;
+          const totalCount = property.total_violations ?? 0;
+          const isWater = property.enforcement_type === "water_shutoff";
 
-            const freshness = property.updated_at
-              ? formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })
-              : null;
+          const violationLabel = isWater
+            ? "Water Disconnection"
+            : property.violation_types
+                ?.filter((v) => v !== "Unknown")
+                .slice(0, 1)
+                .map(formatViolationType)[0] ?? "Code Violation";
 
-            const isHeatingUp = (() => {
-              const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-              const updatedAt = property.updated_at ? new Date(property.updated_at).getTime() : 0;
-              const newestViolation = property.newest_violation_date ? new Date(property.newest_violation_date).getTime() : 0;
-              return updatedAt > sevenDaysAgo || newestViolation > sevenDaysAgo;
-            })();
+          const insightText = property.snap_insight || "";
+          const displayInsight = insightText.length > 140 ? insightText.slice(0, 137) + "…" : insightText;
 
-            const insightText = property.snap_insight || "";
-            const displayInsight = insightText.length > 160 ? insightText.slice(0, 157) + "..." : insightText;
+          const freshness = property.updated_at
+            ? formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })
+            : null;
 
-            return (
-              <motion.div
-                key={property.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03, duration: 0.25 }}
-                className="px-4 py-3 border-b border-[hsl(var(--landing-surface)/0.3)] hover:bg-[hsl(var(--landing-surface)/0.15)] transition-colors"
-              >
-                {/* Row 1: Address + Score */}
-                <div className="flex items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-sm text-[hsl(var(--landing-text))] leading-tight truncate">
-                        {formatAddress(property.address)}, {formatCity(property.city)}, {property.state} {property.zip}
-                      </span>
-                      <Badge
-                        className={`${getScoreColor(property.snap_score)} text-[hsl(0,0%,100%)] text-xs px-2 py-0.5 h-5 shrink-0 font-bold border-0`}
-                      >
-                        {property.snap_score || 0}
-                      </Badge>
-                    </div>
-
-                    {/* Row 2: Status + Violation types + Heating Up */}
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      {isHeatingUp && (
-                        <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-amber-500/10 text-amber-400 border-amber-500/30 gap-0.5 animate-pulse">
-                          <Flame className="h-3 w-3" />
-                          New Activity
-                        </Badge>
-                      )}
-                      {openCount > 0 ? (
-                        <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-0.5">
-                          <AlertTriangle className="h-3 w-3" />
-                          open
-                        </Badge>
-                      ) : totalCount > 0 ? (
-                        <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-rose-500/10 text-rose-400 border-rose-500/30">
-                          closed
-                        </Badge>
-                      ) : null}
-
-                      {property.enforcement_type === 'water_shutoff' ? (
-                        <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-cyan-500/10 text-cyan-400 border-cyan-500/30 gap-0.5">
-                          💧 Water Disconnection
-                        </Badge>
-                      ) : (
-                        <>
-                          {property.violation_types && property.violation_types.filter(v => v !== 'Unknown').slice(0, 2).map((vt, vi) => (
-                            <Badge key={vi} variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-orange-500/10 text-orange-400 border-orange-500/30 gap-0.5">
-                              <Flame className="h-3 w-3" />
-                              {formatViolationType(vt)}
-                            </Badge>
-                          ))}
-                          {extraTypes > 0 && (
-                            <span className="text-[11px] text-[hsl(var(--landing-text-muted))]">+{extraTypes}</span>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {/* Row 3: AI Insight */}
-                    {displayInsight && (
-                      <p className="mt-1.5 text-xs text-[hsl(var(--landing-text-muted))] leading-relaxed">
-                        {displayInsight}
-                      </p>
-                    )}
-
-                    {/* Row 4: Freshness */}
-                    {freshness && (
-                      <div className="flex items-center gap-1 mt-1 text-[11px] text-[hsl(var(--landing-text-muted)/0.6)]">
-                        <Clock className="h-3 w-3" />
-                        <span>Snap updated {freshness}</span>
-                      </div>
-                    )}
-                  </div>
+          return (
+            <motion.div
+              key={property.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05, duration: 0.3 }}
+              className="rounded-xl border border-[hsl(var(--landing-surface)/0.6)] bg-[hsl(var(--landing-surface)/0.15)] p-4 hover:bg-[hsl(var(--landing-surface)/0.25)] transition-all duration-200 backdrop-blur-sm"
+            >
+              {/* Row 1: Address + Score circle */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-sm text-[hsl(var(--landing-text))] leading-tight truncate">
+                    {formatAddress(property.address)}
+                  </p>
+                  <p className="text-xs text-[hsl(var(--landing-text-muted))] mt-0.5">
+                    {formatCity(property.city)}, {property.state} {property.zip}
+                  </p>
                 </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </ScrollArea>
+
+                {/* Score circle */}
+                <div
+                  className={`${getScoreBg(property.snap_score)} w-9 h-9 rounded-full flex items-center justify-center shrink-0`}
+                >
+                  <span className="text-xs font-bold text-white leading-none">
+                    {property.snap_score ?? 0}
+                  </span>
+                </div>
+              </div>
+
+              {/* Row 2: Status + Violation type */}
+              <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+                {/* Warning icon */}
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+
+                {/* Open/Closed badge */}
+                {openCount > 0 ? (
+                  <Badge
+                    variant="outline"
+                    className="text-[11px] px-2 py-0 h-[20px] bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-medium"
+                  >
+                    open
+                  </Badge>
+                ) : totalCount > 0 ? (
+                  <Badge
+                    variant="outline"
+                    className="text-[11px] px-2 py-0 h-[20px] bg-rose-500/15 text-rose-400 border-rose-500/30 font-medium"
+                  >
+                    closed
+                  </Badge>
+                ) : null}
+
+                {/* Violation type */}
+                <span className="flex items-center gap-1 text-[11px] text-amber-400">
+                  {isWater ? (
+                    <Droplets className="h-3 w-3 text-cyan-400" />
+                  ) : (
+                    <Flame className="h-3 w-3" />
+                  )}
+                  <span className={isWater ? "text-cyan-400" : ""}>
+                    {violationLabel.length > 28
+                      ? violationLabel.slice(0, 25) + "…"
+                      : violationLabel}
+                  </span>
+                </span>
+              </div>
+
+              {/* Row 3: AI Insight / description */}
+              {displayInsight && (
+                <p className="mt-2 text-xs text-[hsl(var(--landing-text-muted))] leading-relaxed line-clamp-3">
+                  {displayInsight}
+                </p>
+              )}
+
+              {/* Row 4: Freshness */}
+              {freshness && (
+                <div className="flex items-center gap-1 mt-2 text-[11px] text-[hsl(var(--landing-text-muted)/0.6)]">
+                  <Clock className="h-3 w-3" />
+                  <span>Snap updated {freshness}</span>
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

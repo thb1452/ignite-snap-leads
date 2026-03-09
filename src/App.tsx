@@ -42,6 +42,7 @@ const HowInvestorsFindDistressedProperties = lazy(() => import("./pages/HowInves
 const CityViolationsIndex = lazy(() => import("./pages/CityViolationsIndex"));
 const CityViolations = lazy(() => import("./pages/CityViolations"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const LiveFeed = lazy(() => import("./pages/LiveFeed"));
 
 // VA pages
 const VADashboard = lazy(() => import("./pages/VADashboard"));
@@ -270,6 +271,7 @@ const App = () => (
               <FoiaVAHistory />
             </FoiaAuthGuard>
           } />
+          <Route path="/live-feed" element={<LiveFeed />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>

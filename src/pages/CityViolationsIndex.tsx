@@ -54,12 +54,12 @@ export default function CityViolationsIndex() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Code Violations by City | Snap Ignite" description="Browse code violation data across 4,500+ cities. Find enforcement intelligence for any city in the United States. Snap Ignite tracks 500K+ properties." canonical="https://snapignite.com/code-violations" />
+      <SEOHead title="Code Violations by City | Snap Ignite" description="Browse code violation data across 3,800+ cities. Find enforcement intelligence for any city in the United States. Snap Ignite tracks 500K+ properties." canonical="https://snapignite.com/code-violations" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",
         "name": "Code Violations by City",
-        "description": "Browse code violation data across 4,500+ cities in the United States.",
+        "description": "Browse code violation data across 3,800+ cities in the United States.",
         "url": "https://snapignite.com/code-violations",
         "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" }
       })}} />

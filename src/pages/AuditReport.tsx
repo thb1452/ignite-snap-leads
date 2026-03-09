@@ -36,7 +36,7 @@ export default function AuditReport() {
           <Table headers={["Metric", "Value"]} rows={[
             ["Total Properties Tracked", "441,501"],
             ["Total Violations", "406,000+"],
-            ["Cities Covered", "4,500+"],
+            ["Cities Covered", "3,800+"],
             ["Scoring Engine Version", "v7.1"],
             ["AI Engine", "v4.1 Hybrid (Gemini 3 Flash Preview)"],
             ["Subscription Tiers", "Starter ($79/mo) · Professional ($149/mo) · Elite ($299/mo)"],
@@ -139,7 +139,7 @@ export default function AuditReport() {
         <Section title="6. Feature System">
           <Table headers={["Feature", "Starter ($79/mo)", "Professional ($149/mo)", "Elite ($299/mo)"]} rows={[
             ["Monthly Enforcement Reports", "5,000", "15,000", "25,000"],
-            ["Cities Nationwide", "4,500+", "4,500+", "4,500+"],
+            ["Cities Nationwide", "3,800+", "3,800+", "3,800+"],
             ["Code Violation Data", "✓", "✓", "✓"],
             ["Basic Filters (location, category, search)", "✓", "✓", "✓"],
             ["Monthly Data Refresh", "✓", "✓", "✓"],
@@ -249,7 +249,7 @@ export default function AuditReport() {
           <Table headers={["Metric", "Value"]} rows={[
             ["Total Properties", "441,501"],
             ["Total Violations", "406,000+"],
-            ["Cities Covered", "4,500+"],
+            ["Cities Covered", "3,800+"],
             ["Edge Functions Deployed", "25+"],
             ["Database Tables", "35+"],
             ["Frontend Routes", "30+"],

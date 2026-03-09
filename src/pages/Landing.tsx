@@ -90,7 +90,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-landing-bg text-landing-text overflow-x-hidden">
-      <SEOHead title="Code Violation Intelligence for Real Estate Investors | Snap Ignite" description="Track code violations and enforcement pressure across 500K+ properties in 4,500+ cities. Find distressed real estate leads before they hit the market. Start free." canonical="https://snapignite.com/" />
+      <SEOHead title="Code Violation Intelligence for Real Estate Investors | Snap Ignite" description="Track code violations and enforcement pressure across 500K+ properties in 3,800+ cities. Find distressed real estate leads before they hit the market. Start free." canonical="https://snapignite.com/" />
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-landing-surface/50 bg-landing-bg/80 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -235,7 +235,7 @@ export default function Landing() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="text-lg md:text-xl text-landing-text-muted max-w-2xl"
             >
-              Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 4,500+ cities nationwide, updated monthly.
+              Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 3,800+ cities nationwide, updated monthly.
             </motion.p>
 
             {/* Positioning blockquote */}
@@ -298,9 +298,8 @@ export default function Landing() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {[
               { end: 500000, label: 'Properties Tracked', suffix: '+' },
-              { end: 4520, label: 'Cities Covered', suffix: '+' },
+              { end: 3800, label: 'Cities Covered', suffix: '+' },
               { end: 488636, label: 'Violations Monitored', suffix: '+' },
-              { end: 12, label: 'Monthly Updates', suffix: '/yr' },
             ].map((stat) => (
               <div key={stat.label} className="text-center py-3">
                 <div className="text-2xl md:text-4xl font-bold text-landing-text tabular-nums">
@@ -309,6 +308,12 @@ export default function Landing() {
                 <div className="text-xs md:text-sm text-landing-text-muted mt-1">{stat.label}</div>
               </div>
             ))}
+            <div className="text-center py-3">
+              <div className="text-2xl md:text-4xl font-bold text-landing-text">
+                Monthly
+              </div>
+              <div className="text-xs md:text-sm text-landing-text-muted mt-1">Updated Monthly</div>
+            </div>
           </div>
         </div>
       </section>
@@ -698,7 +703,7 @@ export default function Landing() {
                 description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
                   "5,000 monthly enforcement reports",
-                  "4,500+ cities nationwide",
+                  "3,800+ cities nationwide",
                   "Code violation data",
                   "Basic filters (location, category, search)",
                   "Monthly data refresh",
@@ -836,7 +841,7 @@ export default function Landing() {
                     { type: "Property records (160M+)", ps: true, snap: "partial", snapNote: "Use your existing platform" },
                     { type: "Ownership & equity data", ps: true, snap: "ref", snapNote: "Use your existing platform" },
                     { type: "Comparable sales", ps: true, snap: "ref", snapNote: "Use your existing platform" },
-                    { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "4,500+ cities" },
+                    { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "3,800+ cities" },
                     { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
                     { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
                     { type: "Municipal court dates", ps: false, snap: true, snapNote: "" },
@@ -988,7 +993,7 @@ export default function Landing() {
                 },
                 {
                   question: "What cities do you cover?",
-                  answer: "We cover 4,500+ cities across the United States where we've established FOIA data pipelines. Coverage is expanding as we add more municipal sources. All users get access to all available cities."
+                  answer: "We cover 3,800+ cities across the United States where we've established FOIA data pipelines. Coverage is expanding as we add more municipal sources. All users get access to all available cities."
                 },
                 {
                   question: "How fresh is the data?",

@@ -8,12 +8,12 @@ export default function DistressedPropertyData() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Distressed Property Data Powered by Enforcement Intelligence | Snap Ignite" description="Access distressed property data sourced from municipal enforcement records. 500K+ properties scored by enforcement pressure across 4,500+ U.S. cities. Start free." canonical="https://snapignite.com/distressed-property-data" />
+      <SEOHead title="Distressed Property Data Powered by Enforcement Intelligence | Snap Ignite" description="Access distressed property data sourced from municipal enforcement records. 500K+ properties scored by enforcement pressure across 3,800+ U.S. cities. Start free." canonical="https://snapignite.com/distressed-property-data" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",
         "name": "Distressed Property Data Powered by Enforcement Intelligence",
-        "description": "Access distressed property data sourced from municipal enforcement records across 4,500+ U.S. cities.",
+        "description": "Access distressed property data sourced from municipal enforcement records across 3,800+ U.S. cities.",
         "url": "https://snapignite.com/distressed-property-data",
         "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" }
       })}} />
@@ -106,7 +106,7 @@ export default function DistressedPropertyData() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
               { stat: "500K+", label: "Distressed Properties" },
-              { stat: "4,500+", label: "Municipalities" },
+              { stat: "3,800+", label: "Municipalities" },
               { stat: "50", label: "States Covered" },
               { stat: "Monthly", label: "Data Updates" },
             ].map((item, i) => (

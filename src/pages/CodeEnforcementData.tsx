@@ -8,12 +8,12 @@ export default function CodeEnforcementData() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Code Enforcement Data Across 4,500+ Cities | Snap Ignite" description="Access code enforcement data from 4,500+ U.S. cities. FOIA-sourced violation records, enforcement pressure scoring, and distress signals for real estate investors." canonical="https://snapignite.com/code-enforcement-data" />
+      <SEOHead title="Code Enforcement Data Across 3,800+ Cities | Snap Ignite" description="Access code enforcement data from 3,800+ U.S. cities. FOIA-sourced violation records, enforcement pressure scoring, and distress signals for real estate investors." canonical="https://snapignite.com/code-enforcement-data" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",
-        "name": "Code Enforcement Data Across 4,500+ Cities",
-        "description": "Access code enforcement data from 4,500+ U.S. cities with FOIA-sourced violation records and enforcement pressure scoring.",
+        "name": "Code Enforcement Data Across 3,800+ Cities",
+        "description": "Access code enforcement data from 3,800+ U.S. cities with FOIA-sourced violation records and enforcement pressure scoring.",
         "url": "https://snapignite.com/code-enforcement-data",
         "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" }
       })}} />
@@ -34,7 +34,7 @@ export default function CodeEnforcementData() {
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
             Code Enforcement Data Across{" "}
-            <span className="text-[hsl(var(--landing-accent))]">4,500+ Cities</span>
+            <span className="text-[hsl(var(--landing-accent))]">3,800+ Cities</span>
           </h1>
           <p className="text-lg md:text-xl text-[hsl(var(--landing-text-muted))] max-w-2xl mx-auto mb-8">
             The most comprehensive municipal enforcement database for real estate investors. FOIA-sourced records from thousands of jurisdictions, scored and searchable in one platform.
@@ -105,7 +105,7 @@ export default function CodeEnforcementData() {
           <h2 className="text-3xl font-bold mb-10 text-center">Nationwide Enforcement Coverage</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
-              { stat: "4,500+", label: "Cities & Counties" },
+              { stat: "3,800+", label: "Cities & Counties" },
               { stat: "500K+", label: "Properties in Database" },
               { stat: "50", label: "States" },
               { stat: "FOIA", label: "Data Source" },

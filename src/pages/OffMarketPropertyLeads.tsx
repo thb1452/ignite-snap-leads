@@ -116,7 +116,7 @@ export default function OffMarketPropertyLeads() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
               { stat: "500K+", label: "Properties Under Pressure" },
-              { stat: "4,500+", label: "Cities Tracked" },
+              { stat: "3,800+", label: "Cities Tracked" },
               { stat: "~0%", label: "Investor Competition" },
               { stat: "$79/mo", label: "Starting Price" },
             ].map((item, i) => (

@@ -8,13 +8,13 @@ export default function CodeViolationLeads() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Code Violation Leads for Real Estate Investors | Snap Ignite" description="Find code violation leads across 500K+ properties in 4,500+ cities. Track enforcement pressure, identify distressed owners, and close deals before the competition. Start free." canonical="https://snapignite.com/code-violation-leads" />
+      <SEOHead title="Code Violation Leads for Real Estate Investors | Snap Ignite" description="Find code violation leads across 500K+ properties in 3,800+ cities. Track enforcement pressure, identify distressed owners, and close deals before the competition. Start free." canonical="https://snapignite.com/code-violation-leads" />
       {/* JSON-LD */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",
         "name": "Code Violation Leads for Real Estate Investors",
-        "description": "Find code violation leads across 500K+ properties in 4,500+ cities. Track enforcement pressure and identify distressed owners.",
+        "description": "Find code violation leads across 500K+ properties in 3,800+ cities. Track enforcement pressure and identify distressed owners.",
         "url": "https://snapignite.com/code-violation-leads",
         "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" }
       })}} />
@@ -66,7 +66,7 @@ export default function CodeViolationLeads() {
             {[
               { icon: Search, title: "Enforcement-Sourced", desc: "Every lead comes directly from municipal enforcement records — not scraped or estimated." },
               { icon: TrendingUp, title: "Pressure-Scored", desc: "Our SnapScore algorithm ranks properties by enforcement severity, repeat violations, and escalation risk." },
-              { icon: MapPin, title: "Nationwide Coverage", desc: "Access code violation leads across 4,500+ cities and 500K+ properties in the United States." },
+              { icon: MapPin, title: "Nationwide Coverage", desc: "Access code violation leads across 3,800+ cities and 500K+ properties in the United States." },
             ].map((item, i) => (
               <div key={i} className="bg-[hsl(var(--landing-surface))]/50 border border-[hsl(var(--landing-surface))] rounded-xl p-6">
                 <item.icon className="h-8 w-8 text-[hsl(var(--landing-accent))] mb-4" />
@@ -107,7 +107,7 @@ export default function CodeViolationLeads() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
               { stat: "500K+", label: "Properties Tracked" },
-              { stat: "4,500+", label: "Cities Covered" },
+              { stat: "3,800+", label: "Cities Covered" },
               { stat: "Monthly", label: "Data Refresh" },
               { stat: "$79/mo", label: "Starting Price" },
             ].map((item, i) => (

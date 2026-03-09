@@ -201,6 +201,11 @@ const App = () => (
               <AuditReport />
             </RoleProtectedRoute>
           } />
+          <Route path="/admin/monitoring" element={
+            <RoleProtectedRoute allowedRoles={['admin']}>
+              <AdminMonitoring />
+            </RoleProtectedRoute>
+          } />
           <Route path="/how-snap-works" element={
             <ProtectedRoute>
               <HowSnapWorks />

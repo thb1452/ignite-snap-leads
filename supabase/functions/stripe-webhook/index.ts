@@ -132,6 +132,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (e: any) {
     console.error("[webhook] error", e?.message ?? e);
+    // Log webhook processing error
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (supabaseUrl && supabaseKey) {
+        const sb = createClient(supabaseUrl, supabaseKey);
+        await sb.from("webhook_errors").insert({
+          webhook_type: "stripe",
+          event_type: null,
+          event_id: null,
+          error_message: (e?.message ?? String(e)).slice(0, 2000),
+          payload: { raw_error: true },
+        });
+      }
+    } catch { /* silent */ }
     return new Response(JSON.stringify({ error: e.message }), { status: 500 });
   }
 });

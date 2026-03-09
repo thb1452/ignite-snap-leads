@@ -38,7 +38,9 @@ import {
   Plus
 } from "lucide-react";
 
-type Tab = "overview" | "uploads" | "users" | "jurisdictions" | "logs" | "errors";
+import { UserActivityDashboard } from "@/components/admin/UserActivityDashboard";
+
+type Tab = "overview" | "uploads" | "users" | "jurisdictions" | "logs" | "errors" | "activity";
 
 export default function AdminConsole() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");

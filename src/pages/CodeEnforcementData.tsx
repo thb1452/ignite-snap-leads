@@ -12,8 +12,8 @@ export default function CodeEnforcementData() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",
-        "name": "Code Enforcement Data Across 4,500+ Cities",
-        "description": "Access code enforcement data from 4,500+ U.S. cities with FOIA-sourced violation records and enforcement pressure scoring.",
+        "name": "Code Enforcement Data Across 3,800+ Cities",
+        "description": "Access code enforcement data from 3,800+ U.S. cities with FOIA-sourced violation records and enforcement pressure scoring.",
         "url": "https://snapignite.com/code-enforcement-data",
         "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" }
       })}} />

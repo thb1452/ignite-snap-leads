@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2, Mail } from 'lucide-react';
 import { analytics } from '@/lib/analytics';
+import { logActivity } from '@/services/activityLogger';
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),

@@ -33,6 +33,23 @@ function getScoreBg(score: number | null) {
   return "bg-[hsl(var(--muted))]";
 }
 
+// Known violation-related keywords to validate violation_types entries
+const VIOLATION_KEYWORDS = /water|fire|code|violation|struct|vacan|zone|zon|weed|trash|debris|nuisance|safety|electric|plumb|heat|graffiti|rodent|abandon|sanit|permit|construct|fence|tree|shrub|grass|stagnant|shutoff|disconnect|occupy|condemn|hazard|maintenance|inspection|enforcement|animal|noise|sign|parking|vehicle|property|building|roof|window|door|yard|pool|dump|junk|litter|sewage|drain|mold|pest|neglect|blight|complaint/i;
+
+/** Returns true if the string looks like an actual violation type, not a person name */
+function isValidViolationType(v: string): boolean {
+  if (!v || v === "Unknown") return false;
+  // If it contains violation-related keywords, keep it
+  if (VIOLATION_KEYWORDS.test(v)) return true;
+  // If it contains a dash (like "IPMC 109 - something"), keep it
+  if (v.includes(" - ")) return true;
+  // Short strings with only 1-2 capitalized words and no keywords = likely a person name
+  const words = v.trim().split(/\s+/);
+  if (words.length <= 3 && words.every(w => /^[A-Z][a-z]+$/.test(w))) return false;
+  // Default: keep it if it's long enough to be a description
+  return v.length > 5;
+}
+
 export function TopPressureProperties() {
   const { data: properties = [], isLoading } = useQuery<PressureProperty[]>({
     queryKey: ["top-pressure-properties"],
@@ -126,7 +143,7 @@ export function TopPressureProperties() {
           const violationLabel = isWater
             ? "Water Disconnection"
             : property.violation_types
-                ?.filter((v) => v !== "Unknown")
+                ?.filter(isValidViolationType)
                 .slice(0, 1)
                 .map(formatViolationType)[0] ?? "Code Violation";
 

@@ -67,7 +67,7 @@ export default function CityViolations() {
 
   const pageDesc = jurisdiction
     ? `Track ${jurisdiction.propertyCount.toLocaleString()} properties with code violations in ${jurisdiction.city}, ${jurisdiction.state}. Enforcement intelligence for real estate investors.`
-    : `Explore code violation data and enforcement intelligence. Snap Ignite tracks 500K+ properties across 4,500+ cities.`;
+    : `Explore code violation data and enforcement intelligence. Snap Ignite tracks 500K+ properties across 3,800+ cities.`;
 
   const pageCanonical = `https://snapignite.com/code-violations/${citySlug}`;
 

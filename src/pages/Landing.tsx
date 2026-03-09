@@ -235,7 +235,7 @@ export default function Landing() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="text-lg md:text-xl text-landing-text-muted max-w-2xl"
             >
-              Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 3,800+ cities nationwide, updated monthly.
+              Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 4,500+ cities nationwide, updated monthly.
             </motion.p>
 
             {/* Positioning blockquote */}

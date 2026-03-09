@@ -24,7 +24,10 @@ import {
   Building2,
   Search,
   Zap,
-  Menu
+  Menu,
+  Droplets,
+  Scale,
+  Bell
 } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import {

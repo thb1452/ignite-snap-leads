@@ -971,10 +971,8 @@ export default function Landing() {
               <LiveEnforcementCounter />
             </div>
 
-            {/* Feed - restyle for landing dark theme */}
-            <div className="[&_.rounded-xl]:bg-landing-surface/50 [&_.rounded-xl]:border-landing-surface [&_.text-foreground]:text-landing-text [&_.text-muted-foreground]:text-landing-text-muted [&_.text-primary]:text-landing-accent [&_.bg-muted\/30]:bg-landing-surface/30 [&_.hover\:bg-muted\/40]:hover:bg-landing-surface/40 [&_.divide-border>*+*]:border-landing-surface/50">
-              <LiveActivityFeed />
-            </div>
+            {/* Top Pressure Properties */}
+            <TopPressureProperties />
           </div>
         </div>
       </section>

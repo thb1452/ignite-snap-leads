@@ -130,6 +130,12 @@ export default function AdminConsole() {
           >
             Error Logs
           </Button>
+          <Button
+            variant={activeTab === "activity" ? "default" : "ghost"}
+            onClick={() => setActiveTab("activity")}
+          >
+            User Activity
+          </Button>
         </div>
 
         {/* Tab Content */}

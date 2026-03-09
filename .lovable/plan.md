@@ -1,62 +1,37 @@
 
 
-## Assessment
+## Add "Not For You" Column & Expand Features Grid
 
-This strategy is sharp. You already have 3 of the 7 pages built (`/code-violation-leads`, `/distressed-property-data`, `/code-enforcement-data`). The remaining 4 static pages are straightforward. The programmatic city pages are the real power play.
+### 1. Add "Not For You If" column (lines 632-660)
 
-**One tension to flag:** Your in-app positioning says "not a leads tool" and uses "properties" / "professionals." But SEO pages *should* use investor language because that is what people search for. This is fine -- marketing pages speak Google's language, the product speaks its own. Just keep them separate.
+Change the single-column layout to a **2-column grid** (`grid md:grid-cols-2`). Keep the existing green "Built For You If..." card on the left. Add a new red-tinted card on the right with these items:
 
-## Plan: Build Remaining SEO Pages + Programmatic City Framework
+- "You're happy competing for the same stale records as everyone else"
+- "You prefer volume over signal"
+- "You don't believe enforcement data creates early visibility"
+- "You're not willing to invest in intelligence, just data"
+- "You're looking for a free list service"
 
-### Task 1: Create 4 New Static SEO Pages
+Style: `bg-red-500/10 border-red-500/30` with `X` icons in red.
 
-Each follows the same template as existing pages (nav, hero H1, 3-4 content sections, stats, CTA, footer, JSON-LD).
+### 2. Expand Features Grid to 8 items (lines 486-546)
 
-| Route | Target Keyword | H1 |
-|---|---|---|
-| `/municipal-enforcement-data` | municipal enforcement data | Municipal Enforcement Data for Real Estate Professionals |
-| `/off-market-property-leads` | off market property leads | Off-Market Property Leads Powered by Enforcement Intelligence |
-| `/real-estate-distress-signals` | real estate distress signals | Real Estate Distress Signals: The Enforcement Layer Most Investors Miss |
-| `/how-investors-find-distressed-properties` | how investors find distressed properties | How Investors Find Distressed Properties in 2026 |
+Replace the current 3 cards + 3 pills layout with a **4-column responsive grid** (`grid sm:grid-cols-2 lg:grid-cols-4`). Keep the 3 existing features and add 5 more from the blueprint:
 
-**Files to create:** 4 new page components in `src/pages/`
-
-### Task 2: Register Routes + Update Sitemap
-
-- Add 4 lazy-loaded public routes in `App.tsx`
-- Add all 4 URLs to `public/sitemap.xml`
-
-### Task 3: Programmatic City Pages (the 4,000-page engine)
-
-This is the high-leverage move. Build a single dynamic route that pulls real jurisdiction data from the database.
-
-**Route:** `/code-violations/:citySlug` (e.g., `/code-violations/miami`)
-
-**How it works:**
-- Create `src/pages/CityViolations.tsx` -- a single template page
-- On mount, extract `citySlug` from URL params, query the `jurisdictions` table for matching city
-- Display: city name, state, property count, violation stats, enforcement pressure summary
-- Include JSON-LD `WebPage` schema with city-specific data
-- Dynamic `<title>`: "Code Violations in Miami, FL | Snap Ignite"
-- CTA to sign up and access the full data
-- If city not found, show a generic "coverage expanding" page with CTA
-
-**For Google discoverability**, create a city index page at `/code-violations` that lists all tracked cities as internal links (pulled from `jurisdictions` table). This acts as a crawlable directory.
-
-**Files to create:**
-- `src/pages/CityViolations.tsx` (dynamic template)
-- `src/pages/CityViolationsIndex.tsx` (directory of all cities)
-
-**Files to edit:**
-- `src/App.tsx` (add routes)
-- `public/sitemap.xml` (add static pages; note: for 4,000+ city pages, you'd eventually want a dynamic sitemap via edge function, but the index page handles crawlability for now)
-
-### Summary of All Changes
-
-| Action | Files |
+| Feature | Icon |
 |---|---|
-| Create 4 static SEO pages | `src/pages/MunicipalEnforcementData.tsx`, `OffMarketPropertyLeads.tsx`, `RealEstateDistressSignals.tsx`, `HowInvestorsFindDistressedProperties.tsx` |
-| Create city template + index | `src/pages/CityViolations.tsx`, `src/pages/CityViolationsIndex.tsx` |
-| Register 7 new routes | `src/App.tsx` |
-| Update sitemap | `public/sitemap.xml` |
+| 3,800+ Cities (existing coverage card, condensed) | Map |
+| SnapScore AI (existing, condensed) | Target |
+| Water Shutoff Tracking | Droplets |
+| Municipal Court Dates | Scale |
+| Updated Monthly | Clock |
+| Violation Type Filtering | Filter |
+| Export to CSV | Download |
+| Real-time Alerts | Bell |
+
+Each item: compact card with icon, title, one-line description. The SnapScore card gets a subtle highlight ring. Remove the separate pills section since those features are now in the grid.
+
+### Files changed
+
+- **`src/pages/Landing.tsx`** — both edits above (features grid ~lines 486-546, not-for-you ~lines 632-660). Add `Droplets`, `Scale`, `Bell` to lucide imports.
 

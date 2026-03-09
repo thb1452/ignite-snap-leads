@@ -836,7 +836,7 @@ export default function Landing() {
                     { type: "Property records (160M+)", ps: true, snap: "partial", snapNote: "Use your existing platform" },
                     { type: "Ownership & equity data", ps: true, snap: "ref", snapNote: "Use your existing platform" },
                     { type: "Comparable sales", ps: true, snap: "ref", snapNote: "Use your existing platform" },
-                    { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "3,800+ cities" },
+                    { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "4,500+ cities" },
                     { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
                     { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
                     { type: "Municipal court dates", ps: false, snap: true, snapNote: "" },

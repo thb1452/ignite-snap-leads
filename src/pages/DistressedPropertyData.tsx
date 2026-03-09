@@ -106,7 +106,7 @@ export default function DistressedPropertyData() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
               { stat: "500K+", label: "Distressed Properties" },
-              { stat: "4,500+", label: "Municipalities" },
+              { stat: "3,800+", label: "Municipalities" },
               { stat: "50", label: "States Covered" },
               { stat: "Monthly", label: "Data Updates" },
             ].map((item, i) => (

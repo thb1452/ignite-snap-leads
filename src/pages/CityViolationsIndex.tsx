@@ -59,7 +59,7 @@ export default function CityViolationsIndex() {
         "@context": "https://schema.org",
         "@type": "WebPage",
         "name": "Code Violations by City",
-        "description": "Browse code violation data across 4,500+ cities in the United States.",
+        "description": "Browse code violation data across 3,800+ cities in the United States.",
         "url": "https://snapignite.com/code-violations",
         "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" }
       })}} />

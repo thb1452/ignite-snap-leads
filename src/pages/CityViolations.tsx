@@ -191,7 +191,7 @@ export default function CityViolations() {
               <span className="text-[hsl(var(--landing-accent))] capitalize">{citySearch}</span>
             </h1>
             <p className="text-lg text-[hsl(var(--landing-text-muted))] max-w-xl mx-auto mb-8">
-              We're actively expanding our enforcement data coverage. Sign up to be notified when we add this jurisdiction — or explore 4,500+ cities we already track.
+              We're actively expanding our enforcement data coverage. Sign up to be notified when we add this jurisdiction — or explore 3,800+ cities we already track.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/auth">

@@ -249,7 +249,7 @@ export default function AuditReport() {
           <Table headers={["Metric", "Value"]} rows={[
             ["Total Properties", "441,501"],
             ["Total Violations", "406,000+"],
-            ["Cities Covered", "4,500+"],
+            ["Cities Covered", "3,800+"],
             ["Edge Functions Deployed", "25+"],
             ["Database Tables", "35+"],
             ["Frontend Routes", "30+"],

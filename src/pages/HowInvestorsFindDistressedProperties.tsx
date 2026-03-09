@@ -101,7 +101,7 @@ export default function HowInvestorsFindDistressedProperties() {
                 <ul className="space-y-2 text-[hsl(var(--landing-text-muted))]">
                   {[
                     "500K+ properties under active enforcement",
-                    "4,500+ cities across the United States",
+                    "3,800+ cities across the United States",
                     "SnapScore algorithm ranks seller motivation",
                     "Filter by violation type, pressure level, and location",
                   ].map((item, i) => (

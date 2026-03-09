@@ -988,7 +988,7 @@ export default function Landing() {
                 },
                 {
                   question: "What cities do you cover?",
-                  answer: "We cover 4,500+ cities across the United States where we've established FOIA data pipelines. Coverage is expanding as we add more municipal sources. All users get access to all available cities."
+                  answer: "We cover 3,800+ cities across the United States where we've established FOIA data pipelines. Coverage is expanding as we add more municipal sources. All users get access to all available cities."
                 },
                 {
                   question: "How fresh is the data?",

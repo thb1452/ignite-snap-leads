@@ -966,11 +966,6 @@ export default function Landing() {
           </div>
 
           <div className="max-w-5xl mx-auto space-y-8">
-            {/* Counter - restyle for landing dark theme */}
-            <div className="[&_.rounded-xl]:bg-landing-surface/50 [&_.rounded-xl]:border-landing-surface [&_.text-foreground]:text-landing-text [&_.text-muted-foreground]:text-landing-text-muted [&_.text-primary]:text-landing-accent [&_.bg-gradient-to-br]:from-landing-accent/5">
-              <LiveEnforcementCounter />
-            </div>
-
             {/* Top Pressure Properties */}
             <TopPressureProperties />
           </div>

@@ -173,7 +173,7 @@ export function TopPressureProperties() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-sm text-[hsl(var(--landing-text))] leading-tight truncate">
-                    {formatAddress(property.address)}
+                    {maskStreetNumber(formatAddress(property.address))}
                   </p>
                   <p className="text-xs text-[hsl(var(--landing-text-muted))] mt-0.5">
                     {formatCity(property.city)}, {property.state} {property.zip}

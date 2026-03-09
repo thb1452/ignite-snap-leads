@@ -486,23 +486,55 @@ export default function Landing() {
           </div>
           
           {/* Core Features */}
-          <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {[
               {
+                icon: Map,
+                title: "3,800+ Cities",
+                description: "Nationwide coverage from small towns to major metros.",
+                highlight: false
+              },
+              {
                 icon: Target,
-                title: "SnapScore Enforcement Intensity",
-                description: "SnapScore ranks every property by enforcement intensity — factoring violation type, duration, municipal priority, and agency escalation. You see which properties are under the most pressure right now, not which ones were flagged six months ago.",
+                title: "SnapScore AI",
+                description: "Ranks every property by enforcement intensity — violation type, duration, and escalation.",
                 highlight: true
               },
               {
-                icon: BarChart3,
-                title: "The 30-Day Window",
-                description: "Municipal enforcement moves fast. A code violation today becomes a lien next month. Snap Ignite tracks escalation patterns monthly so you see pressure building—not after it's resolved or sold."
+                icon: Droplets,
+                title: "Water Shutoff Tracking",
+                description: "See hidden pressure signals unavailable anywhere else. Available in Elite tier.",
+                highlight: false
               },
               {
-                icon: Map,
-                title: "Multiple Pressure Signals, One View",
-                description: "Code violations. Water shutoffs. Accumulating fines. Compliance deadlines. We aggregate enforcement data across counties so you see the full picture of municipal pressure on any property."
+                icon: Scale,
+                title: "Municipal Court Dates",
+                description: "Track compliance deadlines and hearings before they resolve.",
+                highlight: false
+              },
+              {
+                icon: Clock,
+                title: "Updated Monthly",
+                description: "Fresh enforcement data every 30 days — not stale records from last quarter.",
+                highlight: false
+              },
+              {
+                icon: Filter,
+                title: "Violation Type Filtering",
+                description: "Filter by open, vacancy, exterior, structural, and more.",
+                highlight: false
+              },
+              {
+                icon: Download,
+                title: "Export to CSV",
+                description: "Build targeted lists and export instantly for your workflow.",
+                highlight: false
+              },
+              {
+                icon: Bell,
+                title: "Real-time Alerts",
+                description: "Get notified when enforcement pressure escalates on properties you track.",
+                highlight: false
               }
             ].map((feature, i) => (
               <motion.div
@@ -510,43 +542,21 @@ export default function Landing() {
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className={`bg-landing-surface/50 border rounded-xl p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(56,178,172,0.15)] ${
+                transition={{ delay: i * 0.05 }}
+                className={`bg-landing-surface/50 border rounded-xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(56,178,172,0.15)] ${
                   feature.highlight ? 'border-landing-accent/50 ring-2 ring-landing-accent/20' : 'border-landing-surface'
                 }`}
               >
-                <div className={`w-14 h-14 rounded-lg flex items-center justify-center mb-6 ${
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${
                   feature.highlight ? 'bg-landing-accent/20' : 'bg-landing-accent/10'
                 }`}>
-                  <feature.icon className="w-7 h-7 text-landing-accent" />
+                  <feature.icon className="w-6 h-6 text-landing-accent" />
                 </div>
-                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                <p className="text-landing-text-muted">{feature.description}</p>
+                <h3 className="text-lg font-bold mb-2">{feature.title}</h3>
+                <p className="text-sm text-landing-text-muted">{feature.description}</p>
               </motion.div>
             ))}
           </div>
-          
-          {/* Supporting Features Pills */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="flex flex-wrap justify-center gap-3 max-w-4xl mx-auto"
-          >
-            {[
-              { icon: Filter, label: "Violation Type Filtering" },
-              { icon: Download, label: "Export to CSV" },
-              { icon: Building2, label: "County-Level Coverage" }
-            ].map((pill, i) => (
-              <div 
-                key={i}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-landing-surface border border-landing-surface text-sm"
-              >
-                <Check className="w-4 h-4 text-landing-accent" />
-                {pill.label}
-              </div>
-            ))}
-          </motion.div>
         </div>
       </section>
 

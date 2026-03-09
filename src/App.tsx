@@ -56,6 +56,7 @@ const AdminImportCounties = lazy(() => import("./pages/AdminImportCounties"));
 const AdminAssignCounties = lazy(() => import("./pages/AdminAssignCounties"));
 const AdminMigration = lazy(() => import("./pages/AdminMigration"));
 const AuditReport = lazy(() => import("./pages/AuditReport"));
+const AdminMonitoring = lazy(() => import("./pages/AdminMonitoring"));
 
 // FOIA pages
 const FoiaLogin = lazy(() => import("./pages/FoiaLogin"));

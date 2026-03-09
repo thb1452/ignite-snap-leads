@@ -145,6 +145,7 @@ export default function AdminConsole() {
         {activeTab === "jurisdictions" && <JurisdictionsTab refreshTrigger={refreshCounter} />}
         {activeTab === "logs" && <SystemLogsTab refreshTrigger={refreshCounter} />}
         {activeTab === "errors" && <ErrorLogsDashboard />}
+        {activeTab === "activity" && <UserActivityDashboard />}
       </div>
     </AppLayout>
   );

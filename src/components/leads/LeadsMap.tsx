@@ -289,8 +289,19 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
   }, [markers, onPropertyClick, viewMode, mapReady]);
 
   // Fly to selected property and add highlight
+  const abortRef = useRef<AbortController | null>(null);
+  
   useEffect(() => {
     if (!mapRef.current || !mapReady) return;
+
+    // Abort any in-flight DB lookup from a previous selection
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+
+    // Stop any ongoing flyTo animation for snappy sequential clicks
+    mapRef.current.stop();
 
     // Clear previous highlight
     if (highlightRef.current) {
@@ -300,51 +311,115 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
 
     if (!selectedPropertyId) return;
 
-    const flyToCoords = async (lat: number, lng: number) => {
-      if (!mapRef.current) return;
-      mapRef.current.flyTo([lat, lng], 16, { duration: 1.2 });
+    // Switch to map mode if in heatmap so the marker is visible
+    if (viewMode === "heatmap") {
+      setViewMode("map");
+    }
 
-      // Add pulsing highlight ring
-      const highlight = L.layerGroup();
-      const outerRing = L.circleMarker([lat, lng], {
-        radius: 18,
-        fillColor: "transparent",
-        color: "#fff",
-        weight: 4,
-        opacity: 0.9,
+    const flyToAndHighlight = (lat: number, lng: number) => {
+      if (!mapRef.current) return;
+
+      // Use zoom 17 (above disableClusteringAtZoom: 16) to guarantee clusters expand
+      const targetZoom = 17;
+      
+      // Offset the center slightly to the right to account for any left-side panel
+      // This keeps the marker visually centered in the visible map area
+      const map = mapRef.current;
+      const targetLatLng = L.latLng(lat, lng);
+
+      map.flyTo(targetLatLng, targetZoom, {
+        duration: 1.0,
+        easeLinearity: 0.35,
       });
-      const innerRing = L.circleMarker([lat, lng], {
-        radius: 18,
-        fillColor: "transparent",
-        color: "hsl(var(--primary))",
-        weight: 2,
-        opacity: 1,
-      });
-      highlight.addLayer(outerRing);
-      highlight.addLayer(innerRing);
-      highlight.addTo(mapRef.current);
-      highlightRef.current = highlight;
+
+      // Add highlight after flyTo animation completes
+      const addHighlight = () => {
+        if (!mapRef.current) return;
+        
+        // Clear again in case of race condition
+        if (highlightRef.current) {
+          mapRef.current.removeLayer(highlightRef.current);
+        }
+
+        const highlight = L.layerGroup();
+
+        // Outer pulsing glow ring
+        const glowRing = L.circleMarker([lat, lng], {
+          radius: 24,
+          fillColor: "transparent",
+          color: "#3b82f6",
+          weight: 3,
+          opacity: 0.5,
+          className: "snap-pulse-ring",
+        });
+
+        // White border ring
+        const outerRing = L.circleMarker([lat, lng], {
+          radius: 16,
+          fillColor: "transparent",
+          color: "#fff",
+          weight: 4,
+          opacity: 0.95,
+        });
+
+        // Primary color inner ring
+        const innerRing = L.circleMarker([lat, lng], {
+          radius: 16,
+          fillColor: "transparent",
+          color: "#3b82f6",
+          weight: 2,
+          opacity: 1,
+        });
+
+        // Center dot for precise location
+        const centerDot = L.circleMarker([lat, lng], {
+          radius: 4,
+          fillColor: "#3b82f6",
+          color: "#fff",
+          weight: 2,
+          fillOpacity: 1,
+          opacity: 1,
+        });
+
+        highlight.addLayer(glowRing);
+        highlight.addLayer(outerRing);
+        highlight.addLayer(innerRing);
+        highlight.addLayer(centerDot);
+        highlight.addTo(mapRef.current!);
+        highlightRef.current = highlight;
+
+        map.off("moveend", addHighlight);
+      };
+
+      // Wait for flyTo to finish before adding highlight
+      map.once("moveend", addHighlight);
     };
 
     // Try to find in current markers first
     const found = markers.find((m) => m.id === selectedPropertyId);
     if (found?.latitude && found?.longitude) {
-      flyToCoords(found.latitude, found.longitude);
+      flyToAndHighlight(found.latitude, found.longitude);
       return;
     }
 
-    // Fallback: fetch from DB
+    // Fallback: fetch from DB with abort support
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     (async () => {
       const { data } = await supabase
         .from("properties")
         .select("latitude, longitude")
         .eq("id", selectedPropertyId)
-        .single();
+        .single()
+        .abortSignal(controller.signal);
+      
+      if (controller.signal.aborted) return;
       if (data?.latitude && data?.longitude) {
-        flyToCoords(Number(data.latitude), Number(data.longitude));
+        flyToAndHighlight(Number(data.latitude), Number(data.longitude));
       }
-    })();
-  }, [selectedPropertyId, mapReady, markers]);
+    })().catch(() => {/* aborted */});
+  }, [selectedPropertyId, mapReady, markers, viewMode]);
 
 
   return (

@@ -108,6 +108,7 @@ export function AuthForm() {
     const result = await signIn(data.email, data.password);
     if (result && !('error' in result && result.error)) {
       analytics.loginSuccess();
+      logActivity({ action: 'login' });
     }
     setIsLoading(false);
   };

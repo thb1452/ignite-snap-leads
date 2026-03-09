@@ -8,7 +8,7 @@ export default function DistressedPropertyData() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Distressed Property Data Powered by Enforcement Intelligence | Snap Ignite" description="Access distressed property data sourced from municipal enforcement records. 500K+ properties scored by enforcement pressure across 4,500+ U.S. cities. Start free." canonical="https://snapignite.com/distressed-property-data" />
+      <SEOHead title="Distressed Property Data Powered by Enforcement Intelligence | Snap Ignite" description="Access distressed property data sourced from municipal enforcement records. 500K+ properties scored by enforcement pressure across 3,800+ U.S. cities. Start free." canonical="https://snapignite.com/distressed-property-data" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",

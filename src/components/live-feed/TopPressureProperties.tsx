@@ -37,6 +37,13 @@ function getScoreBg(score: number | null) {
 const VIOLATION_KEYWORDS = /water|fire|code|violation|struct|vacan|zone|zon|weed|trash|debris|nuisance|safety|electric|plumb|heat|graffiti|rodent|abandon|sanit|permit|construct|fence|tree|shrub|grass|stagnant|shutoff|disconnect|occupy|condemn|hazard|maintenance|inspection|enforcement|animal|noise|sign|parking|vehicle|property|building|roof|window|door|yard|pool|dump|junk|litter|sewage|drain|mold|pest|neglect|blight|complaint/i;
 
 /** Returns true if the string looks like an actual violation type, not a person name */
+/** Masks the street number for public display: "4948 W 21st PL" → "4●●● W 21st PL" */
+function maskStreetNumber(address: string): string {
+  return address.replace(/^(\d)\d+/, (match, first) => {
+    return first + '●'.repeat(match.length - 1);
+  });
+}
+
 function isValidViolationType(v: string): boolean {
   if (!v || v === "Unknown") return false;
   // If it contains violation-related keywords, keep it

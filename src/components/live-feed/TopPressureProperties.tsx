@@ -47,6 +47,7 @@ function maskStreetNumber(address: string): string {
 
 function isValidViolationType(v: string): boolean {
   if (!v || v === "Unknown") return false;
+  if (NOISY_TYPES.test(v)) return false;
   // If it contains violation-related keywords, keep it
   if (VIOLATION_KEYWORDS.test(v)) return true;
   // If it contains a dash (like "IPMC 109 - something"), keep it

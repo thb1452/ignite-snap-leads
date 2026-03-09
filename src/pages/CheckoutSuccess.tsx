@@ -102,7 +102,7 @@ export default function CheckoutSuccess() {
         </h1>
         <p className="text-muted-foreground">
           {isTrial
-            ? "Your 3-day free trial is now active. You have 25 property exports to get started."
+            ? "Your 3-day free trial is now active. You have 500 property exports to get started."
             : "Activating your subscription..."}
         </p>
         <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />

@@ -509,7 +509,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     for (let i = 0; i < rawRows.length; i++) {
       const row = rawRows[i];
 
-      const jurisdictionName = getCellValue(row, mapping.jurisdiction_name);
+      const jurisdictionName = getCellValue(row, mapping.jurisdiction_name) || getCellValue(row, mapping.county);
       const state = toStateAbbreviation(getCellValue(row, mapping.state));
 
       if (!jurisdictionName || !state) {

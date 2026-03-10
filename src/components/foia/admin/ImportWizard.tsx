@@ -267,43 +267,159 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
   }, []);
 
   /** Auto-detect column mapping from headers */
-  function autoDetectMapping(cols: string[]): ColumnMapping {
+  function autoDetectMapping(cols: string[], rows: RawRow[]): ColumnMapping {
     const autoMap: ColumnMapping = { ...EMPTY_MAPPING };
-    const norm = (c: string) => c.toLowerCase().replace(/[\s_-]/g, '');
 
-    for (const col of cols) {
-      const n = norm(col);
+    autoMap.jurisdiction_name = pickBestColumn(
+      cols.filter((col) => {
+        const normalized = normalizeHeader(col);
+        return normalized.includes('jurisdiction') || normalized === 'name' || normalized === 'city' || normalized.includes('cityname') || normalized === 'county' || normalized.includes('countyname');
+      }),
+      (col) => {
+        const normalized = normalizeHeader(col);
+        if (normalized.includes('jurisdiction')) return 150;
+        if (normalized === 'city' || normalized.includes('cityname')) return 140;
+        if (normalized === 'name') return 110;
+        if (normalized === 'county' || normalized.includes('countyname')) return 30;
+        return 0;
+      },
+      { minScore: 20 }
+    );
 
-      // Jurisdiction name
-      if (!autoMap.jurisdiction_name && (n.includes('jurisdiction') || n === 'name' || n === 'city' || n === 'county' || n.includes('cityname') || n.includes('countyname'))) {
-        autoMap.jurisdiction_name = col;
-      }
-      if (!autoMap.state && n.includes('state')) autoMap.state = col;
-      if (!autoMap.county && n === 'county') autoMap.county = col;
-      if (!autoMap.population && n.includes('pop')) autoMap.population = col;
-      if (!autoMap.target_type && (n.includes('targettype') || n === 'type')) autoMap.target_type = col;
-      if (!autoMap.foia_url && (n.includes('url') || n.includes('link') || (n.includes('foia') && !n.includes('email')))) {
-        autoMap.foia_url = col;
-      }
-      // "Contact Value" columns often contain a mix of URLs and emails —
-      // map to contact_email here; the row-level import logic will split
-      // URL-like values into foia_url automatically.
-      if (!autoMap.contact_email && (n.includes('foiaemail') || n.includes('contactvalue') || n.includes('contactemail') || n === 'email')) {
-        autoMap.contact_email = col;
-      }
-      if (!autoMap.submission_method && (n.includes('submissionmethod') || n === 'method')) {
-        autoMap.submission_method = col;
-      }
-      if (!autoMap.notes && n === 'notes') {
-        autoMap.notes = col;
-      }
-      if (!autoMap.request_status && n === 'status') {
-        autoMap.request_status = col;
-      }
-      if (!autoMap.request_date && (n.includes('daterequested') || n.includes('datesubmitted') || n === 'date')) {
-        autoMap.request_date = col;
-      }
+    autoMap.state = pickBestColumn(
+      cols.filter((col) => {
+        const normalized = normalizeHeader(col);
+        return normalized === 'state' || normalized === 'stateabbr' || normalized === 'statecode';
+      }),
+      (col) => scoreSampleMatches(rows, col, (value) => Boolean(toStateAbbreviation(value))) * 10 + (normalizeHeader(col) === 'state' ? 50 : 40),
+      { minScore: 1 }
+    );
+
+    autoMap.county = pickBestColumn(
+      cols.filter((col) => {
+        const normalized = normalizeHeader(col);
+        return normalized === 'county' || normalized.includes('parentcounty') || normalized.includes('countyname');
+      }),
+      (col) => (normalizeHeader(col) === 'county' ? 80 : 60),
+      { minScore: 1 }
+    );
+
+    if (autoMap.county === autoMap.jurisdiction_name) {
+      autoMap.county = '';
     }
+
+    autoMap.population = pickBestColumn(
+      cols.filter((col) => normalizeHeader(col).includes('pop')),
+      () => 50,
+      { minScore: 1 }
+    );
+
+    autoMap.target_type = pickBestColumn(
+      cols.filter((col) => {
+        const normalized = normalizeHeader(col);
+        return normalized.includes('targettype') || normalized === 'type';
+      }),
+      (col) => (normalizeHeader(col).includes('targettype') ? 80 : 50),
+      { minScore: 1 }
+    );
+
+    autoMap.foia_url = pickBestColumn(
+      cols.filter((col) => {
+        const normalized = normalizeHeader(col);
+        return !normalized.includes('email') && !normalized.includes('contactvalue') && (
+          normalized.includes('url') ||
+          normalized.includes('link') ||
+          normalized.includes('foia') ||
+          normalized.includes('portal') ||
+          normalized.includes('request') ||
+          normalized.includes('search') ||
+          scoreSampleMatches(rows, col, isLikelyUrl) > 0
+        );
+      }),
+      (col) => {
+        const normalized = normalizeHeader(col);
+        let score = scoreSampleMatches(rows, col, isLikelyUrl) * 10;
+        if (normalized.includes('watershutoffrequestsearch')) score += 140;
+        else if (normalized.includes('foiaurl')) score += 120;
+        else if (normalized.includes('publicrecords')) score += 110;
+        else if (normalized.includes('portal')) score += 100;
+        else if (normalized.includes('requestsearch')) score += 90;
+        else if (normalized.includes('request')) score += 80;
+        else if (normalized.includes('url') || normalized.includes('link')) score += 70;
+        else if (normalized.includes('search')) score += 60;
+        return score;
+      },
+      { minScore: 20 }
+    );
+
+    autoMap.contact_email = pickBestColumn(
+      cols.filter((col) => {
+        const normalized = normalizeHeader(col);
+        return normalized.includes('email') || normalized.includes('contactvalue') || scoreSampleMatches(rows, col, isLikelyEmail) > 0;
+      }),
+      (col) => {
+        const normalized = normalizeHeader(col);
+        let score = scoreSampleMatches(rows, col, isLikelyEmail) * 10;
+        if (normalized.includes('contactvalue')) score += 140;
+        else if (normalized.includes('contactemail') || normalized.includes('foiaemail')) score += 120;
+        else if (normalized === 'email') score += 110;
+        return score;
+      },
+      { minScore: 10 }
+    );
+
+    autoMap.submission_method = pickBestColumn(
+      cols.filter((col) => {
+        const normalized = normalizeHeader(col);
+        return normalized.includes('submissionmethod') || normalized === 'method';
+      }),
+      (col) => {
+        const normalized = normalizeHeader(col);
+        let score = scoreSampleMatches(rows, col, (value) => /email|portal|pdf|manual|scraped|form/i.test(value)) * 5;
+        if (normalized.includes('submissionmethod')) score += 120;
+        else if (normalized === 'method') score += 40;
+        return score;
+      },
+      { minScore: 1 }
+    );
+
+    autoMap.notes = pickBestColumn(
+      cols.filter((col) => {
+        const normalized = normalizeHeader(col);
+        return normalized === 'notes' || /^notes\d+$/.test(normalized);
+      }),
+      (col) => (normalizeHeader(col) === 'notes' ? 60 : 50),
+      { minScore: 1 }
+    );
+
+    autoMap.request_status = pickBestColumn(
+      cols.filter((col) => {
+        const normalized = normalizeHeader(col);
+        return normalized === 'status' || /^status\d+$/.test(normalized) || normalized.includes('requeststatus');
+      }),
+      (col) => {
+        const normalized = normalizeHeader(col);
+        let score = scoreSampleMatches(rows, col, isLikelyStatus) * 10;
+        if (/^status\d+$/.test(normalized) || normalized.includes('requeststatus')) score += 20;
+        return score;
+      },
+      { preferLater: true, minScore: 10 }
+    );
+
+    autoMap.request_date = pickBestColumn(
+      cols.filter((col) => {
+        const normalized = normalizeHeader(col);
+        return normalized.includes('daterequested') || normalized.includes('datesubmitted') || normalized === 'date' || /^date\d+$/.test(normalized);
+      }),
+      (col) => {
+        const normalized = normalizeHeader(col);
+        let score = scoreSampleMatches(rows, col, isLikelyDate) * 10;
+        if (normalized.includes('datesubmitted') || normalized.includes('daterequested')) score += 20;
+        return score;
+      },
+      { preferLater: true, minScore: 10 }
+    );
+
     return autoMap;
   }
 

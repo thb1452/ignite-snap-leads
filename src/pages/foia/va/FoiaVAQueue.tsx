@@ -48,14 +48,16 @@ export default function FoiaVAQueue() {
     });
   }, []);
 
+  const profileId = profile?.id;
+
   const fetchQueue = useCallback(async () => {
-    if (!profile) return;
+    if (!profileId) return;
     setLoading(true);
     try {
       const { data: assignments } = await db
         .from('foia_assignments')
         .select('target_id, target:targets(*)')
-        .eq('va_id', profile.id);
+        .eq('va_id', profileId);
 
       if (!assignments || assignments.length === 0) {
         setItems([]);
@@ -70,7 +72,7 @@ export default function FoiaVAQueue() {
         const { data: requests } = await db
           .from('foia_requests')
           .select('*')
-          .eq('va_id', profile.id)
+          .eq('va_id', profileId)
           .in('target_id', batch);
 
         for (const req of (requests || []) as FoiaRequest[]) {
@@ -85,7 +87,7 @@ export default function FoiaVAQueue() {
       const { data: activeSlot } = await db
         .from('va_credential_slots')
         .select('press_account_id')
-        .eq('va_id', profile.id)
+        .eq('va_id', profileId)
         .eq('is_active', true)
         .single();
 
@@ -131,7 +133,7 @@ export default function FoiaVAQueue() {
     } finally {
       setLoading(false);
     }
-  }, [profile]);
+  }, [profileId]);
 
   useEffect(() => { fetchQueue(); }, [fetchQueue]);
 

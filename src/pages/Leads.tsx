@@ -993,14 +993,13 @@ function Leads() {
         </div>
 
         {/* Property Detail - Desktop uses Panel, Mobile uses Sheet */}
-        {selectedPropertyId && !isMobile && (
+        {selectedProperty && !isMobile && (
           <PropertyDetailPanel
             property={selectedProperty}
-            open={!!selectedPropertyId}
+            open={true}
             onOpenChange={(open) => !open && setSelectedPropertyId(null)}
           />
         )}
-
         {selectedPropertyId && isMobile && (
           <MobilePropertyDetailSheet
             property={selectedProperty}

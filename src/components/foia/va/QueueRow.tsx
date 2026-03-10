@@ -196,7 +196,7 @@ export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRo
         setTimeout(() => setSaved(false), 1500);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save changes';
+      const message = (err as any)?.message ?? 'Failed to save changes';
       toast({ title: 'Save failed', description: message, variant: 'destructive' });
       console.error('Save failed:', err);
     } finally {
@@ -277,7 +277,7 @@ export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRo
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save fulfillment';
+      const message = (err as any)?.message ?? 'Failed to save fulfillment';
       toast({ title: 'Save failed', description: message, variant: 'destructive' });
     } finally {
       setSaving(false);
@@ -302,7 +302,7 @@ export function QueueRow({ item, vaId, onSaved, flagged, onToggleFlag }: QueueRo
       setEditingUrl(false);
       toast({ title: 'URL saved', description: 'FOIA portal URL updated.' });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save URL';
+      const message = (err as any)?.message ?? 'Failed to save URL';
       toast({ title: 'Error', description: message, variant: 'destructive' });
     } finally {
       setSavingUrl(false);

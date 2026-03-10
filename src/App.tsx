@@ -84,6 +84,13 @@ function PageLoader() {
   );
 }
 
+// Redirect /leads to /properties while preserving query params
+function LeadsRedirect() {
+  const [searchParams] = useSearchParams();
+  const queryString = searchParams.toString();
+  return <Navigate to={`/properties${queryString ? `?${queryString}` : ''}`} replace />;
+}
+
 function PageTracker() {
   usePageTracking();
   return null;

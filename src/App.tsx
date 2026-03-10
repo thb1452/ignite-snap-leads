@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from '@/lib/query';
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
@@ -84,6 +84,13 @@ function PageLoader() {
   );
 }
 
+// Redirect /leads to /properties while preserving query params
+function LeadsRedirect() {
+  const [searchParams] = useSearchParams();
+  const queryString = searchParams.toString();
+  return <Navigate to={`/properties${queryString ? `?${queryString}` : ''}`} replace />;
+}
+
 function PageTracker() {
   usePageTracking();
   return null;
@@ -112,7 +119,7 @@ const App = () => (
             </ProtectedRoute>
           } />
           <Route path="/app" element={<Navigate to="/properties" replace />} />
-          <Route path="/leads" element={<Navigate to="/properties" replace />} />
+          <Route path="/leads" element={<LeadsRedirect />} />
           <Route path="/properties" element={
             <RoleProtectedRoute allowedRoles={['admin', 'user']}>
               <Leads />

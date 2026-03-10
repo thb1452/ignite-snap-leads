@@ -527,8 +527,15 @@ function Leads() {
         .from("properties")
         .select("*")
         .eq("id", deepLinkedPropertyId!)
-        .single();
-      if (error) throw error;
+        .maybeSingle();
+      if (error) {
+        console.error("[Leads] Failed to fetch deep-linked property:", error);
+        return null;
+      }
+      if (!data) {
+        console.warn(`[Leads] Deep-linked property ${deepLinkedPropertyId} not found`);
+        return null;
+      }
 
       // Also fetch violations for this property
       const { data: violations } = await supabase
@@ -540,6 +547,7 @@ function Leads() {
       return { ...data, violations: violations || [] };
     },
     staleTime: 60000,
+    retry: 1,
   });
 
   // Keep performance optimization with useMemo

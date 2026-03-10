@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from '@/lib/query';
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";

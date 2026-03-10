@@ -134,7 +134,7 @@ function Leads() {
     const propertyIdParam = searchParams.get("propertyId");
 
     if (!propertyIdParam) return;
-    if (isLoading) return;
+    if (isLoading) return; // wait for data
     if (selectedPropertyId) return;
 
     setSelectedPropertyId(propertyIdParam);
@@ -143,7 +143,6 @@ function Leads() {
     newParams.delete("propertyId");
     setSearchParams(newParams, { replace: true });
   }, [searchParams, isLoading, selectedPropertyId]);
-
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
@@ -994,13 +993,14 @@ function Leads() {
         </div>
 
         {/* Property Detail - Desktop uses Panel, Mobile uses Sheet */}
-        {selectedProperty && !isMobile && (
+        {selectedPropertyId && !isMobile && (
           <PropertyDetailPanel
             property={selectedProperty}
-            open={true}
+            open={!!selectedPropertyId}
             onOpenChange={(open) => !open && setSelectedPropertyId(null)}
           />
         )}
+
         {selectedPropertyId && isMobile && (
           <MobilePropertyDetailSheet
             property={selectedProperty}

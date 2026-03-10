@@ -1,38 +1,62 @@
 
 
-# Fix: "Recently Updated" Sort Bug on Properties Page
+## Assessment
 
-## Current Problem
+This strategy is sharp. You already have 3 of the 7 pages built (`/code-violation-leads`, `/distressed-property-data`, `/code-enforcement-data`). The remaining 4 static pages are straightforward. The programmatic city pages are the real power play.
 
-The "Recently Updated" sort orders by `properties.updated_at` — the timestamp when the property **record** was last modified in the database (e.g., during bulk imports, score recalculations, backfills). This is why yesterday's upload pushed those properties to the top regardless of their actual violation dates.
+**One tension to flag:** Your in-app positioning says "not a leads tool" and uses "properties" / "professionals." But SEO pages *should* use investor language because that is what people search for. This is fine -- marketing pages speak Google's language, the product speaks its own. Just keep them separate.
 
-It should order by **most recent violation activity** — specifically `newest_violation_date`, which already exists on the properties table and tracks the latest violation filed/updated date.
+## Plan: Build Remaining SEO Pages + Programmatic City Framework
 
-## What Exists Today
+### Task 1: Create 4 New Static SEO Pages
 
-| Sort Option | Label | Sorts By | Correct? |
-|---|---|---|---|
-| `recently_updated` | Recently Updated | `properties.updated_at` | No — shows DB record changes |
-| `newest_violation` | Newest Violations | `properties.newest_violation_date` | Yes |
+Each follows the same template as existing pages (nav, hero H1, 3-4 content sections, stats, CTA, footer, JSON-LD).
 
-Both options should be violation-date based. Since `recently_updated` should actually sort by violation dates, it becomes functionally identical to `newest_violation`.
+| Route | Target Keyword | H1 |
+|---|---|---|
+| `/municipal-enforcement-data` | municipal enforcement data | Municipal Enforcement Data for Real Estate Professionals |
+| `/off-market-property-leads` | off market property leads | Off-Market Property Leads Powered by Enforcement Intelligence |
+| `/real-estate-distress-signals` | real estate distress signals | Real Estate Distress Signals: The Enforcement Layer Most Investors Miss |
+| `/how-investors-find-distressed-properties` | how investors find distressed properties | How Investors Find Distressed Properties in 2026 |
 
-## Plan
+**Files to create:** 4 new page components in `src/pages/`
 
-**Consolidate into one sort option** and rename for clarity:
+### Task 2: Register Routes + Update Sitemap
 
-1. **Rename** "Recently Updated" to **"Recent Violations"** in `SortByDropdown.tsx` and `MobileFilterSheet.tsx`
-2. **Update the SQL function** `fn_properties_paged`: change the `recently_updated` ORDER BY from `p.updated_at` to `p.newest_violation_date` so both sort keys produce the same correct result
-3. **Update `fn_properties_by_category`**: add `p_sort_by` parameter support (currently ignores sorting entirely — always sorts by snap_score)
-4. **Update the legacy path** in `properties.ts`: change fallback sort from `updated_at` to `newest_violation_date`
+- Add 4 lazy-loaded public routes in `App.tsx`
+- Add all 4 URLs to `public/sitemap.xml`
 
-### Files to Change
+### Task 3: Programmatic City Pages (the 4,000-page engine)
 
-| File | Change |
+This is the high-leverage move. Build a single dynamic route that pulls real jurisdiction data from the database.
+
+**Route:** `/code-violations/:citySlug` (e.g., `/code-violations/miami`)
+
+**How it works:**
+- Create `src/pages/CityViolations.tsx` -- a single template page
+- On mount, extract `citySlug` from URL params, query the `jurisdictions` table for matching city
+- Display: city name, state, property count, violation stats, enforcement pressure summary
+- Include JSON-LD `WebPage` schema with city-specific data
+- Dynamic `<title>`: "Code Violations in Miami, FL | Snap Ignite"
+- CTA to sign up and access the full data
+- If city not found, show a generic "coverage expanding" page with CTA
+
+**For Google discoverability**, create a city index page at `/code-violations` that lists all tracked cities as internal links (pulled from `jurisdictions` table). This acts as a crawlable directory.
+
+**Files to create:**
+- `src/pages/CityViolations.tsx` (dynamic template)
+- `src/pages/CityViolationsIndex.tsx` (directory of all cities)
+
+**Files to edit:**
+- `src/App.tsx` (add routes)
+- `public/sitemap.xml` (add static pages; note: for 4,000+ city pages, you'd eventually want a dynamic sitemap via edge function, but the index page handles crawlability for now)
+
+### Summary of All Changes
+
+| Action | Files |
 |---|---|
-| `fn_properties_paged` (new migration) | Change `recently_updated` ORDER BY from `p.updated_at` to `p.newest_violation_date` |
-| `fn_properties_by_category` (new migration) | Add `p_sort_by` param, apply same ORDER BY logic |
-| `src/components/leads/SortByDropdown.tsx` | Rename "Recently Updated" → "Recent Violations" |
-| `src/components/leads/MobileFilterSheet.tsx` | Rename "Recently Updated" → "Recent Violations" |
-| `src/services/properties.ts` | Change legacy fallback sort to `newest_violation_date` |
+| Create 4 static SEO pages | `src/pages/MunicipalEnforcementData.tsx`, `OffMarketPropertyLeads.tsx`, `RealEstateDistressSignals.tsx`, `HowInvestorsFindDistressedProperties.tsx` |
+| Create city template + index | `src/pages/CityViolations.tsx`, `src/pages/CityViolationsIndex.tsx` |
+| Register 7 new routes | `src/App.tsx` |
+| Update sitemap | `public/sitemap.xml` |
 

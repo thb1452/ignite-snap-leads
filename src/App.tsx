@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from '@/lib/query';
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
@@ -43,6 +43,7 @@ const HowInvestorsFindDistressedProperties = lazy(() => import("./pages/HowInves
 const CityViolationsIndex = lazy(() => import("./pages/CityViolationsIndex"));
 const CityViolations = lazy(() => import("./pages/CityViolations"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const LeadsRedirect = lazy(() => import("./components/LeadsRedirect"));
 // LiveFeed removed – components now embedded in Landing
 
 // VA pages
@@ -84,12 +85,6 @@ function PageLoader() {
   );
 }
 
-// Redirect /leads to /properties while preserving query params
-function LeadsRedirect() {
-  const location = useLocation();
-  const queryString = location.search;
-  return <Navigate to={`/properties${queryString}`} replace />;
-}
 
 function PageTracker() {
   usePageTracking();

@@ -132,13 +132,17 @@ function Leads() {
   // Auto-select property from URL param (e.g. from digest email)
   useEffect(() => {
     const propertyIdParam = searchParams.get("propertyId");
-    if (propertyIdParam && !selectedPropertyId) {
-      // setSelectedPropertyId(propertyIdParam);
-      // Clean up URL param after consuming it
-      // searchParams.delete("propertyId");
-      // setSearchParams(searchParams, { replace: true });
-    }
-  }, [searchParams]);
+
+    if (!propertyIdParam) return;
+    if (isLoading) return;
+
+    setSelectedPropertyId(propertyIdParam);
+
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete("propertyId");
+    setSearchParams(newParams, { replace: true });
+  }, [searchParams, isLoading]);
+
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
@@ -539,10 +543,10 @@ function Leads() {
   }, [properties, violationsData]);
 
   // Keep performance optimization with useMemo
-  const selectedProperty = useMemo(
-    () => mappedProperties.find((p) => p.id === selectedPropertyId) || null,
-    [mappedProperties, selectedPropertyId],
-  );
+  const selectedProperty = useMemo(() => {
+    if (!selectedPropertyId) return null;
+    return mappedProperties.find((p) => p.id === selectedPropertyId) ?? null;
+  }, [mappedProperties, selectedPropertyId]);
 
   // Determine if user should be gated (expired trial or cancelled subscription, no active paid plan)
   const isCancelled = subscriptionStatus === "cancelled" || subscriptionStatus === "expired";
@@ -775,7 +779,9 @@ function Leads() {
           <div className="w-[60%] border-r relative">
             <LeadsMap
               filters={filters as LeadFilters}
-              onPropertyClick={setSelectedPropertyId}
+              onPropertyClick={(id) => {
+                setSelectedPropertyId(id);
+              }}
               selectedPropertyId={selectedPropertyId || undefined}
             />
           </div>
@@ -836,7 +842,9 @@ function Leads() {
                   properties={mappedProperties}
                   selectedIds={selectedIds}
                   onToggleSelect={handleToggleSelect}
-                  onPropertyClick={setSelectedPropertyId}
+                  onPropertyClick={(id) => {
+                    setSelectedPropertyId(id);
+                  }}
                   savedSet={savedSet}
                   onToggleSaved={toggleSaved}
                 />
@@ -889,7 +897,9 @@ function Leads() {
             <div className="flex-1 relative">
               <LeadsMap
                 filters={filters as LeadFilters}
-                onPropertyClick={setSelectedPropertyId}
+                onPropertyClick={(id) => {
+                  setSelectedPropertyId(id);
+                }}
                 selectedPropertyId={selectedPropertyId || undefined}
               />
             </div>
@@ -989,15 +999,15 @@ function Leads() {
         </div>
 
         {/* Property Detail - Desktop uses Panel, Mobile uses Sheet */}
-        {selectedPropertyId && !isMobile && (
+        {selectedProperty && !isMobile && (
           <PropertyDetailPanel
             property={selectedProperty}
-            open={!!selectedPropertyId}
+            open={true}
             onOpenChange={(open) => !open && setSelectedPropertyId(null)}
           />
         )}
 
-        {selectedPropertyId && isMobile && (
+        {selectedProperty && isMobile && (
           <MobilePropertyDetailSheet
             property={selectedProperty}
             open={!!selectedPropertyId}

@@ -78,7 +78,7 @@ export default function RealEstateDistressSignals() {
           <div className="space-y-6">
             {[
               { phase: "Early Signal", time: "Months 1–6", signal: "First code violation filed", color: "text-green-400" },
-              { phase: "Mounting Pressure", time: "Months 6–12", signal: "Repeat violations, fines accumulate, compliance deadlines set", color: "text-yellow-400" },
+              { phase: "Mounting Pressure", time: "Months 6–12", signal: "Repeat violations, fines accumulate, enforcement escalates", color: "text-yellow-400" },
               { phase: "Critical Distress", time: "Months 12–18", signal: "Liens filed, water shutoff, multi-department actions", color: "text-orange-400" },
               { phase: "Public Record", time: "Months 18–24+", signal: "Tax delinquency, pre-foreclosure, auction — everyone sees it now", color: "text-red-400" },
             ].map((item, i) => (

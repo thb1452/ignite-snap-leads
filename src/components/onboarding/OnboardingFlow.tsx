@@ -40,7 +40,7 @@ const ONBOARDING_STEPS = [
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-              <span>900+ counties across all 50 states</span>
+              <span>3,800+ cities across all 50 states</span>
             </li>
           </ul>
         </div>

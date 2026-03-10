@@ -123,7 +123,9 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
       if (!autoMap.foia_url && (n.includes('url') || n.includes('link') || (n.includes('foia') && !n.includes('email')))) {
         autoMap.foia_url = col;
       }
-      // New fields
+      // "Contact Value" columns often contain a mix of URLs and emails —
+      // map to contact_email here; the row-level import logic will split
+      // URL-like values into foia_url automatically.
       if (!autoMap.contact_email && (n.includes('foiaemail') || n.includes('contactvalue') || n.includes('contactemail') || n === 'email')) {
         autoMap.contact_email = col;
       }

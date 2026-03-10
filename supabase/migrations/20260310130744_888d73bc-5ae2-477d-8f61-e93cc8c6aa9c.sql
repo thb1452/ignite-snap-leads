@@ -1,0 +1,1 @@
+ALTER TABLE public.foia_requests ADD CONSTRAINT foia_requests_target_id_va_id_key UNIQUE (target_id, va_id);

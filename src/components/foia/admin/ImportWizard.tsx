@@ -10,12 +10,174 @@ import { cn } from '@/lib/utils';
 
 type RawRow = Record<string, string>;
 
+const STATE_ABBREVIATIONS: Record<string, string> = {
+  alabama: 'AL',
+  alaska: 'AK',
+  arizona: 'AZ',
+  arkansas: 'AR',
+  california: 'CA',
+  colorado: 'CO',
+  connecticut: 'CT',
+  delaware: 'DE',
+  florida: 'FL',
+  georgia: 'GA',
+  hawaii: 'HI',
+  idaho: 'ID',
+  illinois: 'IL',
+  indiana: 'IN',
+  iowa: 'IA',
+  kansas: 'KS',
+  kentucky: 'KY',
+  louisiana: 'LA',
+  maine: 'ME',
+  maryland: 'MD',
+  massachusetts: 'MA',
+  michigan: 'MI',
+  minnesota: 'MN',
+  mississippi: 'MS',
+  missouri: 'MO',
+  montana: 'MT',
+  nebraska: 'NE',
+  nevada: 'NV',
+  'new hampshire': 'NH',
+  'new jersey': 'NJ',
+  'new mexico': 'NM',
+  'new york': 'NY',
+  'north carolina': 'NC',
+  'north dakota': 'ND',
+  ohio: 'OH',
+  oklahoma: 'OK',
+  oregon: 'OR',
+  pennsylvania: 'PA',
+  'rhode island': 'RI',
+  'south carolina': 'SC',
+  'south dakota': 'SD',
+  tennessee: 'TN',
+  texas: 'TX',
+  utah: 'UT',
+  vermont: 'VT',
+  virginia: 'VA',
+  washington: 'WA',
+  'west virginia': 'WV',
+  wisconsin: 'WI',
+  wyoming: 'WY',
+  'district of columbia': 'DC',
+};
+
 const TARGET_TYPE_OPTIONS: { value: TargetType; label: string }[] = [
   { value: 'county_foia', label: 'County FOIA' },
   { value: 'city_foia', label: 'City FOIA' },
   { value: 'water_shutoff', label: 'Water Shutoff' },
   { value: 'population_list', label: 'Population List' },
 ];
+
+function normalizeHeader(column: string): string {
+  return column.toLowerCase().replace(/^\uFEFF/, '').trim().replace(/[\s_-]/g, '');
+}
+
+function getCellValue(row: RawRow, column?: string): string {
+  return column ? String(row[column] ?? '').trim() : '';
+}
+
+function isLikelyUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim());
+}
+
+function isLikelyEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(value.trim());
+}
+
+function isLikelyDate(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  const parsed = new Date(trimmed);
+  return !Number.isNaN(parsed.getTime());
+}
+
+function isLikelyStatus(value: string): boolean {
+  return /^(pending|sent|already sent|submitted|fulfilled|received|rejected|denied|no portal|needs review|fee quote|fee)$/i.test(value.trim());
+}
+
+function toStateAbbreviation(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (/^[A-Za-z]{2}$/.test(trimmed)) return trimmed.toUpperCase();
+  return STATE_ABBREVIATIONS[trimmed.toLowerCase()] ?? trimmed.toUpperCase().slice(0, 2);
+}
+
+function scoreSampleMatches(
+  rows: RawRow[],
+  column: string,
+  predicate: (value: string) => boolean,
+  sampleSize = 40
+): number {
+  return rows.slice(0, sampleSize).reduce((count, row) => {
+    return predicate(getCellValue(row, column)) ? count + 1 : count;
+  }, 0);
+}
+
+function pickBestColumn(
+  columns: string[],
+  scorer: (column: string) => number,
+  options?: { preferLater?: boolean; minScore?: number }
+): string {
+  const preferLater = options?.preferLater ?? false;
+  const minScore = options?.minScore ?? 1;
+
+  const ranked = columns
+    .map((column, index) => ({ column, score: scorer(column), index }))
+    .sort((a, b) => b.score - a.score || (preferLater ? b.index - a.index : a.index - b.index));
+
+  return ranked[0] && ranked[0].score >= minScore ? ranked[0].column : '';
+}
+
+function getPreferredUrlValue(row: RawRow, columns: string[], mappedColumn?: string): string {
+  const ranked = columns
+    .map((column) => {
+      const value = getCellValue(row, column);
+      if (!isLikelyUrl(value)) return null;
+
+      const normalized = normalizeHeader(column);
+      let score = column === mappedColumn ? 1000 : 0;
+
+      if (normalized.includes('watershutoffrequestsearch')) score += 140;
+      else if (normalized.includes('foiaurl')) score += 120;
+      else if (normalized.includes('publicrecords')) score += 110;
+      else if (normalized.includes('portal')) score += 100;
+      else if (normalized.includes('requestsearch')) score += 90;
+      else if (normalized.includes('request')) score += 80;
+      else if (normalized.includes('url') || normalized.includes('link')) score += 70;
+      else if (normalized.includes('search')) score += 60;
+
+      return { value, score };
+    })
+    .filter((candidate): candidate is { value: string; score: number } => candidate !== null)
+    .sort((a, b) => b.score - a.score);
+
+  return ranked[0]?.value ?? '';
+}
+
+function getPreferredEmailValue(row: RawRow, columns: string[], mappedColumn?: string): string | null {
+  const ranked = columns
+    .map((column) => {
+      const value = getCellValue(row, column);
+      if (!isLikelyEmail(value)) return null;
+
+      const normalized = normalizeHeader(column);
+      let score = column === mappedColumn ? 1000 : 0;
+
+      if (normalized.includes('contactvalue')) score += 140;
+      else if (normalized.includes('contactemail') || normalized.includes('foiaemail')) score += 120;
+      else if (normalized === 'email') score += 110;
+      else if (normalized === 'notes' || /^notes\d+$/.test(normalized)) score += 40;
+
+      return { value, score };
+    })
+    .filter((candidate): candidate is { value: string; score: number } => candidate !== null)
+    .sort((a, b) => b.score - a.score);
+
+  return ranked[0]?.value ?? null;
+}
 
 /** Map CSV status strings to our system enum */
 function mapCsvStatus(raw: string): FoiaRequestStatus {

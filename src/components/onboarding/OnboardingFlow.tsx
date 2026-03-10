@@ -137,7 +137,7 @@ const ONBOARDING_STEPS = [
             <div>
               <h4 className="font-semibold text-sm text-ink-900">Browse Properties</h4>
               <p className="text-xs text-ink-600">
-                View properties under enforcement pressure across 900+ counties.
+                View properties under enforcement pressure across 3,800+ cities.
               </p>
             </div>
           </div>

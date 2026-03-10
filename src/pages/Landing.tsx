@@ -509,12 +509,6 @@ export default function Landing() {
                 highlight: false
               },
               {
-                icon: Scale,
-                title: "Municipal Court Dates",
-                description: "Track compliance deadlines and hearings before they resolve.",
-                highlight: false
-              },
-              {
                 icon: Clock,
                 title: "Updated Monthly",
                 description: "Fresh enforcement data every 30 days — not stale records from last quarter.",

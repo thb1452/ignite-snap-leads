@@ -17,15 +17,21 @@ export function useFoiaAuth(): UseFoiaAuthReturn {
   const [loading, setLoading] = useState(true);
   const lastProfileIdRef = useRef<string | null>(null);
 
-  const fetchProfile = useCallback(async (options?: { silent?: boolean }) => {
+  const fetchProfile = useCallback(async (options?: { silent?: boolean; isSignOut?: boolean }) => {
     const silent = options?.silent ?? false;
+    const isSignOut = options?.isSignOut ?? false;
     if (!silent) setLoading(true);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) {
-        if (lastProfileIdRef.current !== null) {
+        // Only clear the cached profile on an explicit sign-out.  During
+        // SIGNED_IN / TOKEN_REFRESHED cycles getSession() can transiently
+        // return null while the token is being swapped – resetting profile
+        // here would cause the queue page to re-fetch and show a loading
+        // spinner every time the user returns from another tab.
+        if (isSignOut && lastProfileIdRef.current !== null) {
           lastProfileIdRef.current = null;
           setProfile(null);
         }
@@ -58,9 +64,11 @@ export function useFoiaAuth(): UseFoiaAuthReturn {
     fetchProfile();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      // Only re-fetch on actual auth changes, not token refreshes
+      // Only re-fetch on actual auth changes, not token refreshes.
+      // Pass isSignOut so the handler knows it's safe to clear the cached
+      // profile (vs. a transient null during a SIGNED_IN token-refresh cycle).
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
-        fetchProfile({ silent: true });
+        fetchProfile({ silent: true, isSignOut: event === 'SIGNED_OUT' });
       }
     });
 

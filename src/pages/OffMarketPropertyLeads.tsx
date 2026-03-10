@@ -8,7 +8,7 @@ export default function OffMarketPropertyLeads() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Off-Market Property Leads from Enforcement Data | Snap Ignite" description="Find off-market property leads most investors miss. Snap Ignite surfaces properties under active enforcement pressure — code violations, compliance deadlines, and water shutoffs — before they hit any list." canonical="https://snapignite.com/off-market-property-leads" />
+      <SEOHead title="Off-Market Property Leads from Enforcement Data | Snap Ignite" description="Find off-market property leads most investors miss. Snap Ignite surfaces properties under active enforcement pressure — code violations, escalating fines, and water shutoffs — before they hit any list." canonical="https://snapignite.com/off-market-property-leads" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",
@@ -62,7 +62,7 @@ export default function OffMarketPropertyLeads() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { icon: AlertTriangle, title: "Code Violations", desc: "Properties flagged by municipal inspectors for building, housing, or safety code failures." },
-              { icon: Clock, title: "Compliance Deadlines", desc: "Owners facing mandatory remediation timelines — often with escalating daily fines." },
+              { icon: Clock, title: "Enforcement Escalations", desc: "Multi-department actions and repeated citations that signal mounting pressure on owners." },
               { icon: Droplets, title: "Water Shutoffs", desc: "Utility disconnections that signal financial distress and potential vacancy." },
               { icon: Gavel, title: "Enforcement Liens", desc: "Municipal liens filed for unpaid fines, indicating owners who can't or won't resolve issues." },
             ].map((item, i) => (

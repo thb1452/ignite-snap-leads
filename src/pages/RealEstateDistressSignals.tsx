@@ -8,7 +8,7 @@ export default function RealEstateDistressSignals() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Real Estate Distress Signals: The Enforcement Layer | Snap Ignite" description="Discover real estate distress signals most investors miss. Code violations, enforcement fines, water shutoffs, and compliance deadlines reveal motivated sellers before foreclosure lists do." canonical="https://snapignite.com/real-estate-distress-signals" />
+      <SEOHead title="Real Estate Distress Signals: The Enforcement Layer | Snap Ignite" description="Discover real estate distress signals most investors miss. Code violations, enforcement fines, and water shutoffs reveal motivated sellers before foreclosure lists do." canonical="https://snapignite.com/real-estate-distress-signals" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",
@@ -56,7 +56,7 @@ export default function RealEstateDistressSignals() {
             {[
               { icon: AlertTriangle, title: "Active Code Violations", desc: "Open violations on record signal deferred maintenance and potential financial strain on the owner." },
               { icon: Flame, title: "Escalating Fines", desc: "Daily fines that compound create urgency — owners face mounting costs they may not be able to absorb." },
-              { icon: Timer, title: "Compliance Deadlines", desc: "Court-ordered remediation timelines force owners to act — repair, sell, or face further penalties." },
+              { icon: Timer, title: "Enforcement Escalations", desc: "Multi-department actions and repeated citations create compounding pressure owners can't ignore." },
               { icon: Droplets, title: "Water Shutoffs", desc: "Utility disconnections indicate vacancy, abandonment, or severe financial hardship." },
               { icon: FileWarning, title: "Repeat Violations", desc: "Properties cited multiple times show chronic neglect — a hallmark of distressed or absent ownership." },
               { icon: TrendingDown, title: "Multi-Department Actions", desc: "When building, fire, and health departments all cite the same property, it signals systemic distress." },
@@ -78,7 +78,7 @@ export default function RealEstateDistressSignals() {
           <div className="space-y-6">
             {[
               { phase: "Early Signal", time: "Months 1–6", signal: "First code violation filed", color: "text-green-400" },
-              { phase: "Mounting Pressure", time: "Months 6–12", signal: "Repeat violations, fines accumulate, compliance deadlines set", color: "text-yellow-400" },
+              { phase: "Mounting Pressure", time: "Months 6–12", signal: "Repeat violations, fines accumulate, enforcement escalates", color: "text-yellow-400" },
               { phase: "Critical Distress", time: "Months 12–18", signal: "Liens filed, water shutoff, multi-department actions", color: "text-orange-400" },
               { phase: "Public Record", time: "Months 18–24+", signal: "Tax delinquency, pre-foreclosure, auction — everyone sees it now", color: "text-red-400" },
             ].map((item, i) => (

@@ -8,7 +8,7 @@ export default function RealEstateDistressSignals() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Real Estate Distress Signals: The Enforcement Layer | Snap Ignite" description="Discover real estate distress signals most investors miss. Code violations, enforcement fines, water shutoffs, and compliance deadlines reveal motivated sellers before foreclosure lists do." canonical="https://snapignite.com/real-estate-distress-signals" />
+      <SEOHead title="Real Estate Distress Signals: The Enforcement Layer | Snap Ignite" description="Discover real estate distress signals most investors miss. Code violations, enforcement fines, and water shutoffs reveal motivated sellers before foreclosure lists do." canonical="https://snapignite.com/real-estate-distress-signals" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",

@@ -509,32 +509,16 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     for (let i = 0; i < rawRows.length; i++) {
       const row = rawRows[i];
 
-      const jurisdictionName = String(row[mapping.jurisdiction_name] || '').trim();
-      const state = String(row[mapping.state] || '').trim().toUpperCase().substring(0, 2);
+      const jurisdictionName = getCellValue(row, mapping.jurisdiction_name);
+      const state = toStateAbbreviation(getCellValue(row, mapping.state));
 
       if (!jurisdictionName || !state) {
         errors++;
         continue;
       }
 
-      // Explicit foia_url column takes priority
-      let foiaUrl = mapping.foia_url ? String(row[mapping.foia_url] || '').trim() : '';
-
-      // contact_email column — may contain URLs or emails (e.g. "Contact Value")
-      let contactEmail: string | null = null;
-      if (mapping.contact_email) {
-        const rawContact = String(row[mapping.contact_email] || '').trim();
-        if (rawContact) {
-          const looksLikeUrl = /^https?:\/\//i.test(rawContact);
-          if (looksLikeUrl) {
-            // If no explicit foia_url column was mapped, use this as the URL
-            if (!foiaUrl) foiaUrl = rawContact;
-          } else {
-            contactEmail = rawContact;
-          }
-        }
-      }
-
+      const foiaUrl = getPreferredUrlValue(row, columns, mapping.foia_url);
+      const contactEmail = getPreferredEmailValue(row, columns, mapping.contact_email);
       let urlHash: string | null = null;
 
       if (foiaUrl) {

@@ -134,7 +134,7 @@ function Leads() {
     const propertyIdParam = searchParams.get("propertyId");
 
     if (!propertyIdParam) return;
-    if (isLoading) return; // wait for data
+    if (isLoading) return;
     if (selectedPropertyId) return;
 
     setSelectedPropertyId(propertyIdParam);
@@ -143,6 +143,7 @@ function Leads() {
     newParams.delete("propertyId");
     setSearchParams(newParams, { replace: true });
   }, [searchParams, isLoading, selectedPropertyId]);
+
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);

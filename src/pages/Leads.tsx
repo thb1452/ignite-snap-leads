@@ -13,7 +13,16 @@ import { AddToListDialog } from "@/components/leads/AddToListDialog";
 import { AddAllToListDialog } from "@/components/leads/AddAllToListDialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2 } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
@@ -68,7 +77,7 @@ function Leads() {
   } = useTrialStatus();
   const { showExportNotification } = useTrialExportNotifications();
   const { savedSet, toggleSaved, isSaved } = useSavedProperties();
-  
+
   // Pagination state
   const [page, setPage] = useState(1);
   const [pendingPage, setPendingPage] = useState<number | null>(null);
@@ -81,28 +90,27 @@ function Leads() {
 
   // Time filter state
   const [lastSeenDays, setLastSeenDays] = useState<number | null>(null);
-  
+
   // Enforcement signals filter state
   const [selectedSignal, setSelectedSignal] = useState<string | null>(null);
-  
+
   // Pressure level filter state
   const [openViolationsOnly, setOpenViolationsOnly] = useState(false); // Show all violations by default
   const [multipleViolationsOnly, setMultipleViolationsOnly] = useState(false);
   const [repeatOffenderOnly, setRepeatOffenderOnly] = useState(false);
-  
+
   // SnapScore range filter state (Enterprise only)
   const [snapScoreRange, setSnapScoreRange] = useState<[number, number]>([0, 100]);
-  
 
   // Sort state - default to recently updated for freshest data
-  const [sortBy, setSortBy] = useState<SortOption>('recently_updated');
+  const [sortBy, setSortBy] = useState<SortOption>("recently_updated");
 
   // Mobile view state
-  const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
-  
+  const [mobileView, setMobileView] = useState<"list" | "map">("list");
+
   // Upgrade prompt state for export limits only
-  const [upgradePromptType, setUpgradePromptType] = useState<'exports' | null>(null);
-  
+  const [upgradePromptType, setUpgradePromptType] = useState<"exports" | null>(null);
+
   // Demo credits hook
   const { isDemoMode, isAdmin } = useDemoCredits();
 
@@ -121,27 +129,23 @@ function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
 
-  // Track the deep-linked property ID separately so we can fetch it if not on current page
-  const [deepLinkedPropertyId, setDeepLinkedPropertyId] = useState<string | null>(null);
-
   // Auto-select property from URL param (e.g. from digest email)
   useEffect(() => {
     const propertyIdParam = searchParams.get("propertyId");
     if (propertyIdParam && !selectedPropertyId) {
       setSelectedPropertyId(propertyIdParam);
-      setDeepLinkedPropertyId(propertyIdParam);
       // Clean up URL param after consuming it
-      searchParams.delete("propertyId");
-      setSearchParams(searchParams, { replace: true });
+      // searchParams.delete("propertyId");
+      // setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams]);
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
-  const [upgradeLimitType, setUpgradeLimitType] = useState<'exports'>('exports');
+  const [upgradeLimitType, setUpgradeLimitType] = useState<"exports">("exports");
   const [exportContextData, setExportContextData] = useState<ExportContext | undefined>(undefined);
   const [trialGateOpen, setTrialGateOpen] = useState(false);
-  const [trialGateType, setTrialGateType] = useState<'exhausted' | 'expired'>('exhausted');
+  const [trialGateType, setTrialGateType] = useState<"exhausted" | "expired">("exhausted");
 
   // Count active filters
   const activeFilterCount = useMemo(() => {
@@ -156,7 +160,16 @@ function Leads() {
     // Count SnapScore if not default range
     if (snapScoreRange[0] !== 0 || snapScoreRange[1] !== 100) count++;
     return count;
-  }, [lastSeenDays, selectedCity, selectedState, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly, snapScoreRange]);
+  }, [
+    lastSeenDays,
+    selectedCity,
+    selectedState,
+    selectedSignal,
+    openViolationsOnly,
+    multipleViolationsOnly,
+    repeatOffenderOnly,
+    snapScoreRange,
+  ]);
 
   // Build filters object for the hook - only include truthy values
   const filters = useMemo(() => {
@@ -172,24 +185,35 @@ function Leads() {
     if (openViolationsOnly) f.openViolationsOnly = true;
     if (multipleViolationsOnly) f.multipleViolationsOnly = true;
     if (repeatOffenderOnly) f.repeatOffenderOnly = true;
-    
+
     // SnapScore range filter (only if not default)
     if (snapScoreRange[0] !== 0 || snapScoreRange[1] !== 100) {
       f.snapScoreRange = snapScoreRange;
     }
-    
+
     // Sorting - always include
     f.sortBy = sortBy;
 
     console.log("[Leads] Active filters:", JSON.stringify(f));
     return f;
-  }, [searchQuery, selectedCity, selectedState, lastSeenDays, selectedSignal, openViolationsOnly, multipleViolationsOnly, repeatOffenderOnly, snapScoreRange, sortBy]);
+  }, [
+    searchQuery,
+    selectedCity,
+    selectedState,
+    lastSeenDays,
+    selectedSignal,
+    openViolationsOnly,
+    multipleViolationsOnly,
+    repeatOffenderOnly,
+    snapScoreRange,
+    sortBy,
+  ]);
 
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
-  
+
   // Map now uses viewport-based loading - no pre-fetching needed
-  
+
   // Show toast notifications for errors
   useEffect(() => {
     if (error) {
@@ -201,7 +225,6 @@ function Leads() {
       });
     }
   }, [error, toast]);
-
 
   const properties = data?.data ?? [];
   const totalCount = data?.total ?? 0;
@@ -223,15 +246,11 @@ function Leads() {
   };
 
   const handleToggleSelect = (id: string) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   const handleToggleSelectAll = () => {
-    setSelectedIds(prev =>
-      prev.length === properties.length ? [] : properties.map(p => p.id)
-    );
+    setSelectedIds((prev) => (prev.length === properties.length ? [] : properties.map((p) => p.id)));
   };
 
   // Handle page change with selection warning
@@ -271,14 +290,14 @@ function Leads() {
     if (isOnTrial || hasTrialExpired) {
       // Trial expired
       if (hasTrialExpired) {
-        setTrialGateType('expired');
+        setTrialGateType("expired");
         setTrialGateOpen(true);
         return;
       }
 
       // Trial exports exhausted
       if (trialExportsRemaining <= 0) {
-        setTrialGateType('exhausted');
+        setTrialGateType("exhausted");
         setTrialGateOpen(true);
         return;
       }
@@ -310,7 +329,7 @@ function Leads() {
 
         // Server-side trial export tracking is now handled by the export-csv edge function.
         // Small delay then refresh local trial status to reflect updated count from DB.
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise((resolve) => setTimeout(resolve, 800));
         await refetchTrial();
 
         const newRemaining = Math.max(0, trialExportsRemaining - propertyCount);
@@ -321,12 +340,12 @@ function Leads() {
 
         setSelectedIds([]);
       } catch (error: any) {
-        console.error('[Leads] Trial export error:', error);
-        if (error.message === 'TRIAL_EXPORT_LIMIT_EXCEEDED') {
-          setTrialGateType('exhausted');
+        console.error("[Leads] Trial export error:", error);
+        if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+          setTrialGateType("exhausted");
           setTrialGateOpen(true);
-        } else if (error.message === 'TRIAL_EXPIRED') {
-          setTrialGateType('expired');
+        } else if (error.message === "TRIAL_EXPIRED") {
+          setTrialGateType("expired");
           setTrialGateOpen(true);
         } else {
           toast({
@@ -343,14 +362,14 @@ function Leads() {
     }
 
     // === PAID SUBSCRIPTION EXPORT FLOW ===
-    const remaining = getRemainingCount('exports');
+    const remaining = getRemainingCount("exports");
     const used = usage?.exports_count ?? 0;
     const max = plan?.max_monthly_exports ?? 0;
 
     // For unlimited plans (remaining === null), skip the client-side check
     if (remaining !== null && propertyCount > remaining) {
       // Show partial export option instead of just blocking
-      setUpgradeLimitType('exports');
+      setUpgradeLimitType("exports");
       setExportContextData({
         requestedCount: propertyCount,
         remainingCount: remaining,
@@ -364,7 +383,7 @@ function Leads() {
               propertyIds: partialIds,
               expectedPropertyCount: partialIds.length,
             });
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise((resolve) => setTimeout(resolve, 500));
             await refetchSubscription();
             toast({
               title: "Export Complete",
@@ -385,9 +404,10 @@ function Leads() {
     setIsExporting(true);
     try {
       const estimatedSeconds = Math.max(5, Math.ceil(selectedIds.length / 1000) * 2);
-      const estimatedTime = estimatedSeconds > 60
-        ? `~${Math.ceil(estimatedSeconds / 60)} minute${Math.ceil(estimatedSeconds / 60) > 1 ? 's' : ''}`
-        : `~${estimatedSeconds} seconds`;
+      const estimatedTime =
+        estimatedSeconds > 60
+          ? `~${Math.ceil(estimatedSeconds / 60)} minute${Math.ceil(estimatedSeconds / 60) > 1 ? "s" : ""}`
+          : `~${estimatedSeconds} seconds`;
 
       toast({
         title: "Export Started",
@@ -400,7 +420,7 @@ function Leads() {
         expectedPropertyCount: propertyCount,
       });
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       await refetchSubscription();
 
       toast({
@@ -410,22 +430,22 @@ function Leads() {
 
       setSelectedIds([]);
     } catch (error: any) {
-      console.error('[Leads] Export error:', error);
+      console.error("[Leads] Export error:", error);
 
-      if (error.message === 'TRIAL_EXPORT_LIMIT_EXCEEDED') {
-        setTrialGateType('exhausted');
+      if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+        setTrialGateType("exhausted");
         setTrialGateOpen(true);
         return;
       }
-      if (error.message === 'TRIAL_EXPIRED') {
-        setTrialGateType('expired');
+      if (error.message === "TRIAL_EXPIRED") {
+        setTrialGateType("expired");
         setTrialGateOpen(true);
         return;
       }
-      if (error.message === 'EXPORT_LIMIT_EXCEEDED') {
+      if (error.message === "EXPORT_LIMIT_EXCEEDED") {
         // Server rejected — build context for partial export
-        setUpgradeLimitType('exports');
-        const serverRemaining = getRemainingCount('exports') ?? 0;
+        setUpgradeLimitType("exports");
+        const serverRemaining = getRemainingCount("exports") ?? 0;
         setExportContextData({
           requestedCount: propertyCount,
           remainingCount: serverRemaining,
@@ -439,7 +459,7 @@ function Leads() {
                 propertyIds: partialIds,
                 expectedPropertyCount: partialIds.length,
               });
-              await new Promise(resolve => setTimeout(resolve, 500));
+              await new Promise((resolve) => setTimeout(resolve, 500));
               await refetchSubscription();
               toast({
                 title: "Export Complete",
@@ -469,7 +489,7 @@ function Leads() {
 
   // Fetch violations for all properties (enables instant PropertyDetailPanel)
   // Memoize propertyIds to prevent query cache invalidation on every render
-  const propertyIds = useMemo(() => properties.map(p => p.id), [properties]);
+  const propertyIds = useMemo(() => properties.map((p) => p.id), [properties]);
   const { data: violationsData = [], error: violationsError } = useQuery({
     queryKey: ["violations-for-properties", propertyIds],
     enabled: propertyIds.length > 0,
@@ -504,13 +524,13 @@ function Leads() {
   const mappedProperties = useMemo(() => {
     // Group violations by property_id for efficient lookup
     const violationsByPropertyId = new Map<string, any[]>();
-    violationsData.forEach(v => {
+    violationsData.forEach((v) => {
       const existing = violationsByPropertyId.get(v.property_id) || [];
       existing.push(v);
       violationsByPropertyId.set(v.property_id, existing);
     });
 
-    let result = properties.map(p => ({
+    let result = properties.map((p) => ({
       ...p,
       violations: violationsByPropertyId.get(p.id) || [],
     }));
@@ -518,534 +538,566 @@ function Leads() {
     return result;
   }, [properties, violationsData]);
 
-  // Fetch the deep-linked property if it's not in the current page results
-  const { data: deepLinkedProperty } = useQuery({
-    queryKey: ["deep-linked-property", deepLinkedPropertyId],
-    enabled: !!deepLinkedPropertyId && !mappedProperties.some(p => p.id === deepLinkedPropertyId),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("properties")
-        .select("*")
-        .eq("id", deepLinkedPropertyId!)
-        .maybeSingle();
-      if (error) {
-        console.error("[Leads] Failed to fetch deep-linked property:", error);
-        return null;
-      }
-      if (!data) {
-        console.warn(`[Leads] Deep-linked property ${deepLinkedPropertyId} not found`);
-        return null;
-      }
-
-      // Also fetch violations for this property
-      const { data: violations } = await supabase
-        .from("violations")
-        .select("id, violation_type, status, opened_date, property_id, case_id, description")
-        .eq("property_id", deepLinkedPropertyId!)
-        .order("opened_date", { ascending: false });
-
-      return { ...data, violations: violations || [] };
-    },
-    staleTime: 60000,
-    retry: 1,
-  });
-
   // Keep performance optimization with useMemo
-  const selectedProperty = useMemo(() => {
-    const fromPage = mappedProperties.find(p => p.id === selectedPropertyId);
-    if (fromPage) return fromPage;
-    // Fallback to deep-linked property fetched separately
-    if (deepLinkedProperty && deepLinkedProperty.id === selectedPropertyId) return deepLinkedProperty;
-    return null;
-  }, [mappedProperties, selectedPropertyId, deepLinkedProperty]);
+  const selectedProperty = useMemo(
+    () => mappedProperties.find((p) => p.id === selectedPropertyId) || null,
+    [mappedProperties, selectedPropertyId],
+  );
 
   // Determine if user should be gated (expired trial or cancelled subscription, no active paid plan)
-  const isCancelled = subscriptionStatus === 'cancelled' || subscriptionStatus === 'expired';
+  const isCancelled = subscriptionStatus === "cancelled" || subscriptionStatus === "expired";
   const isFullyGated = (hasTrialExpired || isCancelled) && !hasActiveSubscription;
 
   return (
     <AppLayout>
       <div className="relative flex flex-col h-[calc(100vh-3.5rem)]">
-      {isFullyGated && <TrialPaywall trialEndsAt={trialEndsAt} />}
-      <OnboardingFlow
-        open={showOnboarding}
-        onOpenChange={setShowOnboarding}
-        onComplete={markOnboardingComplete}
-      />
+        {isFullyGated && <TrialPaywall trialEndsAt={trialEndsAt} />}
+        <OnboardingFlow open={showOnboarding} onOpenChange={setShowOnboarding} onComplete={markOnboardingComplete} />
 
-      {/* Water shutoff upgrade banner for Starter users */}
-      <WaterShutoffUpgradeBanner dataTier={dataTier} />
+        {/* Water shutoff upgrade banner for Starter users */}
+        <WaterShutoffUpgradeBanner dataTier={dataTier} />
 
-      <UpgradePrompt
-        open={showUpgradePrompt}
-        onOpenChange={setShowUpgradePrompt}
-        limitType={upgradeLimitType}
-        currentPlan={plan?.name}
-        exportContext={exportContextData}
-      />
-
-      {/* DESKTOP: Ultra-compact single-row filter bar */}
-      <div className="hidden md:flex items-center gap-4 px-4 py-2 border-b bg-background flex-wrap">
-        {/* Search */}
-        <div className="relative w-48">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-8 h-7 text-xs"
-          />
-        </div>
-
-        {/* State/City */}
-        <EnforcementAreaFilter
-          selectedCity={selectedCity}
-          selectedState={selectedState}
-          onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
-          onStateChange={(s) => { setSelectedState(s); setPage(1); }}
+        <UpgradePrompt
+          open={showUpgradePrompt}
+          onOpenChange={setShowUpgradePrompt}
+          limitType={upgradeLimitType}
+          currentPlan={plan?.name}
+          exportContext={exportContextData}
         />
 
-        {/* Time */}
-        <TimeFilter
-          lastSeenDays={lastSeenDays}
-          onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
-        />
-
-        {/* Issue Type */}
-        <EnforcementSignalsFilter
-          selectedSignal={selectedSignal}
-          onSignalChange={(v) => { setSelectedSignal(v); setPage(1); if (v) setSearchInput(""); }}
-          selectedState={selectedState}
-          selectedCity={selectedCity}
-        />
-
-        {/* Pressure Level */}
-        <PressureLevelFilter
-          openViolationsOnly={openViolationsOnly}
-          onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
-          multipleViolationsOnly={multipleViolationsOnly}
-          onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
-          repeatOffenderOnly={repeatOffenderOnly}
-          onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
-        />
-
-        {/* Spacer + Actions */}
-        <div className="flex-1" />
-        <PersonalStatsBar />
-        <FreshnessIndicator />
-        <Button variant="ghost" size="sm" onClick={handleClearFilters} disabled={!activeFilterCount} className="h-7 px-2 text-xs gap-1">
-          <X className="h-3 w-3" /> Clear
-        </Button>
-      </div>
-
-      {/* MOBILE: Compact Header with Search + Filters */}
-      <div className="md:hidden border-b bg-background">
-        <div className="flex items-center gap-2 p-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        {/* DESKTOP: Ultra-compact single-row filter bar */}
+        <div className="hidden md:flex items-center gap-4 px-4 py-2 border-b bg-background flex-wrap">
+          {/* Search */}
+          <div className="relative w-48">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Search..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-9 h-10"
+              className="pl-8 h-7 text-xs"
             />
-            {searchInput && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                onClick={() => { setSearchInput(""); setSearchQuery(""); }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
           </div>
-          <MobileFilterSheet
+
+          {/* State/City */}
+          <EnforcementAreaFilter
             selectedCity={selectedCity}
             selectedState={selectedState}
-            onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
-            onStateChange={(s) => { setSelectedState(s); setPage(1); }}
-            lastSeenDays={lastSeenDays}
-            onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
-            selectedSignal={selectedSignal}
-            onSignalChange={(v) => { setSelectedSignal(v); setPage(1); if (v) setSearchInput(""); }}
-            openViolationsOnly={openViolationsOnly}
-            onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
-            multipleViolationsOnly={multipleViolationsOnly}
-            onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
-            repeatOffenderOnly={repeatOffenderOnly}
-            onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
-            onClearFilters={handleClearFilters}
-            activeFilterCount={activeFilterCount}
-            propertyCount={totalCount}
-            onAddAllToList={() => setShowAddAllToListDialog(true)}
-            sortBy={sortBy}
-            onSortChange={(v) => { setSortBy(v); setPage(1); }}
+            onCityChange={(c) => {
+              setSelectedCity(c);
+              setPage(1);
+            }}
+            onStateChange={(s) => {
+              setSelectedState(s);
+              setPage(1);
+            }}
           />
+
+          {/* Time */}
+          <TimeFilter
+            lastSeenDays={lastSeenDays}
+            onLastSeenChange={(v) => {
+              setLastSeenDays(v);
+              setPage(1);
+            }}
+          />
+
+          {/* Issue Type */}
+          <EnforcementSignalsFilter
+            selectedSignal={selectedSignal}
+            onSignalChange={(v) => {
+              setSelectedSignal(v);
+              setPage(1);
+              if (v) setSearchInput("");
+            }}
+            selectedState={selectedState}
+            selectedCity={selectedCity}
+          />
+
+          {/* Pressure Level */}
+          <PressureLevelFilter
+            openViolationsOnly={openViolationsOnly}
+            onOpenViolationsChange={(v) => {
+              setOpenViolationsOnly(v);
+              setPage(1);
+            }}
+            multipleViolationsOnly={multipleViolationsOnly}
+            onMultipleViolationsChange={(v) => {
+              setMultipleViolationsOnly(v);
+              setPage(1);
+            }}
+            repeatOffenderOnly={repeatOffenderOnly}
+            onRepeatOffenderChange={(v) => {
+              setRepeatOffenderOnly(v);
+              setPage(1);
+            }}
+          />
+
+          {/* Spacer + Actions */}
+          <div className="flex-1" />
+          <PersonalStatsBar />
+          <FreshnessIndicator />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClearFilters}
+            disabled={!activeFilterCount}
+            className="h-7 px-2 text-xs gap-1"
+          >
+            <X className="h-3 w-3" /> Clear
+          </Button>
         </div>
 
-        {/* Stats + View Toggle */}
-        <div className="flex flex-col gap-1.5 px-3 pb-2">
-          <div className="flex items-center justify-between">
-            <PersonalStatsBar />
+        {/* MOBILE: Compact Header with Search + Filters */}
+        <div className="md:hidden border-b bg-background">
+          <div className="flex items-center gap-2 p-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-9 h-10"
+              />
+              {searchInput && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearchQuery("");
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <MobileFilterSheet
+              selectedCity={selectedCity}
+              selectedState={selectedState}
+              onCityChange={(c) => {
+                setSelectedCity(c);
+                setPage(1);
+              }}
+              onStateChange={(s) => {
+                setSelectedState(s);
+                setPage(1);
+              }}
+              lastSeenDays={lastSeenDays}
+              onLastSeenChange={(v) => {
+                setLastSeenDays(v);
+                setPage(1);
+              }}
+              selectedSignal={selectedSignal}
+              onSignalChange={(v) => {
+                setSelectedSignal(v);
+                setPage(1);
+                if (v) setSearchInput("");
+              }}
+              openViolationsOnly={openViolationsOnly}
+              onOpenViolationsChange={(v) => {
+                setOpenViolationsOnly(v);
+                setPage(1);
+              }}
+              multipleViolationsOnly={multipleViolationsOnly}
+              onMultipleViolationsChange={(v) => {
+                setMultipleViolationsOnly(v);
+                setPage(1);
+              }}
+              repeatOffenderOnly={repeatOffenderOnly}
+              onRepeatOffenderChange={(v) => {
+                setRepeatOffenderOnly(v);
+                setPage(1);
+              }}
+              onClearFilters={handleClearFilters}
+              activeFilterCount={activeFilterCount}
+              propertyCount={totalCount}
+              onAddAllToList={() => setShowAddAllToListDialog(true)}
+              sortBy={sortBy}
+              onSortChange={(v) => {
+                setSortBy(v);
+                setPage(1);
+              }}
+            />
           </div>
-          <div className="flex items-center justify-between">
-            <FreshnessIndicator />
-            <div className="inline-flex rounded-lg border bg-muted p-1">
-              <button
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                  mobileView === 'list'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={() => setMobileView('list')}
-              >
-                <List className="h-4 w-4" />
-                List
-              </button>
-              <button
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                  mobileView === 'map'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={() => setMobileView('map')}
-              >
-                <MapIcon className="h-4 w-4" />
-                Map
-              </button>
+
+          {/* Stats + View Toggle */}
+          <div className="flex flex-col gap-1.5 px-3 pb-2">
+            <div className="flex items-center justify-between">
+              <PersonalStatsBar />
+            </div>
+            <div className="flex items-center justify-between">
+              <FreshnessIndicator />
+              <div className="inline-flex rounded-lg border bg-muted p-1">
+                <button
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    mobileView === "list"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setMobileView("list")}
+                >
+                  <List className="h-4 w-4" />
+                  List
+                </button>
+                <button
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    mobileView === "map"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setMobileView("map")}
+                >
+                  <MapIcon className="h-4 w-4" />
+                  Map
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Filter Results Count - Mobile */}
-        {(activeFilterCount > 0 || searchQuery?.trim()) && (
-          <div className="px-3 py-2 text-sm text-muted-foreground border-b bg-muted/30">
-            <span className="font-medium text-foreground">{totalCount.toLocaleString()}</span> properties match your filters
-          </div>
-        )}
-
-        {/* Export Quota for Mobile */}
-        <div className="px-3 pb-3">
-          <ExportQuotaDisplay />
-        </div>
-      </div>
-
-      {/* DESKTOP: Side-by-side layout */}
-      <div className="hidden md:flex flex-1 overflow-hidden">
-        {/* Map - Left Side */}
-        <div className="w-[60%] border-r relative">
-          <LeadsMap
-            filters={filters as LeadFilters}
-            onPropertyClick={setSelectedPropertyId}
-            selectedPropertyId={selectedPropertyId || undefined}
-          />
-        </div>
-
-        {/* Property List - Right Side */}
-        <div className="w-[40%] flex flex-col relative">
-          {/* Filter Results Count - Desktop */}
+          {/* Filter Results Count - Mobile */}
           {(activeFilterCount > 0 || searchQuery?.trim()) && (
             <div className="px-3 py-2 text-sm text-muted-foreground border-b bg-muted/30">
-              <span className="font-medium text-foreground">{totalCount.toLocaleString()}</span> properties match your filters
+              <span className="font-medium text-foreground">{totalCount.toLocaleString()}</span> properties match your
+              filters
             </div>
           )}
 
-        {/* Compact Header - single row */}
-          {properties.length > 0 && (
-            <div className="px-3 py-1.5 border-b bg-background flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {selectedIds.length > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    {selectedIds.length} selected
-                  </span>
-                )}
-                <SortByDropdown value={sortBy} onChange={(v) => { setSortBy(v); setPage(1); }} />
-              </div>
-              <Button
-                onClick={handleExportCSV}
-                disabled={selectedIds.length === 0 || isFullyGated || (hasTrialExpired && !trialCanExport)}
-                variant="ghost"
-                size="sm"
-                className={`h-7 px-2 text-xs ${isFullyGated || hasTrialExpired ? 'opacity-50' : ''}`}
-                title={isFullyGated ? 'Subscribe to unlock exports' : hasTrialExpired ? 'Trial expired — upgrade to export' : undefined}
-                data-blur-gated={isFullyGated ? "export" : undefined}
-              >
-                <Download className="h-3.5 w-3.5 mr-1" />
-                Export
-              </Button>
-            </div>
-          )}
-
-          <div className="flex-1 overflow-hidden">
-            {isLoading ? (
-              <div className="p-8 text-center text-muted-foreground">
-                Loading properties...
-              </div>
-            ) : properties.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                No properties found
-              </div>
-            ) : (
-              <VirtualizedPropertyList
-                properties={mappedProperties}
-                selectedIds={selectedIds}
-                onToggleSelect={handleToggleSelect}
-                onPropertyClick={setSelectedPropertyId}
-                savedSet={savedSet}
-                onToggleSaved={toggleSaved}
-              />
-            )}
+          {/* Export Quota for Mobile */}
+          <div className="px-3 pb-3">
+            <ExportQuotaDisplay />
           </div>
-
-          {/* Compact Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 px-2 py-1 border-t bg-background text-xs">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handlePageChange(Math.max(1, page - 1))}
-                disabled={page <= 1}
-                className="h-6 px-2 text-xs"
-              >
-                <ChevronLeft className="h-3 w-3" />
-              </Button>
-              <span className="text-muted-foreground">
-                {page}/{totalPages}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
-                disabled={page >= totalPages}
-                className="h-6 px-2 text-xs"
-              >
-                <ChevronRight className="h-3 w-3" />
-              </Button>
-            </div>
-          )}
-
-          <BulkActionBar
-            selectedCount={selectedIds.length}
-            totalCount={properties.length}
-            allSelected={selectedIds.length === properties.length && properties.length > 0}
-            onToggleSelectAll={handleToggleSelectAll}
-            onExport={handleExportCSV}
-            onAddToList={() => setShowAddToListDialog(true)}
-            isExporting={isExporting}
-          />
         </div>
-      </div>
 
-      {/* MOBILE: Stacked layout */}
-      <div className="md:hidden flex-1 flex flex-col overflow-hidden">
-        {mobileView === 'map' ? (
-          /* Map View - Full height */
-          <div className="flex-1 relative">
+        {/* DESKTOP: Side-by-side layout */}
+        <div className="hidden md:flex flex-1 overflow-hidden">
+          {/* Map - Left Side */}
+          <div className="w-[60%] border-r relative">
             <LeadsMap
               filters={filters as LeadFilters}
               onPropertyClick={setSelectedPropertyId}
               selectedPropertyId={selectedPropertyId || undefined}
             />
           </div>
-        ) : (
-          /* List View */
-          <div className="flex-1 flex flex-col min-h-0">
-            {isLoading ? (
-              <div className="p-8 text-center text-muted-foreground">
-                Loading properties...
-              </div>
-            ) : properties.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                No properties found
-              </div>
-            ) : (
-              <div
-                className="flex-1 flex flex-col overflow-hidden"
-                style={{ paddingBottom: 'var(--bottom-nav-height)' }}
-              >
-                {/* Select All Header + Export */}
-                <div className="flex items-center justify-between px-4 py-2.5 bg-background border-b">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      checked={selectedIds.length === properties.length && properties.length > 0}
-                      onCheckedChange={handleToggleSelectAll}
-                      className="h-5 w-5"
-                    />
-                    <span className="text-sm font-medium">
-                      {selectedIds.length > 0
-                        ? `${selectedIds.length} selected`
-                        : `Select all (${properties.length})`}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {selectedIds.length > 0 && (
-                      <>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={handleExportCSV}
-                          disabled={isExporting}
-                          className="h-8 text-xs gap-1"
-                        >
-                          {isExporting ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Download className="h-3 w-3" />
-                          )}
-                          Export ({selectedIds.length})
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedIds([])}
-                          className="h-8 text-xs text-muted-foreground"
-                        >
-                          Clear
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
 
-                {/* Virtualized Mobile Property List */}
-                <VirtualizedMobilePropertyList
+          {/* Property List - Right Side */}
+          <div className="w-[40%] flex flex-col relative">
+            {/* Filter Results Count - Desktop */}
+            {(activeFilterCount > 0 || searchQuery?.trim()) && (
+              <div className="px-3 py-2 text-sm text-muted-foreground border-b bg-muted/30">
+                <span className="font-medium text-foreground">{totalCount.toLocaleString()}</span> properties match your
+                filters
+              </div>
+            )}
+
+            {/* Compact Header - single row */}
+            {properties.length > 0 && (
+              <div className="px-3 py-1.5 border-b bg-background flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {selectedIds.length > 0 && (
+                    <span className="text-xs text-muted-foreground">{selectedIds.length} selected</span>
+                  )}
+                  <SortByDropdown
+                    value={sortBy}
+                    onChange={(v) => {
+                      setSortBy(v);
+                      setPage(1);
+                    }}
+                  />
+                </div>
+                <Button
+                  onClick={handleExportCSV}
+                  disabled={selectedIds.length === 0 || isFullyGated || (hasTrialExpired && !trialCanExport)}
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 px-2 text-xs ${isFullyGated || hasTrialExpired ? "opacity-50" : ""}`}
+                  title={
+                    isFullyGated
+                      ? "Subscribe to unlock exports"
+                      : hasTrialExpired
+                        ? "Trial expired — upgrade to export"
+                        : undefined
+                  }
+                  data-blur-gated={isFullyGated ? "export" : undefined}
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" />
+                  Export
+                </Button>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-hidden">
+              {isLoading ? (
+                <div className="p-8 text-center text-muted-foreground">Loading properties...</div>
+              ) : properties.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">No properties found</div>
+              ) : (
+                <VirtualizedPropertyList
                   properties={mappedProperties}
                   selectedIds={selectedIds}
                   onToggleSelect={handleToggleSelect}
-                  onPropertyClick={(id) => setSelectedPropertyId(id)}
+                  onPropertyClick={setSelectedPropertyId}
                   savedSet={savedSet}
                   onToggleSaved={toggleSaved}
                 />
+              )}
+            </div>
 
-                {/* Mobile Pagination */}
-                <div className="flex items-center justify-center gap-4 px-4 py-3 border-t bg-background">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-10 min-h-[44px] px-4 gap-1"
-                    onClick={() => handlePageChange(Math.max(1, page - 1))}
-                    disabled={page <= 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Prev
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-10 min-h-[44px] px-4 gap-1"
-                    onClick={() => handlePageChange(Math.min(totalPages || 1, page + 1))}
-                    disabled={page >= (totalPages || 1)}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
+            {/* Compact Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-3 px-2 py-1 border-t bg-background text-xs">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handlePageChange(Math.max(1, page - 1))}
+                  disabled={page <= 1}
+                  className="h-6 px-2 text-xs"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </Button>
+                <span className="text-muted-foreground">
+                  {page}/{totalPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+                  disabled={page >= totalPages}
+                  className="h-6 px-2 text-xs"
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
               </div>
             )}
-          </div>
-        )}
-      </div>
 
-      {/* Property Detail - Desktop uses Panel, Mobile uses Sheet */}
-      {selectedPropertyId && !isMobile && (
-        <PropertyDetailPanel
-          property={selectedProperty}
-          open={!!selectedPropertyId}
-          onOpenChange={(open) => !open && setSelectedPropertyId(null)}
-        />
-      )}
-      
-      {selectedPropertyId && isMobile && (
-        <MobilePropertyDetailSheet
-          property={selectedProperty}
-          open={!!selectedPropertyId}
-          onOpenChange={(open) => !open && setSelectedPropertyId(null)}
-          onAddToList={(propertyId) => {
-            setSelectedIds([propertyId]);
-            setShowAddToListDialog(true);
+            <BulkActionBar
+              selectedCount={selectedIds.length}
+              totalCount={properties.length}
+              allSelected={selectedIds.length === properties.length && properties.length > 0}
+              onToggleSelectAll={handleToggleSelectAll}
+              onExport={handleExportCSV}
+              onAddToList={() => setShowAddToListDialog(true)}
+              isExporting={isExporting}
+            />
+          </div>
+        </div>
+
+        {/* MOBILE: Stacked layout */}
+        <div className="md:hidden flex-1 flex flex-col overflow-hidden">
+          {mobileView === "map" ? (
+            /* Map View - Full height */
+            <div className="flex-1 relative">
+              <LeadsMap
+                filters={filters as LeadFilters}
+                onPropertyClick={setSelectedPropertyId}
+                selectedPropertyId={selectedPropertyId || undefined}
+              />
+            </div>
+          ) : (
+            /* List View */
+            <div className="flex-1 flex flex-col min-h-0">
+              {isLoading ? (
+                <div className="p-8 text-center text-muted-foreground">Loading properties...</div>
+              ) : properties.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">No properties found</div>
+              ) : (
+                <div
+                  className="flex-1 flex flex-col overflow-hidden"
+                  style={{ paddingBottom: "var(--bottom-nav-height)" }}
+                >
+                  {/* Select All Header + Export */}
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-background border-b">
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={selectedIds.length === properties.length && properties.length > 0}
+                        onCheckedChange={handleToggleSelectAll}
+                        className="h-5 w-5"
+                      />
+                      <span className="text-sm font-medium">
+                        {selectedIds.length > 0
+                          ? `${selectedIds.length} selected`
+                          : `Select all (${properties.length})`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {selectedIds.length > 0 && (
+                        <>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={handleExportCSV}
+                            disabled={isExporting}
+                            className="h-8 text-xs gap-1"
+                          >
+                            {isExporting ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Download className="h-3 w-3" />
+                            )}
+                            Export ({selectedIds.length})
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedIds([])}
+                            className="h-8 text-xs text-muted-foreground"
+                          >
+                            Clear
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Virtualized Mobile Property List */}
+                  <VirtualizedMobilePropertyList
+                    properties={mappedProperties}
+                    selectedIds={selectedIds}
+                    onToggleSelect={handleToggleSelect}
+                    onPropertyClick={(id) => setSelectedPropertyId(id)}
+                    savedSet={savedSet}
+                    onToggleSaved={toggleSaved}
+                  />
+
+                  {/* Mobile Pagination */}
+                  <div className="flex items-center justify-center gap-4 px-4 py-3 border-t bg-background">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 min-h-[44px] px-4 gap-1"
+                      onClick={() => handlePageChange(Math.max(1, page - 1))}
+                      disabled={page <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Prev
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 min-h-[44px] px-4 gap-1"
+                      onClick={() => handlePageChange(Math.min(totalPages || 1, page + 1))}
+                      disabled={page >= (totalPages || 1)}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Property Detail - Desktop uses Panel, Mobile uses Sheet */}
+        {selectedPropertyId && !isMobile && (
+          <PropertyDetailPanel
+            property={selectedProperty}
+            open={!!selectedPropertyId}
+            onOpenChange={(open) => !open && setSelectedPropertyId(null)}
+          />
+        )}
+
+        {selectedPropertyId && isMobile && (
+          <MobilePropertyDetailSheet
+            property={selectedProperty}
+            open={!!selectedPropertyId}
+            onOpenChange={(open) => !open && setSelectedPropertyId(null)}
+            onAddToList={(propertyId) => {
+              setSelectedIds([propertyId]);
+              setShowAddToListDialog(true);
+            }}
+          />
+        )}
+
+        {/* Add to List Dialog (for selected properties) */}
+        <AddToListDialog
+          open={showAddToListDialog}
+          onOpenChange={setShowAddToListDialog}
+          propertyIds={selectedIds}
+          onSuccess={() => {
+            setSelectedIds([]);
+            setShowAddToListDialog(false);
           }}
         />
-      )}
 
-      {/* Add to List Dialog (for selected properties) */}
-      <AddToListDialog
-        open={showAddToListDialog}
-        onOpenChange={setShowAddToListDialog}
-        propertyIds={selectedIds}
-        onSuccess={() => {
-          setSelectedIds([]);
-          setShowAddToListDialog(false);
-        }}
-      />
-
-      {/* Add All Filtered to List Dialog */}
-      <AddAllToListDialog
-        open={showAddAllToListDialog}
-        onOpenChange={setShowAddAllToListDialog}
-        totalMatchingCount={totalCount}
-        filters={{
-          city: selectedCity,
-          state: selectedState,
-          // Show warning if filters active that won't be applied to "Add All"
-          hasAdditionalFilters: !!(lastSeenDays || selectedSignal || openViolationsOnly || multipleViolationsOnly || repeatOffenderOnly || searchQuery),
-        }}
-        onSuccess={() => {
-          toast({
-            title: "List Updated",
-            description: "Properties have been added to your list",
-          });
-        }}
-      />
-
-      {/* Trial Export Gate (exhausted/expired) */}
-      <TrialExportGate
-        open={trialGateOpen}
-        onOpenChange={setTrialGateOpen}
-        type={trialGateType}
-        trialTier={trialTier}
-        trialEndsAt={trialEndsAt}
-      />
-
-      {/* Upgrade Prompt for Export Limits */}
-      <UpgradePrompt
-        open={!!upgradePromptType}
-        onOpenChange={(open) => !open && setUpgradePromptType(null)}
-        limitType={upgradePromptType || 'exports'}
-      />
-
-      {/* Floating Selection Action Bar - shows on mobile and when items selected */}
-      {isMobile && (
-        <SelectionActionBar
-          selectedCount={selectedIds.length}
-          onExportCSV={handleExportCSV}
-          onAddToList={() => setShowAddToListDialog(true)}
-          onClearSelection={() => setSelectedIds([])}
-          isExporting={isExporting}
+        {/* Add All Filtered to List Dialog */}
+        <AddAllToListDialog
+          open={showAddAllToListDialog}
+          onOpenChange={setShowAddAllToListDialog}
+          totalMatchingCount={totalCount}
+          filters={{
+            city: selectedCity,
+            state: selectedState,
+            // Show warning if filters active that won't be applied to "Add All"
+            hasAdditionalFilters: !!(
+              lastSeenDays ||
+              selectedSignal ||
+              openViolationsOnly ||
+              multipleViolationsOnly ||
+              repeatOffenderOnly ||
+              searchQuery
+            ),
+          }}
+          onSuccess={() => {
+            toast({
+              title: "List Updated",
+              description: "Properties have been added to your list",
+            });
+          }}
         />
-      )}
 
-      {/* Page Change Warning Dialog */}
-      <AlertDialog open={pendingPage !== null} onOpenChange={(open) => !open && cancelPageChange()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clear selection?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have {selectedIds.length} properties selected. Changing pages will clear your selection. 
-              Would you like to export first or continue?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelPageChange}>Cancel</AlertDialogCancel>
-            <Button variant="outline" onClick={() => { handleExportCSV(); cancelPageChange(); }}>
-              Export First
-            </Button>
-            <AlertDialogAction onClick={confirmPageChange}>
-              Continue & Clear
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Trial Export Gate (exhausted/expired) */}
+        <TrialExportGate
+          open={trialGateOpen}
+          onOpenChange={setTrialGateOpen}
+          type={trialGateType}
+          trialTier={trialTier}
+          trialEndsAt={trialEndsAt}
+        />
+
+        {/* Upgrade Prompt for Export Limits */}
+        <UpgradePrompt
+          open={!!upgradePromptType}
+          onOpenChange={(open) => !open && setUpgradePromptType(null)}
+          limitType={upgradePromptType || "exports"}
+        />
+
+        {/* Floating Selection Action Bar - shows on mobile and when items selected */}
+        {isMobile && (
+          <SelectionActionBar
+            selectedCount={selectedIds.length}
+            onExportCSV={handleExportCSV}
+            onAddToList={() => setShowAddToListDialog(true)}
+            onClearSelection={() => setSelectedIds([])}
+            isExporting={isExporting}
+          />
+        )}
+
+        {/* Page Change Warning Dialog */}
+        <AlertDialog open={pendingPage !== null} onOpenChange={(open) => !open && cancelPageChange()}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clear selection?</AlertDialogTitle>
+              <AlertDialogDescription>
+                You have {selectedIds.length} properties selected. Changing pages will clear your selection. Would you
+                like to export first or continue?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={cancelPageChange}>Cancel</AlertDialogCancel>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  handleExportCSV();
+                  cancelPageChange();
+                }}
+              >
+                Export First
+              </Button>
+              <AlertDialogAction onClick={confirmPageChange}>Continue & Clear</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );

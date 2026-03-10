@@ -1,62 +1,73 @@
 
 
-## Assessment
+# Plan: Remove Municipal Court Dates + Build Real-Time Alerts
 
-This strategy is sharp. You already have 3 of the 7 pages built (`/code-violation-leads`, `/distressed-property-data`, `/code-enforcement-data`). The remaining 4 static pages are straightforward. The programmatic city pages are the real power play.
+## 1. Remove Municipal Court Dates references
 
-**One tension to flag:** Your in-app positioning says "not a leads tool" and uses "properties" / "professionals." But SEO pages *should* use investor language because that is what people search for. This is fine -- marketing pages speak Google's language, the product speaks its own. Just keep them separate.
+**Landing page (`src/pages/Landing.tsx`):**
+- Remove the "Municipal Court Dates" card from the 8-item features grid (lines 511-516), making it a 7-item grid
+- Remove the "Municipal court dates" row from the comparison table (line 889)
 
-## Plan: Build Remaining SEO Pages + Programmatic City Framework
+**Also remove from:**
+- `src/pages/CodeEnforcementData.tsx` if referenced (checked — not present there)
 
-### Task 1: Create 4 New Static SEO Pages
+---
 
-Each follows the same template as existing pages (nav, hero H1, 3-4 content sections, stats, CTA, footer, JSON-LD).
+## 2. Real-Time Alerts Feature
 
-| Route | Target Keyword | H1 |
-|---|---|---|
-| `/municipal-enforcement-data` | municipal enforcement data | Municipal Enforcement Data for Real Estate Professionals |
-| `/off-market-property-leads` | off market property leads | Off-Market Property Leads Powered by Enforcement Intelligence |
-| `/real-estate-distress-signals` | real estate distress signals | Real Estate Distress Signals: The Enforcement Layer Most Investors Miss |
-| `/how-investors-find-distressed-properties` | how investors find distressed properties | How Investors Find Distressed Properties in 2026 |
+### Concept
+When a user saves/tracks a property, they automatically get in-app alerts when new violations are filed against that property or its SnapScore changes significantly. Alerts appear via a bell icon in the app header with an unread count badge.
 
-**Files to create:** 4 new page components in `src/pages/`
+### Database
 
-### Task 2: Register Routes + Update Sitemap
+**New table: `user_alerts`**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| user_id | uuid | references auth.users |
+| property_id | uuid | references properties |
+| alert_type | text | `new_violation`, `score_change`, `status_change` |
+| title | text | Short summary |
+| body | text | Detail message |
+| is_read | boolean | default false |
+| created_at | timestamptz | default now() |
 
-- Add 4 lazy-loaded public routes in `App.tsx`
-- Add all 4 URLs to `public/sitemap.xml`
+RLS: Users can only read/update their own alerts.
 
-### Task 3: Programmatic City Pages (the 4,000-page engine)
+**Database trigger** on `violations` INSERT: for each new violation, look up users who have that property saved in `saved_properties`, then insert an alert row for each.
 
-This is the high-leverage move. Build a single dynamic route that pulls real jurisdiction data from the database.
+### Frontend Components
 
-**Route:** `/code-violations/:citySlug` (e.g., `/code-violations/miami`)
+1. **`NotificationBell`** — bell icon in `AppLayout` header with unread count badge. Clicking opens a dropdown/popover listing recent alerts with property name, violation type, and time ago. "Mark all read" button.
 
-**How it works:**
-- Create `src/pages/CityViolations.tsx` -- a single template page
-- On mount, extract `citySlug` from URL params, query the `jurisdictions` table for matching city
-- Display: city name, state, property count, violation stats, enforcement pressure summary
-- Include JSON-LD `WebPage` schema with city-specific data
-- Dynamic `<title>`: "Code Violations in Miami, FL | Snap Ignite"
-- CTA to sign up and access the full data
-- If city not found, show a generic "coverage expanding" page with CTA
+2. **`useAlerts` hook** — queries `user_alerts` for current user, ordered by created_at desc, with unread count. Uses Supabase realtime subscription for instant updates.
 
-**For Google discoverability**, create a city index page at `/code-violations` that lists all tracked cities as internal links (pulled from `jurisdictions` table). This acts as a crawlable directory.
+3. **Alert settings toggle** — add an "Escalation Alerts" toggle to the existing `NotificationsSection` in Settings (alongside the weekly digest toggle) so users can opt in/out.
 
-**Files to create:**
-- `src/pages/CityViolations.tsx` (dynamic template)
-- `src/pages/CityViolationsIndex.tsx` (directory of all cities)
+### Data Flow
 
-**Files to edit:**
-- `src/App.tsx` (add routes)
-- `public/sitemap.xml` (add static pages; note: for 4,000+ city pages, you'd eventually want a dynamic sitemap via edge function, but the index page handles crawlability for now)
+```text
+New violation inserted
+       │
+       ▼
+DB trigger fires ──► For each user with property saved:
+                        INSERT into user_alerts
+       │
+       ▼
+Supabase Realtime ──► Frontend NotificationBell updates
+                       badge count + shows new alert
+```
 
-### Summary of All Changes
+### Files to Create/Modify
 
-| Action | Files |
-|---|---|
-| Create 4 static SEO pages | `src/pages/MunicipalEnforcementData.tsx`, `OffMarketPropertyLeads.tsx`, `RealEstateDistressSignals.tsx`, `HowInvestorsFindDistressedProperties.tsx` |
-| Create city template + index | `src/pages/CityViolations.tsx`, `src/pages/CityViolationsIndex.tsx` |
-| Register 7 new routes | `src/App.tsx` |
-| Update sitemap | `public/sitemap.xml` |
+| File | Action |
+|------|--------|
+| `src/pages/Landing.tsx` | Remove municipal court dates card + comparison row |
+| Migration SQL | Create `user_alerts` table + RLS + trigger function |
+| `src/hooks/useAlerts.ts` | New hook: fetch alerts, mark read, realtime subscription |
+| `src/components/layout/NotificationBell.tsx` | New: bell icon + dropdown popover |
+| `src/components/layout/AppLayout.tsx` | Add NotificationBell to header |
+| `src/components/settings/NotificationsSection.tsx` | Add escalation alerts toggle |
+| `src/hooks/useEmailPreferences.ts` | Add `escalation_alerts_enabled` field |
+| Migration SQL | Add `escalation_alerts_enabled` column to `email_preferences` |
 

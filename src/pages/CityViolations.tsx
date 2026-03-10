@@ -29,7 +29,6 @@ export default function CityViolations() {
   const { data: jurisdiction, isLoading } = useQuery({
     queryKey: ["city-seo", citySlug],
     queryFn: async (): Promise<JurisdictionWithCounts | null> => {
-      // Find jurisdiction matching slug (case-insensitive city match)
       const { data: jurisdictions, error } = await supabase
         .from("jurisdictions")
         .select("*")
@@ -39,7 +38,6 @@ export default function CityViolations() {
 
       const j = jurisdictions[0];
 
-      // Get property count for this jurisdiction
       const { count } = await supabase
         .from("properties")
         .select("*", { count: "exact", head: true })
@@ -62,11 +60,11 @@ export default function CityViolations() {
   });
 
   const pageTitle = jurisdiction
-    ? `Code Violations in ${jurisdiction.city}, ${jurisdiction.state} | Snap Ignite`
+    ? `Code Violation Leads in ${jurisdiction.city}, ${jurisdiction.state} | Snap Ignite`
     : `Code Violations – ${citySearch} | Snap Ignite`;
 
   const pageDesc = jurisdiction
-    ? `Track ${jurisdiction.propertyCount.toLocaleString()} properties with code violations in ${jurisdiction.city}, ${jurisdiction.state}. Enforcement intelligence for real estate investors.`
+    ? `${jurisdiction.propertyCount.toLocaleString()} code violation leads in ${jurisdiction.city}, ${jurisdiction.state}. Find motivated sellers and off-market deals from municipal enforcement records. Updated monthly.`
     : `Explore code violation data and enforcement intelligence. Snap Ignite tracks 500K+ properties across 3,800+ cities.`;
 
   const pageCanonical = `https://snapignite.com/code-violations/${citySlug}`;
@@ -83,10 +81,18 @@ export default function CityViolations() {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebPage",
-          "name": `Code Violations in ${jurisdiction.city}, ${jurisdiction.state}`,
-          "description": `Track ${jurisdiction.propertyCount.toLocaleString()} properties with code violations in ${jurisdiction.city}, ${jurisdiction.state}.`,
-          "url": `https://snapignite.com/code-violations/${citySlug}`,
-          "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" }
+          "name": `Code Violation Leads in ${jurisdiction.city}, ${jurisdiction.state}`,
+          "description": pageDesc,
+          "url": pageCanonical,
+          "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" },
+          "mainEntity": {
+            "@type": "Dataset",
+            "name": `${jurisdiction.city}, ${jurisdiction.state} Code Violations`,
+            "description": `Municipal code violation records for ${jurisdiction.propertyCount.toLocaleString()} properties in ${jurisdiction.city}, ${jurisdiction.state}.`,
+            "creator": { "@type": "Organization", "name": "Snap Ignite" },
+            "temporalCoverage": "2020/..",
+            "spatialCoverage": { "@type": "Place", "name": `${jurisdiction.city}, ${jurisdiction.state}` }
+          }
         })}} />
       )}
 
@@ -113,7 +119,7 @@ export default function CityViolations() {
                 <ArrowLeft className="h-3 w-3" /> All Cities
               </Link>
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
-                Code Violations in{" "}
+                Code Violation Leads in{" "}
                 <span className="text-[hsl(var(--landing-accent))]">{jurisdiction.city}, {jurisdiction.state}</span>
               </h1>
               <p className="text-lg md:text-xl text-[hsl(var(--landing-text-muted))] max-w-2xl mx-auto mb-8">
@@ -160,6 +166,52 @@ export default function CityViolations() {
               </div>
             </section>
           )}
+
+          {/* Why Investors Target Code Violations */}
+          <section className="py-16 px-6 border-t border-[hsl(var(--landing-surface))]">
+            <div className="max-w-4xl mx-auto">
+              <h2 className="text-3xl font-bold mb-8 text-center">Why Investors Target Code Violations in {jurisdiction.city}</h2>
+              <div className="bg-[hsl(var(--landing-surface))]/30 border border-[hsl(var(--landing-surface))] rounded-xl p-8">
+                <ul className="space-y-4 text-[hsl(var(--landing-text-muted))] text-base">
+                  <li className="flex items-start gap-3">
+                    <span className="text-[hsl(var(--landing-accent))] mt-1 shrink-0">•</span>
+                    <span><strong className="text-[hsl(var(--landing-text))]">Code violations signal distressed properties.</strong> Open enforcement cases often indicate deferred maintenance, financial hardship, or absentee ownership — the conditions that create off-market opportunities.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-[hsl(var(--landing-accent))] mt-1 shrink-0">•</span>
+                    <span><strong className="text-[hsl(var(--landing-text))]">Owners facing city fines may be motivated to sell.</strong> Municipal penalties compound over time. Property owners under enforcement pressure are more likely to negotiate below market value.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-[hsl(var(--landing-accent))] mt-1 shrink-0">•</span>
+                    <span><strong className="text-[hsl(var(--landing-text))]">Violation properties often need repairs — ideal for flips.</strong> Properties with structural, housing, or safety violations typically require renovations, making them strong candidates for fix-and-flip or BRRRR strategies.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-[hsl(var(--landing-accent))] mt-1 shrink-0">•</span>
+                    <span><strong className="text-[hsl(var(--landing-text))]">Violations appear earlier than most distress signals.</strong> Code enforcement records surface months before tax delinquency, pre-foreclosure filings, or MLS listings — giving you a significant timing advantage in {jurisdiction.city}.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-[hsl(var(--landing-accent))] mt-1 shrink-0">•</span>
+                    <span><strong className="text-[hsl(var(--landing-text))]">Fewer investors compete on this data.</strong> Most lead services focus on tax liens and pre-foreclosures. Municipal enforcement data in {jurisdiction.city} is an underutilized channel with less competition.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* Motivated Sellers CTA */}
+          <section className="py-20 px-6 border-t border-[hsl(var(--landing-surface))]">
+            <div className="max-w-3xl mx-auto text-center">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">Find Motivated Sellers in {jurisdiction.city}</h2>
+              <p className="text-[hsl(var(--landing-text-muted))] text-lg mb-8 max-w-xl mx-auto">
+                Snap Ignite analyzes municipal code violations to help investors discover off-market deals before they hit the MLS.
+              </p>
+              <Link to="/auth">
+                <Button size="lg" className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))] px-10">
+                  Search {jurisdiction.city} Violation Leads <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </section>
 
           {/* What You Get */}
           <section className="py-16 px-6 border-t border-[hsl(var(--landing-surface))]">

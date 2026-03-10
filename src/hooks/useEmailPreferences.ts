@@ -10,6 +10,7 @@ export interface EmailPreferences {
   digest_day: number;
   digest_hour: number;
   timezone: string;
+  escalation_alerts_enabled: boolean;
   created_at: string;
   updated_at: string;
 }

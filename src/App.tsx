@@ -113,7 +113,7 @@ const App = () => (
             </ProtectedRoute>
           } />
           <Route path="/app" element={<Navigate to="/properties" replace />} />
-          <Route path="/leads" element={<LeadsRedirect />} />
+          <Route path="/leads" element={<Navigate to="/properties" replace />} />
           <Route path="/properties" element={
             <RoleProtectedRoute allowedRoles={['admin', 'user']}>
               <Leads />

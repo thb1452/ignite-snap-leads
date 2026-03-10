@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
 };
 
-const APP_URL = Deno.env.get("APP_URL") || "https://ignite-snap-leads.lovable.app";
+const APP_URL = Deno.env.get("APP_URL") || "https://app.snapignite.com";
 
 // Dynamic import for Resend to avoid build issues
 async function getResend() {

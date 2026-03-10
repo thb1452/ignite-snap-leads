@@ -43,6 +43,7 @@ const HowInvestorsFindDistressedProperties = lazy(() => import("./pages/HowInves
 const CityViolationsIndex = lazy(() => import("./pages/CityViolationsIndex"));
 const CityViolations = lazy(() => import("./pages/CityViolations"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const LeadsRedirect = lazy(() => import("./components/LeadsRedirect"));
 // LiveFeed removed – components now embedded in Landing
 
 // VA pages

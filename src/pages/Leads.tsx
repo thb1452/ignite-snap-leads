@@ -132,12 +132,12 @@ function Leads() {
   // Auto-select property from URL param (e.g. from digest email)
   useEffect(() => {
     const propertyIdParam = searchParams.get("propertyId");
-    if (propertyIdParam && !selectedPropertyId) {
-      setSelectedPropertyId(propertyIdParam);
-      // Clean up URL param after consuming it
-      // searchParams.delete("propertyId");
-      // setSearchParams(searchParams, { replace: true });
-    }
+    // if (propertyIdParam && !selectedPropertyId) {
+    setSelectedPropertyId(propertyIdParam);
+    // Clean up URL param after consuming it
+    // searchParams.delete("propertyId");
+    // setSearchParams(searchParams, { replace: true });
+    // }
   }, [searchParams]);
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);

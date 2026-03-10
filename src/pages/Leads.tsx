@@ -129,19 +129,6 @@ function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
 
-  // Auto-select property from URL param (e.g. from digest email)
-  useEffect(() => {
-    const propertyIdParam = searchParams.get("propertyId");
-
-    if (!propertyIdParam) return;
-    if (isLoading) return;
-
-    setSelectedPropertyId(propertyIdParam);
-
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete("propertyId");
-    setSearchParams(newParams, { replace: true });
-  }, [searchParams, isLoading]);
 
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -215,6 +202,19 @@ function Leads() {
 
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
+
+  // Auto-select property from URL param (e.g. from digest email)
+  useEffect(() => {
+    const propertyIdParam = searchParams.get("propertyId");
+    if (!propertyIdParam) return;
+    if (isLoading) return;
+
+    setSelectedPropertyId(propertyIdParam);
+
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete("propertyId");
+    setSearchParams(newParams, { replace: true });
+  }, [searchParams, isLoading, setSearchParams]);
 
   // Map now uses viewport-based loading - no pre-fetching needed
 

@@ -84,12 +84,6 @@ function PageLoader() {
   );
 }
 
-// Redirect /leads to /properties while preserving query params
-function LeadsRedirect() {
-  const location = useLocation();
-  const queryString = location.search;
-  return <Navigate to={`/properties${queryString}`} replace />;
-}
 
 function PageTracker() {
   usePageTracking();

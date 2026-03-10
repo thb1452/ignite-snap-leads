@@ -101,6 +101,7 @@ export function useEmailPreferences() {
     digest_day: preferences?.digest_day ?? 1,
     digest_hour: preferences?.digest_hour ?? 8,
     timezone: preferences?.timezone ?? 'America/New_York',
+    escalation_alerts_enabled: preferences?.escalation_alerts_enabled ?? true,
   };
 
   return {

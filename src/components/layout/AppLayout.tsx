@@ -92,9 +92,11 @@ export function AppLayout({ children }: AppLayoutProps) {
             </nav>
           </div>
           
-          {/* User dropdown menu - single location for user actions */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          {/* Notification bell + User dropdown */}
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 px-3 gap-2">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline text-sm truncate max-w-[120px]">

@@ -1126,7 +1126,7 @@ export default function Landing() {
               transition={{ delay: 0.1 }}
               className="text-xl text-landing-text-muted mb-8"
             >
-              Join operators tracking enforcement pressure before it becomes public knowledge.
+              500,000+ properties. 3,800+ cities. Updated monthly. Most of your competition is still waiting for listings.
             </motion.p>
             
             <motion.div
@@ -1178,7 +1178,7 @@ export default function Landing() {
                 <span className="text-landing-text"> IGNITE</span>
               </span>
               <p className="text-landing-text-muted text-sm mt-4">
-                Enforcement intelligence for real estate professionals.
+                The enforcement data layer serious operators use before the market catches up.
               </p>
             </div>
             

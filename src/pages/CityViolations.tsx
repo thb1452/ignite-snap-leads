@@ -161,6 +161,52 @@ export default function CityViolations() {
             </section>
           )}
 
+          {/* Why Investors Target */}
+          <section className="py-16 px-6 border-t border-[hsl(var(--landing-surface))]">
+            <div className="max-w-4xl mx-auto">
+              <h2 className="text-3xl font-bold mb-8 text-center">Why Investors Target Code Violations in {jurisdiction.city}</h2>
+              <div className="bg-[hsl(var(--landing-surface))]/30 border border-[hsl(var(--landing-surface))] rounded-xl p-8">
+                <ul className="space-y-4 text-[hsl(var(--landing-text-muted))] text-base">
+                  <li className="flex items-start gap-3">
+                    <span className="text-[hsl(var(--landing-accent))] mt-1 shrink-0">•</span>
+                    <span><strong className="text-[hsl(var(--landing-text))]">Code violations signal distressed properties.</strong> Open enforcement cases often indicate deferred maintenance, financial hardship, or absentee ownership — the conditions that create off-market opportunities.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-[hsl(var(--landing-accent))] mt-1 shrink-0">•</span>
+                    <span><strong className="text-[hsl(var(--landing-text))]">Owners facing city fines may be motivated to sell.</strong> Municipal penalties compound over time. Property owners under enforcement pressure are more likely to negotiate below market value.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-[hsl(var(--landing-accent))] mt-1 shrink-0">•</span>
+                    <span><strong className="text-[hsl(var(--landing-text))]">Violation properties often need repairs — ideal for flips.</strong> Properties with structural, housing, or safety violations typically require renovations, making them strong candidates for fix-and-flip or BRRRR strategies.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-[hsl(var(--landing-accent))] mt-1 shrink-0">•</span>
+                    <span><strong className="text-[hsl(var(--landing-text))]">Violations appear earlier than most distress signals.</strong> Code enforcement records surface months before tax delinquency, pre-foreclosure filings, or MLS listings — giving you a significant timing advantage in {jurisdiction.city}.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-[hsl(var(--landing-accent))] mt-1 shrink-0">•</span>
+                    <span><strong className="text-[hsl(var(--landing-text))]">Fewer investors compete on this data.</strong> Most lead services focus on tax liens and pre-foreclosures. Municipal enforcement data in {jurisdiction.city} is an underutilized channel with less competition.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* Motivated Sellers CTA */}
+          <section className="py-20 px-6 border-t border-[hsl(var(--landing-surface))]">
+            <div className="max-w-3xl mx-auto text-center">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">Find Motivated Sellers in {jurisdiction.city}</h2>
+              <p className="text-[hsl(var(--landing-text-muted))] text-lg mb-8 max-w-xl mx-auto">
+                Snap Ignite analyzes municipal code violations to help investors discover off-market deals before they hit the MLS.
+              </p>
+              <Link to="/auth">
+                <Button size="lg" className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))] px-10">
+                  Search {jurisdiction.city} Violation Leads <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </section>
+
           {/* What You Get */}
           <section className="py-16 px-6 border-t border-[hsl(var(--landing-surface))]">
             <div className="max-w-5xl mx-auto">

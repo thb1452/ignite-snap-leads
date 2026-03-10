@@ -29,7 +29,6 @@ export default function CityViolations() {
   const { data: jurisdiction, isLoading } = useQuery({
     queryKey: ["city-seo", citySlug],
     queryFn: async (): Promise<JurisdictionWithCounts | null> => {
-      // Find jurisdiction matching slug (case-insensitive city match)
       const { data: jurisdictions, error } = await supabase
         .from("jurisdictions")
         .select("*")
@@ -39,7 +38,6 @@ export default function CityViolations() {
 
       const j = jurisdictions[0];
 
-      // Get property count for this jurisdiction
       const { count } = await supabase
         .from("properties")
         .select("*", { count: "exact", head: true })
@@ -62,11 +60,11 @@ export default function CityViolations() {
   });
 
   const pageTitle = jurisdiction
-    ? `Code Violations in ${jurisdiction.city}, ${jurisdiction.state} | Snap Ignite`
+    ? `Code Violation Leads in ${jurisdiction.city}, ${jurisdiction.state} | Snap Ignite`
     : `Code Violations – ${citySearch} | Snap Ignite`;
 
   const pageDesc = jurisdiction
-    ? `Track ${jurisdiction.propertyCount.toLocaleString()} properties with code violations in ${jurisdiction.city}, ${jurisdiction.state}. Enforcement intelligence for real estate investors.`
+    ? `${jurisdiction.propertyCount.toLocaleString()} code violation leads in ${jurisdiction.city}, ${jurisdiction.state}. Find motivated sellers and off-market deals from municipal enforcement records. Updated monthly.`
     : `Explore code violation data and enforcement intelligence. Snap Ignite tracks 500K+ properties across 3,800+ cities.`;
 
   const pageCanonical = `https://snapignite.com/code-violations/${citySlug}`;
@@ -83,10 +81,18 @@ export default function CityViolations() {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebPage",
-          "name": `Code Violations in ${jurisdiction.city}, ${jurisdiction.state}`,
-          "description": `Track ${jurisdiction.propertyCount.toLocaleString()} properties with code violations in ${jurisdiction.city}, ${jurisdiction.state}.`,
-          "url": `https://snapignite.com/code-violations/${citySlug}`,
-          "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" }
+          "name": `Code Violation Leads in ${jurisdiction.city}, ${jurisdiction.state}`,
+          "description": pageDesc,
+          "url": pageCanonical,
+          "publisher": { "@type": "Organization", "name": "Snap Ignite", "url": "https://snapignite.com" },
+          "mainEntity": {
+            "@type": "Dataset",
+            "name": `${jurisdiction.city}, ${jurisdiction.state} Code Violations`,
+            "description": `Municipal code violation records for ${jurisdiction.propertyCount.toLocaleString()} properties in ${jurisdiction.city}, ${jurisdiction.state}.`,
+            "creator": { "@type": "Organization", "name": "Snap Ignite" },
+            "temporalCoverage": "2020/..",
+            "spatialCoverage": { "@type": "Place", "name": `${jurisdiction.city}, ${jurisdiction.state}` }
+          }
         })}} />
       )}
 
@@ -161,7 +167,7 @@ export default function CityViolations() {
             </section>
           )}
 
-          {/* Why Investors Target */}
+          {/* Why Investors Target Code Violations */}
           <section className="py-16 px-6 border-t border-[hsl(var(--landing-surface))]">
             <div className="max-w-4xl mx-auto">
               <h2 className="text-3xl font-bold mb-8 text-center">Why Investors Target Code Violations in {jurisdiction.city}</h2>

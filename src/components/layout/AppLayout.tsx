@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Settings, CreditCard, Clock } from "lucide-react";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
@@ -91,9 +92,11 @@ export function AppLayout({ children }: AppLayoutProps) {
             </nav>
           </div>
           
-          {/* User dropdown menu - single location for user actions */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          {/* Notification bell + User dropdown */}
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 px-3 gap-2">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline text-sm truncate max-w-[120px]">
@@ -167,6 +170,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
       </header>
 

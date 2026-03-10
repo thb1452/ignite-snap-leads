@@ -28,7 +28,6 @@ import {
   Zap,
   Menu,
   Droplets,
-  Scale,
   Bell
 } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
@@ -509,12 +508,6 @@ export default function Landing() {
                 highlight: false
               },
               {
-                icon: Scale,
-                title: "Municipal Court Dates",
-                description: "Track compliance deadlines and hearings before they resolve.",
-                highlight: false
-              },
-              {
                 icon: Clock,
                 title: "Updated Monthly",
                 description: "Fresh enforcement data every 30 days — not stale records from last quarter.",
@@ -886,7 +879,7 @@ export default function Landing() {
                     { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "3,800+ cities" },
                     { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
                     { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
-                    { type: "Municipal court dates", ps: false, snap: true, snapNote: "" },
+                    
                     { type: "Real-time escalation alerts", ps: false, snap: true, snapNote: "" },
                     { type: "Monthly data refresh", ps: false, snap: true, snapNote: "" },
                   ].map((row, i) => (

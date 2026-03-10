@@ -77,6 +77,26 @@ export function NotificationsSection() {
               disabled={updatePreferences.isPending}
             />
           </div>
+
+          {/* Escalation Alerts */}
+          <div className="flex items-start justify-between gap-4 p-4 bg-muted/30 rounded-lg">
+            <div className="space-y-1">
+              <Label htmlFor="escalation-alerts" className="font-medium">
+                Real-time Escalation Alerts
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Get notified when new violations are filed on properties you've saved
+              </p>
+            </div>
+            <Switch
+              id="escalation-alerts"
+              checked={preferences.escalation_alerts_enabled}
+              onCheckedChange={(enabled) =>
+                updatePreferences.mutate({ escalation_alerts_enabled: enabled })
+              }
+              disabled={updatePreferences.isPending}
+            />
+          </div>
         </div>
 
         {/* Schedule (only when enabled) */}

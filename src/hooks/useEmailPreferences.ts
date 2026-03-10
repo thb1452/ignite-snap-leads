@@ -10,6 +10,7 @@ export interface EmailPreferences {
   digest_day: number;
   digest_hour: number;
   timezone: string;
+  escalation_alerts_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -100,6 +101,7 @@ export function useEmailPreferences() {
     digest_day: preferences?.digest_day ?? 1,
     digest_hour: preferences?.digest_hour ?? 8,
     timezone: preferences?.timezone ?? 'America/New_York',
+    escalation_alerts_enabled: preferences?.escalation_alerts_enabled ?? true,
   };
 
   return {

@@ -94,7 +94,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-landing-bg text-landing-text overflow-x-hidden">
-      <SEOHead title="Snap Ignite | Enforcement Intelligence Platform" description="Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, escalating fines, and compliance deadlines — across 3,800+ cities nationwide, updated monthly." canonical="https://snapignite.com/" />
+      <SEOHead title="Snap Ignite | Enforcement Intelligence Platform" description="Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, and escalating fines — across 3,800+ cities nationwide, updated monthly." canonical="https://snapignite.com/" />
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-landing-surface/50 bg-landing-bg/80 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">

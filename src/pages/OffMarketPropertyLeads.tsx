@@ -8,7 +8,7 @@ export default function OffMarketPropertyLeads() {
 
   return (
     <div className="landing-theme min-h-screen bg-[hsl(var(--landing-bg))] text-[hsl(var(--landing-text))]">
-      <SEOHead title="Off-Market Property Leads from Enforcement Data | Snap Ignite" description="Find off-market property leads most investors miss. Snap Ignite surfaces properties under active enforcement pressure — code violations, compliance deadlines, and water shutoffs — before they hit any list." canonical="https://snapignite.com/off-market-property-leads" />
+      <SEOHead title="Off-Market Property Leads from Enforcement Data | Snap Ignite" description="Find off-market property leads most investors miss. Snap Ignite surfaces properties under active enforcement pressure — code violations, escalating fines, and water shutoffs — before they hit any list." canonical="https://snapignite.com/off-market-property-leads" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",

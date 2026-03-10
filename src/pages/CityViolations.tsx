@@ -113,7 +113,7 @@ export default function CityViolations() {
                 <ArrowLeft className="h-3 w-3" /> All Cities
               </Link>
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
-                Code Violations in{" "}
+                Code Violation Leads in{" "}
                 <span className="text-[hsl(var(--landing-accent))]">{jurisdiction.city}, {jurisdiction.state}</span>
               </h1>
               <p className="text-lg md:text-xl text-[hsl(var(--landing-text-muted))] max-w-2xl mx-auto mb-8">

@@ -150,6 +150,9 @@ export default function Privacy() {
           <p className="text-center text-sm text-muted-foreground">
             © {new Date().getFullYear()} Snap Intelligence LLC. All rights reserved.
           </p>
+          <p className="text-center text-xs text-muted-foreground mt-1">
+            Snap Intelligence LLC · 1621 Central Ave, Cheyenne, WY 82001
+          </p>
         </div>
       </div>
     </div>

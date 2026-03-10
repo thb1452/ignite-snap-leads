@@ -27,12 +27,23 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Vendor: split heavy libs into their own cached chunks
-          'vendor-map': ['leaflet', 'react-leaflet', 'leaflet.markercluster', 'react-leaflet-cluster'],
-          'vendor-charts': ['recharts'],
-          'vendor-xlsx': ['xlsx'],
-          'vendor-motion': ['framer-motion'],
+        manualChunks(id) {
+          // Keep React in a single shared chunk to prevent duplicate instances
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react/jsx-runtime')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet') || id.includes('node_modules/react-leaflet-cluster')) {
+            return 'vendor-map';
+          }
+          if (id.includes('node_modules/recharts')) {
+            return 'vendor-charts';
+          }
+          if (id.includes('node_modules/xlsx')) {
+            return 'vendor-xlsx';
+          }
+          if (id.includes('node_modules/framer-motion')) {
+            return 'vendor-motion';
+          }
         },
       },
     },

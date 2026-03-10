@@ -459,7 +459,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     setRawRows(cleanedRows);
     const cols = Object.keys(cleanedRows[0]);
     setColumns(cols);
-    setMapping(autoDetectMapping(cols));
+    setMapping(autoDetectMapping(cols, cleanedRows));
     setStep('map');
   }, [parseUploadedFile]);
 

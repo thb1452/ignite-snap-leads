@@ -381,6 +381,7 @@ export type Database = {
           created_at: string
           digest_day: number
           digest_hour: number
+          escalation_alerts_enabled: boolean
           id: string
           timezone: string
           updated_at: string
@@ -391,6 +392,7 @@ export type Database = {
           created_at?: string
           digest_day?: number
           digest_hour?: number
+          escalation_alerts_enabled?: boolean
           id?: string
           timezone?: string
           updated_at?: string
@@ -401,6 +403,7 @@ export type Database = {
           created_at?: string
           digest_day?: number
           digest_hour?: number
+          escalation_alerts_enabled?: boolean
           id?: string
           timezone?: string
           updated_at?: string
@@ -2065,6 +2068,54 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_alerts: {
+        Row: {
+          alert_type: string
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          property_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          alert_type?: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          property_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          property_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_alerts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_alerts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_allowed_states: {
         Row: {

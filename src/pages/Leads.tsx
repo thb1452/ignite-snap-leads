@@ -121,11 +121,15 @@ function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
 
+  // Track the deep-linked property ID separately so we can fetch it if not on current page
+  const [deepLinkedPropertyId, setDeepLinkedPropertyId] = useState<string | null>(null);
+
   // Auto-select property from URL param (e.g. from digest email)
   useEffect(() => {
     const propertyIdParam = searchParams.get("propertyId");
     if (propertyIdParam && !selectedPropertyId) {
       setSelectedPropertyId(propertyIdParam);
+      setDeepLinkedPropertyId(propertyIdParam);
       // Clean up URL param after consuming it
       searchParams.delete("propertyId");
       setSearchParams(searchParams, { replace: true });

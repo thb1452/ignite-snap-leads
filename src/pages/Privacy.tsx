@@ -135,6 +135,9 @@ export default function Privacy() {
                 snapignite.com
               </a>
             </p>
+            <p className="text-muted-foreground mt-2">
+              <strong>Address:</strong> 1621 Central Ave, Cheyenne, WY 82001
+            </p>
           </section>
         </div>
 
@@ -146,6 +149,9 @@ export default function Privacy() {
           </div>
           <p className="text-center text-sm text-muted-foreground">
             © {new Date().getFullYear()} Snap Intelligence LLC. All rights reserved.
+          </p>
+          <p className="text-center text-xs text-muted-foreground mt-1">
+            Snap Intelligence LLC · 1621 Central Ave, Cheyenne, WY 82001
           </p>
         </div>
       </div>

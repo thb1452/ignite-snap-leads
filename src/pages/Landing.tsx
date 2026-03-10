@@ -1203,9 +1203,14 @@ export default function Landing() {
           </div>
           
           <div className="pt-8 border-t border-landing-surface flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-landing-text-muted text-sm">
-              © 2026 Snap Ignite. All rights reserved.
-            </p>
+            <div>
+              <p className="text-landing-text-muted text-sm">
+                © 2026 Snap Ignite. All rights reserved.
+              </p>
+              <p className="text-landing-text-muted text-xs mt-1">
+                Snap Intelligence LLC · 1621 Central Ave, Cheyenne, WY 82001
+              </p>
+            </div>
             <div className="flex items-center gap-4">
               <Link to="/auth">
                 <Button variant="ghost" size="sm" className="text-landing-text-muted hover:text-landing-text">

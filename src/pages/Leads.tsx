@@ -133,10 +133,10 @@ function Leads() {
   useEffect(() => {
     const propertyIdParam = searchParams.get("propertyId");
     if (propertyIdParam && !selectedPropertyId) {
-      setSelectedPropertyId(propertyIdParam);
+      // setSelectedPropertyId(propertyIdParam);
       // Clean up URL param after consuming it
-      searchParams.delete("propertyId");
-      setSearchParams(searchParams, { replace: true });
+      // searchParams.delete("propertyId");
+      // setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams]);
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);

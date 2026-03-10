@@ -171,6 +171,9 @@ export default function Terms() {
                 hello@snapignite.com
               </a>
             </p>
+            <p className="text-muted-foreground mt-2">
+              <strong>Address:</strong> 1621 Central Ave, Cheyenne, WY 82001
+            </p>
           </section>
         </div>
 

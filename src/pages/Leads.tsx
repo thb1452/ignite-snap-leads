@@ -121,11 +121,15 @@ function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
 
+  // Track the deep-linked property ID separately so we can fetch it if not on current page
+  const [deepLinkedPropertyId, setDeepLinkedPropertyId] = useState<string | null>(null);
+
   // Auto-select property from URL param (e.g. from digest email)
   useEffect(() => {
     const propertyIdParam = searchParams.get("propertyId");
     if (propertyIdParam && !selectedPropertyId) {
       setSelectedPropertyId(propertyIdParam);
+      setDeepLinkedPropertyId(propertyIdParam);
       // Clean up URL param after consuming it
       searchParams.delete("propertyId");
       setSearchParams(searchParams, { replace: true });
@@ -514,11 +518,38 @@ function Leads() {
     return result;
   }, [properties, violationsData]);
 
+  // Fetch the deep-linked property if it's not in the current page results
+  const { data: deepLinkedProperty } = useQuery({
+    queryKey: ["deep-linked-property", deepLinkedPropertyId],
+    enabled: !!deepLinkedPropertyId && !mappedProperties.some(p => p.id === deepLinkedPropertyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("id", deepLinkedPropertyId!)
+        .single();
+      if (error) throw error;
+
+      // Also fetch violations for this property
+      const { data: violations } = await supabase
+        .from("violations")
+        .select("id, violation_type, status, opened_date, property_id, case_id, description")
+        .eq("property_id", deepLinkedPropertyId!)
+        .order("opened_date", { ascending: false });
+
+      return { ...data, violations: violations || [] };
+    },
+    staleTime: 60000,
+  });
+
   // Keep performance optimization with useMemo
-  const selectedProperty = useMemo(() =>
-    mappedProperties.find(p => p.id === selectedPropertyId) || null,
-    [mappedProperties, selectedPropertyId]
-  );
+  const selectedProperty = useMemo(() => {
+    const fromPage = mappedProperties.find(p => p.id === selectedPropertyId);
+    if (fromPage) return fromPage;
+    // Fallback to deep-linked property fetched separately
+    if (deepLinkedProperty && deepLinkedProperty.id === selectedPropertyId) return deepLinkedProperty;
+    return null;
+  }, [mappedProperties, selectedPropertyId, deepLinkedProperty]);
 
   // Determine if user should be gated (expired trial or cancelled subscription, no active paid plan)
   const isCancelled = subscriptionStatus === 'cancelled' || subscriptionStatus === 'expired';

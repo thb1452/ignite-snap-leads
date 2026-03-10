@@ -478,6 +478,42 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     multiple: false,
   });
 
+  async function insertTargetsWithFallback(batchToInsert: Record<string, unknown>[]) {
+    const { data: inserted, error } = await db.from('targets').insert(batchToInsert as any).select('id');
+
+    if (!error) {
+      return {
+        inserted: inserted || [],
+        importedCount: batchToInsert.length,
+        errorCount: 0,
+        firstError: '',
+      };
+    }
+
+    let importedCount = 0;
+    let errorCount = 0;
+    let firstError = error.message;
+    const insertedRows: Array<{ id: string }> = [];
+
+    for (const row of batchToInsert) {
+      const { data: singleInserted, error: singleError } = await db.from('targets').insert(row as any).select('id').single();
+      if (singleError) {
+        errorCount += 1;
+        firstError ||= singleError.message;
+      } else if (singleInserted) {
+        importedCount += 1;
+        insertedRows.push(singleInserted);
+      }
+    }
+
+    return {
+      inserted: insertedRows,
+      importedCount,
+      errorCount,
+      firstError,
+    };
+  }
+
   const handleImport = async () => {
     if (!mapping.jurisdiction_name || !mapping.state) {
       setImportError('Jurisdiction name and state columns are required');
@@ -491,6 +527,7 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
     let skipped = 0;
     let errors = 0;
     const duplicates: string[] = [];
+    let firstBatchError = '';
 
     const BATCH_SIZE = 100;
 
@@ -571,13 +608,12 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
 
       if (inserts.length >= BATCH_SIZE) {
         const batchToInsert = [...inserts];
-        const { data: inserted, error } = await db.from('targets').insert(batchToInsert as any).select('id');
-        if (error) {
-          errors += batchToInsert.length;
-        } else {
-          imported += batchToInsert.length;
-          // Seed foia_requests for this batch
-          await seedRequestsForBatch(inserted || [], requestSeedRows, batchToInsert.length, inserts.length - batchToInsert.length);
+        const batchResult = await insertTargetsWithFallback(batchToInsert);
+        if (batchResult.firstError && !firstBatchError) firstBatchError = batchResult.firstError;
+        errors += batchResult.errorCount;
+        imported += batchResult.importedCount;
+        if (batchResult.inserted.length > 0) {
+          await seedRequestsForBatch(batchResult.inserted, requestSeedRows, batchToInsert.length, inserts.length - batchToInsert.length);
         }
         inserts.length = 0;
         // Clear seed rows for flushed batch
@@ -588,13 +624,17 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
 
     // Flush remaining
     if (inserts.length > 0) {
-      const { data: inserted, error } = await db.from('targets').insert(inserts as any).select('id');
-      if (error) {
-        errors += inserts.length;
-      } else {
-        imported += inserts.length;
-        await seedRequestsForBatch(inserted || [], requestSeedRows, inserts.length, 0);
+      const batchResult = await insertTargetsWithFallback(inserts);
+      if (batchResult.firstError && !firstBatchError) firstBatchError = batchResult.firstError;
+      errors += batchResult.errorCount;
+      imported += batchResult.importedCount;
+      if (batchResult.inserted.length > 0) {
+        await seedRequestsForBatch(batchResult.inserted, requestSeedRows, inserts.length, 0);
       }
+    }
+
+    if (firstBatchError) {
+      setImportError(`Some rows could not be saved: ${firstBatchError}`);
     }
 
     setProgress(100);

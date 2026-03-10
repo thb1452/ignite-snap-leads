@@ -123,7 +123,9 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
       if (!autoMap.foia_url && (n.includes('url') || n.includes('link') || (n.includes('foia') && !n.includes('email')))) {
         autoMap.foia_url = col;
       }
-      // New fields
+      // "Contact Value" columns often contain a mix of URLs and emails —
+      // map to contact_email here; the row-level import logic will split
+      // URL-like values into foia_url automatically.
       if (!autoMap.contact_email && (n.includes('foiaemail') || n.includes('contactvalue') || n.includes('contactemail') || n === 'email')) {
         autoMap.contact_email = col;
       }
@@ -237,7 +239,24 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
         continue;
       }
 
-      const foiaUrl = mapping.foia_url ? String(row[mapping.foia_url] || '').trim() : '';
+      // Explicit foia_url column takes priority
+      let foiaUrl = mapping.foia_url ? String(row[mapping.foia_url] || '').trim() : '';
+
+      // contact_email column — may contain URLs or emails (e.g. "Contact Value")
+      let contactEmail: string | null = null;
+      if (mapping.contact_email) {
+        const rawContact = String(row[mapping.contact_email] || '').trim();
+        if (rawContact) {
+          const looksLikeUrl = /^https?:\/\//i.test(rawContact);
+          if (looksLikeUrl) {
+            // If no explicit foia_url column was mapped, use this as the URL
+            if (!foiaUrl) foiaUrl = rawContact;
+          } else {
+            contactEmail = rawContact;
+          }
+        }
+      }
+
       let urlHash: string | null = null;
 
       if (foiaUrl) {
@@ -260,7 +279,6 @@ export function ImportWizard({ onComplete }: ImportWizardProps) {
         targetType = 'county_foia';
       }
 
-      const contactEmail = mapping.contact_email ? String(row[mapping.contact_email] || '').trim() || null : null;
       const submissionMethod = mapping.submission_method ? String(row[mapping.submission_method] || '').trim() || null : null;
       const notes = mapping.notes ? String(row[mapping.notes] || '').trim() || null : null;
 

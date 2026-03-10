@@ -10,7 +10,7 @@ interface SortByDropdownProps {
 }
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'recently_updated', label: 'Recent Violations' },
+  { value: 'recently_updated', label: 'Recently Updated' },
   { value: 'newest_violation', label: 'Newest Violations' },
 ];
 

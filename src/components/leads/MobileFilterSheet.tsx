@@ -209,7 +209,7 @@ export function MobileFilterSheet({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="newest_violation">Newest Violations</SelectItem>
-                <SelectItem value="recently_updated">Recent Violations</SelectItem>
+                <SelectItem value="recently_updated">Recently Updated</SelectItem>
               </SelectContent>
             </Select>
           </div>

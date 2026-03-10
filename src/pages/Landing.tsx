@@ -28,7 +28,6 @@ import {
   Zap,
   Menu,
   Droplets,
-  Scale,
   Bell
 } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";

@@ -482,7 +482,7 @@ export default function Landing() {
               transition={{ delay: 0.1 }}
               className="text-xl text-landing-text-muted"
             >
-              Snap Ignite tracks municipal pressure signals most platforms completely miss—code violations, escalating fines, water shutoffs, and compliance deadlines. We don't just show you violations. We show you pressure patterns.
+              Snap Ignite tracks municipal pressure signals most platforms completely miss—code violations, escalating fines, and water shutoffs. We don't just show you violations. We show you pressure patterns.
             </motion.p>
           </div>
           

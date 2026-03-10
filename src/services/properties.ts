@@ -211,8 +211,8 @@ async function fetchPropertiesPagedLegacy(
   if (filters.sortBy === 'newest_violation') {
     q = q.order("newest_violation_date", { ascending: false, nullsFirst: false });
   } else {
-    // Default: recently_updated
-    q = q.order("updated_at", { ascending: false, nullsFirst: false });
+    // Default: recent violations (by newest violation date)
+    q = q.order("newest_violation_date", { ascending: false, nullsFirst: false });
   }
 
   // Paginate

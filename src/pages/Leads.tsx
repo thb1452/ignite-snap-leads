@@ -132,17 +132,13 @@ function Leads() {
   // Auto-select property from URL param (e.g. from digest email)
   useEffect(() => {
     const propertyIdParam = searchParams.get("propertyId");
-
-    if (!propertyIdParam) return;
-    if (isLoading) return; // wait for data
-    if (selectedPropertyId) return;
-
-    setSelectedPropertyId(propertyIdParam);
-
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete("propertyId");
-    setSearchParams(newParams, { replace: true });
-  }, [searchParams, isLoading, selectedPropertyId]);
+    if (propertyIdParam && !selectedPropertyId) {
+      setSelectedPropertyId(propertyIdParam);
+      // Clean up URL param after consuming it
+      searchParams.delete("propertyId");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams]);
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);

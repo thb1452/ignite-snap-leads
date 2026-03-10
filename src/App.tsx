@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from '@/lib/query';
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
@@ -86,9 +86,9 @@ function PageLoader() {
 
 // Redirect /leads to /properties while preserving query params
 function LeadsRedirect() {
-  const [searchParams] = useSearchParams();
-  const queryString = searchParams.toString();
-  return <Navigate to={`/properties${queryString ? `?${queryString}` : ''}`} replace />;
+  const location = useLocation();
+  const queryString = location.search;
+  return <Navigate to={`/properties${queryString}`} replace />;
 }
 
 function PageTracker() {

@@ -1,3 +1,10 @@
+# Proxy the dynamic sitemap through the main domain
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/dynamic-sitemap"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

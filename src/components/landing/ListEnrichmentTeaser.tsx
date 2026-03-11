@@ -48,7 +48,7 @@ export function ListEnrichmentTeaser() {
           </p>
 
           <p className="text-sm font-semibold text-landing-accent mb-6">
-            Your skip trace list just became a priority call list.
+            Your list. Our enforcement intelligence. Your edge.
           </p>
 
           {status === "success" ? (

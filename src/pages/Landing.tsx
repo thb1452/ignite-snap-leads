@@ -877,13 +877,9 @@ export default function Landing() {
                 </thead>
                 <tbody className="divide-y divide-landing-surface/50">
                   {[
-                    { type: "Property records (160M+)", ps: true, snap: "partial", snapNote: "Use your existing platform" },
-                    { type: "Ownership & equity data", ps: true, snap: "ref", snapNote: "Use your existing platform" },
-                    { type: "Comparable sales", ps: true, snap: "ref", snapNote: "Use your existing platform" },
                     { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "3,800+ cities" },
                     { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
                     { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
-                    
                     { type: "Real-time escalation alerts", ps: false, snap: true, snapNote: "" },
                     { type: "Monthly data refresh", ps: false, snap: true, snapNote: "" },
                   ].map((row, i) => (
@@ -904,8 +900,6 @@ export default function Landing() {
                             <Check className="w-5 h-5 text-landing-accent" />
                             {row.snapNote && <span className="text-xs text-landing-text-muted">{row.snapNote}</span>}
                           </div>
-                        ) : row.snap === "partial" || row.snap === "ref" ? (
-                          <span className="text-xs text-landing-text-muted">{row.snapNote}</span>
                         ) : (
                           <X className="w-5 h-5 text-red-400/50 mx-auto" />
                         )}
@@ -915,15 +909,6 @@ export default function Landing() {
                 </tbody>
               </table>
             </motion.div>
-
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center text-landing-text-muted mt-8 text-lg italic"
-            >
-              Use them together. Your existing platform shows you the market. Snap shows you where enforcement pressure is building.
-            </motion.p>
           </div>
         </div>
       </section>

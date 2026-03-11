@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
 
 import { TopPressureProperties } from "@/components/live-feed/TopPressureProperties";
+import { ListEnrichmentTeaser } from "@/components/landing/ListEnrichmentTeaser";
 
 import { 
   Target, 

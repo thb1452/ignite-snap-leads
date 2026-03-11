@@ -44,7 +44,7 @@ export function ListEnrichmentTeaser() {
           </h3>
 
           <p className="text-sm md:text-base text-landing-text-muted leading-relaxed mb-2">
-            Upload your existing wholesale list. We'll tell you which properties have active code violations, escalating fines, and enforcement pressure — instantly.
+            Upload any property list. We'll identify which addresses are currently under active municipal enforcement pressure — violations, escalating fines, and city action — and enrich each one with a SnapScore AI insight instantly.
           </p>
 
           <p className="text-sm font-semibold text-landing-accent mb-6">

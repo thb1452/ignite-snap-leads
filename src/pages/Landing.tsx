@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
 
 import { TopPressureProperties } from "@/components/live-feed/TopPressureProperties";
+import { ListEnrichmentTeaser } from "@/components/landing/ListEnrichmentTeaser";
 
 import { 
   Target, 
@@ -321,6 +322,9 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* List Enrichment Coming Soon Teaser */}
+      <ListEnrichmentTeaser />
 
       {/* Problem Agitation Section */}
       <section className="py-24 bg-landing-surface/30">

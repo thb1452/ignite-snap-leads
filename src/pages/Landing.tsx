@@ -877,7 +877,7 @@ export default function Landing() {
                 </thead>
                 <tbody className="divide-y divide-landing-surface/50">
                   {[
-                    { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "3,800+ cities" },
+                    { type: "Code violations (systematic)", ps: false, snap: true, snapNote: "3,800+ cities" },
                     { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
                     { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
                     { type: "Real-time escalation alerts", ps: false, snap: true, snapNote: "" },
@@ -886,10 +886,8 @@ export default function Landing() {
                     <tr key={i} className="bg-landing-bg/30">
                       <td className="py-3 px-6">{row.type}</td>
                       <td className="py-3 px-4 text-center">
-                        {row.ps === true ? (
+                        {row.ps ? (
                           <Check className="w-5 h-5 text-green-400 mx-auto" />
-                        ) : row.ps === "limited" ? (
-                          <span className="text-yellow-400 text-xs">Limited</span>
                         ) : (
                           <X className="w-5 h-5 text-red-400/50 mx-auto" />
                         )}

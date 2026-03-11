@@ -877,7 +877,7 @@ export default function Landing() {
                 </thead>
                 <tbody className="divide-y divide-landing-surface/50">
                   {[
-                    { type: "Code violations (systematic)", ps: "limited", snap: true, snapNote: "3,800+ cities" },
+                    { type: "Code violations (systematic)", ps: false, snap: true, snapNote: "3,800+ cities" },
                     { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
                     { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
                     { type: "Real-time escalation alerts", ps: false, snap: true, snapNote: "" },

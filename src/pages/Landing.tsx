@@ -323,6 +323,9 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* List Enrichment Coming Soon Teaser */}
+      <ListEnrichmentTeaser />
+
       {/* Problem Agitation Section */}
       <section className="py-24 bg-landing-surface/30">
         <div className="container mx-auto px-4">

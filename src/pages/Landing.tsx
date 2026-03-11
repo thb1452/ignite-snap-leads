@@ -886,10 +886,8 @@ export default function Landing() {
                     <tr key={i} className="bg-landing-bg/30">
                       <td className="py-3 px-6">{row.type}</td>
                       <td className="py-3 px-4 text-center">
-                        {row.ps === true ? (
+                        {row.ps ? (
                           <Check className="w-5 h-5 text-green-400 mx-auto" />
-                        ) : row.ps === "limited" ? (
-                          <span className="text-yellow-400 text-xs">Limited</span>
                         ) : (
                           <X className="w-5 h-5 text-red-400/50 mx-auto" />
                         )}

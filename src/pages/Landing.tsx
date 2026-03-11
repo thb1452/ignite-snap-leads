@@ -248,7 +248,7 @@ export default function Landing() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="border-l-2 border-landing-accent/40 pl-5 text-landing-text-muted text-base md:text-lg max-w-2xl"
             >
-              Snap Ignite is a municipal enforcement intelligence platform. Not a leads tool. Not a list service. An intelligence layer that shows you where enforcement pressure is building — before it resolves or hits the market.
+              Snap Ignite is an enforcement intelligence platform that reveals where municipal pressure is building — before it becomes public knowledge. More than a lead list. More than a data feed. The earliest signal in the market.
             </motion.blockquote>
             
             {/* CTA */}

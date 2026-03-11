@@ -905,8 +905,12 @@ export default function Landing() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                </tbody>
+              </table>
+            </motion.div>
           </div>
+        </div>
+      </section>
         </div>
       </section>
 

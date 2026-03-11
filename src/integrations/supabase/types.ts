@@ -910,6 +910,24 @@ export type Database = {
         }
         Relationships: []
       }
+      list_enrichment_waitlist: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       list_properties: {
         Row: {
           added_at: string | null

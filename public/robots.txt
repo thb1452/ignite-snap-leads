@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/dynamic-sitemap
+Sitemap: https://snapignite.com/sitemap.xml

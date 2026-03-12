@@ -47,7 +47,8 @@ serve(async (req) => {
     ]);
 
     const fullName = profileRes.data?.full_name || user.user_metadata?.full_name || "Unknown";
-    const email = profileRes.data?.email || user.email || "Unknown";
+    const email = profileRes.data?.email || user.email;
+    if (!email) throw new Error("Could not determine user email for reply-to");
 
     let planName = "Free";
     if (Array.isArray(subRes.data) && subRes.data.length > 0) {

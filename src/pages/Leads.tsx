@@ -237,14 +237,19 @@ function Leads() {
   const properties = data?.data ?? [];
   const totalCount = data?.total ?? 0;
 
-  // Scroll property list to top when page changes and new data loads
+  // Scroll property list to top when page changes
+  // Uses a short delay so the new data renders before scrolling
   useEffect(() => {
-    if (isLoading) return;
-    const scrollContainer =
-      desktopListRef.current?.querySelector(".overflow-y-auto") ??
-      mobileListRef.current?.querySelector(".overflow-y-auto");
-    scrollContainer?.scrollTo({ top: 0, behavior: "smooth" });
-  }, [page, isLoading]);
+    const timer = setTimeout(() => {
+      const scrollContainer =
+        desktopListRef.current?.querySelector("[class*='overflow-y']") ??
+        mobileListRef.current?.querySelector("[class*='overflow-y']");
+      if (scrollContainer) {
+        scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [page]);
   const dataTier = data?.dataTier ?? null;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 

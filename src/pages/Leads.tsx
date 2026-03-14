@@ -241,11 +241,17 @@ function Leads() {
   // Uses a short delay so the new data renders before scrolling
   useEffect(() => {
     const timer = setTimeout(() => {
+      // Scroll internal overflow containers (desktop virtualized list)
       const scrollContainer =
         desktopListRef.current?.querySelector("[class*='overflow-y']") ??
         mobileListRef.current?.querySelector("[class*='overflow-y']");
       if (scrollContainer) {
         scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      // Also scroll the page itself (mobile / non-virtualized views)
+      const target = desktopListRef.current ?? mobileListRef.current;
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }, 50);
     return () => clearTimeout(timer);

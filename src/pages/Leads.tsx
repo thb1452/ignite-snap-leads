@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -77,6 +77,10 @@ function Leads() {
   } = useTrialStatus();
   const { showExportNotification } = useTrialExportNotifications();
   const { savedSet, toggleSaved, isSaved } = useSavedProperties();
+
+  // Refs for scrolling list containers to top on page change
+  const desktopListRef = useRef<HTMLDivElement>(null);
+  const mobileListRef = useRef<HTMLDivElement>(null);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -232,6 +236,15 @@ function Leads() {
 
   const properties = data?.data ?? [];
   const totalCount = data?.total ?? 0;
+
+  // Scroll property list to top when page changes and new data loads
+  useEffect(() => {
+    if (isLoading) return;
+    const scrollContainer =
+      desktopListRef.current?.querySelector(".overflow-y-auto") ??
+      mobileListRef.current?.querySelector(".overflow-y-auto");
+    scrollContainer?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [page, isLoading]);
   const dataTier = data?.dataTier ?? null;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
@@ -832,7 +845,7 @@ function Leads() {
               </div>
             )}
 
-            <div className="flex-1 overflow-hidden">
+            <div ref={desktopListRef} className="flex-1 overflow-hidden">
               {isLoading ? (
                 <div className="p-8 text-center text-muted-foreground">Loading properties...</div>
               ) : properties.length === 0 ? (
@@ -905,7 +918,7 @@ function Leads() {
             </div>
           ) : (
             /* List View */
-            <div className="flex-1 flex flex-col min-h-0">
+            <div ref={mobileListRef} className="flex-1 flex flex-col min-h-0">
               {isLoading ? (
                 <div className="p-8 text-center text-muted-foreground">Loading properties...</div>
               ) : properties.length === 0 ? (

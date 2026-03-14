@@ -145,7 +145,7 @@ const App = () => (
                 path="/enrich"
                 element={
                   <RoleProtectedRoute allowedRoles={["admin", "user"]}>
-                    <ListEnrichment />
+                    <EnrichGate />
                   </RoleProtectedRoute>
                 }
               />

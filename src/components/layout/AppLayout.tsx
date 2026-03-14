@@ -139,8 +139,24 @@ export function AppLayout({ children }: AppLayoutProps) {
         location.pathname === item.path ||
         (item.path !== "/properties" && location.pathname.startsWith(item.path + "/"));
       const Icon = item.icon;
+      const disabled = !!item.comingSoon;
 
-      const linkContent = (
+      const linkContent = disabled ? (
+        <div
+          key={item.path}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium opacity-50 cursor-not-allowed text-slate-400 ${!showLabels ? "justify-center" : ""}`}
+        >
+          <Icon className="h-[18px] w-[18px] shrink-0" />
+          {showLabels && (
+            <>
+              <span className="truncate">{item.name}</span>
+              <span className="ml-auto rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-400 leading-none whitespace-nowrap">
+                Soon
+              </span>
+            </>
+          )}
+        </div>
+      ) : (
         <Link
           key={item.path}
           to={item.path}
@@ -161,7 +177,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <Tooltip key={item.path} delayDuration={0}>
             <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
             <TooltipContent side="right" className="font-medium">
-              {item.name}
+              {item.name}{disabled ? " (Coming Soon)" : ""}
             </TooltipContent>
           </Tooltip>
         );

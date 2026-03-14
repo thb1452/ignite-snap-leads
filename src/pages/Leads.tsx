@@ -913,7 +913,7 @@ function Leads() {
               ) : (
                 <div
                   className="flex-1 flex flex-col overflow-hidden"
-                  style={{ paddingBottom: "var(--bottom-nav-height)" }}
+                  style={{ paddingBottom: 0 }}
                 >
                   {/* Select All Header + Export */}
                   <div className="flex items-center justify-between px-4 py-2.5 bg-background border-b">

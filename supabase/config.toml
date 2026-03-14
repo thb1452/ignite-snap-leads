@@ -18,6 +18,9 @@ verify_jwt = false
 [functions.export-csv]
 verify_jwt = true
 
+[functions.enrich-list]
+verify_jwt = true
+
 [functions.job-monitor]
 verify_jwt = true
 

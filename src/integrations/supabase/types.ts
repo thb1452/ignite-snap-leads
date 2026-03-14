@@ -910,6 +910,51 @@ export type Database = {
         }
         Relationships: []
       }
+      enrichment_jobs: {
+        Row: {
+          id: string
+          user_id: string
+          file_name: string
+          status: string
+          total_rows: number
+          processed_rows: number
+          matched_rows: number
+          addresses_charged: number
+          error_message: string | null
+          created_at: string
+          completed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          file_name: string
+          status?: string
+          total_rows?: number
+          processed_rows?: number
+          matched_rows?: number
+          addresses_charged?: number
+          error_message?: string | null
+          created_at?: string
+          completed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          file_name?: string
+          status?: string
+          total_rows?: number
+          processed_rows?: number
+          matched_rows?: number
+          addresses_charged?: number
+          error_message?: string | null
+          created_at?: string
+          completed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       list_enrichment_waitlist: {
         Row: {
           created_at: string
@@ -1650,6 +1695,7 @@ export type Database = {
           id: string
           is_active: boolean
           max_counties: number
+          max_enrichment_addresses: number
           max_monthly_exports: number
           max_skip_traces_per_month: number
           max_states: number | null
@@ -1675,6 +1721,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           max_counties?: number
+          max_enrichment_addresses?: number
           max_monthly_exports?: number
           max_skip_traces_per_month?: number
           max_states?: number | null
@@ -1700,6 +1747,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           max_counties?: number
+          max_enrichment_addresses?: number
           max_monthly_exports?: number
           max_skip_traces_per_month?: number
           max_states?: number | null
@@ -1716,6 +1764,7 @@ export type Database = {
         Row: {
           api_calls_count: number
           created_at: string
+          enrichment_addresses_count: number
           exports_count: number
           id: string
           period_end: string
@@ -1727,6 +1776,7 @@ export type Database = {
         Insert: {
           api_calls_count?: number
           created_at?: string
+          enrichment_addresses_count?: number
           exports_count?: number
           id?: string
           period_end: string
@@ -1738,6 +1788,7 @@ export type Database = {
         Update: {
           api_calls_count?: number
           created_at?: string
+          enrichment_addresses_count?: number
           exports_count?: number
           id?: string
           period_end?: string
@@ -2256,6 +2307,8 @@ export type Database = {
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           trial_ends_at: string | null
+          trial_enrichment_limit: number
+          trial_enrichment_used: number
           trial_exports_limit: number | null
           trial_exports_used: number | null
           trial_started_at: string | null
@@ -2275,6 +2328,8 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           trial_ends_at?: string | null
+          trial_enrichment_limit?: number
+          trial_enrichment_used?: number
           trial_exports_limit?: number | null
           trial_exports_used?: number | null
           trial_started_at?: string | null
@@ -2294,6 +2349,8 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           trial_ends_at?: string | null
+          trial_enrichment_limit?: number
+          trial_enrichment_used?: number
           trial_exports_limit?: number | null
           trial_exports_used?: number | null
           trial_started_at?: string | null
@@ -2769,6 +2826,18 @@ export type Database = {
             }
             Returns: string
           }
+      fn_check_enrichment_limit: {
+        Args: { p_user_id: string; p_address_count: number }
+        Returns: Json
+      }
+      fn_consume_enrichment_usage: {
+        Args: { p_user_id: string; p_address_count: number }
+        Returns: Json
+      }
+      fn_get_enrichment_usage: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       backfill_insights_batch: {
         Args: { batch_size?: number }
         Returns: {

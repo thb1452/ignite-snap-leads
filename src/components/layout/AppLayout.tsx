@@ -41,7 +41,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   // Main navigation items - role-based but Properties/Lists visible to all users
   const mainNavItems: { name: string; path: string }[] = [
     { name: "Properties", path: "/properties" },
-    { name: "Lists", path: "/lists" }
+    { name: "Lists", path: "/lists" },
+    { name: "Enrich", path: "/enrich" }
   ];
   
   // Upload/Jobs for admin + VA only

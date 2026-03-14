@@ -42,6 +42,7 @@ const RealEstateDistressSignals = lazy(() => import("./pages/RealEstateDistressS
 const HowInvestorsFindDistressedProperties = lazy(() => import("./pages/HowInvestorsFindDistressedProperties"));
 const CityViolationsIndex = lazy(() => import("./pages/CityViolationsIndex"));
 const CityViolations = lazy(() => import("./pages/CityViolations"));
+const ListEnrichment = lazy(() => import("./pages/ListEnrichment").then((m) => ({ default: m.ListEnrichment })));
 const NotFound = lazy(() => import("./pages/NotFound"));
 // LiveFeed removed – components now embedded in Landing
 
@@ -137,6 +138,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute allowedRoles={["admin", "user"]}>
                     <ListDetail />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/enrich"
+                element={
+                  <RoleProtectedRoute allowedRoles={["admin", "user"]}>
+                    <ListEnrichment />
                   </RoleProtectedRoute>
                 }
               />

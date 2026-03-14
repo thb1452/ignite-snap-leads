@@ -166,14 +166,14 @@ export function ListEnrichment() {
   const [usage, setUsage] = useState<EnrichmentUsage | null>(null);
   const [usageLoading, setUsageLoading] = useState(true);
 
-  // Fetch enrichment usage
+  // Fetch enrichment usage on mount
   useEffect(() => {
     if (!user?.id) return;
     setUsageLoading(true);
     getEnrichmentUsage(user.id)
       .then(setUsage)
       .finally(() => setUsageLoading(false));
-  }, [user?.id, result]);
+  }, [user?.id]);
 
   // Count total rows when file is loaded
   const countRows = useCallback(async (f: File) => {
@@ -273,6 +273,11 @@ export function ListEnrichment() {
       setProgressPercent(100);
       setResult(enrichResult);
       setStage("complete");
+
+      // Refresh usage after successful enrichment
+      if (user?.id) {
+        getEnrichmentUsage(user.id).then(setUsage);
+      }
     } catch (err: any) {
       clearInterval(progressInterval);
       setProgressPercent(0);

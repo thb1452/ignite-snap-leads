@@ -313,11 +313,13 @@ export function ListEnrichment() {
   const creditsDisplay = useMemo(() => {
     if (usageLoading || !usage) return null;
     if (usage.no_subscription) return null;
+    // If limit is null, usage fetch failed or data is unavailable — don't show stale zeros
+    if (usage.limit === null && usage.remaining === null && !usage.unlimited) return null;
     if (usage.unlimited) return "Unlimited credits";
     if (usage.is_trial) {
-      return `${usage.remaining?.toLocaleString()} of ${usage.limit?.toLocaleString()} lifetime credits remaining`;
+      return `${(usage.remaining ?? 0).toLocaleString()} of ${(usage.limit ?? 0).toLocaleString()} lifetime credits remaining`;
     }
-    return `${usage.remaining?.toLocaleString()} of ${usage.limit?.toLocaleString()} credits remaining this month`;
+    return `${(usage.remaining ?? 0).toLocaleString()} of ${(usage.limit ?? 0).toLocaleString()} credits remaining this month`;
   }, [usage, usageLoading]);
 
   return (

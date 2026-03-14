@@ -349,7 +349,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* Main Content — offset by sidebar width on desktop */}
       <main
-        className={`w-full pb-0 transition-[margin-left] duration-200 ease-in-out ${
+        className={`pb-0 transition-[margin-left] duration-200 ease-in-out ${
           collapsed ? "md:ml-[60px]" : "md:ml-[220px]"
         }`}
       >

@@ -237,25 +237,25 @@ function Leads() {
   const properties = data?.data ?? [];
   const totalCount = data?.total ?? 0;
 
-  // Scroll property list to top when page changes
-  // Uses a short delay so the new data renders before scrolling
+  // Scroll to top when page changes and new data arrives
+  const prevPageRef = useRef(page);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // Scroll internal overflow containers (desktop virtualized list)
-      const scrollContainer =
-        desktopListRef.current?.querySelector("[class*='overflow-y']") ??
-        mobileListRef.current?.querySelector("[class*='overflow-y']");
-      if (scrollContainer) {
-        scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
-      }
-      // Also scroll the page itself (mobile / non-virtualized views)
-      const target = desktopListRef.current ?? mobileListRef.current;
-      if (target) {
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [page]);
+    if (prevPageRef.current !== page) {
+      prevPageRef.current = page;
+      // Wait for new data to render, then scroll
+      requestAnimationFrame(() => {
+        // Scroll internal overflow containers (desktop virtualized list)
+        const scrollContainer =
+          desktopListRef.current?.querySelector("[class*='overflow-y']") ??
+          mobileListRef.current?.querySelector("[class*='overflow-y']");
+        if (scrollContainer) {
+          scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        // Scroll the window itself (mobile views)
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
+  }, [page, data]);
   const dataTier = data?.dataTier ?? null;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 

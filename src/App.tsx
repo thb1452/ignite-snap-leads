@@ -43,6 +43,7 @@ const HowInvestorsFindDistressedProperties = lazy(() => import("./pages/HowInves
 const CityViolationsIndex = lazy(() => import("./pages/CityViolationsIndex"));
 const CityViolations = lazy(() => import("./pages/CityViolations"));
 const ListEnrichment = lazy(() => import("./pages/ListEnrichment").then((m) => ({ default: m.ListEnrichment })));
+const EnrichGate = lazy(() => import("./components/EnrichGate"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 // LiveFeed removed – components now embedded in Landing
 
@@ -145,7 +146,7 @@ const App = () => (
                 path="/enrich"
                 element={
                   <RoleProtectedRoute allowedRoles={["admin", "user"]}>
-                    <ListEnrichment />
+                    <EnrichGate />
                   </RoleProtectedRoute>
                 }
               />

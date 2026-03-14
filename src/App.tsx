@@ -44,12 +44,6 @@ const CityViolationsIndex = lazy(() => import("./pages/CityViolationsIndex"));
 const CityViolations = lazy(() => import("./pages/CityViolations"));
 const ListEnrichment = lazy(() => import("./pages/ListEnrichment").then((m) => ({ default: m.ListEnrichment })));
 const NotFound = lazy(() => import("./pages/NotFound"));
-
-// Gate component: redirects non-admin users away from /enrich
-function EnrichGate() {
-  const { useUserRole: _useUserRole } = require("@/hooks/useUserRole");
-  return null;
-}
 // LiveFeed removed – components now embedded in Landing
 
 // VA pages

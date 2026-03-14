@@ -47,6 +47,7 @@ interface NavItem {
   name: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
+  comingSoon?: boolean;
 }
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar:collapsed";

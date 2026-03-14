@@ -18,7 +18,7 @@ export interface EnrichmentUsage {
 }
 
 export async function getEnrichmentUsage(userId: string): Promise<EnrichmentUsage> {
-  const { data, error } = await supabase.rpc("fn_get_enrichment_usage", {
+  const { data, error } = await (supabase.rpc as any)("fn_get_enrichment_usage", {
     p_user_id: userId,
   });
 

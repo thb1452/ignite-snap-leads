@@ -405,3 +405,10 @@ BEGIN
   END IF;
 END;
 $function$;
+
+-- =====================================================
+-- 8. Grant execute permissions to authenticated users
+-- =====================================================
+GRANT EXECUTE ON FUNCTION public.fn_check_enrichment_limit(uuid, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fn_consume_enrichment_usage(uuid, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fn_get_enrichment_usage(uuid) TO authenticated;

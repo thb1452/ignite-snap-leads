@@ -24,7 +24,8 @@ export async function getEnrichmentUsage(userId: string): Promise<EnrichmentUsag
 
   if (error) {
     console.error("Error fetching enrichment usage:", error);
-    return { used: 0, limit: 0, remaining: 0, is_trial: false };
+    // Return null-ish values so the UI can distinguish "error" from "0 credits"
+    return { used: 0, limit: null, remaining: null, is_trial: false };
   }
 
   return data as unknown as EnrichmentUsage;

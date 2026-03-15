@@ -53,6 +53,16 @@ const TIER_CONFIG: Record<string, {
       "Water shutoff data",
     ],
   },
+  elite: {
+    display: "Elite",
+    price: 299,
+    icon: Building2,
+    features: [
+      "25,000 exports/month",
+      "All Pro features",
+      "Water shutoff data",
+    ],
+  },
 };
 
 /** Create a Stripe Checkout session with a 7-day trial using supabase.functions.invoke */

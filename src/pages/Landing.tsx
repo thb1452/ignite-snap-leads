@@ -847,21 +847,21 @@ export default function Landing() {
                 initials: "JM",
                 name: "Jake M.",
                 role: "Wholesaler, Phoenix AZ",
-                quote: "The SnapScore ranking changed how I prioritize my week. I'm not guessing which properties have real pressure anymore — I can see the enforcement intensity before I make a single call. I work a smaller list now and get better results because every property I'm looking at has an active enforcement case behind it.",
+                quote: "The SnapScore ranking changed how I prioritize my week. I work a smaller list now and get better results because every property has an active enforcement case behind it.",
                 result: "3 contracts in 6 weeks"
               },
               {
                 initials: "SR",
                 name: "Sarah R.",
                 role: "Acquisition Manager, Southeast Portfolio",
-                quote: "The data freshness is what sold me. We're seeing enforcement escalation patterns 4-6 weeks before they show up anywhere else. That timing window is where we find our edge — by the time a property appears in traditional databases, the pressure has usually already resolved.",
+                quote: "We're seeing enforcement escalation patterns 4-6 weeks before they show up anywhere else. That timing window is where we find our edge.",
                 result: "40% improvement in contact-to-contract rate"
               },
               {
                 initials: "MT",
                 name: "Marcus T.",
                 role: "Fix & Flip Operator, Dallas-Fort Worth",
-                quote: "I was skeptical because I've tried a lot of data tools. What's different here is the enforcement focus — it's not just violation counts, it's pressure patterns. Water shutoff data alone flagged properties in my market that had zero visibility anywhere else. That's a real intelligence advantage.",
+                quote: "Water shutoff data alone flagged properties in my market that had zero visibility anywhere else. That's a real intelligence advantage.",
                 result: "First deal paid for 2 years of subscription"
               }
             ].map((testimonial, i) => (

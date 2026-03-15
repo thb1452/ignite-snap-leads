@@ -440,7 +440,7 @@ export default function Landing() {
               viewport={{ once: true }}
               className="text-3xl md:text-4xl font-bold mb-4"
             >
-              Enforcement Intelligence That Surfaces Opportunity <span className="text-landing-accent">First</span>
+              Stop Chasing Stale Data. Start Acting on Live Signals.
             </motion.h2>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -449,7 +449,7 @@ export default function Landing() {
               transition={{ delay: 0.1 }}
               className="text-xl text-landing-text-muted"
             >
-              Snap Ignite tracks municipal pressure signals most platforms completely miss—code violations, escalating fines, and water shutoffs. We don't just show you violations. We show you pressure patterns.
+              We track the enforcement signals other platforms don't have access to.
             </motion.p>
           </div>
           

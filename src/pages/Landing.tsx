@@ -1075,6 +1075,10 @@ export default function Landing() {
                 {
                   question: "Is there a free trial?",
                   answer: "Yes! Start a 3-day free trial — $0 due today. Enter your payment method at checkout and get 500 property exports to test data quality in your markets. Search unlimited properties, save favorites, and access all features for your selected tier. After 3 days your subscription begins automatically, or cancel anytime before then."
+                },
+                {
+                  question: "What is Scan?",
+                  answer: "Scan lets you bring your own property list and run it through our enforcement database. Instead of searching one address at a time, upload a CSV and we'll flag every property with active violations, escalating fines, or city action — plus a SnapScore for each one."
                 }
               ].map((faq, i) => (
                 <motion.div

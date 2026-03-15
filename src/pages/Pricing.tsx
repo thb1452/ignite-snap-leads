@@ -46,8 +46,8 @@ const PRICING_TIERS: PricingTier[] = [
     
     description: 'For investors who want premium enforcement targeting',
     features: [
-      '5,000 monthly exports',
-      '10,000 address lookups/month',
+      '5,000 property exports/month',
+      'Upload your own addresses — see which have active violations (10,000 addresses checked/month)',
       '3,800+ cities nationwide',
       'Code violation data',
       'Monthly data refresh',
@@ -65,8 +65,8 @@ const PRICING_TIERS: PricingTier[] = [
 
     description: 'For serious operators stacking enforcement data',
     features: [
-      '15,000 monthly exports',
-      '50,000 address lookups/month',
+      '15,000 property exports/month',
+      'Upload your own addresses — see which have active violations (50,000 addresses checked/month)',
       '3,800+ cities nationwide',
       'Code violation data',
       'Everything in Starter',
@@ -84,8 +84,8 @@ const PRICING_TIERS: PricingTier[] = [
 
     description: 'For teams running enforcement-first strategies.',
     features: [
-      '25,000 monthly enforcement reports',
-      'Unlimited address lookups',
+      '25,000 property exports/month',
+      'Upload your own addresses — see which have active violations (Unlimited addresses checked/month)',
       'All Pro features',
       'Water shutoff data',
     ],
@@ -550,7 +550,7 @@ export default function Pricing() {
                 <CardContent>
                   <p className="text-muted-foreground">
                     Start a 3-day trial — $0 due today. Enter your payment method at checkout and get 500 property
-                    exports and 500 address lookups to test data quality. Search unlimited properties, save favorites, and access tier-specific
+                    exports to test data quality. Search unlimited properties, save favorites, and access tier-specific
                     features. Your subscription begins automatically after 3 days, or cancel anytime before then.
                   </p>
                 </CardContent>
@@ -576,13 +576,12 @@ export default function Pricing() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-lg">What are address lookups (List Enrichment)?</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-lg">What is address checking?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Address lookups let you enrich your own property lists with enforcement data. Upload a list of addresses
-                  and we'll match them against our database to return code violations, water shutoffs, and other enforcement
-                  signals. Free trials include 500 lifetime lookups, Starter gets 10,000/month, Pro gets 50,000/month, and
-                  Elite gets unlimited lookups.
+                   Upload your own list of addresses and we'll check which ones have active code violations, water shutoffs, 
+                   and other enforcement signals. Starter gets 10,000 addresses checked/month, Pro gets 50,000/month, and
+                   Elite gets unlimited.
                 </p>
               </CardContent>
             </Card>

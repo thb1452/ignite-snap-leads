@@ -29,7 +29,7 @@ const TIER_CONFIG: Record<string, {
     features: [
       "5,000 exports/month",
       "Code violation data",
-      "Basic filters (location, category, search)",
+      "Basic filters",
       "SnapScore ranking",
     ],
   },
@@ -41,6 +41,7 @@ const TIER_CONFIG: Record<string, {
       "15,000 exports/month",
       "All Starter features",
       "Pressure Level™ filtering",
+      "Priority support",
     ],
   },
   enterprise: {

@@ -6,7 +6,7 @@ import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Loader2, Crown, Shield, AlertTriangle } from "lucide-react";
+import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Loader2, Crown, Shield, AlertTriangle, Lock, Sparkles } from "lucide-react";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
 
 import { supabase } from "@/integrations/supabase/externalClient";

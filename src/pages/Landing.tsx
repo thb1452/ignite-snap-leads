@@ -232,8 +232,8 @@ export default function Landing() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight"
             >
-              Find motivated sellers before they hit the{' '}
-              <span className="text-landing-accent">MLS</span>.
+              See enforcement pressure before it becomes{' '}
+              <span className="text-landing-accent">public knowledge</span>.
             </motion.h1>
             
             {/* Subtext */}
@@ -241,7 +241,15 @@ export default function Landing() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="text-lg md:text-xl text-landing-text-muted max-w-2xl"
             >
-              Snap Ignite tracks active code violations, water shutoffs, and city enforcement across 3,800+ cities — so you see which homeowners are under pressure before everyone else starts calling.
+              Snap Ignite tracks active code violations, water shutoffs, and escalating fines across 3,800+ cities — so you know which properties are under city pressure before anyone else.
+            </motion.p>
+
+            {/* Positioning line */}
+            <motion.p
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+              className="text-base md:text-lg text-landing-text italic"
+            >
+              This isn't a lead list. It's an intelligence layer.
             </motion.p>
 
             {/* Stats line */}
@@ -249,7 +257,7 @@ export default function Landing() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="text-sm md:text-base text-landing-text-muted"
             >
-              📊 500,000+ properties tracked · 3,800+ cities · Updated monthly
+              500k+ properties · 3,800+ cities · Updated monthly
             </motion.p>
             
             {/* CTA */}
@@ -272,7 +280,7 @@ export default function Landing() {
               </motion.div>
               
               <p className="text-landing-text-muted text-sm">
-                3-day trial · Export 500 properties · Then $79/month · Cancel anytime
+                3-day trial · $79/month · Cancel anytime
               </p>
             </motion.div>
           </motion.div>
@@ -284,70 +292,70 @@ export default function Landing() {
       {/* Problem Agitation Section */}
       <section className="py-24 bg-landing-surface/30">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center mb-16">
+          <div className="max-w-3xl mx-auto text-center mb-12">
             <motion.h2 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               className="text-3xl md:text-4xl font-bold mb-4"
             >
-              The Problem With Traditional Property Data
+              The Problem with Traditional Property Data
             </motion.h2>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="text-xl text-landing-text-muted"
+              className="text-lg text-landing-text-muted"
             >
-              Everyone's working the same stale data. Here's what you're missing:
+              You're working the same data as everyone else.<br />
+              By the time a property shows up on a list, the pressure has usually passed.
             </motion.p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {[
-              {
-                icon: Users,
-                title: "Same Data, Same Competition",
-                description: "Everyone's already seen it by the time it shows up."
-              },
-              {
-                icon: Clock,
-                title: "Timing Blindness",
-                description: "Traditional filters show distress signals from months ago."
-              },
-              {
-                icon: Phone,
-                title: "Volume Over Intelligence",
-                description: "More records doesn't mean better deals."
-              }
-            ].map((problem, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-landing-bg/50 border border-landing-surface rounded-xl p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(56,178,172,0.15)]"
-              >
-                <div className="w-14 h-14 rounded-lg bg-red-500/10 flex items-center justify-center mb-6">
-                  <problem.icon className="w-7 h-7 text-red-400" />
+          <div className="max-w-2xl mx-auto mb-12">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="bg-landing-bg/50 border border-landing-surface rounded-xl p-8 space-y-4"
+            >
+              {[
+                { label: "Tax records?", verdict: "Public." },
+                { label: "Expireds?", verdict: "Everyone's calling them." },
+                { label: "Pre‑foreclosures?", verdict: "Already flagged." },
+              ].map((item, i) => (
+                <div key={i} className="flex items-baseline gap-3">
+                  <X className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-landing-text">
+                    <span className="font-semibold">{item.label}</span>{' '}
+                    <span className="text-landing-text-muted">{item.verdict}</span>
+                  </p>
                 </div>
-                <h3 className="text-xl font-bold mb-3">{problem.title}</h3>
-                <p className="text-landing-text-muted">{problem.description}</p>
-              </motion.div>
-            ))}
+              ))}
+              <p className="text-landing-text-muted text-sm pt-2 border-t border-landing-surface">
+                You're not getting an edge. You're getting leftovers.
+              </p>
+            </motion.div>
           </div>
           
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="max-w-3xl mx-auto text-center mt-16 p-8 bg-landing-primary/20 border border-landing-accent/30 rounded-xl animate-gradient-border"
+            className="max-w-3xl mx-auto text-center p-8 bg-landing-primary/20 border border-landing-accent/30 rounded-xl animate-gradient-border"
           >
-            <p className="text-xl text-landing-text">
-              What if you could see which properties are under pressure <span className="text-landing-accent font-semibold">RIGHT NOW</span>—before everyone else notices?
+            <p className="text-xl font-bold text-landing-text mb-4">
+              What if you could see which properties are under city pressure <span className="text-landing-accent">RIGHT NOW</span>?
             </p>
+            <p className="text-landing-text-muted mb-1">That's enforcement intelligence.</p>
+            <p className="text-landing-text-muted text-sm">We track:</p>
+            <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4 text-sm text-landing-text">
+              <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-landing-accent" /> Active code violations</span>
+              <span className="flex items-center gap-2"><Droplets className="w-4 h-4 text-landing-accent" /> Water shutoff notices</span>
+              <span className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-landing-accent" /> Escalating municipal fines</span>
+            </div>
+            <p className="text-landing-accent font-semibold text-sm mt-4">Not volume. Signal.</p>
           </motion.div>
         </div>
       </section>

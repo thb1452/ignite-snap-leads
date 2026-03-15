@@ -788,10 +788,10 @@ export default function Landing() {
                 description: "For teams running enforcement-first strategies.",
                 features: [
                   "25,000 property exports/month",
-                  "Upload your own addresses — see which have active violations (Unlimited addresses checked/month)",
                   "All Pro features",
                   "Water shutoff data",
                 ],
+                scanLine: "Scan your own list — see which have active violations (50,000 rows/month)",
                 tagline: "Built for maximum signal, urgency, and scale.",
                 highlighted: false,
                 isElite: true

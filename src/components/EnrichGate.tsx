@@ -13,7 +13,7 @@ export default function EnrichGate() {
     if (isAdmin === false) {
       toast({
         title: "Coming Soon!",
-        description: "Enrich is coming soon!",
+        description: "Scan is coming soon!",
       });
       navigate("/properties", { replace: true });
     }

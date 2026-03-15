@@ -113,7 +113,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navItems: NavItem[] = [
     { name: "Properties", path: "/properties", icon: Map },
     { name: "Lists", path: "/lists", icon: List },
-    { name: "Enrich", path: "/enrich", icon: Sparkles, comingSoon: !isAdmin },
+    { name: "Scan", path: "/enrich", icon: Sparkles, comingSoon: !isAdmin },
   ];
 
   if (isAdmin || isVA) {

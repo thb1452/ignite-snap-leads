@@ -334,7 +334,7 @@ export function ListEnrichment() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Sparkles className="h-6 w-6 text-brand" />
-            <h1 className="text-2xl font-semibold text-ink-900">List Enrichment</h1>
+            <h1 className="text-2xl font-semibold text-ink-900">Scan</h1>
           </div>
           <p className="text-sm text-ink-500">
             Upload a property list (CSV) and we'll enrich it with violation data and SnapScore insights.

@@ -6,7 +6,7 @@ import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Loader2, Crown, Shield, AlertTriangle } from "lucide-react";
+import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Clock, Loader2, Crown, Shield, AlertTriangle, Lock, Sparkles } from "lucide-react";
 import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
 
 import { supabase } from "@/integrations/supabase/externalClient";
@@ -35,6 +35,8 @@ interface PricingTier {
   notIncluded?: string[];
   icon: any;
   popular?: boolean;
+  scanLine?: string;
+  scanDisabled?: boolean;
 }
 
 const PRICING_TIERS: PricingTier[] = [
@@ -47,12 +49,13 @@ const PRICING_TIERS: PricingTier[] = [
     description: 'For investors who want premium enforcement targeting',
     features: [
       '5,000 property exports/month',
-      'Upload your own addresses — see which have active violations (10,000 addresses checked/month)',
       '3,800+ cities nationwide',
       'Code violation data',
       'Monthly data refresh',
       'Email support',
     ],
+    scanLine: 'Scan — Upload your own list & see violations (Pro & above)',
+    scanDisabled: true,
     notIncluded: ['No Pressure Level™ filters', 'No water shutoff data'],
     icon: Zap,
     popular: true,
@@ -66,13 +69,14 @@ const PRICING_TIERS: PricingTier[] = [
     description: 'For serious operators stacking enforcement data',
     features: [
       '15,000 property exports/month',
-      'Upload your own addresses — see which have active violations (50,000 addresses checked/month)',
       '3,800+ cities nationwide',
       'Code violation data',
       'Everything in Starter',
       'Pressure Level™ filters',
       'Priority email support',
     ],
+    scanLine: 'Scan — Upload your own list & see violations (50,000 rows/month)',
+    scanDisabled: false,
     notIncluded: ['No water shutoff data'],
     icon: TrendingUp,
   },
@@ -85,10 +89,11 @@ const PRICING_TIERS: PricingTier[] = [
     description: 'For teams running enforcement-first strategies.',
     features: [
       '25,000 property exports/month',
-      'Upload your own addresses — see which have active violations (Unlimited addresses checked/month)',
       'All Pro features',
       'Water shutoff data',
     ],
+    scanLine: 'Scan — Upload your own list & see violations (Unlimited rows)',
+    scanDisabled: false,
     icon: Building2,
   },
 ];
@@ -359,6 +364,21 @@ export default function Pricing() {
                   <span className="text-sm leading-relaxed">{feature}</span>
                 </li>
               ))}
+              {tier.scanLine && (
+                <li className={`flex items-start gap-3 ${tier.scanDisabled ? 'opacity-50' : ''}`}>
+                  {tier.scanDisabled ? (
+                    <Lock className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+                  ) : (
+                    <Sparkles className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+                  )}
+                  <span className="text-sm leading-relaxed text-muted-foreground">
+                    {tier.scanLine}
+                    <span className="ml-1.5 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground leading-none whitespace-nowrap align-middle">
+                      Coming Soon
+                    </span>
+                  </span>
+                </li>
+              )}
             </ul>
             {tier.notIncluded && tier.notIncluded.length > 0 && (
               <ul className="space-y-3 mt-4 pt-4 border-t border-border">

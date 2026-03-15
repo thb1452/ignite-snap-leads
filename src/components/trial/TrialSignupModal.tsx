@@ -27,6 +27,7 @@ const TIER_CONFIG: Record<string, {
     price: 79,
     icon: Zap,
     features: [
+      "5,000 exports/month",
       "Code violation data",
       "Basic filters (location, category, search)",
       "SnapScore ranking",
@@ -37,9 +38,9 @@ const TIER_CONFIG: Record<string, {
     price: 149,
     icon: TrendingUp,
     features: [
+      "15,000 exports/month",
       "All Starter features",
       "Pressure Level™ filtering",
-      "Priority support",
     ],
   },
   enterprise: {
@@ -47,6 +48,7 @@ const TIER_CONFIG: Record<string, {
     price: 299,
     icon: Building2,
     features: [
+      "25,000 exports/month",
       "All Pro features",
       "Water shutoff data",
     ],

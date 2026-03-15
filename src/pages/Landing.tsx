@@ -634,8 +634,7 @@ export default function Landing() {
                   "3,800+ cities",
                   "Code violation data",
                   "Basic filters",
-                  "Monthly data refresh",
-                  "Email support"
+                  "Monthly data refresh"
                 ],
                 scanLine: "Scan your own list (10,000 rows)",
                 tagline: undefined,
@@ -649,11 +648,10 @@ export default function Landing() {
                 features: [
                   "15,000 exports/month",
                   "All Starter features",
-                  "Pressure Level™ filters",
-                  "Priority support"
+                  "Pressure Level™ filters"
                 ],
                 scanLine: "Scan your own list (25,000 rows)",
-                tagline: "Built to identify what matters first.",
+                tagline: undefined,
                 highlighted: true,
                 badge: "Most Popular"
               },
@@ -667,7 +665,7 @@ export default function Landing() {
                   "Water shutoff data",
                 ],
                 scanLine: "Scan your own list (50,000 rows)",
-                tagline: "Built for maximum signal, urgency, and scale.",
+                tagline: undefined,
                 highlighted: false,
                 isElite: true
               }

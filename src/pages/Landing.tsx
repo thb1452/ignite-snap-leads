@@ -741,8 +741,8 @@ export default function Landing() {
                 price: pricing.starter[billingCycle],
                 description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
-                  "5,000 monthly enforcement reports",
-                  "10,000 address lookups/month",
+                  "5,000 property exports/month",
+                  "Upload your own addresses — see which have active violations (10,000 addresses checked/month)",
                   "3,800+ cities nationwide",
                   "Code violation data",
                   "Basic filters (location, category, search)",

@@ -46,8 +46,8 @@ const PRICING_TIERS: PricingTier[] = [
     
     description: 'For investors who want premium enforcement targeting',
     features: [
-      '5,000 monthly exports',
-      '10,000 address lookups/month',
+      '5,000 property exports/month',
+      'Upload your own addresses — see which have active violations (10,000 addresses checked/month)',
       '3,800+ cities nationwide',
       'Code violation data',
       'Monthly data refresh',

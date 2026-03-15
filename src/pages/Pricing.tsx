@@ -592,12 +592,12 @@ export default function Pricing() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-lg">What is address checking?</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-lg">What is Scan?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                   Upload your own list of addresses and we'll check which ones have active code violations, water shutoffs, 
-                   and other enforcement signals. Starter gets 10,000 addresses checked/month, Pro gets 50,000/month, and
-                   Elite gets unlimited.
+                   Upload your own list of addresses and we'll scan which ones have active code violations, water shutoffs, 
+                   and other enforcement signals. Starter gets 10,000 rows/month, Pro gets 25,000/month, and
+                   Elite gets 50,000/month.
                 </p>
               </CardContent>
             </Card>

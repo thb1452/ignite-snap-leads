@@ -244,14 +244,6 @@ export default function Landing() {
               Snap Ignite tracks active code violations, water shutoffs, and escalating fines across 3,800+ cities — so you know which properties are under city pressure before anyone else.
             </motion.p>
 
-            {/* Positioning line */}
-            <motion.p
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="text-base md:text-lg text-landing-text italic"
-            >
-              This isn't a lead list. It's an intelligence layer.
-            </motion.p>
-
             {/* Stats line */}
             <motion.p
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}

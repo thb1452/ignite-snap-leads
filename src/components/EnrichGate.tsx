@@ -5,20 +5,21 @@ import { useToast } from "@/hooks/use-toast";
 import { ListEnrichment } from "@/pages/ListEnrichment";
 
 export default function EnrichGate() {
-  const { isAdmin } = useUserRole();
+  const { isAdmin, loading } = useUserRole();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (isAdmin === false) {
+    if (!loading && isAdmin === false) {
       toast({
         title: "Coming Soon!",
         description: "Scan is coming soon!",
       });
       navigate("/properties", { replace: true });
     }
-  }, [isAdmin, navigate, toast]);
+  }, [isAdmin, loading, navigate, toast]);
 
+  if (loading) return null;
   if (!isAdmin) return null;
 
   return <ListEnrichment />;

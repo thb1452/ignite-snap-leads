@@ -47,6 +47,7 @@ const PRICING_TIERS: PricingTier[] = [
     description: 'For investors who want premium enforcement targeting',
     features: [
       '5,000 monthly exports',
+      '10,000 address lookups/month',
       '3,800+ cities nationwide',
       'Code violation data',
       'Monthly data refresh',
@@ -61,10 +62,11 @@ const PRICING_TIERS: PricingTier[] = [
     name: 'professional',
     display_name: 'Pro',
     price_monthly_cents: 14900,
-    
+
     description: 'For serious operators stacking enforcement data',
     features: [
       '15,000 monthly exports',
+      '50,000 address lookups/month',
       '3,800+ cities nationwide',
       'Code violation data',
       'Everything in Starter',
@@ -79,10 +81,11 @@ const PRICING_TIERS: PricingTier[] = [
     name: 'enterprise',
     display_name: 'Elite',
     price_monthly_cents: 29900,
-    
+
     description: 'For teams running enforcement-first strategies.',
     features: [
       '25,000 monthly enforcement reports',
+      'Unlimited address lookups',
       'All Pro features',
       'Water shutoff data',
     ],
@@ -547,7 +550,7 @@ export default function Pricing() {
                 <CardContent>
                   <p className="text-muted-foreground">
                     Start a 3-day trial — $0 due today. Enter your payment method at checkout and get 500 property
-                    exports to test data quality. Search unlimited properties, save favorites, and access tier-specific
+                    exports and 500 address lookups to test data quality. Search unlimited properties, save favorites, and access tier-specific
                     features. Your subscription begins automatically after 3 days, or cancel anytime before then.
                   </p>
                 </CardContent>
@@ -569,6 +572,17 @@ export default function Pricing() {
                 <p className="text-muted-foreground">
                   CSV exports let you download property data for use in your own systems, mail campaigns, or CRM.
                   Each export counts toward your monthly limit based on your plan tier.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-lg">What are address lookups (List Enrichment)?</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Address lookups let you enrich your own property lists with enforcement data. Upload a list of addresses
+                  and we'll match them against our database to return code violations, water shutoffs, and other enforcement
+                  signals. Free trials include 500 lifetime lookups, Starter gets 10,000/month, Pro gets 50,000/month, and
+                  Elite gets unlimited lookups.
                 </p>
               </CardContent>
             </Card>

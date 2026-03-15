@@ -83,7 +83,7 @@ const PRICING_TIERS: PricingTier[] = [
 
     description: 'For teams running enforcement-first strategies.',
     features: [
-      '25,000 property exports/month',
+      '25,000 exports/month',
       'All Pro features',
       'Water shutoff data',
     ],

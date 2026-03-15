@@ -2913,6 +2913,21 @@ export type Database = {
           zip: string
         }[]
       }
+      fn_bulk_match_properties: {
+        Args: { p_addresses: string[] }
+        Returns: {
+          address: string
+          city: string
+          input_address: string
+          last_enforcement_date: string
+          open_violations: number
+          property_id: string
+          snap_score: number
+          state: string
+          violation_types: string[]
+          zip: string
+        }[]
+      }
       fn_bulk_run_inc: {
         Args: { p_field: string; p_run_id: string }
         Returns: undefined

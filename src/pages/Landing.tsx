@@ -835,6 +835,17 @@ export default function Landing() {
                       <span>{feature}</span>
                     </li>
                   ))}
+                  {(plan as any).scanLine && (
+                    <li className="flex items-start gap-2 text-sm opacity-60">
+                      <Sparkles className="w-4 h-4 text-landing-text-muted flex-shrink-0 mt-0.5" />
+                      <span className="text-landing-text-muted">
+                        {(plan as any).scanLine}
+                        <span className="ml-1.5 inline-flex items-center rounded-full bg-landing-surface px-2 py-0.5 text-[10px] font-semibold text-landing-text-muted leading-none whitespace-nowrap align-middle">
+                          Coming Soon
+                        </span>
+                      </span>
+                    </li>
+                  )}
                 </ul>
                 
                 <Button

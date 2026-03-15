@@ -244,13 +244,7 @@ export default function Landing() {
               Snap Ignite tracks municipal pressure signals most platforms completely miss — code violations, escalating fines, water shutoffs, and enforcement escalations. We don't just show you violations. We show you pressure patterns.
             </motion.p>
 
-            {/* Positioning blockquote */}
-            <motion.blockquote
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="border-l-2 border-landing-accent/40 pl-5 text-landing-text-muted text-base md:text-lg max-w-2xl"
-            >
-              Snap Ignite is an enforcement intelligence platform that reveals where municipal pressure is building — before it becomes public knowledge. More than a lead list. More than a data feed. The earliest signal in the market.
-            </motion.blockquote>
+            
             
             {/* CTA */}
             <motion.div
@@ -355,17 +349,17 @@ export default function Landing() {
               {
                 icon: Users,
                 title: "Same Data, Same Competition",
-                description: "By the time a property shows up in traditional databases, everyone's already seen it. You're not finding opportunities—you're competing for leftovers."
+                description: "Everyone's already seen it by the time it shows up."
               },
               {
                 icon: Clock,
                 title: "Timing Blindness",
-                description: "Traditional filters show you distress signals from months ago. The property under pressure last month? Already sold. The one facing escalation now? Invisible to your current tools."
+                description: "Traditional filters show distress signals from months ago."
               },
               {
                 icon: Phone,
                 title: "Volume Over Intelligence",
-                description: "The current playbook: blast through more data, chase more records, hope something sticks. It's exhausting, expensive, and everyone else is doing the same thing."
+                description: "More records doesn't mean better deals."
               }
             ].map((problem, i) => (
               <motion.div
@@ -497,49 +491,49 @@ export default function Landing() {
               {
                 icon: Map,
                 title: "3,800+ Cities",
-                description: "Nationwide coverage from small towns to major metros.",
+                description: "Nationwide coverage across every major metro.",
                 highlight: false
               },
               {
                 icon: Target,
                 title: "SnapScore AI",
-                description: "Ranks every property by enforcement intensity — violation type, duration, and escalation.",
+                description: "Ranks every property by enforcement intensity.",
                 highlight: true
               },
               {
                 icon: Droplets,
                 title: "Water Shutoff Tracking",
-                description: "See hidden pressure signals unavailable anywhere else. Available in Elite tier.",
+                description: "Hidden pressure signals unavailable anywhere else.",
                 highlight: false
               },
               {
                 icon: Clock,
                 title: "Updated Monthly",
-                description: "Fresh enforcement data every 30 days — not stale records from last quarter.",
+                description: "Fresh enforcement data every 30 days.",
                 highlight: false
               },
               {
                 icon: Filter,
-                title: "Violation Type Filtering",
-                description: "Filter by open, vacancy, exterior, structural, and more.",
+                title: "Violation Filtering",
+                description: "Filter by type: open, vacancy, structural, and more.",
                 highlight: false
               },
               {
                 icon: Download,
                 title: "Export to CSV",
-                description: "Build targeted lists and export instantly for your workflow.",
+                description: "Build targeted lists and export instantly.",
                 highlight: false
               },
               {
                 icon: Bell,
                 title: "Real-time Alerts",
-                description: "Get notified when enforcement pressure escalates on properties you track.",
+                description: "Get notified when pressure escalates on tracked properties.",
                 highlight: false
               },
               {
                 icon: Search,
                 title: "Scan Your List",
-                description: "Upload your own property list and instantly see which addresses have active violations and enforcement pressure.",
+                description: "Upload your own list and see which addresses have active violations.",
                 highlight: false,
                 comingSoon: true
               }
@@ -633,96 +627,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Who It's For Section */}
-      <section className="py-24">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center mb-16">
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold mb-4"
-            >
-              Snap Ignite Isn't For Everyone
-            </motion.h2>
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-xl text-landing-text-muted"
-            >
-              We built this for serious operators who understand that better intelligence beats higher volume. Here's how to know if it's right for you:
-            </motion.p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {/* Built For You */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="bg-landing-accent/10 border border-landing-accent/30 rounded-xl p-8"
-            >
-              <h3 className="text-2xl font-bold mb-6 text-landing-accent flex items-center gap-2">
-                <Check className="w-6 h-6" />
-                Built For You If...
-              </h3>
-              <ul className="space-y-4">
-                {[
-                  "You already use BatchData, similar tools, or work directly with county data and want better targeting",
-                  "You value timing over volume — you'd rather work 50 high-pressure properties than chase 500 stale records",
-                  "You're tired of competing on the same data and want an actual information advantage",
-                  "You operate in markets where enforcement activity creates early visibility into property pressure",
-                  "You're willing to invest in intelligence, not just data",
-                  "You understand that better signal — not more volume — is the real edge"
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-landing-accent flex-shrink-0 mt-0.5" />
-                    <span className="text-landing-text">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
 
-            {/* Not For You */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="bg-red-500/10 border border-red-500/30 rounded-xl p-8"
-            >
-              <h3 className="text-2xl font-bold mb-6 text-red-400 flex items-center gap-2">
-                <X className="w-6 h-6" />
-                Not For You If...
-              </h3>
-              <ul className="space-y-4">
-                {[
-                  "You're happy competing for the same stale records as everyone else",
-                  "You prefer volume over signal",
-                  "You don't believe enforcement data creates early visibility",
-                  "You're not willing to invest in intelligence, just data",
-                  "You're looking for a free list service"
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <X className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                    <span className="text-landing-text-muted">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-          </div>
-          
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center text-landing-text-muted mt-12 max-w-2xl mx-auto"
-          >
-            Still not sure? Our Starter plan at $79/month gives you enforcement intelligence without the noise. Cancel anytime.
-          </motion.p>
-        </div>
-      </section>
+
 
       {/* Pricing Section */}
       <section id="pricing" className="py-24 bg-landing-surface/30">
@@ -756,14 +662,14 @@ export default function Landing() {
                 price: pricing.starter[billingCycle],
                 description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
-                  "5,000 property exports/month",
-                  "3,800+ cities nationwide",
+                  "5,000 exports/month",
+                  "3,800+ cities",
                   "Code violation data",
-                  "Basic filters (location, category, search)",
+                  "Basic filters",
                   "Monthly data refresh",
                   "Email support"
                 ],
-                scanLine: "Scan your own list — see which have active violations (10,000 rows/month)",
+                scanLine: "Scan your own list (10,000 rows)",
                 tagline: "Enforcement intelligence without the noise.",
                 highlighted: false,
                 badge: undefined
@@ -773,12 +679,12 @@ export default function Landing() {
                 price: pricing.professional[billingCycle],
                 description: "For serious operators stacking enforcement data",
                 features: [
-                  "15,000 property exports/month",
+                  "15,000 exports/month",
                   "All Starter features",
-                  "Pressure Level filtering (prioritize higher-enforcement properties)",
-                  "Priority email support"
+                  "Pressure Level™ filters",
+                  "Priority support"
                 ],
-                scanLine: "Scan your own list — see which have active violations (25,000 rows/month)",
+                scanLine: "Scan your own list (25,000 rows)",
                 tagline: "Built to identify what matters first.",
                 highlighted: true,
                 badge: "Most Popular"
@@ -788,11 +694,11 @@ export default function Landing() {
                 price: pricing.enterprise[billingCycle],
                 description: "For teams running enforcement-first strategies.",
                 features: [
-                  "25,000 property exports/month",
+                  "25,000 exports/month",
                   "All Pro features",
                   "Water shutoff data",
                 ],
-                scanLine: "Scan your own list — see which have active violations (50,000 rows/month)",
+                scanLine: "Scan your own list (50,000 rows)",
                 tagline: "Built for maximum signal, urgency, and scale.",
                 highlighted: false,
                 isElite: true
@@ -877,68 +783,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PropStream vs Snap Comparison Table */}
-      <section className="py-24">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold text-center mb-12"
-            >
-              What Traditional Data Platforms Give You vs. What Snap Gives You
-            </motion.h2>
 
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="overflow-hidden rounded-xl border border-landing-surface"
-            >
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-landing-surface/50">
-                    <th className="text-left py-4 px-6 font-semibold">Data Type</th>
-                    <th className="text-center py-4 px-4 font-semibold">Traditional Data Platforms</th>
-                    <th className="text-center py-4 px-4 font-semibold text-landing-accent">Snap</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-landing-surface/50">
-                  {[
-                    { type: "Code violations (systematic)", ps: false, snap: true, snapNote: "3,800+ cities" },
-                    { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
-                    { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
-                    { type: "Real-time escalation alerts", ps: false, snap: true, snapNote: "" },
-                    { type: "Monthly data refresh", ps: false, snap: true, snapNote: "" },
-                  ].map((row, i) => (
-                    <tr key={i} className="bg-landing-bg/30">
-                      <td className="py-3 px-6">{row.type}</td>
-                      <td className="py-3 px-4 text-center">
-                        {row.ps ? (
-                          <Check className="w-5 h-5 text-green-400 mx-auto" />
-                        ) : (
-                          <X className="w-5 h-5 text-red-400/50 mx-auto" />
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {row.snap === true ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <Check className="w-5 h-5 text-landing-accent" />
-                            {row.snapNote && <span className="text-xs text-landing-text-muted">{row.snapNote}</span>}
-                          </div>
-                        ) : (
-                          <X className="w-5 h-5 text-red-400/50 mx-auto" />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </motion.div>
-          </div>
-        </div>
-      </section>
+
 
       {/* Data Credibility Section */}
       <section className="py-16 bg-landing-bg">
@@ -1001,21 +847,21 @@ export default function Landing() {
                 initials: "JM",
                 name: "Jake M.",
                 role: "Wholesaler, Phoenix AZ",
-                quote: "The SnapScore ranking changed how I prioritize my week. I'm not guessing which properties have real pressure anymore — I can see the enforcement intensity before I make a single call. I work a smaller list now and get better results because every property I'm looking at has an active enforcement case behind it.",
+                quote: "The SnapScore ranking changed how I prioritize my week. I work a smaller list now and get better results because every property has an active enforcement case behind it.",
                 result: "3 contracts in 6 weeks"
               },
               {
                 initials: "SR",
                 name: "Sarah R.",
                 role: "Acquisition Manager, Southeast Portfolio",
-                quote: "The data freshness is what sold me. We're seeing enforcement escalation patterns 4-6 weeks before they show up anywhere else. That timing window is where we find our edge — by the time a property appears in traditional databases, the pressure has usually already resolved.",
+                quote: "We're seeing enforcement escalation patterns 4-6 weeks before they show up anywhere else. That timing window is where we find our edge.",
                 result: "40% improvement in contact-to-contract rate"
               },
               {
                 initials: "MT",
                 name: "Marcus T.",
                 role: "Fix & Flip Operator, Dallas-Fort Worth",
-                quote: "I was skeptical because I've tried a lot of data tools. What's different here is the enforcement focus — it's not just violation counts, it's pressure patterns. Water shutoff data alone flagged properties in my market that had zero visibility anywhere else. That's a real intelligence advantage.",
+                quote: "Water shutoff data alone flagged properties in my market that had zero visibility anywhere else. That's a real intelligence advantage.",
                 result: "First deal paid for 2 years of subscription"
               }
             ].map((testimonial, i) => (

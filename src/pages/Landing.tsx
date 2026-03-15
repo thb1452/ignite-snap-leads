@@ -742,6 +742,7 @@ export default function Landing() {
                 description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
                   "5,000 monthly enforcement reports",
+                  "10,000 address lookups/month",
                   "3,800+ cities nationwide",
                   "Code violation data",
                   "Basic filters (location, category, search)",
@@ -758,6 +759,7 @@ export default function Landing() {
                 description: "For serious operators stacking enforcement data",
                 features: [
                   "15,000 monthly enforcement reports",
+                  "50,000 address lookups/month",
                   "All Starter features",
                   "Pressure Level filtering (prioritize higher-enforcement properties)",
                   "Priority email support"
@@ -772,6 +774,7 @@ export default function Landing() {
                 description: "For teams running enforcement-first strategies.",
                 features: [
                   "25,000 monthly enforcement reports",
+                  "Unlimited address lookups",
                   "All Pro features",
                   "Water shutoff data",
                 ],

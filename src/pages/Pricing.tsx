@@ -576,13 +576,12 @@ export default function Pricing() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-lg">What are address lookups (List Enrichment)?</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-lg">What is address checking?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Address lookups let you enrich your own property lists with enforcement data. Upload a list of addresses
-                  and we'll match them against our database to return code violations, water shutoffs, and other enforcement
-                  signals. Free trials include 500 lifetime lookups, Starter gets 10,000/month, Pro gets 50,000/month, and
-                  Elite gets unlimited lookups.
+                   Upload your own list of addresses and we'll check which ones have active code violations, water shutoffs, 
+                   and other enforcement signals. Starter gets 10,000 addresses checked/month, Pro gets 50,000/month, and
+                   Elite gets unlimited.
                 </p>
               </CardContent>
             </Card>

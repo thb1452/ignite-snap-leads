@@ -773,8 +773,8 @@ export default function Landing() {
                 price: pricing.enterprise[billingCycle],
                 description: "For teams running enforcement-first strategies.",
                 features: [
-                  "25,000 monthly enforcement reports",
-                  "Unlimited address lookups",
+                  "25,000 property exports/month",
+                  "Upload your own addresses — see which have active violations (Unlimited addresses checked/month)",
                   "All Pro features",
                   "Water shutoff data",
                 ],

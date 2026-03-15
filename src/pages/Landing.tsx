@@ -648,8 +648,7 @@ export default function Landing() {
                 features: [
                   "15,000 exports/month",
                   "All Starter features",
-                  "Pressure Level™ filters",
-                  "Priority support"
+                  "Pressure Level™ filters"
                 ],
                 scanLine: "Scan your own list (25,000 rows)",
                 tagline: "Built to identify what matters first.",

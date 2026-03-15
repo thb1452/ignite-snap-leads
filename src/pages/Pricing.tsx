@@ -54,7 +54,7 @@ const PRICING_TIERS: PricingTier[] = [
       'Monthly data refresh',
       'Email support',
     ],
-    scanLine: 'Scan — Upload your own list & see violations (10,000 rows/month)',
+    scanLine: 'Scan your own list — see which have active violations (10,000 rows/month)',
     scanDisabled: false,
     notIncluded: ['No Pressure Level™ filters', 'No water shutoff data'],
     icon: Zap,

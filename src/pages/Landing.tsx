@@ -651,7 +651,7 @@ export default function Landing() {
                   "Pressure Level™ filters"
                 ],
                 scanLine: "Scan your own list (25,000 rows)",
-                tagline: "Built to identify what matters first.",
+                tagline: undefined,
                 highlighted: true,
                 badge: "Most Popular"
               },

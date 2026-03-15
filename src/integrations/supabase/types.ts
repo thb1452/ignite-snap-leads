@@ -445,6 +445,45 @@ export type Database = {
         }
         Relationships: []
       }
+      enrichment_jobs: {
+        Row: {
+          addresses_charged: number
+          completed_at: string | null
+          created_at: string
+          file_name: string
+          id: string
+          matched_rows: number
+          processed_rows: number
+          status: string
+          total_rows: number
+          user_id: string
+        }
+        Insert: {
+          addresses_charged?: number
+          completed_at?: string | null
+          created_at?: string
+          file_name: string
+          id?: string
+          matched_rows?: number
+          processed_rows?: number
+          status?: string
+          total_rows?: number
+          user_id: string
+        }
+        Update: {
+          addresses_charged?: number
+          completed_at?: string | null
+          created_at?: string
+          file_name?: string
+          id?: string
+          matched_rows?: number
+          processed_rows?: number
+          status?: string
+          total_rows?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       error_logs: {
         Row: {
           component_stack: string | null
@@ -2891,6 +2930,10 @@ export type Database = {
         Returns: Json
       }
       fn_check_county_limit: { Args: { p_amount?: number }; Returns: Json }
+      fn_check_enrichment_limit: {
+        Args: { p_address_count: number; p_user_id: string }
+        Returns: Json
+      }
       fn_check_subscription_limit:
         | {
             Args: {
@@ -2907,6 +2950,10 @@ export type Database = {
       fn_consume_credit: {
         Args: { p_meta?: Json; p_reason: string }
         Returns: number
+      }
+      fn_consume_enrichment_usage: {
+        Args: { p_address_count: number; p_user_id: string }
+        Returns: Json
       }
       fn_consume_usage: {
         Args: { p_amount?: number; p_usage_type: string }

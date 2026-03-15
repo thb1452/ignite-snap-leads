@@ -41,6 +41,7 @@ const TIER_CONFIG: Record<string, {
       "15,000 exports/month",
       "All Starter features",
       "Pressure Level™ filtering",
+      "Priority support",
     ],
   },
   enterprise: {

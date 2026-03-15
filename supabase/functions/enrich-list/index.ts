@@ -453,8 +453,8 @@ serve(async (req) => {
       );
     }
 
-    // Process addresses in batches
-    const BATCH_SIZE = 100;
+    // Process addresses in batches using DB function for case-insensitive matching
+    const BATCH_SIZE = 200;
     let matchedCount = 0;
     const enrichedRows: Array<{
       originalRow: string[];
@@ -468,31 +468,17 @@ serve(async (req) => {
     for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
       const batch = rows.slice(batchStart, batchStart + BATCH_SIZE);
 
-      // Build normalized addresses for this batch
+      // Build lowercase trimmed addresses for matching
       const batchAddresses = batch.map((row) => {
         const rawAddr = row[addrCol] || "";
-        const rawCity = cityCol !== -1 ? row[cityCol] || "" : "";
-        const rawState = stateCol !== -1 ? row[stateCol] || "" : "";
-
-        return {
-          normalizedAddress: normalizeAddress(rawAddr),
-          normalizedCity: normalizeCity(rawCity),
-          normalizedState: normalizeState(rawState),
-          rawAddr,
-          rawCity,
-          rawState,
-        };
+        return rawAddr.toLowerCase().trim();
       });
 
-      // Query properties for exact match
-      // We try to match on normalized address + city + state
-      // For efficiency, we extract unique normalized addresses and query in bulk
       const uniqueAddresses = [
-        ...new Set(batchAddresses.map((a) => a.normalizedAddress).filter(Boolean)),
+        ...new Set(batchAddresses.filter(Boolean)),
       ];
 
       if (uniqueAddresses.length === 0) {
-        // All empty addresses — add unmatched rows
         for (const row of batch) {
           enrichedRows.push({
             originalRow: row,
@@ -506,122 +492,40 @@ serve(async (req) => {
         continue;
       }
 
-      // Query properties using ilike for case-insensitive match
-      // We query all properties whose normalized address matches any in the batch
-      let propertiesMap = new Map<
-        string,
-        {
-          address: string;
-          city: string;
-          state: string;
-          snap_score: number | null;
-          open_violations: number | null;
-          violation_types: string[] | null;
-          last_enforcement_date: string | null;
-        }
-      >();
+      // Use DB function for case-insensitive bulk match
+      const { data: matchedProps, error: matchErr } = await serviceClient.rpc(
+        "fn_bulk_match_properties",
+        { p_addresses: uniqueAddresses }
+      );
 
-      // Build query - use lower() for case-insensitive matching
-      // We batch the .in() to avoid URL limits
-      const QUERY_BATCH = 50;
-      for (
-        let qi = 0;
-        qi < uniqueAddresses.length;
-        qi += QUERY_BATCH
-      ) {
-        const queryBatch = uniqueAddresses.slice(qi, qi + QUERY_BATCH);
+      if (matchErr) {
+        console.error("[enrich-list] Bulk match error:", matchErr);
+      }
 
-        // Query using exact match on lowered address
-        const { data: props, error: queryErr } = await serviceClient
-          .from("properties")
-          .select(
-            "address, city, state, zip, snap_score, open_violations, violation_types, last_enforcement_date"
-          )
-          .in(
-            "address",
-            queryBatch.map((a) =>
-              // Try to find by original-case-ish matching: capitalize first letters
-              a
-                .split(" ")
-                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                .join(" ")
-            )
-          );
+      // Build lookup map: lowercase address -> property data
+      const propsMap = new Map<string, {
+        snap_score: number | null;
+        open_violations: number | null;
+        violation_types: string[] | null;
+        last_enforcement_date: string | null;
+      }>();
 
-        if (queryErr) {
-          console.error("[enrich-list] Property query error:", queryErr);
-          continue;
-        }
-
-        if (props) {
-          for (const p of props) {
-            const key = `${normalizeAddress(p.address)}|${normalizeCity(p.city)}|${normalizeState(p.state)}`;
-            // If multiple matches, keep the one with highest snap_score
-            const existing = propertiesMap.get(key);
-            if (!existing || (p.snap_score || 0) > (existing.snap_score || 0)) {
-              propertiesMap.set(key, p);
-            }
-          }
+      if (matchedProps) {
+        for (const p of matchedProps) {
+          propsMap.set(p.input_address, {
+            snap_score: p.snap_score,
+            open_violations: p.open_violations,
+            violation_types: p.violation_types,
+            last_enforcement_date: p.last_enforcement_date,
+          });
         }
       }
 
-      // Also try lowercase query as fallback for addresses stored in different cases
-      if (propertiesMap.size < uniqueAddresses.length) {
-        const unmatchedAddrs = uniqueAddresses.filter((a) => {
-          // Check if any key starts with this address
-          for (const key of propertiesMap.keys()) {
-            if (key.startsWith(a + "|")) return false;
-          }
-          return true;
-        });
-
-        if (unmatchedAddrs.length > 0) {
-          // Use RPC or raw query for case-insensitive match
-          for (let qi = 0; qi < unmatchedAddrs.length; qi += QUERY_BATCH) {
-            const queryBatch = unmatchedAddrs.slice(qi, qi + QUERY_BATCH);
-
-            const { data: props } = await serviceClient
-              .from("properties")
-              .select(
-                "address, city, state, zip, snap_score, open_violations, violation_types, last_enforcement_date"
-              )
-              .in("address", queryBatch);
-
-            if (props) {
-              for (const p of props) {
-                const key = `${normalizeAddress(p.address)}|${normalizeCity(p.city)}|${normalizeState(p.state)}`;
-                if (!propertiesMap.has(key)) {
-                  propertiesMap.set(key, p);
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Match each row in the batch
+      // Match each row
       for (let i = 0; i < batch.length; i++) {
         const row = batch[i];
-        const addr = batchAddresses[i];
-
-        // Build lookup key
-        const lookupKey = `${addr.normalizedAddress}|${addr.normalizedCity}|${addr.normalizedState}`;
-
-        // Try exact match first
-        let match = propertiesMap.get(lookupKey);
-
-        // If no match with city+state, try address-only match
-        if (!match) {
-          for (const [key, prop] of propertiesMap.entries()) {
-            if (key.startsWith(addr.normalizedAddress + "|")) {
-              // Additional check: if user provided city/state, verify they match
-              if (addr.normalizedCity && normalizeCity(prop.city) !== addr.normalizedCity) continue;
-              if (addr.normalizedState && normalizeState(prop.state) !== addr.normalizedState) continue;
-              match = prop;
-              break;
-            }
-          }
-        }
+        const lookupKey = batchAddresses[i];
+        const match = lookupKey ? propsMap.get(lookupKey) : undefined;
 
         if (match) {
           matchedCount++;

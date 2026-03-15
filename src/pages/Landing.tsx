@@ -795,8 +795,8 @@ export default function Landing() {
             viewport={{ once: true }}
             className="max-w-3xl mx-auto text-center p-10 bg-landing-surface/40 border border-landing-surface rounded-xl"
           >
-            <p className="text-2xl font-semibold text-landing-text mb-3">Sourced directly from municipal agencies and county jurisdictions.</p>
-            <p className="text-lg text-landing-text-muted">Not scraped. Not aggregated. Primary source data.</p>
+            <p className="text-2xl font-semibold text-landing-text mb-3">Built on data most platforms can't access.</p>
+            <p className="text-lg text-landing-text-muted">Proprietary sourcing. Updated monthly. No recycled records.</p>
           </motion.div>
         </div>
       </section>

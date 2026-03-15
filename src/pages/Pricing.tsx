@@ -35,6 +35,8 @@ interface PricingTier {
   notIncluded?: string[];
   icon: any;
   popular?: boolean;
+  scanLine?: string;
+  scanDisabled?: boolean;
 }
 
 const PRICING_TIERS: PricingTier[] = [

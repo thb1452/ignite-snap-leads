@@ -662,14 +662,14 @@ export default function Landing() {
                 price: pricing.starter[billingCycle],
                 description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
-                  "5,000 property exports/month",
-                  "3,800+ cities nationwide",
+                  "5,000 exports/month",
+                  "3,800+ cities",
                   "Code violation data",
-                  "Basic filters (location, category, search)",
+                  "Basic filters",
                   "Monthly data refresh",
                   "Email support"
                 ],
-                scanLine: "Scan your own list — see which have active violations (10,000 rows/month)",
+                scanLine: "Scan your own list (10,000 rows)",
                 tagline: "Enforcement intelligence without the noise.",
                 highlighted: false,
                 badge: undefined
@@ -679,12 +679,12 @@ export default function Landing() {
                 price: pricing.professional[billingCycle],
                 description: "For serious operators stacking enforcement data",
                 features: [
-                  "15,000 property exports/month",
+                  "15,000 exports/month",
                   "All Starter features",
-                  "Pressure Level filtering (prioritize higher-enforcement properties)",
-                  "Priority email support"
+                  "Pressure Level™ filters",
+                  "Priority support"
                 ],
-                scanLine: "Scan your own list — see which have active violations (25,000 rows/month)",
+                scanLine: "Scan your own list (25,000 rows)",
                 tagline: "Built to identify what matters first.",
                 highlighted: true,
                 badge: "Most Popular"
@@ -694,11 +694,11 @@ export default function Landing() {
                 price: pricing.enterprise[billingCycle],
                 description: "For teams running enforcement-first strategies.",
                 features: [
-                  "25,000 property exports/month",
+                  "25,000 exports/month",
                   "All Pro features",
                   "Water shutoff data",
                 ],
-                scanLine: "Scan your own list — see which have active violations (50,000 rows/month)",
+                scanLine: "Scan your own list (50,000 rows)",
                 tagline: "Built for maximum signal, urgency, and scale.",
                 highlighted: false,
                 isElite: true

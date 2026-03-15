@@ -365,12 +365,8 @@ export default function Pricing() {
                 </li>
               ))}
               {tier.scanLine && (
-                <li className={`flex items-start gap-3 ${tier.scanDisabled ? 'opacity-50' : ''}`}>
-                  {tier.scanDisabled ? (
-                    <Lock className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
-                  ) : (
-                    <Sparkles className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
-                  )}
+                <li className="flex items-start gap-3 opacity-60">
+                  <Sparkles className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                   <span className="text-sm leading-relaxed text-muted-foreground">
                     {tier.scanLine}
                     <span className="ml-1.5 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground leading-none whitespace-nowrap align-middle">

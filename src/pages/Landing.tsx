@@ -758,8 +758,8 @@ export default function Landing() {
                 price: pricing.professional[billingCycle],
                 description: "For serious operators stacking enforcement data",
                 features: [
-                  "15,000 monthly enforcement reports",
-                  "50,000 address lookups/month",
+                  "15,000 property exports/month",
+                  "Upload your own addresses — see which have active violations (50,000 addresses checked/month)",
                   "All Starter features",
                   "Pressure Level filtering (prioritize higher-enforcement properties)",
                   "Priority email support"

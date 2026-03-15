@@ -587,17 +587,17 @@ export default function Landing() {
               {
                 step: "01",
                 title: "Filter by Your Criteria",
-                description: "Select your target counties, violation types, and date range. Build lists based on the specific pressure signals in your market."
+                description: "Select your target counties, violation types, and date range."
               },
               {
                 step: "02",
                 title: "Identify High-Priority Properties",
-                description: "SnapScore AI ranks every property by enforcement pressure. Focus on the properties under pressure NOW—not the ones flagged six months ago."
+                description: "SnapScore AI ranks every property by enforcement pressure. Focus on what's hot right now."
               },
               {
                 step: "03",
                 title: "Act Before Competition",
-                description: "Export your targeted list while the data is fresh. You're not chasing stale records—you're acting on current enforcement signals."
+                description: "Export your list while the data is fresh and act on current enforcement signals."
               }
             ].map((step, i) => (
               <motion.div

@@ -87,10 +87,11 @@ const PRICING_TIERS: PricingTier[] = [
     description: 'For teams running enforcement-first strategies.',
     features: [
       '25,000 property exports/month',
-      'Upload your own addresses — see which have active violations (Unlimited addresses checked/month)',
       'All Pro features',
       'Water shutoff data',
     ],
+    scanLine: 'Scan — Upload your own list & see violations (Unlimited rows) — Coming Soon',
+    scanDisabled: false,
     icon: Building2,
   },
 ];

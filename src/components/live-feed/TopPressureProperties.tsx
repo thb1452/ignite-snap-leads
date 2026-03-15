@@ -156,13 +156,6 @@ export function TopPressureProperties() {
                 .slice(0, 1)
                 .map(formatViolationType)[0] ?? "Code Violation";
 
-          const insightText = property.snap_insight || "";
-          const displayInsight = insightText.length > 140 ? insightText.slice(0, 137) + "…" : insightText;
-
-          const freshness = property.updated_at
-            ? formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })
-            : null;
-
           return (
             <motion.div
               key={property.id}
@@ -192,29 +185,8 @@ export function TopPressureProperties() {
                 </div>
               </div>
 
-              {/* Row 2: Status + Violation type */}
+              {/* Row 2: Violation type tag */}
               <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
-                {/* Warning icon */}
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-
-                {/* Open/Closed badge */}
-                {openCount > 0 ? (
-                  <Badge
-                    variant="outline"
-                    className="text-[11px] px-2 py-0 h-[20px] bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-medium"
-                  >
-                    open
-                  </Badge>
-                ) : totalCount > 0 ? (
-                  <Badge
-                    variant="outline"
-                    className="text-[11px] px-2 py-0 h-[20px] bg-rose-500/15 text-rose-400 border-rose-500/30 font-medium"
-                  >
-                    closed
-                  </Badge>
-                ) : null}
-
-                {/* Violation type */}
                 <span className="flex items-center gap-1 text-[11px] text-amber-400">
                   {isWater ? (
                     <Droplets className="h-3 w-3 text-cyan-400" />
@@ -228,21 +200,6 @@ export function TopPressureProperties() {
                   </span>
                 </span>
               </div>
-
-              {/* Row 3: AI Insight / description */}
-              {displayInsight && (
-                <p className="mt-2 text-xs text-[hsl(var(--landing-text-muted))] leading-relaxed line-clamp-3">
-                  {displayInsight}
-                </p>
-              )}
-
-              {/* Row 4: Freshness */}
-              {freshness && (
-                <div className="flex items-center gap-1 mt-2 text-[11px] text-[hsl(var(--landing-text-muted)/0.6)]">
-                  <Clock className="h-3 w-3" />
-                  <span>Snap updated {freshness}</span>
-                </div>
-              )}
             </motion.div>
           );
         })}

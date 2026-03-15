@@ -58,13 +58,21 @@ export async function enrichList(
     formData.append("zipColumnIndex", zipColumnIndex.toString());
   }
 
-  const response = await fetch(`${supabaseUrl}/functions/v1/enrich-list`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${supabaseUrl}/functions/v1/enrich-list`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+  } catch (networkErr) {
+    console.error("[enrichList] Network error:", networkErr);
+    throw new Error(
+      "Unable to reach the enrichment service. Please check your internet connection and try again."
+    );
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -86,7 +94,9 @@ export async function enrichList(
       }
     }
 
-    throw new Error(errorData.message || errorData.error || `Enrichment failed: ${response.statusText}`);
+    throw new Error(
+      errorData.message || errorData.error || `Enrichment failed (${response.status}): ${response.statusText}`
+    );
   }
 
   const csvText = await response.text();

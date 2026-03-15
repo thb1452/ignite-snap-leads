@@ -5,6 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Expose-Headers":
+    "X-Enrichment-Total, X-Enrichment-Matched, X-Enrichment-Remaining, Content-Disposition",
+  "Access-Control-Max-Age": "86400",
 };
 
 // Common street abbreviation expansions for normalization

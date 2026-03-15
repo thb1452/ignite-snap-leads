@@ -760,7 +760,8 @@ export default function Landing() {
         </div>
       </section>
 
-
+      {/* Coming Soon: Scan */}
+      <ListEnrichmentTeaser />
 
 
       {/* Data Credibility Section */}

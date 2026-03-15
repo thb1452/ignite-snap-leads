@@ -697,7 +697,7 @@ export default function Landing() {
                     <span className="text-landing-text-muted">/month</span>
                   </div>
                   <p className="text-landing-text-muted mt-2">{plan.description}</p>
-                  {plan.tagline && (
+                  {plan.tagline && plan.name !== "Starter" && (
                     <p className="text-xs text-landing-accent mt-2 font-medium italic">{plan.tagline}</p>
                   )}
                 </div>

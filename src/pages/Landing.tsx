@@ -756,13 +756,13 @@ export default function Landing() {
                 description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
                   "5,000 property exports/month",
-                  "Upload your own addresses — see which have active violations (10,000 addresses checked/month)",
                   "3,800+ cities nationwide",
                   "Code violation data",
                   "Basic filters (location, category, search)",
                   "Monthly data refresh",
                   "Email support"
                 ],
+                scanLine: "Scan your own list — see which have active violations (10,000 rows/month)",
                 tagline: "Enforcement intelligence without the noise.",
                 highlighted: false,
                 badge: undefined

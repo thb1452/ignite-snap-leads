@@ -271,7 +271,7 @@ export default function Landing() {
               </motion.div>
               
               <p className="text-landing-text-muted text-sm">
-                3 day free trial · 500 property exports · Then $79/month · Cancel anytime
+                3 day free trial · 500 property exports · 500 Scans · Then $79/month · Cancel anytime
               </p>
             </motion.div>
 
@@ -534,6 +534,13 @@ export default function Landing() {
                 title: "Real-time Alerts",
                 description: "Get notified when enforcement pressure escalates on properties you track.",
                 highlight: false
+              },
+              {
+                icon: Search,
+                title: "Scan Your List",
+                description: "Upload your own property list and instantly see which addresses have active violations and enforcement pressure.",
+                highlight: false,
+                comingSoon: true
               }
             ].map((feature, i) => (
               <motion.div
@@ -551,7 +558,14 @@ export default function Landing() {
                 }`}>
                   <feature.icon className="w-6 h-6 text-landing-accent" />
                 </div>
-                <h3 className="text-lg font-bold mb-2">{feature.title}</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-lg font-bold">{feature.title}</h3>
+                  {(feature as any).comingSoon && (
+                    <span className="inline-flex items-center rounded-full bg-landing-surface px-2 py-0.5 text-[10px] font-semibold text-landing-text-muted">
+                      Coming Soon
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-landing-text-muted">{feature.description}</p>
               </motion.div>
             ))}
@@ -1061,6 +1075,10 @@ export default function Landing() {
                 {
                   question: "Is there a free trial?",
                   answer: "Yes! Start a 3-day free trial — $0 due today. Enter your payment method at checkout and get 500 property exports to test data quality in your markets. Search unlimited properties, save favorites, and access all features for your selected tier. After 3 days your subscription begins automatically, or cancel anytime before then."
+                },
+                {
+                  question: "What is Scan?",
+                  answer: "Scan lets you bring your own property list and run it through our enforcement database. Instead of searching one address at a time, upload a CSV and we'll flag every property with active violations, escalating fines, or city action — plus a SnapScore for each one."
                 }
               ].map((faq, i) => (
                 <motion.div

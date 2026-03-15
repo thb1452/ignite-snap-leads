@@ -40,11 +40,11 @@ export function ListEnrichmentTeaser() {
           <div className="absolute -top-20 -right-20 w-60 h-60 bg-landing-accent/10 rounded-full blur-3xl pointer-events-none" />
 
           <h3 className="text-xl md:text-2xl font-bold text-landing-text mb-3">
-            🔥 Coming Soon: List Enrichment
+            🔥 Coming Soon: Scan
           </h3>
 
           <p className="text-sm md:text-base text-landing-text-muted leading-relaxed mb-2">
-            Upload any property list. We'll identify which addresses are currently under active municipal enforcement pressure — violations, escalating fines, and city action — and enrich each one with a SnapScore AI insight instantly.
+            Upload any property list. We'll scan every address against our enforcement database — violations, escalating fines, and city action — and return a SnapScore for each one instantly.
           </p>
 
           <p className="text-sm font-semibold text-landing-accent mb-6">

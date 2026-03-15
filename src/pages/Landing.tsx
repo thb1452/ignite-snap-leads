@@ -491,49 +491,49 @@ export default function Landing() {
               {
                 icon: Map,
                 title: "3,800+ Cities",
-                description: "Nationwide coverage from small towns to major metros.",
+                description: "Nationwide coverage across every major metro.",
                 highlight: false
               },
               {
                 icon: Target,
                 title: "SnapScore AI",
-                description: "Ranks every property by enforcement intensity — violation type, duration, and escalation.",
+                description: "Ranks every property by enforcement intensity.",
                 highlight: true
               },
               {
                 icon: Droplets,
                 title: "Water Shutoff Tracking",
-                description: "See hidden pressure signals unavailable anywhere else. Available in Elite tier.",
+                description: "Hidden pressure signals unavailable anywhere else.",
                 highlight: false
               },
               {
                 icon: Clock,
                 title: "Updated Monthly",
-                description: "Fresh enforcement data every 30 days — not stale records from last quarter.",
+                description: "Fresh enforcement data every 30 days.",
                 highlight: false
               },
               {
                 icon: Filter,
-                title: "Violation Type Filtering",
-                description: "Filter by open, vacancy, exterior, structural, and more.",
+                title: "Violation Filtering",
+                description: "Filter by type: open, vacancy, structural, and more.",
                 highlight: false
               },
               {
                 icon: Download,
                 title: "Export to CSV",
-                description: "Build targeted lists and export instantly for your workflow.",
+                description: "Build targeted lists and export instantly.",
                 highlight: false
               },
               {
                 icon: Bell,
                 title: "Real-time Alerts",
-                description: "Get notified when enforcement pressure escalates on properties you track.",
+                description: "Get notified when pressure escalates on tracked properties.",
                 highlight: false
               },
               {
                 icon: Search,
                 title: "Scan Your List",
-                description: "Upload your own property list and instantly see which addresses have active violations and enforcement pressure.",
+                description: "Upload your own list and see which addresses have active violations.",
                 highlight: false,
                 comingSoon: true
               }

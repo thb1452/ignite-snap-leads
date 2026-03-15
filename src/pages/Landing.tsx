@@ -279,31 +279,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Live Stats Bar */}
-      <section className="py-6 bg-landing-surface/20 backdrop-blur-xl border-y border-landing-accent/20 animate-gradient-border">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-            {[
-              { end: 500000, label: 'Properties Tracked', suffix: '+' },
-              { end: 3800, label: 'Cities Covered', suffix: '+' },
-              { end: 488636, label: 'Violations Monitored', suffix: '+' },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center py-3">
-                <div className="text-2xl md:text-4xl font-bold text-landing-text tabular-nums">
-                  <AnimatedCounter end={stat.end} suffix={stat.suffix} />
-                </div>
-                <div className="text-xs md:text-sm text-landing-text-muted mt-1">{stat.label}</div>
-              </div>
-            ))}
-            <div className="text-center py-3">
-              <div className="text-2xl md:text-4xl font-bold text-landing-text">
-                Monthly
-              </div>
-              <div className="text-xs md:text-sm text-landing-text-muted mt-1">Updated Monthly</div>
-            </div>
-          </div>
-        </div>
-      </section>
 
 
       {/* Problem Agitation Section */}

@@ -244,13 +244,7 @@ export default function Landing() {
               Snap Ignite tracks municipal pressure signals most platforms completely miss — code violations, escalating fines, water shutoffs, and enforcement escalations. We don't just show you violations. We show you pressure patterns.
             </motion.p>
 
-            {/* Positioning blockquote */}
-            <motion.blockquote
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="border-l-2 border-landing-accent/40 pl-5 text-landing-text-muted text-base md:text-lg max-w-2xl"
-            >
-              Snap Ignite is an enforcement intelligence platform that reveals where municipal pressure is building — before it becomes public knowledge. More than a lead list. More than a data feed. The earliest signal in the market.
-            </motion.blockquote>
+            
             
             {/* CTA */}
             <motion.div

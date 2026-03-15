@@ -897,7 +897,7 @@ export default function Landing() {
                 },
                 {
                   question: "How fresh is the data?",
-                  answer: "Enforcement records appear in Snap Ignite as municipal sources update. Most jurisdictions refresh monthly, ensuring you're working with current enforcement signals — not the stale, outdated lists traditional providers deliver 30–90 days late."
+                  answer: "Updated monthly. You're working with current enforcement signals — not records that are 30–90 days stale by the time other platforms deliver them."
                 },
                 {
                   question: "Do you include owner contact information?",

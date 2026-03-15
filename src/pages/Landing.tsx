@@ -241,15 +241,13 @@ export default function Landing() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="text-lg md:text-xl text-landing-text-muted max-w-2xl"
             >
-              Snap Ignite tracks municipal pressure signals most platforms completely miss — code violations, escalating fines, water shutoffs, and enforcement escalations. We don't just show you violations. We show you pressure patterns.
+              Code violations. Escalating fines. Water shutoffs. We show you pressure patterns before they become public knowledge.
             </motion.p>
-
-            
             
             {/* CTA */}
             <motion.div
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="flex flex-col items-start gap-4"
+              className="flex flex-col items-start gap-3"
             >
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className="w-full sm:w-auto">
                 <Button 
@@ -268,25 +266,6 @@ export default function Landing() {
               <p className="text-landing-text-muted text-sm">
                 3 day free trial · 500 property exports · 500 Scans · Then $79/month · Cancel anytime
               </p>
-            </motion.div>
-
-            {/* Demo Video */}
-            <motion.div
-              variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8 } } }}
-              className="relative mt-4"
-            >
-              <div className="relative rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
-                <video
-                  src="/demo-video.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  aria-label="Snap Ignite platform demo showing enforcement intelligence dashboard with violation tracking and SnapScore rankings"
-                  className="w-full h-auto rounded-2xl"
-                />
-              </div>
-              <div className="absolute -inset-4 bg-landing-accent/10 rounded-3xl blur-2xl -z-10 animate-pulse-soft" />
             </motion.div>
           </motion.div>
         </div>

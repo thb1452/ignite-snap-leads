@@ -75,7 +75,7 @@ const PRICING_TIERS: PricingTier[] = [
       'Pressure Level™ filters',
       'Priority email support',
     ],
-    scanLine: 'Scan — Upload your own list & see violations (25,000 rows/month)',
+    scanLine: 'Scan your own list — see which have active violations (25,000 rows/month)',
     scanDisabled: false,
     notIncluded: ['No water shutoff data'],
     icon: TrendingUp,

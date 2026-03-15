@@ -634,8 +634,7 @@ export default function Landing() {
                   "3,800+ cities",
                   "Code violation data",
                   "Basic filters",
-                  "Monthly data refresh",
-                  "Email support"
+                  "Monthly data refresh"
                 ],
                 scanLine: "Scan your own list (10,000 rows)",
                 tagline: undefined,

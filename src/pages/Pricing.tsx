@@ -550,7 +550,7 @@ export default function Pricing() {
                 <CardContent>
                   <p className="text-muted-foreground">
                     Start a 3-day trial — $0 due today. Enter your payment method at checkout and get 500 property
-                    exports and 500 address lookups to test data quality. Search unlimited properties, save favorites, and access tier-specific
+                    exports to test data quality. Search unlimited properties, save favorites, and access tier-specific
                     features. Your subscription begins automatically after 3 days, or cancel anytime before then.
                   </p>
                 </CardContent>

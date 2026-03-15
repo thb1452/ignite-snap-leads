@@ -534,6 +534,13 @@ export default function Landing() {
                 title: "Real-time Alerts",
                 description: "Get notified when enforcement pressure escalates on properties you track.",
                 highlight: false
+              },
+              {
+                icon: Search,
+                title: "Scan Your List",
+                description: "Upload your own property list and instantly see which addresses have active violations and enforcement pressure.",
+                highlight: false,
+                comingSoon: true
               }
             ].map((feature, i) => (
               <motion.div

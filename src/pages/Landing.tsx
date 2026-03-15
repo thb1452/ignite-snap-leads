@@ -783,68 +783,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PropStream vs Snap Comparison Table */}
-      <section className="py-24">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold text-center mb-12"
-            >
-              What Traditional Data Platforms Give You vs. What Snap Gives You
-            </motion.h2>
 
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="overflow-hidden rounded-xl border border-landing-surface"
-            >
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-landing-surface/50">
-                    <th className="text-left py-4 px-6 font-semibold">Data Type</th>
-                    <th className="text-center py-4 px-4 font-semibold">Traditional Data Platforms</th>
-                    <th className="text-center py-4 px-4 font-semibold text-landing-accent">Snap</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-landing-surface/50">
-                  {[
-                    { type: "Code violations (systematic)", ps: false, snap: true, snapNote: "3,800+ cities" },
-                    { type: "Enforcement pressure scoring", ps: false, snap: true, snapNote: "SnapScore AI" },
-                    { type: "Water shutoff tracking", ps: false, snap: true, snapNote: "Elite tier" },
-                    { type: "Real-time escalation alerts", ps: false, snap: true, snapNote: "" },
-                    { type: "Monthly data refresh", ps: false, snap: true, snapNote: "" },
-                  ].map((row, i) => (
-                    <tr key={i} className="bg-landing-bg/30">
-                      <td className="py-3 px-6">{row.type}</td>
-                      <td className="py-3 px-4 text-center">
-                        {row.ps ? (
-                          <Check className="w-5 h-5 text-green-400 mx-auto" />
-                        ) : (
-                          <X className="w-5 h-5 text-red-400/50 mx-auto" />
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {row.snap === true ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <Check className="w-5 h-5 text-landing-accent" />
-                            {row.snapNote && <span className="text-xs text-landing-text-muted">{row.snapNote}</span>}
-                          </div>
-                        ) : (
-                          <X className="w-5 h-5 text-red-400/50 mx-auto" />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </motion.div>
-          </div>
-        </div>
-      </section>
+
 
       {/* Data Credibility Section */}
       <section className="py-16 bg-landing-bg">

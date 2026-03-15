@@ -48,11 +48,9 @@ const PRICING_TIERS: PricingTier[] = [
     
     description: 'For investors who want premium enforcement targeting',
     features: [
-      '5,000 property exports/month',
-      '3,800+ cities nationwide',
+      '5,000 exports/month',
       'Code violation data',
-      'Monthly data refresh',
-      'Email support',
+      'Basic filters',
     ],
     scanLine: 'Scan your own list — see which have active violations (10,000 rows/month)',
     scanDisabled: false,
@@ -68,12 +66,9 @@ const PRICING_TIERS: PricingTier[] = [
 
     description: 'For serious operators stacking enforcement data',
     features: [
-      '15,000 property exports/month',
-      '3,800+ cities nationwide',
-      'Code violation data',
-      'Everything in Starter',
+      '15,000 exports/month',
+      'All Starter features',
       'Pressure Level™ filters',
-      'Priority email support',
     ],
     scanLine: 'Scan your own list — see which have active violations (25,000 rows/month)',
     scanDisabled: false,
@@ -88,7 +83,7 @@ const PRICING_TIERS: PricingTier[] = [
 
     description: 'For teams running enforcement-first strategies.',
     features: [
-      '25,000 property exports/month',
+      '25,000 exports/month',
       'All Pro features',
       'Water shutoff data',
     ],

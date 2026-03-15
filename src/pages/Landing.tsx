@@ -638,7 +638,7 @@ export default function Landing() {
                   "Email support"
                 ],
                 scanLine: "Scan your own list (10,000 rows)",
-                tagline: "Enforcement intelligence without the noise.",
+                tagline: undefined,
                 highlighted: false,
                 badge: undefined
               },

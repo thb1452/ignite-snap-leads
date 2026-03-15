@@ -349,17 +349,17 @@ export default function Landing() {
               {
                 icon: Users,
                 title: "Same Data, Same Competition",
-                description: "By the time a property shows up in traditional databases, everyone's already seen it. You're not finding opportunities—you're competing for leftovers."
+                description: "Everyone's already seen it by the time it shows up."
               },
               {
                 icon: Clock,
                 title: "Timing Blindness",
-                description: "Traditional filters show you distress signals from months ago. The property under pressure last month? Already sold. The one facing escalation now? Invisible to your current tools."
+                description: "Traditional filters show distress signals from months ago."
               },
               {
                 icon: Phone,
                 title: "Volume Over Intelligence",
-                description: "The current playbook: blast through more data, chase more records, hope something sticks. It's exhausting, expensive, and everyone else is doing the same thing."
+                description: "More records doesn't mean better deals."
               }
             ].map((problem, i) => (
               <motion.div

@@ -92,7 +92,7 @@ const PRICING_TIERS: PricingTier[] = [
       'All Pro features',
       'Water shutoff data',
     ],
-    scanLine: 'Scan — Upload your own list & see violations (Unlimited rows) — Coming Soon',
+    scanLine: 'Scan — Upload your own list & see violations (Unlimited rows)',
     scanDisabled: false,
     icon: Building2,
   },

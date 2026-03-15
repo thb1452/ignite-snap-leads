@@ -66,12 +66,9 @@ const PRICING_TIERS: PricingTier[] = [
 
     description: 'For serious operators stacking enforcement data',
     features: [
-      '15,000 property exports/month',
-      '3,800+ cities nationwide',
-      'Code violation data',
-      'Everything in Starter',
+      '15,000 exports/month',
+      'All Starter features',
       'Pressure Level™ filters',
-      'Priority email support',
     ],
     scanLine: 'Scan your own list — see which have active violations (25,000 rows/month)',
     scanDisabled: false,

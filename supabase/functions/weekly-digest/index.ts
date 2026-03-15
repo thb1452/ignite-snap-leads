@@ -333,6 +333,41 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Parse optional force flag from body
+    let forceRun = false;
+    try {
+      const body = await req.clone().json();
+      forceRun = body?.force === true;
+    } catch { /* no body or not JSON */ }
+
+    // Guard: only send on Mondays (day 1) unless explicitly forced
+    const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const dayOfWeek = nowET.getDay(); // 0=Sun, 1=Mon
+    if (dayOfWeek !== 1 && !forceRun) {
+      console.log(`Skipping digest: today is day ${dayOfWeek} (not Monday). Pass {"force": true} to override.`);
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: "Not Monday. Pass {\"force\": true} to override." }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Dedup guard: check if digest was already sent today
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const { count: alreadySentToday } = await supabase
+      .from("email_analytics")
+      .select("*", { count: "exact", head: true })
+      .eq("email_type", "weekly_digest")
+      .gte("sent_at", todayStart.toISOString());
+
+    if ((alreadySentToday || 0) > 0 && !forceRun) {
+      console.log(`Digest already sent today (${alreadySentToday} records). Skipping.`);
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: `Already sent today (${alreadySentToday} records)` }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const { weeklyCount, topProperties } = await getWeeklyStats(supabaseUrl, supabaseServiceKey);
     console.log(`Weekly stats: ${weeklyCount} violations, ${topProperties.length} top properties`);
 

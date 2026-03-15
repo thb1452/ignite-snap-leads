@@ -264,10 +264,6 @@ export function TrialSignupModal({ open, onOpenChange, selectedTier }: TrialSign
                   {f}
                 </li>
               ))}
-              <li className="flex items-center gap-2 text-sm text-cyan-700 dark:text-cyan-400">
-                <Check className="h-3.5 w-3.5 shrink-0" />
-                500 total property exports
-              </li>
             </ul>
           </div>
 

@@ -199,14 +199,6 @@ function selectDiverseProperties(properties: any[], count: number): any[] {
   return selected.sort((a, b) => (b.snap_score ?? 0) - (a.snap_score ?? 0));
 }
 
-function isValidAddress(addr: string): boolean {
-  if (!addr?.trim()) return false;
-  if (/^parcel[- ]based/i.test(addr)) return false;
-  if (/^[\d]+[-.][\d\-.]+$/.test(addr)) return false;
-  if (!/[a-zA-Z]/.test(addr)) return false;
-  return true;
-}
-
 async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   const sevenDaysAgo = new Date();
@@ -217,60 +209,28 @@ async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
     .select("*", { count: "exact", head: true })
     .gte("created_at", sevenDaysAgo.toISOString());
 
-  const selectCols = "id, address, city, state, snap_score, total_violations, violation_types, escalated, open_violations";
+  // Fetch a larger pool for diversity selection
+  const { data: candidateProperties } = await supabase
+    .from("properties")
+    .select("id, address, city, state, snap_score, total_violations, violation_types, escalated, open_violations")
+    .gte("updated_at", sevenDaysAgo.toISOString())
+    .not("snap_score", "is", null)
+    .order("snap_score", { ascending: false })
+    .order("total_violations", { ascending: false })
+    .limit(100);
 
-  // Fetch candidates from DIFFERENT score tiers in parallel to ensure diversity
-  // This prevents the pool from being 100% score-100 properties
-  const [tier1, tier2, tier3, tier4] = await Promise.all([
-    // Tier 1: scores 80-99 (NOT 100 — avoid the oversaturated cap)
-    supabase
-      .from("properties")
-      .select(selectCols)
-      .gte("updated_at", sevenDaysAgo.toISOString())
-      .gte("snap_score", 80)
-      .lt("snap_score", 100)
-      .order("total_violations", { ascending: false })
-      .limit(25),
-    // Tier 2: scores 60-79
-    supabase
-      .from("properties")
-      .select(selectCols)
-      .gte("updated_at", sevenDaysAgo.toISOString())
-      .gte("snap_score", 60)
-      .lt("snap_score", 80)
-      .order("total_violations", { ascending: false })
-      .limit(25),
-    // Tier 3: scores 40-59
-    supabase
-      .from("properties")
-      .select(selectCols)
-      .gte("updated_at", sevenDaysAgo.toISOString())
-      .gte("snap_score", 40)
-      .lt("snap_score", 60)
-      .order("total_violations", { ascending: false })
-      .limit(25),
-    // Tier 4: scores 100 (include a few but don't dominate)
-    supabase
-      .from("properties")
-      .select(selectCols)
-      .gte("updated_at", sevenDaysAgo.toISOString())
-      .eq("snap_score", 100)
-      .order("total_violations", { ascending: false })
-      .limit(10),
-  ]);
-
-  // Combine all tiers into one pool
-  const allCandidates = [
-    ...(tier1.data || []),
-    ...(tier2.data || []),
-    ...(tier3.data || []),
-    ...(tier4.data || []),
-  ].filter((p: any) => isValidAddress(p.address));
-
-  console.log(`Candidate pool: ${allCandidates.length} properties (tier 80-99: ${tier1.data?.length || 0}, 60-79: ${tier2.data?.length || 0}, 40-59: ${tier3.data?.length || 0}, 100: ${tier4.data?.length || 0})`);
+  // Filter out parcel IDs and non-street addresses
+  const validProperties = (candidateProperties || []).filter((p: any) => {
+    const addr = (p.address || "").trim();
+    if (!addr) return false;
+    if (/^parcel[- ]based/i.test(addr)) return false;
+    if (/^[\d]+[-.][\d\-.]+$/.test(addr)) return false;
+    if (!/[a-zA-Z]/.test(addr)) return false;
+    return true;
+  });
 
   // Select diverse top-5 across score tiers and cities
-  const topProperties = selectDiverseProperties(allCandidates, 5);
+  const topProperties = selectDiverseProperties(validProperties, 5);
 
   return {
     weeklyCount: weeklyCount || 0,

@@ -558,7 +558,14 @@ export default function Landing() {
                 }`}>
                   <feature.icon className="w-6 h-6 text-landing-accent" />
                 </div>
-                <h3 className="text-lg font-bold mb-2">{feature.title}</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-lg font-bold">{feature.title}</h3>
+                  {(feature as any).comingSoon && (
+                    <span className="inline-flex items-center rounded-full bg-landing-surface px-2 py-0.5 text-[10px] font-semibold text-landing-text-muted">
+                      Coming Soon
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-landing-text-muted">{feature.description}</p>
               </motion.div>
             ))}

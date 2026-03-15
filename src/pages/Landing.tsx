@@ -29,7 +29,8 @@ import {
   Zap,
   Menu,
   Droplets,
-  Bell
+  Bell,
+  Sparkles
 } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import {
@@ -756,13 +757,13 @@ export default function Landing() {
                 description: "Built for operators who want enforcement intelligence without the noise.",
                 features: [
                   "5,000 property exports/month",
-                  "Upload your own addresses — see which have active violations (10,000 addresses checked/month)",
                   "3,800+ cities nationwide",
                   "Code violation data",
                   "Basic filters (location, category, search)",
                   "Monthly data refresh",
                   "Email support"
                 ],
+                scanLine: "Scan your own list — see which have active violations (10,000 rows/month)",
                 tagline: "Enforcement intelligence without the noise.",
                 highlighted: false,
                 badge: undefined
@@ -773,11 +774,11 @@ export default function Landing() {
                 description: "For serious operators stacking enforcement data",
                 features: [
                   "15,000 property exports/month",
-                  "Upload your own addresses — see which have active violations (50,000 addresses checked/month)",
                   "All Starter features",
                   "Pressure Level filtering (prioritize higher-enforcement properties)",
                   "Priority email support"
                 ],
+                scanLine: "Scan your own list — see which have active violations (25,000 rows/month)",
                 tagline: "Built to identify what matters first.",
                 highlighted: true,
                 badge: "Most Popular"
@@ -788,10 +789,10 @@ export default function Landing() {
                 description: "For teams running enforcement-first strategies.",
                 features: [
                   "25,000 property exports/month",
-                  "Upload your own addresses — see which have active violations (Unlimited addresses checked/month)",
                   "All Pro features",
                   "Water shutoff data",
                 ],
+                scanLine: "Scan your own list — see which have active violations (50,000 rows/month)",
                 tagline: "Built for maximum signal, urgency, and scale.",
                 highlighted: false,
                 isElite: true
@@ -834,6 +835,17 @@ export default function Landing() {
                       <span>{feature}</span>
                     </li>
                   ))}
+                  {(plan as any).scanLine && (
+                    <li className="flex items-start gap-2 text-sm opacity-60">
+                      <Sparkles className="w-4 h-4 text-landing-text-muted flex-shrink-0 mt-0.5" />
+                      <span className="text-landing-text-muted">
+                        {(plan as any).scanLine}
+                        <span className="ml-1.5 inline-flex items-center rounded-full bg-landing-surface px-2 py-0.5 text-[10px] font-semibold text-landing-text-muted leading-none whitespace-nowrap align-middle">
+                          Coming Soon
+                        </span>
+                      </span>
+                    </li>
+                  )}
                 </ul>
                 
                 <Button

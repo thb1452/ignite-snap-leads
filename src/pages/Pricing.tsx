@@ -54,7 +54,7 @@ const PRICING_TIERS: PricingTier[] = [
       'Monthly data refresh',
       'Email support',
     ],
-    scanLine: 'Scan — Upload your own list & see violations (10,000 rows/month)',
+    scanLine: 'Scan your own list — see which have active violations (10,000 rows/month)',
     scanDisabled: false,
     notIncluded: ['No Pressure Level™ filters', 'No water shutoff data'],
     icon: Zap,
@@ -75,7 +75,7 @@ const PRICING_TIERS: PricingTier[] = [
       'Pressure Level™ filters',
       'Priority email support',
     ],
-    scanLine: 'Scan — Upload your own list & see violations (25,000 rows/month)',
+    scanLine: 'Scan your own list — see which have active violations (25,000 rows/month)',
     scanDisabled: false,
     notIncluded: ['No water shutoff data'],
     icon: TrendingUp,
@@ -92,7 +92,7 @@ const PRICING_TIERS: PricingTier[] = [
       'All Pro features',
       'Water shutoff data',
     ],
-    scanLine: 'Scan — Upload your own list & see violations (50,000 rows/month)',
+    scanLine: 'Scan your own list — see which have active violations (50,000 rows/month)',
     scanDisabled: false,
     icon: Building2,
   },
@@ -592,12 +592,12 @@ export default function Pricing() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-lg">What is address checking?</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-lg">What is Scan?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                   Upload your own list of addresses and we'll check which ones have active code violations, water shutoffs, 
-                   and other enforcement signals. Starter gets 10,000 addresses checked/month, Pro gets 50,000/month, and
-                   Elite gets unlimited.
+                   Upload your own list of addresses and we'll scan which ones have active code violations, water shutoffs, 
+                   and other enforcement signals. Starter gets 10,000 rows/month, Pro gets 25,000/month, and
+                   Elite gets 50,000/month.
                 </p>
               </CardContent>
             </Card>

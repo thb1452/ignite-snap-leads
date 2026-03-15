@@ -665,7 +665,7 @@ export default function Landing() {
                   "Water shutoff data",
                 ],
                 scanLine: "Scan your own list (50,000 rows)",
-                tagline: "Built for maximum signal, urgency, and scale.",
+                tagline: undefined,
                 highlighted: false,
                 isElite: true
               }

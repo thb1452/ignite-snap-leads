@@ -227,13 +227,13 @@ export default function Landing() {
               Enforcement Intelligence Platform
             </motion.p>
 
-            {/* Headline */}
+             {/* Headline */}
             <motion.h1 
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight"
             >
-              See Enforcement Pressure Before It Becomes{' '}
-              <span className="text-landing-accent">Public Knowledge</span>
+              Find motivated sellers before they hit the{' '}
+              <span className="text-landing-accent">MLS</span>.
             </motion.h1>
             
             {/* Subtext */}
@@ -241,7 +241,15 @@ export default function Landing() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="text-lg md:text-xl text-landing-text-muted max-w-2xl"
             >
-              Code violations. Escalating fines. Water shutoffs. We show you pressure patterns before they become public knowledge.
+              Snap Ignite tracks active code violations, water shutoffs, and city enforcement across 3,800+ cities — so you see which homeowners are under pressure before everyone else starts calling.
+            </motion.p>
+
+            {/* Stats line */}
+            <motion.p
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+              className="text-sm md:text-base text-landing-text-muted"
+            >
+              📊 500,000+ properties tracked · 3,800+ cities · Updated monthly
             </motion.p>
             
             {/* CTA */}
@@ -264,7 +272,7 @@ export default function Landing() {
               </motion.div>
               
               <p className="text-landing-text-muted text-sm">
-                3 day free trial · 500 property exports · 500 Scans · Then $79/month · Cancel anytime
+                3-day trial · Export 500 properties · No credit card required
               </p>
             </motion.div>
           </motion.div>

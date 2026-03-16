@@ -553,6 +553,36 @@ export type Database = {
         }
         Relationships: []
       }
+      export_logs: {
+        Row: {
+          city_filter: string | null
+          created_at: string
+          filters: Json | null
+          id: string
+          row_count: number
+          state_filter: string | null
+          user_id: string
+        }
+        Insert: {
+          city_filter?: string | null
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          row_count?: number
+          state_filter?: string | null
+          user_id: string
+        }
+        Update: {
+          city_filter?: string | null
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          row_count?: number
+          state_filter?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       foia_assignments: {
         Row: {
           assigned_at: string

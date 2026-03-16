@@ -137,6 +137,20 @@ function formatPropertyEmail(
 }
 
 /**
+ * Returns true if the address looks like a real street address (e.g. "229 W Schreiner St").
+ * Returns false for parcel IDs (e.g. "11-11-40-135-013") or empty/missing addresses.
+ * Parcel IDs contain only digits and dashes; real addresses contain at least one letter.
+ */
+function hasRealStreetAddress(address: string | null | undefined): boolean {
+  const addr = (address || "").trim();
+  if (!addr) return false;
+  if (/^parcel[- ]based/i.test(addr)) return false;
+  const isParcelId = /^[0-9-]+$/.test(addr);
+  const hasLetters = /[a-zA-Z]/.test(addr);
+  return hasLetters && !isParcelId;
+}
+
+/**
  * Selects a diverse set of properties across score tiers and cities.
  * Instead of showing 5 properties all at score 100, this picks from
  * different score buckets and avoids repeating the same city.
@@ -209,7 +223,7 @@ async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
     .select("*", { count: "exact", head: true })
     .gte("created_at", sevenDaysAgo.toISOString());
 
-  // Fetch a larger pool for diversity selection
+  // Fetch a larger pool (at least 20 candidates) for diversity selection, then filter to real addresses
   const { data: candidateProperties } = await supabase
     .from("properties")
     .select("id, address, city, state, snap_score, total_violations, violation_types, escalated, open_violations")
@@ -219,15 +233,11 @@ async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
     .order("total_violations", { ascending: false })
     .limit(100);
 
-  // Filter out parcel IDs and non-street addresses
-  const validProperties = (candidateProperties || []).filter((p: any) => {
-    const addr = (p.address || "").trim();
-    if (!addr) return false;
-    if (/^parcel[- ]based/i.test(addr)) return false;
-    if (/^[\d]+[-.][\d\-.]+$/.test(addr)) return false;
-    if (!/[a-zA-Z]/.test(addr)) return false;
-    return true;
-  });
+  // Filter out parcel IDs: only keep properties with real street addresses.
+  // Parcel IDs look like "11-11-40-135-013" (only digits and dashes, no letters).
+  const validProperties = (candidateProperties || []).filter((p: any) =>
+    hasRealStreetAddress(p.address)
+  );
 
   // Select diverse top-5 across score tiers and cities
   const topProperties = selectDiverseProperties(validProperties, 5);
@@ -338,7 +348,9 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       const body = await req.clone().json();
       forceRun = body?.force === true;
-    } catch { /* no body or not JSON */ }
+    } catch {
+      // no body or not JSON
+    }
 
     // Guard: only send on Mondays (day 1) unless explicitly forced
     const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));

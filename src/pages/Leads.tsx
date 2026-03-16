@@ -485,6 +485,9 @@ function Leads() {
         await exportFilteredCsv({
           propertyIds: selectedIds,
           expectedPropertyCount: propertyCount,
+          stateFilter: selectedState || undefined,
+          cityFilter: selectedCity || undefined,
+          filters: filters as Record<string, unknown>,
         });
 
         // Server-side trial export tracking is now handled by the export-csv edge function.
@@ -618,6 +621,9 @@ function Leads() {
               await exportFilteredCsv({
                 propertyIds: partialIds,
                 expectedPropertyCount: partialIds.length,
+                stateFilter: selectedState || undefined,
+                cityFilter: selectedCity || undefined,
+                filters: filters as Record<string, unknown>,
               });
               await new Promise((resolve) => setTimeout(resolve, 500));
               await refetchSubscription();

@@ -78,14 +78,15 @@ serve(async (req) => {
       }
     });
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !authData?.user) {
+    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
+    if (claimsErr || !claimsData?.claims?.sub) {
+      console.error('[export-csv] Auth failed:', claimsErr?.message);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const user = authData.user;
+    const user = { id: claimsData.claims.sub as string, email: claimsData.claims.email as string };
 
     // ---- Get user's subscription (including trial statuses) ----
     const { data: subData } = await supabase

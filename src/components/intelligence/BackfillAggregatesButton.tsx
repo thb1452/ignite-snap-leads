@@ -35,7 +35,7 @@ export function BackfillAggregatesButton() {
         const { count, error } = await supabase
           .from("properties")
           .select("id", { count: "exact", head: true })
-          .eq("total_violations", 0);
+          .is("total_violations", null);
         
         if (error) throw error;
         

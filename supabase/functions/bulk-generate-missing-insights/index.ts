@@ -47,33 +47,20 @@ serve(async (req) => {
       const anonClient = createClient(SUPABASE_URL, anonKey, {
         global: { headers: { Authorization: authHeader } }
       });
-      // Use getClaims for signing-keys compatibility
-      const { data: claimsData, error: claimsErr } = await anonClient.auth.getClaims(token);
-      if (claimsErr || !claimsData?.claims?.sub) {
-        console.error('[bulk-missing] getClaims failed:', claimsErr?.message ?? 'no claims');
-        // Fallback to getUser if getClaims not available
-        const { data: authData, error: authErr } = await anonClient.auth.getUser(token);
-        if (authErr || !authData?.user) {
-          console.error('[bulk-missing] getUser also failed:', authErr?.message);
-          return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        // Check admin role
-        const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-        const { data: roleData } = await adminClient.from('user_roles').select('role').eq('user_id', authData.user.id).eq('role', 'admin').maybeSingle();
-        if (!roleData) {
-          return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        console.log(`[bulk-missing] Admin verified via getUser: ${authData.user.id}`);
-      } else {
-        const userId = claimsData.claims.sub as string;
-        // Check admin role
-        const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-        const { data: roleData } = await adminClient.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle();
-        if (!roleData) {
-          return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        console.log(`[bulk-missing] Admin verified via getClaims: ${userId}`);
+
+      // Authenticate via getUser (compatible with all supabase-js versions)
+      const { data: authData, error: authErr } = await anonClient.auth.getUser(token);
+      if (authErr || !authData?.user) {
+        console.error('[bulk-missing] Auth failed:', authErr?.message);
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      // Check admin role
+      const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const { data: roleData } = await adminClient.from('user_roles').select('role').eq('user_id', authData.user.id).eq('role', 'admin').maybeSingle();
+      if (!roleData) {
+        return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      console.log(`[bulk-missing] Admin verified: ${authData.user.id}`);
     }
 
     const { offset = 0, dryRun = false, autoResume = true, forceRefresh = false, minScore = 0, sinceDays = 0, enforcementType = '' } = await req.json().catch(() => ({}));

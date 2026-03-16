@@ -311,16 +311,16 @@ const handler = async (req: Request): Promise<Response> => {
         global: { headers: { Authorization: authHeader } },
       });
       const token = authHeader.replace("Bearer ", "");
-      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims?.sub) {
+      const { data: authData, error: authError } = await authClient.auth.getUser(token);
+      if (authError || !authData?.user) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
-      
+
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
       const { data: roleData } = await adminClient
         .from("user_roles")
         .select("role")
-        .eq("user_id", claimsData.claims.sub)
+        .eq("user_id", authData.user.id)
         .eq("role", "admin")
         .maybeSingle();
       

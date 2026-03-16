@@ -82,12 +82,19 @@ export function BatchInsightsButton() {
     if (progress?.status === 'running') {
       pollingRef.current = setInterval(async () => {
         await fetchStats();
-        // Check if insights count has stabilized (all done)
+        // Check if the target segment is fully processed
         setStats(prev => {
           if (prev && progress) {
             const remaining = prev.total - prev.hasInsight;
-            // If there are no more missing for the target segment, mark complete
-            if (progress.mode === 'recent_20d' && remaining === 0) {
+            const isDone =
+              // missing mode: no more NULL insights
+              (progress.mode === 'missing' && remaining === 0) ||
+              // recent_20d / ai_refresh: hasInsight count stopped growing
+              // (server-side auto-resume signals completion via autoResuming=false,
+              //  but as a safety net we also complete when nothing is missing)
+              (progress.mode === 'recent_20d' && remaining === 0) ||
+              (progress.mode === 'ai_refresh' && remaining === 0);
+            if (isDone) {
               setProgress(p => p ? { ...p, status: 'complete', processed: p.totalProperties } : p);
               if (pollingRef.current) clearInterval(pollingRef.current);
             }
@@ -186,7 +193,12 @@ export function BatchInsightsButton() {
   const handleGenerateMissing = () => invokeInsights(false, 0, 'missing');
   const handleAIRefresh = () => invokeInsights(true, 50, 'ai_refresh');
   const handleRecent20Days = () => invokeInsights(true, 50, 'recent_20d', 20);
-  const handleReplaceAll = () => invokeInsights(true, 0, 'ai_refresh');
+  const handleReplaceAll = () => {
+    const confirmed = window.confirm(
+      `This will overwrite ALL ${(stats?.total ?? 0).toLocaleString()} insights — including any that are already correct.\n\nAre you sure you want to do a full rebuild?`
+    );
+    if (confirmed) invokeInsights(true, 0, 'ai_refresh');
+  };
 
   const progressPercent = progress 
     ? Math.round((progress.processed / Math.max(progress.totalProperties, 1)) * 100) 

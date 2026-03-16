@@ -25,9 +25,6 @@ DECLARE
   v_data_tier text := 'full';
   v_cutoff_date timestamptz;
   v_has_filters boolean;
-  v_scored_total bigint := 0;
-  v_scored_100 bigint := 0;
-  v_use_snap_score boolean := true;
 BEGIN
   v_user_id := auth.uid();
   
@@ -81,37 +78,6 @@ BEGIN
       AND (NOT p_repeat_offender_only OR p.repeat_offender = true);
   END IF;
 
-  -- Decide whether snap_score is meaningful enough for ranking.
-  -- If most scored properties are at 100, fall back to total_violations.
-  SELECT 
-    COUNT(*) FILTER (WHERE p.snap_score IS NOT NULL),
-    COUNT(*) FILTER (WHERE p.snap_score = 100)
-  INTO v_scored_total, v_scored_100
-  FROM properties p
-  WHERE (p_state IS NULL OR p.state ILIKE p_state)
-    AND (p_city IS NULL OR p.city ILIKE p_city)
-    AND (p_search IS NULL OR 
-         p.address ILIKE '%' || p_search || '%' OR
-         p.city ILIKE '%' || p_search || '%' OR
-         p.state ILIKE '%' || p_search || '%' OR
-         p.county ILIKE '%' || p_search || '%' OR
-         p.zip ILIKE '%' || p_search || '%')
-    AND (p_snap_min IS NULL OR p.snap_score >= p_snap_min)
-    AND (p_snap_max IS NULL OR p.snap_score <= p_snap_max)
-    AND (v_cutoff_date IS NULL OR p.updated_at >= v_cutoff_date)
-    AND (NOT p_open_violations_only OR COALESCE(p.open_violations, 0) > 0)
-    AND (NOT p_multiple_violations_only OR COALESCE(p.total_violations, 0) > 1)
-    AND (NOT p_repeat_offender_only OR p.repeat_offender = true);
-
-  IF v_scored_total = 0 THEN
-    v_use_snap_score := false;
-  ELSIF v_scored_100::numeric / v_scored_total::numeric >= 0.8 THEN
-    -- When 80%+ of scored properties are at 100, snap_score is not useful for ranking.
-    v_use_snap_score := false;
-  ELSE
-    v_use_snap_score := true;
-  END IF;
-
   IF p_sort_by = 'recently_updated' OR p_sort_by IS NULL THEN
     -- Actually sort by updated_at (when the record was last modified/uploaded)
     SELECT jsonb_agg(row_to_json(props)::jsonb)
@@ -139,11 +105,7 @@ BEGIN
         AND (NOT p_open_violations_only OR COALESCE(p.open_violations, 0) > 0)
         AND (NOT p_multiple_violations_only OR COALESCE(p.total_violations, 0) > 1)
         AND (NOT p_repeat_offender_only OR p.repeat_offender = true)
-      ORDER BY 
-        p.updated_at DESC NULLS LAST,
-        CASE WHEN v_use_snap_score THEN p.snap_score END DESC NULLS LAST,
-        p.total_violations DESC NULLS LAST,
-        p.id
+      ORDER BY p.updated_at DESC NULLS LAST, p.id
       LIMIT p_page_size
       OFFSET v_offset
     ) props;
@@ -174,11 +136,7 @@ BEGIN
         AND (NOT p_open_violations_only OR COALESCE(p.open_violations, 0) > 0)
         AND (NOT p_multiple_violations_only OR COALESCE(p.total_violations, 0) > 1)
         AND (NOT p_repeat_offender_only OR p.repeat_offender = true)
-      ORDER BY 
-        p.newest_violation_date DESC NULLS LAST,
-        CASE WHEN v_use_snap_score THEN p.snap_score END DESC NULLS LAST,
-        p.total_violations DESC NULLS LAST,
-        p.id
+      ORDER BY p.newest_violation_date DESC NULLS LAST, p.id
       LIMIT p_page_size
       OFFSET v_offset
     ) props;

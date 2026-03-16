@@ -3289,8 +3289,8 @@ export type Database = {
           p_last_seen_days?: number
           p_multiple_violations_only?: boolean
           p_open_violations_only?: boolean
-          p_page: number
-          p_page_size: number
+          p_page?: number
+          p_page_size?: number
           p_repeat_offender_only?: boolean
           p_search?: string
           p_snap_max?: number

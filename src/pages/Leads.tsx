@@ -133,8 +133,7 @@ function Leads() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
-  const [deepLinkedProperty, setDeepLinkedProperty] = useState<any | null>(null);
-  const [isDeepLinkLoading, setIsDeepLinkLoading] = useState(false);
+
 
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -705,73 +704,11 @@ function Leads() {
     return result;
   }, [properties, violationsData]);
 
-  // When a property is selected via deep link but not present in the current page,
-  // fetch it directly so the detail panel can still open.
-  useEffect(() => {
-    if (!selectedPropertyId) {
-      setDeepLinkedProperty(null);
-      return;
-    }
-
-    const existing = mappedProperties.find((p) => p.id === selectedPropertyId);
-    if (existing) {
-      // If the property is in the current page data, prefer that and clear any deep-link override
-      setDeepLinkedProperty(null);
-      return;
-    }
-
-    let cancelled = false;
-    const fetchDeepLinkedProperty = async () => {
-      try {
-        setIsDeepLinkLoading(true);
-        const { data, error } = await supabase
-          .from("properties")
-          .select("*")
-          .eq("id", selectedPropertyId)
-          .maybeSingle();
-
-        if (cancelled) return;
-
-        if (error || !data) {
-          console.error("[Leads] Failed to fetch deep-linked property:", error);
-          setDeepLinkedProperty(null);
-          return;
-        }
-
-        // Ensure the shape matches what PropertyDetailPanel expects
-        setDeepLinkedProperty({
-          ...data,
-          violations: [],
-        });
-      } catch (err) {
-        if (!cancelled) {
-          console.error("[Leads] Exception fetching deep-linked property:", err);
-          setDeepLinkedProperty(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsDeepLinkLoading(false);
-        }
-      }
-    };
-
-    fetchDeepLinkedProperty();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedPropertyId, mappedProperties]);
-
   // Keep performance optimization with useMemo
   const selectedProperty = useMemo(() => {
     if (!selectedPropertyId) return null;
-    const fromPage = mappedProperties.find((p) => p.id === selectedPropertyId) ?? null;
-    if (fromPage) return fromPage;
-    if (deepLinkedProperty && deepLinkedProperty.id === selectedPropertyId) {
-      return deepLinkedProperty;
-    }
-    return null;
-  }, [mappedProperties, selectedPropertyId, deepLinkedProperty]);
+    return mappedProperties.find((p) => p.id === selectedPropertyId) ?? null;
+  }, [mappedProperties, selectedPropertyId]);
 
   // Determine if user should be gated (expired trial or cancelled subscription, no active paid plan)
   const isCancelled = subscriptionStatus === "cancelled" || subscriptionStatus === "expired";

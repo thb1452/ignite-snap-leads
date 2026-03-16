@@ -1,10 +1,11 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useListProperties, useRemoveFromList, useUserLists } from "@/hooks/useLists";
 import { exportFilteredCsv } from "@/services/export";
@@ -20,6 +21,8 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  AlertTriangle,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -50,6 +53,7 @@ export function ListDetail() {
 
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectMode, setSelectMode] = useState<"page" | "custom">("page");
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<string | null>(null);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
@@ -58,6 +62,31 @@ export function ListDetail() {
   const pendingExportIdsRef = useRef<string[]>([]);
   const [trialGateOpen, setTrialGateOpen] = useState(false);
   const [trialGateType, setTrialGateType] = useState<'exhausted' | 'expired'>('exhausted');
+
+  // Split checkbox dropdown state
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customAmount, setCustomAmount] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+        setShowCustomInput(false);
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [dropdownOpen]);
+
+  useEffect(() => {
+    if (showCustomInput && inputRef.current) inputRef.current.focus();
+  }, [showCustomInput]);
 
   // Fetch list details
   const { data: lists = [] } = useUserLists();
@@ -72,15 +101,84 @@ export function ListDetail() {
   const removeFromListMutation = useRemoveFromList();
 
   const allSelected = properties.length > 0 && selectedIds.length === properties.length;
+  const exportRemaining = getRemainingCount("exports");
+  const isOverExportLimit = exportRemaining !== null && selectedIds.length > 0 && selectedIds.length > exportRemaining;
 
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+    setSelectMode("page");
   };
 
   const handleToggleSelectAll = () => {
     setSelectedIds(allSelected ? [] : properties.map((p) => p.id));
+    setSelectMode("page");
+  };
+
+  const handleSelectVisible = () => {
+    setSelectedIds(properties.map((p) => p.id));
+    setSelectMode("page");
+    setDropdownOpen(false);
+  };
+
+  const handleSelectCustomAmount = useCallback(async (amount: number) => {
+    setSelectMode("custom");
+    setDropdownOpen(false);
+    try {
+      // Fetch first N property IDs from the list using cursor pagination
+      const allIds: string[] = [];
+      const BATCH = 1000;
+      let lastId: string | null = null;
+      let hasMore = true;
+
+      while (hasMore && allIds.length < amount) {
+        let query = supabase
+          .from("list_properties")
+          .select("id, property_id")
+          .eq("list_id", listId!)
+          .order("id", { ascending: true })
+          .limit(Math.min(BATCH, amount - allIds.length));
+
+        if (lastId) {
+          query = query.gt("id", lastId);
+        }
+
+        const { data: batch, error } = await query;
+        if (error) throw new Error(`Failed to fetch property IDs: ${error.message}`);
+        if (!batch || batch.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        allIds.push(...batch.map((r) => r.property_id).filter(Boolean));
+        lastId = batch[batch.length - 1].id;
+        hasMore = batch.length === BATCH;
+      }
+
+      setSelectedIds(allIds);
+      toast({
+        title: "Selection Updated",
+        description: `Selected ${allIds.length.toLocaleString()} properties`,
+      });
+    } catch (err: any) {
+      console.error("[ListDetail] Custom amount selection error:", err);
+      toast({
+        title: "Selection Failed",
+        description: "Could not fetch property IDs. Please try again.",
+        variant: "destructive",
+      });
+      setSelectMode("page");
+    }
+  }, [listId, toast]);
+
+  const handleCustomConfirm = () => {
+    const num = parseInt(customAmount, 10);
+    if (num > 0) {
+      handleSelectCustomAmount(num);
+    }
+    setCustomAmount("");
+    setShowCustomInput(false);
   };
 
   // Core export logic — accepts IDs and count directly
@@ -103,6 +201,7 @@ export function ListDetail() {
       });
 
       setSelectedIds([]);
+      setSelectMode("page");
     } catch (error: any) {
       if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
         setTrialGateType('exhausted');
@@ -285,6 +384,7 @@ export function ListDetail() {
       });
 
       setSelectedIds([]);
+      setSelectMode("page");
       setShowRemoveDialog(false);
       refetch();
     } catch (error: any) {
@@ -318,32 +418,48 @@ export function ListDetail() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {selectedIds.length > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowRemoveDialog(true)}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Remove ({selectedIds.length})
-              </Button>
+          <div className="flex flex-col items-end gap-2">
+            {/* Export limit warning */}
+            {isOverExportLimit && (
+              <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  You have {exportRemaining!.toLocaleString()} exports remaining this month. Reduce your selection or upgrade your plan.
+                </span>
+              </div>
             )}
-            <Button
-              onClick={handleExport}
-              disabled={isExporting || properties.length === 0}
-            >
-              {isExporting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4 mr-2" />
+            <div className="flex items-center gap-2">
+              {selectedIds.length > 0 && (
+                <>
+                  <span className="text-sm text-muted-foreground">
+                    {selectedIds.length.toLocaleString()} properties selected
+                  </span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowRemoveDialog(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Remove ({selectedIds.length.toLocaleString()})
+                  </Button>
+                </>
               )}
-              {isExporting && exportProgress
-                ? exportProgress
-                : selectedIds.length > 0
-                ? `Export (${selectedIds.length})`
-                : `Export All (${totalCount.toLocaleString()})`}
-            </Button>
+              <Button
+                onClick={handleExport}
+                disabled={isExporting || properties.length === 0 || isOverExportLimit}
+              >
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                {isExporting && exportProgress
+                  ? exportProgress
+                  : selectedIds.length > 0
+                  ? `Export (${selectedIds.length.toLocaleString()})`
+                  : `Export All (${totalCount.toLocaleString()})`}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -367,10 +483,71 @@ export function ListDetail() {
                   <thead className="border-b bg-muted/50">
                     <tr>
                       <th className="p-3 text-left w-10">
-                        <Checkbox
-                          checked={allSelected}
-                          onCheckedChange={handleToggleSelectAll}
-                        />
+                        <div className="flex items-center" ref={dropdownRef}>
+                          <Checkbox
+                            checked={allSelected}
+                            onCheckedChange={handleToggleSelectAll}
+                          />
+                          <button
+                            onClick={() => {
+                              setDropdownOpen(!dropdownOpen);
+                              setShowCustomInput(false);
+                            }}
+                            className="ml-0.5 p-0.5 rounded hover:bg-muted transition-colors relative"
+                            aria-label="Selection options"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                          </button>
+
+                          {/* Dropdown menu */}
+                          {dropdownOpen && (
+                            <div className="absolute top-full mt-1 left-3 bg-popover border border-border rounded-md shadow-md py-1 min-w-[200px] z-50">
+                              <button
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors font-normal"
+                                onClick={handleSelectVisible}
+                              >
+                                Select Visible
+                                <span className="text-muted-foreground ml-1">({properties.length})</span>
+                              </button>
+
+                              {!showCustomInput ? (
+                                <button
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors font-normal"
+                                  onClick={() => setShowCustomInput(true)}
+                                >
+                                  Custom Amount
+                                </button>
+                              ) : (
+                                <div className="px-3 py-2 flex items-center gap-2">
+                                  <Input
+                                    ref={inputRef}
+                                    type="number"
+                                    min={1}
+                                    placeholder="Enter number..."
+                                    value={customAmount}
+                                    onChange={(e) => setCustomAmount(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleCustomConfirm();
+                                      if (e.key === "Escape") {
+                                        setShowCustomInput(false);
+                                        setCustomAmount("");
+                                      }
+                                    }}
+                                    className="h-7 text-sm w-28"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={handleCustomConfirm}
+                                    disabled={!customAmount || parseInt(customAmount, 10) <= 0}
+                                  >
+                                    Select
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </th>
                       <th className="p-3 text-left">Address</th>
                       <th className="p-3 text-left">City</th>

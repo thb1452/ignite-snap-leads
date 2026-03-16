@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowUpDown } from "lucide-react";
 
-export type SortOption = 'newest_violation' | 'recently_updated';
+export type SortOption = 'newest_violation' | 'recently_updated' | 'snap_score';
 
 interface SortByDropdownProps {
   value: SortOption;
@@ -12,6 +12,7 @@ interface SortByDropdownProps {
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'recently_updated', label: 'Recently Added' },
   { value: 'newest_violation', label: 'Recent Violations' },
+  { value: 'snap_score', label: 'Highest SnapScore' },
 ];
 
 export function SortByDropdown({ value, onChange }: SortByDropdownProps) {

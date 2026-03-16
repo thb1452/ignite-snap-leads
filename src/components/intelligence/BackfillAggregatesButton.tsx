@@ -35,7 +35,7 @@ export function BackfillAggregatesButton() {
         const { count, error } = await supabase
           .from("properties")
           .select("id", { count: "exact", head: true })
-          .eq("total_violations", 0);
+          .is("total_violations", null);
         
         if (error) throw error;
         
@@ -71,14 +71,13 @@ export function BackfillAggregatesButton() {
   const handleCheckStale = async () => {
     try {
       setIsLoading(true);
-      // Trigger backfill check to get accurate count from edge function
-      const result = await callFn<{ remaining?: number }>("backfill-property-aggregates", {
-        batchSize: 1,
-        concurrency: 1,
-        autoResume: false,
-      });
-      const remaining = typeof result.remaining === 'number' ? result.remaining : 0;
-      setStaleCount(remaining);
+      // Read-only count: properties that have never been aggregated (NULL = unprocessed)
+      const { count, error } = await supabase
+        .from("properties")
+        .select("id", { count: "exact", head: true })
+        .is("total_violations", null);
+      if (error) throw error;
+      setStaleCount(count ?? 0);
     } catch (error) {
       console.error("Failed to check stale count:", error);
       toast.error("Failed to check stale properties");

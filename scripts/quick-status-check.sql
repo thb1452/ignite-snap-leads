@@ -2,6 +2,21 @@
 -- QUICK STATUS CHECK - Run this to see current state
 -- =====================================================================
 
+-- 0. Backfill gap — how many properties still need aggregation?
+--    NULL = never processed. 0 = processed, zero violations. >0 = has violations.
+SELECT
+  COUNT(*)                                              AS total_properties,
+  COUNT(*) FILTER (WHERE total_violations IS NULL)      AS unsynced_null,
+  COUNT(*) FILTER (WHERE total_violations = 0)          AS synced_zero_violations,
+  COUNT(*) FILTER (WHERE total_violations > 0)          AS synced_with_violations,
+  ROUND(
+    100.0 * COUNT(*) FILTER (WHERE total_violations IS NOT NULL)
+    / NULLIF(COUNT(*), 0), 1
+  )                                                     AS pct_backfilled
+FROM properties;
+
+-- Expected after a full backfill: unsynced_null = 0, pct_backfilled = 100.0
+
 -- 1. Check if trigger function exists
 SELECT
   'Trigger Function Exists' as check_name,

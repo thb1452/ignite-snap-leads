@@ -191,6 +191,13 @@ WHERE 'Exterior' = ANY(violation_types);
 -- ✅ SUMMARY REPORT
 -- =====================================================================
 SELECT
+  '✅ Backfill Complete' as check_item,
+  CASE WHEN (SELECT COUNT(*) FROM properties WHERE total_violations IS NULL) = 0
+    THEN 'PASS'
+    ELSE 'FAIL — ' || (SELECT COUNT(*) FROM properties WHERE total_violations IS NULL)::text || ' properties unsynced'
+  END as status
+UNION ALL
+SELECT
   '✅ Trigger Function' as check_item,
   CASE WHEN EXISTS (
     SELECT 1 FROM pg_proc WHERE proname = 'update_property_aggregates'

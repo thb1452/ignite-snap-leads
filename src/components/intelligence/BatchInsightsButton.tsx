@@ -24,7 +24,7 @@ interface BatchRescoreProgress {
 export function BatchInsightsButton() {
   const [progress, setProgress] = useState<BatchRescoreProgress | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [stats, setStats] = useState<{ total: number; hasInsight: number; missing: number; highScore: number; generic: number } | null>(null);
+  const [stats, setStats] = useState<{ total: number; hasInsight: number; missing: number; highScore: number; generic: number; staleNoAction: number } | null>(null);
   const queryClient = useQueryClient();
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -51,15 +51,24 @@ export function BatchInsightsButton() {
         .not("snap_insight", "is", null)
         .lt("snap_insight", "S") // short generic insights sort before "S"
         .or("snap_insight.like.Routine%,snap_insight.like.Minimal%,snap_insight.like.Standard%");
-      
+
+      // Count stale "No active enforcement actions" insights —
+      // these properties may actually have violations but the insight
+      // was generated when violation data wasn't available.
+      const { count: staleNoActionCount } = await supabase
+        .from("properties")
+        .select("id", { count: "exact", head: true })
+        .eq("snap_insight", "No active enforcement actions currently on file.");
+
       const totalCount = total ?? 0;
       const insightCount = hasInsight ?? 0;
-      setStats({ 
-        total: totalCount, 
-        hasInsight: insightCount, 
+      setStats({
+        total: totalCount,
+        hasInsight: insightCount,
         missing: totalCount - insightCount,
         highScore: highScore ?? 0,
         generic: genericCount ?? 0,
+        staleNoAction: staleNoActionCount ?? 0,
       });
     } catch (error) {
       console.error("Failed to fetch insight stats:", error);
@@ -190,6 +199,23 @@ export function BatchInsightsButton() {
     }
   };
 
+  const handleRepairStaleNoAction = async () => {
+    try {
+      setIsLoading(true);
+      // Step 1: Use the repair SQL function to reset stale insights to NULL
+      // (only for properties that actually have violations in the violations table)
+      const { error } = await supabase.rpc('repair_stale_no_action_insights', { p_dry_run: false });
+      if (error) throw error;
+      toast.info("Stale insights cleared. Generating replacements...");
+      // Step 2: Now fill the newly-NULL insights
+      invokeInsights(false, 0, 'missing');
+    } catch (error) {
+      console.error("Repair failed:", error);
+      toast.error("Repair failed: " + (error instanceof Error ? error.message : "Unknown error"));
+      setIsLoading(false);
+    }
+  };
+
   const handleGenerateMissing = () => invokeInsights(false, 0, 'missing');
   const handleAIRefresh = () => invokeInsights(true, 50, 'ai_refresh');
   const handleRecent20Days = () => invokeInsights(true, 50, 'recent_20d', 20);
@@ -253,6 +279,12 @@ export function BatchInsightsButton() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">⚠️ Generic / template:</span>
                   <span className="font-semibold text-red-500">{stats.generic.toLocaleString()}</span>
+                </div>
+              )}
+              {stats.staleNoAction > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">🚨 Stale "no action" insight:</span>
+                  <span className="font-semibold text-red-600">{stats.staleNoAction.toLocaleString()}</span>
                 </div>
               )}
               <div className="flex justify-between">
@@ -372,10 +404,27 @@ export function BatchInsightsButton() {
               )}
             </Button>
 
+            {/* Repair stale "No active enforcement actions" insights */}
+            {stats.staleNoAction > 0 && (
+              <Button
+                onClick={handleRepairStaleNoAction}
+                disabled={isLoading || isRunning}
+                variant="destructive"
+                className="w-full"
+              >
+                {isLoading ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                )}
+                🚨 Repair {stats.staleNoAction.toLocaleString()} Stale "No Action" Insights
+              </Button>
+            )}
+
             {/* Generate missing button — secondary */}
             {stats.missing > 0 && (
-              <Button 
-                onClick={handleGenerateMissing} 
+              <Button
+                onClick={handleGenerateMissing}
                 disabled={isLoading || isRunning}
                 variant="outline"
                 className="w-full"

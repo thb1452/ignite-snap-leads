@@ -187,7 +187,7 @@ export default function AdminDashboard() {
         .limit(50);
 
       if (error) throw error;
-      setExportLogs((data as ExportLog[]) || []);
+      setExportLogs((data as unknown as ExportLog[]) || []);
     } catch (err) {
       console.error("[AdminDashboard] Failed to fetch export logs:", err);
       setExportLogs([]);

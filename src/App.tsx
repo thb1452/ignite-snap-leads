@@ -59,6 +59,7 @@ const AdminAssignCounties = lazy(() => import("./pages/AdminAssignCounties"));
 const AdminMigration = lazy(() => import("./pages/AdminMigration"));
 const AuditReport = lazy(() => import("./pages/AuditReport"));
 const AdminMonitoring = lazy(() => import("./pages/AdminMonitoring"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 
 // FOIA pages
 const FoiaLogin = lazy(() => import("./pages/FoiaLogin"));
@@ -268,6 +269,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute allowedRoles={["admin"]}>
                     <AdminMonitoring />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <RoleProtectedRoute allowedRoles={["admin"]}>
+                    <AdminDashboard />
                   </RoleProtectedRoute>
                 }
               />

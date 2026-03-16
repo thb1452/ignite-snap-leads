@@ -1,4 +1,5 @@
 import { supabase, supabaseUrl } from "@/integrations/supabase/externalClient";
+import { logExportEvent } from "./exportLog";
 
 interface ExportParams {
   city?: string;
@@ -7,6 +8,10 @@ interface ExportParams {
   jurisdictionId?: string;
   propertyIds?: string[];
   expectedPropertyCount?: number;  // For quota validation - tracks per property, not per operation
+  // Optional filter context for export logging
+  stateFilter?: string;
+  cityFilter?: string;
+  filters?: Record<string, unknown>;
 }
 
 export async function exportFilteredCsv(params: ExportParams) {
@@ -102,4 +107,13 @@ export async function exportFilteredCsv(params: ExportParams) {
     URL.revokeObjectURL(blobUrl);
     link.remove();
   }, 1000);
+
+  // Fire-and-forget: log export event for admin dashboard
+  const rowCount = params.expectedPropertyCount || params.propertyIds?.length || 0;
+  logExportEvent({
+    rowCount,
+    stateFilter: params.stateFilter,
+    cityFilter: params.cityFilter || params.city,
+    filters: params.filters,
+  });
 }

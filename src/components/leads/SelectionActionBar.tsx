@@ -20,9 +20,9 @@ interface SelectionActionBarProps {
   onToggleSelectAll?: () => void;
   onSelectVisible?: () => void;
   onSelectCustomAmount?: (amount: number) => void;
-  onSelectAllResults?: () => void;
+  onSelectMax?: (amount: number) => void;
   totalFilteredCount?: number;
-  showSelectAllResults?: boolean;
+  showSelectMax?: boolean;
   // Export limit enforcement
   exportRemaining?: number | null;
 }
@@ -38,9 +38,9 @@ export function SelectionActionBar({
   onToggleSelectAll,
   onSelectVisible,
   onSelectCustomAmount,
-  onSelectAllResults,
+  onSelectMax,
   totalFilteredCount,
-  showSelectAllResults = true,
+  showSelectMax = true,
   exportRemaining,
 }: SelectionActionBarProps) {
   const hasSelection = selectedCount > 0;
@@ -179,22 +179,34 @@ export function SelectionActionBar({
                       </div>
                     )}
 
-                    {showSelectAllResults && onSelectAllResults && (
-                      <button
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
-                        onClick={() => {
-                          onSelectAllResults();
-                          setDropdownOpen(false);
-                        }}
-                      >
-                        Select All Results
-                        {totalFilteredCount !== undefined && (
+                    {showSelectMax && onSelectMax && (() => {
+                      const maxAmount = exportRemaining === null || exportRemaining === undefined
+                        ? (totalFilteredCount ?? 0)
+                        : Math.min(exportRemaining, totalFilteredCount ?? 0);
+                      const isDisabled = maxAmount === 0;
+
+                      return (
+                        <button
+                          className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                            isDisabled
+                              ? "text-muted-foreground cursor-not-allowed"
+                              : "hover:bg-muted"
+                          }`}
+                          disabled={isDisabled}
+                          title={isDisabled ? "You've reached your monthly export limit. Upgrade to export more." : undefined}
+                          onClick={() => {
+                            if (isDisabled) return;
+                            onSelectMax(maxAmount);
+                            setDropdownOpen(false);
+                          }}
+                        >
+                          Select Max
                           <span className="text-muted-foreground ml-1">
-                            ({totalFilteredCount.toLocaleString()})
+                            ({maxAmount.toLocaleString()})
                           </span>
-                        )}
-                      </button>
-                    )}
+                        </button>
+                      );
+                    })()}
                   </div>
                 )}
 

@@ -344,12 +344,12 @@ function Leads() {
     }
   }, [filters, toast]);
 
-  const handleSelectAllResults = useCallback(async () => {
+  const handleSelectMax = useCallback(async (amount: number) => {
     setSelectMode("all");
-    // Fetch ALL property IDs from the filtered result set
+    // Fetch property IDs up to the specified max amount
     try {
       const filtersObj = filters as LeadFilters;
-      const fetchAmount = Math.min(totalCount, 25000); // Cap at 25k
+      const fetchAmount = Math.min(amount, totalCount, 25000); // Cap at 25k
       const rpcName = filtersObj.violationType ? "fn_properties_by_category" : "fn_properties_paged";
       const params = filtersObj.violationType
         ? {
@@ -390,13 +390,13 @@ function Leads() {
       setSelectedIds(ids);
       toast({
         title: "Selection Updated",
-        description: `Selected all ${ids.length.toLocaleString()} properties from filtered results`,
+        description: `Selected ${ids.length.toLocaleString()} properties (max exportable)`,
       });
     } catch (err: any) {
-      console.error("[Leads] Select all results error:", err);
+      console.error("[Leads] Select max error:", err);
       toast({
         title: "Selection Failed",
-        description: "Could not fetch all property IDs. Please try again.",
+        description: "Could not fetch property IDs. Please try again.",
         variant: "destructive",
       });
       setSelectMode("page");
@@ -1040,9 +1040,9 @@ function Leads() {
               isExporting={isExporting}
               onSelectVisible={handleSelectVisible}
               onSelectCustomAmount={handleSelectCustomAmount}
-              onSelectAllResults={handleSelectAllResults}
+              onSelectMax={handleSelectMax}
               totalFilteredCount={totalCount}
-              showSelectAllResults={true}
+              showSelectMax={true}
               exportRemaining={exportRemaining}
             />
           </div>
@@ -1243,9 +1243,9 @@ function Leads() {
             onToggleSelectAll={handleToggleSelectAll}
             onSelectVisible={handleSelectVisible}
             onSelectCustomAmount={handleSelectCustomAmount}
-            onSelectAllResults={handleSelectAllResults}
+            onSelectMax={handleSelectMax}
             totalFilteredCount={totalCount}
-            showSelectAllResults={true}
+            showSelectMax={true}
             exportRemaining={exportRemaining}
           />
         )}

@@ -17,9 +17,9 @@ interface BulkActionBarProps {
   // New props for three-mode selection
   onSelectVisible?: () => void;
   onSelectCustomAmount?: (amount: number) => void;
-  onSelectAllResults?: () => void;
+  onSelectMax?: (amount: number) => void;
   totalFilteredCount?: number;
-  showSelectAllResults?: boolean;
+  showSelectMax?: boolean;
   // Export limit enforcement
   exportRemaining?: number | null; // null = unlimited
 }
@@ -34,9 +34,9 @@ export function BulkActionBar({
   isExporting = false,
   onSelectVisible,
   onSelectCustomAmount,
-  onSelectAllResults,
+  onSelectMax,
   totalFilteredCount,
-  showSelectAllResults = true,
+  showSelectMax = true,
   exportRemaining,
 }: BulkActionBarProps) {
   const hasSelection = selectedCount > 0;
@@ -156,23 +156,37 @@ export function BulkActionBar({
                   </div>
                 )}
 
-                {/* Select All Results */}
-                {showSelectAllResults && onSelectAllResults && (
-                  <button
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
-                    onClick={() => {
-                      onSelectAllResults();
-                      setDropdownOpen(false);
-                    }}
-                  >
-                    Select All Results
-                    {totalFilteredCount !== undefined && (
+                {/* Select Max */}
+                {showSelectMax && onSelectMax && (() => {
+                  // Compute the max selectable: min of remaining exports and filtered results
+                  // exportRemaining === null means unlimited, so use totalFilteredCount
+                  const maxAmount = exportRemaining === null || exportRemaining === undefined
+                    ? (totalFilteredCount ?? 0)
+                    : Math.min(exportRemaining, totalFilteredCount ?? 0);
+                  const isDisabled = maxAmount === 0;
+
+                  return (
+                    <button
+                      className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                        isDisabled
+                          ? "text-muted-foreground cursor-not-allowed"
+                          : "hover:bg-muted"
+                      }`}
+                      disabled={isDisabled}
+                      title={isDisabled ? "You've reached your monthly export limit. Upgrade to export more." : undefined}
+                      onClick={() => {
+                        if (isDisabled) return;
+                        onSelectMax(maxAmount);
+                        setDropdownOpen(false);
+                      }}
+                    >
+                      Select Max
                       <span className="text-muted-foreground ml-1">
-                        ({totalFilteredCount.toLocaleString()})
+                        ({maxAmount.toLocaleString()})
                       </span>
-                    )}
-                  </button>
-                )}
+                    </button>
+                  );
+                })()}
               </div>
             )}
           </div>

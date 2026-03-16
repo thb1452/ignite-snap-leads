@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useSavedProperties } from "@/hooks/useSavedProperties";
 import { exportFilteredCsv } from "@/services/export";
@@ -20,7 +21,9 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 const PAGE_SIZE = 50;
@@ -41,11 +44,37 @@ export default function SavedProperties() {
 
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectMode, setSelectMode] = useState<"page" | "custom">("page");
   const [isExporting, setIsExporting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [exportContextData, setExportContextData] = useState<ExportContext | undefined>(undefined);
   const [trialGateOpen, setTrialGateOpen] = useState(false);
   const [trialGateType, setTrialGateType] = useState<'exhausted' | 'expired'>('exhausted');
+
+  // Split checkbox dropdown state
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customAmount, setCustomAmount] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+        setShowCustomInput(false);
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [dropdownOpen]);
+
+  useEffect(() => {
+    if (showCustomInput && inputRef.current) inputRef.current.focus();
+  }, [showCustomInput]);
 
   // Fetch property details for saved IDs
   const paginatedIds = useMemo(() => {
@@ -71,22 +100,54 @@ export default function SavedProperties() {
   });
 
   const isLoading = savedLoading || propertiesLoading;
+  const exportRemaining = getRemainingCount("exports");
+  const isOverExportLimit = exportRemaining !== null && selectedIds.length > exportRemaining;
 
   const handleToggleSelect = (id: string) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
+    setSelectMode("page");
   };
 
   const handleToggleSelectAll = () => {
     setSelectedIds(prev =>
       prev.length === properties.length ? [] : properties.map(p => p.id)
     );
+    setSelectMode("page");
+  };
+
+  const handleSelectVisible = () => {
+    setSelectedIds(properties.map(p => p.id));
+    setSelectMode("page");
+    setDropdownOpen(false);
+  };
+
+  const handleSelectCustomAmount = (amount: number) => {
+    // Select first N from all savedIds
+    const idsToSelect = savedIds.slice(0, amount);
+    setSelectedIds(idsToSelect);
+    setSelectMode("custom");
+    setDropdownOpen(false);
+    toast({
+      title: "Selection Updated",
+      description: `Selected ${idsToSelect.length.toLocaleString()} properties`,
+    });
+  };
+
+  const handleCustomConfirm = () => {
+    const num = parseInt(customAmount, 10);
+    if (num > 0) {
+      handleSelectCustomAmount(num);
+    }
+    setCustomAmount("");
+    setShowCustomInput(false);
   };
 
   const handleRemoveSelected = () => {
     selectedIds.forEach(id => toggleSaved(id));
     setSelectedIds([]);
+    setSelectMode("page");
     toast({ title: "Removed", description: `Removed ${selectedIds.length} properties from saved` });
   };
 
@@ -107,6 +168,7 @@ export default function SavedProperties() {
       await exportFilteredCsv({ propertyIds: selectedIds, expectedPropertyCount: selectedIds.length });
       toast({ title: "Export Complete", description: `Exported ${selectedIds.length} properties` });
       setSelectedIds([]);
+      setSelectMode("page");
       await refetchSubscription();
       if (isOnTrial) await refetchTrial();
     } catch (error: any) {
@@ -135,16 +197,27 @@ export default function SavedProperties() {
 
         {/* Action bar */}
         {selectedIds.length > 0 && (
-          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-            <span className="text-sm font-medium">{selectedIds.length} selected</span>
-            <div className="flex-1" />
-            <Button variant="outline" size="sm" onClick={handleRemoveSelected}>
-              <Trash2 className="h-4 w-4 mr-1" /> Unsave
-            </Button>
-            <Button size="sm" onClick={handleExport} disabled={isExporting}>
-              {isExporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
-              Export
-            </Button>
+          <div className="flex flex-col gap-2 p-3 bg-muted rounded-lg">
+            {/* Export limit warning */}
+            {isOverExportLimit && (
+              <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  You have {exportRemaining!.toLocaleString()} exports remaining this month. Reduce your selection or upgrade your plan.
+                </span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{selectedIds.length.toLocaleString()} properties selected</span>
+              <div className="flex-1" />
+              <Button variant="outline" size="sm" onClick={handleRemoveSelected}>
+                <Trash2 className="h-4 w-4 mr-1" /> Unsave
+              </Button>
+              <Button size="sm" onClick={handleExport} disabled={isExporting || isOverExportLimit}>
+                {isExporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
+                Export
+              </Button>
+            </div>
           </div>
         )}
 
@@ -166,15 +239,78 @@ export default function SavedProperties() {
           </div>
         ) : (
           <>
-            {/* Select all */}
-            <div className="flex items-center gap-2 px-1">
-              <Checkbox
-                checked={selectedIds.length === properties.length && properties.length > 0}
-                onCheckedChange={handleToggleSelectAll}
-              />
+            {/* Split checkbox select control */}
+            <div className="flex items-center gap-2 px-1 relative" ref={dropdownRef}>
+              <div className="flex items-center">
+                <Checkbox
+                  checked={selectedIds.length === properties.length && properties.length > 0}
+                  onCheckedChange={handleToggleSelectAll}
+                />
+                <button
+                  onClick={() => {
+                    setDropdownOpen(!dropdownOpen);
+                    setShowCustomInput(false);
+                  }}
+                  className="ml-0.5 p-0.5 rounded hover:bg-muted transition-colors"
+                  aria-label="Selection options"
+                >
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              </div>
               <span className="text-sm text-muted-foreground">
-                Select all ({properties.length})
+                {selectedIds.length > 0
+                  ? `${selectedIds.length.toLocaleString()} properties selected`
+                  : `Select all (${properties.length})`}
               </span>
+
+              {/* Dropdown menu */}
+              {dropdownOpen && (
+                <div className="absolute top-full mt-1 left-0 bg-popover border border-border rounded-md shadow-md py-1 min-w-[200px] z-50">
+                  <button
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                    onClick={handleSelectVisible}
+                  >
+                    Select Visible
+                    <span className="text-muted-foreground ml-1">({properties.length})</span>
+                  </button>
+
+                  {!showCustomInput ? (
+                    <button
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                      onClick={() => setShowCustomInput(true)}
+                    >
+                      Custom Amount
+                    </button>
+                  ) : (
+                    <div className="px-3 py-2 flex items-center gap-2">
+                      <Input
+                        ref={inputRef}
+                        type="number"
+                        min={1}
+                        placeholder="Enter number..."
+                        value={customAmount}
+                        onChange={(e) => setCustomAmount(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleCustomConfirm();
+                          if (e.key === "Escape") {
+                            setShowCustomInput(false);
+                            setCustomAmount("");
+                          }
+                        }}
+                        className="h-7 text-sm w-28"
+                      />
+                      <Button
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={handleCustomConfirm}
+                        disabled={!customAmount || parseInt(customAmount, 10) <= 0}
+                      >
+                        Select
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

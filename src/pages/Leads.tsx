@@ -1,10 +1,10 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LeadsMap } from "@/components/leads/LeadsMap";
 import { FilterBar } from "@/components/leads/FilterBar";
-import { BulkActionBar } from "@/components/leads/BulkActionBar";
+import { BulkActionBar, type SelectMode } from "@/components/leads/BulkActionBar";
 import { PropertyDetailPanel } from "@/components/leads/PropertyDetailPanel";
 import { MobilePropertyDetailSheet } from "@/components/leads/MobilePropertyDetailSheet";
 import { MobileFilterSheet } from "@/components/leads/MobileFilterSheet";
@@ -129,6 +129,7 @@ function Leads() {
     return () => clearTimeout(timer);
   }, [searchInput, searchQuery]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectMode, setSelectMode] = useState<SelectMode>("page");
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
@@ -275,15 +276,142 @@ function Leads() {
 
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    // If user manually toggles individual items, switch to page mode
+    setSelectMode("page");
   };
 
   const handleToggleSelectAll = () => {
     setSelectedIds((prev) => (prev.length === properties.length ? [] : properties.map((p) => p.id)));
+    setSelectMode("page");
   };
 
-  // Handle page change with selection warning
+  // Three-mode selection handlers
+  const handleSelectVisible = useCallback(() => {
+    setSelectedIds(properties.map((p) => p.id));
+    setSelectMode("page");
+  }, [properties]);
+
+  const handleSelectCustomAmount = useCallback(async (amount: number) => {
+    setSelectMode("custom");
+    // Fetch first N property IDs from the filtered result set
+    // Use the same RPC with a large page size to get IDs
+    try {
+      const filtersObj = filters as LeadFilters;
+      const rpcName = filtersObj.violationType ? "fn_properties_by_category" : "fn_properties_paged";
+      const params = filtersObj.violationType
+        ? {
+            p_category: filtersObj.violationType,
+            p_state: filtersObj.state || null,
+            p_city: filtersObj.cities?.length === 1 ? filtersObj.cities[0] : null,
+            p_search: filtersObj.search || null,
+            p_snap_min: filtersObj.snapScoreRange?.[0] ?? null,
+            p_snap_max: filtersObj.snapScoreRange?.[1] ?? null,
+            p_last_seen_days: filtersObj.lastSeenDays ?? null,
+            p_page: 1,
+            p_page_size: amount,
+            p_sort_by: filtersObj.sortBy || "recently_updated",
+            p_open_violations_only: filtersObj.openViolationsOnly ?? false,
+            p_multiple_violations_only: filtersObj.multipleViolationsOnly ?? false,
+            p_repeat_offender_only: filtersObj.repeatOffenderOnly ?? false,
+          }
+        : {
+            p_page: 1,
+            p_page_size: amount,
+            p_state: filtersObj.state || null,
+            p_city: filtersObj.cities?.length === 1 ? filtersObj.cities[0] : null,
+            p_search: filtersObj.search || null,
+            p_snap_min: filtersObj.snapScoreRange?.[0] ?? null,
+            p_snap_max: filtersObj.snapScoreRange?.[1] ?? null,
+            p_last_seen_days: filtersObj.lastSeenDays ?? null,
+            p_sort_by: filtersObj.sortBy || "recently_updated",
+            p_open_violations_only: filtersObj.openViolationsOnly ?? false,
+            p_multiple_violations_only: filtersObj.multipleViolationsOnly ?? false,
+            p_repeat_offender_only: filtersObj.repeatOffenderOnly ?? false,
+          };
+
+      const { data: rpcData, error: rpcError } = await supabase.rpc(rpcName, params);
+      if (rpcError) throw rpcError;
+
+      const result = rpcData as { items: { id: string }[]; total: number };
+      const ids = (result.items ?? []).map((item) => item.id);
+      setSelectedIds(ids);
+      toast({
+        title: "Selection Updated",
+        description: `Selected ${ids.length.toLocaleString()} properties`,
+      });
+    } catch (err: any) {
+      console.error("[Leads] Custom amount selection error:", err);
+      toast({
+        title: "Selection Failed",
+        description: "Could not fetch property IDs. Please try again.",
+        variant: "destructive",
+      });
+      setSelectMode("page");
+    }
+  }, [filters, toast]);
+
+  const handleSelectAllResults = useCallback(async () => {
+    setSelectMode("all");
+    // Fetch ALL property IDs from the filtered result set
+    try {
+      const filtersObj = filters as LeadFilters;
+      const fetchAmount = Math.min(totalCount, 25000); // Cap at 25k
+      const rpcName = filtersObj.violationType ? "fn_properties_by_category" : "fn_properties_paged";
+      const params = filtersObj.violationType
+        ? {
+            p_category: filtersObj.violationType,
+            p_state: filtersObj.state || null,
+            p_city: filtersObj.cities?.length === 1 ? filtersObj.cities[0] : null,
+            p_search: filtersObj.search || null,
+            p_snap_min: filtersObj.snapScoreRange?.[0] ?? null,
+            p_snap_max: filtersObj.snapScoreRange?.[1] ?? null,
+            p_last_seen_days: filtersObj.lastSeenDays ?? null,
+            p_page: 1,
+            p_page_size: fetchAmount,
+            p_sort_by: filtersObj.sortBy || "recently_updated",
+            p_open_violations_only: filtersObj.openViolationsOnly ?? false,
+            p_multiple_violations_only: filtersObj.multipleViolationsOnly ?? false,
+            p_repeat_offender_only: filtersObj.repeatOffenderOnly ?? false,
+          }
+        : {
+            p_page: 1,
+            p_page_size: fetchAmount,
+            p_state: filtersObj.state || null,
+            p_city: filtersObj.cities?.length === 1 ? filtersObj.cities[0] : null,
+            p_search: filtersObj.search || null,
+            p_snap_min: filtersObj.snapScoreRange?.[0] ?? null,
+            p_snap_max: filtersObj.snapScoreRange?.[1] ?? null,
+            p_last_seen_days: filtersObj.lastSeenDays ?? null,
+            p_sort_by: filtersObj.sortBy || "recently_updated",
+            p_open_violations_only: filtersObj.openViolationsOnly ?? false,
+            p_multiple_violations_only: filtersObj.multipleViolationsOnly ?? false,
+            p_repeat_offender_only: filtersObj.repeatOffenderOnly ?? false,
+          };
+
+      const { data: rpcData, error: rpcError } = await supabase.rpc(rpcName, params);
+      if (rpcError) throw rpcError;
+
+      const result = rpcData as { items: { id: string }[]; total: number };
+      const ids = (result.items ?? []).map((item) => item.id);
+      setSelectedIds(ids);
+      toast({
+        title: "Selection Updated",
+        description: `Selected all ${ids.length.toLocaleString()} properties from filtered results`,
+      });
+    } catch (err: any) {
+      console.error("[Leads] Select all results error:", err);
+      toast({
+        title: "Selection Failed",
+        description: "Could not fetch all property IDs. Please try again.",
+        variant: "destructive",
+      });
+      setSelectMode("page");
+    }
+  }, [filters, totalCount, toast]);
+
+  // Handle page change — don't clear selection for 'all' or 'custom' modes
   const handlePageChange = (newPage: number) => {
-    if (selectedIds.length > 0) {
+    if (selectedIds.length > 0 && selectMode === "page") {
       setPendingPage(newPage);
     } else {
       setPage(newPage);
@@ -293,6 +421,7 @@ function Leads() {
   const confirmPageChange = () => {
     if (pendingPage !== null) {
       setSelectedIds([]);
+      setSelectMode("page");
       setPage(pendingPage);
       setPendingPage(null);
     }
@@ -301,6 +430,9 @@ function Leads() {
   const cancelPageChange = () => {
     setPendingPage(null);
   };
+
+  // Export remaining count for limit enforcement
+  const exportRemaining = getRemainingCount("exports");
 
   const handleExportCSV = async () => {
     if (selectedIds.length === 0) {
@@ -825,7 +957,9 @@ function Leads() {
               <div className="px-3 py-1.5 border-b bg-background flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   {selectedIds.length > 0 && (
-                    <span className="text-xs text-muted-foreground">{selectedIds.length} selected</span>
+                    <span className="text-xs text-muted-foreground">
+                      {selectedIds.length.toLocaleString()} properties selected
+                    </span>
                   )}
                   <SortByDropdown
                     value={sortBy}
@@ -910,6 +1044,12 @@ function Leads() {
               onExport={handleExportCSV}
               onAddToList={() => setShowAddToListDialog(true)}
               isExporting={isExporting}
+              onSelectVisible={handleSelectVisible}
+              onSelectCustomAmount={handleSelectCustomAmount}
+              onSelectAllResults={handleSelectAllResults}
+              totalFilteredCount={totalCount}
+              showSelectAllResults={true}
+              exportRemaining={exportRemaining}
             />
           </div>
         </div>
@@ -949,7 +1089,7 @@ function Leads() {
                       />
                       <span className="text-sm font-medium">
                         {selectedIds.length > 0
-                          ? `${selectedIds.length} selected`
+                          ? `${selectedIds.length.toLocaleString()} properties selected`
                           : `Select all (${properties.length})`}
                       </span>
                     </div>
@@ -968,12 +1108,12 @@ function Leads() {
                             ) : (
                               <Download className="h-3 w-3" />
                             )}
-                            Export ({selectedIds.length})
+                            Export ({selectedIds.length.toLocaleString()})
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setSelectedIds([])}
+                            onClick={() => { setSelectedIds([]); setSelectMode("page"); }}
                             className="h-8 text-xs text-muted-foreground"
                           >
                             Clear
@@ -1102,8 +1242,17 @@ function Leads() {
             selectedCount={selectedIds.length}
             onExportCSV={handleExportCSV}
             onAddToList={() => setShowAddToListDialog(true)}
-            onClearSelection={() => setSelectedIds([])}
+            onClearSelection={() => { setSelectedIds([]); setSelectMode("page"); }}
             isExporting={isExporting}
+            visibleCount={properties.length}
+            allVisibleSelected={selectedIds.length === properties.length && properties.length > 0}
+            onToggleSelectAll={handleToggleSelectAll}
+            onSelectVisible={handleSelectVisible}
+            onSelectCustomAmount={handleSelectCustomAmount}
+            onSelectAllResults={handleSelectAllResults}
+            totalFilteredCount={totalCount}
+            showSelectAllResults={true}
+            exportRemaining={exportRemaining}
           />
         )}
 

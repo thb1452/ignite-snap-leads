@@ -162,8 +162,8 @@ export function AuthForm() {
     }
     if (mode === 'signup') {
       return {
-        title: "Create Your Account",
-        description: "Sign up to access enforcement intelligence."
+        title: "Private Beta",
+        description: "Signups are currently paused. Join our waitlist for early access."
       };
     }
     if (mode === 'signin') {

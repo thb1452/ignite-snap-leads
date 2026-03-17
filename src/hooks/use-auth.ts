@@ -284,6 +284,9 @@ export function useAuth() {
 
       if (error) throw error;
 
+      // Rotate random seed for fair lead distribution
+      rotateRandomSeed();
+
       toast({
         title: "Welcome back!",
         description: "Successfully signed in",

@@ -68,13 +68,6 @@ function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number; s
 export default function Landing() {
   const billingCycle = 'monthly' as const;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [trialModalOpen, setTrialModalOpen] = useState(false);
-  const [selectedTrialTier, setSelectedTrialTier] = useState('starter');
-
-  const openTrialModal = (tier: string) => {
-    setSelectedTrialTier(tier);
-    setTrialModalOpen(true);
-  };
 
   const pricing = {
     starter: { monthly: 79 },

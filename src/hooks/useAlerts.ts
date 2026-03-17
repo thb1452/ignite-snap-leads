@@ -37,7 +37,8 @@ export function useAlerts() {
       return (data ?? []) as UserAlert[];
     },
     enabled: !!user,
-    staleTime: 30_000,
+    staleTime: 60 * 1000, // 1 minute - alerts don't need to be super fresh
+    gcTime: 5 * 60 * 1000, // 5 minutes - keep cached data longer
   });
 
   const unreadCount = alerts.filter((a) => !a.is_read).length;

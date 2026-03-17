@@ -38,9 +38,9 @@ export function useUserLists() {
   return useQuery<UserList[]>({
     queryKey: ["lists"],
     queryFn: getUserLists,
-    staleTime: 0,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    staleTime: 2 * 60 * 1000, // 2 minutes - lists don't change frequently
+    refetchOnMount: false, // Use stale data if available
+    refetchOnWindowFocus: false, // Only refetch when explicitly requested
   });
 }
 

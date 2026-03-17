@@ -53,6 +53,7 @@ import { useTrialExportNotifications } from "@/hooks/useTrialExportNotifications
 import { TrialExportGate } from "@/components/trial/TrialExportGate";
 import { TrialPaywall } from "@/components/trial/TrialPaywall";
 import { useSavedProperties } from "@/hooks/useSavedProperties";
+import { buildFiltersFromState, countActiveFilters, logFilters } from "@/utils/filterUtils";
 
 const PAGE_SIZE = 50;
 
@@ -118,16 +119,33 @@ function Leads() {
   // Demo credits hook
   const { isDemoMode, isAdmin } = useDemoCredits();
 
-  // Debounce search input (300ms delay)
+  // Debounce search input (300ms delay) and reset page when search changes
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchInput !== searchQuery) {
         setSearchQuery(searchInput);
-        setPage(1);
+        setPage(1); // Reset to first page when search changes
       }
     }, 300);
     return () => clearTimeout(timer);
   }, [searchInput, searchQuery]);
+
+  // Reset page when filters change (except sortBy)
+  useEffect(() => {
+    setPage(1);
+    setSelectedIds([]); // Clear selection when filters change
+    setSelectMode("page"); // Reset selection mode
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    selectedCity,
+    selectedState,
+    lastSeenDays,
+    selectedSignal,
+    openViolationsOnly,
+    multipleViolationsOnly,
+    repeatOffenderOnly,
+    // Note: searchQuery and sortBy are handled separately
+  ]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectMode, setSelectMode] = useState<SelectMode>("page");
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
@@ -143,48 +161,22 @@ function Leads() {
   const [trialGateOpen, setTrialGateOpen] = useState(false);
   const [trialGateType, setTrialGateType] = useState<"exhausted" | "expired">("exhausted");
 
-  // Count active filters
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (lastSeenDays !== null) count++;
-    if (selectedCity) count++;
-    if (selectedState) count++;
-    if (selectedSignal) count++;
-    if (openViolationsOnly) count++;
-    if (multipleViolationsOnly) count++;
-    if (repeatOffenderOnly) count++;
-    return count;
-  }, [
-    lastSeenDays,
-    selectedCity,
-    selectedState,
-    selectedSignal,
-    openViolationsOnly,
-    multipleViolationsOnly,
-    repeatOffenderOnly,
-  ]);
-
-  // Build filters object for the hook - only include truthy values
+  // Build filters object for the hook using utility function
   const filters = useMemo(() => {
-    const f: Record<string, unknown> = {};
-
-    if (searchQuery?.trim()) f.search = searchQuery.trim();
-    if (selectedCity) f.cities = [selectedCity];
-    if (selectedState) f.state = selectedState;
-    if (lastSeenDays !== null && lastSeenDays > 0) f.lastSeenDays = lastSeenDays;
-    if (selectedSignal) f.violationType = selectedSignal;
-
-    // Pressure level filters
-    if (openViolationsOnly) f.openViolationsOnly = true;
-    if (multipleViolationsOnly) f.multipleViolationsOnly = true;
-    if (repeatOffenderOnly) f.repeatOffenderOnly = true;
-
-
-    // Sorting - always include
-    f.sortBy = sortBy;
-
-    console.log("[Leads] Active filters:", JSON.stringify(f));
-    return f;
+    const builtFilters = buildFiltersFromState({
+      searchQuery,
+      selectedCity,
+      selectedState,
+      lastSeenDays,
+      selectedSignal,
+      openViolationsOnly,
+      multipleViolationsOnly,
+      repeatOffenderOnly,
+      sortBy,
+    });
+    
+    logFilters("Leads", builtFilters);
+    return builtFilters;
   }, [
     searchQuery,
     selectedCity,
@@ -196,6 +188,11 @@ function Leads() {
     repeatOffenderOnly,
     sortBy,
   ]);
+
+  // Count active filters using utility function (includes all filters)
+  const activeFilterCount = useMemo(() => {
+    return countActiveFilters(filters);
+  }, [filters]);
 
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
@@ -252,7 +249,7 @@ function Leads() {
   const dataTier = data?.dataTier ?? null;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     setSearchInput("");
     setSearchQuery("");
     setLastSeenDays(null);
@@ -262,9 +259,10 @@ function Leads() {
     setOpenViolationsOnly(false); // Show all violations by default
     setMultipleViolationsOnly(false);
     setRepeatOffenderOnly(false);
-    setPage(1);
-    setPage(1);
-  };
+    setPage(1); // Reset to first page when clearing filters
+    setSelectedIds([]); // Clear selection when filters change
+    setSelectMode("page"); // Reset selection mode
+  }, []);
 
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -662,7 +660,8 @@ function Leads() {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 30000,
+    staleTime: 2 * 60 * 1000, // 2 minutes - increased from 30s for better caching
+    gcTime: 5 * 60 * 1000, // 5 minutes - keep cached data longer
   });
 
   // Show toast for violations query error

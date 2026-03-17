@@ -59,32 +59,55 @@ export function useViewportMarkers(filters: LeadFilters = {}) {
       setError(null);
 
       try {
-        console.log("[useViewportMarkers] Fetching markers in bounds:", bounds);
+        // Validate bounds
+        if (!bounds || typeof bounds.minLat !== 'number' || typeof bounds.maxLat !== 'number' ||
+            typeof bounds.minLng !== 'number' || typeof bounds.maxLng !== 'number') {
+          throw new Error("Invalid map bounds");
+        }
+
+        if (bounds.minLat >= bounds.maxLat || bounds.minLng >= bounds.maxLng) {
+          throw new Error("Invalid map bounds: min must be less than max");
+        }
+
+        if (import.meta.env.DEV) {
+          console.log("[useViewportMarkers] Fetching markers in bounds:", bounds);
+        }
 
         // Use the RPC function with explicit range header to get more than 1000 rows
         // PostgREST limits default responses to 1000 rows, we need to specify the range
+        // Apply filters with defensive checks
         const { data, error: rpcError } = await supabase
           .rpc("fn_map_markers_in_bounds", {
             p_min_lat: bounds.minLat,
             p_max_lat: bounds.maxLat,
             p_min_lng: bounds.minLng,
             p_max_lng: bounds.maxLng,
-            p_state: filters.state || null,
-            p_city: filters.cities?.length === 1 ? filters.cities[0] : null,
-            p_category: filters.violationType || null,
-            p_snap_min: filters.snapScoreRange?.[0] ?? null,
-            p_snap_max: filters.snapScoreRange?.[1] ?? null,
+            p_state: filters.state && typeof filters.state === 'string' ? filters.state : null,
+            p_city: filters.cities && Array.isArray(filters.cities) && filters.cities.length === 1 && typeof filters.cities[0] === 'string'
+              ? filters.cities[0]
+              : null,
+            p_category: filters.violationType && typeof filters.violationType === 'string' ? filters.violationType : null,
+            p_snap_min: filters.snapScoreRange && Array.isArray(filters.snapScoreRange) && typeof filters.snapScoreRange[0] === 'number'
+              ? filters.snapScoreRange[0]
+              : null,
+            p_snap_max: filters.snapScoreRange && Array.isArray(filters.snapScoreRange) && typeof filters.snapScoreRange[1] === 'number'
+              ? filters.snapScoreRange[1]
+              : null,
             p_limit: VIEWPORT_LIMIT,
           })
           .range(0, VIEWPORT_LIMIT - 1); // Request range 0-9999 (10,000 rows)
 
         if (rpcError) {
           console.error("[useViewportMarkers] RPC error:", rpcError);
-          throw rpcError;
+          throw new Error(`Failed to load map markers: ${rpcError.message}`);
         }
 
-        const fetchedMarkers = (data || []) as MapMarker[];
-        console.log(`[useViewportMarkers] Loaded ${fetchedMarkers.length} markers in viewport`);
+        // Defensive check for data
+        const fetchedMarkers = Array.isArray(data) ? (data as MapMarker[]) : [];
+        
+        if (import.meta.env.DEV) {
+          console.log(`[useViewportMarkers] Loaded ${fetchedMarkers.length} markers in viewport`);
+        }
 
         setMarkers(fetchedMarkers);
         setTotalInBounds(fetchedMarkers.length);

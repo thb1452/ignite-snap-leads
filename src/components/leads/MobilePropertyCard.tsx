@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ interface MobilePropertyCardProps {
   onToggleSaved?: (id: string) => void;
 }
 
-export function MobilePropertyCard({
+export const MobilePropertyCard = memo(function MobilePropertyCard({
   property,
   isSelected,
   onToggleSelect,
@@ -170,4 +170,4 @@ export function MobilePropertyCard({
       </div>
     </div>
   );
-}
+});

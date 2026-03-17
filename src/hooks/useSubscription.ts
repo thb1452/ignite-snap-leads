@@ -131,9 +131,9 @@ export function useSubscription() {
     queryKey: ['subscription-usage', user?.id],
     queryFn: () => fetchUsage(user!.id),
     enabled: !!user?.id,
-    staleTime: 0, // Always refetch when requested to ensure fresh data after exports
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    staleTime: 30 * 1000, // 30 seconds - balance between freshness and performance
+    refetchOnMount: false, // Use stale data if available
+    refetchOnWindowFocus: false, // Only refetch when explicitly requested
   });
 
   // Build plan object from subscription data

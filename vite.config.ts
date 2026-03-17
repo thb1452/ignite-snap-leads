@@ -32,20 +32,42 @@ export default defineConfig(({ mode }) => ({
           if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react/jsx-runtime')) {
             return 'vendor-react';
           }
+          // Supabase and React Query - frequently used together
+          if (id.includes('node_modules/@supabase') || id.includes('node_modules/@tanstack/react-query')) {
+            return 'vendor-data';
+          }
+          // Radix UI components - large library, split separately
+          if (id.includes('node_modules/@radix-ui')) {
+            return 'vendor-radix';
+          }
+          // Map libraries
           if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet') || id.includes('node_modules/react-leaflet-cluster')) {
             return 'vendor-map';
           }
+          // Chart library
           if (id.includes('node_modules/recharts')) {
             return 'vendor-charts';
           }
-          if (id.includes('node_modules/xlsx')) {
-            return 'vendor-xlsx';
+          // Excel/CSV processing
+          if (id.includes('node_modules/xlsx') || id.includes('node_modules/papaparse')) {
+            return 'vendor-export';
           }
+          // Animation library
           if (id.includes('node_modules/framer-motion')) {
             return 'vendor-motion';
+          }
+          // Date utilities
+          if (id.includes('node_modules/date-fns')) {
+            return 'vendor-dates';
+          }
+          // Virtualization
+          if (id.includes('node_modules/@tanstack/react-virtual')) {
+            return 'vendor-virtual';
           }
         },
       },
     },
+    // Optimize chunk size warnings
+    chunkSizeWarningLimit: 1000,
   },
 }));

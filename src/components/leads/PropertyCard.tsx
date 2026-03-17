@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatViolationType } from "@/utils/formatViolationType";
@@ -38,7 +38,7 @@ interface PropertyCardProps {
   onToggleSaved?: (id: string) => void;
 }
 
-export function PropertyCard({
+export const PropertyCard = memo(function PropertyCard({
   property,
   isSelected,
   onToggleSelect,
@@ -180,4 +180,4 @@ export function PropertyCard({
       </div>
     </div>
   );
-}
+});

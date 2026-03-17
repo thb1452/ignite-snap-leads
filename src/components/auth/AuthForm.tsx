@@ -217,15 +217,8 @@ export function AuthForm() {
           </div>
         )}
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {showTabs && (
-            <div className="px-6 pb-4">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
-            </div>
-          )}
+        <Tabs value={activeTab} onValueChange={(val) => { if (val === 'signin') setActiveTab(val); }} className="w-full">
+          {/* Signup tab hidden during private beta */}
           
           <TabsContent value="signin">
             {showForgotPassword ? (

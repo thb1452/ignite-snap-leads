@@ -897,18 +897,28 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Final CTA Section */}
-      <section className="py-24 relative overflow-hidden">
+      {/* Waitlist Section */}
+      <section id="waitlist" className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-t from-landing-accent/10 to-transparent" />
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-sm font-medium mb-6"
+            >
+              <Lock className="w-4 h-4" />
+              Private Beta
+            </motion.div>
+            
             <motion.h2 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               className="text-3xl md:text-5xl font-bold mb-6"
             >
-              See Enforcement Pressure Before It Becomes Public Knowledge
+              Get Early Access to Snap Ignite
             </motion.h2>
             
             <motion.p 
@@ -916,9 +926,19 @@ export default function Landing() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="text-xl text-landing-text-muted mb-8"
+              className="text-lg text-landing-text-muted mb-4 max-w-2xl mx-auto"
             >
-              500,000+ properties. 3,800+ cities. Updated monthly. Most of your competition is still waiting for listings.
+              Snap is currently in a private beta and we've reached capacity for active users while we make improvements.
+            </motion.p>
+            
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.15 }}
+              className="text-lg text-landing-text-muted mb-10 max-w-2xl mx-auto"
+            >
+              We're opening a waitlist for the next wave. Join below to get early access when new spots open.
             </motion.p>
             
             <motion.div
@@ -926,25 +946,9 @@ export default function Landing() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="mb-8"
+              className="max-w-xl mx-auto"
             >
-              
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-            >
-              <Button 
-                size="lg"
-                onClick={() => openTrialModal('starter')}
-                className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-12 py-6"
-              >
-                Start Free Trial
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+              <WaitlistForm />
             </motion.div>
             
             <motion.p 
@@ -952,7 +956,7 @@ export default function Landing() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ delay: 0.4 }}
-              className="text-landing-text-muted mt-6"
+              className="text-landing-text-muted mt-8"
             >
               Questions? Email us at <a href="mailto:hello@snapignite.com" className="text-landing-accent hover:underline">hello@snapignite.com</a>
             </motion.p>

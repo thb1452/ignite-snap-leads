@@ -1022,22 +1022,16 @@ export default function Landing() {
               </Link>
               <Button 
                 size="sm"
-                onClick={() => openTrialModal('starter')}
+                onClick={() => scrollToSection('waitlist')}
                 className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
               >
-                Start Free Trial
+                Join Waitlist
               </Button>
             </div>
           </div>
         </div>
       </footer>
 
-      {/* Trial Signup Modal */}
-      <TrialSignupModal
-        open={trialModalOpen}
-        onOpenChange={setTrialModalOpen}
-        selectedTier={selectedTrialTier}
-      />
     </div>
   );
 }

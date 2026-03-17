@@ -300,14 +300,12 @@ export function AuthForm() {
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign In
                   </Button>
-                  {mode === 'signin' && (
-                    <p className="text-xs text-center text-muted-foreground">
-                      Don't have an account?{' '}
-                      <a href="/auth?mode=signup" className="text-brand hover:underline">
-                        Sign up
-                      </a>
-                    </p>
-                  )}
+                  <p className="text-xs text-center text-muted-foreground">
+                    Want access?{' '}
+                    <a href="/#waitlist" className="text-brand hover:underline">
+                      Join the waitlist
+                    </a>
+                  </p>
                 </CardFooter>
               </form>
             )}

@@ -262,7 +262,7 @@ function Leads() {
     setOpenViolationsOnly(false); // Show all violations by default
     setMultipleViolationsOnly(false);
     setRepeatOffenderOnly(false);
-    setSnapScoreRange([0, 100]);
+    setPage(1);
     setPage(1);
   };
 

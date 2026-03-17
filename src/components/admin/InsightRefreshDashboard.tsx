@@ -40,10 +40,10 @@ export function InsightRefreshDashboard() {
     isFetchingRef.current = true;
     
     try {
-      // Use estimated count for total (fast) and exact for filtered missing count
-      // The exact count on full table times out, but estimated is reliable
+      // Use exact counts for both total and missing to avoid discrepancies
+      // (estimated count from pg_class.reltuples can be stale by 100K+ rows)
       const [totalResult, missingResult] = await Promise.allSettled([
-        supabase.from("properties").select("*", { count: "estimated", head: true }),
+        supabase.from("properties").select("*", { count: "exact", head: true }),
         supabase.from("properties").select("*", { count: "exact", head: true }).is("snap_insight", null)
       ]);
 

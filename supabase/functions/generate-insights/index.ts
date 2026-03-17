@@ -200,32 +200,40 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { data: properties, error: fetchError } = await supabase
-      .from("properties")
-      .select(`
-        id,
-        address,
-        city,
-        snap_score,
-        jurisdiction_id,
-        enforcement_type,
-        escalated,
-        violations (
+    // Chunk IDs to avoid PostgREST URL length limits (max ~50 UUIDs per query)
+    const CHUNK_SIZE = 40;
+    const allProperties: any[] = [];
+    for (let i = 0; i < propertyIds.length; i += CHUNK_SIZE) {
+      const chunk = propertyIds.slice(i, i + CHUNK_SIZE);
+      const { data, error: fetchError } = await supabase
+        .from("properties")
+        .select(`
           id,
-          violation_type,
-          status,
-          days_open,
-          opened_date,
-          raw_description,
-          last_updated
-        )
-      `)
-      .in("id", propertyIds);
+          address,
+          city,
+          snap_score,
+          jurisdiction_id,
+          enforcement_type,
+          escalated,
+          violations (
+            id,
+            violation_type,
+            status,
+            days_open,
+            opened_date,
+            raw_description,
+            last_updated
+          )
+        `)
+        .in("id", chunk);
 
-    if (fetchError) {
-      console.error(`[generate-insights ${VERSION}] Error fetching properties:`, fetchError);
-      throw fetchError;
+      if (fetchError) {
+        console.error(`[generate-insights ${VERSION}] Error fetching chunk ${i / CHUNK_SIZE + 1}:`, fetchError);
+        throw fetchError;
+      }
+      if (data) allProperties.push(...data);
     }
+    const properties = allProperties;
 
     if (!properties || properties.length === 0) {
       return new Response(

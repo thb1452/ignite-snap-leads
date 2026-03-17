@@ -1,0 +1,1 @@
+UPDATE properties SET snap_score = NULL WHERE id IN (SELECT id FROM properties WHERE snap_score = 0 AND total_violations > 0 LIMIT 20000);

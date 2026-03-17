@@ -111,6 +111,7 @@ async function fetchPropertiesByCategory(
     p_open_violations_only: filters.openViolationsOnly ?? false,
     p_multiple_violations_only: filters.multipleViolationsOnly ?? false,
     p_repeat_offender_only: filters.repeatOffenderOnly ?? false,
+    p_random_seed: getRandomSeed(),
   });
 
   if (error) {

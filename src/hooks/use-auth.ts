@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/externalClient';
 import { useToast } from '@/hooks/use-toast';
+import { rotateRandomSeed } from '@/lib/randomSeed';
 
 export type AppRole = 'admin' | 'va' | 'user';
 
@@ -282,6 +283,9 @@ export function useAuth() {
       });
 
       if (error) throw error;
+
+      // Rotate random seed for fair lead distribution
+      rotateRandomSeed();
 
       toast({
         title: "Welcome back!",

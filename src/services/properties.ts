@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/externalClient";
 import type { LeadFilters } from "@/schemas";
+import { getRandomSeed } from "@/lib/randomSeed";
 
 export interface BBoxFilters {
   bbox?: [number, number, number, number]; // [west, south, east, north]
@@ -75,6 +76,7 @@ export async function fetchPropertiesPaged(
     p_open_violations_only: filters.openViolationsOnly ?? false,
     p_multiple_violations_only: filters.multipleViolationsOnly ?? false,
     p_repeat_offender_only: filters.repeatOffenderOnly ?? false,
+    p_random_seed: getRandomSeed(),
   });
 
   if (error) {
@@ -109,6 +111,7 @@ async function fetchPropertiesByCategory(
     p_open_violations_only: filters.openViolationsOnly ?? false,
     p_multiple_violations_only: filters.multipleViolationsOnly ?? false,
     p_repeat_offender_only: filters.repeatOffenderOnly ?? false,
+    p_random_seed: getRandomSeed(),
   });
 
   if (error) {

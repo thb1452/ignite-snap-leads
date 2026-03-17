@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/externalClient";
 import type { LeadFilters } from "@/schemas";
+import { getRandomSeed } from "@/lib/randomSeed";
 
 export interface BBoxFilters {
   bbox?: [number, number, number, number]; // [west, south, east, north]

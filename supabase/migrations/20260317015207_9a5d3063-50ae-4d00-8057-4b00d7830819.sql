@@ -1,0 +1,1 @@
+UPDATE properties SET snap_insight = NULL WHERE snap_insight = 'No active enforcement actions currently on file.' AND total_violations > 0;

@@ -245,27 +245,31 @@ export default function Landing() {
               500k+ properties · 3,800+ cities · Updated monthly
             </motion.p>
             
-            {/* CTA */}
+            {/* Beta Waitlist CTA */}
             <motion.div
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="flex flex-col items-start gap-3"
             >
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-sm font-medium mb-2">
+                <Lock className="w-3.5 h-3.5" />
+                Private Beta — Limited Access
+              </div>
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className="w-full sm:w-auto">
                 <Button 
                   size="lg"
                   onClick={() => {
                     trackEvent('hero_cta_click', { location: 'hero' });
-                    scrollToSection('pricing');
+                    scrollToSection('waitlist');
                   }}
                   className="w-full sm:w-auto bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
                 >
-                  Start Free Trial
+                  Join the Waitlist
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </motion.div>
               
               <p className="text-landing-text-muted text-sm">
-                3-day trial · $79/month · Cancel anytime
+                We'll notify you when new spots open up.
               </p>
             </motion.div>
           </motion.div>

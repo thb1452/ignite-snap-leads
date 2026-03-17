@@ -103,8 +103,8 @@ function Leads() {
   const [multipleViolationsOnly, setMultipleViolationsOnly] = useState(false);
   const [repeatOffenderOnly, setRepeatOffenderOnly] = useState(false);
 
-  // SnapScore range filter state (Enterprise only)
-  const [snapScoreRange, setSnapScoreRange] = useState<[number, number]>([0, 100]);
+
+
 
   // Sort state - default to highest snap score so best leads surface first
   const [sortBy, setSortBy] = useState<SortOption>("snap_score");

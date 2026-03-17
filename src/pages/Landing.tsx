@@ -3,7 +3,7 @@ import SEOHead from "@/components/SEOHead";
 import { trackEvent } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
+import { WaitlistForm } from "@/components/waitlist/WaitlistForm";
 
 import { TopPressureProperties } from "@/components/live-feed/TopPressureProperties";
 import { ListEnrichmentTeaser } from "@/components/landing/ListEnrichmentTeaser";

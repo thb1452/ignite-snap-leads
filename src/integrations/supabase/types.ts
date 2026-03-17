@@ -2853,6 +2853,10 @@ export type Database = {
           updated: number
         }[]
       }
+      backfill_violation_dates_batch: {
+        Args: { p_batch_size?: number }
+        Returns: Json
+      }
       bulk_upsert_violations: { Args: { p_violations: Json }; Returns: Json }
       check_foia_invite: {
         Args: { p_token: string }

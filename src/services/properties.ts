@@ -208,7 +208,10 @@ async function fetchPropertiesPagedLegacy(
   }
 
   // Sort based on sortBy filter
-  if (filters.sortBy === 'newest_violation') {
+  if (filters.sortBy === 'snap_score') {
+    q = q.order("snap_score", { ascending: false, nullsFirst: false })
+         .order("total_violations", { ascending: false, nullsFirst: false });
+  } else if (filters.sortBy === 'newest_violation') {
     q = q.order("newest_violation_date", { ascending: false, nullsFirst: false });
   } else {
     // Default: recently_updated

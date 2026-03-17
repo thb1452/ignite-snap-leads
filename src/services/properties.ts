@@ -71,7 +71,7 @@ export async function fetchPropertiesPaged(
     p_snap_min: filters.snapScoreRange?.[0] ?? null,
     p_snap_max: filters.snapScoreRange?.[1] ?? null,
     p_last_seen_days: filters.lastSeenDays ?? null,
-    p_sort_by: filters.sortBy || 'recently_updated',
+    p_sort_by: filters.sortBy || 'snap_score',
     p_open_violations_only: filters.openViolationsOnly ?? false,
     p_multiple_violations_only: filters.multipleViolationsOnly ?? false,
     p_repeat_offender_only: filters.repeatOffenderOnly ?? false,

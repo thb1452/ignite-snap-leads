@@ -153,8 +153,6 @@ function Leads() {
     if (openViolationsOnly) count++;
     if (multipleViolationsOnly) count++;
     if (repeatOffenderOnly) count++;
-    // Count SnapScore if not default range
-    if (snapScoreRange[0] !== 0 || snapScoreRange[1] !== 100) count++;
     return count;
   }, [
     lastSeenDays,
@@ -164,7 +162,6 @@ function Leads() {
     openViolationsOnly,
     multipleViolationsOnly,
     repeatOffenderOnly,
-    snapScoreRange,
   ]);
 
   // Build filters object for the hook - only include truthy values

@@ -208,6 +208,7 @@ export function MobileFilterSheet({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="snap_score">Highest SnapScore</SelectItem>
                 <SelectItem value="newest_violation">Newest Violations</SelectItem>
                 <SelectItem value="recently_updated">Recently Updated</SelectItem>
               </SelectContent>

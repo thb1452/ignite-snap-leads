@@ -136,10 +136,10 @@ export default function Landing() {
               </Button>
             </Link>
             <Button 
-              onClick={() => scrollToSection('pricing')}
+              onClick={() => scrollToSection('waitlist')}
               className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
             >
-              Start Free Trial
+              Join Waitlist
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>

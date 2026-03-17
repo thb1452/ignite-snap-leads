@@ -25,6 +25,8 @@ export function BatchInsightsButton() {
   const [progress, setProgress] = useState<BatchRescoreProgress | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [stats, setStats] = useState<{ total: number; hasInsight: number; missing: number; highScore: number; generic: number; staleNoAction: number } | null>(null);
+  const [repairAttempted, setRepairAttempted] = useState(false);
+  const [staleNoActionBeforeRepair, setStaleNoActionBeforeRepair] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -202,19 +204,16 @@ export function BatchInsightsButton() {
   const handleRepairStaleNoAction = async () => {
     try {
       setIsLoading(true);
-      // Reset stale "No active" insights directly via client — no SQL function needed.
-      // Safe to reset all: properties with violations get correct text regenerated;
-      // properties genuinely without violations get "No active" written back (correct).
+      const countBefore = stats?.staleNoAction ?? 0;
+      setStaleNoActionBeforeRepair(countBefore);
       const { error } = await supabase
         .from("properties")
         .update({ snap_insight: null, last_analyzed_at: null })
         .eq("snap_insight", "No active enforcement actions currently on file.");
       if (error) throw error;
-      const count = stats?.staleNoAction ?? 0;
-      toast.info(`${count.toLocaleString()} stale insights cleared. Generating replacements...`);
-      // Refresh the stat counters so "missing" count reflects the reset rows
+      toast.info(`${countBefore.toLocaleString()} stale insights cleared. Generating replacements...`);
+      setRepairAttempted(true);
       await fetchStats();
-      // Now fill all newly-NULL insights
       invokeInsights(false, 0, 'missing');
     } catch (error) {
       console.error("Repair failed:", error);
@@ -290,7 +289,9 @@ export function BatchInsightsButton() {
               )}
               {stats.staleNoAction > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">🚨 Stale "no action" insight:</span>
+                  <span className="text-muted-foreground">
+                    {repairAttempted ? '⚠️ No violations on file:' : '🚨 Stale "no action" insight:'}
+                  </span>
                   <span className="font-semibold text-red-600">{stats.staleNoAction.toLocaleString()}</span>
                 </div>
               )}
@@ -412,7 +413,7 @@ export function BatchInsightsButton() {
             </Button>
 
             {/* Repair stale "No active enforcement actions" insights */}
-            {stats.staleNoAction > 0 && (
+            {stats.staleNoAction > 0 && !repairAttempted && (
               <Button
                 onClick={handleRepairStaleNoAction}
                 disabled={isLoading || isRunning}
@@ -426,6 +427,12 @@ export function BatchInsightsButton() {
                 )}
                 🚨 Repair {stats.staleNoAction.toLocaleString()} Stale "No Action" Insights
               </Button>
+            )}
+            {stats.staleNoAction > 0 && repairAttempted && (
+              <div className="text-xs text-muted-foreground p-3 bg-muted rounded-lg space-y-1">
+                <p className="font-medium text-amber-600">⚠️ {stats.staleNoAction.toLocaleString()} properties have no violations on record</p>
+                <p>Insights were regenerated but these properties have no matching violation records in the database. This may be a data linkage issue — run <code className="bg-background px-1 rounded">scripts/diagnose-missing-insights.sql</code> in Supabase to investigate.</p>
+              </div>
             )}
 
             {/* Generate missing button — secondary */}

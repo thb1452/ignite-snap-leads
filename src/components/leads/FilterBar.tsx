@@ -14,7 +14,6 @@ interface FilterBarProps {
   openViolationsOnly: boolean;
   multipleViolationsOnly: boolean;
   repeatOffenderOnly: boolean;
-  snapScoreRange?: [number, number];
   propertyCount: number;
   onClearFilters: () => void;
   onAddAllToList?: () => void;
@@ -30,15 +29,13 @@ export function FilterBar({
   openViolationsOnly,
   multipleViolationsOnly,
   repeatOffenderOnly,
-  snapScoreRange,
   propertyCount,
   onClearFilters,
   onAddAllToList
 }: FilterBarProps) {
-  const isSnapScoreFiltered = snapScoreRange && (snapScoreRange[0] !== 0 || snapScoreRange[1] !== 100);
   const hasActiveFilters = lastSeenDays !== null ||
     selectedCity !== null || selectedState !== null || selectedSignal !== null ||
-    openViolationsOnly || multipleViolationsOnly || repeatOffenderOnly || isSnapScoreFiltered;
+    openViolationsOnly || multipleViolationsOnly || repeatOffenderOnly;
 
   return (
     <div className="flex items-center gap-4 p-4 border-b bg-background">
@@ -93,13 +90,6 @@ export function FilterBar({
         {repeatOffenderOnly && (
           <Badge variant="destructive" className="gap-1">
             Repeat
-          </Badge>
-        )}
-        
-        {/* SnapScore range badge */}
-        {isSnapScoreFiltered && (
-          <Badge variant="secondary" className="gap-1">
-            Score: {snapScoreRange![0]}-{snapScoreRange![1]}
           </Badge>
         )}
       </div>

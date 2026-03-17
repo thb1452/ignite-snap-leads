@@ -179,10 +179,6 @@ function Leads() {
     if (multipleViolationsOnly) f.multipleViolationsOnly = true;
     if (repeatOffenderOnly) f.repeatOffenderOnly = true;
 
-    // SnapScore range filter (only if not default)
-    if (snapScoreRange[0] !== 0 || snapScoreRange[1] !== 100) {
-      f.snapScoreRange = snapScoreRange;
-    }
 
     // Sorting - always include
     f.sortBy = sortBy;
@@ -198,7 +194,6 @@ function Leads() {
     openViolationsOnly,
     multipleViolationsOnly,
     repeatOffenderOnly,
-    snapScoreRange,
     sortBy,
   ]);
 

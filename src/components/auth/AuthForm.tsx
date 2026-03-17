@@ -56,10 +56,9 @@ export function AuthForm() {
   
   // Determine tab based on mode param, invite token, or default to signin
   const getTargetTab = () => {
-    if (inviteToken) return 'signup';
-    if (mode === 'signup') return 'signup';
+    // During private beta, always default to signin (no public signups)
     if (mode === 'signin') return 'signin';
-    return 'signin'; // default
+    return 'signin';
   };
   
   const [activeTab, setActiveTab] = useState(getTargetTab());

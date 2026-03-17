@@ -153,8 +153,6 @@ function Leads() {
     if (openViolationsOnly) count++;
     if (multipleViolationsOnly) count++;
     if (repeatOffenderOnly) count++;
-    // Count SnapScore if not default range
-    if (snapScoreRange[0] !== 0 || snapScoreRange[1] !== 100) count++;
     return count;
   }, [
     lastSeenDays,
@@ -164,7 +162,6 @@ function Leads() {
     openViolationsOnly,
     multipleViolationsOnly,
     repeatOffenderOnly,
-    snapScoreRange,
   ]);
 
   // Build filters object for the hook - only include truthy values
@@ -182,10 +179,6 @@ function Leads() {
     if (multipleViolationsOnly) f.multipleViolationsOnly = true;
     if (repeatOffenderOnly) f.repeatOffenderOnly = true;
 
-    // SnapScore range filter (only if not default)
-    if (snapScoreRange[0] !== 0 || snapScoreRange[1] !== 100) {
-      f.snapScoreRange = snapScoreRange;
-    }
 
     // Sorting - always include
     f.sortBy = sortBy;
@@ -201,7 +194,6 @@ function Leads() {
     openViolationsOnly,
     multipleViolationsOnly,
     repeatOffenderOnly,
-    snapScoreRange,
     sortBy,
   ]);
 
@@ -270,7 +262,7 @@ function Leads() {
     setOpenViolationsOnly(false); // Show all violations by default
     setMultipleViolationsOnly(false);
     setRepeatOffenderOnly(false);
-    setSnapScoreRange([0, 100]);
+    setPage(1);
     setPage(1);
   };
 

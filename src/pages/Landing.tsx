@@ -710,17 +710,17 @@ export default function Landing() {
                 </ul>
                 
                 <Button
-                  onClick={() => openTrialModal(plan.name.toLowerCase() === 'pro' ? 'professional' : plan.name.toLowerCase())}
+                  onClick={() => scrollToSection('waitlist')}
                   className={`w-full ${
                     plan.highlighted 
                       ? 'bg-landing-accent hover:bg-landing-accent/90 text-landing-bg' 
                       : 'bg-landing-surface hover:bg-landing-surface/80 text-landing-text border border-landing-surface'
                   }`}
                 >
-                  Start 3-Day Free Trial
+                  Join Waitlist
                 </Button>
                 <p className="text-xs text-center text-landing-text-muted mt-2">
-                  Then ${plan.price}/month • Cancel anytime
+                  Pricing starts at ${plan.price}/month
                 </p>
               </motion.div>
             ))}

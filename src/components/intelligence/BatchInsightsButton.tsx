@@ -202,12 +202,19 @@ export function BatchInsightsButton() {
   const handleRepairStaleNoAction = async () => {
     try {
       setIsLoading(true);
-      // Step 1: Use the repair SQL function to reset stale insights to NULL
-      // (only for properties that actually have violations in the violations table)
-      const { error } = await supabase.rpc('repair_stale_no_action_insights', { p_dry_run: false });
+      // Reset stale "No active" insights directly via client — no SQL function needed.
+      // Safe to reset all: properties with violations get correct text regenerated;
+      // properties genuinely without violations get "No active" written back (correct).
+      const { error } = await supabase
+        .from("properties")
+        .update({ snap_insight: null, last_analyzed_at: null })
+        .eq("snap_insight", "No active enforcement actions currently on file.");
       if (error) throw error;
-      toast.info("Stale insights cleared. Generating replacements...");
-      // Step 2: Now fill the newly-NULL insights
+      const count = stats?.staleNoAction ?? 0;
+      toast.info(`${count.toLocaleString()} stale insights cleared. Generating replacements...`);
+      // Refresh the stat counters so "missing" count reflects the reset rows
+      await fetchStats();
+      // Now fill all newly-NULL insights
       invokeInsights(false, 0, 'missing');
     } catch (error) {
       console.error("Repair failed:", error);

@@ -3,7 +3,7 @@ import SEOHead from "@/components/SEOHead";
 import { trackEvent } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { TrialSignupModal } from "@/components/trial/TrialSignupModal";
+import { WaitlistForm } from "@/components/waitlist/WaitlistForm";
 
 import { TopPressureProperties } from "@/components/live-feed/TopPressureProperties";
 import { ListEnrichmentTeaser } from "@/components/landing/ListEnrichmentTeaser";
@@ -68,13 +68,6 @@ function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number; s
 export default function Landing() {
   const billingCycle = 'monthly' as const;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [trialModalOpen, setTrialModalOpen] = useState(false);
-  const [selectedTrialTier, setSelectedTrialTier] = useState('starter');
-
-  const openTrialModal = (tier: string) => {
-    setSelectedTrialTier(tier);
-    setTrialModalOpen(true);
-  };
 
   const pricing = {
     starter: { monthly: 79 },
@@ -143,10 +136,10 @@ export default function Landing() {
               </Button>
             </Link>
             <Button 
-              onClick={() => scrollToSection('pricing')}
+              onClick={() => scrollToSection('waitlist')}
               className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
             >
-              Start Free Trial
+              Join Waitlist
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
@@ -187,10 +180,10 @@ export default function Landing() {
                   FAQ
                 </button>
                 <Button 
-                  onClick={() => scrollToSection('pricing')}
+                  onClick={() => scrollToSection('waitlist')}
                   className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
                 >
-                  Start Free Trial
+                  Join Waitlist
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
@@ -252,27 +245,31 @@ export default function Landing() {
               500k+ properties · 3,800+ cities · Updated monthly
             </motion.p>
             
-            {/* CTA */}
+            {/* Beta Waitlist CTA */}
             <motion.div
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="flex flex-col items-start gap-3"
             >
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-sm font-medium mb-2">
+                <Lock className="w-3.5 h-3.5" />
+                Private Beta — Limited Access
+              </div>
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className="w-full sm:w-auto">
                 <Button 
                   size="lg"
                   onClick={() => {
                     trackEvent('hero_cta_click', { location: 'hero' });
-                    scrollToSection('pricing');
+                    scrollToSection('waitlist');
                   }}
                   className="w-full sm:w-auto bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
                 >
-                  Start Free Trial
+                  Join the Waitlist
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </motion.div>
               
               <p className="text-landing-text-muted text-sm">
-                3-day trial · $79/month · Cancel anytime
+                We'll notify you when new spots open up.
               </p>
             </motion.div>
           </motion.div>
@@ -713,17 +710,17 @@ export default function Landing() {
                 </ul>
                 
                 <Button
-                  onClick={() => openTrialModal(plan.name.toLowerCase() === 'pro' ? 'professional' : plan.name.toLowerCase())}
+                  onClick={() => scrollToSection('waitlist')}
                   className={`w-full ${
                     plan.highlighted 
                       ? 'bg-landing-accent hover:bg-landing-accent/90 text-landing-bg' 
                       : 'bg-landing-surface hover:bg-landing-surface/80 text-landing-text border border-landing-surface'
                   }`}
                 >
-                  Start 3-Day Free Trial
+                  Join Waitlist
                 </Button>
                 <p className="text-xs text-center text-landing-text-muted mt-2">
-                  Then ${plan.price}/month • Cancel anytime
+                  Pricing starts at ${plan.price}/month
                 </p>
               </motion.div>
             ))}
@@ -900,18 +897,28 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Final CTA Section */}
-      <section className="py-24 relative overflow-hidden">
+      {/* Waitlist Section */}
+      <section id="waitlist" className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-t from-landing-accent/10 to-transparent" />
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-sm font-medium mb-6"
+            >
+              <Lock className="w-4 h-4" />
+              Private Beta
+            </motion.div>
+            
             <motion.h2 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               className="text-3xl md:text-5xl font-bold mb-6"
             >
-              See Enforcement Pressure Before It Becomes Public Knowledge
+              Get Early Access to Snap Ignite
             </motion.h2>
             
             <motion.p 
@@ -919,9 +926,19 @@ export default function Landing() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="text-xl text-landing-text-muted mb-8"
+              className="text-lg text-landing-text-muted mb-4 max-w-2xl mx-auto"
             >
-              500,000+ properties. 3,800+ cities. Updated monthly. Most of your competition is still waiting for listings.
+              Snap is currently in a private beta and we've reached capacity for active users while we make improvements.
+            </motion.p>
+            
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.15 }}
+              className="text-lg text-landing-text-muted mb-10 max-w-2xl mx-auto"
+            >
+              We're opening a waitlist for the next wave. Join below to get early access when new spots open.
             </motion.p>
             
             <motion.div
@@ -929,25 +946,9 @@ export default function Landing() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="mb-8"
+              className="max-w-xl mx-auto"
             >
-              
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-            >
-              <Button 
-                size="lg"
-                onClick={() => openTrialModal('starter')}
-                className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-12 py-6"
-              >
-                Start Free Trial
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+              <WaitlistForm />
             </motion.div>
             
             <motion.p 
@@ -955,7 +956,7 @@ export default function Landing() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ delay: 0.4 }}
-              className="text-landing-text-muted mt-6"
+              className="text-landing-text-muted mt-8"
             >
               Questions? Email us at <a href="mailto:hello@snapignite.com" className="text-landing-accent hover:underline">hello@snapignite.com</a>
             </motion.p>
@@ -1021,22 +1022,16 @@ export default function Landing() {
               </Link>
               <Button 
                 size="sm"
-                onClick={() => openTrialModal('starter')}
+                onClick={() => scrollToSection('waitlist')}
                 className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
               >
-                Start Free Trial
+                Join Waitlist
               </Button>
             </div>
           </div>
         </div>
       </footer>
 
-      {/* Trial Signup Modal */}
-      <TrialSignupModal
-        open={trialModalOpen}
-        onOpenChange={setTrialModalOpen}
-        selectedTier={selectedTrialTier}
-      />
     </div>
   );
 }

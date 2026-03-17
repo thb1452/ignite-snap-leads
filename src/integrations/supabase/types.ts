@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      beta_waitlist: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          notes: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          notes?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          notes?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       call_logs: {
         Row: {
           call_type: string
@@ -1142,6 +1169,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          is_beta_user: boolean
           org_id: string
           updated_at: string
           user_id: string
@@ -1151,6 +1179,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          is_beta_user?: boolean
           org_id: string
           updated_at?: string
           user_id: string
@@ -1160,6 +1189,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          is_beta_user?: boolean
           org_id?: string
           updated_at?: string
           user_id?: string

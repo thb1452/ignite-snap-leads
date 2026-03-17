@@ -312,76 +312,23 @@ export function AuthForm() {
           </TabsContent>
           
           <TabsContent value="signup">
-            <form onSubmit={signUpForm.handleSubmit(handleSignUp)}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    placeholder="John Doe"
-                    {...signUpForm.register('fullName')}
-                  />
-                  {signUpForm.formState.errors.fullName && (
-                    <p className="text-sm text-destructive">
-                      {signUpForm.formState.errors.fullName.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="you@example.com"
-                    disabled={!!inviteEmail}
-                    {...signUpForm.register('email')}
-                  />
-                  {signUpForm.formState.errors.email && (
-                    <p className="text-sm text-destructive">
-                      {signUpForm.formState.errors.email.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    {...signUpForm.register('password')}
-                  />
-                  {signUpForm.formState.errors.password && (
-                    <p className="text-sm text-destructive">
-                      {signUpForm.formState.errors.password.message}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter className="flex flex-col gap-3">
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={isLoading}
-                  onClick={() => console.log('[AuthForm] Button clicked, form valid:', signUpForm.formState.isValid, 'errors:', signUpForm.formState.errors)}
-                >
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {inviteToken 
-                    ? 'Accept Invitation & Create Account' 
-                    : selectedPlan 
-                      ? `Start ${PLAN_DISPLAY_NAMES[selectedPlan] || 'Your'} Plan`
-                      : 'Create Account'
-                  }
-                </Button>
-                {mode === 'signup' && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    Already have an account?{' '}
-                    <a href="/auth?mode=signin" className="text-brand hover:underline">
-                      Sign in
-                    </a>
-                  </p>
-                )}
-              </CardFooter>
-            </form>
+            <CardContent className="space-y-4 text-center py-8">
+              <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                <Mail className="w-6 h-6 text-primary" />
+              </div>
+              <div className="space-y-2">
+                <p className="font-semibold text-lg">Signups Are Paused</p>
+                <p className="text-sm text-muted-foreground">
+                  Snap is in private beta and we've reached capacity. Join the waitlist to get early access when new spots open.
+                </p>
+              </div>
+              <a
+                href="/#waitlist"
+                className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-6 py-2 text-sm font-medium hover:bg-primary/90 transition"
+              >
+                Join the Waitlist
+              </a>
+            </CardContent>
           </TabsContent>
         </Tabs>
       </Card>

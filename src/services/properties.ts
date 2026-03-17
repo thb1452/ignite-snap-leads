@@ -105,7 +105,7 @@ async function fetchPropertiesByCategory(
     p_last_seen_days: filters.lastSeenDays ?? null,
     p_page: page,
     p_page_size: pageSize,
-    p_sort_by: filters.sortBy || 'recently_updated',
+    p_sort_by: filters.sortBy || 'snap_score',
     p_open_violations_only: filters.openViolationsOnly ?? false,
     p_multiple_violations_only: filters.multipleViolationsOnly ?? false,
     p_repeat_offender_only: filters.repeatOffenderOnly ?? false,

@@ -1,11 +1,11 @@
 /**
- * GENERATE INVESTOR BRIEF — Edge Function (v2.0)
+ * GENERATE INVESTOR BRIEF — Edge Function (v2.1)
  *
  * Accepts a property_id, fetches full property + violation + contact data,
- * calls Anthropic Claude to generate a structured investor brief,
+ * calls Lovable AI (Gemini 2.5 Pro) to generate a structured investor brief,
  * and returns the brief as JSON.
  *
- * v2.0 additions:
+ * v2.1: Migrated from Anthropic Claude to Lovable AI gateway
  * - Rate limiting: 10 regenerations per property per user per day
  * - Token usage tracking: logs input/output tokens per call
  * - Structured monitoring: latency, status, error tracking
@@ -21,9 +21,9 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
-const ANTHROPIC_MAX_TOKENS = 1500;
+const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const AI_MODEL = "google/gemini-2.5-pro";
+const AI_MAX_TOKENS = 1500;
 const DAILY_REGEN_LIMIT = 10;
 
 const SYSTEM_PROMPT = `You are Investor Insight, an AI analyst built on municipal code enforcement intelligence. Your job is to analyze property enforcement data and deliver clear, actionable investor briefs that help real estate investors identify motivated sellers and distressed properties before they appear on public lists.

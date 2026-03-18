@@ -6,7 +6,7 @@ import SEOHead from "@/components/SEOHead";
 export default function About() {
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead title="About Snap Ignite | Municipal Enforcement Intelligence" description="Snap Ignite is a municipal enforcement intelligence platform built for serious real estate operators. We track code violations across 3,800+ cities, sourced directly from municipal agencies, updated monthly." canonical="https://snapignite.com/about" />
+      <SEOHead title="About Snap Ignite | Municipal Enforcement Intelligence" description="Snap Ignite is a municipal enforcement intelligence platform built for serious real estate operators. We track code violations across 3,800+ cities, sourced directly from municipal agencies, updated weekly." canonical="https://snapignite.com/about" />
       <div className="max-w-3xl mx-auto px-6 py-16">
         <Link to="/">
           <Button variant="ghost" className="mb-8 -ml-2">
@@ -20,7 +20,7 @@ export default function About() {
 
         <div className="prose prose-slate max-w-none space-y-8">
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Snap Ignite is a municipal enforcement intelligence platform built for serious real estate operators. We track code violations, water shutoffs, and escalating fines across 3,800+ cities nationwide — sourced directly from municipal agencies, updated monthly.
+            Snap Ignite is a municipal enforcement intelligence platform built for serious real estate operators. We track code violations, water shutoffs, and escalating fines across 3,800+ cities nationwide — sourced directly from municipal agencies, updated weekly.
           </p>
 
           <p className="text-lg text-muted-foreground leading-relaxed">

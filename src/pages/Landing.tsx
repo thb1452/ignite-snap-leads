@@ -89,7 +89,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-landing-bg text-landing-text overflow-x-hidden">
-      <SEOHead title="Snap Ignite | Enforcement Intelligence Platform" description="Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, and escalating fines — across 3,800+ cities nationwide, updated monthly." canonical="https://snapignite.com/" />
+      <SEOHead title="Snap Ignite | Enforcement Intelligence Platform" description="Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, and escalating fines — across 3,800+ cities nationwide, updated weekly." canonical="https://snapignite.com/" />
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-landing-surface/50 bg-landing-bg/80 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -242,7 +242,7 @@ export default function Landing() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="text-sm md:text-base text-landing-text-muted"
             >
-              500k+ properties · 3,800+ cities · Updated monthly
+              500k+ properties · 3,800+ cities · Updated weekly
             </motion.p>
             
             {/* Beta Waitlist CTA */}
@@ -465,8 +465,8 @@ export default function Landing() {
               },
               {
                 icon: Clock,
-                title: "Updated Monthly",
-                description: "Fresh enforcement data every 30 days.",
+                title: "Updated Weekly",
+                description: "Fresh enforcement data every week.",
                 highlight: false
               },
               {
@@ -752,7 +752,7 @@ export default function Landing() {
             className="max-w-3xl mx-auto text-center p-10 bg-landing-surface/40 border border-landing-surface rounded-xl"
           >
             <p className="text-2xl font-semibold text-landing-text mb-3">Built on data most platforms can't access.</p>
-            <p className="text-lg text-landing-text-muted">Proprietary sourcing. Updated monthly. No recycled records.</p>
+            <p className="text-lg text-landing-text-muted">Proprietary sourcing. Updated weekly. No recycled records.</p>
           </motion.div>
         </div>
       </section>
@@ -853,7 +853,7 @@ export default function Landing() {
                 },
                 {
                   question: "How fresh is the data?",
-                  answer: "Updated monthly. You're working with current enforcement signals — not records that are 30–90 days stale by the time other platforms deliver them."
+                  answer: "Updated weekly. You're working with current enforcement signals — not records that are days or weeks stale by the time other platforms deliver them."
                 },
                 {
                   question: "Do you include owner contact information?",

@@ -87,3 +87,6 @@ verify_jwt = false
 
 [functions.generate-city-summaries]
 verify_jwt = false
+
+[functions.generate-investor-brief]
+verify_jwt = true

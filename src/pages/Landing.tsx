@@ -242,7 +242,7 @@ export default function Landing() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="text-sm md:text-base text-landing-text-muted"
             >
-              500k+ properties · 3,800+ cities · Updated monthly
+              500k+ properties · 3,800+ cities · Updated weekly
             </motion.p>
             
             {/* Beta Waitlist CTA */}

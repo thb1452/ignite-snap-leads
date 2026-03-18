@@ -64,7 +64,7 @@ export default function CityViolations() {
     : `Code Violations – ${citySearch} | Snap Ignite`;
 
   const pageDesc = jurisdiction
-    ? `${jurisdiction.propertyCount.toLocaleString()} code violation leads in ${jurisdiction.city}, ${jurisdiction.state}. Find motivated sellers and off-market deals from municipal enforcement records. Updated monthly.`
+    ? `${jurisdiction.propertyCount.toLocaleString()} code violation leads in ${jurisdiction.city}, ${jurisdiction.state}. Find motivated sellers and off-market deals from municipal enforcement records. Updated weekly.`
     : `Explore code violation data and enforcement intelligence. Snap Ignite tracks 500K+ properties across 3,800+ cities.`;
 
   const pageCanonical = `https://snapignite.com/code-violations/${citySlug}`;

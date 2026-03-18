@@ -853,7 +853,7 @@ export default function Landing() {
                 },
                 {
                   question: "How fresh is the data?",
-                  answer: "Updated monthly. You're working with current enforcement signals — not records that are 30–90 days stale by the time other platforms deliver them."
+                  answer: "Updated weekly. You're working with current enforcement signals — not records that are days or weeks stale by the time other platforms deliver them."
                 },
                 {
                   question: "Do you include owner contact information?",

@@ -186,14 +186,41 @@ serve(async (req) => {
         })
       );
       
+      let creditsExhausted = false;
       for (const r of results) {
         if (r.status === 'fulfilled' && r.value) {
           totalProcessed += r.value.processed || 0;
           totalAI += r.value.breakdown?.ai_generated || 0;
           totalRuleBased += r.value.breakdown?.rule_based || 0;
+          if (r.value.breakdown?.ai_credits_exhausted) creditsExhausted = true;
         }
       }
       console.log(`[bulk-missing] All chunks done: ${totalProcessed} processed (${totalAI} AI, ${totalRuleBased} rule-based)`);
+      
+      // In AI-only mode, stop the entire chain if credits are exhausted
+      if (aiOnly && creditsExhausted) {
+        console.log(`[bulk-missing] ⚠️ AI CREDITS EXHAUSTED — stopping bulk run (aiOnly mode). Processed ${offset + totalProcessed} total so far.`);
+        const elapsed = Date.now() - startTime;
+        return new Response(
+          JSON.stringify({
+            success: true,
+            processed: totalProcessed,
+            ai_generated: totalAI,
+            rule_based: totalRuleBased,
+            elapsed_ms: elapsed,
+            ai_credits_exhausted: true,
+            stopped_reason: "AI credits exhausted. Add more credits to continue.",
+            progress: {
+              current: offset + totalProcessed,
+              total: totalMissing,
+              percentage: Math.round(((offset + totalProcessed) / (totalMissing || 1)) * 100),
+              complete: false
+            },
+            auto_continuing: false
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const elapsed = Date.now() - startTime;

@@ -701,6 +701,44 @@ function Leads() {
     return mappedProperties.find((p) => p.id === selectedPropertyId) ?? null;
   }, [mappedProperties, selectedPropertyId]);
 
+  // If the selected property is not on the current paginated results, fetch it by id
+  // so the details panel can show SnapScore / Violation Type / SnapInsight immediately.
+  const {
+    data: selectedPropertyData,
+    error: selectedPropertyError,
+  } = useQuery({
+    queryKey: ["selected-property", selectedPropertyId],
+    enabled: !!selectedPropertyId && (selectedProperty == null),
+    queryFn: async () => {
+      if (!selectedPropertyId) return null;
+      const { data, error } = await supabase
+        .from("properties")
+        .select("id, address, city, state, zip, snap_score, snap_insight, latitude, longitude, updated_at")
+        .eq("id", selectedPropertyId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (!selectedPropertyError) return;
+    console.error("[Leads] Selected property error:", selectedPropertyError);
+  }, [selectedPropertyError]);
+
+  const selectedPropertyWithFetched = useMemo(() => {
+    if (!selectedPropertyId) return null;
+    if (selectedProperty) return selectedProperty;
+    if (!selectedPropertyData) return null;
+    return {
+      ...(selectedPropertyData as any),
+      violations: [],
+    };
+  }, [selectedProperty, selectedPropertyData, selectedPropertyId]);
+
   // Determine if user should be gated (expired trial or cancelled subscription, no active paid plan)
   const isCancelled = subscriptionStatus === "cancelled" || subscriptionStatus === "expired";
   const isFullyGated = (hasTrialExpired || isCancelled) && !hasActiveSubscription;
@@ -1160,17 +1198,17 @@ function Leads() {
         </div>
 
         {/* Property Detail - Desktop uses Panel, Mobile uses Sheet */}
-        {selectedProperty && !isMobile && (
+        {selectedPropertyWithFetched && !isMobile && (
           <PropertyDetailPanel
-            property={selectedProperty}
+            property={selectedPropertyWithFetched}
             open={true}
             onOpenChange={(open) => !open && setSelectedPropertyId(null)}
           />
         )}
 
-        {selectedProperty && isMobile && (
+        {selectedPropertyWithFetched && isMobile && (
           <MobilePropertyDetailSheet
-            property={selectedProperty}
+            property={selectedPropertyWithFetched}
             open={!!selectedPropertyId}
             onOpenChange={(open) => !open && setSelectedPropertyId(null)}
             onAddToList={(propertyId) => {

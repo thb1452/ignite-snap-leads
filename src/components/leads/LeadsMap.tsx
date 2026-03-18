@@ -13,7 +13,8 @@ import type { LeadFilters } from "@/schemas";
 // USA center coordinates and default zoom - defined outside component
 const USA_CENTER: L.LatLngTuple = [39.8283, -98.5795];
 const USA_ZOOM = 5; // Start zoomed out to show all US
-const VIEWPORT_LIMIT = 1000; // Max markers per viewport load
+const SELECT_ZOOM = 17; // Zoom level used when focusing a selected property
+const MARKER_BATCH_SIZE = 500; // Keep marker rendering responsive for large datasets
 
 interface LeadsMapProps {
   filters?: LeadFilters;
@@ -30,8 +31,13 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
   const highlightRef = useRef<L.LayerGroup | null>(null);
   const heatLayerRef = useRef<L.LayerGroup | null>(null);
+  const markersIndexRef = useRef<Map<string, { latitude: number | null; longitude: number | null }>>(new Map());
+  const selectionJobIdRef = useRef(0);
+  const lastFocusedPropertyIdRef = useRef<string | null>(null);
   const [viewMode, setViewMode] = useState<"map" | "heatmap">("map");
   const [mapReady, setMapReady] = useState(false);
+  const [isRenderingMarkers, setIsRenderingMarkers] = useState(false);
+  const [renderedMarkersCount, setRenderedMarkersCount] = useState(0);
 
   // Use viewport-based loading
   const { markers, isLoading, totalInBounds, fetchMarkersInBounds, resetMarkers } = useViewportMarkers(filters);
@@ -125,26 +131,26 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
     }
 
     if (viewMode === "map") {
-      // Create marker cluster group with custom icons based on avg score
+      // Create marker cluster group.
+      // NOTE: Cluster icon rendering must be very cheap for 25k-50k datasets, so we avoid expensive
+      // getAllChildMarkers()/averaging work here.
       markerClusterGroupRef.current = L.markerClusterGroup({
         maxClusterRadius: 50,
         spiderfyOnMaxZoom: true,
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
         disableClusteringAtZoom: 16,
-        chunkedLoading: true, // Enable chunked loading for performance
+        chunkedLoading: false,
         iconCreateFunction: (cluster) => {
-          const childMarkers = cluster.getAllChildMarkers();
-          const scores = childMarkers.map((m: any) => m.options?.snapScore ?? 0);
-          const avg = scores.reduce((a: number, b: number) => a + b, 0) / Math.max(1, scores.length);
           const count = cluster.getChildCount();
           
           // Size based on count
           let size = 34;
           if (count >= 1000) size = 50;
           else if (count >= 100) size = 42;
-          
-          const color = avg >= 75 ? '#ef4444' : avg >= 50 ? '#f97316' : avg >= 25 ? '#eab308' : '#22c55e';
+
+          // Keep cluster color neutral; individual markers remain score-colored once clustering is disabled.
+          const color = count >= 1000 ? "#ef4444" : count >= 100 ? "#f97316" : "#22c55e";
           
           return L.divIcon({
             html: `<div style="
@@ -167,12 +173,33 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
         },
       });
 
-      // Add markers for all loaded viewport markers
-      markers.forEach(property => {
-        const lat = property.latitude;
-        const lng = property.longitude;
-        
-        if (lat && lng && mapRef.current) {
+      setIsRenderingMarkers(true);
+      setRenderedMarkersCount(0);
+
+      // Add markers in animation frames so we don't block the main thread.
+      const clusterGroup = markerClusterGroupRef.current;
+      mapRef.current.addLayer(clusterGroup);
+
+      markersIndexRef.current.clear();
+
+      let cancelled = false;
+      let i = 0;
+      const batchSize = markers.length > 20000 ? 200 : MARKER_BATCH_SIZE;
+
+      const addBatch = () => {
+        if (cancelled || !mapRef.current || !markerClusterGroupRef.current) return;
+
+        const end = Math.min(markers.length, i + batchSize);
+        const slice = markers.slice(i, end);
+
+        for (const property of slice) {
+          const lat = property.latitude;
+          const lng = property.longitude;
+          if (lat == null || lng == null) continue;
+          if (Number.isNaN(lat) || Number.isNaN(lng)) continue;
+
+          markersIndexRef.current.set(property.id, { latitude: lat, longitude: lng });
+
           const marker = L.circleMarker([lat, lng], {
             radius: 8,
             fillColor: getMarkerColor(property.snap_score),
@@ -182,26 +209,94 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
             fillOpacity: 0.9,
           });
 
-          marker.bindPopup(`
-            <div class="text-sm">
-              <strong>${property.address}</strong><br/>
-              <span class="text-muted-foreground">${property.city}, ${property.state}</span><br/>
-              Score: ${property.snap_score || "N/A"}
-            </div>
-          `);
-
           marker.on("click", () => {
-            if (onPropertyClick) {
-              onPropertyClick(property.id);
+            // Record the focus so the selection effect doesn't double-fly.
+            lastFocusedPropertyIdRef.current = property.id;
+            // Immediate map focus for responsiveness.
+            // Details panel selection happens via onPropertyClick.
+            if (onPropertyClick) onPropertyClick(property.id);
+            // Center + zoom to exact coordinates.
+            const map = mapRef.current;
+            if (!map || !mapReady) return;
+
+            selectionJobIdRef.current += 1;
+            const jobId = selectionJobIdRef.current;
+
+            if (highlightRef.current) {
+              map.removeLayer(highlightRef.current);
+              highlightRef.current = null;
             }
+
+            map.stop();
+            map.flyTo(L.latLng(lat, lng), SELECT_ZOOM, { duration: 1.0, easeLinearity: 0.35 });
+
+            map.once("moveend", () => {
+              if (selectionJobIdRef.current !== jobId || !mapRef.current) return;
+
+              const highlight = L.layerGroup();
+
+              const glowRing = L.circleMarker([lat, lng], {
+                radius: 24,
+                fillColor: "transparent",
+                color: "#3b82f6",
+                weight: 3,
+                opacity: 0.5,
+                className: "snap-pulse-ring",
+              });
+
+              const outerRing = L.circleMarker([lat, lng], {
+                radius: 16,
+                fillColor: "transparent",
+                color: "#fff",
+                weight: 4,
+                opacity: 0.95,
+              });
+
+              const innerRing = L.circleMarker([lat, lng], {
+                radius: 16,
+                fillColor: "transparent",
+                color: "#3b82f6",
+                weight: 2,
+                opacity: 1,
+              });
+
+              const centerDot = L.circleMarker([lat, lng], {
+                radius: 4,
+                fillColor: "#3b82f6",
+                color: "#fff",
+                weight: 2,
+                fillOpacity: 1,
+                opacity: 1,
+              });
+
+              highlight.addLayer(glowRing);
+              highlight.addLayer(outerRing);
+              highlight.addLayer(innerRing);
+              highlight.addLayer(centerDot);
+              highlight.addTo(mapRef.current!);
+              highlightRef.current = highlight;
+            });
           });
 
-          markerClusterGroupRef.current!.addLayer(marker);
+          clusterGroup.addLayer(marker);
           markersRef.current.push(marker);
         }
-      });
 
-      mapRef.current.addLayer(markerClusterGroupRef.current);
+        i = end;
+        setRenderedMarkersCount(i);
+        if (i < markers.length) {
+          requestAnimationFrame(addBatch);
+        } else {
+          setIsRenderingMarkers(false);
+        }
+      };
+
+      requestAnimationFrame(addBatch);
+
+      return () => {
+        cancelled = true;
+        setIsRenderingMarkers(false);
+      };
     } else {
       // ZIP Pressure Heatmap mode - aggregated circles by ZIP code
       heatLayerRef.current = L.layerGroup();
@@ -288,11 +383,15 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
     }
   }, [markers, onPropertyClick, viewMode, mapReady]);
 
-  // Fly to selected property and add highlight
+  // Fly to selected property and add highlight (list -> details -> map)
   const abortRef = useRef<AbortController | null>(null);
   
   useEffect(() => {
     if (!mapRef.current || !mapReady) return;
+
+    if (!selectedPropertyId) return;
+    // If the last selection already focused this property, avoid double flyTo/highlight.
+    if (lastFocusedPropertyIdRef.current === selectedPropertyId) return;
 
     // Abort any in-flight DB lookup from a previous selection
     if (abortRef.current) {
@@ -309,8 +408,6 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
       highlightRef.current = null;
     }
 
-    if (!selectedPropertyId) return;
-
     // Switch to map mode if in heatmap so the marker is visible
     if (viewMode === "heatmap") {
       setViewMode("map");
@@ -319,15 +416,18 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
     const flyToAndHighlight = (lat: number, lng: number) => {
       if (!mapRef.current) return;
 
-      // Use zoom 17 (above disableClusteringAtZoom: 16) to guarantee clusters expand
-      const targetZoom = 17;
-      
       // Offset the center slightly to the right to account for any left-side panel
       // This keeps the marker visually centered in the visible map area
       const map = mapRef.current;
       const targetLatLng = L.latLng(lat, lng);
 
-      map.flyTo(targetLatLng, targetZoom, {
+      // Mark as focused so we don't double-fly for the same selection.
+      lastFocusedPropertyIdRef.current = selectedPropertyId;
+
+      selectionJobIdRef.current += 1;
+      const jobId = selectionJobIdRef.current;
+
+      map.flyTo(targetLatLng, SELECT_ZOOM, {
         duration: 1.0,
         easeLinearity: 0.35,
       });
@@ -335,6 +435,7 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
       // Add highlight after flyTo animation completes
       const addHighlight = () => {
         if (!mapRef.current) return;
+        if (selectionJobIdRef.current !== jobId) return;
         
         // Clear again in case of race condition
         if (highlightRef.current) {
@@ -387,17 +488,15 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
         highlight.addLayer(centerDot);
         highlight.addTo(mapRef.current!);
         highlightRef.current = highlight;
-
-        map.off("moveend", addHighlight);
       };
 
       // Wait for flyTo to finish before adding highlight
       map.once("moveend", addHighlight);
     };
 
-    // Try to find in current markers first
-    const found = markers.find((m) => m.id === selectedPropertyId);
-    if (found?.latitude && found?.longitude) {
+    // Try to find in current markers first (avoid tying this effect to markers state to prevent races).
+    const found = markersIndexRef.current.get(selectedPropertyId);
+    if (found?.latitude != null && found?.longitude != null) {
       flyToAndHighlight(found.latitude, found.longitude);
       return;
     }
@@ -414,11 +513,11 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
         .single();
       
       if (controller.signal.aborted) return;
-      if (data?.latitude && data?.longitude) {
+      if (data?.latitude != null && data?.longitude != null) {
         flyToAndHighlight(Number(data.latitude), Number(data.longitude));
       }
     })().catch(() => {/* aborted */});
-  }, [selectedPropertyId, mapReady, markers, viewMode]);
+  }, [selectedPropertyId, mapReady, viewMode]);
 
 
   return (
@@ -426,7 +525,7 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
       <div ref={mapContainerRef} className="absolute inset-0 rounded-lg" />
       
       {/* Loading indicator */}
-      {isLoading && (
+      {(isLoading || isRenderingMarkers) && (
         <div className="absolute top-4 left-4 z-[1000] bg-background/95 backdrop-blur rounded-lg px-3 py-2 shadow-md flex items-center gap-2 text-sm">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading markers...
@@ -434,13 +533,10 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
       )}
       
       {/* Marker count indicator - positioned below zoom controls */}
-      {!isLoading && totalInBounds > 0 && (
+      {viewMode === "map" && !isLoading && renderedMarkersCount > 0 && (
         <div className="absolute top-24 left-2 z-[1000] bg-background/95 backdrop-blur rounded-lg px-3 py-2 shadow-md text-sm">
-          <span className="font-medium">{totalInBounds.toLocaleString()}</span>
-          <span className="text-muted-foreground"> properties in view</span>
-          {totalInBounds >= VIEWPORT_LIMIT && (
-            <span className="text-amber-600 text-xs block">Top {VIEWPORT_LIMIT.toLocaleString()} shown • Zoom in for more</span>
-          )}
+          <span className="font-medium">{renderedMarkersCount.toLocaleString()}</span>
+          <span className="text-muted-foreground"> properties rendered</span>
         </div>
       )}
       

@@ -20,7 +20,6 @@ import { GeocodingProgress } from '@/components/geocoding/GeocodingProgress';
 import { CsvLocationDetector, type CsvDetectionResult } from '@/components/upload/CsvLocationDetector';
 import { RecentUploads } from '@/components/upload/RecentUploads';
 import { useToast } from '@/hooks/use-toast';
-import { AppLayout } from '@/components/layout/AppLayout';
 import { startGeocodingJob } from '@/services/geocoding';
 import { supabase } from '@/integrations/supabase/externalClient';
 import { detectCsvLocations, splitCsvByCity, splitCsvIntoChunks, UPLOAD_LIMITS as CSV_LIMITS } from '@/utils/csvLocationDetector';
@@ -583,16 +582,15 @@ export default function Upload() {
   const hasDetection = detection !== null;
 
   return (
-    <AppLayout>
-      <div className="container mx-auto py-8 px-4 max-w-4xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Upload Properties</h1>
-          <p className="text-muted-foreground">
-            Upload CSV files or paste data directly from ChatGPT/Claude
-          </p>
-        </div>
+    <div className="container mx-auto py-8 px-4 max-w-4xl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Upload Properties</h1>
+        <p className="text-muted-foreground">
+          Upload CSV files or paste data directly from ChatGPT/Claude
+        </p>
+      </div>
 
-        <div className="space-y-6">
+      <div className="space-y-6">
           {/* Location Context - Now Optional */}
           <Card>
             <CardContent className="pt-6">
@@ -834,8 +832,7 @@ export default function Upload() {
               </div>
             </AlertDescription>
           </Alert>
-        </div>
       </div>
-    </AppLayout>
+      </div>
   );
 }

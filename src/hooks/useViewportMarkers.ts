@@ -20,8 +20,10 @@ export interface MapBounds {
   maxLng: number;
 }
 
-// Limit per viewport load - balance between coverage and performance
-const VIEWPORT_LIMIT = 1000;
+// Max markers to request for a given map bounds.
+// This app relies on clustering on the client, so we can load more than 1000
+// while still keeping marker rendering responsive via batching in the map component.
+const VIEWPORT_LIMIT = 60000;
 
 // Debounce time in ms to avoid excessive API calls during pan/zoom
 const DEBOUNCE_MS = 300;
@@ -34,6 +36,8 @@ export function useViewportMarkers(filters: LeadFilters = {}) {
   
   // Track the last fetched bounds to avoid duplicate requests
   const lastBoundsRef = useRef<MapBounds | null>(null);
+  // Prevent out-of-order responses from overwriting newer bounds results.
+  const requestIdRef = useRef(0);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchMarkersInBounds = useCallback(async (bounds: MapBounds) => {
@@ -44,16 +48,8 @@ export function useViewportMarkers(filters: LeadFilters = {}) {
 
     // Debounce the request
     debounceTimerRef.current = setTimeout(async () => {
-      // Skip if bounds haven't changed significantly
-      const lastBounds = lastBoundsRef.current;
-      if (lastBounds) {
-        const latDiff = Math.abs(bounds.minLat - lastBounds.minLat) + Math.abs(bounds.maxLat - lastBounds.maxLat);
-        const lngDiff = Math.abs(bounds.minLng - lastBounds.minLng) + Math.abs(bounds.maxLng - lastBounds.maxLng);
-        // If the change is very small, skip
-        if (latDiff < 0.01 && lngDiff < 0.01) {
-          return;
-        }
-      }
+      requestIdRef.current += 1;
+      const requestId = requestIdRef.current;
 
       setIsLoading(true);
       setError(null);
@@ -109,14 +105,21 @@ export function useViewportMarkers(filters: LeadFilters = {}) {
           console.log(`[useViewportMarkers] Loaded ${fetchedMarkers.length} markers in viewport`);
         }
 
-        setMarkers(fetchedMarkers);
-        setTotalInBounds(fetchedMarkers.length);
-        lastBoundsRef.current = bounds;
+        // Only commit if this is the latest request.
+        if (requestId === requestIdRef.current) {
+          setMarkers(fetchedMarkers);
+          setTotalInBounds(fetchedMarkers.length);
+          lastBoundsRef.current = bounds;
+        }
       } catch (err) {
         console.error("[useViewportMarkers] Error:", err);
-        setError(err instanceof Error ? err : new Error("Failed to load markers"));
+        if (requestId === requestIdRef.current) {
+          setError(err instanceof Error ? err : new Error("Failed to load markers"));
+        }
       } finally {
-        setIsLoading(false);
+        if (requestId === requestIdRef.current) {
+          setIsLoading(false);
+        }
       }
     }, DEBOUNCE_MS);
   }, [filters]);

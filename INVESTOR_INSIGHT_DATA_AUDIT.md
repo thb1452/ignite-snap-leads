@@ -210,9 +210,30 @@ The system classifies violations using a **keyword-scan approach** on `violation
 | `water_disconnection` | enforcement_type = 'water_shutoff' |
 | `other` | Unknown, Other, Complaint |
 
+### Upload-Time Violation Type Normalization (`normalizeViolationType`)
+
+Before storing in the `violations` table, the raw CSV violation type is normalized:
+
+| Input Pattern (case-insensitive) | Normalized Output |
+|----------------------------------|-------------------|
+| fire, burn, smoke | `Fire` |
+| unsafe, hazard, danger, safety | `Safety` |
+| structur, foundation, roof, wall, collapse | `Structural` |
+| electric, plumb, water, gas, sewage, utility | `Utility` |
+| exterior, facade, siding, paint, window, door, grass, weed, overgrown, fence, yard | `Exterior` |
+| *(no match)* | Original text trimmed to 50 chars, or `Unknown` |
+
+### Upload-Time Status Normalization (`normalizeStatus`)
+
+| Input Pattern (case-insensitive) | Normalized Output |
+|----------------------------------|-------------------|
+| open, pending, active, in progress, new, referred, board, hearing | `Open` |
+| closed, resolved, complete, complied, dismissed, abated | `Closed` |
+| *(no match)* | `Unknown` |
+
 ### Potential Edge Cases in Violation Types
 
-1. **Raw violation_type values come directly from CSV uploads** — there is NO normalization at upload time. The `violation_type` field stores whatever was in the `category`, `violation`, `type`, `violation_type`, or `violation_category` CSV column
+1. **Violation types ARE partially normalized at upload time** via `normalizeViolationType()`, but only 5 categories are mapped — everything else keeps its raw text (trimmed to 50 chars)
 2. **Classification happens at scoring time** — the `classifyViolation()` function runs keyword matching on the combined `violation_type + raw_description` text
 3. **Many violations may fall to "Other/General Enforcement"** if the source CSV uses city-specific codes (e.g., "305.3", "ICC 101.1", "CE-2024-xxxxx")
 4. **Description text is the richest source** but is optional and inconsistently provided across jurisdictions

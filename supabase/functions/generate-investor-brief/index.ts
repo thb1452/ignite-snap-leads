@@ -356,7 +356,7 @@ serve(async (req) => {
         total_tokens: inputTokens + outputTokens,
         api_latency_ms: apiLatency,
         total_latency_ms: totalLatency,
-        model: ANTHROPIC_MODEL,
+        model: AI_MODEL,
         recommended_action: brief.recommended_action.slice(0, 50),
         snap_score: property.snap_score,
         opportunity_class: property.opportunity_class,

@@ -265,7 +265,7 @@ serve(async (req) => {
     };
 
     if (!isComplete && !dryRun && autoResume) {
-      scheduleNext({ offset: nextOffset, autoResume, forceRefresh, minScore, sinceDays, enforcementType });
+      scheduleNext({ offset: nextOffset, autoResume, forceRefresh, minScore, sinceDays, enforcementType, aiOnly });
       console.log(`[bulk-missing] Scheduled next batch at offset ${nextOffset}`);
     } else if (isComplete && !dryRun && autoResume && forceRefresh && minScore > 0) {
       // Cascade down to the next score tier

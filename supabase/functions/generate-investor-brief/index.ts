@@ -1,11 +1,11 @@
 /**
- * GENERATE INVESTOR BRIEF — Edge Function (v2.0)
+ * GENERATE INVESTOR BRIEF — Edge Function (v2.1)
  *
  * Accepts a property_id, fetches full property + violation + contact data,
- * calls Anthropic Claude to generate a structured investor brief,
+ * calls Lovable AI (Gemini 2.5 Pro) to generate a structured investor brief,
  * and returns the brief as JSON.
  *
- * v2.0 additions:
+ * v2.1: Migrated from Anthropic Claude to Lovable AI gateway
  * - Rate limiting: 10 regenerations per property per user per day
  * - Token usage tracking: logs input/output tokens per call
  * - Structured monitoring: latency, status, error tracking
@@ -21,9 +21,9 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
-const ANTHROPIC_MAX_TOKENS = 1500;
+const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const AI_MODEL = "google/gemini-2.5-pro";
+const AI_MAX_TOKENS = 1500;
 const DAILY_REGEN_LIMIT = 10;
 
 const SYSTEM_PROMPT = `You are Investor Insight, an AI analyst built on municipal code enforcement intelligence. Your job is to analyze property enforcement data and deliver clear, actionable investor briefs that help real estate investors identify motivated sellers and distressed properties before they appear on public lists.
@@ -133,14 +133,14 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Missing required Supabase environment variables");
     }
 
-    if (!ANTHROPIC_API_KEY) {
-      console.error("[generate-investor-brief] ANTHROPIC_API_KEY not set");
+    if (!LOVABLE_API_KEY) {
+      console.error("[generate-investor-brief] LOVABLE_API_KEY not set");
       logMonitoring({ status: "error", error: "missing_api_key", latency_ms: Date.now() - startTime });
       return new Response(
         JSON.stringify({ error: "brief_unavailable" }),
@@ -262,33 +262,49 @@ serve(async (req) => {
     // Format the property data block
     const userMessage = formatPropertyData(property, violationRecords, contactRecords);
 
-    console.log("[generate-investor-brief] Calling Anthropic API...");
+    console.log("[generate-investor-brief] Calling Lovable AI Gateway...");
     const apiStartTime = Date.now();
 
-    // Call Anthropic API
-    const anthropicResponse = await fetch(ANTHROPIC_API_URL, {
+    // Call Lovable AI Gateway (OpenAI-compatible)
+    const aiResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: ANTHROPIC_MAX_TOKENS,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userMessage }],
+        model: AI_MODEL,
+        max_tokens: AI_MAX_TOKENS,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
+        temperature: 0.4,
       }),
     });
 
     const apiLatency = Date.now() - apiStartTime;
 
-    if (!anthropicResponse.ok) {
-      const errText = await anthropicResponse.text();
-      console.error("[generate-investor-brief] Anthropic API error:", anthropicResponse.status, errText);
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error("[generate-investor-brief] AI Gateway error:", aiResponse.status, errText);
+      
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "rate_limited", message: "AI rate limit exceeded. Please try again shortly." }),
+          { status: 429, headers }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "credits_exhausted", message: "AI credits exhausted. Please add more credits." }),
+          { status: 402, headers }
+        );
+      }
+
       logMonitoring({
         status: "api_error",
-        error: `anthropic_${anthropicResponse.status}`,
+        error: `ai_gateway_${aiResponse.status}`,
         property_id,
         api_latency_ms: apiLatency,
         latency_ms: Date.now() - startTime,
@@ -299,13 +315,13 @@ serve(async (req) => {
       );
     }
 
-    const aiResult = await anthropicResponse.json();
-    const aiText = aiResult?.content?.[0]?.text?.trim();
+    const aiResult = await aiResponse.json();
+    const aiText = aiResult?.choices?.[0]?.message?.content?.trim();
 
     // ── Token usage tracking ──
     const usage = aiResult?.usage;
-    const inputTokens = usage?.input_tokens ?? 0;
-    const outputTokens = usage?.output_tokens ?? 0;
+    const inputTokens = usage?.prompt_tokens ?? 0;
+    const outputTokens = usage?.completion_tokens ?? 0;
 
     if (!aiText) {
       console.error("[generate-investor-brief] Empty AI response");
@@ -340,7 +356,7 @@ serve(async (req) => {
         total_tokens: inputTokens + outputTokens,
         api_latency_ms: apiLatency,
         total_latency_ms: totalLatency,
-        model: ANTHROPIC_MODEL,
+        model: AI_MODEL,
         recommended_action: brief.recommended_action.slice(0, 50),
         snap_score: property.snap_score,
         opportunity_class: property.opportunity_class,

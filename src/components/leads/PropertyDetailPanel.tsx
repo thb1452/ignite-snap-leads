@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/externalClient";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
 import { GroupedViolationsList } from "./GroupedViolationsList";
+import { InvestorInsightCard } from "./InvestorInsightCard";
 import { exportFilteredCsv } from "@/services/export";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { TrialExportGate } from "@/components/trial/TrialExportGate";
@@ -24,6 +25,14 @@ interface Violation {
   // NOTE: description and raw_description are NEVER included for legal safety
 }
 
+interface InvestorBrief {
+  enforcement_summary: string;
+  distress_indicators: string;
+  recommended_action: string;
+  generated_at: string;
+  property_snap_score: number | null;
+}
+
 interface PropertyWithViolations {
   id: string;
   address: string;
@@ -36,6 +45,9 @@ interface PropertyWithViolations {
   latitude: number | null;
   longitude: number | null;
   updated_at: string | null;
+  opportunity_class: string | null;
+  open_violations: number | null;
+  investor_insight_brief: InvestorBrief | null;
   violations: Violation[];
 }
 
@@ -145,6 +157,18 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
   const hasMultipleViolations = useMemo(() => violations.length >= 3, [violations.length]);
   const snapScore = property.snap_score;
 
+  // Cache investor brief in database when generated
+  const handleBriefGenerated = useCallback(async (brief: InvestorBrief) => {
+    try {
+      await supabase
+        .from('properties')
+        .update({ investor_insight_brief: brief as any })
+        .eq('id', property.id);
+    } catch (err) {
+      console.error("[PropertyDetailPanel] Failed to cache brief:", err);
+    }
+  }, [property.id]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-[600px] h-[100dvh] max-h-[100dvh] p-0 flex flex-col z-[2000] snap-drawer [&>button]:hidden">
@@ -214,6 +238,23 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
 
           {/* Main Content - Scrollable */}
           <div className="flex-1 min-h-0 overflow-y-auto p-5 md:p-6 space-y-5 overscroll-contain touch-pan-y">
+            {/* Investor Insight AI Brief */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.03 }}
+            >
+              <InvestorInsightCard
+                propertyId={property.id}
+                snapScore={snapScore}
+                snapInsight={property.snap_insight}
+                opportunityClass={property.opportunity_class ?? null}
+                openViolations={property.open_violations ?? null}
+                cachedBrief={property.investor_insight_brief ?? null}
+                onBriefGenerated={handleBriefGenerated}
+              />
+            </motion.div>
+
             {/* Metrics Grid */}
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -222,34 +263,16 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
             >
               <PropertyMetricsGrid
                 snapScore={snapScore}
-                openViolations={violations.filter(v => 
-                  v.status?.toLowerCase().includes('open') || 
+                openViolations={violations.filter(v =>
+                  v.status?.toLowerCase().includes('open') ||
                   v.status?.toLowerCase() === 'active'
                 ).length}
                 totalViolations={violations.length}
-                oldestDaysOpen={violations.reduce((max, v) => 
+                oldestDaysOpen={violations.reduce((max, v) =>
                   Math.max(max, v.days_open || 0), 0
                 ) || null}
               />
             </motion.div>
-
-            {/* SnapInsight Card */}
-            {property.snap_insight && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="rounded-xl border border-amber-200/70 bg-amber-50/50 p-4"
-              >
-                <div className="flex items-start gap-2">
-                  <span className="text-lg">💡</span>
-                  <div>
-                    <div className="text-xs font-medium text-amber-900 mb-1">SnapInsight</div>
-                    <p className="text-sm text-amber-800 leading-relaxed">{property.snap_insight}</p>
-                  </div>
-                </div>
-              </motion.div>
-            )}
 
             {/* Map Preview */}
             <motion.div

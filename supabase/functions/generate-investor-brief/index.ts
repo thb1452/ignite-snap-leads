@@ -1,0 +1,375 @@
+/**
+ * GENERATE INVESTOR BRIEF — Edge Function
+ *
+ * Accepts a property_id, fetches full property + violation + contact data,
+ * calls Anthropic Claude to generate a structured investor brief,
+ * and returns the brief as JSON.
+ */
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
+const ANTHROPIC_MAX_TOKENS = 1500;
+
+const SYSTEM_PROMPT = `You are Investor Insight, an AI analyst built on municipal code enforcement intelligence. Your job is to analyze property enforcement data and deliver clear, actionable investor briefs that help real estate investors identify motivated sellers and distressed properties before they appear on public lists.
+
+You are powered by Snap's enforcement database — one of the largest private code violation datasets in the US, sourced directly from municipal FOIA responses across 3,800+ cities.
+
+YOUR BEHAVIOR RULES:
+1. Always cite specific data. Never make general statements. Use actual numbers: violation counts, snap scores, dates, categories, signal strings.
+2. Always state the opportunity class (distressed / value_add / watch) and explain what it means for this specific property.
+3. Lead with the highest distress signal. Don't bury the most important finding.
+4. For water shutoff properties — always open with this. It is the highest distress indicator in the dataset.
+5. For escalated properties — specify the exact escalation type (condemned, legal, court, board, prosecution).
+6. Always give a recommended action — contact owner now / monitor / skip.
+7. If data is incomplete (null scores, no descriptions), say so explicitly. Never fabricate or assume data that isn't present.
+8. Keep language plain. Your audience is real estate wholesalers and investors, not lawyers or engineers.
+9. Be direct. No filler sentences. Every line should add value.
+
+DISTRESS SIGNAL DICTIONARY:
+When you see these values in distress_signals[], interpret them as follows:
+- water_shutoff_enforcement: Water service disconnected by municipality — severe financial distress or vacancy
+- maximum_enforcement_pressure: Water shutoff + open violations + repeat offender + recent activity — highest possible distress
+- active_enforcement_current: Water shutoff + recent activity — active utility enforcement in progress
+- compounding_enforcement: Water shutoff + open code violations — compounding municipal pressure
+- direct_municipal_action: Water shutoff only — direct utility enforcement
+- enforcement_escalation: Condemned, legal, court, or board proceedings — legal obligation on owner
+- extreme_enforcement_load: 200+ open violations — systematic or portfolio-level enforcement
+- massive_enforcement_load: 50–199 open violations — severe multi-violation enforcement
+- high_violation_volume: 10–49 open violations — significant active enforcement
+- active_enforcement_load: 3–9 open violations — meaningful active enforcement
+- coordinated_enforcement: 3+ enforcement categories — multiple city departments involved
+- multi_department: 2+ enforcement categories — cross-department enforcement
+- extended_enforcement: Violations open 180+ days — long-standing unresolved issues
+- recurring_enforcement: 3+ total violations — pattern of non-compliance
+- multiple_citations: 2+ total violations — not a one-time issue
+- fire_citation: Fire safety violations — major damage or hazard
+- structural_citation: Structural violations — major repair costs, potential condemnation
+- vacancy_citation: Vacant or abandoned property — owner may be absent or distressed
+- recent_activity: Enforcement action within 7 days — time-sensitive opportunity
+- current_enforcement: Enforcement action within 30 days — active situation
+- utility_enforcement: Non-water utility violations (electric, plumbing, HVAC)
+
+VIOLATION TYPE CATEGORIES:
+- Structural: Collapse risk, foundation failure, roof damage, condemned. High repair cost. Owner may be underwater.
+- Fire: Fire damage, smoke damage. Potential insurance issues, major repair, owner distress.
+- Utility: Water shutoff, electric disconnect, no utilities. Vacancy indicator. Severe distress.
+- Vacancy: Vacant or abandoned. Owner not managing property. High motivation.
+- Safety: Unsafe/hazard citations. Active risk. Enforcement pressure building.
+- Zoning: Unpermitted construction, land use violations. May have legal complications.
+- Maintenance: Property maintenance, nuisance, code compliance failures. Deferred maintenance pattern.
+- Exterior: Paint, fence, grass, debris. Lower distress but signals neglect.
+- General Enforcement: Open violation not categorized — interpret from raw description.
+- Other: Closed violation, unclassified. Lower priority.
+
+Note: Many cities use their own internal codes (e.g., "305.3", "CE-2024-xxxx", "ICC 101.1"). If you see a code number instead of a category name, interpret it from the raw_description field. If no description is available, label it as "city-specific code — description unavailable."
+
+SNAP SCORE INTERPRETATION:
+- 70–100: Critical / distressed — Active multi-vector enforcement. Highest motivation. Immediate outreach opportunity.
+- 40–69: Elevated / value_add — Significant enforcement activity. Strong opportunity. Moderate urgency.
+- 0–39: Monitoring / watch — Minor or resolved enforcement. Monitor for escalation.
+- null: Unscored — Property not yet scored. Do not interpret enforcement pressure without reviewing individual violations.
+
+EDGE CASE RULES:
+- No violations on file: State "No enforcement actions currently documented for this property." Do not speculate.
+- All violations closed: Focus on compliance history. Note when property was last active. This is a watch class property.
+- snap_score is null: State "This property has not yet been scored. Enforcement data may be present but intensity cannot be calculated." Review individual violations if available.
+- Empty distress_signals array: State "No active distress indicators flagged at this time."
+- enforcement_type is empty string: This is a standard code violation. Do NOT treat as water shutoff.
+- Municipal code numbers as violation types: Reference raw_description for context. If unavailable, state "city-specific code — description unavailable." Do not guess the meaning.
+- Very long raw_descriptions: Descriptions may be truncated at 2,000 characters and may end mid-sentence. Note this if it affects your interpretation.
+- County-scope with null city: Use county + state for location context. State "County-level record — city not specified."
+- Future dates: Flag as a potential data error. Do not use future dates to calculate urgency.
+- days_open = 0 with Open status: Do not interpret as "just opened." State "duration unknown — date data unavailable."
+- 100+ open violations: Likely systematic or portfolio-level enforcement (commercial property, apartment complex). Note this context.
+- Stale last_analyzed_at (older than 30 days): Note "Score may not reflect most recent violations. Verify current status."
+- OCR/garbled text in descriptions: Extract any readable keywords. Note "Description contains OCR artifacts — partial interpretation only."
+- Contact data available: Always surface it in the recommended action section. Include name, phone, email.
+- No contact data: Note "No contact data on file. Skip trace recommended."
+
+WHAT YOU DO NOT DO:
+- Do not fabricate violation details not present in the data
+- Do not interpret municipal code numbers without description text
+- Do not say a score is "good" or "bad" — use the tier system
+- Do not assume a property is vacant just because it has exterior violations
+- Do not use legal jargon — your audience is wholesalers, not attorneys
+- Do not reproduce raw database field names in your output
+
+OUTPUT FORMAT — always use exactly this structure:
+
+ENFORCEMENT SUMMARY
+[What is actually happening at this property right now. Cover: type and number of active violations, how long violations have been open, what enforcement actions are in play, any escalation status, most recent activity date.]
+
+DISTRESS INDICATORS
+[Why this matters to an investor. Cover: top distress signals in plain English, pattern analysis, financial pressure indicators, vacancy/abandonment signals, any extreme urgency signals.]
+
+RECOMMENDED ACTION
+[IMMEDIATE OUTREACH / STRONG OPPORTUNITY / MONITOR / SKIP]
+[One clear recommendation with the specific reason why. Include what's driving it, what to watch for if monitoring, and contact data if available.]`;
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+
+  try {
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error("Missing required Supabase environment variables");
+    }
+
+    if (!ANTHROPIC_API_KEY) {
+      console.error("[generate-investor-brief] ANTHROPIC_API_KEY not set");
+      return new Response(
+        JSON.stringify({ error: "brief_unavailable" }),
+        { status: 500, headers }
+      );
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Verify JWT
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: authData, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !authData?.user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers }
+      );
+    }
+
+    // Parse request body
+    const { property_id } = await req.json();
+    if (!property_id) {
+      return new Response(
+        JSON.stringify({ error: "property_id is required" }),
+        { status: 400, headers }
+      );
+    }
+
+    console.log("[generate-investor-brief] Processing property:", property_id);
+
+    // Fetch full property record
+    const { data: property, error: propError } = await supabase
+      .from("properties")
+      .select(`
+        id, address, city, state, zip, county,
+        snap_score, snap_insight, distress_signals, violation_types,
+        open_violations, total_violations, enforcement_type,
+        escalated, repeat_offender, multi_department,
+        avg_days_open, oldest_violation_date, newest_violation_date,
+        last_analyzed_at, last_enforcement_date, opportunity_class
+      `)
+      .eq("id", property_id)
+      .maybeSingle();
+
+    if (propError) {
+      console.error("[generate-investor-brief] Error fetching property:", propError);
+      return new Response(
+        JSON.stringify({ error: "brief_unavailable" }),
+        { status: 500, headers }
+      );
+    }
+
+    if (!property) {
+      return new Response(
+        JSON.stringify({ error: "Property not found" }),
+        { status: 404, headers }
+      );
+    }
+
+    // Fetch all violations for this property
+    const { data: violations, error: violError } = await supabase
+      .from("violations")
+      .select("violation_type, status, raw_description, days_open, opened_date, case_id")
+      .eq("property_id", property_id)
+      .order("opened_date", { ascending: false });
+
+    if (violError) {
+      console.error("[generate-investor-brief] Error fetching violations:", violError);
+    }
+
+    const violationRecords = violations || [];
+
+    // Fetch property contacts (optional)
+    const { data: contacts } = await supabase
+      .from("property_contacts")
+      .select("name, phone, email, source")
+      .eq("property_id", property_id);
+
+    const contactRecords = contacts || [];
+
+    // Format the property data block
+    const userMessage = formatPropertyData(property, violationRecords, contactRecords);
+
+    console.log("[generate-investor-brief] Calling Anthropic API...");
+
+    // Call Anthropic API
+    const anthropicResponse = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: ANTHROPIC_MAX_TOKENS,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userMessage }],
+      }),
+    });
+
+    if (!anthropicResponse.ok) {
+      const errText = await anthropicResponse.text();
+      console.error("[generate-investor-brief] Anthropic API error:", anthropicResponse.status, errText);
+      return new Response(
+        JSON.stringify({ error: "brief_unavailable" }),
+        { status: 500, headers }
+      );
+    }
+
+    const aiResult = await anthropicResponse.json();
+    const aiText = aiResult?.content?.[0]?.text?.trim();
+
+    if (!aiText) {
+      console.error("[generate-investor-brief] Empty AI response");
+      return new Response(
+        JSON.stringify({ error: "brief_unavailable" }),
+        { status: 500, headers }
+      );
+    }
+
+    // Parse the AI response into sections
+    const brief = parseAIBrief(aiText, property.snap_score);
+
+    console.log("[generate-investor-brief] Brief generated successfully for:", property_id);
+
+    return new Response(JSON.stringify(brief), { headers });
+
+  } catch (error) {
+    console.error("[generate-investor-brief] Fatal error:", error instanceof Error ? error.message : error);
+    return new Response(
+      JSON.stringify({ error: "brief_unavailable" }),
+      { status: 500, headers }
+    );
+  }
+});
+
+function formatPropertyData(
+  property: Record<string, any>,
+  violations: Record<string, any>[],
+  contacts: Record<string, any>[]
+): string {
+  const lines: string[] = ["PROPERTY DATA:", ""];
+
+  lines.push(`Address: ${property.address}, ${property.city || "not specified"}, ${property.state || ""} ${property.zip || ""}`);
+  lines.push(`County: ${property.county || "not specified"}`);
+  lines.push(`Snap Score: ${property.snap_score ?? "not yet scored"}`);
+  lines.push(`Opportunity Class: ${property.opportunity_class || "unknown"}`);
+  lines.push(`Total Violations: ${property.total_violations ?? 0}`);
+  lines.push(`Open Violations: ${property.open_violations ?? 0}`);
+  lines.push(`Violation Types: ${(property.violation_types || []).join(", ") || "none"}`);
+  lines.push(`Distress Signals: ${(property.distress_signals || []).join(", ") || "none"}`);
+  lines.push(`Enforcement Type: ${property.enforcement_type === "water_shutoff" ? "water_shutoff" : "standard code violation"}`);
+  lines.push(`Repeat Offender: ${property.repeat_offender ?? false}`);
+  lines.push(`Multi-Department: ${property.multi_department ?? false}`);
+  lines.push(`Escalated: ${property.escalated ?? false}`);
+  lines.push(`Avg Days Open: ${property.avg_days_open ?? "unknown"}`);
+  lines.push(`Oldest Violation Date: ${property.oldest_violation_date || "unknown"}`);
+  lines.push(`Newest Violation Date: ${property.newest_violation_date || "unknown"}`);
+  lines.push(`Last Enforcement Date: ${property.last_enforcement_date || "unknown"}`);
+  lines.push(`Score Last Updated: ${property.last_analyzed_at || "unknown"}`);
+  lines.push(`Existing Snap Insight: ${property.snap_insight || "none"}`);
+
+  lines.push("");
+  lines.push(`INDIVIDUAL VIOLATIONS (${violations.length} records):`);
+
+  if (violations.length === 0) {
+    lines.push("- No violation records on file");
+  } else {
+    for (const v of violations) {
+      lines.push(`- Type: ${v.violation_type || "unknown"} | Status: ${v.status || "unknown"} | Days Open: ${v.days_open ?? "unknown"} | Opened: ${v.opened_date || "unknown"} | Case: ${v.case_id || "none"}`);
+      lines.push(`  Description: ${v.raw_description || "no description available"}`);
+    }
+  }
+
+  lines.push("");
+  lines.push("CONTACT DATA:");
+  if (contacts.length > 0) {
+    for (const c of contacts) {
+      lines.push(`- Name: ${c.name || "unknown"} | Phone: ${c.phone || "unknown"} | Email: ${c.email || "unknown"} | Source: ${c.source || "unknown"}`);
+    }
+  } else {
+    lines.push("- No contact data on file");
+  }
+
+  return lines.join("\n");
+}
+
+function parseAIBrief(
+  aiText: string,
+  snapScore: number | null
+): {
+  enforcement_summary: string;
+  distress_indicators: string;
+  recommended_action: string;
+  generated_at: string;
+  property_snap_score: number | null;
+} {
+  // Parse sections from the AI output
+  let enforcementSummary = "";
+  let distressIndicators = "";
+  let recommendedAction = "";
+
+  // Try to split by section headers
+  const enforcementMatch = aiText.match(/ENFORCEMENT SUMMARY\n([\s\S]*?)(?=DISTRESS INDICATORS|$)/i);
+  const distressMatch = aiText.match(/DISTRESS INDICATORS\n([\s\S]*?)(?=RECOMMENDED ACTION|$)/i);
+  const actionMatch = aiText.match(/RECOMMENDED ACTION\n([\s\S]*?)$/i);
+
+  if (enforcementMatch) {
+    enforcementSummary = enforcementMatch[1].trim();
+  }
+  if (distressMatch) {
+    distressIndicators = distressMatch[1].trim();
+  }
+  if (actionMatch) {
+    recommendedAction = actionMatch[1].trim();
+  }
+
+  // Fallback: if parsing fails, put everything in enforcement_summary
+  if (!enforcementSummary && !distressIndicators && !recommendedAction) {
+    enforcementSummary = aiText;
+    distressIndicators = "Unable to parse structured response.";
+    recommendedAction = "Review enforcement summary above for details.";
+  }
+
+  return {
+    enforcement_summary: enforcementSummary,
+    distress_indicators: distressIndicators,
+    recommended_action: recommendedAction,
+    generated_at: new Date().toISOString(),
+    property_snap_score: snapScore,
+  };
+}

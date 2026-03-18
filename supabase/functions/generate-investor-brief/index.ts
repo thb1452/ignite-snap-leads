@@ -262,33 +262,49 @@ serve(async (req) => {
     // Format the property data block
     const userMessage = formatPropertyData(property, violationRecords, contactRecords);
 
-    console.log("[generate-investor-brief] Calling Anthropic API...");
+    console.log("[generate-investor-brief] Calling Lovable AI Gateway...");
     const apiStartTime = Date.now();
 
-    // Call Anthropic API
-    const anthropicResponse = await fetch(ANTHROPIC_API_URL, {
+    // Call Lovable AI Gateway (OpenAI-compatible)
+    const aiResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: ANTHROPIC_MAX_TOKENS,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userMessage }],
+        model: AI_MODEL,
+        max_tokens: AI_MAX_TOKENS,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
+        temperature: 0.4,
       }),
     });
 
     const apiLatency = Date.now() - apiStartTime;
 
-    if (!anthropicResponse.ok) {
-      const errText = await anthropicResponse.text();
-      console.error("[generate-investor-brief] Anthropic API error:", anthropicResponse.status, errText);
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error("[generate-investor-brief] AI Gateway error:", aiResponse.status, errText);
+      
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "rate_limited", message: "AI rate limit exceeded. Please try again shortly." }),
+          { status: 429, headers }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "credits_exhausted", message: "AI credits exhausted. Please add more credits." }),
+          { status: 402, headers }
+        );
+      }
+
       logMonitoring({
         status: "api_error",
-        error: `anthropic_${anthropicResponse.status}`,
+        error: `ai_gateway_${aiResponse.status}`,
         property_id,
         api_latency_ms: apiLatency,
         latency_ms: Date.now() - startTime,
@@ -299,13 +315,13 @@ serve(async (req) => {
       );
     }
 
-    const aiResult = await anthropicResponse.json();
-    const aiText = aiResult?.content?.[0]?.text?.trim();
+    const aiResult = await aiResponse.json();
+    const aiText = aiResult?.choices?.[0]?.message?.content?.trim();
 
     // ── Token usage tracking ──
     const usage = aiResult?.usage;
-    const inputTokens = usage?.input_tokens ?? 0;
-    const outputTokens = usage?.output_tokens ?? 0;
+    const inputTokens = usage?.prompt_tokens ?? 0;
+    const outputTokens = usage?.completion_tokens ?? 0;
 
     if (!aiText) {
       console.error("[generate-investor-brief] Empty AI response");

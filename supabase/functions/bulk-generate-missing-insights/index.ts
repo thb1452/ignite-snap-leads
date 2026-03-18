@@ -168,7 +168,7 @@ serve(async (req) => {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               },
-              body: JSON.stringify({ propertyIds: chunk }),
+              body: JSON.stringify({ propertyIds: chunk, aiOnly }),
             });
             if (response.ok) {
               const result = await response.json();

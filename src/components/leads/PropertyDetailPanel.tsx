@@ -31,6 +31,7 @@ interface InvestorBrief {
   recommended_action: string;
   generated_at: string;
   property_snap_score: number | null;
+  newest_violation_date?: string | null;
 }
 
 interface PropertyWithViolations {
@@ -47,6 +48,8 @@ interface PropertyWithViolations {
   updated_at: string | null;
   opportunity_class: string | null;
   open_violations: number | null;
+  distress_signals: string[] | null;
+  newest_violation_date: string | null;
   investor_insight_brief: InvestorBrief | null;
   violations: Violation[];
 }
@@ -250,6 +253,8 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 snapInsight={property.snap_insight}
                 opportunityClass={property.opportunity_class ?? null}
                 openViolations={property.open_violations ?? null}
+                distressSignals={property.distress_signals ?? null}
+                newestViolationDate={property.newest_violation_date ?? null}
                 cachedBrief={property.investor_insight_brief ?? null}
                 onBriefGenerated={handleBriefGenerated}
               />

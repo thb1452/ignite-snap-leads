@@ -181,7 +181,7 @@ serve(async (req) => {
   }
 
   try {
-    const { propertyIds } = await req.json();
+    const { propertyIds, aiOnly = false } = await req.json();
     
     if (!propertyIds || !Array.isArray(propertyIds) || propertyIds.length === 0) {
       return new Response(

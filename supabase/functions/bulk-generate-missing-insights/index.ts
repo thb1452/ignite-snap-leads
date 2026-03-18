@@ -277,7 +277,7 @@ serve(async (req) => {
       
       if (nextTier !== null) {
         console.log(`[bulk-missing] ✅ Tier score>=${minScore} COMPLETE! Cascading down to score>=${nextTier}`);
-        scheduleNext({ offset: 0, autoResume, forceRefresh, minScore: nextTier, sinceDays, enforcementType });
+        scheduleNext({ offset: 0, autoResume, forceRefresh, minScore: nextTier, sinceDays, enforcementType, aiOnly });
       } else {
         console.log(`[bulk-missing] 🎉 ALL TIERS COMPLETE! Every property has been processed.`);
       }

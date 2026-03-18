@@ -1,9 +1,15 @@
 /**
- * GENERATE INVESTOR BRIEF — Edge Function
+ * GENERATE INVESTOR BRIEF — Edge Function (v2.0)
  *
  * Accepts a property_id, fetches full property + violation + contact data,
  * calls Anthropic Claude to generate a structured investor brief,
  * and returns the brief as JSON.
+ *
+ * v2.0 additions:
+ * - Rate limiting: 10 regenerations per property per user per day
+ * - Token usage tracking: logs input/output tokens per call
+ * - Structured monitoring: latency, status, error tracking
+ * - newest_violation_date returned for stale-brief detection
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -18,6 +24,7 @@ const corsHeaders = {
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
 const ANTHROPIC_MAX_TOKENS = 1500;
+const DAILY_REGEN_LIMIT = 10;
 
 const SYSTEM_PROMPT = `You are Investor Insight, an AI analyst built on municipal code enforcement intelligence. Your job is to analyze property enforcement data and deliver clear, actionable investor briefs that help real estate investors identify motivated sellers and distressed properties before they appear on public lists.
 
@@ -121,6 +128,7 @@ serve(async (req) => {
   }
 
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  const startTime = Date.now();
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -133,6 +141,7 @@ serve(async (req) => {
 
     if (!ANTHROPIC_API_KEY) {
       console.error("[generate-investor-brief] ANTHROPIC_API_KEY not set");
+      logMonitoring({ status: "error", error: "missing_api_key", latency_ms: Date.now() - startTime });
       return new Response(
         JSON.stringify({ error: "brief_unavailable" }),
         { status: 500, headers }
@@ -144,6 +153,7 @@ serve(async (req) => {
     // Verify JWT
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      logMonitoring({ status: "auth_error", error: "missing_token", latency_ms: Date.now() - startTime });
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers }
@@ -153,11 +163,14 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: authData, error: authErr } = await supabase.auth.getUser(token);
     if (authErr || !authData?.user) {
+      logMonitoring({ status: "auth_error", error: authErr?.message || "invalid_token", latency_ms: Date.now() - startTime });
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: "Unauthorized", code: "AUTH_EXPIRED" }),
         { status: 401, headers }
       );
     }
+
+    const userId = authData.user.id;
 
     // Parse request body
     const { property_id } = await req.json();
@@ -168,7 +181,32 @@ serve(async (req) => {
       );
     }
 
-    console.log("[generate-investor-brief] Processing property:", property_id);
+    console.log("[generate-investor-brief] Processing property:", property_id, "user:", userId);
+
+    // ── Rate Limiting: 10 regenerations per property per user per day ──
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+
+    const { count: regenCount } = await supabase
+      .from("system_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("event_type", "investor_brief_generated")
+      .eq("user_id", userId)
+      .contains("metadata", { property_id })
+      .gte("created_at", todayStart.toISOString());
+
+    if ((regenCount ?? 0) >= DAILY_REGEN_LIMIT) {
+      console.warn("[generate-investor-brief] Rate limit hit:", userId, property_id, regenCount);
+      logMonitoring({ status: "rate_limited", property_id, user_id: userId, latency_ms: Date.now() - startTime });
+      return new Response(
+        JSON.stringify({
+          error: "rate_limit_exceeded",
+          message: `Daily regeneration limit reached (${DAILY_REGEN_LIMIT}/day). Try again tomorrow.`,
+          limit: DAILY_REGEN_LIMIT,
+        }),
+        { status: 429, headers }
+      );
+    }
 
     // Fetch full property record
     const { data: property, error: propError } = await supabase
@@ -186,6 +224,7 @@ serve(async (req) => {
 
     if (propError) {
       console.error("[generate-investor-brief] Error fetching property:", propError);
+      logMonitoring({ status: "error", error: "property_fetch_failed", property_id, latency_ms: Date.now() - startTime });
       return new Response(
         JSON.stringify({ error: "brief_unavailable" }),
         { status: 500, headers }
@@ -224,6 +263,7 @@ serve(async (req) => {
     const userMessage = formatPropertyData(property, violationRecords, contactRecords);
 
     console.log("[generate-investor-brief] Calling Anthropic API...");
+    const apiStartTime = Date.now();
 
     // Call Anthropic API
     const anthropicResponse = await fetch(ANTHROPIC_API_URL, {
@@ -241,9 +281,18 @@ serve(async (req) => {
       }),
     });
 
+    const apiLatency = Date.now() - apiStartTime;
+
     if (!anthropicResponse.ok) {
       const errText = await anthropicResponse.text();
       console.error("[generate-investor-brief] Anthropic API error:", anthropicResponse.status, errText);
+      logMonitoring({
+        status: "api_error",
+        error: `anthropic_${anthropicResponse.status}`,
+        property_id,
+        api_latency_ms: apiLatency,
+        latency_ms: Date.now() - startTime,
+      });
       return new Response(
         JSON.stringify({ error: "brief_unavailable" }),
         { status: 500, headers }
@@ -253,8 +302,22 @@ serve(async (req) => {
     const aiResult = await anthropicResponse.json();
     const aiText = aiResult?.content?.[0]?.text?.trim();
 
+    // ── Token usage tracking ──
+    const usage = aiResult?.usage;
+    const inputTokens = usage?.input_tokens ?? 0;
+    const outputTokens = usage?.output_tokens ?? 0;
+
     if (!aiText) {
       console.error("[generate-investor-brief] Empty AI response");
+      logMonitoring({
+        status: "error",
+        error: "empty_ai_response",
+        property_id,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        api_latency_ms: apiLatency,
+        latency_ms: Date.now() - startTime,
+      });
       return new Response(
         JSON.stringify({ error: "brief_unavailable" }),
         { status: 500, headers }
@@ -262,20 +325,60 @@ serve(async (req) => {
     }
 
     // Parse the AI response into sections
-    const brief = parseAIBrief(aiText, property.snap_score);
+    const brief = parseAIBrief(aiText, property.snap_score, property.newest_violation_date);
 
-    console.log("[generate-investor-brief] Brief generated successfully for:", property_id);
+    const totalLatency = Date.now() - startTime;
+
+    // ── Log to system_logs for rate limiting + monitoring ──
+    await supabase.from("system_logs").insert({
+      event_type: "investor_brief_generated",
+      user_id: userId,
+      metadata: {
+        property_id,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        total_tokens: inputTokens + outputTokens,
+        api_latency_ms: apiLatency,
+        total_latency_ms: totalLatency,
+        model: ANTHROPIC_MODEL,
+        recommended_action: brief.recommended_action.slice(0, 50),
+        snap_score: property.snap_score,
+        opportunity_class: property.opportunity_class,
+      },
+    }).then(({ error }) => {
+      if (error) console.error("[generate-investor-brief] Failed to log to system_logs:", error);
+    });
+
+    logMonitoring({
+      status: "success",
+      property_id,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      total_tokens: inputTokens + outputTokens,
+      api_latency_ms: apiLatency,
+      latency_ms: totalLatency,
+      recommended_action: brief.recommended_action.slice(0, 30),
+    });
+
+    console.log(`[generate-investor-brief] Brief generated for ${property_id} | tokens: ${inputTokens}+${outputTokens} | api: ${apiLatency}ms | total: ${totalLatency}ms`);
 
     return new Response(JSON.stringify(brief), { headers });
 
   } catch (error) {
+    const totalLatency = Date.now() - startTime;
     console.error("[generate-investor-brief] Fatal error:", error instanceof Error ? error.message : error);
+    logMonitoring({ status: "fatal_error", error: error instanceof Error ? error.message : String(error), latency_ms: totalLatency });
     return new Response(
       JSON.stringify({ error: "brief_unavailable" }),
       { status: 500, headers }
     );
   }
 });
+
+// ── Structured monitoring log ──
+function logMonitoring(data: Record<string, unknown>) {
+  console.log(JSON.stringify({ _monitor: "investor_brief", timestamp: new Date().toISOString(), ...data }));
+}
 
 function formatPropertyData(
   property: Record<string, any>,
@@ -330,13 +433,15 @@ function formatPropertyData(
 
 function parseAIBrief(
   aiText: string,
-  snapScore: number | null
+  snapScore: number | null,
+  newestViolationDate: string | null
 ): {
   enforcement_summary: string;
   distress_indicators: string;
   recommended_action: string;
   generated_at: string;
   property_snap_score: number | null;
+  newest_violation_date: string | null;
 } {
   // Parse sections from the AI output
   let enforcementSummary = "";
@@ -371,5 +476,6 @@ function parseAIBrief(
     recommended_action: recommendedAction,
     generated_at: new Date().toISOString(),
     property_snap_score: snapScore,
+    newest_violation_date: newestViolationDate,
   };
 }

@@ -465,8 +465,8 @@ export default function Landing() {
               },
               {
                 icon: Clock,
-                title: "Updated Monthly",
-                description: "Fresh enforcement data every 30 days.",
+                title: "Updated Weekly",
+                description: "Fresh enforcement data every week.",
                 highlight: false
               },
               {

@@ -25,9 +25,48 @@ export default defineConfig(({ mode }) => ({
     include: ["react", "react-dom", "react/jsx-runtime", "@tanstack/react-query"],
   },
   build: {
-    // Rely on Vite/Rollup's default chunking.
-    // Custom `manualChunks` here was creating circular chunk dependencies that caused React imports
-    // to be `undefined` at runtime (e.g. `createContext` errors in vendor bundles).
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Keep React in a single shared chunk to prevent duplicate instances
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react/jsx-runtime')) {
+            return 'vendor-react';
+          }
+          // Supabase and React Query - frequently used together
+          if (id.includes('node_modules/@supabase') || id.includes('node_modules/@tanstack/react-query')) {
+            return 'vendor-data';
+          }
+          // Radix UI components - large library, split separately
+          if (id.includes('node_modules/@radix-ui')) {
+            return 'vendor-radix';
+          }
+          // Map libraries
+          if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet') || id.includes('node_modules/react-leaflet-cluster')) {
+            return 'vendor-map';
+          }
+          // Chart library
+          if (id.includes('node_modules/recharts')) {
+            return 'vendor-charts';
+          }
+          // Excel/CSV processing
+          if (id.includes('node_modules/xlsx') || id.includes('node_modules/papaparse')) {
+            return 'vendor-export';
+          }
+          // Animation library
+          if (id.includes('node_modules/framer-motion')) {
+            return 'vendor-motion';
+          }
+          // Date utilities
+          if (id.includes('node_modules/date-fns')) {
+            return 'vendor-dates';
+          }
+          // Virtualization
+          if (id.includes('node_modules/@tanstack/react-virtual')) {
+            return 'vendor-virtual';
+          }
+        },
+      },
+    },
     // Optimize chunk size warnings
     chunkSizeWarningLimit: 1000,
   },

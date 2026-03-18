@@ -104,6 +104,8 @@ const App = () => (
             <Routes>
               {/* Eagerly loaded */}
               <Route path="/" element={<Landing />} />
+              <Route path="/index" element={<Navigate to="/" replace />} />
+              <Route path="/index.html" element={<Navigate to="/" replace />} />
               <Route path="/auth" element={<Auth />} />
 
               {/* Lazy loaded */}

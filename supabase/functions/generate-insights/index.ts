@@ -181,7 +181,7 @@ serve(async (req) => {
   }
 
   try {
-    const { propertyIds } = await req.json();
+    const { propertyIds, aiOnly = false } = await req.json();
     
     if (!propertyIds || !Array.isArray(propertyIds) || propertyIds.length === 0) {
       return new Response(
@@ -288,6 +288,11 @@ serve(async (req) => {
 
         if (aiInsight === null) {
           aiCreditsExhausted = true;
+          if (aiOnly) {
+            // AI-only mode: skip this property entirely, don't fall back
+            console.log(`[generate-insights ${VERSION}] AI credits exhausted, skipping property (aiOnly mode)`);
+            continue;
+          }
           snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations);
           deterministicCount++;
         } else {
@@ -295,6 +300,13 @@ serve(async (req) => {
           aiGeneratedCount++;
           method = 'ai';
         }
+      } else if (aiOnly) {
+        // AI-only mode: skip properties that don't qualify for AI
+        if (aiCreditsExhausted) {
+          console.log(`[generate-insights ${VERSION}] AI credits exhausted, skipping remaining (aiOnly mode)`);
+          break;
+        }
+        continue;
       } else {
         snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations);
         deterministicCount++;

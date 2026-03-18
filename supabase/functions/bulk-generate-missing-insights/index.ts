@@ -76,7 +76,7 @@ serve(async (req) => {
       }
     }
 
-    const { offset = 0, dryRun = false, autoResume = true, forceRefresh = false, minScore = 0, sinceDays = 0, enforcementType = '' } = await req.json().catch(() => ({}));
+    const { offset = 0, dryRun = false, autoResume = true, forceRefresh = false, minScore = 0, sinceDays = 0, enforcementType = '', aiOnly = false } = await req.json().catch(() => ({}));
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -168,7 +168,7 @@ serve(async (req) => {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               },
-              body: JSON.stringify({ propertyIds: chunk }),
+              body: JSON.stringify({ propertyIds: chunk, aiOnly }),
             });
             if (response.ok) {
               const result = await response.json();
@@ -186,14 +186,41 @@ serve(async (req) => {
         })
       );
       
+      let creditsExhausted = false;
       for (const r of results) {
         if (r.status === 'fulfilled' && r.value) {
           totalProcessed += r.value.processed || 0;
           totalAI += r.value.breakdown?.ai_generated || 0;
           totalRuleBased += r.value.breakdown?.rule_based || 0;
+          if (r.value.breakdown?.ai_credits_exhausted) creditsExhausted = true;
         }
       }
       console.log(`[bulk-missing] All chunks done: ${totalProcessed} processed (${totalAI} AI, ${totalRuleBased} rule-based)`);
+      
+      // In AI-only mode, stop the entire chain if credits are exhausted
+      if (aiOnly && creditsExhausted) {
+        console.log(`[bulk-missing] ⚠️ AI CREDITS EXHAUSTED — stopping bulk run (aiOnly mode). Processed ${offset + totalProcessed} total so far.`);
+        const elapsed = Date.now() - startTime;
+        return new Response(
+          JSON.stringify({
+            success: true,
+            processed: totalProcessed,
+            ai_generated: totalAI,
+            rule_based: totalRuleBased,
+            elapsed_ms: elapsed,
+            ai_credits_exhausted: true,
+            stopped_reason: "AI credits exhausted. Add more credits to continue.",
+            progress: {
+              current: offset + totalProcessed,
+              total: totalMissing,
+              percentage: Math.round(((offset + totalProcessed) / (totalMissing || 1)) * 100),
+              complete: false
+            },
+            auto_continuing: false
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const elapsed = Date.now() - startTime;
@@ -238,7 +265,7 @@ serve(async (req) => {
     };
 
     if (!isComplete && !dryRun && autoResume) {
-      scheduleNext({ offset: nextOffset, autoResume, forceRefresh, minScore, sinceDays, enforcementType });
+      scheduleNext({ offset: nextOffset, autoResume, forceRefresh, minScore, sinceDays, enforcementType, aiOnly });
       console.log(`[bulk-missing] Scheduled next batch at offset ${nextOffset}`);
     } else if (isComplete && !dryRun && autoResume && forceRefresh && minScore > 0) {
       // Cascade down to the next score tier
@@ -250,7 +277,7 @@ serve(async (req) => {
       
       if (nextTier !== null) {
         console.log(`[bulk-missing] ✅ Tier score>=${minScore} COMPLETE! Cascading down to score>=${nextTier}`);
-        scheduleNext({ offset: 0, autoResume, forceRefresh, minScore: nextTier, sinceDays, enforcementType });
+        scheduleNext({ offset: 0, autoResume, forceRefresh, minScore: nextTier, sinceDays, enforcementType, aiOnly });
       } else {
         console.log(`[bulk-missing] 🎉 ALL TIERS COMPLETE! Every property has been processed.`);
       }

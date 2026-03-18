@@ -76,7 +76,7 @@ serve(async (req) => {
       }
     }
 
-    const { offset = 0, dryRun = false, autoResume = true, forceRefresh = false, minScore = 0, sinceDays = 0, enforcementType = '' } = await req.json().catch(() => ({}));
+    const { offset = 0, dryRun = false, autoResume = true, forceRefresh = false, minScore = 0, sinceDays = 0, enforcementType = '', aiOnly = false } = await req.json().catch(() => ({}));
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

@@ -1216,6 +1216,7 @@ export type Database = {
           escalated: boolean | null
           geom: unknown
           id: string
+          investor_insight_brief: Json | null
           jurisdiction_id: string | null
           last_analyzed_at: string | null
           last_enforcement_date: string | null
@@ -1248,6 +1249,7 @@ export type Database = {
           escalated?: boolean | null
           geom?: unknown
           id?: string
+          investor_insight_brief?: Json | null
           jurisdiction_id?: string | null
           last_analyzed_at?: string | null
           last_enforcement_date?: string | null
@@ -1280,6 +1282,7 @@ export type Database = {
           escalated?: boolean | null
           geom?: unknown
           id?: string
+          investor_insight_brief?: Json | null
           jurisdiction_id?: string | null
           last_analyzed_at?: string | null
           last_enforcement_date?: string | null

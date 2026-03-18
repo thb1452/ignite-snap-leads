@@ -46,11 +46,11 @@ interface PropertyWithViolations {
   latitude: number | null;
   longitude: number | null;
   updated_at: string | null;
-  opportunity_class: string | null;
-  open_violations: number | null;
-  distress_signals: string[] | null;
-  newest_violation_date: string | null;
-  investor_insight_brief: InvestorBrief | null;
+  opportunity_class?: string | null;
+  open_violations?: number | null;
+  distress_signals?: string[] | null;
+  newest_violation_date?: string | null;
+  investor_insight_brief?: InvestorBrief | null;
   violations: Violation[];
 }
 

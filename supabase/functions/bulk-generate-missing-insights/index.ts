@@ -548,7 +548,7 @@ serve(async (req) => {
 
     // Stop if credits exhausted in aiOnly mode
     if (aiOnly && creditsExhausted) {
-      console.log(`[bulk-insights-v8] ⚠️ STOPPING: AI credits exhausted (aiOnly mode). Processed ${offset + totalProcessed} total.`);
+      console.log(`[bulk-insights-v9] ⚠️ STOPPING: AI credits exhausted (aiOnly mode). Processed ${offset + totalProcessed} total.`);
       return new Response(
         JSON.stringify({
           success: true,

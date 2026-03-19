@@ -278,18 +278,31 @@ export function InvestorInsightCard({
     return "bg-blue-100 text-blue-700 border-blue-200";
   };
 
-  // Extract the action label (e.g. "IMMEDIATE OUTREACH") from recommended_action
-  const extractActionLabel = (action: string): { label: string; body: string } => {
-    const match = action.match(
-      /^\s*(IMMEDIATE OUTREACH|STRONG OPPORTUNITY|MONITOR|SKIP)\s*/i
+  // Render brief text with **bold** markdown converted to <strong>
+  const renderBriefText = (text: string) => {
+    // Get the full text — support new format (brief_text) or legacy (concatenated sections)
+    const fullText = text;
+    // Split on **bold** markers
+    const parts = fullText.split(/\*\*(.*?)\*\*/g);
+    return (
+      <p className="text-sm text-slate-800 leading-relaxed">
+        {parts.map((part, i) =>
+          i % 2 === 1 ? (
+            <strong key={i} className="font-bold text-slate-900">{part}</strong>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </p>
     );
-    if (match) {
-      return {
-        label: match[1].toUpperCase(),
-        body: action.slice(match[0].length).replace(/^[—–\-]\s*/, "").trim(),
-      };
-    }
-    return { label: "", body: action };
+  };
+
+  // Get the displayable text from a brief (supports new + legacy format)
+  const getBriefDisplayText = (b: InvestorBrief): string => {
+    if (b.brief_text) return b.brief_text;
+    // Legacy cached briefs: concatenate sections
+    const parts = [b.enforcement_summary, b.distress_indicators, b.recommended_action].filter(Boolean);
+    return parts.join(" ");
   };
 
   // ── Unscored state ──

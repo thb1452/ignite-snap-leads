@@ -626,7 +626,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("[bulk-insights-v8] Fatal error:", error);
+    console.error("[bulk-insights-v9] Fatal error:", error);
     return new Response(
       JSON.stringify({
         success: false,

@@ -388,7 +388,7 @@ serve(async (req) => {
       total_tokens: inputTokens + outputTokens,
       api_latency_ms: apiLatency,
       latency_ms: totalLatency,
-      recommended_action: brief.recommended_action.slice(0, 30),
+      brief_text_preview: brief.brief_text.slice(0, 30),
     });
 
     console.log(`[generate-investor-brief] Brief generated for ${property_id} | tokens: ${inputTokens}+${outputTokens} | api: ${apiLatency}ms | total: ${totalLatency}ms`);

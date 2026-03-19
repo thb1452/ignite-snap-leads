@@ -42,7 +42,7 @@ export function BatchInsightsButton() {
       const { count: highScore } = await supabase
         .from("properties")
         .select("id", { count: "exact", head: true })
-        .gte("snap_score", 50);
+        .gte("snap_score", 70);
 
       // Count generic/template insights that need replacement
       const { count: genericCount } = await supabase

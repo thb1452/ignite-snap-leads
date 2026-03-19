@@ -19,11 +19,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 200;
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const AI_MODEL = "google/gemini-2.5-flash";
 const AI_MAX_TOKENS = 500;
-const DELAY_BETWEEN_CALLS_MS = 200; // Small delay between individual AI calls
+const CONCURRENCY = 10; // Process 10 AI calls in parallel
+const DELAY_BETWEEN_WAVES_MS = 500; // Delay between waves of concurrent calls
 
 // Same prompt as generate-investor-brief
 const SYSTEM_PROMPT = `WHO YOU ARE:

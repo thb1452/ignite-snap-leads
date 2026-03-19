@@ -52,17 +52,13 @@ const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId }: Le
   // Use viewport-based loading
   const { markers, isLoading, totalInBounds, fetchMarkersInBounds, resetMarkers } = useViewportMarkers(filters);
 
-  // Keep latest fetch fn in a ref so handleMapMove identity stays stable — prevents map useEffect
-  // from tearing down / recreating Leaflet when filters callback reference changes (which caused fetch loops).
-  const fetchMarkersRef = useRef(fetchMarkersInBounds);
-  fetchMarkersRef.current = fetchMarkersInBounds;
+  // Handler ref holds latest fetch logic; handleMapMove stays stable to prevent map remount loop.
+  const handleMapMoveRef = useRef<() => void>(() => {});
+  handleMapMoveRef.current = () => {
+    const map = mapRef.current;
+    if (!map) return;
 
-  // Stable callback: never recreate so map listeners + init effect do not remount the map.
-  // Refs (mapRef, fetchMarkersRef) are stable — empty deps intentional.
-  const handleMapMove = useCallback(() => {
-    if (!mapRef.current) return;
-
-    const bounds = mapRef.current.getBounds();
+    const bounds = map.getBounds();
     const mapBounds: MapBounds = {
       minLat: bounds.getSouth(),
       maxLat: bounds.getNorth(),
@@ -70,8 +66,12 @@ const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId }: Le
       maxLng: bounds.getEast(),
     };
 
-    fetchMarkersRef.current(mapBounds);
-  }, []); // refs stable; empty deps prevent map remount loop
+    fetchMarkersInBounds(mapBounds);
+  };
+
+  const handleMapMove = useCallback(() => {
+    handleMapMoveRef.current();
+  }, []);
 
   // Initialize map
   useEffect(() => {

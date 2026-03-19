@@ -3227,11 +3227,16 @@ export type Database = {
         Args: {
           p_category?: string
           p_city?: string
+          p_last_seen_days?: number
           p_limit?: number
           p_max_lat: number
           p_max_lng: number
           p_min_lat: number
           p_min_lng: number
+          p_multiple_violations_only?: boolean
+          p_open_violations_only?: boolean
+          p_repeat_offender_only?: boolean
+          p_search?: string
           p_snap_max?: number
           p_snap_min?: number
           p_state?: string

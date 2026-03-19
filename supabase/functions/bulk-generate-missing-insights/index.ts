@@ -411,7 +411,7 @@ serve(async (req) => {
       if (!roleData) {
         return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-      console.log(`[bulk-insights-v8] Admin verified: ${authData.user.id}`);
+      console.log(`[bulk-insights-v9] Admin verified: ${authData.user.id}`);
     }
 
     const { 

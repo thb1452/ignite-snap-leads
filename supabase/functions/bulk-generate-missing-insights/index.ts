@@ -589,7 +589,7 @@ serve(async (req) => {
             },
             body: JSON.stringify({ offset: nextOffset, autoResume, forceRefresh, minScore, aiOnly }),
           });
-          console.log(`[bulk-insights-v8] Next batch triggered, status: ${res.status}`);
+          console.log(`[bulk-insights-v9] Next batch triggered, status: ${res.status}`);
         } catch (err) {
           console.error('[bulk-insights-v8] Failed to trigger next batch:', err);
         }

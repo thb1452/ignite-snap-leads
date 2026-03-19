@@ -372,7 +372,7 @@ serve(async (req) => {
         api_latency_ms: apiLatency,
         total_latency_ms: totalLatency,
         model: AI_MODEL,
-        recommended_action: brief.recommended_action.slice(0, 50),
+        brief_text_preview: brief.brief_text.slice(0, 50),
         snap_score: property.snap_score,
         opportunity_class: property.opportunity_class,
       },

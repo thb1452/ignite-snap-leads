@@ -394,7 +394,7 @@ export function BatchInsightsButton() {
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  AI Insights — Only {stats.highScore.toLocaleString()} Properties (Score 50+)
+                  AI Insights — Only {stats.highScore.toLocaleString()} Properties (Score 70+)
                 </>
               )}
             </Button>

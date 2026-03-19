@@ -1,5 +1,10 @@
 project_id = "ojyxblegxpdgaqiscxpz"
 
+# Raise API max rows from default 1000 so map viewport can load 60k+ markers
+# (Supabase/PostgREST caps RPC responses; viewport-based loading uses bounds to limit data)
+[api]
+max_rows = 60000
+
 [functions.bulk-generate-missing-insights]
 verify_jwt = false
 

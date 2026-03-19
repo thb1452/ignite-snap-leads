@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, memo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { PropertyCard } from "./PropertyCard";
 
@@ -36,14 +36,14 @@ interface VirtualizedPropertyListProps {
 // Rich card height - accommodates full insight text, violation badges, freshness
 const CARD_HEIGHT = 140;
 
-export function VirtualizedPropertyList({
+const VirtualizedPropertyListInner = ({
   properties,
   selectedIds,
   onToggleSelect,
   onPropertyClick,
   savedSet,
   onToggleSaved,
-}: VirtualizedPropertyListProps) {
+}: VirtualizedPropertyListProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
@@ -91,4 +91,6 @@ export function VirtualizedPropertyList({
       </div>
     </div>
   );
-}
+};
+
+export const VirtualizedPropertyList = memo(VirtualizedPropertyListInner);

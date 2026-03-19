@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, memo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -15,6 +15,16 @@ const USA_CENTER: L.LatLngTuple = [39.8283, -98.5795];
 const USA_ZOOM = 5; // Start zoomed out to show all US
 const SELECT_ZOOM = 17; // Zoom level used when focusing a selected property
 const MARKER_BATCH_SIZE = 500; // Keep marker rendering responsive for large datasets
+const RENDER_COUNT_UPDATE_INTERVAL = 1000; // Update "X rendered" every N items to reduce re-renders
+
+// Stable color mapping for markers (avoids recreating function each render)
+function getMarkerColor(score: number | null): string {
+  if (!score) return "#64748b";
+  if (score >= 75) return "#E53935";
+  if (score >= 50) return "#FA8900";
+  if (score >= 25) return "#F5C518";
+  return "#4A90E2";
+}
 
 interface LeadsMapProps {
   filters?: LeadFilters;
@@ -24,7 +34,7 @@ interface LeadsMapProps {
   properties?: { id: string; latitude: number | null; longitude: number | null; snap_score: number | null; address: string; }[];
 }
 
-export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, properties: legacyProperties }: LeadsMapProps) {
+const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId }: LeadsMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.CircleMarker[]>([]);
@@ -41,14 +51,6 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
 
   // Use viewport-based loading
   const { markers, isLoading, totalInBounds, fetchMarkersInBounds, resetMarkers } = useViewportMarkers(filters);
-
-  const getMarkerColor = (score: number | null) => {
-    if (!score) return "#64748b"; // Gray for null
-    if (score >= 75) return "#E53935"; // Red (Critical Pressure)
-    if (score >= 50) return "#FA8900"; // Orange (High Pressure)
-    if (score >= 25) return "#F5C518"; // Yellow (Moderate Pressure)
-    return "#4A90E2"; // Blue (Low Pressure)
-  };
 
   // Extract bounds from map and trigger fetch
   const handleMapMove = useCallback(() => {
@@ -140,7 +142,7 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
         disableClusteringAtZoom: 16,
-        chunkedLoading: false,
+        chunkedLoading: true, // Spread DOM work across frames to prevent UI lag
         iconCreateFunction: (cluster) => {
           const count = cluster.getChildCount();
           
@@ -283,7 +285,10 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
         }
 
         i = end;
-        setRenderedMarkersCount(i);
+        // Throttle state updates to reduce re-renders; always update on final batch
+        if (i >= markers.length || i % RENDER_COUNT_UPDATE_INTERVAL === 0) {
+          setRenderedMarkersCount(i);
+        }
         if (i < markers.length) {
           requestAnimationFrame(addBatch);
         } else {
@@ -585,4 +590,6 @@ export function LeadsMap({ filters = {}, onPropertyClick, selectedPropertyId, pr
       </div>
     </div>
   );
-}
+};
+
+export const LeadsMap = memo(LeadsMapInner);

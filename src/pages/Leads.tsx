@@ -249,6 +249,10 @@ function Leads() {
   const dataTier = data?.dataTier ?? null;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  const handlePropertyClick = useCallback((id: string) => {
+    setSelectedPropertyId(id);
+  }, []);
+
   const handleClearFilters = useCallback(() => {
     setSearchInput("");
     setSearchQuery("");
@@ -264,16 +268,15 @@ function Leads() {
     setSelectMode("page"); // Reset selection mode
   }, []);
 
-  const handleToggleSelect = (id: string) => {
+  const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-    // If user manually toggles individual items, switch to page mode
     setSelectMode("page");
-  };
+  }, []);
 
-  const handleToggleSelectAll = () => {
+  const handleToggleSelectAll = useCallback(() => {
     setSelectedIds((prev) => (prev.length === properties.length ? [] : properties.map((p) => p.id)));
     setSelectMode("page");
-  };
+  }, [properties]);
 
   // Three-mode selection handlers
   const handleSelectVisible = useCallback(() => {
@@ -970,9 +973,7 @@ function Leads() {
           <div className="w-[60%] border-r relative">
             <LeadsMap
               filters={filters as LeadFilters}
-              onPropertyClick={(id) => {
-                setSelectedPropertyId(id);
-              }}
+              onPropertyClick={handlePropertyClick}
               selectedPropertyId={selectedPropertyId || undefined}
             />
           </div>
@@ -1035,9 +1036,7 @@ function Leads() {
                   properties={mappedProperties}
                   selectedIds={selectedIds}
                   onToggleSelect={handleToggleSelect}
-                  onPropertyClick={(id) => {
-                    setSelectedPropertyId(id);
-                  }}
+                  onPropertyClick={handlePropertyClick}
                   savedSet={savedSet}
                   onToggleSaved={toggleSaved}
                 />
@@ -1096,9 +1095,7 @@ function Leads() {
             <div className="flex-1 relative">
               <LeadsMap
                 filters={filters as LeadFilters}
-                onPropertyClick={(id) => {
-                  setSelectedPropertyId(id);
-                }}
+                onPropertyClick={handlePropertyClick}
                 selectedPropertyId={selectedPropertyId || undefined}
               />
             </div>
@@ -1163,7 +1160,7 @@ function Leads() {
                     properties={mappedProperties}
                     selectedIds={selectedIds}
                     onToggleSelect={handleToggleSelect}
-                    onPropertyClick={(id) => setSelectedPropertyId(id)}
+                    onPropertyClick={handlePropertyClick}
                     savedSet={savedSet}
                     onToggleSaved={toggleSaved}
                   />

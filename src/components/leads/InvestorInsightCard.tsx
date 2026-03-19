@@ -44,86 +44,64 @@ function buildRuleBasedSummary(
   openViolations: number | null,
   snapScore: number | null,
   opportunityClass: string | null
-): { enforcement_summary: string; distress_indicators: string; recommended_action: string } | null {
+): { brief_text: string } | null {
   const signals = distressSignals || [];
   const violations = openViolations ?? 0;
 
   if (signals.length === 0 && violations === 0 && snapScore === null) {
-    return null; // Truly no data
+    return null;
   }
 
-  // Build enforcement summary
-  const summaryParts: string[] = [];
+  const parts: string[] = [];
+
+  // Sentence 1: what's happening
   if (violations > 0) {
-    summaryParts.push(`${violations} open violation${violations > 1 ? "s" : ""} on file`);
-  }
-  if (signals.includes("water_shutoff_enforcement") || signals.includes("maximum_enforcement_pressure") || signals.includes("active_enforcement_current") || signals.includes("compounding_enforcement") || signals.includes("direct_municipal_action")) {
-    summaryParts.push("water shutoff enforcement active");
-  }
-  if (signals.includes("enforcement_escalation")) {
-    summaryParts.push("enforcement escalated (condemned, legal, or court proceedings)");
-  }
-  if (signals.includes("fire_citation")) {
-    summaryParts.push("fire safety violations present");
-  }
-  if (signals.includes("structural_citation")) {
-    summaryParts.push("structural violations present");
-  }
-  if (signals.includes("vacancy_citation")) {
-    summaryParts.push("vacancy or abandonment flagged");
-  }
-  if (signals.includes("extended_enforcement")) {
-    summaryParts.push("violations open 180+ days");
-  }
-
-  const enforcement_summary = summaryParts.length > 0
-    ? summaryParts.join(". ") + "."
-    : violations > 0
-      ? `${violations} violation${violations > 1 ? "s" : ""} on record.`
-      : "Limited enforcement data available.";
-
-  // Build distress indicators
-  const SIGNAL_LABELS: Record<string, string> = {
-    water_shutoff_enforcement: "Water shutoff — severe financial distress or vacancy",
-    maximum_enforcement_pressure: "Maximum enforcement — water shutoff + violations + repeat offender",
-    active_enforcement_current: "Active utility enforcement in progress",
-    compounding_enforcement: "Water shutoff + open code violations — compounding pressure",
-    enforcement_escalation: "Legal escalation — condemned, court, or board proceedings",
-    extreme_enforcement_load: "200+ open violations — portfolio-level enforcement",
-    massive_enforcement_load: "50-199 open violations — severe enforcement",
-    high_violation_volume: "10-49 open violations — significant enforcement",
-    coordinated_enforcement: "Multiple city departments involved",
-    extended_enforcement: "Violations open 180+ days — long-standing issues",
-    fire_citation: "Fire safety violations — major damage or hazard",
-    structural_citation: "Structural violations — major repair costs",
-    vacancy_citation: "Vacant or abandoned property",
-    recent_activity: "Enforcement action within 7 days",
-    current_enforcement: "Enforcement action within 30 days",
-  };
-
-  const distressParts = signals
-    .filter((s) => SIGNAL_LABELS[s])
-    .map((s) => SIGNAL_LABELS[s]);
-
-  const distress_indicators = distressParts.length > 0
-    ? distressParts.join(". ") + "."
-    : snapScore !== null && snapScore >= 40
-      ? "Elevated enforcement activity detected based on Snap Score."
-      : "No high-priority distress signals flagged.";
-
-  // Build recommended action
-  let recommended_action: string;
-  if (signals.includes("water_shutoff_enforcement") || signals.includes("maximum_enforcement_pressure") || (snapScore !== null && snapScore >= 70)) {
-    recommended_action = "IMMEDIATE OUTREACH — High distress signals detected. Contact property owner.";
-  } else if (snapScore !== null && snapScore >= 40) {
-    recommended_action = "STRONG OPPORTUNITY — Elevated enforcement. Monitor for escalation or reach out.";
-  } else if (violations > 0) {
-    recommended_action = "MONITOR — Active violations present. Watch for changes.";
+    parts.push(`This property has ${violations} open violation${violations > 1 ? "s" : ""} on file`);
   } else {
-    recommended_action = "MONITOR — Limited data. Check back as enforcement records update.";
+    parts.push("Limited enforcement data available for this property");
   }
 
-  return { enforcement_summary, distress_indicators, recommended_action };
+  // Sentence 2: distress signals
+  const highDistress = signals.includes("water_shutoff_enforcement") || signals.includes("maximum_enforcement_pressure");
+  const hasEscalation = signals.includes("enforcement_escalation");
+  const hasStructural = signals.includes("structural_citation");
+  const hasFire = signals.includes("fire_citation");
+  const hasVacancy = signals.includes("vacancy_citation");
+
+  if (highDistress) {
+    parts[0] += " including an active water shutoff.";
+    parts.push("The owner is under severe municipal pressure — utility disconnected, indicating financial distress or vacancy.");
+  } else {
+    parts[0] += ".";
+    const signalDescriptions: string[] = [];
+    if (hasStructural) signalDescriptions.push("structural violations");
+    if (hasFire) signalDescriptions.push("fire safety violations");
+    if (hasVacancy) signalDescriptions.push("vacancy indicators");
+    if (signals.includes("extended_enforcement")) signalDescriptions.push("violations open 180+ days");
+    if (signalDescriptions.length > 0) {
+      parts.push(`Distress signals include ${signalDescriptions.join(", ")}.`);
+    } else if (snapScore !== null && snapScore >= 40) {
+      parts.push("Elevated enforcement activity detected based on Snap Score.");
+    }
+  }
+
+  // Sentence 3: escalation
+  if (hasEscalation) {
+    parts.push("Enforcement has escalated to condemned, legal, or court proceedings.");
+  }
+
+  // Sentence 4: action label
+  if (highDistress || (snapScore !== null && snapScore >= 70)) {
+    parts.push("**IMMEDIATE OUTREACH** — high distress signals detected, contact property owner.");
+  } else if (snapScore !== null && snapScore >= 40) {
+    parts.push("**STRONG OPPORTUNITY** — elevated enforcement, monitor for escalation or reach out.");
+  } else if (violations > 0) {
+    parts.push("**MONITOR** — active violations present, watch for changes.");
+  } else {
+    parts.push("**MONITOR** — limited data, check back as enforcement records update.");
+  }
+
+  return { brief_text: parts.join(" ") };
 }
 
 export function InvestorInsightCard({

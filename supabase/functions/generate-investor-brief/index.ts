@@ -110,17 +110,32 @@ WHAT YOU DO NOT DO:
 - Do not use legal jargon — your audience is wholesalers, not attorneys
 - Do not reproduce raw database field names in your output
 
-OUTPUT FORMAT — always use exactly this structure:
+OUTPUT FORMAT:
 
-ENFORCEMENT SUMMARY
-[What is actually happening at this property right now. Cover: type and number of active violations, how long violations have been open, what enforcement actions are in play, any escalation status, most recent activity date.]
+Write a single paragraph — maximum 4 sentences. No headers. No sections. No bullet points. No labels.
 
-DISTRESS INDICATORS
-[Why this matters to an investor. Cover: top distress signals in plain English, pattern analysis, financial pressure indicators, vacancy/abandonment signals, any extreme urgency signals.]
+Sentence 1: What is actively happening at this property right now. Cite specific numbers — violation count, types, how long open.
 
-RECOMMENDED ACTION
-[IMMEDIATE OUTREACH / STRONG OPPORTUNITY / MONITOR / SKIP]
-[One clear recommendation with the specific reason why. Include what's driving it, what to watch for if monitoring, and contact data if available.]`;
+Sentence 2: Why this signals a motivated seller. Reference the top 1-2 distress signals in plain English. Water shutoff always goes here if present.
+
+Sentence 3: Any escalation, legal pressure, or urgency detail if present. Skip this sentence if nothing escalated.
+
+Sentence 4: End with a bold action label and one-line reason.
+**IMMEDIATE OUTREACH** — [reason]
+**STRONG OPPORTUNITY** — [reason]
+**MONITOR** — [reason]
+**SKIP** — [reason]
+
+EXAMPLE OUTPUT:
+This property has 4 open violations including a structural citation open 132 days and an active water shutoff. The owner is under maximum municipal pressure — utility disconnected, repeat offender status, multi-department enforcement across building and health departments. A condemnation order was filed last month, putting the owner under legal obligation to act. **IMMEDIATE OUTREACH** — water shutoff plus legal escalation equals highest motivated seller signal in the dataset.
+
+RULES:
+- Never write more than 4 sentences
+- Never use headers, bullet points, or section labels
+- Always cite real numbers from the data
+- Always end with a bold action label
+- If data is sparse, write fewer sentences — never pad
+- Plain English only — no legal jargon, no database field names`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -357,7 +372,7 @@ serve(async (req) => {
         api_latency_ms: apiLatency,
         total_latency_ms: totalLatency,
         model: AI_MODEL,
-        recommended_action: brief.recommended_action.slice(0, 50),
+        brief_text_preview: brief.brief_text.slice(0, 50),
         snap_score: property.snap_score,
         opportunity_class: property.opportunity_class,
       },
@@ -373,7 +388,7 @@ serve(async (req) => {
       total_tokens: inputTokens + outputTokens,
       api_latency_ms: apiLatency,
       latency_ms: totalLatency,
-      recommended_action: brief.recommended_action.slice(0, 30),
+      brief_text_preview: brief.brief_text.slice(0, 30),
     });
 
     console.log(`[generate-investor-brief] Brief generated for ${property_id} | tokens: ${inputTokens}+${outputTokens} | api: ${apiLatency}ms | total: ${totalLatency}ms`);
@@ -452,44 +467,13 @@ function parseAIBrief(
   snapScore: number | null,
   newestViolationDate: string | null
 ): {
-  enforcement_summary: string;
-  distress_indicators: string;
-  recommended_action: string;
+  brief_text: string;
   generated_at: string;
   property_snap_score: number | null;
   newest_violation_date: string | null;
 } {
-  // Parse sections from the AI output
-  let enforcementSummary = "";
-  let distressIndicators = "";
-  let recommendedAction = "";
-
-  // Try to split by section headers
-  const enforcementMatch = aiText.match(/ENFORCEMENT SUMMARY\n([\s\S]*?)(?=DISTRESS INDICATORS|$)/i);
-  const distressMatch = aiText.match(/DISTRESS INDICATORS\n([\s\S]*?)(?=RECOMMENDED ACTION|$)/i);
-  const actionMatch = aiText.match(/RECOMMENDED ACTION\n([\s\S]*?)$/i);
-
-  if (enforcementMatch) {
-    enforcementSummary = enforcementMatch[1].trim();
-  }
-  if (distressMatch) {
-    distressIndicators = distressMatch[1].trim();
-  }
-  if (actionMatch) {
-    recommendedAction = actionMatch[1].trim();
-  }
-
-  // Fallback: if parsing fails, put everything in enforcement_summary
-  if (!enforcementSummary && !distressIndicators && !recommendedAction) {
-    enforcementSummary = aiText;
-    distressIndicators = "Unable to parse structured response.";
-    recommendedAction = "Review enforcement summary above for details.";
-  }
-
   return {
-    enforcement_summary: enforcementSummary,
-    distress_indicators: distressIndicators,
-    recommended_action: recommendedAction,
+    brief_text: aiText.trim(),
     generated_at: new Date().toISOString(),
     property_snap_score: snapScore,
     newest_violation_date: newestViolationDate,

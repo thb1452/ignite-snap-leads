@@ -6,9 +6,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/externalClient";
 
 interface InvestorBrief {
-  enforcement_summary: string;
-  distress_indicators: string;
-  recommended_action: string;
+  brief_text: string;
+  // Legacy fields for backward compatibility with cached briefs
+  enforcement_summary?: string;
+  distress_indicators?: string;
+  recommended_action?: string;
   generated_at: string;
   property_snap_score: number | null;
   newest_violation_date?: string | null;
@@ -42,86 +44,64 @@ function buildRuleBasedSummary(
   openViolations: number | null,
   snapScore: number | null,
   opportunityClass: string | null
-): { enforcement_summary: string; distress_indicators: string; recommended_action: string } | null {
+): { brief_text: string } | null {
   const signals = distressSignals || [];
   const violations = openViolations ?? 0;
 
   if (signals.length === 0 && violations === 0 && snapScore === null) {
-    return null; // Truly no data
+    return null;
   }
 
-  // Build enforcement summary
-  const summaryParts: string[] = [];
+  const parts: string[] = [];
+
+  // Sentence 1: what's happening
   if (violations > 0) {
-    summaryParts.push(`${violations} open violation${violations > 1 ? "s" : ""} on file`);
-  }
-  if (signals.includes("water_shutoff_enforcement") || signals.includes("maximum_enforcement_pressure") || signals.includes("active_enforcement_current") || signals.includes("compounding_enforcement") || signals.includes("direct_municipal_action")) {
-    summaryParts.push("water shutoff enforcement active");
-  }
-  if (signals.includes("enforcement_escalation")) {
-    summaryParts.push("enforcement escalated (condemned, legal, or court proceedings)");
-  }
-  if (signals.includes("fire_citation")) {
-    summaryParts.push("fire safety violations present");
-  }
-  if (signals.includes("structural_citation")) {
-    summaryParts.push("structural violations present");
-  }
-  if (signals.includes("vacancy_citation")) {
-    summaryParts.push("vacancy or abandonment flagged");
-  }
-  if (signals.includes("extended_enforcement")) {
-    summaryParts.push("violations open 180+ days");
-  }
-
-  const enforcement_summary = summaryParts.length > 0
-    ? summaryParts.join(". ") + "."
-    : violations > 0
-      ? `${violations} violation${violations > 1 ? "s" : ""} on record.`
-      : "Limited enforcement data available.";
-
-  // Build distress indicators
-  const SIGNAL_LABELS: Record<string, string> = {
-    water_shutoff_enforcement: "Water shutoff — severe financial distress or vacancy",
-    maximum_enforcement_pressure: "Maximum enforcement — water shutoff + violations + repeat offender",
-    active_enforcement_current: "Active utility enforcement in progress",
-    compounding_enforcement: "Water shutoff + open code violations — compounding pressure",
-    enforcement_escalation: "Legal escalation — condemned, court, or board proceedings",
-    extreme_enforcement_load: "200+ open violations — portfolio-level enforcement",
-    massive_enforcement_load: "50-199 open violations — severe enforcement",
-    high_violation_volume: "10-49 open violations — significant enforcement",
-    coordinated_enforcement: "Multiple city departments involved",
-    extended_enforcement: "Violations open 180+ days — long-standing issues",
-    fire_citation: "Fire safety violations — major damage or hazard",
-    structural_citation: "Structural violations — major repair costs",
-    vacancy_citation: "Vacant or abandoned property",
-    recent_activity: "Enforcement action within 7 days",
-    current_enforcement: "Enforcement action within 30 days",
-  };
-
-  const distressParts = signals
-    .filter((s) => SIGNAL_LABELS[s])
-    .map((s) => SIGNAL_LABELS[s]);
-
-  const distress_indicators = distressParts.length > 0
-    ? distressParts.join(". ") + "."
-    : snapScore !== null && snapScore >= 40
-      ? "Elevated enforcement activity detected based on Snap Score."
-      : "No high-priority distress signals flagged.";
-
-  // Build recommended action
-  let recommended_action: string;
-  if (signals.includes("water_shutoff_enforcement") || signals.includes("maximum_enforcement_pressure") || (snapScore !== null && snapScore >= 70)) {
-    recommended_action = "IMMEDIATE OUTREACH — High distress signals detected. Contact property owner.";
-  } else if (snapScore !== null && snapScore >= 40) {
-    recommended_action = "STRONG OPPORTUNITY — Elevated enforcement. Monitor for escalation or reach out.";
-  } else if (violations > 0) {
-    recommended_action = "MONITOR — Active violations present. Watch for changes.";
+    parts.push(`This property has ${violations} open violation${violations > 1 ? "s" : ""} on file`);
   } else {
-    recommended_action = "MONITOR — Limited data. Check back as enforcement records update.";
+    parts.push("Limited enforcement data available for this property");
   }
 
-  return { enforcement_summary, distress_indicators, recommended_action };
+  // Sentence 2: distress signals
+  const highDistress = signals.includes("water_shutoff_enforcement") || signals.includes("maximum_enforcement_pressure");
+  const hasEscalation = signals.includes("enforcement_escalation");
+  const hasStructural = signals.includes("structural_citation");
+  const hasFire = signals.includes("fire_citation");
+  const hasVacancy = signals.includes("vacancy_citation");
+
+  if (highDistress) {
+    parts[0] += " including an active water shutoff.";
+    parts.push("The owner is under severe municipal pressure — utility disconnected, indicating financial distress or vacancy.");
+  } else {
+    parts[0] += ".";
+    const signalDescriptions: string[] = [];
+    if (hasStructural) signalDescriptions.push("structural violations");
+    if (hasFire) signalDescriptions.push("fire safety violations");
+    if (hasVacancy) signalDescriptions.push("vacancy indicators");
+    if (signals.includes("extended_enforcement")) signalDescriptions.push("violations open 180+ days");
+    if (signalDescriptions.length > 0) {
+      parts.push(`Distress signals include ${signalDescriptions.join(", ")}.`);
+    } else if (snapScore !== null && snapScore >= 40) {
+      parts.push("Elevated enforcement activity detected based on Snap Score.");
+    }
+  }
+
+  // Sentence 3: escalation
+  if (hasEscalation) {
+    parts.push("Enforcement has escalated to condemned, legal, or court proceedings.");
+  }
+
+  // Sentence 4: action label
+  if (highDistress || (snapScore !== null && snapScore >= 70)) {
+    parts.push("**IMMEDIATE OUTREACH** — high distress signals detected, contact property owner.");
+  } else if (snapScore !== null && snapScore >= 40) {
+    parts.push("**STRONG OPPORTUNITY** — elevated enforcement, monitor for escalation or reach out.");
+  } else if (violations > 0) {
+    parts.push("**MONITOR** — active violations present, watch for changes.");
+  } else {
+    parts.push("**MONITOR** — limited data, check back as enforcement records update.");
+  }
+
+  return { brief_text: parts.join(" ") };
 }
 
 export function InvestorInsightCard({
@@ -177,7 +157,7 @@ export function InvestorInsightCard({
     const ruleBased = buildRuleBasedSummary(distressSignals, openViolations, snapScore, opportunityClass);
     if (ruleBased) {
       setBrief({
-        ...ruleBased,
+        brief_text: ruleBased.brief_text,
         generated_at: new Date().toISOString(),
         property_snap_score: snapScore,
       });
@@ -298,18 +278,31 @@ export function InvestorInsightCard({
     return "bg-blue-100 text-blue-700 border-blue-200";
   };
 
-  // Extract the action label (e.g. "IMMEDIATE OUTREACH") from recommended_action
-  const extractActionLabel = (action: string): { label: string; body: string } => {
-    const match = action.match(
-      /^\s*(IMMEDIATE OUTREACH|STRONG OPPORTUNITY|MONITOR|SKIP)\s*/i
+  // Render brief text with **bold** markdown converted to <strong>
+  const renderBriefText = (text: string) => {
+    // Get the full text — support new format (brief_text) or legacy (concatenated sections)
+    const fullText = text;
+    // Split on **bold** markers
+    const parts = fullText.split(/\*\*(.*?)\*\*/g);
+    return (
+      <p className="text-sm text-slate-800 leading-relaxed">
+        {parts.map((part, i) =>
+          i % 2 === 1 ? (
+            <strong key={i} className="font-bold text-slate-900">{part}</strong>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </p>
     );
-    if (match) {
-      return {
-        label: match[1].toUpperCase(),
-        body: action.slice(match[0].length).replace(/^[—–\-]\s*/, "").trim(),
-      };
-    }
-    return { label: "", body: action };
+  };
+
+  // Get the displayable text from a brief (supports new + legacy format)
+  const getBriefDisplayText = (b: InvestorBrief): string => {
+    if (b.brief_text) return b.brief_text;
+    // Legacy cached briefs: concatenate sections
+    const parts = [b.enforcement_summary, b.distress_indicators, b.recommended_action].filter(Boolean);
+    return parts.join(" ");
   };
 
   // ── Unscored state ──
@@ -344,16 +337,9 @@ export function InvestorInsightCard({
           </div>
         </div>
         <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-full" />
         <Skeleton className="h-3 w-4/5" />
         <Skeleton className="h-3 w-3/5" />
-        <div className="pt-2 border-t border-indigo-100">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-2/3 mt-1.5" />
-        </div>
-        <div className="pt-2 border-t border-indigo-100">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-1/2 mt-1.5" />
-        </div>
       </div>
     );
   }
@@ -449,7 +435,6 @@ export function InvestorInsightCard({
 
   // ── Rule-based fallback (no AI, no snap_insight, but we have signals) ──
   if (state === "rule_based" && brief) {
-    const { label: rbActionLabel, body: rbActionBody } = extractActionLabel(brief.recommended_action);
     return (
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -481,35 +466,9 @@ export function InvestorInsightCard({
           </div>
         </div>
 
-        {/* Summary */}
+        {/* Single paragraph brief */}
         <div className="pt-1">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-            Enforcement Summary
-          </div>
-          <p className="text-sm text-slate-700 leading-relaxed">{brief.enforcement_summary}</p>
-        </div>
-
-        {/* Distress */}
-        <div className="pt-2 border-t border-slate-200">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-            Distress Indicators
-          </div>
-          <p className="text-sm text-slate-700 leading-relaxed">{brief.distress_indicators}</p>
-        </div>
-
-        {/* Action */}
-        <div className="pt-2 border-t border-slate-200">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-            Recommended Action
-          </div>
-          <div>
-            {rbActionLabel && (
-              <span className="inline-block text-xs font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded mb-1">
-                {rbActionLabel}
-              </span>
-            )}
-            <p className="text-sm text-slate-700 leading-relaxed">{rbActionBody}</p>
-          </div>
+          {renderBriefText(getBriefDisplayText(brief))}
         </div>
 
         {/* Footer with retry */}
@@ -553,9 +512,6 @@ export function InvestorInsightCard({
   // ── Brief display ──
   if (!brief) return null;
 
-  const { label: actionLabel, body: actionBody } = extractActionLabel(
-    brief.recommended_action
-  );
   const showScoreWarning = scoreChanged(brief);
   const showNewActivityWarning = !showScoreWarning && hasNewActivity(brief);
   const isCached = cachedBrief && isCacheValid(cachedBrief) && !isRegenerating;
@@ -620,41 +576,9 @@ export function InvestorInsightCard({
         </div>
       )}
 
-      {/* Enforcement Summary */}
+      {/* Single paragraph brief */}
       <div className="pt-1">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-          Enforcement Summary
-        </div>
-        <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
-          {brief.enforcement_summary}
-        </p>
-      </div>
-
-      {/* Distress Indicators */}
-      <div className="pt-2 border-t border-indigo-100">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-          Distress Indicators
-        </div>
-        <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
-          {brief.distress_indicators}
-        </p>
-      </div>
-
-      {/* Recommended Action */}
-      <div className="pt-2 border-t border-indigo-100">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-          Recommended Action
-        </div>
-        <div>
-          {actionLabel && (
-            <span className="inline-block text-xs font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded mb-1">
-              {actionLabel}
-            </span>
-          )}
-          <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
-            {actionBody}
-          </p>
-        </div>
+        {renderBriefText(getBriefDisplayText(brief))}
       </div>
 
       {/* Footer */}

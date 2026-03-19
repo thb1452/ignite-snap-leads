@@ -419,8 +419,8 @@ serve(async (req) => {
       forceRefresh = false, 
       minScore = 0, 
       aiOnly = true,
-      testMode: testModeParam = false,
-      propertyIds: propertyIdsParam = [],
+      testMode = false,
+      propertyIds = [],
     } = body;
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

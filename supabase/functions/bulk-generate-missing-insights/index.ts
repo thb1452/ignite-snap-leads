@@ -601,7 +601,7 @@ serve(async (req) => {
       } else {
         triggerNext().catch(console.error);
       }
-      console.log(`[bulk-insights-v8] Scheduled next batch at offset ${nextOffset}`);
+      console.log(`[bulk-insights-v9] Scheduled next batch at offset ${nextOffset}`);
     }
 
     return new Response(

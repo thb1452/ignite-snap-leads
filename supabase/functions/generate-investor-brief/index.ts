@@ -467,44 +467,13 @@ function parseAIBrief(
   snapScore: number | null,
   newestViolationDate: string | null
 ): {
-  enforcement_summary: string;
-  distress_indicators: string;
-  recommended_action: string;
+  brief_text: string;
   generated_at: string;
   property_snap_score: number | null;
   newest_violation_date: string | null;
 } {
-  // Parse sections from the AI output
-  let enforcementSummary = "";
-  let distressIndicators = "";
-  let recommendedAction = "";
-
-  // Try to split by section headers
-  const enforcementMatch = aiText.match(/ENFORCEMENT SUMMARY\n([\s\S]*?)(?=DISTRESS INDICATORS|$)/i);
-  const distressMatch = aiText.match(/DISTRESS INDICATORS\n([\s\S]*?)(?=RECOMMENDED ACTION|$)/i);
-  const actionMatch = aiText.match(/RECOMMENDED ACTION\n([\s\S]*?)$/i);
-
-  if (enforcementMatch) {
-    enforcementSummary = enforcementMatch[1].trim();
-  }
-  if (distressMatch) {
-    distressIndicators = distressMatch[1].trim();
-  }
-  if (actionMatch) {
-    recommendedAction = actionMatch[1].trim();
-  }
-
-  // Fallback: if parsing fails, put everything in enforcement_summary
-  if (!enforcementSummary && !distressIndicators && !recommendedAction) {
-    enforcementSummary = aiText;
-    distressIndicators = "Unable to parse structured response.";
-    recommendedAction = "Review enforcement summary above for details.";
-  }
-
   return {
-    enforcement_summary: enforcementSummary,
-    distress_indicators: distressIndicators,
-    recommended_action: recommendedAction,
+    brief_text: aiText.trim(),
     generated_at: new Date().toISOString(),
     property_snap_score: snapScore,
     newest_violation_date: newestViolationDate,

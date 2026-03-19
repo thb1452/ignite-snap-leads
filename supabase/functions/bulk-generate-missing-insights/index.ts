@@ -419,9 +419,9 @@ serve(async (req) => {
       forceRefresh = false, 
       minScore = 0, 
       aiOnly = true,
-      testMode = false,
-      propertyIds = [],
-    } = await req.json().catch(() => ({}));
+      testMode: testModeParam = false,
+      propertyIds: propertyIdsParam = [],
+    } = body;
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

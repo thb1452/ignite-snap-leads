@@ -591,7 +591,7 @@ serve(async (req) => {
           });
           console.log(`[bulk-insights-v9] Next batch triggered, status: ${res.status}`);
         } catch (err) {
-          console.error('[bulk-insights-v8] Failed to trigger next batch:', err);
+          console.error('[bulk-insights-v9] Failed to trigger next batch:', err);
         }
       };
       // @ts-ignore

@@ -1,17 +1,19 @@
 /**
- * SNAP INSIGHT GENERATION v7.1 - HYBRID AI + DETERMINISTIC ENGINE
+ * SNAP INSIGHT GENERATION v8.0 - HYBRID AI + INVESTOR VOICE DETERMINISTIC ENGINE
  * 
- * Properties with snap_score >= 50: AI-generated enforcement-pressure insight
+ * Properties with snap_score >= 50: AI-generated investor brief insight
  *   - Uses Lovable AI (Gemini Flash) via gateway
- *   - Strict enforcement-neutral framing (NO investor/acquisition language)
+ *   - Investor-voice framing with action labels
  *   - Falls back to deterministic engine if AI credits exhausted or error
  * 
- * Properties with snap_score < 50 (or AI unavailable): deterministic rule-based engine v4.1
+ * Properties with snap_score < 50 (or AI unavailable): deterministic investor-voice engine v5.0
+ *   - Fact → Signal → Action Label format
+ *   - Score-aligned labels: 70+ HIGH/GOOD, 40-69 GOOD/WATCH, 0-39 WATCH/PASS
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v7.1";
+const VERSION = "v8.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

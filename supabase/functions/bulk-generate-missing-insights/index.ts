@@ -466,7 +466,7 @@ serve(async (req) => {
     }
 
     const { count: totalMissing } = await countQuery;
-    console.log(`[bulk-insights-v8] Starting at offset ${offset}, total: ${totalMissing}`);
+    console.log(`[bulk-insights-v9] Starting at offset ${offset}, total: ${totalMissing}`);
 
     const { data: properties, error: fetchError } = await fetchQuery
       .order("snap_score", { ascending: false, nullsFirst: false })

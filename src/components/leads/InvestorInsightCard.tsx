@@ -519,9 +519,6 @@ export function InvestorInsightCard({
   // ── Brief display ──
   if (!brief) return null;
 
-  const { label: actionLabel, body: actionBody } = extractActionLabel(
-    brief.recommended_action
-  );
   const showScoreWarning = scoreChanged(brief);
   const showNewActivityWarning = !showScoreWarning && hasNewActivity(brief);
   const isCached = cachedBrief && isCacheValid(cachedBrief) && !isRegenerating;
@@ -586,41 +583,9 @@ export function InvestorInsightCard({
         </div>
       )}
 
-      {/* Enforcement Summary */}
+      {/* Single paragraph brief */}
       <div className="pt-1">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-          Enforcement Summary
-        </div>
-        <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
-          {brief.enforcement_summary}
-        </p>
-      </div>
-
-      {/* Distress Indicators */}
-      <div className="pt-2 border-t border-indigo-100">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-          Distress Indicators
-        </div>
-        <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
-          {brief.distress_indicators}
-        </p>
-      </div>
-
-      {/* Recommended Action */}
-      <div className="pt-2 border-t border-indigo-100">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-          Recommended Action
-        </div>
-        <div>
-          {actionLabel && (
-            <span className="inline-block text-xs font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded mb-1">
-              {actionLabel}
-            </span>
-          )}
-          <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
-            {actionBody}
-          </p>
-        </div>
+        {renderBriefText(getBriefDisplayText(brief))}
       </div>
 
       {/* Footer */}

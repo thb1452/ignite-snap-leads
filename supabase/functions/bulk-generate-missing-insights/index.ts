@@ -19,11 +19,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 200;
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const AI_MODEL = "google/gemini-2.5-flash";
 const AI_MAX_TOKENS = 500;
-const DELAY_BETWEEN_CALLS_MS = 200; // Small delay between individual AI calls
+const CONCURRENCY = 10; // Process 10 AI calls in parallel
+const DELAY_BETWEEN_WAVES_MS = 500; // Delay between waves of concurrent calls
 
 // Same prompt as generate-investor-brief
 const SYSTEM_PROMPT = `WHO YOU ARE:
@@ -434,7 +435,7 @@ serve(async (req) => {
         const result = await generateInsightForProperty(supabase, propId, LOVABLE_API_KEY, false);
         results.push(result);
         if (result.status === 'credits_exhausted') break;
-        await delay(DELAY_BETWEEN_CALLS_MS);
+        await delay(200);
       }
 
       return new Response(
@@ -496,36 +497,40 @@ serve(async (req) => {
     const errors: string[] = [];
 
     if (!dryRun) {
-      for (const prop of properties) {
+      // Process in waves of CONCURRENCY parallel calls
+      for (let i = 0; i < properties.length; i += CONCURRENCY) {
         if (creditsExhausted) break;
-
-        const result = await generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true);
         
-        if (result.status === 'success') {
-          totalProcessed++;
-          totalAI++;
-        } else if (result.status === 'credits_exhausted') {
-          creditsExhausted = true;
-          console.log(`[bulk-insights-v8] ⚠️ AI credits exhausted at property ${prop.id}`);
-        } else if (result.status === 'rate_limited') {
-          // Wait longer and retry once
-          console.log(`[bulk-insights-v8] Rate limited, waiting 5s...`);
-          await delay(5000);
-          const retry = await generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true);
-          if (retry.status === 'success') {
-            totalProcessed++;
-            totalAI++;
+        const wave = properties.slice(i, i + CONCURRENCY);
+        const waveResults = await Promise.allSettled(
+          wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true))
+        );
+
+        for (const result of waveResults) {
+          if (result.status === 'fulfilled') {
+            const r = result.value;
+            if (r.status === 'success') {
+              totalProcessed++;
+              totalAI++;
+            } else if (r.status === 'credits_exhausted') {
+              creditsExhausted = true;
+            } else if (r.status === 'rate_limited') {
+              totalSkipped++;
+              errors.push(`${r.property_id}: rate_limited`);
+            } else {
+              totalSkipped++;
+              errors.push(`${r.property_id}: ${r.error || r.status}`);
+            }
           } else {
             totalSkipped++;
-            errors.push(`${prop.id}: rate_limited after retry`);
+            errors.push(`wave error: ${result.reason}`);
           }
-        } else {
-          totalSkipped++;
-          errors.push(`${prop.id}: ${result.error || result.status}`);
         }
 
-        // Small delay between calls to avoid rate limiting
-        await delay(DELAY_BETWEEN_CALLS_MS);
+        // Small delay between waves to avoid rate limiting
+        if (i + CONCURRENCY < properties.length && !creditsExhausted) {
+          await delay(DELAY_BETWEEN_WAVES_MS);
+        }
       }
     }
 

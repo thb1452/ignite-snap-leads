@@ -283,7 +283,7 @@ export function BatchInsightsButton() {
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Score 50+ (AI eligible):</span>
+                <span className="text-muted-foreground">Score 70+ (AI eligible):</span>
                 <span className="font-semibold text-cyan-600">{stats.highScore.toLocaleString()}</span>
               </div>
               {(() => {

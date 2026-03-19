@@ -442,7 +442,6 @@ export function InvestorInsightCard({
 
   // ── Rule-based fallback (no AI, no snap_insight, but we have signals) ──
   if (state === "rule_based" && brief) {
-    const { label: rbActionLabel, body: rbActionBody } = extractActionLabel(brief.recommended_action);
     return (
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -474,35 +473,9 @@ export function InvestorInsightCard({
           </div>
         </div>
 
-        {/* Summary */}
+        {/* Single paragraph brief */}
         <div className="pt-1">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-            Enforcement Summary
-          </div>
-          <p className="text-sm text-slate-700 leading-relaxed">{brief.enforcement_summary}</p>
-        </div>
-
-        {/* Distress */}
-        <div className="pt-2 border-t border-slate-200">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-            Distress Indicators
-          </div>
-          <p className="text-sm text-slate-700 leading-relaxed">{brief.distress_indicators}</p>
-        </div>
-
-        {/* Action */}
-        <div className="pt-2 border-t border-slate-200">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-            Recommended Action
-          </div>
-          <div>
-            {rbActionLabel && (
-              <span className="inline-block text-xs font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded mb-1">
-                {rbActionLabel}
-              </span>
-            )}
-            <p className="text-sm text-slate-700 leading-relaxed">{rbActionBody}</p>
-          </div>
+          {renderBriefText(getBriefDisplayText(brief))}
         </div>
 
         {/* Footer with retry */}

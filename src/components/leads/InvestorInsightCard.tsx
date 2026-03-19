@@ -70,7 +70,7 @@ function buildRuleBasedSummary(
 
   if (highDistress) {
     parts[0] += " including an active water shutoff.";
-    parts.push("The owner is under severe municipal pressure — utility disconnected, indicating financial distress or vacancy.");
+    parts.push("Utility disconnection on record — severe distress signal with no compliance activity on file.");
   } else {
     parts[0] += ".";
     const signalDescriptions: string[] = [];

@@ -52,10 +52,15 @@ const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId }: Le
   // Use viewport-based loading
   const { markers, isLoading, totalInBounds, fetchMarkersInBounds, resetMarkers } = useViewportMarkers(filters);
 
-  // Extract bounds from map and trigger fetch
+  // Keep latest fetch fn in a ref so handleMapMove identity stays stable — prevents map useEffect
+  // from tearing down / recreating Leaflet when filters callback reference changes (which caused fetch loops).
+  const fetchMarkersRef = useRef(fetchMarkersInBounds);
+  fetchMarkersRef.current = fetchMarkersInBounds;
+
+  // Stable callback: never recreate so map listeners + init effect do not remount the map
   const handleMapMove = useCallback(() => {
     if (!mapRef.current) return;
-    
+
     const bounds = mapRef.current.getBounds();
     const mapBounds: MapBounds = {
       minLat: bounds.getSouth(),
@@ -63,9 +68,9 @@ const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId }: Le
       minLng: bounds.getWest(),
       maxLng: bounds.getEast(),
     };
-    
-    fetchMarkersInBounds(mapBounds);
-  }, [fetchMarkersInBounds]);
+
+    fetchMarkersRef.current(mapBounds);
+  }, []);
 
   // Initialize map
   useEffect(() => {

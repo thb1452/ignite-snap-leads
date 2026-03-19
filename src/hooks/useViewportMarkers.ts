@@ -20,14 +20,26 @@ export interface MapBounds {
   maxLng: number;
 }
 
-/** Upper bound passed to RPC LIMIT — must cover all markers in viewport for PostgREST range slicing */
+/** Upper bound passed to RPC LIMIT */
 const VIEWPORT_LIMIT = 60000;
 
-/** Supabase / Lovable max_rows per HTTP response */
+/** Supabase max_rows per response */
 const BATCH_SIZE = 1000;
 
-// Debounce time in ms to avoid excessive API calls during pan/zoom
 const DEBOUNCE_MS = 400;
+
+/** Avoid re-fetch loops from float noise or map settle after clusters */
+const BOUNDS_EPS = 1e-4;
+
+function boundsNearlyEqual(a: MapBounds | null, b: MapBounds): boolean {
+  if (!a) return false;
+  return (
+    Math.abs(a.minLat - b.minLat) < BOUNDS_EPS &&
+    Math.abs(a.maxLat - b.maxLat) < BOUNDS_EPS &&
+    Math.abs(a.minLng - b.minLng) < BOUNDS_EPS &&
+    Math.abs(a.maxLng - b.maxLng) < BOUNDS_EPS
+  );
+}
 
 function buildMapMarkersRpcParams(bounds: MapBounds, filters: LeadFilters) {
   return {
@@ -62,8 +74,8 @@ function buildMapMarkersRpcParams(bounds: MapBounds, filters: LeadFilters) {
 }
 
 /**
- * Fetch all markers for the viewport by paging in 1000-row batches (Lovable / Supabase max_rows cap).
- * Aborts if `isStale()` returns true after any await (e.g. user panned again).
+ * Fetch all markers in batches, merge in memory, return once complete.
+ * Single state update on completion — no progressive updates that cause effect loops.
  */
 async function fetchAllMarkersInBatches(
   bounds: MapBounds,
@@ -75,17 +87,13 @@ async function fetchAllMarkersInBatches(
   let from = 0;
 
   while (from < VIEWPORT_LIMIT) {
-    if (isStale()) {
-      return [];
-    }
+    if (isStale()) return [];
 
     const { data, error: rpcError } = await supabase
       .rpc("fn_map_markers_in_bounds", params)
       .range(from, from + BATCH_SIZE - 1);
 
-    if (isStale()) {
-      return [];
-    }
+    if (isStale()) return [];
 
     if (rpcError) {
       console.error("[useViewportMarkers] RPC error:", rpcError);
@@ -93,26 +101,17 @@ async function fetchAllMarkersInBatches(
     }
 
     const batch = Array.isArray(data) ? (data as MapMarker[]) : [];
-    if (batch.length === 0) {
-      break;
-    }
+    if (batch.length === 0) break;
 
     allData.push(...batch);
 
-    if (batch.length < BATCH_SIZE) {
-      break;
-    }
+    if (batch.length < BATCH_SIZE) break;
 
     from += BATCH_SIZE;
 
-    // Yield so the main thread can paint between network batches
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => resolve());
     });
-  }
-
-  if (allData.length >= VIEWPORT_LIMIT) {
-    console.warn("[useViewportMarkers] Hit VIEWPORT_LIMIT; map may be truncated for this viewport.");
   }
 
   return allData;
@@ -130,27 +129,22 @@ export function useViewportMarkers(filters: LeadFilters = {}) {
 
   const fetchMarkersInBounds = useCallback(
     (bounds: MapBounds) => {
-      // Skip if bounds match last fetch (avoids duplicate requests on duplicate events)
-      if (
-        lastBoundsRef.current &&
-        Math.abs(lastBoundsRef.current.minLat - bounds.minLat) < 1e-6 &&
-        Math.abs(lastBoundsRef.current.maxLat - bounds.maxLat) < 1e-6 &&
-        Math.abs(lastBoundsRef.current.minLng - bounds.minLng) < 1e-6 &&
-        Math.abs(lastBoundsRef.current.maxLng - bounds.maxLng) < 1e-6
-      ) {
-        return;
-      }
+      if (boundsNearlyEqual(lastBoundsRef.current, bounds)) return;
 
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
       debounceTimerRef.current = setTimeout(async () => {
+        if (boundsNearlyEqual(lastBoundsRef.current, bounds)) return;
+
         requestIdRef.current += 1;
         const requestId = requestIdRef.current;
 
+        lastBoundsRef.current = bounds;
+
         setIsLoading(true);
         setError(null);
+        setMarkers([]);
+        setTotalInBounds(0);
 
         try {
           if (
@@ -162,33 +156,22 @@ export function useViewportMarkers(filters: LeadFilters = {}) {
           ) {
             throw new Error("Invalid map bounds");
           }
-
           if (bounds.minLat >= bounds.maxLat || bounds.minLng >= bounds.maxLng) {
             throw new Error("Invalid map bounds: min must be less than max");
-          }
-
-          if (import.meta.env.DEV) {
-            console.log("[useViewportMarkers] Fetching markers in bounds (batched):", bounds);
           }
 
           const isStale = () => requestId !== requestIdRef.current;
 
           const fetchedMarkers = await fetchAllMarkersInBatches(bounds, filters, isStale);
 
-          if (isStale()) {
-            return;
-          }
-
-          if (import.meta.env.DEV) {
-            console.log(`[useViewportMarkers] Loaded ${fetchedMarkers.length} markers in viewport (batched)`);
-          }
+          if (isStale()) return;
 
           setMarkers(fetchedMarkers);
           setTotalInBounds(fetchedMarkers.length);
-          lastBoundsRef.current = bounds;
         } catch (err) {
           console.error("[useViewportMarkers] Error:", err);
           if (requestId === requestIdRef.current) {
+            lastBoundsRef.current = null;
             setError(err instanceof Error ? err : new Error("Failed to load markers"));
           }
         } finally {

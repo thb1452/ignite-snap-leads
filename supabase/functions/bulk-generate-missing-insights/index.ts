@@ -1,5 +1,5 @@
 /**
- * Bulk Generate Missing Insights v8.0 — Investor Brief Voice
+ * Bulk Generate Missing Insights v9.0 — Hybrid AI + Rule-Based Investor Voice
  * 
  * Uses the same AI prompt and data enrichment as generate-investor-brief.
  * Processes properties in batches, calling Lovable AI gateway directly.

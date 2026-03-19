@@ -609,6 +609,7 @@ serve(async (req) => {
         success: true,
         processed: totalProcessed,
         ai_generated: totalAI,
+        rule_based: totalRuleBased,
         skipped: totalSkipped,
         elapsed_ms: elapsed,
         progress: {

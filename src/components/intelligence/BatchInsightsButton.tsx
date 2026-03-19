@@ -137,7 +137,7 @@ export function BatchInsightsButton() {
         : "Starting server-side insight generation...";
       toast.info(label);
 
-      const body: Record<string, unknown> = { offset: 0, autoResume: true, forceRefresh, minScore, aiOnly: true };
+      const body: Record<string, unknown> = { offset: 0, autoResume: true, forceRefresh, minScore, aiOnly: minScore > 0 };
       if (sinceDays) body.sinceDays = sinceDays;
 
       const data = await callFn("bulk-generate-missing-insights", body);

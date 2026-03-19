@@ -1,17 +1,19 @@
 /**
- * SNAP INSIGHT GENERATION v7.1 - HYBRID AI + DETERMINISTIC ENGINE
+ * SNAP INSIGHT GENERATION v8.0 - HYBRID AI + INVESTOR VOICE DETERMINISTIC ENGINE
  * 
- * Properties with snap_score >= 50: AI-generated enforcement-pressure insight
+ * Properties with snap_score >= 50: AI-generated investor brief insight
  *   - Uses Lovable AI (Gemini Flash) via gateway
- *   - Strict enforcement-neutral framing (NO investor/acquisition language)
+ *   - Investor-voice framing with action labels
  *   - Falls back to deterministic engine if AI credits exhausted or error
  * 
- * Properties with snap_score < 50 (or AI unavailable): deterministic rule-based engine v4.1
+ * Properties with snap_score < 50 (or AI unavailable): deterministic investor-voice engine v5.0
+ *   - Fact → Signal → Action Label format
+ *   - Score-aligned labels: 70+ HIGH/GOOD, 40-69 GOOD/WATCH, 0-39 WATCH/PASS
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v7.1";
+const VERSION = "v8.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -293,7 +295,7 @@ serve(async (req) => {
             console.log(`[generate-insights ${VERSION}] AI credits exhausted, skipping property (aiOnly mode)`);
             continue;
           }
-          snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations);
+          snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations, effectiveScore);
           deterministicCount++;
         } else {
           snapInsight = aiInsight;
@@ -308,7 +310,7 @@ serve(async (req) => {
         }
         continue;
       } else {
-        snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations);
+        snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations, effectiveScore);
         deterministicCount++;
       }
 
@@ -782,43 +784,49 @@ function classifyViolation(violation: Violation): ViolationWithPriority {
 }
 
 // ============================================================================
-// DETERMINISTIC INSIGHT ENGINE v4.1
-// For score <50: includes highest-priority categories, open count, oldest days
+// DETERMINISTIC INSIGHT ENGINE v5.0 — INVESTOR VOICE
+// Matches the AI investor brief format: Fact → Signal → Action Label
+// Score-aligned action labels: 70+ HIGH/GOOD, 40-69 GOOD/WATCH, 0-39 WATCH/PASS
 // ============================================================================
 function composeEnforcementInsight(
   signals: string[],
   intelligence: PropertyIntelligence,
-  classified: ViolationWithPriority[]
+  classified: ViolationWithPriority[],
+  snapScore?: number | null
 ): string {
   if (intelligence.total_violations === 0 && classified.length === 0) {
-    return "No active enforcement actions currently on file.";
+    return "No enforcement records on file. No current municipal pressure. PASS";
   }
 
-  const parts: string[] = [];
+  const score = snapScore ?? 0;
   const openCount = intelligence.open_violations;
   const totalCount = intelligence.total_violations;
   const openClassified = classified.filter(c => (c.original.status || '').toLowerCase().trim() === 'open');
   const openCategories = [...new Set(openClassified.map(v => v.category).filter(c => c !== 'Other'))];
   const allCategories = [...new Set(classified.map(v => v.category).filter(c => c !== 'Other'))];
   const maxDaysOpen = openClassified.length > 0 ? Math.max(...openClassified.map(v => v.original.days_open || 0), 0) : 0;
-  
-  // Get highest-priority categories for specificity
   const highCats = [...new Set(classified.filter(v => v.priority === 'high').map(v => v.category))];
   const medCats = [...new Set(classified.filter(v => v.priority === 'medium').map(v => v.category))];
+  const hasEscalation = signals.includes('enforcement_escalation') || intelligence.escalated;
+  const hasWaterShutoff = signals.includes('water_shutoff_enforcement');
+  const isRepeat = signals.includes('recurring_enforcement') || intelligence.repeat_offender;
+  const isMultiDept = signals.includes('coordinated_enforcement') || signals.includes('multi_department') || intelligence.multi_department;
+  const hasFireCitation = signals.includes('fire_citation');
+  const hasVacancy = signals.includes('vacancy_citation');
+  const hasStructural = signals.includes('structural_citation');
+  const isRecent = signals.includes('recent_activity');
+  const isCurrent = signals.includes('current_enforcement');
+  const isExtended = signals.includes('extended_enforcement') || maxDaysOpen >= 180;
 
-  const getSnippet = (): string | null => {
-    const best = classified.find(v => v.original.raw_description && v.original.raw_description.length > 15 && !v.original.raw_description.toLowerCase().includes('unknown'));
-    if (!best) return null;
-    const raw = best.original.raw_description!.trim();
-    return raw.length > 70 ? raw.slice(0, 67) + '...' : raw;
-  };
-
-  const durationPhrase = (): string | null => {
-    if (maxDaysOpen >= 730) return `oldest open ${Math.floor(maxDaysOpen / 365)}+ years`;
-    if (maxDaysOpen >= 365) return 'oldest open 1+ year';
-    if (maxDaysOpen >= 60) return `open ${maxDaysOpen} days`;
-    if (maxDaysOpen >= 14) return `open ${Math.floor(maxDaysOpen / 7)} weeks`;
-    return null;
+  // ── Determine action label based on score tier ──
+  const getActionLabel = (): string => {
+    if (hasWaterShutoff || hasEscalation) return 'HIGH OPPORTUNITY';
+    if (score >= 70) return highCats.length > 0 || isMultiDept ? 'HIGH OPPORTUNITY' : 'GOOD OPPORTUNITY';
+    if (score >= 40) return openCount >= 3 || isRepeat || isExtended ? 'GOOD OPPORTUNITY' : 'WATCH';
+    // score < 40
+    if (openCount === 0) return 'PASS';
+    if (openCount >= 3 || isExtended || isRepeat) return 'WATCH';
+    return 'PASS';
   };
 
   const catPhrase = (cats: string[]): string => {
@@ -828,106 +836,109 @@ function composeEnforcementInsight(
     return `${cats.slice(0, 2).map(c => c.toLowerCase()).join(', ')} +${cats.length - 2} more`;
   };
 
-  // ── Water shutoff ──
-  if (signals.includes('water_shutoff_enforcement')) {
-    const durStr = durationPhrase();
+  const durationPhrase = (): string => {
+    if (maxDaysOpen >= 730) return `unresolved ${Math.floor(maxDaysOpen / 365)}+ years`;
+    if (maxDaysOpen >= 365) return 'unresolved 1+ year';
+    if (maxDaysOpen >= 180) return `unresolved ${maxDaysOpen} days`;
+    if (maxDaysOpen >= 60) return `open ${maxDaysOpen} days`;
+    if (maxDaysOpen >= 14) return `open ${Math.floor(maxDaysOpen / 7)} weeks`;
+    if (maxDaysOpen > 0) return `open ${maxDaysOpen} days`;
+    return '';
+  };
+
+  const parts: string[] = [];
+  const actionLabel = getActionLabel();
+
+  // ── FACT (Sentence 1) ──
+  if (hasWaterShutoff) {
     if (openCount > 1) {
-      parts.push(`Water service disconnected with ${openCount} concurrent open citations${openCategories.length > 0 ? ` (${catPhrase(openCategories)})` : ''}.`);
+      const catStr = openCategories.length > 0 ? ` across ${catPhrase(openCategories)}` : '';
+      parts.push(`Utility disconnection on record with ${openCount} concurrent enforcement actions${catStr}.`);
     } else {
-      parts.push('Water service disconnected — active municipal enforcement action on record.');
+      parts.push('Utility disconnection on record — active municipal enforcement action confirmed.');
     }
-    if (durStr) parts.push(`${durStr.charAt(0).toUpperCase() + durStr.slice(1)}.`);
-    const snippet = getSnippet();
-    if (snippet && parts.join(' ').length < 200) parts.push(`Noted: "${snippet}".`);
-    return truncateInsight(parts);
-  }
-
-  // ── Standard: build unique insight with severity and oldest days ──
-  const cats = openCount > 0 ? openCategories : allCategories;
-  const durStr = durationPhrase();
-  const snippet = getSnippet();
-  const oldestDaysStr = intelligence.oldest_violation_days > 0 ? intelligence.oldest_violation_days : null;
-
-  // Part 1: Quantified lead-in with highest-priority categories
-  if (openCount > 0) {
-    const priorityCats = highCats.length > 0 ? highCats : (medCats.length > 0 ? medCats : cats);
-    const catStr = priorityCats.length > 0 ? ` covering ${catPhrase(priorityCats)}` : '';
-    const durSuffix = durStr ? `, ${durStr}` : '';
-    parts.push(`${openCount} open citation${openCount > 1 ? 's' : ''}${catStr}${durSuffix}.`);
+  } else if (openCount > 0) {
+    const priorityCats = highCats.length > 0 ? highCats : (medCats.length > 0 ? medCats : openCategories);
+    const catStr = priorityCats.length > 0 ? ` ${catPhrase(priorityCats)}` : '';
+    const dur = durationPhrase();
+    const deptStr = isMultiDept ? ' across multiple departments' : '';
+    if (openCount === 1) {
+      parts.push(`1 open${catStr} violation${deptStr}${dur ? ', ' + dur : ''}.`);
+    } else {
+      parts.push(`${openCount} open${catStr} violations${deptStr}${dur ? ', ' + dur : ''}.`);
+    }
   } else if (totalCount > 0) {
     const catStr = allCategories.length > 0 ? ` (${catPhrase(allCategories)})` : '';
-    parts.push(`${totalCount} resolved citation${totalCount > 1 ? 's' : ''}${catStr} on record.`);
+    parts.push(`${totalCount} resolved citation${totalCount > 1 ? 's' : ''}${catStr} — no current enforcement active.`);
   }
 
-  // Part 2: High-priority flags
-  if (signals.includes('enforcement_escalation') || intelligence.escalated) {
-    const allText = classified.map(v => `${(v.original.status || '').toLowerCase()} ${(v.original.raw_description || '').toLowerCase()}`).join(' ');
-    if (allText.includes('condemned') || allText.includes('condemnation')) parts.push('Condemnation order documented.');
-    else if (allText.includes('prosecution')) parts.push('Referred for prosecution.');
-    else if (allText.includes('court')) parts.push('Referred to municipal court.');
-    else if (allText.includes('board') || allText.includes('hearing')) parts.push('Scheduled for board hearing.');
-  }
-
-  if (signals.includes('fire_citation') && !parts.some(p => p.toLowerCase().includes('fire'))) {
-    parts.push('Fire safety citations on file.');
-  }
-
-  if (signals.includes('vacancy_citation') && !parts.some(p => p.toLowerCase().includes('vacan'))) {
-    parts.push('Vacancy/abandonment citations documented.');
-  }
-
-  // Part 3: Recency
-  if (signals.includes('recent_activity')) {
-    parts.push('New activity within 7 days.');
-  } else if (signals.includes('current_enforcement')) {
-    parts.push('Updated within 30 days.');
-  }
-
-  // Part 4: Pattern signals
-  if (signals.includes('coordinated_enforcement') || signals.includes('multi_department')) {
-    if (!parts.some(p => p.includes('department') || p.includes('categories'))) {
-      parts.push('Multi-department enforcement coordination.');
+  // ── SIGNAL (Sentence 2) ──
+  if (hasWaterShutoff && isExtended) {
+    parts.push(`Long-term distress signal — no compliance activity on file.`);
+  } else if (hasEscalation) {
+    const allText = classified.map(v => `${(v.original.status || '')} ${(v.original.raw_description || '')}`).join(' ').toLowerCase();
+    if (allText.includes('condemned') || allText.includes('condemnation')) {
+      parts.push('Forced action signal — condemnation order documented.');
+    } else if (allText.includes('court')) {
+      parts.push('Enforcement escalated — referred to municipal court.');
+    } else if (allText.includes('board') || allText.includes('hearing')) {
+      parts.push('Enforcement escalated — scheduled for board hearing.');
+    } else {
+      parts.push('Enforcement escalated — legal obligation triggered.');
     }
-  }
-  if (signals.includes('recurring_enforcement') && !parts.some(p => p.includes('recurring') || p.includes('repeat'))) {
-    parts.push(`Repeat enforcement pattern (${totalCount} total citations).`);
+  } else if (isMultiDept && isExtended) {
+    parts.push('Multi-department distress pattern with no compliance activity on file.');
+  } else if (isRepeat && isExtended) {
+    parts.push(`Repeat citation pattern — violations remain unresolved after ${maxDaysOpen >= 365 ? Math.floor(maxDaysOpen / 365) + '+ years' : maxDaysOpen + ' days'}.`);
+  } else if (isRepeat) {
+    parts.push(`Repeat citation pattern confirmed — ${totalCount} total citations on record.`);
+  } else if (isExtended) {
+    parts.push('Long-term distress signal — no compliance activity on file.');
+  } else if (isMultiDept) {
+    parts.push('Multi-department enforcement coordination active.');
+  } else if (hasFireCitation) {
+    parts.push('Fire safety citation on record — structural risk signal.');
+  } else if (hasStructural) {
+    parts.push('Structural risk on record.');
+  } else if (hasVacancy) {
+    parts.push('Vacancy confirmed in city record.');
+  } else if (isRecent) {
+    parts.push('Active enforcement, no resolution — new activity within 7 days.');
+  } else if (isCurrent) {
+    parts.push('Active enforcement — updated within 30 days.');
+  } else if (openCount > 0 && maxDaysOpen >= 60) {
+    parts.push('No compliance activity on file.');
+  } else if (openCount === 0 && totalCount > 0) {
+    parts.push('No current enforcement pressure — monitor for changes.');
+  } else if (openCount > 0) {
+    parts.push('Low enforcement pressure — early-stage monitoring.');
   }
 
-  // Part 5: Oldest violation days context
-  if (oldestDaysStr && oldestDaysStr > 365 && !parts.some(p => p.includes('year'))) {
-    parts.push(`Enforcement history spans ${Math.floor(oldestDaysStr / 365)}+ years.`);
-  }
-
-  // Part 6: Raw description snippet
-  if (snippet && parts.join(' ').length < 190 && !parts.some(p => p.includes('Noted'))) {
-    parts.push(`Noted: "${snippet}".`);
-  }
-
-  if (parts.length === 0) {
-    if (totalCount > 0) return `${totalCount} municipal citation${totalCount > 1 ? 's' : ''} on record.`;
-    return "No active enforcement actions currently on file.";
-  }
+  // ── ACTION LABEL (Final) ──
+  parts.push(actionLabel);
 
   return truncateInsight(parts);
 }
 
 function truncateInsight(parts: string[]): string {
-  // Select up to 4 blocks, max 280 chars
-  const prioritizedParts = parts.slice(0, 4);
-  let result = prioritizedParts.join(' ');
+  // Keep action label (last part) always, trim middle if needed
+  if (parts.length <= 1) return parts.join(' ');
+  
+  const actionLabel = parts[parts.length - 1];
+  const contentParts = parts.slice(0, -1);
+  
+  // Try all content parts
+  let result = [...contentParts, actionLabel].join(' ');
+  if (result.length <= 300) return result;
 
-  if (result.length > 280) {
-    result = prioritizedParts.slice(0, 3).join(' ');
-    if (result.length > 280) {
-      result = prioritizedParts.slice(0, 2).join(' ');
-      if (result.length > 280) {
-        result = prioritizedParts[0];
-        if (result.length > 280) {
-          result = result.substring(0, 277) + '...';
-        }
-      }
-    }
-  }
+  // Trim to 2 content parts
+  result = [...contentParts.slice(0, 2), actionLabel].join(' ');
+  if (result.length <= 300) return result;
 
-  return result;
+  // Trim to 1 content part
+  result = [contentParts[0], actionLabel].join(' ');
+  if (result.length <= 300) return result;
+
+  // Last resort: truncate the fact
+  return contentParts[0].substring(0, 290 - actionLabel.length) + '... ' + actionLabel;
 }

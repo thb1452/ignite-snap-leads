@@ -1,15 +1,16 @@
 /**
- * Bulk Generate Missing Insights v8.0 — Investor Brief Voice
+ * Bulk Generate Missing Insights v9.0 — Hybrid AI + Rule-Based Investor Voice
  * 
- * Uses the same AI prompt and data enrichment as generate-investor-brief.
- * Processes properties in batches, calling Lovable AI gateway directly.
+ * Uses AI (Gemini Flash) for score >= 50, rule-based investor voice for score < 50.
+ * Processes properties in batches, calling Lovable AI gateway for high-score properties
+ * and deterministic investor-voice engine for low-score properties.
  * Writes result to snap_insight column.
  * 
  * Modes:
  *   - Default: only properties missing snap_insight
  *   - forceRefresh: overwrite existing snap_insight for score >= minScore
  *   - testMode: process specific propertyIds and return results without auto-resume
- *   - aiOnly: skip if AI credits exhausted (no fallback)
+ *   - aiOnly: skip low-score rule-based (AI properties only)
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -410,7 +411,7 @@ serve(async (req) => {
       if (!roleData) {
         return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-      console.log(`[bulk-insights-v8] Admin verified: ${authData.user.id}`);
+      console.log(`[bulk-insights-v9] Admin verified: ${authData.user.id}`);
     }
 
     const { 
@@ -419,7 +420,7 @@ serve(async (req) => {
       autoResume = true, 
       forceRefresh = false, 
       minScore = 0, 
-      aiOnly = true,
+      aiOnly = false,
       testMode = false,
       propertyIds = [],
     } = body;
@@ -428,7 +429,7 @@ serve(async (req) => {
 
     // ── TEST MODE: process specific property IDs and return results ──
     if (testMode && propertyIds.length > 0) {
-      console.log(`[bulk-insights-v8] TEST MODE: processing ${propertyIds.length} specific properties`);
+      console.log(`[bulk-insights-v9] TEST MODE: processing ${propertyIds.length} specific properties`);
       const results = [];
 
       for (const propId of propertyIds) {
@@ -458,14 +459,14 @@ serve(async (req) => {
         countQuery = countQuery.gte("snap_score", minScore);
         fetchQuery = fetchQuery.gte("snap_score", minScore);
       }
-      console.log(`[bulk-insights-v8] FORCE REFRESH: score >= ${minScore || 'ALL'}`);
+      console.log(`[bulk-insights-v9] FORCE REFRESH: score >= ${minScore || 'ALL'}`);
     } else {
       countQuery = countQuery.is("snap_insight", null);
       fetchQuery = fetchQuery.is("snap_insight", null);
     }
 
     const { count: totalMissing } = await countQuery;
-    console.log(`[bulk-insights-v8] Starting at offset ${offset}, total: ${totalMissing}`);
+    console.log(`[bulk-insights-v9] Starting at offset ${offset}, total: ${totalMissing}`);
 
     const { data: properties, error: fetchError } = await fetchQuery
       .order("snap_score", { ascending: false, nullsFirst: false })
@@ -487,11 +488,12 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[bulk-insights-v8] Processing ${properties.length} properties (offset ${offset})`);
+    console.log(`[bulk-insights-v9] Processing ${properties.length} properties (offset ${offset})`);
 
-    // Process each property individually with the investor brief prompt
+    // Process each property — AI for score >= 50, rule-based for < 50
     let totalProcessed = 0;
     let totalAI = 0;
+    let totalRuleBased = 0;
     let totalSkipped = 0;
     let creditsExhausted = false;
     const errors: string[] = [];
@@ -499,11 +501,12 @@ serve(async (req) => {
     if (!dryRun) {
       // Process in waves of CONCURRENCY parallel calls
       for (let i = 0; i < properties.length; i += CONCURRENCY) {
-        if (creditsExhausted) break;
+        // Only stop for credits_exhausted if aiOnly mode
+        if (creditsExhausted && aiOnly) break;
         
         const wave = properties.slice(i, i + CONCURRENCY);
         const waveResults = await Promise.allSettled(
-          wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true))
+          wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true, aiOnly))
         );
 
         for (const result of waveResults) {
@@ -511,7 +514,8 @@ serve(async (req) => {
             const r = result.value;
             if (r.status === 'success') {
               totalProcessed++;
-              totalAI++;
+              if (r.method === 'ai') totalAI++;
+              else totalRuleBased++;
             } else if (r.status === 'credits_exhausted') {
               creditsExhausted = true;
             } else if (r.status === 'rate_limited') {
@@ -528,8 +532,8 @@ serve(async (req) => {
         }
 
         // Small delay between waves to avoid rate limiting
-        if (i + CONCURRENCY < properties.length && !creditsExhausted) {
-          await delay(DELAY_BETWEEN_WAVES_MS);
+        if (i + CONCURRENCY < properties.length) {
+          await delay(creditsExhausted ? 100 : DELAY_BETWEEN_WAVES_MS);
         }
       }
     }
@@ -539,17 +543,18 @@ serve(async (req) => {
     const isComplete = nextOffset >= (totalMissing || 0);
     const progress = Math.round((nextOffset / (totalMissing || 1)) * 100);
 
-    console.log(`[bulk-insights-v8] Batch done: ${totalProcessed} AI, ${totalSkipped} skipped in ${elapsed}ms`);
-    console.log(`[bulk-insights-v8] Progress: ${Math.min(100, progress)}% (${Math.min(nextOffset, totalMissing || 0)}/${totalMissing})`);
+    console.log(`[bulk-insights-v9] Batch done: ${totalAI} AI, ${totalRuleBased} rule-based, ${totalSkipped} skipped in ${elapsed}ms`);
+    console.log(`[bulk-insights-v9] Progress: ${Math.min(100, progress)}% (${Math.min(nextOffset, totalMissing || 0)}/${totalMissing})`);
 
     // Stop if credits exhausted in aiOnly mode
     if (aiOnly && creditsExhausted) {
-      console.log(`[bulk-insights-v8] ⚠️ STOPPING: AI credits exhausted (aiOnly mode). Processed ${offset + totalProcessed} total.`);
+      console.log(`[bulk-insights-v9] ⚠️ STOPPING: AI credits exhausted (aiOnly mode). Processed ${offset + totalProcessed} total.`);
       return new Response(
         JSON.stringify({
           success: true,
           processed: totalProcessed,
           ai_generated: totalAI,
+          rule_based: totalRuleBased,
           skipped: totalSkipped,
           elapsed_ms: elapsed,
           ai_credits_exhausted: true,
@@ -584,9 +589,9 @@ serve(async (req) => {
             },
             body: JSON.stringify({ offset: nextOffset, autoResume, forceRefresh, minScore, aiOnly }),
           });
-          console.log(`[bulk-insights-v8] Next batch triggered, status: ${res.status}`);
+          console.log(`[bulk-insights-v9] Next batch triggered, status: ${res.status}`);
         } catch (err) {
-          console.error('[bulk-insights-v8] Failed to trigger next batch:', err);
+          console.error('[bulk-insights-v9] Failed to trigger next batch:', err);
         }
       };
       // @ts-ignore
@@ -596,7 +601,7 @@ serve(async (req) => {
       } else {
         triggerNext().catch(console.error);
       }
-      console.log(`[bulk-insights-v8] Scheduled next batch at offset ${nextOffset}`);
+      console.log(`[bulk-insights-v9] Scheduled next batch at offset ${nextOffset}`);
     }
 
     return new Response(
@@ -604,6 +609,7 @@ serve(async (req) => {
         success: true,
         processed: totalProcessed,
         ai_generated: totalAI,
+        rule_based: totalRuleBased,
         skipped: totalSkipped,
         elapsed_ms: elapsed,
         progress: {
@@ -620,7 +626,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("[bulk-insights-v8] Fatal error:", error);
+    console.error("[bulk-insights-v9] Fatal error:", error);
     return new Response(
       JSON.stringify({
         success: false,
@@ -631,15 +637,18 @@ serve(async (req) => {
   }
 });
 
-// ── Generate insight for a single property using investor brief prompt ──
+// AI threshold — properties below this score use rule-based engine
+const AI_SCORE_THRESHOLD = 50;
+
+// ── Generate insight for a single property — AI for high score, rule-based for low ──
 async function generateInsightForProperty(
   supabase: ReturnType<typeof createClient>,
   propertyId: string,
   apiKey: string,
-  writeToDb: boolean
-): Promise<{ status: string; property_id: string; snap_insight?: string; error?: string }> {
+  writeToDb: boolean,
+  aiOnly = false
+): Promise<{ status: string; property_id: string; snap_insight?: string; error?: string; method?: string }> {
   try {
-    // Fetch full property data
     const { data: property, error: propError } = await supabase
       .from("properties")
       .select(`
@@ -657,23 +666,37 @@ async function generateInsightForProperty(
       return { status: 'error', property_id: propertyId, error: propError?.message || 'not_found' };
     }
 
-    // Fetch violations
+    const score = property.snap_score ?? 0;
+
+    // ── LOW SCORE: Use rule-based investor voice engine ──
+    if (score < AI_SCORE_THRESHOLD && !aiOnly) {
+      const ruleInsight = composeInvestorInsight(property);
+      if (writeToDb) {
+        const { error: updateError } = await supabase
+          .from("properties")
+          .update({ snap_insight: ruleInsight })
+          .eq("id", propertyId);
+        if (updateError) {
+          return { status: 'error', property_id: propertyId, error: `db update failed: ${updateError.message}` };
+        }
+      }
+      return { status: 'success', property_id: propertyId, snap_insight: ruleInsight, method: 'rule_based' };
+    }
+
+    // ── HIGH SCORE: Use AI ──
     const { data: violations } = await supabase
       .from("violations")
       .select("violation_type, status, raw_description, days_open, opened_date, case_id")
       .eq("property_id", propertyId)
       .order("opened_date", { ascending: false });
 
-    // Fetch contacts
     const { data: contacts } = await supabase
       .from("property_contacts")
       .select("name, phone, email, source")
       .eq("property_id", propertyId);
 
-    // Build the data block
     const userMessage = formatPropertyData(property, violations || [], contacts || []);
 
-    // Call AI
     const aiResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
@@ -709,25 +732,130 @@ async function generateInsightForProperty(
       return { status: 'error', property_id: propertyId, error: 'empty AI response' };
     }
 
-    // Write to snap_insight
     if (writeToDb) {
       const { error: updateError } = await supabase
         .from("properties")
         .update({ snap_insight: aiText })
         .eq("id", propertyId);
-
       if (updateError) {
-        console.error(`[bulk-insights-v8] Failed to update ${propertyId}:`, updateError);
         return { status: 'error', property_id: propertyId, snap_insight: aiText, error: `db update failed: ${updateError.message}` };
       }
     }
 
-    console.log(`[bulk-insights-v8] ✅ ${propertyId} | score=${property.snap_score} | ${aiText.slice(0, 60)}...`);
-    return { status: 'success', property_id: propertyId, snap_insight: aiText };
+    console.log(`[bulk-insights-v9] ✅ ${propertyId} | score=${score} | AI | ${aiText.slice(0, 60)}...`);
+    return { status: 'success', property_id: propertyId, snap_insight: aiText, method: 'ai' };
 
   } catch (err) {
     return { status: 'error', property_id: propertyId, error: err instanceof Error ? err.message : String(err) };
   }
+}
+
+// ============================================================================
+// RULE-BASED INVESTOR VOICE ENGINE v5.0
+// Fact → Signal → Action Label format for properties with score < 50
+// ============================================================================
+function composeInvestorInsight(property: Record<string, any>): string {
+  const score = property.snap_score ?? 0;
+  const openCount = property.open_violations ?? 0;
+  const totalCount = property.total_violations ?? 0;
+  const signals: string[] = property.distress_signals || [];
+  const isEscalated = property.escalated ?? false;
+  const isRepeat = property.repeat_offender ?? false;
+  const isMultiDept = property.multi_department ?? false;
+  const avgDaysOpen = property.avg_days_open ?? 0;
+  const isWaterShutoff = property.enforcement_type === 'water_shutoff';
+  const isExtended = avgDaysOpen >= 180 || signals.includes('extended_enforcement');
+  const violationTypes = property.violation_types || [];
+  const hasFireCitation = signals.includes('fire_citation');
+  const hasVacancy = signals.includes('vacancy_citation');
+  const hasStructural = signals.includes('structural_citation');
+  const isRecent = signals.includes('recent_activity');
+  const isCurrent = signals.includes('current_enforcement');
+
+  if (totalCount === 0) {
+    return "No enforcement records on file. No current municipal pressure. PASS";
+  }
+
+  // ── Action label based on score tier ──
+  let actionLabel: string;
+  if (isWaterShutoff || isEscalated) {
+    actionLabel = 'HIGH OPPORTUNITY';
+  } else if (score >= 70) {
+    actionLabel = isMultiDept || hasFireCitation || hasStructural ? 'HIGH OPPORTUNITY' : 'GOOD OPPORTUNITY';
+  } else if (score >= 40) {
+    actionLabel = openCount >= 3 || isRepeat || isExtended ? 'GOOD OPPORTUNITY' : 'WATCH';
+  } else {
+    if (openCount === 0) actionLabel = 'PASS';
+    else if (openCount >= 3 || isExtended || isRepeat) actionLabel = 'WATCH';
+    else actionLabel = 'PASS';
+  }
+
+  const parts: string[] = [];
+
+  // ── FACT ──
+  const catPhrase = violationTypes.length > 0
+    ? ` ${violationTypes.slice(0, 2).map((t: string) => t.toLowerCase()).join(' and ')}`
+    : '';
+
+  if (isWaterShutoff) {
+    parts.push(openCount > 1
+      ? `Utility disconnection on record with ${openCount} concurrent enforcement actions${catPhrase}.`
+      : 'Utility disconnection on record — active municipal enforcement action confirmed.');
+  } else if (openCount > 0) {
+    const deptStr = isMultiDept ? ' across multiple departments' : '';
+    const durStr = avgDaysOpen >= 730 ? `, unresolved ${Math.floor(avgDaysOpen / 365)}+ years`
+      : avgDaysOpen >= 365 ? ', unresolved 1+ year'
+      : avgDaysOpen >= 180 ? `, unresolved ${avgDaysOpen} days`
+      : avgDaysOpen >= 60 ? `, open ${avgDaysOpen} days`
+      : avgDaysOpen > 0 ? `, open ${avgDaysOpen} days`
+      : '';
+    parts.push(`${openCount} open${catPhrase} violation${openCount > 1 ? 's' : ''}${deptStr}${durStr}.`);
+  } else {
+    parts.push(`${totalCount} resolved citation${totalCount > 1 ? 's' : ''}${catPhrase} — no current enforcement active.`);
+  }
+
+  // ── SIGNAL ──
+  if (isWaterShutoff && isExtended) {
+    parts.push('Long-term distress signal — no compliance activity on file.');
+  } else if (isEscalated) {
+    parts.push('Enforcement escalated — legal obligation triggered.');
+  } else if (isMultiDept && isExtended) {
+    parts.push('Multi-department distress pattern with no compliance activity on file.');
+  } else if (isRepeat && isExtended) {
+    parts.push(`Repeat citation pattern — violations remain unresolved after ${avgDaysOpen >= 365 ? Math.floor(avgDaysOpen / 365) + '+ years' : avgDaysOpen + ' days'}.`);
+  } else if (isRepeat) {
+    parts.push(`Repeat citation pattern confirmed — ${totalCount} total citations on record.`);
+  } else if (isExtended) {
+    parts.push('Long-term distress signal — no compliance activity on file.');
+  } else if (isMultiDept) {
+    parts.push('Multi-department enforcement coordination active.');
+  } else if (hasFireCitation) {
+    parts.push('Fire safety citation on record — structural risk signal.');
+  } else if (hasStructural) {
+    parts.push('Structural risk on record.');
+  } else if (hasVacancy) {
+    parts.push('Vacancy confirmed in city record.');
+  } else if (isRecent) {
+    parts.push('Active enforcement, no resolution — new activity within 7 days.');
+  } else if (isCurrent) {
+    parts.push('Active enforcement — updated within 30 days.');
+  } else if (openCount > 0 && avgDaysOpen >= 60) {
+    parts.push('No compliance activity on file.');
+  } else if (openCount === 0) {
+    parts.push('No current enforcement pressure — monitor for changes.');
+  } else {
+    parts.push('Low enforcement pressure — early-stage monitoring.');
+  }
+
+  parts.push(actionLabel);
+
+  // Truncate to ~300 chars
+  let result = parts.join(' ');
+  if (result.length > 300) {
+    result = [parts[0], parts[parts.length - 1]].join(' ');
+    if (result.length > 300) result = result.substring(0, 297) + '...';
+  }
+  return result;
 }
 
 function formatPropertyData(
@@ -760,7 +888,7 @@ function formatPropertyData(
   if (violations.length === 0) {
     lines.push("- No violation records on file");
   } else {
-    for (const v of violations.slice(0, 20)) { // Cap at 20 violations to control token usage
+    for (const v of violations.slice(0, 20)) {
       lines.push(`- Type: ${v.violation_type || "unknown"} | Status: ${v.status || "unknown"} | Days Open: ${v.days_open ?? "unknown"} | Opened: ${v.opened_date || "unknown"} | Case: ${v.case_id || "none"}`);
       if (v.raw_description) {
         lines.push(`  Description: ${v.raw_description.slice(0, 200)}`);

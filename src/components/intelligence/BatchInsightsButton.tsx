@@ -42,7 +42,7 @@ export function BatchInsightsButton() {
       const { count: highScore } = await supabase
         .from("properties")
         .select("id", { count: "exact", head: true })
-        .gte("snap_score", 50);
+        .gte("snap_score", 70);
 
       // Count generic/template insights that need replacement
       const { count: genericCount } = await supabase
@@ -283,7 +283,7 @@ export function BatchInsightsButton() {
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Score 50+ (AI eligible):</span>
+                <span className="text-muted-foreground">Score 70+ (AI eligible):</span>
                 <span className="font-semibold text-cyan-600">{stats.highScore.toLocaleString()}</span>
               </div>
               {(() => {
@@ -394,7 +394,7 @@ export function BatchInsightsButton() {
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  AI Insights — Only {stats.highScore.toLocaleString()} Properties (Score 50+)
+                  AI Insights — Only {stats.highScore.toLocaleString()} Properties (Score 70+)
                 </>
               )}
             </Button>

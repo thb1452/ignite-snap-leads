@@ -429,7 +429,7 @@ serve(async (req) => {
 
     // ── TEST MODE: process specific property IDs and return results ──
     if (testMode && propertyIds.length > 0) {
-      console.log(`[bulk-insights-v8] TEST MODE: processing ${propertyIds.length} specific properties`);
+      console.log(`[bulk-insights-v9] TEST MODE: processing ${propertyIds.length} specific properties`);
       const results = [];
 
       for (const propId of propertyIds) {

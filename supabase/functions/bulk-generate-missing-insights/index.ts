@@ -459,7 +459,7 @@ serve(async (req) => {
         countQuery = countQuery.gte("snap_score", minScore);
         fetchQuery = fetchQuery.gte("snap_score", minScore);
       }
-      console.log(`[bulk-insights-v8] FORCE REFRESH: score >= ${minScore || 'ALL'}`);
+      console.log(`[bulk-insights-v9] FORCE REFRESH: score >= ${minScore || 'ALL'}`);
     } else {
       countQuery = countQuery.is("snap_insight", null);
       fetchQuery = fetchQuery.is("snap_insight", null);

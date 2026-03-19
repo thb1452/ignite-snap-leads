@@ -435,7 +435,7 @@ serve(async (req) => {
         const result = await generateInsightForProperty(supabase, propId, LOVABLE_API_KEY, false);
         results.push(result);
         if (result.status === 'credits_exhausted') break;
-        await delay(DELAY_BETWEEN_CALLS_MS);
+        await delay(200);
       }
 
       return new Response(

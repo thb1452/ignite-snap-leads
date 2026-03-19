@@ -488,11 +488,12 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[bulk-insights-v8] Processing ${properties.length} properties (offset ${offset})`);
+    console.log(`[bulk-insights-v9] Processing ${properties.length} properties (offset ${offset})`);
 
-    // Process each property individually with the investor brief prompt
+    // Process each property — AI for score >= 50, rule-based for < 50
     let totalProcessed = 0;
     let totalAI = 0;
+    let totalRuleBased = 0;
     let totalSkipped = 0;
     let creditsExhausted = false;
     const errors: string[] = [];
@@ -500,11 +501,12 @@ serve(async (req) => {
     if (!dryRun) {
       // Process in waves of CONCURRENCY parallel calls
       for (let i = 0; i < properties.length; i += CONCURRENCY) {
-        if (creditsExhausted) break;
+        // Only stop for credits_exhausted if aiOnly mode
+        if (creditsExhausted && aiOnly) break;
         
         const wave = properties.slice(i, i + CONCURRENCY);
         const waveResults = await Promise.allSettled(
-          wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true))
+          wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true, aiOnly))
         );
 
         for (const result of waveResults) {
@@ -512,7 +514,8 @@ serve(async (req) => {
             const r = result.value;
             if (r.status === 'success') {
               totalProcessed++;
-              totalAI++;
+              if (r.method === 'ai') totalAI++;
+              else totalRuleBased++;
             } else if (r.status === 'credits_exhausted') {
               creditsExhausted = true;
             } else if (r.status === 'rate_limited') {
@@ -529,8 +532,8 @@ serve(async (req) => {
         }
 
         // Small delay between waves to avoid rate limiting
-        if (i + CONCURRENCY < properties.length && !creditsExhausted) {
-          await delay(DELAY_BETWEEN_WAVES_MS);
+        if (i + CONCURRENCY < properties.length) {
+          await delay(creditsExhausted ? 100 : DELAY_BETWEEN_WAVES_MS);
         }
       }
     }
@@ -540,8 +543,8 @@ serve(async (req) => {
     const isComplete = nextOffset >= (totalMissing || 0);
     const progress = Math.round((nextOffset / (totalMissing || 1)) * 100);
 
-    console.log(`[bulk-insights-v8] Batch done: ${totalProcessed} AI, ${totalSkipped} skipped in ${elapsed}ms`);
-    console.log(`[bulk-insights-v8] Progress: ${Math.min(100, progress)}% (${Math.min(nextOffset, totalMissing || 0)}/${totalMissing})`);
+    console.log(`[bulk-insights-v9] Batch done: ${totalAI} AI, ${totalRuleBased} rule-based, ${totalSkipped} skipped in ${elapsed}ms`);
+    console.log(`[bulk-insights-v9] Progress: ${Math.min(100, progress)}% (${Math.min(nextOffset, totalMissing || 0)}/${totalMissing})`);
 
     // Stop if credits exhausted in aiOnly mode
     if (aiOnly && creditsExhausted) {

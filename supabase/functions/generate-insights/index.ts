@@ -308,7 +308,7 @@ serve(async (req) => {
         }
         continue;
       } else {
-        snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations);
+        snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations, effectiveScore);
         deterministicCount++;
       }
 

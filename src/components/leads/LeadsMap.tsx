@@ -57,7 +57,8 @@ const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId }: Le
   const fetchMarkersRef = useRef(fetchMarkersInBounds);
   fetchMarkersRef.current = fetchMarkersInBounds;
 
-  // Stable callback: never recreate so map listeners + init effect do not remount the map
+  // Stable callback: never recreate so map listeners + init effect do not remount the map.
+  // Refs (mapRef, fetchMarkersRef) are stable — empty deps intentional.
   const handleMapMove = useCallback(() => {
     if (!mapRef.current) return;
 
@@ -70,7 +71,7 @@ const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId }: Le
     };
 
     fetchMarkersRef.current(mapBounds);
-  }, []);
+  }, []); // refs stable; empty deps prevent map remount loop
 
   // Initialize map
   useEffect(() => {

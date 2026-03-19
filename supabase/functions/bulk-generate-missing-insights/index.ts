@@ -1,15 +1,16 @@
 /**
  * Bulk Generate Missing Insights v9.0 — Hybrid AI + Rule-Based Investor Voice
  * 
- * Uses the same AI prompt and data enrichment as generate-investor-brief.
- * Processes properties in batches, calling Lovable AI gateway directly.
+ * Uses AI (Gemini Flash) for score >= 50, rule-based investor voice for score < 50.
+ * Processes properties in batches, calling Lovable AI gateway for high-score properties
+ * and deterministic investor-voice engine for low-score properties.
  * Writes result to snap_insight column.
  * 
  * Modes:
  *   - Default: only properties missing snap_insight
  *   - forceRefresh: overwrite existing snap_insight for score >= minScore
  *   - testMode: process specific propertyIds and return results without auto-resume
- *   - aiOnly: skip if AI credits exhausted (no fallback)
+ *   - aiOnly: skip low-score rule-based (AI properties only)
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";

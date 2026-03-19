@@ -337,16 +337,9 @@ export function InvestorInsightCard({
           </div>
         </div>
         <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-full" />
         <Skeleton className="h-3 w-4/5" />
         <Skeleton className="h-3 w-3/5" />
-        <div className="pt-2 border-t border-indigo-100">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-2/3 mt-1.5" />
-        </div>
-        <div className="pt-2 border-t border-indigo-100">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-1/2 mt-1.5" />
-        </div>
       </div>
     );
   }

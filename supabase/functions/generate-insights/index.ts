@@ -293,7 +293,7 @@ serve(async (req) => {
             console.log(`[generate-insights ${VERSION}] AI credits exhausted, skipping property (aiOnly mode)`);
             continue;
           }
-          snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations);
+          snapInsight = composeEnforcementInsight(scoreResult.signals, intelligence, classifiedViolations, effectiveScore);
           deterministicCount++;
         } else {
           snapInsight = aiInsight;

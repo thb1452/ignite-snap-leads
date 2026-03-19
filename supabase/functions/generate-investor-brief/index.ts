@@ -110,17 +110,32 @@ WHAT YOU DO NOT DO:
 - Do not use legal jargon — your audience is wholesalers, not attorneys
 - Do not reproduce raw database field names in your output
 
-OUTPUT FORMAT — always use exactly this structure:
+OUTPUT FORMAT:
 
-ENFORCEMENT SUMMARY
-[What is actually happening at this property right now. Cover: type and number of active violations, how long violations have been open, what enforcement actions are in play, any escalation status, most recent activity date.]
+Write a single paragraph — maximum 4 sentences. No headers. No sections. No bullet points. No labels.
 
-DISTRESS INDICATORS
-[Why this matters to an investor. Cover: top distress signals in plain English, pattern analysis, financial pressure indicators, vacancy/abandonment signals, any extreme urgency signals.]
+Sentence 1: What is actively happening at this property right now. Cite specific numbers — violation count, types, how long open.
 
-RECOMMENDED ACTION
-[IMMEDIATE OUTREACH / STRONG OPPORTUNITY / MONITOR / SKIP]
-[One clear recommendation with the specific reason why. Include what's driving it, what to watch for if monitoring, and contact data if available.]`;
+Sentence 2: Why this signals a motivated seller. Reference the top 1-2 distress signals in plain English. Water shutoff always goes here if present.
+
+Sentence 3: Any escalation, legal pressure, or urgency detail if present. Skip this sentence if nothing escalated.
+
+Sentence 4: End with a bold action label and one-line reason.
+**IMMEDIATE OUTREACH** — [reason]
+**STRONG OPPORTUNITY** — [reason]
+**MONITOR** — [reason]
+**SKIP** — [reason]
+
+EXAMPLE OUTPUT:
+This property has 4 open violations including a structural citation open 132 days and an active water shutoff. The owner is under maximum municipal pressure — utility disconnected, repeat offender status, multi-department enforcement across building and health departments. A condemnation order was filed last month, putting the owner under legal obligation to act. **IMMEDIATE OUTREACH** — water shutoff plus legal escalation equals highest motivated seller signal in the dataset.
+
+RULES:
+- Never write more than 4 sentences
+- Never use headers, bullet points, or section labels
+- Always cite real numbers from the data
+- Always end with a bold action label
+- If data is sparse, write fewer sentences — never pad
+- Plain English only — no legal jargon, no database field names`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {

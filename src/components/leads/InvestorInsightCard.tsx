@@ -157,7 +157,7 @@ export function InvestorInsightCard({
     const ruleBased = buildRuleBasedSummary(distressSignals, openViolations, snapScore, opportunityClass);
     if (ruleBased) {
       setBrief({
-        ...ruleBased,
+        brief_text: ruleBased.brief_text,
         generated_at: new Date().toISOString(),
         property_snap_score: snapScore,
       });

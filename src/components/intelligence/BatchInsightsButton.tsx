@@ -137,7 +137,7 @@ export function BatchInsightsButton() {
         : "Starting server-side insight generation...";
       toast.info(label);
 
-      const body: Record<string, unknown> = { offset: 0, autoResume: true, forceRefresh, minScore };
+      const body: Record<string, unknown> = { offset: 0, autoResume: true, forceRefresh, minScore, aiOnly: true };
       if (sinceDays) body.sinceDays = sinceDays;
 
       const data = await callFn("bulk-generate-missing-insights", body);
@@ -217,7 +217,7 @@ export function BatchInsightsButton() {
   };
 
   const handleGenerateMissing = () => invokeInsights(false, 0, 'missing');
-  const handleAIRefresh = () => invokeInsights(true, 50, 'ai_refresh');
+  const handleAIRefresh = () => invokeInsights(true, 70, 'ai_refresh');
   const handleRecent20Days = () => invokeInsights(true, 50, 'recent_20d', 20);
   const handleReplaceAll = () => invokeInsights(true, 0, 'ai_refresh');
 

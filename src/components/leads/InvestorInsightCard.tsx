@@ -6,9 +6,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/externalClient";
 
 interface InvestorBrief {
-  enforcement_summary: string;
-  distress_indicators: string;
-  recommended_action: string;
+  brief_text: string;
+  // Legacy fields for backward compatibility with cached briefs
+  enforcement_summary?: string;
+  distress_indicators?: string;
+  recommended_action?: string;
   generated_at: string;
   property_snap_score: number | null;
   newest_violation_date?: string | null;

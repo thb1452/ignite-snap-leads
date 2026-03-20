@@ -194,12 +194,13 @@ export default function Landing() {
             <Link to="/auth?mode=signin">
               <Button variant="ghost" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface/50">Sign In</Button>
             </Link>
-            <Button
-              onClick={() => scrollToSection("waitlist")}
-              className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
-            >
-              Join Waitlist <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
+            <Link to="/auth">
+              <Button
+                className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
+              >
+                Start Free <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
           </div>
         </div>
 

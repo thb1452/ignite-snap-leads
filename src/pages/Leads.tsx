@@ -54,6 +54,11 @@ import { TrialExportGate } from "@/components/trial/TrialExportGate";
 import { TrialPaywall } from "@/components/trial/TrialPaywall";
 import { useSavedProperties } from "@/hooks/useSavedProperties";
 import { buildFiltersFromState, countActiveFilters, logFilters } from "@/utils/filterUtils";
+import { useUnlockedProperties } from "@/hooks/useUnlockedProperties";
+import { useViewLimit } from "@/hooks/useViewLimit";
+import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
+import { UnlockModal } from "@/components/leads/UnlockModal";
+import { ViewLimitModal } from "@/components/leads/ViewLimitModal";
 
 const PAGE_SIZE = 50;
 

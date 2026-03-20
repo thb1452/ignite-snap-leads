@@ -3233,6 +3233,12 @@ export type Database = {
             Args: { p_amount?: number; p_usage_type: string; p_user_id: string }
             Returns: Json
           }
+      fn_check_unlocked_batch: {
+        Args: { p_property_ids: string[]; p_user_id: string }
+        Returns: {
+          property_id: string
+        }[]
+      }
       fn_consume_credit: {
         Args: { p_meta?: Json; p_reason: string }
         Returns: number
@@ -3298,6 +3304,7 @@ export type Database = {
         Returns: Json
       }
       fn_get_trial_status: { Args: { p_user_id: string }; Returns: Json }
+      fn_get_unlock_count: { Args: { p_property_id: string }; Returns: number }
       fn_get_user_allowed_states: {
         Args: { p_user_id?: string }
         Returns: string[]
@@ -3554,6 +3561,7 @@ export type Database = {
           property_id: string
         }[]
       }
+      fn_record_view: { Args: { p_user_id: string }; Returns: Json }
       fn_refund_credits: {
         Args: { p_job_id: string; p_property_ids: string[]; p_reason: string }
         Returns: Json
@@ -3577,6 +3585,10 @@ export type Database = {
           state: string
           total_requests: number
         }[]
+      }
+      fn_unlock_property: {
+        Args: { p_property_id: string; p_user_id: string }
+        Returns: Json
       }
       fn_update_user_states: { Args: { p_states: string[] }; Returns: Json }
       fn_user_needs_state_selection: { Args: never; Returns: boolean }

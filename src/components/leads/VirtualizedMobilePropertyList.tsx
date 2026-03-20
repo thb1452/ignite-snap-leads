@@ -42,6 +42,7 @@ export function VirtualizedMobilePropertyList({
   onPropertyClick,
   savedSet,
   onToggleSaved,
+  unlockedSet,
 }: VirtualizedMobilePropertyListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 

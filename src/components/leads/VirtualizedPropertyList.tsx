@@ -31,6 +31,8 @@ interface VirtualizedPropertyListProps {
   onPropertyClick: (id: string) => void;
   savedSet?: Set<string>;
   onToggleSaved?: (id: string) => void;
+  unlockedSet?: Set<string>;
+  onUnlock?: (propertyId: string) => void;
 }
 
 // Rich card height - accommodates full insight text, violation badges, freshness

@@ -1333,6 +1333,23 @@ function Leads() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+
+      {/* Unlock Modal */}
+      <UnlockModal
+        open={!!unlockModalProperty}
+        onOpenChange={(open) => !open && setUnlockModalProperty(null)}
+        property={unlockModalProperty}
+        freeUnlocksRemaining={freeUnlocksRemaining}
+        onUnlocked={invalidateUnlocks}
+      />
+
+      {/* View Limit Modal */}
+      <ViewLimitModal
+        open={viewLimitModalOpen}
+        onOpenChange={setViewLimitModalOpen}
+        viewCount={viewCount}
+        viewLimit={viewLimit}
+      />
     </AppLayout>
   );
 }

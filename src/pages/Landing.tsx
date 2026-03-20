@@ -682,34 +682,37 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── 9. Waitlist CTA ──────────────────────────────── */}
-      <section id="waitlist" className="py-24 relative overflow-hidden">
+      {/* ─── 9. Start Free CTA ─────────────────────────── */}
+      <section id="start-free" className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-t from-landing-accent/10 to-transparent" />
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-sm font-medium mb-6">
-              <Lock className="w-4 h-4" />
-              Private Beta — Limited Spots
+              <Unlock className="w-4 h-4" />
+              Free to Browse — Pay Only for Addresses
             </motion.div>
 
             <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-5xl font-bold mb-4">
-              Private beta open — limited spots available
+              Start finding motivated sellers today
             </motion.h2>
 
             <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-lg text-landing-text-muted mb-3 max-w-2xl mx-auto">
-              Join the waitlist to get early access to Snap Ignite's pay-per-lead model.
+              Browse every property free. See AI insights, SnapScores, and violation data — no credit card required.
             </motion.p>
             <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }} className="text-sm text-landing-text-muted mb-10">
-              No credit card required. We'll notify you when you're in.
+              3 free unlocks included. No subscription needed.
             </motion.p>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="max-w-xl mx-auto">
-              <WaitlistForm />
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
+              <Link to="/auth">
+                <Button
+                  size="lg"
+                  className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-10 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
+                >
+                  Start Free — No Credit Card Required <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
             </motion.div>
-
-            <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="text-landing-text-muted text-sm mt-6">
-              Beta members get first look at new city expansions and exclusive discounts.
-            </motion.p>
           </div>
         </div>
       </section>

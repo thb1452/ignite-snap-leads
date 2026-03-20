@@ -44,13 +44,14 @@ const PRICING_TIERS: PricingTier[] = [
     id: 'starter',
     name: 'starter',
     display_name: 'Starter',
-    price_monthly_cents: 7900,
+    price_monthly_cents: 5900,
     
     description: 'For investors who want premium enforcement targeting',
     features: [
       '5,000 exports/month',
       'Code violation data',
       'Basic filters',
+      '3 free unlocks included',
     ],
     scanLine: 'Scan your own list — see which have active violations (10,000 rows/month)',
     scanDisabled: false,
@@ -62,13 +63,14 @@ const PRICING_TIERS: PricingTier[] = [
     id: 'professional',
     name: 'professional',
     display_name: 'Pro',
-    price_monthly_cents: 14900,
+    price_monthly_cents: 12900,
 
     description: 'For serious operators stacking enforcement data',
     features: [
       '15,000 exports/month',
       'All Starter features',
       'Pressure Level™ filters',
+      '10 free unlocks/month',
     ],
     scanLine: 'Scan your own list — see which have active violations (25,000 rows/month)',
     scanDisabled: false,
@@ -79,13 +81,14 @@ const PRICING_TIERS: PricingTier[] = [
     id: 'enterprise',
     name: 'enterprise',
     display_name: 'Elite',
-    price_monthly_cents: 29900,
+    price_monthly_cents: 39900,
 
     description: 'For teams running enforcement-first strategies.',
     features: [
       '25,000 exports/month',
       'All Pro features',
       'Water shutoff data',
+      'Unlimited unlocks',
     ],
     scanLine: 'Scan your own list — see which have active violations (50,000 rows/month)',
     scanDisabled: false,

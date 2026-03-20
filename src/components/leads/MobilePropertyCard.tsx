@@ -19,6 +19,8 @@ interface MobilePropertyCardProps {
   property: {
     id: string;
     address: string;
+    street_number?: string | null;
+    street_name?: string | null;
     city: string;
     state: string;
     zip: string;
@@ -29,13 +31,14 @@ interface MobilePropertyCardProps {
     total_violations?: number | null;
     open_violations?: number | null;
     violation_types?: string[] | null;
-    enforcement_type?: string; // 'code_violation' or 'water_shutoff'
+    enforcement_type?: string;
   };
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onClick: () => void;
   isSaved?: boolean;
   onToggleSaved?: (id: string) => void;
+  isUnlocked?: boolean;
 }
 
 export const MobilePropertyCard = memo(function MobilePropertyCard({

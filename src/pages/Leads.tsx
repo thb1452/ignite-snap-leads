@@ -1112,6 +1112,7 @@ function Leads() {
                 filters={filters as LeadFilters}
                 onPropertyClick={handlePropertyClick}
                 selectedPropertyId={selectedPropertyId || undefined}
+                unlockedSet={unlockedSet}
               />
             </div>
           ) : (

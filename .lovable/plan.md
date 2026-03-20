@@ -1,62 +1,194 @@
 
+# Snap Ignite Monetization Pivot — Master Plan
 
-## Assessment
+## Tier Model (CONFIRMED)
 
-This strategy is sharp. You already have 3 of the 7 pages built (`/code-violation-leads`, `/distressed-property-data`, `/code-enforcement-data`). The remaining 4 static pages are straightforward. The programmatic city pages are the real power play.
+### Free Tier — $0/mo
+- 3 free unlocks on signup
+- 10 property views/day (modal after limit)
+- ❌ No exports
+- Scan: 500 addresses/mo (blurred only)
+- Save up to 5 properties with email/push alerts
 
-**One tension to flag:** Your in-app positioning says "not a leads tool" and uses "properties" / "professionals." But SEO pages *should* use investor language because that is what people search for. This is fine -- marketing pages speak Google's language, the product speaks its own. Just keep them separate.
+### Starter — $49/mo
+- 20 unlocks/month (expire monthly)
+- Export up to 10 unlocked leads/month
+- Extra unlocks via credits ($1/unlock)
+- Full scan access (unblurred for unlocked)
+- Unlimited saved properties + notifications
 
-## Plan: Build Remaining SEO Pages + Programmatic City Framework
+### Pro — $99/mo
+- 50 unlocks/month
+- Export up to 50 unlocked leads/month
+- Extra unlocks/exports via credits
+- Map precision for unlocked properties
+- Unlimited notifications
 
-### Task 1: Create 4 New Static SEO Pages
+### Elite — $199/mo
+- ~500–1,000 unlocks/month (soft cap)
+- Export up to 200–500 unlocked leads/month
+- Additional exports = 1 credit/lead
+- Exact coordinates, advanced filtering
+- Unlimited notifications
 
-Each follows the same template as existing pages (nav, hero H1, 3-4 content sections, stats, CTA, footer, JSON-LD).
+### Credit Packs (never expire)
+- $50 → 500 credits
+- $100 → 1,200 credits
+- $225 → 3,000 credits
+- 1 unlock = 1 credit
+- 1 export = 1–2 credits (full contact = 2)
 
-| Route | Target Keyword | H1 |
-|---|---|---|
-| `/municipal-enforcement-data` | municipal enforcement data | Municipal Enforcement Data for Real Estate Professionals |
-| `/off-market-property-leads` | off market property leads | Off-Market Property Leads Powered by Enforcement Intelligence |
-| `/real-estate-distress-signals` | real estate distress signals | Real Estate Distress Signals: The Enforcement Layer Most Investors Miss |
-| `/how-investors-find-distressed-properties` | how investors find distressed properties | How Investors Find Distressed Properties in 2026 |
+### Key Principles
+- Unlocks = individual leads
+- Exports limited per tier, only on unlocked properties
+- Credits = universal currency (unlocks, scans, exports)
+- Scarcity drives recurring revenue — no unlimited exports
+- Custom enterprise = unlimited export under NDA contract
 
-**Files to create:** 4 new page components in `src/pages/`
+---
 
-### Task 2: Register Routes + Update Sitemap
+## Phase 1: Database & Core Backend
 
-- Add 4 lazy-loaded public routes in `App.tsx`
-- Add all 4 URLs to `public/sitemap.xml`
+### 1A. Schema Migrations
 
-### Task 3: Programmatic City Pages (the 4,000-page engine)
+**`properties` table — add columns:**
+- `street_number TEXT` — parsed from `address`
+- `street_name TEXT` — parsed from `address`
+- Backfill ~446k rows via regex: `^\s*(\d+\S*)\s+(.+)$`
 
-This is the high-leverage move. Build a single dynamic route that pulls real jurisdiction data from the database.
+**`profiles` table — add columns:**
+- `free_unlocks_remaining INTEGER DEFAULT 3`
+- `daily_view_count INTEGER DEFAULT 0`
+- `daily_view_reset_at TIMESTAMPTZ DEFAULT now()`
+- `referred_by UUID NULLABLE`
 
-**Route:** `/code-violations/:citySlug` (e.g., `/code-violations/miami`)
+**New table: `unlocked_properties`**
+- id, user_id, property_id, unlocked_at, credit_cost (default 1), unlock_source (enum)
+- Unique index on (user_id, property_id)
+- RLS: users SELECT own; writes via SECURITY DEFINER only
 
-**How it works:**
-- Create `src/pages/CityViolations.tsx` -- a single template page
-- On mount, extract `citySlug` from URL params, query the `jurisdictions` table for matching city
-- Display: city name, state, property count, violation stats, enforcement pressure summary
-- Include JSON-LD `WebPage` schema with city-specific data
-- Dynamic `<title>`: "Code Violations in Miami, FL | Snap Ignite"
-- CTA to sign up and access the full data
-- If city not found, show a generic "coverage expanding" page with CTA
+**New table: `transactions`**
+- id, user_id, stripe_payment_intent_id (unique), amount, currency, description, metadata (jsonb), status, created_at
+- RLS: users SELECT own
 
-**For Google discoverability**, create a city index page at `/code-violations` that lists all tracked cities as internal links (pulled from `jurisdictions` table). This acts as a crawlable directory.
+**New table: `affiliate_referrals`**
+- id, referrer_id, referred_user_id (unique), signup_at, first_purchase_at, commission_paid
 
-**Files to create:**
-- `src/pages/CityViolations.tsx` (dynamic template)
-- `src/pages/CityViolationsIndex.tsx` (directory of all cities)
+**New table: `affiliate_commissions`**
+- id, referral_id (FK), transaction_id (FK), amount, commission_rate (default 30), paid_at, status
 
-**Files to edit:**
-- `src/App.tsx` (add routes)
-- `public/sitemap.xml` (add static pages; note: for 4,000+ city pages, you'd eventually want a dynamic sitemap via edge function, but the index page handles crawlability for now)
+**Extend `saved_properties`:**
+- Add `notify_on_new_violation BOOLEAN DEFAULT true`
+- Add `last_notified_at TIMESTAMPTZ`
 
-### Summary of All Changes
+**New table: `notifications`**
+- id, user_id, title, body, link, read_at, created_at
+- RLS: users SELECT/UPDATE own
 
-| Action | Files |
-|---|---|
-| Create 4 static SEO pages | `src/pages/MunicipalEnforcementData.tsx`, `OffMarketPropertyLeads.tsx`, `RealEstateDistressSignals.tsx`, `HowInvestorsFindDistressedProperties.tsx` |
-| Create city template + index | `src/pages/CityViolations.tsx`, `src/pages/CityViolationsIndex.tsx` |
-| Register 7 new routes | `src/App.tsx` |
-| Update sitemap | `public/sitemap.xml` |
+### 1B. Database Functions
+- `fn_unlock_property(p_user_id, p_property_id)` — SECURITY DEFINER
+- `fn_check_unlocked_batch(p_user_id, p_property_ids UUID[])` — batch lookup
+- `fn_record_view(p_user_id)` — lazy daily reset + increment
+- `fn_get_property_masked(p_user_id, p_property_id)` — conditional street_number + jitter
+- Modify `fn_map_markers_in_bounds` — add is_unlocked + jitter
 
+### 1C. Address Backfill
+```sql
+UPDATE properties
+SET street_number = (regexp_match(address, '^\s*(\d+\S*)\s'))[1],
+    street_name   = regexp_replace(address, '^\s*\d+\S*\s+', '')
+WHERE street_number IS NULL;
+```
+
+---
+
+## Phase 2: Edge Functions & Stripe
+
+### 2A. `handle-unlock` (new)
+- Validates auth → checks free unlocks → checks credits → rejects
+- Inserts into unlocked_properties, deducts from credit_ledger
+
+### 2B. `create-checkout-session` (modify)
+- Add `mode: 'payment'` for single unlock ($5) and credit packs
+- Metadata: type, property_id, credits count
+
+### 2C. `stripe-webhook` (modify)
+- Handle checkout.session.completed for one-time payments
+- Record in transactions table
+- Auto-unlock property for single unlock purchases
+- Track affiliate first_purchase_at + create commission
+
+### 2D. `monitor-saved-properties` (new, scheduled)
+- Daily cron — compare violation counts → generate notifications → send emails
+
+### 2E. Update subscription_plans table
+- Starter: $49/mo, 20 unlocks, 10 exports
+- Pro: $99/mo, 50 unlocks, 50 exports
+- Elite: $199/mo, 1000 unlocks (cap), 500 exports
+
+---
+
+## Phase 3: Frontend
+
+### 3A. Address Blurring
+- `useUnlockedProperties` hook — batch check via fn_check_unlocked_batch
+- `formatBlurredAddress()` utility — street_name only if locked
+- Update PropertyCard, CompactPropertyRow, MobilePropertyCard, PropertyDetailPanel
+
+### 3B. Unlock Modal
+- Property summary + options: free unlock, use credit, buy $5 unlock
+- Calls handle-unlock or redirects to Stripe
+
+### 3C. View Limit
+- Call fn_record_view on detail open
+- After 10/day → ViewLimitModal with CTA
+
+### 3D. Map Precision
+- Server-side jitter for non-unlocked (±0.005°)
+- Exact pins for unlocked
+
+### 3E. Scarcity Badges
+- "X investors unlocked this" from aggregate query
+
+### 3F. Credit Balance UI
+- Header indicator + buy credits dropdown
+
+### 3G. Pricing Page Redesign
+- New tiers + credit packs + comparison table
+
+### 3H. Scan Results
+- Blurred addresses + per-row Unlock + bulk Unlock All
+
+### 3I. Affiliate Dashboard (later)
+- Referral link, clicks, signups, commissions
+
+### 3J. Notification Center (email-only MVP)
+- Bell icon dropdown + notifications page
+
+---
+
+## Implementation Order
+1. Database migrations (all tables + columns)
+2. Address backfill
+3. Database functions (unlock, view tracking, batch check)
+4. Edge functions (handle-unlock, modify checkout + webhook)
+5. Frontend Phase A: address blurring + unlock modal + credit balance
+6. Frontend Phase B: view limits, map precision, scarcity badges
+7. Stripe products/prices creation
+8. Notifications (email-only MVP)
+9. Affiliate system (deferred)
+10. Beta testing via is_beta_user → full rollout
+
+---
+
+## Previous SEO Plan (completed)
+
+### Static SEO Pages
+- `/municipal-enforcement-data`
+- `/off-market-property-leads`
+- `/real-estate-distress-signals`
+- `/how-investors-find-distressed-properties`
+
+### Programmatic City Pages
+- `/code-violations/:citySlug` — dynamic template
+- `/code-violations` — city index directory

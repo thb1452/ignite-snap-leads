@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Map as MapIcon, Flame, Loader2 } from "lucide-react";
 import { useViewportMarkers, type MapBounds } from "@/hooks/useViewportMarkers";
 import { supabase } from "@/integrations/supabase/externalClient";
+import { jitterCoords } from "@/utils/jitterCoords";
 import type { LeadFilters } from "@/schemas";
 
 // USA center coordinates and default zoom - defined outside component

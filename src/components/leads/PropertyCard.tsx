@@ -100,8 +100,11 @@ export const PropertyCard = memo(function PropertyCard({
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <span className="property-address font-semibold text-sm leading-tight">
-              {formatAddress(property.address)}, {formatCity(property.city)}, {property.state} {property.zip}
+            <span className="property-address font-semibold text-sm leading-tight flex items-center gap-1">
+              {!isUnlocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+              {isUnlocked
+                ? `${formatAddress(property.address)}, ${formatCity(property.city)}, ${property.state} ${property.zip}`
+                : `${formatBlurredStreet(property, false)}, ${formatCity(property.city)}, ${property.state} ${property.zip}`}
             </span>
             <div className="flex items-center gap-1 shrink-0">
               {onToggleSaved && (

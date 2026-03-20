@@ -107,8 +107,9 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
         
         <div className="flex-1 min-w-0">
           {/* Address - Full width, no truncation */}
-          <h3 className="property-address font-semibold text-base leading-snug text-foreground">
-            {formatAddress(property.address)}
+          <h3 className="property-address font-semibold text-base leading-snug text-foreground flex items-center gap-1">
+            {!isUnlocked && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+            {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
           </h3>
           <p className="text-sm text-muted-foreground mt-0.5">
             {formatCity(property.city)}, {property.state} {property.zip}

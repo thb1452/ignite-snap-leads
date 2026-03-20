@@ -211,7 +211,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
 
           {/* Right side: bell + user dropdown */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            <CreditBalanceChip />
             <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

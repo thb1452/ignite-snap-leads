@@ -59,6 +59,7 @@ import { useViewLimit } from "@/hooks/useViewLimit";
 import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
 import { UnlockModal } from "@/components/leads/UnlockModal";
 import { ViewLimitModal } from "@/components/leads/ViewLimitModal";
+import { BulkUnlockBar } from "@/components/leads/BulkUnlockBar";
 
 const PAGE_SIZE = 50;
 

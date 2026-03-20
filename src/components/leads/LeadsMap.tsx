@@ -36,7 +36,7 @@ interface LeadsMapProps {
   properties?: { id: string; latitude: number | null; longitude: number | null; snap_score: number | null; address: string; }[];
 }
 
-const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId }: LeadsMapProps) => {
+const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId, unlockedSet }: LeadsMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.CircleMarker[]>([]);

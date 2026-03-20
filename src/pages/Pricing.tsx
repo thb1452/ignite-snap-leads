@@ -536,7 +536,71 @@ export default function Pricing() {
           {orderedTiers.map((tier) => renderPlanCard(tier, isCurrentPlan(tier.name)))}
         </div>
 
-        {/* Water Shutoff Value Prop */}
+        {/* Credit Packs Section */}
+        <div className="max-w-4xl mx-auto mb-16">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold">Need More Unlocks?</h2>
+            <p className="text-muted-foreground mt-1">
+              Buy credit packs to unlock full property details — address, contacts, and exact location.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              { credits: 500, price: 50, label: "Starter Pack" },
+              { credits: 1200, price: 100, label: "Pro Pack", popular: true },
+              { credits: 3000, price: 225, label: "Bulk Pack" },
+            ].map((pack) => (
+              <Card
+                key={pack.credits}
+                className={`text-center transition-all hover:shadow-lg ${
+                  pack.popular ? "border-primary border-2 shadow-md" : ""
+                }`}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">{pack.label}</CardTitle>
+                  <CardDescription>
+                    {pack.credits.toLocaleString()} credits
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="text-3xl font-bold">${pack.price}</div>
+                  <p className="text-xs text-muted-foreground">
+                    ${(pack.price / pack.credits * 100).toFixed(0)}¢ per unlock
+                  </p>
+                  <Button
+                    variant={pack.popular ? "default" : "outline"}
+                    className="w-full"
+                    onClick={async () => {
+                      setUpgradingTier(`pack-${pack.credits}`);
+                      try {
+                        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                          body: { checkout_type: 'credit_pack', credit_tier: pack.credits === 500 ? 'starter' : pack.credits === 1200 ? 'pro' : 'bulk' },
+                        });
+                        if (error) throw error;
+                        const url = data?.url || data?.checkout_url;
+                        if (url) window.location.assign(url);
+                      } catch (err: any) {
+                        toast({ title: 'Error', description: err.message, variant: 'destructive' });
+                      } finally {
+                        setUpgradingTier(null);
+                      }
+                    }}
+                    disabled={upgradingTier === `pack-${pack.credits}`}
+                  >
+                    {upgradingTier === `pack-${pack.credits}` ? (
+                      <><Loader2 className="mr-2 w-4 h-4 animate-spin" /> Processing…</>
+                    ) : (
+                      `Buy ${pack.credits.toLocaleString()} Credits`
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p className="text-center text-xs text-muted-foreground mt-4">
+            Credits never expire. Each unlock reveals the full address, owner contacts, and exact map pin.
+          </p>
+        </div>
         <div className="max-w-3xl mx-auto mb-16">
           <Card className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/20 dark:to-blue-950/20 border-cyan-200 dark:border-cyan-800">
             <CardHeader>

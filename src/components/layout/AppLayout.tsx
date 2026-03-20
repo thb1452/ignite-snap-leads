@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { CreditBalanceChip } from "@/components/layout/CreditBalanceChip";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTrialStatus } from "@/hooks/useTrialStatus";

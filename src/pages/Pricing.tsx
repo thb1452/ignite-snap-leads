@@ -394,7 +394,7 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      <SEOHead title="Pricing — Plans from $79/mo | Snap Ignite" description="Choose your Snap Ignite plan. Starter ($79/mo), Professional ($149/mo), or Enterprise ($299/mo). All plans include 3,800+ cities, code violation data, and enforcement scoring. Start with a free trial." canonical="https://snapignite.com/pricing" />
+      <SEOHead title="Pricing — Plans from $59/mo | Snap Ignite" description="Choose your Snap Ignite plan. Starter ($59/mo), Professional ($129/mo), or Enterprise ($399/mo). All plans include 3,800+ cities, code violation data, and enforcement scoring. Start with a free trial." canonical="https://snapignite.com/pricing" />
       {/* Signed-in user banner */}
       {user && (
         <div className="bg-blue-50 dark:bg-blue-950/50 border-b border-blue-200 dark:border-blue-800">

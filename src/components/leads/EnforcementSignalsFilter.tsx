@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { Home, Lock } from "lucide-react";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
+import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 

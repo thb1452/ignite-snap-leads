@@ -242,6 +242,26 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
                 )}
               </div>
             </div>
+
+            {/* Unlock CTA for locked properties */}
+            {!isUnlocked && onUnlock && (
+              <div className="mt-3 p-3 rounded-lg border border-primary/20 bg-primary/5">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Unlock to see the full address, owner contacts, and export this lead.
+                </p>
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUnlock(property.id);
+                  }}
+                  className="w-full gap-2"
+                  size="sm"
+                >
+                  <Unlock className="h-4 w-4" />
+                  Unlock This Lead
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Main Content - Scrollable */}

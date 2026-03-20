@@ -19,6 +19,8 @@ interface PropertyCardProps {
   property: {
     id: string;
     address: string;
+    street_number?: string | null;
+    street_name?: string | null;
     city: string;
     state: string;
     zip: string;
@@ -37,6 +39,8 @@ interface PropertyCardProps {
   onClick: () => void;
   isSaved?: boolean;
   onToggleSaved?: (id: string) => void;
+  isUnlocked?: boolean;
+  onUnlock?: (propertyId: string) => void;
 }
 
 export const PropertyCard = memo(function PropertyCard({

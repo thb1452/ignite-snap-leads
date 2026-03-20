@@ -70,7 +70,7 @@ interface PropertyDetailPanelProps {
   onUnlock?: (propertyId: string) => void;
 }
 
-export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDetailPanelProps) {
+export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked = true, onUnlock }: PropertyDetailPanelProps) {
   const [propertyLists, setPropertyLists] = useState<PropertyList[]>([]);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [violations, setViolations] = useState<Violation[]>([]);

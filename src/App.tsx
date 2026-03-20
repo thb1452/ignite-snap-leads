@@ -171,6 +171,14 @@ const App = () => (
                 }
               />
               <Route
+                path="/referrals"
+                element={
+                  <ProtectedRoute>
+                    <Referrals />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/jobs"
                 element={
                   <RoleProtectedRoute allowedRoles={["admin", "va"]}>

@@ -281,7 +281,7 @@ export default function Landing() {
 
               <motion.p variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="text-sm text-landing-text-muted flex items-center gap-2">
                 <Users className="w-4 h-4 text-landing-accent" />
-                1,200 investors already browsing. Join the waitlist.
+                3 free unlocks included. No subscription needed to browse.
               </motion.p>
             </motion.div>
 

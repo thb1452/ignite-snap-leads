@@ -206,9 +206,37 @@ function Leads() {
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
 
-  // Auto-select property from URL param (e.g. from digest email)
+  // Auto-select property from URL param (e.g. from digest email or Stripe unlock return)
   useEffect(() => {
     const propertyIdParam = searchParams.get("propertyId");
+    const unlockedParam = searchParams.get("unlocked");
+    const creditsAdded = searchParams.get("credits_added");
+
+    if (creditsAdded) {
+      toast({
+        title: `${creditsAdded} unlocks added! 🎉`,
+        description: "Credits have been added to your account.",
+      });
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("credits_added");
+      setSearchParams(newParams, { replace: true });
+    }
+
+    if (unlockedParam) {
+      if (!isLoading) {
+        setSelectedPropertyId(unlockedParam);
+        invalidateUnlocks();
+        toast({
+          title: "Property unlocked! 🔓",
+          description: "Full address and contacts are now available.",
+        });
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("unlocked");
+        setSearchParams(newParams, { replace: true });
+      }
+      return;
+    }
+
     if (!propertyIdParam) return;
     if (isLoading) return;
 

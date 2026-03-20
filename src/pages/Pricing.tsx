@@ -574,7 +574,7 @@ export default function Pricing() {
                       setUpgradingTier(`pack-${pack.credits}`);
                       try {
                         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-                          body: { checkout_type: 'credit_pack', credit_tier: pack.credits === 500 ? 'starter' : pack.credits === 1200 ? 'pro' : 'bulk' },
+                          body: { checkout_type: 'credit_pack', pack_id: pack.credits === 500 ? 'pack_500' : pack.credits === 1200 ? 'pack_1200' : 'pack_3000' },
                         });
                         if (error) throw error;
                         const url = data?.url || data?.checkout_url;

@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_commissions: {
+        Row: {
+          amount: number
+          commission_rate: number
+          id: string
+          paid_at: string | null
+          referral_id: string
+          status: string
+          transaction_id: string
+        }
+        Insert: {
+          amount: number
+          commission_rate?: number
+          id?: string
+          paid_at?: string | null
+          referral_id: string
+          status?: string
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          commission_rate?: number
+          id?: string
+          paid_at?: string | null
+          referral_id?: string
+          status?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commissions_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_referrals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_referrals: {
+        Row: {
+          commission_paid: boolean
+          first_purchase_at: string | null
+          id: string
+          referred_user_id: string
+          referrer_id: string
+          signup_at: string
+        }
+        Insert: {
+          commission_paid?: boolean
+          first_purchase_at?: string | null
+          id?: string
+          referred_user_id: string
+          referrer_id: string
+          signup_at?: string
+        }
+        Update: {
+          commission_paid?: boolean
+          first_purchase_at?: string | null
+          id?: string
+          referred_user_id?: string
+          referrer_id?: string
+          signup_at?: string
+        }
+        Relationships: []
+      }
       beta_waitlist: {
         Row: {
           created_at: string
@@ -1070,6 +1142,36 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          link: string | null
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       organizations: {
         Row: {
           created_at: string
@@ -1166,31 +1268,43 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          daily_view_count: number
+          daily_view_reset_at: string
           email: string | null
+          free_unlocks_remaining: number
           full_name: string | null
           id: string
           is_beta_user: boolean
           org_id: string
+          referred_by: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          daily_view_count?: number
+          daily_view_reset_at?: string
           email?: string | null
+          free_unlocks_remaining?: number
           full_name?: string | null
           id?: string
           is_beta_user?: boolean
           org_id: string
+          referred_by?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          daily_view_count?: number
+          daily_view_reset_at?: string
           email?: string | null
+          free_unlocks_remaining?: number
           full_name?: string | null
           id?: string
           is_beta_user?: boolean
           org_id?: string
+          referred_by?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1233,6 +1347,8 @@ export type Database = {
           snap_insight: string | null
           snap_score: number | null
           state: string
+          street_name: string | null
+          street_number: string | null
           total_violations: number | null
           updated_at: string | null
           violation_types: string[] | null
@@ -1266,6 +1382,8 @@ export type Database = {
           snap_insight?: string | null
           snap_score?: number | null
           state: string
+          street_name?: string | null
+          street_number?: string | null
           total_violations?: number | null
           updated_at?: string | null
           violation_types?: string[] | null
@@ -1299,6 +1417,8 @@ export type Database = {
           snap_insight?: string | null
           snap_score?: number | null
           state?: string
+          street_name?: string | null
+          street_number?: string | null
           total_violations?: number | null
           updated_at?: string | null
           violation_types?: string[] | null
@@ -1431,18 +1551,24 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          last_notified_at: string | null
+          notify_on_new_violation: boolean
           property_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          last_notified_at?: string | null
+          notify_on_new_violation?: boolean
           property_id: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          last_notified_at?: string | null
+          notify_on_new_violation?: boolean
           property_id?: string
           user_id?: string
         }
@@ -1933,6 +2059,84 @@ export type Database = {
           url_hash?: string | null
         }
         Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          status: string
+          stripe_payment_intent_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      unlocked_properties: {
+        Row: {
+          credit_cost: number
+          id: string
+          property_id: string
+          unlock_source: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          credit_cost?: number
+          id?: string
+          property_id: string
+          unlock_source: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          credit_cost?: number
+          id?: string
+          property_id?: string
+          unlock_source?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unlocked_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "unlocked_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       upload_history: {
         Row: {
@@ -3029,6 +3233,12 @@ export type Database = {
             Args: { p_amount?: number; p_usage_type: string; p_user_id: string }
             Returns: Json
           }
+      fn_check_unlocked_batch: {
+        Args: { p_property_ids: string[]; p_user_id: string }
+        Returns: {
+          property_id: string
+        }[]
+      }
       fn_consume_credit: {
         Args: { p_meta?: Json; p_reason: string }
         Returns: number
@@ -3094,6 +3304,7 @@ export type Database = {
         Returns: Json
       }
       fn_get_trial_status: { Args: { p_user_id: string }; Returns: Json }
+      fn_get_unlock_count: { Args: { p_property_id: string }; Returns: number }
       fn_get_user_allowed_states: {
         Args: { p_user_id?: string }
         Returns: string[]
@@ -3350,6 +3561,7 @@ export type Database = {
           property_id: string
         }[]
       }
+      fn_record_view: { Args: { p_user_id: string }; Returns: Json }
       fn_refund_credits: {
         Args: { p_job_id: string; p_property_ids: string[]; p_reason: string }
         Returns: Json
@@ -3373,6 +3585,10 @@ export type Database = {
           state: string
           total_requests: number
         }[]
+      }
+      fn_unlock_property: {
+        Args: { p_property_id: string; p_user_id: string }
+        Returns: Json
       }
       fn_update_user_states: { Args: { p_states: string[] }; Returns: Json }
       fn_user_needs_state_selection: { Args: never; Returns: boolean }

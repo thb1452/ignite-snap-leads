@@ -219,9 +219,11 @@ export default function Landing() {
                     {id.replace(/-/g, " ")}
                   </button>
                 ))}
-                <Button onClick={() => scrollToSection("waitlist")} className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
-                  Join Waitlist <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
+                <Link to="/auth" className="w-full">
+                  <Button className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
+                    Start Free <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
               </div>
             </motion.div>
           )}

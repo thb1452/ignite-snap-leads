@@ -50,6 +50,8 @@ export const PropertyCard = memo(function PropertyCard({
   onClick,
   isSaved = false,
   onToggleSaved,
+  isUnlocked = true,
+  onUnlock,
 }: PropertyCardProps) {
   const [expanded, setExpanded] = useState(false);
 

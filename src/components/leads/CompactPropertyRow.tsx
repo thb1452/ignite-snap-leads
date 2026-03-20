@@ -31,6 +31,7 @@ export function CompactPropertyRow({
   isSelected,
   onToggleSelect,
   onClick,
+  isUnlocked = true,
 }: CompactPropertyRowProps) {
   const getScoreColor = (score: number | null) => {
     if (!score) return "bg-muted text-muted-foreground";

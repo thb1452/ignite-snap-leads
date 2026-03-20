@@ -25,10 +25,11 @@ export function EnforcementSignalsFilter({
   selectedCity,
 }: EnforcementSignalsFilterProps) {
   const { hasFeature } = useFeatureAccess();
+  const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const hasEscalationAlerts = hasFeature('escalation_alerts');
+  const hasEscalationAlerts = isAdmin || hasFeature('escalation_alerts');
 
   // Fetch property counts by category using the new RPC
   // This returns accurate counts of unique properties per category

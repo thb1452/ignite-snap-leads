@@ -48,6 +48,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
   onClick,
   isSaved = false,
   onToggleSaved,
+  isUnlocked = true,
 }: MobilePropertyCardProps) {
   const [insightExpanded, setInsightExpanded] = useState(false);
   

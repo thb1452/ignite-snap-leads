@@ -792,9 +792,11 @@ export default function Landing() {
               <Link to="/auth">
                 <Button variant="ghost" size="sm" className="text-landing-text-muted hover:text-landing-text">Sign In</Button>
               </Link>
-              <Button size="sm" onClick={() => scrollToSection("waitlist")} className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">
-                Join Waitlist
-              </Button>
+              <Link to="/auth">
+                <Button size="sm" className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">
+                  Start Free
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

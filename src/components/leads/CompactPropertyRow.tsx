@@ -69,8 +69,9 @@ export function CompactPropertyRow({
 
       {/* Address - Main Column */}
       <div className="flex-1 min-w-0">
-        <p className="property-address font-medium text-sm truncate leading-tight">
-          {formatAddress(property.address)}
+        <p className="property-address font-medium text-sm truncate leading-tight flex items-center gap-1">
+          {!isUnlocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+          {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
         </p>
         <p className="text-xs text-muted-foreground truncate">
           {formatCity(property.city)}, {property.state} {property.zip}

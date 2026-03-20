@@ -45,6 +45,8 @@ const VirtualizedPropertyListInner = ({
   onPropertyClick,
   savedSet,
   onToggleSaved,
+  unlockedSet,
+  onUnlock,
 }: VirtualizedPropertyListProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
 

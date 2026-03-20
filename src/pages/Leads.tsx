@@ -83,7 +83,10 @@ function Leads() {
   } = useTrialStatus();
   const { showExportNotification } = useTrialExportNotifications();
   const { savedSet, toggleSaved, isSaved } = useSavedProperties();
-
+  const { freeUnlocksRemaining } = useFreeUnlocks();
+  const { viewCount, viewLimit, limitReached, recordView } = useViewLimit();
+  const [unlockModalProperty, setUnlockModalProperty] = useState<any>(null);
+  const [viewLimitModalOpen, setViewLimitModalOpen] = useState(false);
   // Refs for scrolling list containers to top on page change
   const desktopListRef = useRef<HTMLDivElement>(null);
   const mobileListRef = useRef<HTMLDivElement>(null);

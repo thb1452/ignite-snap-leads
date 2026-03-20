@@ -203,10 +203,18 @@ const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId, unlo
         const slice = markers.slice(i, end);
 
         for (const property of slice) {
-          const lat = property.latitude;
-          const lng = property.longitude;
+          let lat = property.latitude;
+          let lng = property.longitude;
           if (lat == null || lng == null) continue;
           if (Number.isNaN(lat) || Number.isNaN(lng)) continue;
+
+          // Jitter coordinates for non-unlocked properties
+          const isUnlocked = unlockedSet?.has(property.id) ?? false;
+          if (!isUnlocked) {
+            const jittered = jitterCoords(lat, lng, property.id);
+            lat = jittered.lat;
+            lng = jittered.lng;
+          }
 
           markersIndexRef.current.set(property.id, { latitude: lat, longitude: lng });
 

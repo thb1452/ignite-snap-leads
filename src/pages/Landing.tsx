@@ -665,12 +665,13 @@ export default function Landing() {
 
               {/* CTA overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent flex items-end justify-center pb-8">
-                <Button
-                  onClick={() => scrollToSection("waitlist")}
-                  className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold shadow-xl"
-                >
-                  <MapPin className="w-4 h-4 mr-2" /> Reveal Full Addresses — $5 or 1 Credit
-                </Button>
+                <Link to="/auth">
+                  <Button
+                    className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold shadow-xl"
+                  >
+                    <MapPin className="w-4 h-4 mr-2" /> Reveal Full Addresses — $5 or 1 Credit
+                  </Button>
+                </Link>
               </div>
             </div>
           </motion.div>

@@ -70,7 +70,7 @@ const PLAN_FEATURES = {
     badge: "",
     features: [
       "All properties, all counties",
-      "1,500 property exports/month",
+      "5,000 property exports/month",
       "Code violation data",
       "Monthly data refresh",
     ],
@@ -80,7 +80,7 @@ const PLAN_FEATURES = {
     price: "$149/mo",
     features: [
       "All properties, all counties",
-      "5,000 property exports/month",
+      "15,000 property exports/month",
       "Pressure Level™ filters",
       "Priority email support",
     ],
@@ -91,7 +91,7 @@ const PLAN_FEATURES = {
     price: "$299/mo",
     features: [
       "All properties, all counties",
-      "15,000 property exports/month",
+      "25,000 property exports/month",
       "Water shutoff data",
     ],
     badge: "Best Value",

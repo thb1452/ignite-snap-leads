@@ -158,6 +158,7 @@ export const PropertyCard = memo(function PropertyCard({
                 )}
               </>
             )}
+            {!isUnlocked && <ScarcityBadge propertyId={property.id} />}
           </div>
 
           {/* Row 3: AI Insight */}

@@ -2,10 +2,11 @@ import { useState, memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, AlertTriangle, Flame } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, Flame, Lock } from "lucide-react";
 import { SaveHeartButton } from "./SaveHeartButton";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
 
 interface Violation {
   id: string;
@@ -18,6 +19,8 @@ interface MobilePropertyCardProps {
   property: {
     id: string;
     address: string;
+    street_number?: string | null;
+    street_name?: string | null;
     city: string;
     state: string;
     zip: string;
@@ -28,13 +31,14 @@ interface MobilePropertyCardProps {
     total_violations?: number | null;
     open_violations?: number | null;
     violation_types?: string[] | null;
-    enforcement_type?: string; // 'code_violation' or 'water_shutoff'
+    enforcement_type?: string;
   };
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onClick: () => void;
   isSaved?: boolean;
   onToggleSaved?: (id: string) => void;
+  isUnlocked?: boolean;
 }
 
 export const MobilePropertyCard = memo(function MobilePropertyCard({
@@ -44,6 +48,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
   onClick,
   isSaved = false,
   onToggleSaved,
+  isUnlocked = true,
 }: MobilePropertyCardProps) {
   const [insightExpanded, setInsightExpanded] = useState(false);
   
@@ -102,8 +107,9 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
         
         <div className="flex-1 min-w-0">
           {/* Address - Full width, no truncation */}
-          <h3 className="property-address font-semibold text-base leading-snug text-foreground">
-            {formatAddress(property.address)}
+          <h3 className="property-address font-semibold text-base leading-snug text-foreground flex items-center gap-1">
+            {!isUnlocked && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+            {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
           </h3>
           <p className="text-sm text-muted-foreground mt-0.5">
             {formatCity(property.city)}, {property.state} {property.zip}

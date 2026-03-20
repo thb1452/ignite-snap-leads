@@ -32,6 +32,7 @@ interface VirtualizedMobilePropertyListProps {
   onPropertyClick: (id: string) => void;
   savedSet?: Set<string>;
   onToggleSaved?: (id: string) => void;
+  unlockedSet?: Set<string>;
 }
 
 export function VirtualizedMobilePropertyList({
@@ -41,6 +42,7 @@ export function VirtualizedMobilePropertyList({
   onPropertyClick,
   savedSet,
   onToggleSaved,
+  unlockedSet,
 }: VirtualizedMobilePropertyListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -87,6 +89,7 @@ export function VirtualizedMobilePropertyList({
                 onClick={() => onPropertyClick(property.id)}
                 isSaved={savedSet?.has(property.id) ?? false}
                 onToggleSaved={onToggleSaved}
+                isUnlocked={unlockedSet?.has(property.id) ?? true}
               />
             </div>
           );

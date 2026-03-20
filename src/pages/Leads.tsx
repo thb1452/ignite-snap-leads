@@ -54,6 +54,11 @@ import { TrialExportGate } from "@/components/trial/TrialExportGate";
 import { TrialPaywall } from "@/components/trial/TrialPaywall";
 import { useSavedProperties } from "@/hooks/useSavedProperties";
 import { buildFiltersFromState, countActiveFilters, logFilters } from "@/utils/filterUtils";
+import { useUnlockedProperties } from "@/hooks/useUnlockedProperties";
+import { useViewLimit } from "@/hooks/useViewLimit";
+import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
+import { UnlockModal } from "@/components/leads/UnlockModal";
+import { ViewLimitModal } from "@/components/leads/ViewLimitModal";
 
 const PAGE_SIZE = 50;
 
@@ -78,7 +83,10 @@ function Leads() {
   } = useTrialStatus();
   const { showExportNotification } = useTrialExportNotifications();
   const { savedSet, toggleSaved, isSaved } = useSavedProperties();
-
+  const { freeUnlocksRemaining } = useFreeUnlocks();
+  const { viewCount, viewLimit, limitReached, recordView } = useViewLimit();
+  const [unlockModalProperty, setUnlockModalProperty] = useState<any>(null);
+  const [viewLimitModalOpen, setViewLimitModalOpen] = useState(false);
   // Refs for scrolling list containers to top on page change
   const desktopListRef = useRef<HTMLDivElement>(null);
   const mobileListRef = useRef<HTMLDivElement>(null);
@@ -649,6 +657,7 @@ function Leads() {
   // Fetch violations for all properties (enables instant PropertyDetailPanel)
   // Memoize propertyIds to prevent query cache invalidation on every render
   const propertyIds = useMemo(() => properties.map((p) => p.id), [properties]);
+  const { unlockedSet, invalidate: invalidateUnlocks } = useUnlockedProperties(propertyIds);
   const { data: violationsData = [], error: violationsError } = useQuery({
     queryKey: ["violations-for-properties", propertyIds],
     enabled: propertyIds.length > 0,
@@ -1039,6 +1048,11 @@ function Leads() {
                   onPropertyClick={handlePropertyClick}
                   savedSet={savedSet}
                   onToggleSaved={toggleSaved}
+                  unlockedSet={unlockedSet}
+                  onUnlock={(id) => {
+                    const prop = mappedProperties.find(p => p.id === id);
+                    if (prop) setUnlockModalProperty(prop);
+                  }}
                 />
               )}
             </div>
@@ -1200,6 +1214,11 @@ function Leads() {
             property={selectedPropertyWithFetched}
             open={true}
             onOpenChange={(open) => !open && setSelectedPropertyId(null)}
+            isUnlocked={selectedPropertyWithFetched ? unlockedSet.has(selectedPropertyWithFetched.id) : true}
+            onUnlock={(id) => {
+              const prop = mappedProperties.find(p => p.id === id);
+              if (prop) setUnlockModalProperty(prop);
+            }}
           />
         )}
 
@@ -1314,6 +1333,23 @@ function Leads() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+
+      {/* Unlock Modal */}
+      <UnlockModal
+        open={!!unlockModalProperty}
+        onOpenChange={(open) => !open && setUnlockModalProperty(null)}
+        property={unlockModalProperty}
+        freeUnlocksRemaining={freeUnlocksRemaining}
+        onUnlocked={invalidateUnlocks}
+      />
+
+      {/* View Limit Modal */}
+      <ViewLimitModal
+        open={viewLimitModalOpen}
+        onOpenChange={setViewLimitModalOpen}
+        viewCount={viewCount}
+        viewLimit={viewLimit}
+      />
     </AppLayout>
   );
 }

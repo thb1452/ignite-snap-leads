@@ -1,12 +1,15 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Flame } from "lucide-react";
+import { Flame, Lock } from "lucide-react";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
 
 interface CompactPropertyRowProps {
   property: {
     id: string;
     address: string;
+    street_number?: string | null;
+    street_name?: string | null;
     city: string;
     state: string;
     zip: string;
@@ -20,6 +23,7 @@ interface CompactPropertyRowProps {
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onClick: () => void;
+  isUnlocked?: boolean;
 }
 
 export function CompactPropertyRow({
@@ -27,6 +31,7 @@ export function CompactPropertyRow({
   isSelected,
   onToggleSelect,
   onClick,
+  isUnlocked = true,
 }: CompactPropertyRowProps) {
   const getScoreColor = (score: number | null) => {
     if (!score) return "bg-muted text-muted-foreground";
@@ -64,8 +69,9 @@ export function CompactPropertyRow({
 
       {/* Address - Main Column */}
       <div className="flex-1 min-w-0">
-        <p className="property-address font-medium text-sm truncate leading-tight">
-          {formatAddress(property.address)}
+        <p className="property-address font-medium text-sm truncate leading-tight flex items-center gap-1">
+          {!isUnlocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+          {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
         </p>
         <p className="text-xs text-muted-foreground truncate">
           {formatCity(property.city)}, {property.state} {property.zip}

@@ -3,7 +3,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
-import { AlertTriangle, Flame, Clock } from "lucide-react";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
+import { AlertTriangle, Flame, Clock, Lock } from "lucide-react";
 import { SaveHeartButton } from "./SaveHeartButton";
 import { formatDistanceToNow } from "date-fns";
 
@@ -18,6 +19,8 @@ interface PropertyCardProps {
   property: {
     id: string;
     address: string;
+    street_number?: string | null;
+    street_name?: string | null;
     city: string;
     state: string;
     zip: string;
@@ -36,6 +39,8 @@ interface PropertyCardProps {
   onClick: () => void;
   isSaved?: boolean;
   onToggleSaved?: (id: string) => void;
+  isUnlocked?: boolean;
+  onUnlock?: (propertyId: string) => void;
 }
 
 export const PropertyCard = memo(function PropertyCard({
@@ -45,6 +50,8 @@ export const PropertyCard = memo(function PropertyCard({
   onClick,
   isSaved = false,
   onToggleSaved,
+  isUnlocked = true,
+  onUnlock,
 }: PropertyCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -93,8 +100,11 @@ export const PropertyCard = memo(function PropertyCard({
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <span className="property-address font-semibold text-sm leading-tight">
-              {formatAddress(property.address)}, {formatCity(property.city)}, {property.state} {property.zip}
+            <span className="property-address font-semibold text-sm leading-tight flex items-center gap-1">
+              {!isUnlocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+              {isUnlocked
+                ? `${formatAddress(property.address)}, ${formatCity(property.city)}, ${property.state} ${property.zip}`
+                : `${formatBlurredStreet(property, false)}, ${formatCity(property.city)}, ${property.state} ${property.zip}`}
             </span>
             <div className="flex items-center gap-1 shrink-0">
               {onToggleSaved && (

@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download, ListPlus } from "lucide-react";
+import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download, ListPlus, Lock, Unlock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { formatDistanceToNow, format } from "date-fns";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
 import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
 import { GroupedViolationsList } from "./GroupedViolationsList";
 import { InvestorInsightCard } from "./InvestorInsightCard";
@@ -65,9 +66,11 @@ interface PropertyDetailPanelProps {
   property: PropertyWithViolations | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  isUnlocked?: boolean;
+  onUnlock?: (propertyId: string) => void;
 }
 
-export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDetailPanelProps) {
+export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked = true, onUnlock }: PropertyDetailPanelProps) {
   const [propertyLists, setPropertyLists] = useState<PropertyList[]>([]);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [violations, setViolations] = useState<Violation[]>([]);
@@ -209,8 +212,9 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
             <div className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-xl md:text-2xl font-semibold text-ink-900 font-display truncate">
-                    {formatAddress(property.address)}
+                  <h2 className="text-xl md:text-2xl font-semibold text-ink-900 font-display truncate flex items-center gap-2">
+                    {!isUnlocked && <Lock className="h-5 w-5 text-muted-foreground shrink-0" />}
+                    {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
                   </h2>
                   <p className="text-sm text-ink-400 font-ui mt-1">
                     {formatCity(property.city)}, {property.state} {property.zip}
@@ -238,6 +242,26 @@ export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDe
                 )}
               </div>
             </div>
+
+            {/* Unlock CTA for locked properties */}
+            {!isUnlocked && onUnlock && (
+              <div className="mt-3 p-3 rounded-lg border border-primary/20 bg-primary/5">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Unlock to see the full address, owner contacts, and export this lead.
+                </p>
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUnlock(property.id);
+                  }}
+                  className="w-full gap-2"
+                  size="sm"
+                >
+                  <Unlock className="h-4 w-4" />
+                  Unlock This Lead
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Main Content - Scrollable */}

@@ -45,6 +45,7 @@ const CityViolations = lazy(() => import("./pages/CityViolations"));
 const ListEnrichment = lazy(() => import("./pages/ListEnrichment").then((m) => ({ default: m.ListEnrichment })));
 const EnrichGate = lazy(() => import("./components/EnrichGate"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Referrals = lazy(() => import("./pages/Referrals"));
 // LiveFeed removed – components now embedded in Landing
 
 // VA pages

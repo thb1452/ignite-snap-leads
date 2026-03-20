@@ -79,9 +79,12 @@ export function MobileFilterSheet({
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const { subscription } = useSubscription();
+  const { isAdmin } = useAuth();
+
   const planName = subscription?.plan_name;
   const isProOrHigher = planName === 'professional' || planName === 'enterprise';
-  const isEnterprise = planName === 'enterprise';
+  const isEnterprise = isAdmin || planName === 'enterprise';
 
   const isLockedCategory = (categoryId: string) => {
     return ENTERPRISE_ONLY_CATEGORIES.includes(categoryId) && !isEnterprise;

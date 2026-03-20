@@ -3,7 +3,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
-import { AlertTriangle, Flame, Clock } from "lucide-react";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
+import { AlertTriangle, Flame, Clock, Lock } from "lucide-react";
 import { SaveHeartButton } from "./SaveHeartButton";
 import { formatDistanceToNow } from "date-fns";
 

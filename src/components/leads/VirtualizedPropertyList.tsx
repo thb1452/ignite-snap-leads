@@ -88,6 +88,8 @@ const VirtualizedPropertyListInner = ({
                 onClick={() => onPropertyClick(property.id)}
                 isSaved={savedSet?.has(property.id) ?? false}
                 onToggleSaved={onToggleSaved}
+                isUnlocked={unlockedSet?.has(property.id) ?? true}
+                onUnlock={onUnlock}
               />
             </div>
           );

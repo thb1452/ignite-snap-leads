@@ -76,11 +76,9 @@ export function MobileFilterSheet({
 
   // Subscription gating
   const { subscription } = useSubscription();
+  const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  const { subscription } = useSubscription();
-  const { isAdmin } = useAuth();
 
   const planName = subscription?.plan_name;
   const isProOrHigher = planName === 'professional' || planName === 'enterprise';

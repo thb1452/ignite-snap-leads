@@ -1,6 +1,6 @@
 // Supabase Edge Function: Stripe Webhook Handler
 // Route: POST /stripe-webhook (called by Stripe)
-// Features: Idempotency tracking to prevent duplicate processing
+// Features: Idempotency, subscriptions, one-time payments (unlocks + credit packs), affiliate commissions
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
@@ -56,7 +56,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // ---- Idempotency Check ----
-    // Check if we've already processed this event
     const { data: existingEvent } = await supabase
       .from("webhook_events")
       .select("id")
@@ -68,7 +67,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({ received: true, skipped: true }), { status: 200 });
     }
 
-    // Record event before processing (prevents race conditions)
     const { error: insertError } = await supabase.from("webhook_events").insert({
       event_id: event.id,
       event_type: event.type,
@@ -76,7 +74,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
 
     if (insertError) {
-      // Unique constraint violation means another request is processing
       if (insertError.code === "23505") {
         console.log("[webhook] Event being processed by another request:", event.id);
         return new Response(JSON.stringify({ received: true, skipped: true }), { status: 200 });
@@ -89,14 +86,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       switch (event.type) {
         case "checkout.session.completed": {
           const session = event.data.object as Stripe.Checkout.Session;
-          await handleCheckoutCompleted(supabase, session);
+          await handleCheckoutCompleted(supabase, stripe, session);
           break;
         }
 
         case "customer.subscription.created":
         case "customer.subscription.updated": {
           const subscription = event.data.object as Stripe.Subscription;
-          await handleSubscriptionChange(supabase, subscription);
+          await handleSubscriptionChange(supabase, stripe, subscription);
           break;
         }
 
@@ -130,13 +127,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     } catch (handlerErr: any) {
       console.error("[webhook] Handler error for", event.type, handlerErr?.message);
       await logWebhookError(event.type, event.id, handlerErr?.message ?? String(handlerErr), event.data.object);
-      throw handlerErr; // re-throw so Stripe retries
+      throw handlerErr;
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (e: any) {
     console.error("[webhook] error", e?.message ?? e);
-    // Log webhook processing error
     try {
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -157,9 +153,110 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
 // ---- Event Handlers ----
 
-async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.Session) {
-  console.log("[webhook] Checkout completed:", session.id);
+async function handleCheckoutCompleted(supabase: any, stripe: Stripe, session: Stripe.Checkout.Session) {
+  console.log("[webhook] Checkout completed:", session.id, "mode:", session.mode);
 
+  // Route based on mode
+  if (session.mode === "payment") {
+    await handleOneTimePayment(supabase, session);
+  } else if (session.mode === "subscription") {
+    await handleSubscriptionCheckout(supabase, stripe, session);
+  }
+}
+
+// ---- One-Time Payment Handler (single unlock + credit packs) ----
+async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Session) {
+  const userId = session.metadata?.user_id;
+  const checkoutType = session.metadata?.checkout_type;
+  const paymentIntentId = session.payment_intent as string;
+
+  if (!userId || !checkoutType) {
+    console.error("[webhook] Missing metadata in one-time payment session");
+    return;
+  }
+
+  console.log("[webhook] One-time payment:", checkoutType, "user:", userId);
+
+  // Record transaction
+  const { error: txError } = await supabase.from("transactions").insert({
+    user_id: userId,
+    stripe_payment_intent_id: paymentIntentId,
+    amount: session.amount_total ?? 0,
+    description: checkoutType === "single_unlock"
+      ? "Single Property Unlock"
+      : `Credit Pack: ${session.metadata?.credits ?? 0} credits`,
+    metadata: session.metadata,
+    status: "succeeded",
+  });
+
+  if (txError) {
+    console.error("[webhook] Error recording transaction:", txError);
+    // Don't throw — continue with fulfillment
+  }
+
+  if (checkoutType === "single_unlock") {
+    const propertyId = session.metadata?.property_id;
+    if (!propertyId) {
+      console.error("[webhook] Missing property_id for single unlock");
+      return;
+    }
+
+    // Check if already unlocked (idempotency)
+    const { data: existing } = await supabase
+      .from("unlocked_properties")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+
+    if (!existing) {
+      const { error: unlockErr } = await supabase.from("unlocked_properties").insert({
+        user_id: userId,
+        property_id: propertyId,
+        credit_cost: 0, // Paid directly via Stripe
+        unlock_source: "paid_unlock",
+      });
+
+      if (unlockErr) {
+        console.error("[webhook] Error unlocking property:", unlockErr);
+        throw unlockErr;
+      }
+
+      console.log("[webhook] Property unlocked via payment:", propertyId);
+    }
+  } else if (checkoutType === "credit_pack") {
+    const credits = parseInt(session.metadata?.credits ?? "0", 10);
+    if (credits <= 0) {
+      console.error("[webhook] Invalid credits amount for credit pack");
+      return;
+    }
+
+    // Add credits via ledger
+    const { error: creditErr } = await supabase.from("credit_ledger").insert({
+      user_id: userId,
+      delta: credits,
+      reason: "credit_pack_purchase",
+      meta: {
+        pack_id: session.metadata?.pack_id,
+        stripe_session_id: session.id,
+        payment_intent_id: paymentIntentId,
+      },
+    });
+
+    if (creditErr) {
+      console.error("[webhook] Error adding credits:", creditErr);
+      throw creditErr;
+    }
+
+    console.log("[webhook] Credits added:", credits, "for user:", userId);
+  }
+
+  // ---- Affiliate Commission ----
+  await recordAffiliateCommission(supabase, userId, session.amount_total ?? 0, paymentIntentId);
+}
+
+// ---- Subscription Checkout Handler (existing logic, extracted) ----
+async function handleSubscriptionCheckout(supabase: any, stripe: Stripe, session: Stripe.Checkout.Session) {
   const userId = session.metadata?.user_id;
   let planId = session.metadata?.plan_id;
   const customerId = session.customer as string;
@@ -171,7 +268,7 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
     return;
   }
 
-  // If planId is not a UUID (e.g. "elite"), resolve it from the DB
+  // If planId is not a UUID, resolve it from the DB
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!UUID_RE.test(planId)) {
     const TIER_ALIAS: Record<string, string> = { elite: "enterprise" };
@@ -190,15 +287,9 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
     }
   }
 
-  // Get subscription details from Stripe
-  const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
-    apiVersion: "2023-10-16",
-    httpClient: Stripe.createFetchHttpClient(),
-  });
-
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-  // Cancel any existing active/trial subscriptions for this user
+  // Cancel any existing active/trial subscriptions
   const { error: cancelError } = await supabase
     .from("user_subscriptions")
     .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
@@ -209,19 +300,15 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
     console.error("[webhook] Error cancelling old subscriptions:", cancelError);
   }
 
-  // Determine status and trial fields
   const isTrialing = subscription.status === "trialing";
   const status = isTrialing ? "trialing" : "active";
 
-  // Look up the tier name from the plan_id (which might be a UUID or tier name)
   let trialTier: string | null = null;
   if (isTrialing || isTrial) {
-    // Try to get tier name from subscription_plans table
     const { data: planData } = await supabase.from("subscription_plans").select("name").eq("id", planId).maybeSingle();
-    trialTier = planData?.name || planId; // Fallback to planId if it's already the tier name
+    trialTier = planData?.name || planId;
   }
 
-  // Build subscription record
   const subscriptionRecord: Record<string, any> = {
     user_id: userId,
     plan_id: planId,
@@ -232,7 +319,6 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
     current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
   };
 
-  // Set trial fields if this is a trial subscription
   if (isTrialing && subscription.trial_end) {
     subscriptionRecord.trial_started_at = new Date().toISOString();
     subscriptionRecord.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
@@ -241,7 +327,6 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
     subscriptionRecord.trial_exports_limit = 500;
   }
 
-  // Create new subscription record
   const { error: insertError } = await supabase.from("user_subscriptions").insert(subscriptionRecord);
 
   if (insertError) {
@@ -249,16 +334,106 @@ async function handleCheckoutCompleted(supabase: any, session: Stripe.Checkout.S
     throw insertError;
   }
 
+  // Record affiliate commission for subscription first payment
+  await recordAffiliateCommission(supabase, userId, session.amount_total ?? 0, session.payment_intent as string);
+
   console.log("[webhook] Subscription created for user:", userId, "status:", status, isTrialing ? "(trial)" : "");
 }
 
-async function handleSubscriptionChange(supabase: any, subscription: Stripe.Subscription) {
+// ---- Affiliate Commission Helper ----
+async function recordAffiliateCommission(
+  supabase: any,
+  userId: string,
+  amountCents: number,
+  paymentIntentId: string | null
+) {
+  if (!amountCents || amountCents <= 0) return;
+
+  try {
+    // Check if user was referred
+    const { data: referral } = await supabase
+      .from("affiliate_referrals")
+      .select("id, referrer_id, first_purchase_at, signup_at")
+      .eq("referred_user_id", userId)
+      .maybeSingle();
+
+    if (!referral) return; // Not a referred user
+
+    // Check if within 12-month commission window
+    const signupDate = new Date(referral.signup_at);
+    const monthsSinceSignup = (Date.now() - signupDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+    if (monthsSinceSignup > 12) {
+      console.log("[webhook] Affiliate commission expired (>12 months) for user:", userId);
+      return;
+    }
+
+    // Mark first purchase if not set
+    if (!referral.first_purchase_at) {
+      await supabase
+        .from("affiliate_referrals")
+        .update({ first_purchase_at: new Date().toISOString() })
+        .eq("id", referral.id);
+    }
+
+    // Get or create transaction record for the commission FK
+    let transactionId: string | null = null;
+    if (paymentIntentId) {
+      const { data: tx } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("stripe_payment_intent_id", paymentIntentId)
+        .maybeSingle();
+      transactionId = tx?.id;
+    }
+
+    if (!transactionId) {
+      // Create a transaction record if one doesn't exist yet
+      const { data: newTx } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: userId,
+          stripe_payment_intent_id: paymentIntentId,
+          amount: amountCents,
+          description: "Referred user payment",
+          status: "succeeded",
+        })
+        .select("id")
+        .single();
+      transactionId = newTx?.id;
+    }
+
+    if (!transactionId) {
+      console.error("[webhook] Could not get/create transaction for commission");
+      return;
+    }
+
+    // Calculate 30% commission
+    const commissionAmount = Math.round(amountCents * 0.3);
+
+    const { error: commErr } = await supabase.from("affiliate_commissions").insert({
+      referral_id: referral.id,
+      transaction_id: transactionId,
+      amount: commissionAmount,
+      commission_rate: 30,
+      status: "pending",
+    });
+
+    if (commErr) {
+      console.error("[webhook] Error recording commission:", commErr);
+    } else {
+      console.log("[webhook] Affiliate commission recorded:", commissionAmount, "cents for referrer:", referral.referrer_id);
+    }
+  } catch (e: any) {
+    console.error("[webhook] Affiliate commission error:", e?.message);
+    // Non-critical — don't throw
+  }
+}
+
+async function handleSubscriptionChange(supabase: any, stripe: Stripe, subscription: Stripe.Subscription) {
   console.log("[webhook] Subscription changed:", subscription.id, "stripe_status:", subscription.status);
 
-  // Try to get user_id from subscription metadata first
   let userId = subscription.metadata?.user_id;
 
-  // If not in metadata, look up from database using stripe_subscription_id
   if (!userId) {
     const { data: existingSub } = await supabase
       .from("user_subscriptions")
@@ -270,12 +445,6 @@ async function handleSubscriptionChange(supabase: any, subscription: Stripe.Subs
       userId = existingSub.user_id;
       console.log("[webhook] Resolved user_id from database:", userId);
     } else {
-      // Last resort: try to get from customer metadata
-      const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
-        apiVersion: "2023-10-16",
-        httpClient: Stripe.createFetchHttpClient(),
-      });
-
       if (subscription.customer) {
         const customer = await stripe.customers.retrieve(subscription.customer as string);
         if (customer && !customer.deleted && customer.metadata?.supabase_user_id) {
@@ -291,17 +460,14 @@ async function handleSubscriptionChange(supabase: any, subscription: Stripe.Subs
     return;
   }
 
-  // Determine status — map Stripe statuses to our internal statuses
   let status = "active";
   if (subscription.status === "trialing") status = "trialing";
   else if (subscription.status === "canceled") status = "cancelled";
   else if (subscription.status === "past_due") status = "past_due";
-  else if (subscription.status === "unpaid")
-    status = "cancelled"; // Treat unpaid as cancelled — full lockout
+  else if (subscription.status === "unpaid") status = "cancelled";
   else if (subscription.status === "incomplete_expired") status = "cancelled";
-  else if (subscription.cancel_at_period_end) status = "active"; // Still active until period ends
+  else if (subscription.cancel_at_period_end) status = "active";
 
-  // Build update payload
   const updatePayload: Record<string, any> = {
     status,
     current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
@@ -309,10 +475,7 @@ async function handleSubscriptionChange(supabase: any, subscription: Stripe.Subs
     cancel_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
   };
 
-  // If transitioning from trialing → active (trial ended, card charged),
-  // clear the trial tracking fields so the user gets full monthly limits
   if (subscription.status === "active") {
-    // Get current record to check if it was trialing
     const { data: currentSub } = await supabase
       .from("user_subscriptions")
       .select("status, trial_started_at")
@@ -321,17 +484,14 @@ async function handleSubscriptionChange(supabase: any, subscription: Stripe.Subs
 
     if (currentSub?.status === "trialing" && currentSub?.trial_started_at) {
       console.log("[webhook] Trial → Active conversion for user:", userId);
-      // Reset trial export counter — user now gets full monthly limits
       updatePayload.trial_exports_used = 0;
     }
   }
 
-  // If this is a trialing subscription, ensure trial fields are set
   if (subscription.status === "trialing" && subscription.trial_end) {
     updatePayload.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
   }
 
-  // Update subscription record
   const { error } = await supabase
     .from("user_subscriptions")
     .update(updatePayload)
@@ -348,10 +508,8 @@ async function handleSubscriptionChange(supabase: any, subscription: Stripe.Subs
 async function handleSubscriptionDeleted(supabase: any, subscription: Stripe.Subscription) {
   console.log("[webhook] Subscription deleted:", subscription.id);
 
-  // Try to get user_id from subscription metadata first
   let userId = subscription.metadata?.user_id;
 
-  // If not in metadata, look up from database using stripe_subscription_id
   if (!userId) {
     const { data: existingSub } = await supabase
       .from("user_subscriptions")
@@ -361,16 +519,9 @@ async function handleSubscriptionDeleted(supabase: any, subscription: Stripe.Sub
 
     if (existingSub?.user_id) {
       userId = existingSub.user_id;
-      console.log("[webhook] Resolved user_id from database:", userId);
     }
   }
 
-  if (!userId) {
-    console.error("[webhook] No user_id found for subscription:", subscription.id);
-    // Still try to cancel by stripe_subscription_id even without user_id
-  }
-
-  // Mark subscription as cancelled
   const { error } = await supabase
     .from("user_subscriptions")
     .update({
@@ -393,7 +544,6 @@ async function handlePaymentSucceeded(supabase: any, invoice: Stripe.Invoice) {
   const subscriptionId = invoice.subscription as string;
   if (!subscriptionId) return;
 
-  // Update subscription to ensure it's active
   const { error } = await supabase
     .from("user_subscriptions")
     .update({ status: "active" })
@@ -410,7 +560,6 @@ async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
   const subscriptionId = invoice.subscription as string;
   if (!subscriptionId) return;
 
-  // Mark subscription as past_due
   const { error } = await supabase
     .from("user_subscriptions")
     .update({ status: "past_due" })

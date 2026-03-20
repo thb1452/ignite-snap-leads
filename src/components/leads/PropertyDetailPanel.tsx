@@ -212,8 +212,9 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
             <div className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-xl md:text-2xl font-semibold text-ink-900 font-display truncate">
-                    {formatAddress(property.address)}
+                  <h2 className="text-xl md:text-2xl font-semibold text-ink-900 font-display truncate flex items-center gap-2">
+                    {!isUnlocked && <Lock className="h-5 w-5 text-muted-foreground shrink-0" />}
+                    {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
                   </h2>
                   <p className="text-sm text-ink-400 font-ui mt-1">
                     {formatCity(property.city)}, {property.state} {property.zip}

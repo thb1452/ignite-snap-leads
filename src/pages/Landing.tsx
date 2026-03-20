@@ -5,32 +5,32 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { WaitlistForm } from "@/components/waitlist/WaitlistForm";
 
-import { TopPressureProperties } from "@/components/live-feed/TopPressureProperties";
-import { ListEnrichmentTeaser } from "@/components/landing/ListEnrichmentTeaser";
-
-import { 
-  Target, 
-  Clock, 
-  Map, 
-  Phone, 
-  ArrowRight, 
-  Check, 
-  X, 
+import {
+  ArrowRight,
+  Check,
+  X,
   ChevronDown,
   Lock,
+  Unlock,
   Users,
   TrendingUp,
   AlertTriangle,
   BarChart3,
   Filter,
   Download,
-  Building2,
   Search,
   Zap,
   Menu,
   Droplets,
   Bell,
-  Sparkles
+  Sparkles,
+  MapPin,
+  CreditCard,
+  Eye,
+  DollarSign,
+  FileText,
+  Shield,
+  Star,
 } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import {
@@ -40,57 +40,127 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-// Animated counter component
+// Animated counter
 function AnimatedCounter({ end, suffix = "", duration = 2000 }: { end: number; suffix?: string; duration?: number }) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true });
-  
+
   useEffect(() => {
     if (!isInView) return;
-    
     let startTime: number;
     const animate = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
       const progress = Math.min((timestamp - startTime) / duration, 1);
       setCount(Math.floor(progress * end));
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      }
+      if (progress < 1) requestAnimationFrame(animate);
     };
     requestAnimationFrame(animate);
   }, [isInView, end, duration]);
-  
+
   return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
 }
 
+// ── Mock Property Card ───────────────────────────────
+function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
+  return (
+    <div className="bg-landing-surface/80 border border-landing-surface rounded-xl p-5 w-full max-w-sm shadow-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {unlocked ? (
+            <Unlock className="w-4 h-4 text-landing-accent" />
+          ) : (
+            <Lock className="w-4 h-4 text-landing-text-muted" />
+          )}
+          <span className="text-xs font-semibold uppercase tracking-wider text-landing-text-muted">
+            {unlocked ? "Unlocked" : "Locked"}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className={`w-2 h-2 rounded-full ${unlocked ? 'bg-landing-accent' : 'bg-landing-warning'}`} />
+          <span className="text-xs font-bold text-landing-accent">SnapScore 87</span>
+        </div>
+      </div>
+
+      {/* Address */}
+      <p className={`text-lg font-bold mb-1 ${!unlocked ? 'select-none' : ''}`}>
+        {unlocked ? "1423 Main St" : (
+          <span className="inline-flex items-center gap-2">
+            <span className="blur-[4px] select-none pointer-events-none">1423</span>
+            <span>Main St</span>
+          </span>
+        )}
+      </p>
+      <p className="text-sm text-landing-text-muted mb-4">Austin, TX 78701</p>
+
+      {/* AI Insight */}
+      <div className="bg-landing-bg/60 rounded-lg p-3 mb-4 border border-landing-accent/20">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-landing-accent" />
+          <span className="text-xs font-semibold text-landing-accent">AI Investor Brief</span>
+        </div>
+        <p className="text-xs text-landing-text-muted leading-relaxed">
+          Water disconnected since Feb 2026. 3 open violations including structural. Owner non-responsive to city notices. <span className="text-landing-warning font-semibold">HIGH OPPORTUNITY.</span>
+        </p>
+      </div>
+
+      {/* Contact / CTA */}
+      {unlocked ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <Users className="w-3.5 h-3.5 text-landing-text-muted" />
+            <span className="text-landing-text">James Crawford (Owner)</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-landing-text-muted">📞</span>
+            <span className="text-landing-text">(512) 555-0192</span>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <Button size="sm" className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg text-xs flex-1">
+              Export Lead
+            </Button>
+            <Button size="sm" variant="outline" className="border-landing-surface text-landing-text text-xs flex-1">
+              Save ❤️
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button className="w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
+          <Lock className="w-4 h-4 mr-2" />
+          Unlock for $5 or 1 Credit
+        </Button>
+      )}
+    </div>
+  );
+}
 
 export default function Landing() {
-  const billingCycle = 'monthly' as const;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [heroFlipped, setHeroFlipped] = useState(false);
 
-  const pricing = {
-    starter: { monthly: 79 },
-    professional: { monthly: 149 },
-    enterprise: { monthly: 299 },
-  };
+  // Auto-flip hero card demo
+  useEffect(() => {
+    const interval = setInterval(() => setHeroFlipped((p) => !p), 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const scrollToSection = (id: string) => {
-    // Close menu first on mobile to avoid animation interference
     setMobileMenuOpen(false);
-    // Small delay to let menu close animation start before scrolling
     setTimeout(() => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      }
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
     }, 100);
   };
 
   return (
     <div className="min-h-screen bg-landing-bg text-landing-text overflow-x-hidden">
-      <SEOHead title="Snap Ignite | Enforcement Intelligence Platform" description="Snap Ignite tracks municipal enforcement signals — code violations, water shutoffs, and escalating fines — across 3,800+ cities nationwide, updated weekly." canonical="https://snapignite.com/" />
-      {/* Navigation */}
+      <SEOHead
+        title="Snap Ignite | Find Motivated Sellers Before the MLS"
+        description="See AI investor briefs for free. Pay only for the address. Snap Ignite tracks code violations, water shutoffs, and enforcement across 3,800+ cities."
+        canonical="https://snapignite.com/"
+      />
+
+      {/* ─── 1. Navigation ────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-landing-surface/50 bg-landing-bg/80 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-baseline gap-2">
@@ -102,50 +172,38 @@ export default function Landing() {
               <span className="text-landing-text">ignite</span>
             </span>
           </div>
-          
-          {/* Desktop Navigation */}
+
+          {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-8">
-            <button onClick={() => scrollToSection('features')} className="text-landing-text-muted hover:text-landing-text transition">
-              Features
-            </button>
-            <button onClick={() => scrollToSection('how-it-works')} className="text-landing-text-muted hover:text-landing-text transition">
-              How It Works
-            </button>
-            <button onClick={() => scrollToSection('pricing')} className="text-landing-text-muted hover:text-landing-text transition">
-              Pricing
-            </button>
-            <button onClick={() => scrollToSection('faq')} className="text-landing-text-muted hover:text-landing-text transition">
-              FAQ
-            </button>
+            {["features", "how-it-works", "pricing", "faq"].map((id) => (
+              <button key={id} onClick={() => scrollToSection(id)} className="text-landing-text-muted hover:text-landing-text transition capitalize">
+                {id.replace(/-/g, " ").replace("how it works", "How It Works")}
+              </button>
+            ))}
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-            {/* Mobile menu button */}
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
               className="md:hidden text-landing-text-muted hover:text-landing-text"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
-            
             <Link to="/auth?mode=signin">
-              <Button variant="ghost" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface/50">
-                Sign In
-              </Button>
+              <Button variant="ghost" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface/50">Sign In</Button>
             </Link>
-            <Button 
-              onClick={() => scrollToSection('waitlist')}
+            <Button
+              onClick={() => scrollToSection("waitlist")}
               className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
             >
-              Join Waitlist
-              <ArrowRight className="w-4 h-4 ml-2" />
+              Join Waitlist <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
         </div>
-        
-        {/* Mobile Navigation Menu */}
+
+        {/* Mobile menu */}
         <AnimatePresence>
           {mobileMenuOpen && (
             <motion.div
@@ -155,36 +213,13 @@ export default function Landing() {
               className="md:hidden border-t border-landing-surface/50 bg-landing-bg/95 backdrop-blur-xl"
             >
               <div className="container mx-auto px-4 py-4 flex flex-col gap-2">
-                <button 
-                  onClick={() => scrollToSection('features')} 
-                  className="text-left py-3 text-landing-text-muted hover:text-landing-text transition border-b border-landing-surface/30"
-                >
-                  Features
-                </button>
-                <button 
-                  onClick={() => scrollToSection('how-it-works')} 
-                  className="text-left py-3 text-landing-text-muted hover:text-landing-text transition border-b border-landing-surface/30"
-                >
-                  How It Works
-                </button>
-                <button 
-                  onClick={() => scrollToSection('pricing')} 
-                  className="text-left py-3 text-landing-text-muted hover:text-landing-text transition border-b border-landing-surface/30"
-                >
-                  Pricing
-                </button>
-                <button 
-                  onClick={() => scrollToSection('faq')} 
-                  className="text-left py-3 text-landing-text-muted hover:text-landing-text transition"
-                >
-                  FAQ
-                </button>
-                <Button 
-                  onClick={() => scrollToSection('waitlist')}
-                  className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
-                >
-                  Join Waitlist
-                  <ArrowRight className="w-4 h-4 ml-2" />
+                {["features", "how-it-works", "pricing", "faq"].map((id) => (
+                  <button key={id} onClick={() => scrollToSection(id)} className="text-left py-3 text-landing-text-muted hover:text-landing-text transition border-b border-landing-surface/30 capitalize">
+                    {id.replace(/-/g, " ")}
+                  </button>
+                ))}
+                <Button onClick={() => scrollToSection("waitlist")} className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
+                  Join Waitlist <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
             </motion.div>
@@ -192,371 +227,152 @@ export default function Landing() {
         </AnimatePresence>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative pt-28 pb-24 overflow-hidden">
-        {/* Animated dot grid background */}
-        <div 
-          className="absolute inset-0 animate-dot-grid opacity-20"
-          style={{
-            backgroundImage: 'radial-gradient(circle, rgba(56,178,172,0.3) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-          }}
-        />
-        {/* Gradient overlay */}
+      {/* ─── 2. Hero ─────────────────────────────────────── */}
+      <section className="relative pt-28 pb-20 overflow-hidden">
+        <div className="absolute inset-0 animate-dot-grid opacity-20" style={{ backgroundImage: "radial-gradient(circle, rgba(56,178,172,0.3) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
         <div className="absolute inset-0 bg-gradient-to-br from-landing-primary/20 via-landing-bg/80 to-landing-bg" />
-        
-        <div className="container mx-auto px-4 relative z-10 max-w-3xl">
-          <motion.div 
-            initial="hidden"
-            animate="visible"
-            variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
-            className="space-y-8"
-          >
-            {/* Label */}
-            <motion.p
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="text-landing-accent font-semibold tracking-widest text-sm uppercase"
-            >
-              Enforcement Intelligence Platform
-            </motion.p>
 
-             {/* Headline */}
-            <motion.h1 
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight"
-            >
-              See enforcement pressure before it becomes{' '}
-              <span className="text-landing-accent">public knowledge</span>.
-            </motion.h1>
-            
-            {/* Subtext */}
-            <motion.p
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="text-lg md:text-xl text-landing-text-muted max-w-2xl"
-            >
-              Snap Ignite tracks active code violations, water shutoffs, and escalating fines across 3,800+ cities — so you know which properties are under city pressure before anyone else.
-            </motion.p>
-
-            {/* Stats line */}
-            <motion.p
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="text-sm md:text-base text-landing-text-muted"
-            >
-              500k+ properties · 3,800+ cities · Updated weekly
-            </motion.p>
-            
-            {/* Beta Waitlist CTA */}
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+            {/* Left – text */}
             <motion.div
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="flex flex-col items-start gap-3"
+              initial="hidden"
+              animate="visible"
+              variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+              className="space-y-6"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-sm font-medium mb-2">
-                <Lock className="w-3.5 h-3.5" />
-                Private Beta — Limited Access
-              </div>
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className="w-full sm:w-auto">
-                <Button 
+              <motion.p variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="text-landing-accent font-semibold tracking-widest text-sm uppercase">
+                Enforcement Intelligence Platform
+              </motion.p>
+
+              <motion.h1 variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="text-3xl md:text-5xl font-bold leading-tight">
+                Find motivated sellers before they hit the MLS.{" "}
+                <span className="text-landing-accent">See insights free. Pay only for the address.</span>
+              </motion.h1>
+
+              <motion.p variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="text-lg text-landing-text-muted max-w-xl">
+                Snap Ignite tracks active code violations, water shutoffs, and city enforcement across 3,800+ cities. AI writes a 2-sentence investor brief for every property.
+              </motion.p>
+
+              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="flex flex-col sm:flex-row gap-3">
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    size="lg"
+                    onClick={() => { trackEvent("hero_cta_click", { location: "hero" }); scrollToSection("waitlist"); }}
+                    className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
+                  >
+                    Start for Free <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </motion.div>
+                <Button
                   size="lg"
-                  onClick={() => {
-                    trackEvent('hero_cta_click', { location: 'hero' });
-                    scrollToSection('waitlist');
-                  }}
-                  className="w-full sm:w-auto bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
+                  variant="outline"
+                  onClick={() => scrollToSection("how-it-works")}
+                  className="border-landing-surface text-landing-text hover:bg-landing-surface/50"
                 >
-                  Join the Waitlist
-                  <ArrowRight className="w-5 h-5 ml-2" />
+                  See How It Works
                 </Button>
               </motion.div>
-              
-              <p className="text-landing-text-muted text-sm">
-                We'll notify you when new spots open up.
-              </p>
+
+              <motion.p variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="text-sm text-landing-text-muted flex items-center gap-2">
+                <Users className="w-4 h-4 text-landing-accent" />
+                1,200 investors already browsing. Join the waitlist.
+              </motion.p>
             </motion.div>
-          </motion.div>
-        </div>
-      </section>
 
-
-
-      {/* Problem Agitation Section */}
-      <section className="py-24 bg-landing-surface/30">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center mb-12">
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold mb-4"
-            >
-              The Problem with Traditional Property Data
-            </motion.h2>
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-lg text-landing-text-muted"
-            >
-              You're working the same data as everyone else.<br />
-              By the time a property shows up on a list, the pressure has usually passed.
-            </motion.p>
-          </div>
-          
-          <div className="max-w-2xl mx-auto mb-12">
+            {/* Right – animated card flip */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="bg-landing-bg/50 border border-landing-surface rounded-xl p-8 space-y-4"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+              className="flex justify-center"
             >
-              {[
-                { label: "Tax records?", verdict: "Public." },
-                { label: "Expireds?", verdict: "Everyone's calling them." },
-                { label: "Pre‑foreclosures?", verdict: "Already flagged." },
-              ].map((item, i) => (
-                <div key={i} className="flex items-baseline gap-3">
-                  <X className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                  <p className="text-landing-text">
-                    <span className="font-semibold">{item.label}</span>{' '}
-                    <span className="text-landing-text-muted">{item.verdict}</span>
-                  </p>
-                </div>
-              ))}
-              <p className="text-landing-text-muted text-sm pt-2 border-t border-landing-surface">
-                You're not getting an edge. You're getting leftovers.
-              </p>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={heroFlipped ? "unlocked" : "locked"}
+                  initial={{ opacity: 0, rotateY: -90 }}
+                  animate={{ opacity: 1, rotateY: 0 }}
+                  exit={{ opacity: 0, rotateY: 90 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <PropertyCardMock unlocked={heroFlipped} />
+                </motion.div>
+              </AnimatePresence>
             </motion.div>
           </div>
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="max-w-3xl mx-auto text-center p-8 bg-landing-primary/20 border border-landing-accent/30 rounded-xl animate-gradient-border"
-          >
-            <p className="text-xl font-bold text-landing-text mb-4">
-              What if you could see which properties are under city pressure <span className="text-landing-accent">RIGHT NOW</span>?
-            </p>
-            <p className="text-landing-text-muted mb-1">That's enforcement intelligence.</p>
-            <p className="text-landing-text-muted text-sm">We track:</p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4 text-sm text-landing-text">
-              <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-landing-accent" /> Active code violations</span>
-              <span className="flex items-center gap-2"><Droplets className="w-4 h-4 text-landing-accent" /> Water shutoff notices</span>
-              <span className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-landing-accent" /> Escalating municipal fines</span>
-            </div>
-            <p className="text-landing-accent font-semibold text-sm mt-4">Not volume. Signal.</p>
-          </motion.div>
         </div>
       </section>
 
-      {/* Platform Showcase Section */}
-      <section className="pt-24 pb-12 bg-landing-bg">
+      {/* ─── 3. Problem / Solution ────────────────────────── */}
+      <section className="py-20 bg-landing-surface/30">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center mb-16">
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold mb-4"
-            >
-              See the Platform in Action
-            </motion.h2>
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-xl text-landing-text-muted"
-            >
-              Real enforcement data, real-time intelligence, real results.
-            </motion.p>
-          </div>
-          
-          {/* Platform Videos */}
           <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <p className="text-center mb-3 text-sm font-medium text-landing-text-muted">
-                Instant intelligence on every property
+            {/* Problem */}
+            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="bg-landing-bg/50 border border-landing-surface rounded-xl p-8">
+              <div className="flex items-center gap-2 mb-4">
+                <X className="w-5 h-5 text-red-400" />
+                <h3 className="text-xl font-bold">The Old Way</h3>
+              </div>
+              <p className="text-landing-text-muted mb-6">
+                Every expired list you chase is already cold. Tax records, pre-foreclosures, driving for dollars — everyone has them.
               </p>
-              <div className="rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
-                <video
-                  src="/videos/platform-intel.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  preload="none"
-                  className="w-full h-auto"
-                />
+              <div className="space-y-3 text-sm text-landing-text-muted">
+                {["Generic lists everyone has", "Data weeks or months stale", "No insight into seller motivation"].map((item, i) => (
+                  <div key={i} className="flex items-center gap-2"><X className="w-3.5 h-3.5 text-red-400 shrink-0" />{item}</div>
+                ))}
               </div>
             </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.15 }}
-            >
-              <p className="text-center mb-3 text-sm font-medium text-landing-text-muted">
-                See enforcement pressure mapped in real time
+
+            {/* Solution */}
+            <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="bg-landing-bg/50 border border-landing-accent/30 rounded-xl p-8 ring-1 ring-landing-accent/10">
+              <div className="flex items-center gap-2 mb-4">
+                <Check className="w-5 h-5 text-landing-accent" />
+                <h3 className="text-xl font-bold">Snap Ignite</h3>
+              </div>
+              <p className="text-landing-text-muted mb-6">
+                Full AI insights free. No subscription needed to see what's hot. Pay only when you want the address.
               </p>
-              <div className="rounded-2xl border border-landing-surface shadow-2xl overflow-hidden">
-                <video
-                  src="/videos/platform-map.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  preload="none"
-                  className="w-full h-auto"
-                />
+              <div className="space-y-3 text-sm text-landing-text-muted">
+                {["AI brief + blurred preview — free", "Active enforcement data, updated weekly", "Pay-per-lead: $5 per address or 1 credit"].map((item, i) => (
+                  <div key={i} className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-landing-accent shrink-0" />{item}</div>
+                ))}
               </div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Solution Section */}
-      <section id="features" className="py-24">
+      {/* ─── 4. How It Works (3 Steps) ────────────────────── */}
+      <section id="how-it-works" className="py-24">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center mb-16">
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold mb-4"
-            >
-              Stop Chasing Stale Data. Start Acting on Live Signals.
-            </motion.h2>
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-xl text-landing-text-muted"
-            >
-              We track the enforcement signals other platforms don't have access to.
-            </motion.p>
-          </div>
-          
-          {/* Core Features */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            {[
-              {
-                icon: Map,
-                title: "3,800+ Cities",
-                description: "Nationwide coverage across every major metro.",
-                highlight: false
-              },
-              {
-                icon: Target,
-                title: "SnapScore AI",
-                description: "Ranks every property by enforcement intensity.",
-                highlight: true
-              },
-              {
-                icon: Droplets,
-                title: "Water Shutoff Tracking",
-                description: "Hidden pressure signals unavailable anywhere else.",
-                highlight: false
-              },
-              {
-                icon: Clock,
-                title: "Updated Weekly",
-                description: "Fresh enforcement data every week.",
-                highlight: false
-              },
-              {
-                icon: Filter,
-                title: "Violation Filtering",
-                description: "Filter by type: open, vacancy, structural, and more.",
-                highlight: false
-              },
-              {
-                icon: Download,
-                title: "Export to CSV",
-                description: "Build targeted lists and export instantly.",
-                highlight: false
-              },
-              {
-                icon: Bell,
-                title: "Real-time Alerts",
-                description: "Get notified when pressure escalates on tracked properties.",
-                highlight: false
-              },
-              {
-                icon: Search,
-                title: "Scan Your List",
-                description: "Upload your own list and see which addresses have active violations.",
-                highlight: false,
-                comingSoon: true
-              }
-            ].map((feature, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
-                className={`bg-landing-surface/50 border rounded-xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(56,178,172,0.15)] ${
-                  feature.highlight ? 'border-landing-accent/50 ring-2 ring-landing-accent/20' : 'border-landing-surface'
-                }`}
-              >
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${
-                  feature.highlight ? 'bg-landing-accent/20' : 'bg-landing-accent/10'
-                }`}>
-                  <feature.icon className="w-6 h-6 text-landing-accent" />
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-lg font-bold">{feature.title}</h3>
-                  {(feature as any).comingSoon && (
-                    <span className="inline-flex items-center rounded-full bg-landing-surface px-2 py-0.5 text-[10px] font-semibold text-landing-text-muted">
-                      Coming Soon
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-landing-text-muted">{feature.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+          <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-4xl font-bold text-center mb-4">
+            How It Works
+          </motion.h2>
+          <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-xl text-landing-text-muted text-center mb-16">
+            From browsing to closing — in three steps
+          </motion.p>
 
-      {/* How It Works Section */}
-      <section id="how-it-works" className="py-24 bg-landing-surface/30">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center mb-16">
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold mb-4"
-            >
-              From Intelligence to Action in <span className="text-landing-accent">Minutes</span>
-            </motion.h2>
-          </div>
-          
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
               {
                 step: "01",
-                title: "Filter by Your Criteria",
-                description: "Select your target counties, violation types, and date range."
+                icon: Eye,
+                title: "Browse for Free",
+                description: "See map & list of distressed properties. SnapScore + AI brief + blurred address — all free.",
               },
               {
                 step: "02",
-                title: "Identify High-Priority Properties",
-                description: "SnapScore AI ranks every property by enforcement pressure. Focus on what's hot right now."
+                icon: Zap,
+                title: "Find a Hot Lead",
+                description: 'AI insight: "Water cut off. 3 violations. Owner not responding. HIGH OPPORTUNITY."',
               },
               {
                 step: "03",
-                title: "Act Before Competition",
-                description: "Export your list while the data is fresh and act on current enforcement signals."
-              }
-            ].map((step, i) => (
+                icon: Unlock,
+                title: "Unlock the Address",
+                description: "Pay $5 one-time, use a credit, or subscribe. Get full address, owner contact, and export.",
+              },
+            ].map((s, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 30 }}
@@ -568,15 +384,13 @@ export default function Landing() {
                 {i < 2 && (
                   <div className="hidden md:block absolute top-12 right-0 w-full h-0.5 bg-gradient-to-r from-landing-accent/50 to-transparent translate-x-1/2" />
                 )}
-                <div className="bg-landing-bg/50 border border-landing-surface rounded-xl p-8 relative">
-                  <div className="text-5xl font-bold text-landing-accent/20 absolute top-4 right-4">
-                    {step.step}
+                <div className="bg-landing-surface/40 border border-landing-surface rounded-xl p-8 relative hover:-translate-y-1 transition-transform duration-300">
+                  <div className="text-5xl font-bold text-landing-accent/15 absolute top-4 right-4">{s.step}</div>
+                  <div className="w-12 h-12 rounded-full bg-landing-accent flex items-center justify-center text-landing-bg mb-6">
+                    <s.icon className="w-6 h-6" />
                   </div>
-                  <div className="w-12 h-12 rounded-full bg-landing-accent flex items-center justify-center text-landing-bg font-bold text-xl mb-6">
-                    {step.step}
-                  </div>
-                  <h3 className="text-xl font-bold mb-3">{step.title}</h3>
-                  <p className="text-landing-text-muted">{step.description}</p>
+                  <h3 className="text-xl font-bold mb-3">{s.title}</h3>
+                  <p className="text-landing-text-muted">{s.description}</p>
                 </div>
               </motion.div>
             ))}
@@ -584,80 +398,49 @@ export default function Landing() {
         </div>
       </section>
 
-
-
-
-      {/* Pricing Section */}
+      {/* ─── 5. Pricing & Credit Packs ────────────────────── */}
       <section id="pricing" className="py-24 bg-landing-surface/30">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center mb-12">
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold mb-4"
-            >
-              Add Enforcement Intelligence to Your Stack
-            </motion.h2>
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-xl text-landing-text-muted mb-8"
-            >
-              No hidden fees. No per-record charges. No surprises.
-            </motion.p>
-            
-          </div>
-          
-          {/* Pricing Cards */}
+          <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-4xl font-bold text-center mb-4">
+            Simple, Transparent Pricing
+          </motion.h2>
+          <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-xl text-landing-text-muted text-center mb-16">
+            Browse free. Subscribe for the best value — or pay as you go.
+          </motion.p>
+
+          {/* Subscription tiers */}
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
             {[
               {
                 name: "Starter",
-                price: pricing.starter[billingCycle],
-                description: "Built for operators who want enforcement intelligence without the noise.",
-                features: [
-                  "5,000 exports/month",
-                  "3,800+ cities",
-                  "Code violation data",
-                  "Basic filters",
-                  "Monthly data refresh"
-                ],
-                scanLine: "Scan your own list (10,000 rows)",
-                tagline: undefined,
+                price: 49,
+                unlocks: "20/mo",
+                exports: "Included",
+                note: "Casual investors",
+                features: ["20 unlocks/month", "Export included", "3,800+ cities", "Code violation data", "AI investor briefs"],
                 highlighted: false,
-                badge: undefined
+                badge: undefined,
               },
               {
                 name: "Pro",
-                price: pricing.professional[billingCycle],
-                description: "For serious operators stacking enforcement data",
-                features: [
-                  "15,000 exports/month",
-                  "All Starter features",
-                  "Pressure Level™ filters"
-                ],
-                scanLine: "Scan your own list (25,000 rows)",
-                tagline: undefined,
+                price: 99,
+                unlocks: "50/mo",
+                exports: "+ Skip trace credits",
+                note: "Active deal finders",
+                features: ["50 unlocks/month", "All Starter features", "Pressure Level™ filters", "Skip trace credits", "Priority data refresh"],
                 highlighted: true,
-                badge: "Most Popular"
+                badge: "Best Value",
               },
               {
                 name: "Elite",
-                price: pricing.enterprise[billingCycle],
-                description: "For teams running enforcement-first strategies.",
-                features: [
-                  "25,000 exports/month",
-                  "All Pro features",
-                  "Water shutoff data",
-                ],
-                scanLine: "Scan your own list (50,000 rows)",
-                tagline: undefined,
+                price: 199,
+                unlocks: "Unlimited (soft 500)",
+                exports: "Priority support",
+                note: "Teams / power users",
+                features: ["Unlimited unlocks (soft 500)", "All Pro features", "Water shutoff data", "Priority support", "Team seats"],
                 highlighted: false,
-                isElite: true
-              }
+                badge: undefined,
+              },
             ].map((plan, i) => (
               <motion.div
                 key={i}
@@ -666,9 +449,9 @@ export default function Landing() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
                 className={`relative rounded-xl p-8 ${
-                  plan.highlighted 
-                    ? 'bg-landing-bg border-2 border-landing-accent shadow-lg shadow-landing-accent/20 scale-105' 
-                    : 'bg-landing-bg/50 border border-landing-surface'
+                  plan.highlighted
+                    ? "bg-landing-bg border-2 border-landing-accent shadow-lg shadow-landing-accent/20 md:scale-105"
+                    : "bg-landing-bg/50 border border-landing-surface"
                 }`}
               >
                 {plan.badge && (
@@ -676,219 +459,275 @@ export default function Landing() {
                     {plan.badge}
                   </div>
                 )}
-                
                 <div className="text-center mb-6">
                   <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                  <div className="mb-2">
+                  <div className="mb-1">
                     <span className="text-4xl font-bold">${plan.price}</span>
-                    <span className="text-landing-text-muted">/month</span>
+                    <span className="text-landing-text-muted">/mo</span>
                   </div>
-                  <p className="text-landing-text-muted mt-2">{plan.description}</p>
-                  {plan.tagline && plan.name !== "Starter" && (
-                    <p className="text-xs text-landing-accent mt-2 font-medium italic">{plan.tagline}</p>
-                  )}
+                  <p className="text-sm text-landing-text-muted">{plan.note}</p>
                 </div>
-                
                 <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature, j) => (
+                  {plan.features.map((f, j) => (
                     <li key={j} className="flex items-start gap-2 text-sm">
-                      <Check className="w-4 h-4 text-landing-accent flex-shrink-0 mt-0.5" />
-                      <span>{feature}</span>
+                      <Check className="w-4 h-4 text-landing-accent shrink-0 mt-0.5" />
+                      <span>{f}</span>
                     </li>
                   ))}
-                  {(plan as any).scanLine && (
-                    <li className="flex items-start gap-2 text-sm opacity-60">
-                      <Sparkles className="w-4 h-4 text-landing-text-muted flex-shrink-0 mt-0.5" />
-                      <span className="text-landing-text-muted">
-                        {(plan as any).scanLine}
-                        <span className="ml-1.5 inline-flex items-center rounded-full bg-landing-surface px-2 py-0.5 text-[10px] font-semibold text-landing-text-muted leading-none whitespace-nowrap align-middle">
-                          Coming Soon
-                        </span>
-                      </span>
-                    </li>
-                  )}
                 </ul>
-                
                 <Button
-                  onClick={() => scrollToSection('waitlist')}
+                  onClick={() => scrollToSection("waitlist")}
                   className={`w-full ${
-                    plan.highlighted 
-                      ? 'bg-landing-accent hover:bg-landing-accent/90 text-landing-bg' 
-                      : 'bg-landing-surface hover:bg-landing-surface/80 text-landing-text border border-landing-surface'
+                    plan.highlighted
+                      ? "bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
+                      : "bg-landing-surface hover:bg-landing-surface/80 text-landing-text border border-landing-surface"
                   }`}
                 >
-                  Join Waitlist
+                  Subscribe
                 </Button>
-                <p className="text-xs text-center text-landing-text-muted mt-2">
-                  Pricing starts at ${plan.price}/month
-                </p>
               </motion.div>
             ))}
           </div>
-          
-          {/* Money-Back Guarantee */}
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center text-landing-text-muted mt-8"
-          >
-            Not seeing value in the first 30 days? We'll refund your first month, no questions asked.
-          </motion.p>
-        </div>
-      </section>
 
-      {/* Coming Soon: Scan */}
-      <ListEnrichmentTeaser />
-
-
-      {/* Data Credibility Section */}
-      <section className="py-16 bg-landing-bg">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="max-w-3xl mx-auto text-center p-10 bg-landing-surface/40 border border-landing-surface rounded-xl"
-          >
-            <p className="text-2xl font-semibold text-landing-text mb-3">Built on data most platforms can't access.</p>
-            <p className="text-lg text-landing-text-muted">Proprietary sourcing. Updated weekly. No recycled records.</p>
+          {/* Credit Packs */}
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="max-w-3xl mx-auto">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold mb-2">Prefer Pay-As-You-Go?</h3>
+              <p className="text-landing-text-muted">Buy credits and unlock only what you need. Credits never expire.</p>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { credits: 20, price: 59 },
+                { credits: 50, price: 129 },
+                { credits: 200, price: 399 },
+              ].map((pack, i) => (
+                <motion.div
+                  key={i}
+                  whileHover={{ scale: 1.03 }}
+                  className="bg-landing-bg/50 border border-landing-surface rounded-xl p-6 text-center cursor-pointer hover:border-landing-accent/50 transition-colors"
+                >
+                  <p className="text-3xl font-bold text-landing-accent mb-1">{pack.credits}</p>
+                  <p className="text-sm text-landing-text-muted mb-2">credits</p>
+                  <p className="text-xl font-bold">${pack.price}</p>
+                  <p className="text-xs text-landing-text-muted mt-1">
+                    ${(pack.price / pack.credits).toFixed(2)}/credit
+                  </p>
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
         </div>
       </section>
 
-
-
-
-      {/* Testimonials Section */}
-      <section className="py-24 bg-landing-surface/30">
+      {/* ─── 6. Features Grid ─────────────────────────────── */}
+      <section id="features" className="py-24">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center mb-16">
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold mb-4"
-            >
-              What Operators Are Saying
-            </motion.h2>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-12">
+          <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-4xl font-bold text-center mb-4">
+            Everything You Need to Find Deals Faster
+          </motion.h2>
+          <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-xl text-landing-text-muted text-center mb-16">
+            Bold benefits. Not feature fluff.
+          </motion.p>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {[
-              {
-                initials: "JM",
-                name: "Jake M.",
-                role: "Wholesaler, Phoenix AZ",
-                quote: "The SnapScore ranking changed how I prioritize my week. I work a smaller list now and get better results because every property has an active enforcement case behind it.",
-                result: "3 contracts in 6 weeks"
-              },
-              {
-                initials: "SR",
-                name: "Sarah R.",
-                role: "Acquisition Manager, Southeast Portfolio",
-                quote: "We're seeing enforcement escalation patterns 4-6 weeks before they show up anywhere else. That timing window is where we find our edge.",
-                result: "40% improvement in contact-to-contract rate"
-              },
-              {
-                initials: "MT",
-                name: "Marcus T.",
-                role: "Fix & Flip Operator, Dallas-Fort Worth",
-                quote: "Water shutoff data alone flagged properties in my market that had zero visibility anywhere else. That's a real intelligence advantage.",
-                result: "First deal paid for 2 years of subscription"
-              }
-            ].map((testimonial, i) => (
+              { icon: Sparkles, title: "AI Investor Briefs", desc: "2-sentence plain-English analysis on every property.", highlight: true },
+              { icon: Eye, title: "Blurred Address Preview", desc: "See the insight before paying. Street name, score, AI brief — free." },
+              { icon: DollarSign, title: "Pay-Per-Unlock", desc: "$5 per lead, no commitment. Only pay for what you use." },
+              { icon: CreditCard, title: "Credit Packs", desc: "Buy in bulk. Credits never expire. Best per-lead cost." },
+              { icon: TrendingUp, title: "Subscriptions", desc: "Unlock more, pay less. Best value for regular users." },
+              { icon: Search, title: "Scan Your List", desc: "Upload addresses, get AI insights + SnapScore back.", comingSoon: true },
+              { icon: Bell, title: "Real-Time Notifications", desc: "Alerts when new violations hit saved properties." },
+              { icon: Download, title: "CSV Export", desc: "Build targeted lists and export instantly." },
+            ].map((f, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-landing-surface/50 border border-landing-surface rounded-xl p-8"
+                transition={{ delay: i * 0.05 }}
+                className={`bg-landing-surface/50 border rounded-xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(56,178,172,0.15)] ${
+                  (f as any).highlight ? "border-landing-accent/50 ring-2 ring-landing-accent/20" : "border-landing-surface"
+                }`}
               >
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-full bg-landing-accent/20 flex items-center justify-center text-landing-accent font-bold">
-                    {testimonial.initials}
-                  </div>
-                  <div>
-                    <div className="font-semibold">{testimonial.name}</div>
-                    <div className="text-sm text-landing-text-muted">{testimonial.role}</div>
-                  </div>
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${(f as any).highlight ? "bg-landing-accent/20" : "bg-landing-accent/10"}`}>
+                  <f.icon className="w-6 h-6 text-landing-accent" />
                 </div>
-                <blockquote className="text-landing-text-muted mb-4 italic">
-                  "{testimonial.quote}"
-                </blockquote>
-                <div className="text-landing-accent font-semibold text-sm">
-                  {testimonial.result}
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-lg font-bold">{f.title}</h3>
+                  {(f as any).comingSoon && (
+                    <span className="inline-flex items-center rounded-full bg-landing-surface px-2 py-0.5 text-[10px] font-semibold text-landing-text-muted">Coming Soon</span>
+                  )}
                 </div>
+                <p className="text-sm text-landing-text-muted">{f.desc}</p>
               </motion.div>
             ))}
           </div>
-          
         </div>
       </section>
 
-      {/* FAQ Section */}
+      {/* ─── 7. Social Proof Carousel ─────────────────────── */}
+      <section className="py-24 bg-landing-surface/30">
+        <div className="container mx-auto px-4">
+          <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-4xl font-bold text-center mb-16">
+            What Investors Are Saying
+          </motion.h2>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {[
+              {
+                initials: "JM", name: "Jake M.", role: "Wholesaler, Phoenix AZ",
+                quote: "The SnapScore ranking changed how I prioritize my week. I work a smaller list and get better results because every property has an active enforcement case behind it.",
+                result: "3 contracts in 6 weeks",
+              },
+              {
+                initials: "SR", name: "Sarah R.", role: "Acquisition Manager, Southeast Portfolio",
+                quote: "We're seeing enforcement escalation patterns 4-6 weeks before they show up anywhere else. That timing window is where we find our edge.",
+                result: "40% improvement in contact-to-contract rate",
+              },
+              {
+                initials: "MT", name: "Marcus T.", role: "Fix & Flip Operator, Dallas-Fort Worth",
+                quote: "Water shutoff data alone flagged properties in my market that had zero visibility anywhere else. That's a real intelligence advantage.",
+                result: "First deal paid for 2 years of subscription",
+              },
+            ].map((t, i) => (
+              <motion.div key={i} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="bg-landing-surface/50 border border-landing-surface rounded-xl p-8">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-landing-accent/20 flex items-center justify-center text-landing-accent font-bold">{t.initials}</div>
+                  <div>
+                    <div className="font-semibold">{t.name}</div>
+                    <div className="text-sm text-landing-text-muted">{t.role}</div>
+                  </div>
+                </div>
+                <blockquote className="text-landing-text-muted mb-4 italic">"{t.quote}"</blockquote>
+                <div className="text-landing-accent font-semibold text-sm">{t.result}</div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Social proof stat */}
+          <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="text-center text-landing-text-muted text-sm mt-10">
+            <span className="text-landing-accent font-semibold"><AnimatedCounter end={347} /></span> addresses unlocked this week
+          </motion.p>
+        </div>
+      </section>
+
+      {/* ─── 8. Map Preview ───────────────────────────────── */}
+      <section className="py-24">
+        <div className="container mx-auto px-4">
+          <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-4xl font-bold text-center mb-4">
+            See Enforcement Pressure on the Map
+          </motion.h2>
+          <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-xl text-landing-text-muted text-center mb-12">
+            Blurred pins show approximate location. Unlock to reveal exact address.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="max-w-4xl mx-auto bg-landing-surface/40 border border-landing-surface rounded-2xl overflow-hidden relative"
+          >
+            {/* Simulated map */}
+            <div className="aspect-[16/9] bg-gradient-to-br from-landing-primary/40 via-landing-surface/60 to-landing-bg relative">
+              {/* Fake map pins */}
+              {[
+                { top: "25%", left: "30%", score: 92 },
+                { top: "40%", left: "55%", score: 78 },
+                { top: "60%", left: "35%", score: 65 },
+                { top: "35%", left: "70%", score: 87 },
+                { top: "55%", left: "60%", score: 71 },
+                { top: "20%", left: "50%", score: 95 },
+              ].map((pin, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ scale: 0 }}
+                  whileInView={{ scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.3 + i * 0.1 }}
+                  className="absolute"
+                  style={{ top: pin.top, left: pin.left }}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-landing-bg border-2 border-landing-bg/50 shadow-lg cursor-pointer ${
+                    pin.score >= 80 ? "bg-red-500" : pin.score >= 60 ? "bg-landing-warning" : "bg-landing-accent"
+                  }`}>
+                    {pin.score}
+                  </div>
+                  <div className="w-8 h-8 rounded-full absolute inset-0 animate-ping opacity-20 bg-landing-accent" />
+                </motion.div>
+              ))}
+
+              {/* CTA overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent flex items-end justify-center pb-8">
+                <Button
+                  onClick={() => scrollToSection("waitlist")}
+                  className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold shadow-xl"
+                >
+                  <MapPin className="w-4 h-4 mr-2" /> Reveal Full Addresses — $5 or 1 Credit
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="text-center text-landing-text-muted text-sm mt-4">
+            <span className="text-landing-accent font-semibold">42</span> investors unlocked addresses today
+          </motion.p>
+        </div>
+      </section>
+
+      {/* ─── 9. Waitlist CTA ──────────────────────────────── */}
+      <section id="waitlist" className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-t from-landing-accent/10 to-transparent" />
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-3xl mx-auto text-center">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-sm font-medium mb-6">
+              <Lock className="w-4 h-4" />
+              Private Beta — Limited Spots
+            </motion.div>
+
+            <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-5xl font-bold mb-4">
+              Private beta open — limited spots available
+            </motion.h2>
+
+            <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-lg text-landing-text-muted mb-3 max-w-2xl mx-auto">
+              Join the waitlist to get early access to Snap Ignite's pay-per-lead model.
+            </motion.p>
+            <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }} className="text-sm text-landing-text-muted mb-10">
+              No credit card required. We'll notify you when you're in.
+            </motion.p>
+
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="max-w-xl mx-auto">
+              <WaitlistForm />
+            </motion.div>
+
+            <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="text-landing-text-muted text-sm mt-6">
+              Beta members get first look at new city expansions and exclusive discounts.
+            </motion.p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── 🔟 FAQ ───────────────────────────────────────── */}
       <section id="faq" className="py-24 bg-landing-surface/30">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold text-center mb-12"
-            >
+            <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-4xl font-bold text-center mb-12">
               Frequently Asked Questions
             </motion.h2>
-            
+
             <Accordion type="single" collapsible className="space-y-4">
               {[
-                {
-                  question: "Do I need PropStream to use Snap Ignite?",
-                  answer: "No. Snap Ignite is a standalone enforcement intelligence platform. Many users also use PropStream or BatchLeads for ownership and equity data, and Snap fits naturally into that workflow — but it is not required."
-                },
-                {
-                  question: "What cities do you cover?",
-                  answer: "3,800+ cities across the United States. Coverage is expanding monthly."
-                },
-                {
-                  question: "How fresh is the data?",
-                  answer: "Updated weekly. You're working with current enforcement signals — not records that are days or weeks stale by the time other platforms deliver them."
-                },
-                {
-                  question: "Do you include owner contact information?",
-                  answer: "Snap Ignite focuses on enforcement intelligence, not contact data. Basic ownership records are available where public. For skip tracing, we recommend pairing Snap with a dedicated service — we build the signal layer, not the outreach layer."
-                },
-                {
-                  question: "Can I cancel anytime?",
-                  answer: "Yes — all plans are month-to-month and can be cancelled anytime. No contracts, no cancellation fees."
-                },
-                {
-                  question: "Is there a free trial?",
-                  answer: "Yes! Start a 3-day free trial — $0 due today. Enter your payment method at checkout and get 500 property exports to test data quality in your markets. Search unlimited properties, save favorites, and access all features for your selected tier. After 3 days your subscription begins automatically, or cancel anytime before then."
-                },
-                {
-                  question: "What is Scan?",
-                  answer: "Scan lets you bring your own property list and run it through our enforcement database. Instead of searching one address at a time, upload a CSV and we'll flag every property with active violations, escalating fines, or city action — plus a SnapScore for each one."
-                }
+                { q: "Do I need a subscription to use Snap?", a: "No. Browse insights free. Pay only for addresses you want to unlock." },
+                { q: "How does the free tier work?", a: "AI insights, SnapScore, and blurred address previews are always free. You get 3 free unlocks to try it out. After that, pay $5 per unlock, buy a credit pack, or subscribe." },
+                { q: "What happens when I unlock a property?", a: "You get the full street address, owner contact information (where available), and the ability to export or save the lead." },
+                { q: "How do credits work?", a: "One-time purchase, never expire. 1 credit = 1 unlock. Buy packs of 20, 50, or 200." },
+                { q: "Can I cancel anytime?", a: "Yes — all plans are month-to-month. No contracts, no cancellation fees." },
+                { q: "I only do 1–2 deals/month. Should I subscribe?", a: "Not necessarily. Just buy individual unlocks at $5 each or grab a small credit pack. Subscribe when volume makes it worth it." },
               ].map((faq, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <AccordionItem 
-                    value={`item-${i}`} 
-                    className="bg-landing-bg/50 border border-landing-surface rounded-lg px-6 data-[state=open]:border-landing-accent/50"
-                  >
-                    <AccordionTrigger className="text-left font-semibold hover:text-landing-accent py-6">
-                      {faq.question}
-                    </AccordionTrigger>
-                    <AccordionContent className="text-landing-text-muted pb-6">
-                      {faq.answer}
-                    </AccordionContent>
+                <motion.div key={i} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}>
+                  <AccordionItem value={`item-${i}`} className="bg-landing-bg/50 border border-landing-surface rounded-lg px-6 data-[state=open]:border-landing-accent/50">
+                    <AccordionTrigger className="text-left font-semibold hover:text-landing-accent py-6">{faq.q}</AccordionTrigger>
+                    <AccordionContent className="text-landing-text-muted pb-6">{faq.a}</AccordionContent>
                   </AccordionItem>
                 </motion.div>
               ))}
@@ -897,74 +736,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Waitlist Section */}
-      <section id="waitlist" className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-landing-accent/10 to-transparent" />
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-3xl mx-auto text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-sm font-medium mb-6"
-            >
-              <Lock className="w-4 h-4" />
-              Private Beta
-            </motion.div>
-            
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-5xl font-bold mb-6"
-            >
-              Get Early Access to Snap Ignite
-            </motion.h2>
-            
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-lg text-landing-text-muted mb-4 max-w-2xl mx-auto"
-            >
-              Snap is currently in a private beta and we've reached capacity for active users while we make improvements.
-            </motion.p>
-            
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.15 }}
-              className="text-lg text-landing-text-muted mb-10 max-w-2xl mx-auto"
-            >
-              We're opening a waitlist for the next wave. Join below to get early access when new spots open.
-            </motion.p>
-            
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="max-w-xl mx-auto"
-            >
-              <WaitlistForm />
-            </motion.div>
-            
-            <motion.p 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.4 }}
-              className="text-landing-text-muted mt-8"
-            >
-              Questions? Email us at <a href="mailto:hello@snapignite.com" className="text-landing-accent hover:underline">hello@snapignite.com</a>
-            </motion.p>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
+      {/* ─── Footer ───────────────────────────────────────── */}
       <footer className="py-12 border-t border-landing-surface bg-landing-bg">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
@@ -974,28 +746,25 @@ export default function Landing() {
                 <span className="text-landing-text"> IGNITE</span>
               </span>
               <p className="text-landing-text-muted text-sm mt-4">
-                The enforcement data layer serious operators use before the market catches up.
+                The enforcement intelligence platform for serious real estate investors.
               </p>
             </div>
-            
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-sm text-landing-text-muted">
-                <li><button onClick={() => scrollToSection('features')} className="hover:text-landing-text transition">Features</button></li>
-                <li><button onClick={() => scrollToSection('pricing')} className="hover:text-landing-text transition">Pricing</button></li>
-                <li><button onClick={() => scrollToSection('faq')} className="hover:text-landing-text transition">FAQ</button></li>
+                <li><button onClick={() => scrollToSection("features")} className="hover:text-landing-text transition">Features</button></li>
+                <li><button onClick={() => scrollToSection("pricing")} className="hover:text-landing-text transition">Pricing</button></li>
+                <li><button onClick={() => scrollToSection("faq")} className="hover:text-landing-text transition">FAQ</button></li>
               </ul>
             </div>
-            
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-landing-text-muted">
-              <li><a href="/about" className="hover:text-landing-text transition">About</a></li>
+                <li><a href="/about" className="hover:text-landing-text transition">About</a></li>
                 <li><a href="mailto:hello@snapignite.com" className="hover:text-landing-text transition">Contact</a></li>
                 <li><a href="/blog" className="hover:text-landing-text transition">Blog</a></li>
               </ul>
             </div>
-            
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-sm text-landing-text-muted">
@@ -1004,34 +773,22 @@ export default function Landing() {
               </ul>
             </div>
           </div>
-          
           <div className="pt-8 border-t border-landing-surface flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
-              <p className="text-landing-text-muted text-sm">
-                © 2026 Snap Ignite. All rights reserved.
-              </p>
-              <p className="text-landing-text-muted text-xs mt-1">
-                Snap Intelligence LLC · 1621 Central Ave, Cheyenne, WY 82001
-              </p>
+              <p className="text-landing-text-muted text-sm">© 2026 Snap Ignite. All rights reserved.</p>
+              <p className="text-landing-text-muted text-xs mt-1">Snap Intelligence LLC · 1621 Central Ave, Cheyenne, WY 82001</p>
             </div>
             <div className="flex items-center gap-4">
               <Link to="/auth">
-                <Button variant="ghost" size="sm" className="text-landing-text-muted hover:text-landing-text">
-                  Sign In
-                </Button>
+                <Button variant="ghost" size="sm" className="text-landing-text-muted hover:text-landing-text">Sign In</Button>
               </Link>
-              <Button 
-                size="sm"
-                onClick={() => scrollToSection('waitlist')}
-                className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
-              >
+              <Button size="sm" onClick={() => scrollToSection("waitlist")} className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">
                 Join Waitlist
               </Button>
             </div>
           </div>
         </div>
       </footer>
-
     </div>
   );
 }

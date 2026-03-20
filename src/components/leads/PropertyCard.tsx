@@ -6,6 +6,7 @@ import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
 import { AlertTriangle, Flame, Clock, Lock } from "lucide-react";
 import { SaveHeartButton } from "./SaveHeartButton";
+import { ScarcityBadge } from "./ScarcityBadge";
 import { formatDistanceToNow } from "date-fns";
 
 interface Violation {

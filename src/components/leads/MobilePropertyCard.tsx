@@ -2,10 +2,11 @@ import { useState, memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, AlertTriangle, Flame } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, Flame, Lock } from "lucide-react";
 import { SaveHeartButton } from "./SaveHeartButton";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
 
 interface Violation {
   id: string;

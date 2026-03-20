@@ -657,6 +657,7 @@ function Leads() {
   // Fetch violations for all properties (enables instant PropertyDetailPanel)
   // Memoize propertyIds to prevent query cache invalidation on every render
   const propertyIds = useMemo(() => properties.map((p) => p.id), [properties]);
+  const { unlockedSet, invalidate: invalidateUnlocks } = useUnlockedProperties(propertyIds);
   const { data: violationsData = [], error: violationsError } = useQuery({
     queryKey: ["violations-for-properties", propertyIds],
     enabled: propertyIds.length > 0,

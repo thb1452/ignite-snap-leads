@@ -259,13 +259,13 @@ function Leads() {
 
   const handlePropertyClick = useCallback((id: string) => {
     // Check view limit for free users before showing details
-    if (limitReached && !hasActiveSubscription && !unlockedSet.has(id)) {
+    if (limitReached && !hasActiveSubscription) {
       setViewLimitModalOpen(true);
       return;
     }
     recordView();
     setSelectedPropertyId(id);
-  }, [limitReached, hasActiveSubscription, unlockedSet, recordView]);
+  }, [limitReached, hasActiveSubscription, recordView]);
 
   const handleClearFilters = useCallback(() => {
     setSearchInput("");

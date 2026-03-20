@@ -1048,6 +1048,11 @@ function Leads() {
                   onPropertyClick={handlePropertyClick}
                   savedSet={savedSet}
                   onToggleSaved={toggleSaved}
+                  unlockedSet={unlockedSet}
+                  onUnlock={(id) => {
+                    const prop = mappedProperties.find(p => p.id === id);
+                    if (prop) setUnlockModalProperty(prop);
+                  }}
                 />
               )}
             </div>

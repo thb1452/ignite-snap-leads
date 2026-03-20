@@ -1344,6 +1344,13 @@ function Leads() {
           />
         )}
 
+        {/* Bulk Unlock Bar - shows when locked properties are selected */}
+        <BulkUnlockBar
+          selectedIds={selectedIds}
+          unlockedSet={unlockedSet}
+          onUnlocked={invalidateUnlocks}
+        />
+
         {/* Page Change Warning Dialog */}
         <AlertDialog open={pendingPage !== null} onOpenChange={(open) => !open && cancelPageChange()}>
           <AlertDialogContent>

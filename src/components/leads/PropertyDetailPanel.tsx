@@ -66,6 +66,8 @@ interface PropertyDetailPanelProps {
   property: PropertyWithViolations | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  isUnlocked?: boolean;
+  onUnlock?: (propertyId: string) => void;
 }
 
 export function PropertyDetailPanel({ property, open, onOpenChange }: PropertyDetailPanelProps) {

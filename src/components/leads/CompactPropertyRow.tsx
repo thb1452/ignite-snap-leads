@@ -8,6 +8,8 @@ interface CompactPropertyRowProps {
   property: {
     id: string;
     address: string;
+    street_number?: string | null;
+    street_name?: string | null;
     city: string;
     state: string;
     zip: string;
@@ -21,6 +23,7 @@ interface CompactPropertyRowProps {
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onClick: () => void;
+  isUnlocked?: boolean;
 }
 
 export function CompactPropertyRow({

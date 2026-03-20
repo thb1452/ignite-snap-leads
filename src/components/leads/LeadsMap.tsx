@@ -31,6 +31,7 @@ interface LeadsMapProps {
   filters?: LeadFilters;
   onPropertyClick?: (propertyId: string) => void;
   selectedPropertyId?: string;
+  unlockedSet?: Set<string>;
   // Legacy props for backwards compatibility - will be ignored if filters is provided
   properties?: { id: string; latitude: number | null; longitude: number | null; snap_score: number | null; address: string; }[];
 }

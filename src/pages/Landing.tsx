@@ -480,16 +480,17 @@ export default function Landing() {
                     </li>
                   ))}
                 </ul>
-                <Button
-                  onClick={() => scrollToSection("waitlist")}
-                  className={`w-full ${
-                    plan.highlighted
-                      ? "bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
-                      : "bg-landing-surface hover:bg-landing-surface/80 text-landing-text border border-landing-surface"
-                  }`}
-                >
-                  Subscribe
-                </Button>
+                <Link to="/auth">
+                  <Button
+                    className={`w-full ${
+                      plan.highlighted
+                        ? "bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
+                        : "bg-landing-surface hover:bg-landing-surface/80 text-landing-text border border-landing-surface"
+                    }`}
+                  >
+                    Subscribe
+                  </Button>
+                </Link>
               </motion.div>
             ))}
           </div>

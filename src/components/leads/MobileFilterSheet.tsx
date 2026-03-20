@@ -8,6 +8,7 @@ import { SlidersHorizontal, X, ListPlus, Home, Info, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useQuery } from "@tanstack/react-query";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import type { SortOption } from "./SortByDropdown";
@@ -75,12 +76,13 @@ export function MobileFilterSheet({
 
   // Subscription gating
   const { subscription } = useSubscription();
+  const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const planName = subscription?.plan_name;
   const isProOrHigher = planName === 'professional' || planName === 'enterprise';
-  const isEnterprise = planName === 'enterprise';
+  const isEnterprise = isAdmin || planName === 'enterprise';
 
   const isLockedCategory = (categoryId: string) => {
     return ENTERPRISE_ONLY_CATEGORIES.includes(categoryId) && !isEnterprise;

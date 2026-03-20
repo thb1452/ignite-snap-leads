@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { Home, Lock } from "lucide-react";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
+import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,10 +25,11 @@ export function EnforcementSignalsFilter({
   selectedCity,
 }: EnforcementSignalsFilterProps) {
   const { hasFeature } = useFeatureAccess();
+  const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const hasEscalationAlerts = hasFeature('escalation_alerts');
+  const hasEscalationAlerts = isAdmin || hasFeature('escalation_alerts');
 
   // Fetch property counts by category using the new RPC
   // This returns accurate counts of unique properties per category

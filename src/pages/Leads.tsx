@@ -1214,6 +1214,11 @@ function Leads() {
             property={selectedPropertyWithFetched}
             open={true}
             onOpenChange={(open) => !open && setSelectedPropertyId(null)}
+            isUnlocked={selectedPropertyWithFetched ? unlockedSet.has(selectedPropertyWithFetched.id) : true}
+            onUnlock={(id) => {
+              const prop = mappedProperties.find(p => p.id === id);
+              if (prop) setUnlockModalProperty(prop);
+            }}
           />
         )}
 

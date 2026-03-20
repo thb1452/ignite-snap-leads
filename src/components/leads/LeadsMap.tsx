@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Map as MapIcon, Flame, Loader2 } from "lucide-react";
 import { useViewportMarkers, type MapBounds } from "@/hooks/useViewportMarkers";
 import { supabase } from "@/integrations/supabase/externalClient";
+import { jitterCoords } from "@/utils/jitterCoords";
 import type { LeadFilters } from "@/schemas";
 
 // USA center coordinates and default zoom - defined outside component
@@ -30,11 +31,12 @@ interface LeadsMapProps {
   filters?: LeadFilters;
   onPropertyClick?: (propertyId: string) => void;
   selectedPropertyId?: string;
+  unlockedSet?: Set<string>;
   // Legacy props for backwards compatibility - will be ignored if filters is provided
   properties?: { id: string; latitude: number | null; longitude: number | null; snap_score: number | null; address: string; }[];
 }
 
-const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId }: LeadsMapProps) => {
+const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId, unlockedSet }: LeadsMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.CircleMarker[]>([]);
@@ -201,10 +203,18 @@ const LeadsMapInner = ({ filters = {}, onPropertyClick, selectedPropertyId }: Le
         const slice = markers.slice(i, end);
 
         for (const property of slice) {
-          const lat = property.latitude;
-          const lng = property.longitude;
+          let lat = property.latitude;
+          let lng = property.longitude;
           if (lat == null || lng == null) continue;
           if (Number.isNaN(lat) || Number.isNaN(lng)) continue;
+
+          // Jitter coordinates for non-unlocked properties
+          const isUnlocked = unlockedSet?.has(property.id) ?? false;
+          if (!isUnlocked) {
+            const jittered = jitterCoords(lat, lng, property.id);
+            lat = jittered.lat;
+            lng = jittered.lng;
+          }
 
           markersIndexRef.current.set(property.id, { latitude: lat, longitude: lng });
 

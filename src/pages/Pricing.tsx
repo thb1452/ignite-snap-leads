@@ -44,13 +44,14 @@ const PRICING_TIERS: PricingTier[] = [
     id: 'starter',
     name: 'starter',
     display_name: 'Starter',
-    price_monthly_cents: 7900,
+    price_monthly_cents: 5900,
     
     description: 'For investors who want premium enforcement targeting',
     features: [
       '5,000 exports/month',
       'Code violation data',
       'Basic filters',
+      '3 free unlocks included',
     ],
     scanLine: 'Scan your own list — see which have active violations (10,000 rows/month)',
     scanDisabled: false,
@@ -62,13 +63,14 @@ const PRICING_TIERS: PricingTier[] = [
     id: 'professional',
     name: 'professional',
     display_name: 'Pro',
-    price_monthly_cents: 14900,
+    price_monthly_cents: 12900,
 
     description: 'For serious operators stacking enforcement data',
     features: [
       '15,000 exports/month',
       'All Starter features',
       'Pressure Level™ filters',
+      '10 free unlocks/month',
     ],
     scanLine: 'Scan your own list — see which have active violations (25,000 rows/month)',
     scanDisabled: false,
@@ -79,13 +81,14 @@ const PRICING_TIERS: PricingTier[] = [
     id: 'enterprise',
     name: 'enterprise',
     display_name: 'Elite',
-    price_monthly_cents: 29900,
+    price_monthly_cents: 39900,
 
     description: 'For teams running enforcement-first strategies.',
     features: [
       '25,000 exports/month',
       'All Pro features',
       'Water shutoff data',
+      'Unlimited unlocks',
     ],
     scanLine: 'Scan your own list — see which have active violations (50,000 rows/month)',
     scanDisabled: false,
@@ -391,7 +394,7 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      <SEOHead title="Pricing — Plans from $79/mo | Snap Ignite" description="Choose your Snap Ignite plan. Starter ($79/mo), Professional ($149/mo), or Enterprise ($299/mo). All plans include 3,800+ cities, code violation data, and enforcement scoring. Start with a free trial." canonical="https://snapignite.com/pricing" />
+      <SEOHead title="Pricing — Plans from $59/mo | Snap Ignite" description="Choose your Snap Ignite plan. Starter ($59/mo), Professional ($129/mo), or Enterprise ($399/mo). All plans include 3,800+ cities, code violation data, and enforcement scoring. Start with a free trial." canonical="https://snapignite.com/pricing" />
       {/* Signed-in user banner */}
       {user && (
         <div className="bg-blue-50 dark:bg-blue-950/50 border-b border-blue-200 dark:border-blue-800">
@@ -533,7 +536,71 @@ export default function Pricing() {
           {orderedTiers.map((tier) => renderPlanCard(tier, isCurrentPlan(tier.name)))}
         </div>
 
-        {/* Water Shutoff Value Prop */}
+        {/* Credit Packs Section */}
+        <div className="max-w-4xl mx-auto mb-16">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold">Need More Unlocks?</h2>
+            <p className="text-muted-foreground mt-1">
+              Buy credit packs to unlock full property details — address, contacts, and exact location.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              { credits: 500, price: 50, label: "Starter Pack" },
+              { credits: 1200, price: 100, label: "Pro Pack", popular: true },
+              { credits: 3000, price: 225, label: "Bulk Pack" },
+            ].map((pack) => (
+              <Card
+                key={pack.credits}
+                className={`text-center transition-all hover:shadow-lg ${
+                  pack.popular ? "border-primary border-2 shadow-md" : ""
+                }`}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">{pack.label}</CardTitle>
+                  <CardDescription>
+                    {pack.credits.toLocaleString()} credits
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="text-3xl font-bold">${pack.price}</div>
+                  <p className="text-xs text-muted-foreground">
+                    ${(pack.price / pack.credits * 100).toFixed(0)}¢ per unlock
+                  </p>
+                  <Button
+                    variant={pack.popular ? "default" : "outline"}
+                    className="w-full"
+                    onClick={async () => {
+                      setUpgradingTier(`pack-${pack.credits}`);
+                      try {
+                        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                          body: { checkout_type: 'credit_pack', credit_tier: pack.credits === 500 ? 'starter' : pack.credits === 1200 ? 'pro' : 'bulk' },
+                        });
+                        if (error) throw error;
+                        const url = data?.url || data?.checkout_url;
+                        if (url) window.location.assign(url);
+                      } catch (err: any) {
+                        toast({ title: 'Error', description: err.message, variant: 'destructive' });
+                      } finally {
+                        setUpgradingTier(null);
+                      }
+                    }}
+                    disabled={upgradingTier === `pack-${pack.credits}`}
+                  >
+                    {upgradingTier === `pack-${pack.credits}` ? (
+                      <><Loader2 className="mr-2 w-4 h-4 animate-spin" /> Processing…</>
+                    ) : (
+                      `Buy ${pack.credits.toLocaleString()} Credits`
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p className="text-center text-xs text-muted-foreground mt-4">
+            Credits never expire. Each unlock reveals the full address, owner contacts, and exact map pin.
+          </p>
+        </div>
         <div className="max-w-3xl mx-auto mb-16">
           <Card className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/20 dark:to-blue-950/20 border-cyan-200 dark:border-cyan-800">
             <CardHeader>

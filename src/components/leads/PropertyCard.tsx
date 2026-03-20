@@ -6,6 +6,7 @@ import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
 import { AlertTriangle, Flame, Clock, Lock } from "lucide-react";
 import { SaveHeartButton } from "./SaveHeartButton";
+import { ScarcityBadge } from "./ScarcityBadge";
 import { formatDistanceToNow } from "date-fns";
 
 interface Violation {
@@ -157,6 +158,7 @@ export const PropertyCard = memo(function PropertyCard({
                 )}
               </>
             )}
+            {!isUnlocked && <ScarcityBadge propertyId={property.id} />}
           </div>
 
           {/* Row 3: AI Insight */}

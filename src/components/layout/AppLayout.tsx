@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { CreditBalanceChip } from "@/components/layout/CreditBalanceChip";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
@@ -210,7 +211,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
 
           {/* Right side: bell + user dropdown */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            <CreditBalanceChip />
             <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

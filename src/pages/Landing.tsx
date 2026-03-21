@@ -375,7 +375,7 @@ export default function Landing() {
                 step: "03",
                 icon: Unlock,
                 title: "Unlock the Address",
-                description: "Pay $5 one-time, use a credit, or subscribe. Get full address, owner contact, and export.",
+                description: "Pay $0.97 one-time or subscribe. Get full address, owner contact, and export.",
               },
             ].map((s, i) => (
               <motion.div

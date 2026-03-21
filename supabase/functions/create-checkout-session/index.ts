@@ -88,7 +88,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 });
 
-// ---- Single Unlock ($5) ----
+// ---- Single Unlock ($0.97) ----
 async function handleSingleUnlock(
   stripe: Stripe,
   supabase: any,

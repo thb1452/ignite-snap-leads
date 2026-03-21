@@ -300,10 +300,7 @@ export function AuthForm() {
                     Sign In
                   </Button>
                   <p className="text-xs text-center text-muted-foreground">
-                    Want access?{' '}
-                    <a href="/#waitlist" className="text-brand hover:underline">
-                      Join the waitlist
-                    </a>
+                    Need help? <a href="mailto:hello@snapignite.com" className="text-brand hover:underline">Contact us</a>
                   </p>
                 </CardFooter>
               </form>
@@ -318,14 +315,14 @@ export function AuthForm() {
               <div className="space-y-2">
                 <p className="font-semibold text-lg">Signups Are Paused</p>
                 <p className="text-sm text-muted-foreground">
-                  Snap is in private beta and we've reached capacity. Join the waitlist to get early access when new spots open.
+                  New signups are temporarily paused. Check back soon or contact us at hello@snapignite.com.
                 </p>
               </div>
               <a
-                href="/#waitlist"
+                href="mailto:hello@snapignite.com"
                 className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-6 py-2 text-sm font-medium hover:bg-primary/90 transition"
               >
-                Join the Waitlist
+                Contact Us
               </a>
             </CardContent>
           </TabsContent>

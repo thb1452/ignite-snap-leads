@@ -109,7 +109,7 @@ export default function CodeViolationLeads() {
               { stat: "500K+", label: "Properties Tracked" },
               { stat: "3,800+", label: "Cities Covered" },
               { stat: "Monthly", label: "Data Refresh" },
-              { stat: "$79/mo", label: "Starting Price" },
+              { stat: "$49/mo", label: "Starting Price" },
             ].map((item, i) => (
               <div key={i}>
                 <div className="text-3xl md:text-4xl font-bold text-[hsl(var(--landing-accent))]">{item.stat}</div>

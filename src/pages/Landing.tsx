@@ -748,12 +748,12 @@ export default function Landing() {
 
             <Accordion type="single" collapsible className="space-y-4">
               {[
-                { q: "Do I need a subscription to use Snap?", a: "No. Browse insights free. Pay only for addresses you want to unlock." },
-                { q: "How does the free tier work?", a: "AI insights, SnapScore, and blurred address previews are always free. You get 3 free unlocks to try it out. After that, pay $5 per unlock, buy a credit pack, or subscribe." },
+                { q: "Do I need a subscription to use Snap?", a: "No. Browse insights free. Pay only for addresses you want to unlock — $0.97 each." },
+                { q: "How does the free tier work?", a: "AI insights, SnapScore, and blurred address previews are always free. You get 3 free unlocks to try it out. After that, pay $0.97 per unlock or subscribe for a better rate." },
                 { q: "What happens when I unlock a property?", a: "You get the full street address, owner contact information (where available), and the ability to export or save the lead." },
-                { q: "How do credits work?", a: "One-time purchase, never expire. 1 credit = 1 unlock. Buy packs of 20, 50, or 200." },
+                { q: "How does Pay As You Go work?", a: "Pay $0.97 per address. No subscription, no commitment. 1 unlock = 1 export. Credits never expire." },
                 { q: "Can I cancel anytime?", a: "Yes — all plans are month-to-month. No contracts, no cancellation fees." },
-                { q: "I only do 1–2 deals/month. Should I subscribe?", a: "Not necessarily. Just buy individual unlocks at $5 each or grab a small credit pack. Subscribe when volume makes it worth it." },
+                { q: "I only do 1–2 deals/month. Should I subscribe?", a: "Not necessarily. Just buy individual addresses at $0.97 each. Subscribe when your volume makes the per-address savings worth it." },
               ].map((faq, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}>
                   <AccordionItem value={`item-${i}`} className="bg-landing-bg/50 border border-landing-surface rounded-lg px-6 data-[state=open]:border-landing-accent/50">

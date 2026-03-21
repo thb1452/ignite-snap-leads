@@ -10,6 +10,9 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Add to Supabase Edge Function secrets:
+// BATCHDATA_API_KEY = your key from batchdata.io
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -78,10 +81,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         requests: [{
-          streetAddress: property.address,
-          city: property.city,
-          state: property.state,
-          zip: property.zip,
+          propertyAddress: {
+            street: property.address,
+            city: property.city,
+            state: property.state,
+            zip: property.zip,
+          },
         }],
       }),
     });
@@ -104,6 +109,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         name: null,
         phone: null,
         email: null,
+        mailing_address: null,
         raw_payload: batchData,
       });
 
@@ -115,6 +121,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const phone = person.phones?.[0]?.phone || person.phoneNumbers?.[0]?.number || null;
       const email = person.emails?.[0]?.email || person.emailAddresses?.[0]?.address || null;
       const name = [person.firstName, person.lastName].filter(Boolean).join(" ") || person.name || null;
+      
+      // Extract mailing address if different from property
+      const mailingAddr = person.addresses?.[0];
+      const mailing_address = mailingAddr
+        ? [mailingAddr.street, mailingAddr.city, mailingAddr.state, mailingAddr.zip].filter(Boolean).join(", ")
+        : null;
 
       return {
         property_id,
@@ -123,6 +135,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         name,
         phone,
         email,
+        mailing_address,
         raw_payload: person,
       };
     });

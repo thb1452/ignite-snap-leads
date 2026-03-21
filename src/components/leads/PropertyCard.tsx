@@ -182,17 +182,18 @@ export const PropertyCard = memo(function PropertyCard({
               >
                 Export Lead
               </Button>
-              {onToggleSaved && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-slate-600 text-slate-100 hover:bg-slate-700 text-xs flex-1"
-                  onClick={(e) => { e.stopPropagation(); onToggleSaved(property.id); }}
-                >
-                  <Heart className={`h-3.5 w-3.5 mr-1 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleSaved?.(property.id); }}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors"
+              >
+                <Heart
+                  className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"}
+                  size={18}
+                />
+                <span className="text-sm font-medium text-slate-200">
                   {isSaved ? "Saved" : "Save"}
-                </Button>
-              )}
+                </span>
+              </button>
             </div>
           </div>
         ) : (

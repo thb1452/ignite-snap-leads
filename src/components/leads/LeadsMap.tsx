@@ -12,8 +12,8 @@ import { jitterCoords } from "@/utils/jitterCoords";
 import type { LeadFilters } from "@/schemas";
 
 // USA center coordinates and default zoom - defined outside component
-const USA_CENTER: L.LatLngTuple = [39.8283, -98.5795];
-const USA_ZOOM = 5; // Start zoomed out to show all US
+const USA_CENTER: L.LatLngTuple = [39.5, -98.35];
+const USA_ZOOM = 4; // Start zoomed out to show all US
 const SELECT_ZOOM = 17; // Zoom level used when focusing a selected property
 const MARKER_BATCH_SIZE = 500; // Keep marker rendering responsive for large datasets
 const RENDER_COUNT_UPDATE_INTERVAL = 1000; // Update "X rendered" every N items to reduce re-renders

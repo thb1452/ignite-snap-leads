@@ -102,7 +102,66 @@ Deno.serve(async (req: Request): Promise<Response> => {
       console.error("[handle-unlock] Error fetching property:", propErr);
     }
 
-    // Also fetch any existing contacts
+    // Trigger BatchData contact enrichment in the background (fire-and-forget)
+    const batchdataKey = Deno.env.get("BATCHDATA_API_KEY");
+    if (batchdataKey && property) {
+      // Check if contacts already exist
+      const { data: existingContacts } = await supabase
+        .from("property_contacts")
+        .select("id")
+        .eq("property_id", property_id)
+        .limit(1);
+
+      if (!existingContacts || existingContacts.length === 0) {
+        try {
+          const batchRes = await fetch("https://api.batchdata.com/api/v1/property/skip-trace", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${batchdataKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              requests: [{
+                streetAddress: property.address,
+                city: property.city,
+                state: property.state,
+                zip: property.zip,
+              }],
+            }),
+          });
+
+          if (batchRes.ok) {
+            const batchData = await batchRes.json();
+            const persons = batchData?.results?.persons || batchData?.results?.[0]?.persons || [];
+
+            if (persons.length > 0) {
+              const contacts = persons.slice(0, 3).map((person: any) => ({
+                property_id,
+                created_by: user.id,
+                source: "batchdata",
+                name: [person.firstName, person.lastName].filter(Boolean).join(" ") || person.name || null,
+                phone: person.phones?.[0]?.phone || person.phoneNumbers?.[0]?.number || null,
+                email: person.emails?.[0]?.email || person.emailAddresses?.[0]?.address || null,
+                raw_payload: person,
+              }));
+              await supabase.from("property_contacts").insert(contacts);
+            } else {
+              // Store empty marker
+              await supabase.from("property_contacts").insert({
+                property_id, created_by: user.id, source: "batchdata",
+                name: null, phone: null, email: null, raw_payload: batchData,
+              });
+            }
+          } else {
+            console.error("[handle-unlock] BatchData error:", batchRes.status);
+          }
+        } catch (enrichErr: any) {
+          console.error("[handle-unlock] Enrichment error:", enrichErr?.message);
+        }
+      }
+    }
+
+    // Fetch contacts (may have just been created by enrichment above)
     const { data: contacts } = await supabase
       .from("property_contacts")
       .select("name, phone, email, source")

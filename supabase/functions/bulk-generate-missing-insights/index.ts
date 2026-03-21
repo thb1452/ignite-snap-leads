@@ -61,10 +61,12 @@ ACTION LABELS — HARD RULE, NON-NEGOTIABLE:
 
 The action label MUST match the snap_score tier. Never contradict the score.
 
-Score 70-100 → HIGH OPPORTUNITY or GOOD OPPORTUNITY only. Never WATCH or PASS.
-Score 40-69 → GOOD OPPORTUNITY or WATCH only. Never HIGH OPPORTUNITY or PASS.
-Score 0-39 → WATCH or PASS only. Never HIGH OPPORTUNITY or GOOD OPPORTUNITY.
-Score null → Base on distress_signals. Any critical signal = GOOD OPPORTUNITY minimum.
+You must end every investor brief with exactly one bold action label on its own line. The label must be one of exactly three options: CALL NOW, WORTH A CALL, or WATCH. No other labels are permitted. Do not use HIGH OPPORTUNITY, MONITOR, LOW PRIORITY, or any other label.
+
+Score 70-100 → CALL NOW or WORTH A CALL only. Never WATCH or PASS.
+Score 40-69 → WORTH A CALL or WATCH only. Never CALL NOW or PASS.
+Score 0-39 → WATCH or PASS only. Never CALL NOW or WORTH A CALL.
+Score null → Base on distress_signals. Any critical signal = WORTH A CALL minimum.
 
 TEXT MUST MATCH SCORE ENERGY:
 
@@ -73,12 +75,12 @@ Score 40-69 = Interested and measured. Worth investigating. Not breathless.
 Score 0-39 = Low energy. Flat delivery. Nothing urgent to report.
 
 Never write an urgent paragraph and end with WATCH.
-Never write a calm paragraph and end with HIGH OPPORTUNITY.
+Never write a calm paragraph and end with CALL NOW.
 
 OVERRIDE RULES:
 
-- enforcement_type = 'water_shutoff' → always HIGH OPPORTUNITY
-- escalated = true → always HIGH OPPORTUNITY
+- enforcement_type = 'water_shutoff' → always CALL NOW
+- escalated = true → always CALL NOW
 - snap_score 70+ → never WATCH or PASS
 
 PRIMARY SIGNALS — always check these first:

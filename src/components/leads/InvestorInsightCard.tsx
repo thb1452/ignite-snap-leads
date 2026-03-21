@@ -90,15 +90,15 @@ function buildRuleBasedSummary(
     parts.push("Enforcement has escalated to condemned, legal, or court proceedings.");
   }
 
-  // Sentence 4: action label
+  // Sentence 4: action label — must match AI system prompt tiers (70/40 thresholds)
   if (highDistress || (snapScore !== null && snapScore >= 70)) {
-    parts.push("**IMMEDIATE OUTREACH** — high distress signals detected, contact property owner.");
+    parts.push("**HIGH OPPORTUNITY** — high distress signals detected, act now.");
   } else if (snapScore !== null && snapScore >= 40) {
-    parts.push("**STRONG OPPORTUNITY** — elevated enforcement, monitor for escalation or reach out.");
+    parts.push("**GOOD OPPORTUNITY** — elevated enforcement, worth investigating.");
   } else if (violations > 0) {
-    parts.push("**MONITOR** — active violations present, watch for changes.");
+    parts.push("**WATCH** — active violations present, monitor for changes.");
   } else {
-    parts.push("**MONITOR** — limited data, check back as enforcement records update.");
+    parts.push("**WATCH** — limited data, check back as enforcement records update.");
   }
 
   return { brief_text: parts.join(" ") };

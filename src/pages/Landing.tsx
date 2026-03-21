@@ -101,7 +101,7 @@ function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
           <span className="text-xs font-semibold text-landing-accent">AI Investor Brief</span>
         </div>
         <p className="text-xs text-landing-text-muted leading-relaxed">
-          Water disconnected since Feb 2026. 3 open violations including structural. Owner non-responsive to city notices. <span className="text-landing-warning font-semibold">HIGH OPPORTUNITY.</span>
+          Water disconnected since Feb 2026. 3 open violations including structural. Owner non-responsive to city notices. <span className="text-red-500 font-semibold">CALL NOW.</span>
         </p>
       </div>
 

@@ -137,8 +137,8 @@ export default function AuditReport() {
 
         {/* 6. Feature System */}
         <Section title="6. Feature System">
-          <Table headers={["Feature", "Starter ($79/mo)", "Professional ($149/mo)", "Elite ($299/mo)"]} rows={[
-            ["Property Exports/Month", "5,000", "15,000", "25,000"],
+          <Table headers={["Feature", "Starter ($49/mo)", "Pro ($99/mo)", "Elite ($199/mo)"]} rows={[
+            ["Addresses/Month", "150", "400", "1,000"],
             ["Cities Nationwide", "3,800+", "3,800+", "3,800+"],
             ["Code Violation Data", "✓", "✓", "✓"],
             ["Basic Filters (location, category, search)", "✓", "✓", "✓"],

@@ -51,11 +51,11 @@ export function VirtualizedMobilePropertyList({
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 300, // Mobile cards with dark brief box are roughly 300px tall
+    estimateSize: () => 300,
+    measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 3,
   });
 
-  // Virtualizer needs explicit height constraint for scroll container to work properly
   return (
     <div
       ref={parentRef}
@@ -76,6 +76,8 @@ export function VirtualizedMobilePropertyList({
           return (
             <div
               key={property.id}
+              data-index={virtualItem.index}
+              ref={virtualizer.measureElement}
               style={{
                 position: "absolute",
                 top: 0,

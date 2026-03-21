@@ -33,8 +33,8 @@ type SignUpFormData = z.infer<typeof signUpSchema>;
 
 const PLAN_DISPLAY_NAMES: Record<string, string> = {
   starter: 'Starter',
-  professional: 'Professional', 
-  enterprise: 'Enterprise',
+  professional: 'Pro', 
+  enterprise: 'Elite',
 };
 
 const PLAN_PRICES: Record<string, string> = {
@@ -47,34 +47,30 @@ export function AuthForm() {
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('invite');
   const inviteEmail = searchParams.get('email');
-  const mode = searchParams.get('mode'); // 'signin' or 'signup'
-  const selectedPlan = searchParams.get('plan'); // 'starter', 'professional', 'enterprise'
+  const mode = searchParams.get('mode');
+  const selectedPlan = searchParams.get('plan');
   
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   
-  // Determine tab based on mode param, invite token, or default to signin
   const getTargetTab = () => {
-    // During private beta, always default to signin (no public signups)
     if (mode === 'signin') return 'signin';
+    if (mode === 'signup' || inviteToken) return 'signup';
     return 'signin';
   };
   
   const [activeTab, setActiveTab] = useState(getTargetTab());
   const { signIn, signUp, resetPassword } = useAuth();
 
-  // Fire signup_page_view when signup tab is active
   useEffect(() => {
     if (activeTab === 'signup') {
       analytics.signupPageView();
     }
   }, [activeTab]);
   
-  // Hide tabs when mode is explicitly set (cleaner UX)
   const showTabs = !mode && !inviteToken;
 
-  // Update active tab when URL params change
   useEffect(() => {
     setActiveTab(getTargetTab());
   }, [mode, inviteToken]);
@@ -96,7 +92,6 @@ export function AuthForm() {
     },
   });
 
-  // Pre-fill email from invitation
   useEffect(() => {
     if (inviteEmail) {
       signUpForm.setValue('email', inviteEmail);
@@ -114,13 +109,10 @@ export function AuthForm() {
   };
 
   const handleSignUp = async (data: SignUpFormData) => {
-    console.log('[AuthForm] handleSignUp called with:', { email: data.email, fullName: data.fullName });
     analytics.signupSubmitted();
     setIsLoading(true);
     try {
-      // Pass invite token to signUp if present
       const result = await signUp(data.email, data.password, data.fullName, inviteToken || undefined);
-      console.log('[AuthForm] signUp result:', result);
       if (result && !('error' in result && result.error)) {
         analytics.signupSuccess();
         logActivity({ action: 'signup' });
@@ -128,7 +120,6 @@ export function AuthForm() {
         analytics.signupFailed('signup_returned_error');
       }
     } catch (err) {
-      console.error('[AuthForm] signUp error:', err);
       analytics.signupFailed(err instanceof Error ? err.message : 'unknown');
     } finally {
       setIsLoading(false);
@@ -144,7 +135,6 @@ export function AuthForm() {
     setResetEmail('');
   };
 
-  // Get the title and description based on context
   const getHeaderContent = () => {
     if (inviteToken) {
       return {
@@ -162,8 +152,8 @@ export function AuthForm() {
     }
     if (mode === 'signup') {
       return {
-        title: "Private Beta",
-        description: "Signups are currently paused. Join our waitlist for early access."
+        title: "Create Your Account",
+        description: "Start free — 3 unlocks included. No credit card required."
       };
     }
     if (mode === 'signin') {
@@ -216,8 +206,15 @@ export function AuthForm() {
           </div>
         )}
         
-        <Tabs value={activeTab} onValueChange={(val) => { if (val === 'signin') setActiveTab(val); }} className="w-full">
-          {/* Signup tab hidden during private beta */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          {showTabs && (
+            <div className="px-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="signin">Sign In</TabsTrigger>
+                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              </TabsList>
+            </div>
+          )}
           
           <TabsContent value="signin">
             {showForgotPassword ? (
@@ -300,10 +297,10 @@ export function AuthForm() {
                     Sign In
                   </Button>
                   <p className="text-xs text-center text-muted-foreground">
-                    Want access?{' '}
-                    <a href="/#waitlist" className="text-brand hover:underline">
-                      Join the waitlist
-                    </a>
+                    Don't have an account?{' '}
+                    <button type="button" onClick={() => setActiveTab('signup')} className="text-brand hover:underline">
+                      Sign up free
+                    </button>
                   </p>
                 </CardFooter>
               </form>
@@ -311,23 +308,67 @@ export function AuthForm() {
           </TabsContent>
           
           <TabsContent value="signup">
-            <CardContent className="space-y-4 text-center py-8">
-              <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                <Mail className="w-6 h-6 text-primary" />
-              </div>
-              <div className="space-y-2">
-                <p className="font-semibold text-lg">Signups Are Paused</p>
-                <p className="text-sm text-muted-foreground">
-                  Snap is in private beta and we've reached capacity. Join the waitlist to get early access when new spots open.
+            <form onSubmit={signUpForm.handleSubmit(handleSignUp)}>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name">Full Name</Label>
+                  <Input
+                    id="signup-name"
+                    placeholder="John Doe"
+                    {...signUpForm.register('fullName')}
+                  />
+                  {signUpForm.formState.errors.fullName && (
+                    <p className="text-sm text-destructive">
+                      {signUpForm.formState.errors.fullName.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    {...signUpForm.register('email')}
+                    disabled={!!inviteEmail}
+                  />
+                  {signUpForm.formState.errors.email && (
+                    <p className="text-sm text-destructive">
+                      {signUpForm.formState.errors.email.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    placeholder="Min 8 chars, 1 number, 1 special"
+                    {...signUpForm.register('password')}
+                  />
+                  {signUpForm.formState.errors.password && (
+                    <p className="text-sm text-destructive">
+                      {signUpForm.formState.errors.password.message}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-3">
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Create Account
+                </Button>
+                <p className="text-xs text-center text-muted-foreground">
+                  3 free unlocks included. No credit card required.
                 </p>
-              </div>
-              <a
-                href="/#waitlist"
-                className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-6 py-2 text-sm font-medium hover:bg-primary/90 transition"
-              >
-                Join the Waitlist
-              </a>
-            </CardContent>
+                <p className="text-xs text-center text-muted-foreground">
+                  Already have an account?{' '}
+                  <button type="button" onClick={() => setActiveTab('signin')} className="text-brand hover:underline">
+                    Sign in
+                  </button>
+                </p>
+              </CardFooter>
+            </form>
           </TabsContent>
         </Tabs>
       </Card>

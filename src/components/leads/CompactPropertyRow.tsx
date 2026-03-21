@@ -1,6 +1,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Flame, Lock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Lock, Unlock, Download } from "lucide-react";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
 
@@ -19,11 +20,20 @@ interface CompactPropertyRowProps {
     violation_types?: string[] | null;
     updated_at?: string | null;
     newest_violation_date?: string | null;
+    snap_insight?: string | null;
   };
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onClick: () => void;
   isUnlocked?: boolean;
+  onUnlock?: (propertyId: string) => void;
+}
+
+function getActionLabel(text: string): { label: string; colorClass: string } | null {
+  if (/CALL NOW/i.test(text)) return { label: "CALL NOW", colorClass: "text-red-500" };
+  if (/WORTH A CALL/i.test(text)) return { label: "WORTH A CALL", colorClass: "text-orange-400" };
+  if (/WATCH/i.test(text)) return { label: "WATCH", colorClass: "text-gray-400" };
+  return null;
 }
 
 export function CompactPropertyRow({
@@ -32,25 +42,17 @@ export function CompactPropertyRow({
   onToggleSelect,
   onClick,
   isUnlocked = true,
+  onUnlock,
 }: CompactPropertyRowProps) {
   const getScoreColor = (score: number | null) => {
     if (!score) return "bg-muted text-muted-foreground";
-    if (score >= 75) return "bg-score-red text-score-red-foreground";
-    if (score >= 50) return "bg-score-orange text-score-orange-foreground";
-    if (score >= 25) return "bg-score-yellow text-score-yellow-foreground";
-    return "bg-score-blue text-score-blue-foreground";
+    if (score >= 75) return "bg-red-500 text-white";
+    if (score >= 50) return "bg-orange-500 text-white";
+    if (score >= 25) return "bg-yellow-500 text-black";
+    return "bg-green-500 text-white";
   };
 
-  const openCount = property.open_violations ?? 0;
-  const totalCount = property.total_violations ?? 0;
-
-  // "Heating Up" badge
-  const isHeatingUp = (() => {
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const updatedAt = property.updated_at ? new Date(property.updated_at).getTime() : 0;
-    const newestViolation = property.newest_violation_date ? new Date(property.newest_violation_date).getTime() : 0;
-    return updatedAt > sevenDaysAgo || newestViolation > sevenDaysAgo;
-  })();
+  const actionLabel = property.snap_insight ? getActionLabel(property.snap_insight) : null;
 
   return (
     <div
@@ -67,10 +69,18 @@ export function CompactPropertyRow({
         className="shrink-0"
       />
 
-      {/* Address - Main Column */}
+      {/* Lock/Unlock icon */}
+      <div className="shrink-0">
+        {isUnlocked ? (
+          <Unlock className="h-3.5 w-3.5 text-teal-500" />
+        ) : (
+          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
+      </div>
+
+      {/* Address */}
       <div className="flex-1 min-w-0">
-        <p className="property-address font-medium text-sm truncate leading-tight flex items-center gap-1">
-          {!isUnlocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+        <p className="property-address font-medium text-sm truncate leading-tight">
           {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
         </p>
         <p className="text-xs text-muted-foreground truncate">
@@ -78,41 +88,41 @@ export function CompactPropertyRow({
         </p>
       </div>
 
-      {/* Heating Up + Status Badge */}
-      {isHeatingUp && (
-        <Badge variant="outline" className="text-[10px] px-1 py-0 h-[16px] bg-amber-50 text-amber-700 border-amber-300 gap-0.5 shrink-0">
-          <Flame className="h-2.5 w-2.5" />
-          New Activity
-        </Badge>
-      )}
-      <div className="shrink-0">
-        {totalCount > 0 ? (
-          <Badge
-            variant="outline"
-            className={`text-xs px-1.5 py-0 h-5 ${
-              openCount > 0
-                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                : "bg-rose-100 text-rose-700 border-rose-200"
-            }`}
-          >
-            {openCount > 0 ? `${openCount} open` : "closed"}
-          </Badge>
-        ) : (
-          <span className="text-xs text-muted-foreground">—</span>
-        )}
-      </div>
-
-      {/* Violations Count */}
-      <div className="w-12 text-right shrink-0">
-        <span className="text-xs text-muted-foreground">
-          {totalCount > 0 ? `${totalCount}` : "—"}
+      {/* Action label */}
+      {actionLabel && (
+        <span className={`text-[11px] font-bold shrink-0 ${actionLabel.colorClass}`}>
+          {actionLabel.label}
         </span>
-      </div>
+      )}
 
       {/* Score Badge */}
       <Badge className={`snap-score-value ${getScoreColor(property.snap_score)} w-10 justify-center shrink-0`}>
         {property.snap_score ?? "—"}
       </Badge>
+
+      {/* Action button */}
+      <div className="shrink-0">
+        {isUnlocked ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs px-2"
+            onClick={(e) => { e.stopPropagation(); }}
+          >
+            <Download className="h-3 w-3 mr-1" />
+            Export
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            className="h-7 text-xs px-2 bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
+          >
+            <Lock className="h-3 w-3 mr-1" />
+            Unlock
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

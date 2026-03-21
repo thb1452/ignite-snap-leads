@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download, ListPlus, Lock, Unlock } from "lucide-react";
+import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download, ListPlus, Lock, Unlock, Heart, Users, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { formatDistanceToNow, format } from "date-fns";
@@ -24,7 +24,6 @@ interface Violation {
   opened_date: string | null;
   days_open: number | null;
   case_id: string | null;
-  // NOTE: description and raw_description are NEVER included for legal safety
 }
 
 interface InvestorBrief {
@@ -89,26 +88,18 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
     refetch: refetchTrial,
   } = useTrialStatus();
 
-  // Use pre-loaded violations if available, otherwise fetch from database
-  // This eliminates N+1 queries when violations are already loaded in the parent
   useEffect(() => {
     if (property && open) {
-      // Reset state
       setPropertyLists([]);
 
-      // Check if violations are already loaded on the property
       if (property.violations && property.violations.length > 0) {
-        console.log(`[PropertyDetailPanel] Using ${property.violations.length} pre-loaded violations for property ${property.id}`);
         setViolations(property.violations);
         setIsLoadingViolations(false);
         return;
       }
 
-      // Fallback: Fetch violations from database only if not pre-loaded
       const fetchViolations = async () => {
         setIsLoadingViolations(true);
-        console.log("[PropertyDetailPanel] Fetching violations for property:", property.id);
-
         try {
           const { data, error } = await supabase
             .from('violations')
@@ -117,14 +108,11 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
             .order('opened_date', { ascending: false });
 
           if (error) {
-            console.error("[PropertyDetailPanel] Error fetching violations:", error);
             setViolations([]);
           } else {
-            console.log(`[PropertyDetailPanel] ✓ Fetched ${data?.length || 0} violations for property ${property.id}`);
             setViolations(data || []);
           }
         } catch (err) {
-          console.error("[PropertyDetailPanel] Exception fetching violations:", err);
           setViolations([]);
         } finally {
           setIsLoadingViolations(false);
@@ -137,13 +125,20 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
     }
   }, [property?.id, property?.violations, open]);
 
-  if (!property) return null;
+  const getScoreColor = useCallback((score: number | null) => {
+    if (!score) return "bg-muted text-muted-foreground";
+    if (score >= 75) return "bg-red-500 text-white";
+    if (score >= 50) return "bg-orange-500 text-white";
+    if (score >= 25) return "bg-yellow-500 text-black";
+    return "bg-green-500 text-white";
+  }, []);
 
-  const getScoreClass = useCallback((n: number | null) => {
-    if (!n) return 'bg-slate-100 text-ink-600 border border-slate-200';
-    if (n >= 80) return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-    if (n >= 50) return 'bg-amber-50 text-amber-700 border border-amber-200';
-    return 'bg-slate-100 text-ink-600 border border-slate-200';
+  const getScoreDot = useCallback((score: number | null) => {
+    if (!score) return "bg-muted-foreground";
+    if (score >= 75) return "bg-red-500";
+    if (score >= 50) return "bg-orange-500";
+    if (score >= 25) return "bg-yellow-500";
+    return "bg-green-500";
   }, []);
 
   const formatDate = useCallback((dateString: string | null) => {
@@ -156,26 +151,29 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
   }, []);
 
   const googleMapsUrl = useMemo(() =>
-    property.latitude && property.longitude
-      ? `https://www.google.com/maps?q=${property.latitude},${property.longitude}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip}`)}`,
-    [property.latitude, property.longitude, property.address, property.city, property.state, property.zip]
+    property
+      ? (property.latitude && property.longitude
+          ? `https://www.google.com/maps?q=${property.latitude},${property.longitude}`
+          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip}`)}`)
+      : "",
+    [property?.latitude, property?.longitude, property?.address, property?.city, property?.state, property?.zip]
   );
 
-  const hasMultipleViolations = useMemo(() => violations.length >= 3, [violations.length]);
-  const snapScore = property.snap_score;
+  const snapScore = property?.snap_score ?? null;
 
-  // Cache investor brief in database when generated
   const handleBriefGenerated = useCallback(async (brief: InvestorBrief) => {
+    if (!property) return;
     try {
       await supabase
         .from('properties')
         .update({ investor_insight_brief: brief as any })
         .eq('id', property.id);
     } catch (err) {
-      console.error("[PropertyDetailPanel] Failed to cache brief:", err);
+      // silently fail
     }
-  }, [property.id]);
+  }, [property?.id]);
+
+  if (!property) return null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -187,9 +185,8 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
           transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
           className="h-full flex flex-col min-h-0"
         >
-          {/* Hero Header with Close Button */}
+          {/* Hero Header */}
           <div className="p-5 md:p-6 border-b bg-white/90 backdrop-blur flex-none">
-            {/* Close/Back Button */}
             <div className="flex items-center justify-between mb-3">
               <button
                 type="button"
@@ -209,57 +206,63 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
                 <X className="h-4 w-4" />
               </button>
             </div>
-            
-            <div className="flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-xl md:text-2xl font-semibold text-ink-900 font-display truncate flex items-center gap-2">
-                    {!isUnlocked && <Lock className="h-5 w-5 text-muted-foreground shrink-0" />}
-                    {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
-                  </h2>
-                  <p className="text-sm text-ink-400 font-ui mt-1">
-                    {formatCity(property.city)}, {property.state} {property.zip}
-                  </p>
-                  {/* Last Snap Update Timestamp */}
-                  {property.updated_at && (
-                    <div className="flex items-center gap-1.5 mt-2 text-xs text-ink-400">
-                      <Clock className="h-3 w-3" />
-                      <span>
-                        Last Snap update: {format(new Date(property.updated_at), "MMM d, yyyy")} ({formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })})
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {snapScore !== null && (
-                  <motion.span
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold border ${getScoreClass(snapScore)} ${
-                      snapScore >= 80 ? 'animate-pulse' : ''
-                    }`}
-                  >
-                    🔥 {snapScore}
-                  </motion.span>
+
+            {/* Lock status + SnapScore */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                {isUnlocked ? (
+                  <Unlock className="h-4 w-4 text-teal-500" />
+                ) : (
+                  <Lock className="h-4 w-4 text-muted-foreground" />
                 )}
+                <span className={`text-xs font-semibold uppercase tracking-wider ${isUnlocked ? "text-teal-500" : "text-muted-foreground"}`}>
+                  {isUnlocked ? "Unlocked" : "Locked"}
+                </span>
               </div>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-2.5 h-2.5 rounded-full ${getScoreDot(snapScore)}`} />
+                <span className="text-sm font-bold text-teal-500">SnapScore {snapScore || 0}</span>
+              </div>
+            </div>
+
+            {/* Address */}
+            <div>
+              <h2 className="text-xl md:text-2xl font-bold text-foreground">
+                {isUnlocked
+                  ? formatAddress(property.address)
+                  : (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="blur-[4px] select-none pointer-events-none">####</span>
+                      <span>{property.address?.replace(/^\d+\s*/, '')}</span>
+                    </span>
+                  )}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {formatCity(property.city)}, {property.state} {property.zip}
+              </p>
+              {property.updated_at && (
+                <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span>
+                    Last update: {format(new Date(property.updated_at), "MMM d, yyyy")} ({formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })})
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Unlock CTA for locked properties */}
             {!isUnlocked && onUnlock && (
-              <div className="mt-3 p-3 rounded-lg border border-primary/20 bg-primary/5">
-                <p className="text-sm text-muted-foreground mb-2">
-                  Unlock to see the full address, owner contacts, and export this lead.
-                </p>
+              <div className="mt-3">
                 <Button
                   onClick={(e) => {
                     e.stopPropagation();
                     onUnlock(property.id);
                   }}
-                  className="w-full gap-2"
-                  size="sm"
+                  className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  size="default"
                 >
-                  <Unlock className="h-4 w-4" />
-                  Unlock This Lead
+                  <Lock className="h-4 w-4" />
+                  Unlock for $0.97
                 </Button>
               </div>
             )}
@@ -267,7 +270,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
 
           {/* Main Content - Scrollable */}
           <div className="flex-1 min-h-0 overflow-y-auto p-5 md:p-6 space-y-5 overscroll-contain touch-pan-y">
-            {/* Investor Insight AI Brief */}
+            {/* Investor Insight AI Brief - always visible, never collapsible */}
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -316,15 +319,15 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
               />
             </motion.div>
 
-            {/* Map Preview */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.12 }}
-              className="rounded-xl border bg-card overflow-hidden"
-            >
-              <div className="aspect-[16/9] bg-muted relative">
-                {property.latitude && property.longitude ? (
+            {/* Map Preview - hide if unavailable */}
+            {property.latitude && property.longitude && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.12 }}
+                className="rounded-xl border bg-card overflow-hidden"
+              >
+                <div className="aspect-[16/9] bg-muted relative">
                   <iframe
                     title="Property Map"
                     width="100%"
@@ -334,26 +337,19 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
                     referrerPolicy="no-referrer-when-downgrade"
                     src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${property.latitude},${property.longitude}&zoom=17&maptype=satellite`}
                   />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div className="text-center text-muted-foreground">
-                      <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Map preview unavailable</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <a
-                href={googleMapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 p-3 text-sm text-primary font-medium hover:bg-muted/50 transition-colors"
-              >
-                <MapPin className="h-4 w-4" />
-                View on Google Maps
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </motion.div>
+                </div>
+                <a
+                  href={googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 p-3 text-sm text-primary font-medium hover:bg-muted/50 transition-colors"
+                >
+                  <MapPin className="h-4 w-4" />
+                  View on Google Maps
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </motion.div>
+            )}
 
             {/* Violations Section */}
             <motion.section
@@ -393,68 +389,78 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
 
           {/* Sticky Action Footer */}
           <div className="border-t p-4 md:p-5 bg-background sticky bottom-0 pb-[calc(env(safe-area-inset-bottom)+16px)] flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setAddToListOpen(true)}
-                className="flex-1 gap-2"
-              >
-                <ListPlus className="h-4 w-4" />
-                Add to List
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                disabled={isExporting}
-                onClick={async () => {
-                  // Trial export gating
-                  if (hasTrialExpired) {
-                    setTrialGateType('expired');
-                    setTrialGateOpen(true);
-                    return;
-                  }
-                  if (isOnTrial && trialExportsRemaining <= 0) {
-                    setTrialGateType('exhausted');
-                    setTrialGateOpen(true);
-                    return;
-                  }
-
-                  setIsExporting(true);
-                  try {
-                    await exportFilteredCsv({
-                      propertyIds: [property.id],
-                      expectedPropertyCount: 1,
-                    });
-                    if (isOnTrial) refetchTrial();
-                    toast({
-                      title: "Export Complete",
-                      description: "Property exported successfully.",
-                    });
-                  } catch (error: any) {
-                    if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
-                      setTrialGateType('exhausted');
-                      setTrialGateOpen(true);
-                    } else if (error.message === "TRIAL_EXPIRED") {
+            {isUnlocked ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAddToListOpen(true)}
+                  className="flex-1 gap-2"
+                >
+                  <ListPlus className="h-4 w-4" />
+                  Add to List
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  disabled={isExporting}
+                  onClick={async () => {
+                    if (hasTrialExpired) {
                       setTrialGateType('expired');
                       setTrialGateOpen(true);
-                    } else {
-                      toast({
-                        title: "Export Failed",
-                        description: error.message || "Failed to export property",
-                        variant: "destructive",
-                      });
+                      return;
                     }
-                  } finally {
-                    setIsExporting(false);
-                  }
-                }}
-                className="flex-1 gap-2"
+                    if (isOnTrial && trialExportsRemaining <= 0) {
+                      setTrialGateType('exhausted');
+                      setTrialGateOpen(true);
+                      return;
+                    }
+
+                    setIsExporting(true);
+                    try {
+                      await exportFilteredCsv({
+                        propertyIds: [property.id],
+                        expectedPropertyCount: 1,
+                      });
+                      if (isOnTrial) refetchTrial();
+                      toast({
+                        title: "Export Complete",
+                        description: "Property exported successfully.",
+                      });
+                    } catch (error: any) {
+                      if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+                        setTrialGateType('exhausted');
+                        setTrialGateOpen(true);
+                      } else if (error.message === "TRIAL_EXPIRED") {
+                        setTrialGateType('expired');
+                        setTrialGateOpen(true);
+                      } else {
+                        toast({
+                          title: "Export Failed",
+                          description: error.message || "Failed to export property",
+                          variant: "destructive",
+                        });
+                      }
+                    } finally {
+                      setIsExporting(false);
+                    }
+                  }}
+                  className="flex-1 gap-2 bg-teal-500 hover:bg-teal-600 text-white"
+                >
+                  {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Export Lead
+                </Button>
+              </div>
+            ) : (
+              <Button
+                className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                size="default"
+                onClick={() => onUnlock?.(property.id)}
               >
-                {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Export This
+                <Lock className="h-4 w-4" />
+                Unlock for $0.97
               </Button>
-            </div>
+            )}
           </div>
         </motion.div>
 

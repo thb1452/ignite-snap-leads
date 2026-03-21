@@ -1,13 +1,14 @@
 import { useState, memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
-import { AlertTriangle, Flame, Clock, Lock } from "lucide-react";
+import { Lock, Unlock, Flame, Sparkles, Download, Heart, Users, Phone } from "lucide-react";
 import { SaveHeartButton } from "./SaveHeartButton";
 import { ScarcityBadge } from "./ScarcityBadge";
-import { formatDistanceToNow } from "date-fns";
+import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 
 interface Violation {
   id: string;
@@ -44,6 +45,17 @@ interface PropertyCardProps {
   onUnlock?: (propertyId: string) => void;
 }
 
+function getActionLabel(text: string): { label: string; colorClass: string } | null {
+  if (/CALL NOW/i.test(text)) return { label: "CALL NOW", colorClass: "text-red-500 font-semibold" };
+  if (/WORTH A CALL/i.test(text)) return { label: "WORTH A CALL", colorClass: "text-orange-400 font-semibold" };
+  if (/WATCH/i.test(text)) return { label: "WATCH", colorClass: "text-gray-400 font-semibold" };
+  return null;
+}
+
+function stripActionLabel(text: string): string {
+  return text.replace(/\*?\*?(CALL NOW|WORTH A CALL|WATCH)\*?\*?\.?/gi, "").trim();
+}
+
 export const PropertyCard = memo(function PropertyCard({
   property,
   isSelected,
@@ -54,141 +66,170 @@ export const PropertyCard = memo(function PropertyCard({
   isUnlocked = true,
   onUnlock,
 }: PropertyCardProps) {
-  const [expanded, setExpanded] = useState(false);
+  const { data: contacts } = usePropertyContacts(isUnlocked ? property.id : "");
 
   const getScoreColor = (score: number | null) => {
-    if (!score) return "bg-muted";
-    if (score >= 75) return "bg-score-red";
-    if (score >= 50) return "bg-score-orange";
-    if (score >= 25) return "bg-score-yellow";
-    return "bg-score-blue";
+    if (!score) return "bg-muted text-muted-foreground";
+    if (score >= 75) return "bg-red-500 text-white";
+    if (score >= 50) return "bg-orange-500 text-white";
+    if (score >= 25) return "bg-yellow-500 text-black";
+    return "bg-green-500 text-white";
+  };
+
+  const getScoreDot = (score: number | null) => {
+    if (!score) return "bg-muted-foreground";
+    if (score >= 75) return "bg-red-500";
+    if (score >= 50) return "bg-orange-500";
+    if (score >= 25) return "bg-yellow-500";
+    return "bg-green-500";
   };
 
   const insightText = property.snap_insight || "";
-  const isLong = insightText.length > 160;
-  const displayInsight = expanded ? insightText : (isLong ? insightText.slice(0, 157) + "..." : insightText);
+  const actionLabel = getActionLabel(insightText);
+  const briefBody = stripActionLabel(insightText);
 
-  const openCount = property.open_violations ?? 0;
-  const totalCount = property.total_violations ?? 0;
-  const extraTypes = (property.violation_types?.length ?? 0) > 2 ? (property.violation_types!.length - 2) : 0;
-
-  const freshness = property.updated_at
-    ? formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })
-    : null;
-
-  // "Heating Up" badge: property updated or new violation in last 7 days
-  const isHeatingUp = (() => {
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const updatedAt = property.updated_at ? new Date(property.updated_at).getTime() : 0;
-    const newestViolation = property.newest_violation_date ? new Date(property.newest_violation_date).getTime() : 0;
-    return updatedAt > sevenDaysAgo || newestViolation > sevenDaysAgo;
-  })();
+  const ownerContact = contacts?.find(c => c.name);
 
   return (
     <div
-      className={`group px-3 py-2.5 border-b hover:bg-accent/50 transition-colors cursor-pointer ${
+      className={`group border-b transition-colors cursor-pointer ${
         isSelected ? "bg-accent/30" : "bg-background"
       }`}
       onClick={onClick}
     >
-      {/* Row 1: Checkbox + Address + Score */}
-      <div className="flex items-start gap-2">
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={() => onToggleSelect(property.id)}
-          onClick={(e) => e.stopPropagation()}
-          className="shrink-0 mt-0.5"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <span className="property-address font-semibold text-sm leading-tight flex items-center gap-1">
-              {!isUnlocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
-              {isUnlocked
-                ? `${formatAddress(property.address)}, ${formatCity(property.city)}, ${property.state} ${property.zip}`
-                : `${formatBlurredStreet(property, false)}, ${formatCity(property.city)}, ${property.state} ${property.zip}`}
-            </span>
-            <div className="flex items-center gap-1 shrink-0">
-              {onToggleSaved && (
-                <SaveHeartButton
-                  isSaved={isSaved}
-                  onToggle={() => onToggleSaved(property.id)}
-                />
-              )}
-              <Badge
-                className={`snap-score-value ${getScoreColor(property.snap_score)} text-white text-xs px-2 py-0.5 h-5 shrink-0 font-bold`}
-              >
-                {property.snap_score || 0}
-              </Badge>
+      <div className="p-4 space-y-3">
+        {/* Row 1: Checkbox + Lock/Unlock + Address + SnapScore */}
+        <div className="flex items-start gap-3">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelect(property.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0 mt-1"
+          />
+          <div className="flex-1 min-w-0">
+            {/* Status row */}
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                {isUnlocked ? (
+                  <Unlock className="h-3.5 w-3.5 text-teal-500" />
+                ) : (
+                  <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+                <span className={`text-xs font-semibold uppercase tracking-wider ${isUnlocked ? "text-teal-500" : "text-muted-foreground"}`}>
+                  {isUnlocked ? "Unlocked" : "Locked"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-2 h-2 rounded-full ${getScoreDot(property.snap_score)}`} />
+                <span className="text-xs font-bold text-teal-500">SnapScore {property.snap_score || 0}</span>
+              </div>
             </div>
-          </div>
 
-          {/* Row 2: Status + Violation types + Heating Up */}
-          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-            {isHeatingUp && (
-              <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-amber-50 text-amber-700 border-amber-300 gap-0.5 animate-pulse">
-                <Flame className="h-3 w-3" />
-                New Activity
-              </Badge>
-            )}
-            {openCount > 0 ? (
-              <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-emerald-100 text-emerald-700 border-emerald-200 gap-0.5">
-                <AlertTriangle className="h-3 w-3" />
-                open
-              </Badge>
-            ) : totalCount > 0 ? (
-              <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-rose-100 text-rose-700 border-rose-200">
-                closed
-              </Badge>
-            ) : null}
+            {/* Address */}
+            <h3 className="property-address font-bold text-base leading-snug">
+              {isUnlocked
+                ? formatAddress(property.address)
+                : (
+                  <span className="inline-flex items-center gap-1">
+                    <span className="blur-[4px] select-none pointer-events-none">####</span>
+                    <span>{property.street_name || property.address?.replace(/^\d+\s*/, '')}</span>
+                  </span>
+                )}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {formatCity(property.city)}, {property.state} {property.zip}
+            </p>
 
-            {property.enforcement_type === 'water_shutoff' ? (
-              <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-cyan-50 text-cyan-700 border-cyan-200 gap-0.5">
-                💧 Water Disconnection
-              </Badge>
-            ) : (
-              <>
-                {property.violation_types && property.violation_types.filter(v => v !== 'Unknown').slice(0, 2).map((vt, i) => (
+            {/* Violation tags */}
+            {(property.violation_types?.filter(v => v !== 'Unknown').length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {property.enforcement_type === 'water_shutoff' && (
+                  <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-cyan-50 text-cyan-700 border-cyan-200">
+                    💧 Water Disconnection
+                  </Badge>
+                )}
+                {property.violation_types?.filter(v => v !== 'Unknown').slice(0, 3).map((vt, i) => (
                   <Badge key={i} variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-orange-50 text-orange-700 border-orange-200 gap-0.5">
                     <Flame className="h-3 w-3" />
                     {formatViolationType(vt)}
                   </Badge>
                 ))}
-                {extraTypes > 0 && (
-                  <span className="text-[11px] text-muted-foreground">+{extraTypes}</span>
-                )}
-              </>
+              </div>
             )}
-            {!isUnlocked && <ScarcityBadge propertyId={property.id} />}
           </div>
+        </div>
 
-          {/* Row 3: AI Insight */}
-          {insightText && (
-            <div className="mt-1.5">
-              <p className="snap-insight-text text-xs text-muted-foreground leading-relaxed">
-                {displayInsight}
-              </p>
-              {isLong && (
-                <button
-                  className="text-xs text-primary hover:underline mt-0.5"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setExpanded(!expanded);
-                  }}
-                >
-                  {expanded ? "Show less" : "Read more ↓"}
-                </button>
+        {/* AI Brief - always visible */}
+        {insightText && (
+          <div className="bg-slate-900 rounded-lg p-3 border border-teal-500/20">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+              <span className="text-xs font-semibold text-teal-400">AI Investor Brief</span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {briefBody}{" "}
+              {actionLabel && (
+                <span className={actionLabel.colorClass}>{actionLabel.label}.</span>
               )}
-            </div>
-          )}
+            </p>
+          </div>
+        )}
 
-          {/* Row 4: Freshness */}
-          {freshness && (
-            <div className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground/70">
-              <Clock className="h-3 w-3" />
-              <span>Snap updated {freshness}</span>
+        {/* Owner contact (unlocked only) */}
+        {isUnlocked && ownerContact && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-sm">
+              <Users className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>{ownerContact.name} <span className="text-muted-foreground">(Owner)</span></span>
             </div>
+            {ownerContact.phone && (
+              <div className="flex items-center gap-2 text-sm">
+                <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                <a href={`tel:${ownerContact.phone}`} className="text-primary hover:underline" onClick={e => e.stopPropagation()}>
+                  {ownerContact.phone}
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          {isUnlocked ? (
+            <>
+              <Button
+                size="sm"
+                className="flex-1 bg-teal-500 hover:bg-teal-600 text-white text-xs"
+                onClick={(e) => { e.stopPropagation(); }}
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                Export Lead
+              </Button>
+              {onToggleSaved && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs"
+                  onClick={(e) => { e.stopPropagation(); onToggleSaved(property.id); }}
+                >
+                  <Heart className={`h-3.5 w-3.5 mr-1.5 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />
+                  {isSaved ? "Saved" : "Save"}
+                </Button>
+              )}
+            </>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs"
+              onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
+            >
+              <Lock className="h-3.5 w-3.5 mr-1.5" />
+              Unlock for $0.97
+            </Button>
           )}
         </div>
+
+        {!isUnlocked && <ScarcityBadge propertyId={property.id} />}
       </div>
     </div>
   );

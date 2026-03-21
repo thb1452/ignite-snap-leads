@@ -101,7 +101,7 @@ function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
           <span className="text-xs font-semibold text-landing-accent">AI Investor Brief</span>
         </div>
         <p className="text-xs text-landing-text-muted leading-relaxed">
-          Water disconnected since Feb 2026. 3 open violations including structural. Owner non-responsive to city notices. <span className="text-landing-warning font-semibold">HIGH OPPORTUNITY.</span>
+          Water disconnected since Feb 2026. 3 open violations including structural. Owner non-responsive to city notices. <span className="text-red-500 font-semibold">CALL NOW.</span>
         </p>
       </div>
 
@@ -369,7 +369,7 @@ export default function Landing() {
                 step: "02",
                 icon: Zap,
                 title: "Find a Hot Lead",
-                description: 'AI insight: "Water cut off. 3 violations. Owner not responding. HIGH OPPORTUNITY."',
+                description: 'AI insight: "Water cut off. 3 violations. Owner not responding. CALL NOW."',
               },
               {
                 step: "03",

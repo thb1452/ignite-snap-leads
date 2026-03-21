@@ -1,12 +1,13 @@
-import { useState, memo } from "react";
+import { memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, AlertTriangle, Flame, Lock } from "lucide-react";
+import { Lock, Unlock, Flame, Sparkles, Download, Heart, Users, Phone } from "lucide-react";
 import { SaveHeartButton } from "./SaveHeartButton";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
+import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 
 interface Violation {
   id: string;
@@ -41,6 +42,17 @@ interface MobilePropertyCardProps {
   isUnlocked?: boolean;
 }
 
+function getActionLabel(text: string): { label: string; colorClass: string } | null {
+  if (/CALL NOW/i.test(text)) return { label: "CALL NOW", colorClass: "text-red-500 font-semibold" };
+  if (/WORTH A CALL/i.test(text)) return { label: "WORTH A CALL", colorClass: "text-orange-400 font-semibold" };
+  if (/WATCH/i.test(text)) return { label: "WATCH", colorClass: "text-gray-400 font-semibold" };
+  return null;
+}
+
+function stripActionLabel(text: string): string {
+  return text.replace(/\*?\*?(CALL NOW|WORTH A CALL|WATCH)\*?\*?\.?/gi, "").trim();
+}
+
 export const MobilePropertyCard = memo(function MobilePropertyCard({
   property,
   isSelected,
@@ -50,128 +62,152 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
   onToggleSaved,
   isUnlocked = true,
 }: MobilePropertyCardProps) {
-  const [insightExpanded, setInsightExpanded] = useState(false);
-  
-  const getScoreColor = (score: number | null) => {
-    if (!score) return "bg-muted text-muted-foreground";
-    if (score >= 75) return "bg-red-500 text-white";
-    if (score >= 50) return "bg-orange-500 text-white";
-    if (score >= 25) return "bg-yellow-500 text-black";
-    return "bg-blue-500 text-white";
+  const { data: contacts } = usePropertyContacts(isUnlocked ? property.id : "");
+
+  const getScoreDot = (score: number | null) => {
+    if (!score) return "bg-muted-foreground";
+    if (score >= 75) return "bg-red-500";
+    if (score >= 50) return "bg-orange-500";
+    if (score >= 25) return "bg-yellow-500";
+    return "bg-green-500";
   };
 
-  const insightText = property.snap_insight || "No insight available";
-  const shouldShowExpand = insightText.length > 100;
+  const insightText = property.snap_insight || "";
+  const actionLabel = getActionLabel(insightText);
+  const briefBody = stripActionLabel(insightText);
+  const ownerContact = contacts?.find(c => c.name);
 
   return (
     <div
-      className="relative bg-background border-b p-4 active:bg-accent/50 transition-colors"
+      className="relative bg-background border-b active:bg-accent/50 transition-colors"
       onClick={onClick}
     >
-      {/* Badges - Top Right */}
-      <div className="absolute top-3 right-3 flex items-center gap-1">
-        {/* Save heart */}
-        {onToggleSaved && (
-          <SaveHeartButton
-            isSaved={isSaved}
-            onToggle={() => onToggleSaved(property.id)}
-            size="md"
-          />
-        )}
-        {/* Water shutoff indicator */}
-        {property.enforcement_type === 'water_shutoff' && (
-          <Badge variant="outline" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200 px-1.5 py-0.5">
-            💧
-          </Badge>
-        )}
-        {/* SnapScore Badge */}
-        <Badge
-          className={`snap-score-value ${getScoreColor(property.snap_score)} text-sm font-bold px-2.5 py-1`}
-        >
-          {property.snap_score || 0}
-        </Badge>
-      </div>
-
-      <div className="flex items-start gap-3 pr-14">
-        {/* Checkbox - Large tap target */}
-        <div 
-          className="pt-0.5"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={() => onToggleSelect(property.id)}
-            className="h-6 w-6"
-          />
+      <div className="p-4 space-y-3">
+        {/* Header: lock status + SnapScore */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div onClick={(e) => e.stopPropagation()}>
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={() => onToggleSelect(property.id)}
+                className="h-6 w-6"
+              />
+            </div>
+            {isUnlocked ? (
+              <Unlock className="h-3.5 w-3.5 text-teal-500" />
+            ) : (
+              <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+            <span className={`text-xs font-semibold uppercase tracking-wider ${isUnlocked ? "text-teal-500" : "text-muted-foreground"}`}>
+              {isUnlocked ? "Unlocked" : "Locked"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className={`w-2 h-2 rounded-full ${getScoreDot(property.snap_score)}`} />
+            <span className="text-xs font-bold text-teal-500">SnapScore {property.snap_score || 0}</span>
+          </div>
         </div>
-        
-        <div className="flex-1 min-w-0">
-          {/* Address - Full width, no truncation */}
-          <h3 className="property-address font-semibold text-base leading-snug text-foreground flex items-center gap-1">
-            {!isUnlocked && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-            {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
+
+        {/* Address */}
+        <div>
+          <h3 className="property-address font-bold text-lg leading-snug">
+            {isUnlocked
+              ? formatAddress(property.address)
+              : (
+                <span className="inline-flex items-center gap-1">
+                  <span className="blur-[4px] select-none pointer-events-none">####</span>
+                  <span>{property.street_name || property.address?.replace(/^\d+\s*/, '')}</span>
+                </span>
+              )}
           </h3>
           <p className="text-sm text-muted-foreground mt-0.5">
             {formatCity(property.city)}, {property.state} {property.zip}
           </p>
+        </div>
 
-          {/* Violation Density Indicators */}
-          <div className="flex items-center gap-3 mt-2 flex-wrap">
-            {/* Only show if there are actual violations (total > 0) */}
-            {(property.total_violations != null && property.total_violations > 0) && (
-              <div className="flex items-center gap-1.5">
-                <AlertTriangle className={`h-3.5 w-3.5 ${(property.open_violations ?? 0) > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs ${
-                    (property.open_violations ?? 0) > 0 
-                      ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
-                      : 'bg-rose-100 text-rose-700 border-rose-200'
-                  }`}
-                >
-                  {(property.open_violations ?? 0) > 0 ? 'open' : 'closed'}
-                </Badge>
-              </div>
-            )}
-            {property.enforcement_type === 'water_shutoff' ? (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-cyan-700 font-medium">Water Disconnection</span>
-              </div>
-            ) : property.violation_types && property.violation_types.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <Flame className="h-3.5 w-3.5 text-orange-500" />
-                <span className="text-xs text-muted-foreground">
-                  {property.violation_types.filter(v => v !== 'Unknown').slice(0, 2).map(formatViolationType).join(", ") || "Code Violation"}
-                  {property.violation_types.filter(v => v !== 'Unknown').length > 2 && ` +${property.violation_types.filter(v => v !== 'Unknown').length - 2}`}
-                </span>
-              </div>
-            )}
-          </div>
+        {/* Violation tags */}
+        <div className="flex flex-wrap gap-1">
+          {property.enforcement_type === 'water_shutoff' && (
+            <Badge variant="outline" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200 px-1.5 py-0.5">
+              💧 Water Disconnection
+            </Badge>
+          )}
+          {property.violation_types?.filter(v => v !== 'Unknown').slice(0, 3).map((vt, i) => (
+            <Badge key={i} variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-orange-50 text-orange-700 border-orange-200 gap-0.5">
+              <Flame className="h-3 w-3" />
+              {formatViolationType(vt)}
+            </Badge>
+          ))}
+        </div>
 
-          {/* AI Insight - Collapsible */}
-          <div className="mt-3">
-            <p className={`snap-insight-text text-sm text-muted-foreground leading-relaxed ${!insightExpanded && shouldShowExpand ? 'line-clamp-2' : ''}`}>
-              {insightText}
+        {/* AI Brief - always visible, never collapsed */}
+        {insightText && (
+          <div className="bg-slate-900 rounded-lg p-3 border border-teal-500/20">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+              <span className="text-xs font-semibold text-teal-400">AI Investor Brief</span>
+            </div>
+            <p className="snap-insight-text text-xs text-slate-300 leading-relaxed">
+              {briefBody}{" "}
+              {actionLabel && (
+                <span className={actionLabel.colorClass}>{actionLabel.label}.</span>
+              )}
             </p>
-            {shouldShowExpand && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setInsightExpanded(!insightExpanded);
-                }}
-                className="h-auto p-0 mt-1 text-xs text-primary hover:bg-transparent"
-              >
-                {insightExpanded ? (
-                  <>Show less <ChevronUp className="h-3 w-3 ml-1" /></>
-                ) : (
-                  <>Read more <ChevronDown className="h-3 w-3 ml-1" /></>
-                )}
-              </Button>
+          </div>
+        )}
+
+        {/* Owner contact (unlocked only) */}
+        {isUnlocked && ownerContact && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-sm">
+              <Users className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>{ownerContact.name} <span className="text-muted-foreground">(Owner)</span></span>
+            </div>
+            {ownerContact.phone && (
+              <div className="flex items-center gap-2 text-sm">
+                <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                <a href={`tel:${ownerContact.phone}`} className="text-primary hover:underline" onClick={e => e.stopPropagation()}>
+                  {ownerContact.phone}
+                </a>
+              </div>
             )}
           </div>
+        )}
 
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          {isUnlocked ? (
+            <>
+              <Button
+                size="sm"
+                className="flex-1 bg-teal-500 hover:bg-teal-600 text-white text-xs"
+                onClick={(e) => { e.stopPropagation(); }}
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                Export Lead
+              </Button>
+              {onToggleSaved && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs"
+                  onClick={(e) => { e.stopPropagation(); onToggleSaved(property.id); }}
+                >
+                  <Heart className={`h-3.5 w-3.5 mr-1.5 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />
+                  {isSaved ? "Saved" : "Save"}
+                </Button>
+              )}
+            </>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs"
+              onClick={(e) => { e.stopPropagation(); }}
+            >
+              <Lock className="h-3.5 w-3.5 mr-1.5" />
+              Unlock for $0.97
+            </Button>
+          )}
         </div>
       </div>
     </div>

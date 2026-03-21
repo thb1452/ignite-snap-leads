@@ -338,7 +338,7 @@ export default function Landing() {
                 Full AI insights free. No subscription needed to see what's hot. Pay only when you want the address.
               </p>
               <div className="space-y-3 text-sm text-landing-text-muted">
-                {["AI brief + blurred preview — free", "Active enforcement data, updated weekly", "Pay-per-lead: $5 per address or 1 credit"].map((item, i) => (
+                {["AI brief + blurred preview — free", "Active enforcement data, updated weekly", "Pay-per-address: $0.97 per unlock"].map((item, i) => (
                   <div key={i} className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-landing-accent shrink-0" />{item}</div>
                 ))}
               </div>

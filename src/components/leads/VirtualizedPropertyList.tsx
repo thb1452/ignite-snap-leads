@@ -35,9 +35,6 @@ interface VirtualizedPropertyListProps {
   onUnlock?: (propertyId: string) => void;
 }
 
-// Rich card height - accommodates full insight text (with dark brief box), violation badges, freshness
-const CARD_HEIGHT = 220;
-
 const VirtualizedPropertyListInner = ({
   properties,
   selectedIds,
@@ -53,7 +50,8 @@ const VirtualizedPropertyListInner = ({
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => CARD_HEIGHT,
+    estimateSize: () => 300,
+    measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 5,
   });
 
@@ -73,6 +71,8 @@ const VirtualizedPropertyListInner = ({
           return (
             <div
               key={property.id}
+              data-index={virtualItem.index}
+              ref={virtualizer.measureElement}
               style={{
                 position: "absolute",
                 top: 0,

@@ -20,7 +20,7 @@ const CREDIT_PACKS: Record<string, { amount: number; credits: number; label: str
 };
 
 // Single unlock price in cents
-const SINGLE_UNLOCK_PRICE = 500; // $5
+const SINGLE_UNLOCK_PRICE = 97; // $0.97
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -217,11 +217,12 @@ async function handleSubscription(
   }
 
   // ---- Stripe Price IDs ----
+  // TODO: Replace these placeholder IDs with real Stripe price IDs
   const STRIPE_PRICE_IDS: Record<string, string> = {
-    starter: "price_1T2kFABg6vwuzzF0LvKvfUsz",
-    professional: "price_1T2kEeBg6vwuzzF0fOjHbxBX",
-    enterprise: "price_1T3kgtBg6vwuzzF0VdhC1HFk",
-    elite: "price_1T3kgtBg6vwuzzF0VdhC1HFk",
+    starter: "price_STARTER_ID",
+    professional: "price_PRO_ID",
+    enterprise: "price_ELITE_ID",
+    elite: "price_ELITE_ID",
   };
 
   const priceId = STRIPE_PRICE_IDS[tier_name.toLowerCase()];

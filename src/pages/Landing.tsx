@@ -128,7 +128,7 @@ function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
       ) : (
         <Button className="w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
           <Lock className="w-4 h-4 mr-2" />
-          Unlock for $5 or 1 Credit
+          Unlock for $0.97
         </Button>
       )}
     </div>
@@ -338,7 +338,7 @@ export default function Landing() {
                 Full AI insights free. No subscription needed to see what's hot. Pay only when you want the address.
               </p>
               <div className="space-y-3 text-sm text-landing-text-muted">
-                {["AI brief + blurred preview — free", "Active enforcement data, updated weekly", "Pay-per-lead: $5 per address or 1 credit"].map((item, i) => (
+                {["AI brief + blurred preview — free", "Active enforcement data, updated weekly", "Pay-per-address: $0.97 per unlock"].map((item, i) => (
                   <div key={i} className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-landing-accent shrink-0" />{item}</div>
                 ))}
               </div>
@@ -403,48 +403,84 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── 5. Pricing & Credit Packs ────────────────────── */}
+      {/* ─── 5. Pricing ────────────────────────────────── */}
       <section id="pricing" className="py-24 bg-landing-surface/30">
         <div className="container mx-auto px-4">
           <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-4xl font-bold text-center mb-4">
             Simple, Transparent Pricing
           </motion.h2>
-          <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-xl text-landing-text-muted text-center mb-16">
-            Browse free. Subscribe for the best value — or pay as you go.
+          <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-xl text-landing-text-muted text-center mb-4">
+            Only pay for what's actually in your market. No wasted spend.
+          </motion.p>
+          <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }} className="text-sm text-landing-text-muted text-center mb-16">
+            One deal pays for 10,000 addresses.
           </motion.p>
 
-          {/* Subscription tiers */}
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
+          {/* Pricing tiers */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mb-8">
             {[
               {
-                name: "Starter",
-                price: 49,
-                unlocks: "20/mo",
-                exports: "Included",
-                note: "Casual investors",
-                features: ["20 unlocks/month", "Export included", "3,800+ cities", "Code violation data", "AI investor briefs"],
+                name: "Free",
+                price: "$0",
+                suffix: "/forever",
+                features: ["3 unlocks + 3 exports", "Browse all properties", "AI investor briefs", "SnapScore ranking"],
+                cta: "Start Free",
                 highlighted: false,
                 badge: undefined,
+                borderClass: "",
+              },
+              {
+                name: "Pay As You Go",
+                price: "$0.97",
+                suffix: "/address",
+                features: ["No monthly fee", "1 unlock = 1 export", "Credits never expire", "No commitment"],
+                cta: "Buy Addresses",
+                highlighted: false,
+                badge: "No Subscription Needed",
+                borderClass: "border-2 border-[hsl(var(--landing-warning))]",
+              },
+              {
+                name: "Starter",
+                price: "$49",
+                suffix: "/mo",
+                features: ["150 addresses/month", "150 exports/month", "Code violation data", "Basic filters"],
+                cta: "Get Starter",
+                highlighted: false,
+                badge: undefined,
+                borderClass: "",
               },
               {
                 name: "Pro",
-                price: 99,
-                unlocks: "50/mo",
-                exports: "+ Skip trace credits",
-                note: "Active deal finders",
-                features: ["50 unlocks/month", "All Starter features", "Pressure Level™ filters", "Skip trace credits", "Priority data refresh"],
+                price: "$99",
+                suffix: "/mo",
+                features: ["400 addresses/month", "400 exports/month", "Pressure Level™ filters", "Priority support"],
+                cta: "Get Pro",
                 highlighted: true,
-                badge: "Best Value",
+                badge: "Most Popular",
+                savingsBadge: "Save $289 vs Pay As You Go",
+                borderClass: "",
               },
               {
                 name: "Elite",
-                price: 199,
-                unlocks: "Unlimited (soft 500)",
-                exports: "Priority support",
-                note: "Teams / power users",
-                features: ["Unlimited unlocks (soft 500)", "All Pro features", "Water shutoff data", "Priority support", "Team seats"],
+                price: "$199",
+                suffix: "/mo",
+                features: ["1,000 addresses/month", "1,000 exports/month", "Water shutoff data", "All Pro features"],
+                cta: "Get Elite",
                 highlighted: false,
                 badge: undefined,
+                savingsBadge: "Save $771 vs Pay As You Go",
+                borderClass: "",
+              },
+              {
+                name: "Enterprise",
+                price: "Custom",
+                suffix: "",
+                features: ["25,000+ addresses", "API access", "Dedicated account manager", "Custom contract"],
+                cta: "Contact Us",
+                highlighted: false,
+                badge: undefined,
+                borderClass: "",
+                isEnterprise: true,
               },
             ].map((plan, i) => (
               <motion.div
@@ -452,27 +488,34 @@ export default function Landing() {
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className={`relative rounded-xl p-8 ${
+                transition={{ delay: i * 0.07 }}
+                className={`relative rounded-xl p-6 ${
                   plan.highlighted
-                    ? "bg-landing-bg border-2 border-landing-accent shadow-lg shadow-landing-accent/20 md:scale-105"
-                    : "bg-landing-bg/50 border border-landing-surface"
+                    ? "bg-landing-bg border-2 border-landing-accent shadow-lg shadow-landing-accent/20"
+                    : plan.borderClass
+                      ? `bg-landing-bg/50 ${plan.borderClass}`
+                      : "bg-landing-bg/50 border border-landing-surface"
                 }`}
               >
                 {plan.badge && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-landing-accent text-landing-bg text-sm font-semibold rounded-full">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-landing-accent text-landing-bg text-xs font-semibold rounded-full whitespace-nowrap">
                     {plan.badge}
                   </div>
                 )}
-                <div className="text-center mb-6">
-                  <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                <div className="text-center mb-4">
+                  <h3 className="text-lg font-bold mb-2">{plan.name}</h3>
                   <div className="mb-1">
-                    <span className="text-4xl font-bold">${plan.price}</span>
-                    <span className="text-landing-text-muted">/mo</span>
+                    <span className="text-3xl font-bold">{plan.price}</span>
+                    {plan.suffix && <span className="text-landing-text-muted">{plan.suffix}</span>}
                   </div>
-                  <p className="text-sm text-landing-text-muted">{plan.note}</p>
+                  {(plan as any).savingsBadge && (
+                    <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-semibold">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      {(plan as any).savingsBadge}
+                    </div>
+                  )}
                 </div>
-                <ul className="space-y-3 mb-8">
+                <ul className="space-y-2 mb-6">
                   {plan.features.map((f, j) => (
                     <li key={j} className="flex items-start gap-2 text-sm">
                       <Check className="w-4 h-4 text-landing-accent shrink-0 mt-0.5" />
@@ -480,48 +523,27 @@ export default function Landing() {
                     </li>
                   ))}
                 </ul>
-                <Link to="/auth">
+                <Link to={(plan as any).isEnterprise ? "mailto:hello@snapignite.com" : "/auth"}>
                   <Button
-                    className={`w-full ${
+                    className={`w-full text-sm ${
                       plan.highlighted
                         ? "bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
                         : "bg-landing-surface hover:bg-landing-surface/80 text-landing-text border border-landing-surface"
                     }`}
+                    size="sm"
                   >
-                    Subscribe
+                    {plan.cta}
                   </Button>
                 </Link>
+                {!plan.name.includes("Free") && !plan.name.includes("Enterprise") && !plan.name.includes("Pay") && (
+                  <p className="text-[10px] text-center text-landing-text-muted mt-2">1 unlock = 1 export. Always.</p>
+                )}
+                {plan.name === "Pay As You Go" && (
+                  <p className="text-[10px] text-center text-landing-text-muted mt-2">Credits never expire. Buy exactly what you need.</p>
+                )}
               </motion.div>
             ))}
           </div>
-
-          {/* Credit Packs */}
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="max-w-3xl mx-auto">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold mb-2">Prefer Pay-As-You-Go?</h3>
-              <p className="text-landing-text-muted">Buy credits and unlock only what you need. Credits never expire.</p>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { credits: 20, price: 59 },
-                { credits: 50, price: 129 },
-                { credits: 200, price: 399 },
-              ].map((pack, i) => (
-                <motion.div
-                  key={i}
-                  whileHover={{ scale: 1.03 }}
-                  className="bg-landing-bg/50 border border-landing-surface rounded-xl p-6 text-center cursor-pointer hover:border-landing-accent/50 transition-colors"
-                >
-                  <p className="text-3xl font-bold text-landing-accent mb-1">{pack.credits}</p>
-                  <p className="text-sm text-landing-text-muted mb-2">credits</p>
-                  <p className="text-xl font-bold">${pack.price}</p>
-                  <p className="text-xs text-landing-text-muted mt-1">
-                    ${(pack.price / pack.credits).toFixed(2)}/credit
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
         </div>
       </section>
 
@@ -539,9 +561,8 @@ export default function Landing() {
             {[
               { icon: Sparkles, title: "AI Investor Briefs", desc: "2-sentence plain-English analysis on every property.", highlight: true },
               { icon: Eye, title: "Blurred Address Preview", desc: "See the insight before paying. Street name, score, AI brief — free." },
-              { icon: DollarSign, title: "Pay-Per-Unlock", desc: "$5 per lead, no commitment. Only pay for what you use." },
-              { icon: CreditCard, title: "Credit Packs", desc: "Buy in bulk. Credits never expire. Best per-lead cost." },
-              { icon: TrendingUp, title: "Subscriptions", desc: "Unlock more, pay less. Best value for regular users." },
+              { icon: DollarSign, title: "Pay As You Go", desc: "$0.97 per address, no commitment. Only pay for what you use." },
+              { icon: TrendingUp, title: "Subscriptions", desc: "150–1,000 addresses/month. Best value for regular users." },
               { icon: Search, title: "Scan Your List", desc: "Upload addresses, get AI insights + SnapScore back.", comingSoon: true },
               { icon: Bell, title: "Real-Time Notifications", desc: "Alerts when new violations hit saved properties." },
               { icon: Download, title: "CSV Export", desc: "Build targeted lists and export instantly." },
@@ -669,7 +690,7 @@ export default function Landing() {
                   <Button
                     className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold shadow-xl"
                   >
-                    <MapPin className="w-4 h-4 mr-2" /> Reveal Full Addresses — $5 or 1 Credit
+                    <MapPin className="w-4 h-4 mr-2" /> Reveal Full Addresses — $0.97 Each
                   </Button>
                 </Link>
               </div>
@@ -727,12 +748,12 @@ export default function Landing() {
 
             <Accordion type="single" collapsible className="space-y-4">
               {[
-                { q: "Do I need a subscription to use Snap?", a: "No. Browse insights free. Pay only for addresses you want to unlock." },
-                { q: "How does the free tier work?", a: "AI insights, SnapScore, and blurred address previews are always free. You get 3 free unlocks to try it out. After that, pay $5 per unlock, buy a credit pack, or subscribe." },
+                { q: "Do I need a subscription to use Snap?", a: "No. Browse insights free. Pay only for addresses you want to unlock — $0.97 each." },
+                { q: "How does the free tier work?", a: "AI insights, SnapScore, and blurred address previews are always free. You get 3 free unlocks to try it out. After that, pay $0.97 per unlock or subscribe for a better rate." },
                 { q: "What happens when I unlock a property?", a: "You get the full street address, owner contact information (where available), and the ability to export or save the lead." },
-                { q: "How do credits work?", a: "One-time purchase, never expire. 1 credit = 1 unlock. Buy packs of 20, 50, or 200." },
+                { q: "How does Pay As You Go work?", a: "Pay $0.97 per address. No subscription, no commitment. 1 unlock = 1 export. Credits never expire." },
                 { q: "Can I cancel anytime?", a: "Yes — all plans are month-to-month. No contracts, no cancellation fees." },
-                { q: "I only do 1–2 deals/month. Should I subscribe?", a: "Not necessarily. Just buy individual unlocks at $5 each or grab a small credit pack. Subscribe when volume makes it worth it." },
+                { q: "I only do 1–2 deals/month. Should I subscribe?", a: "Not necessarily. Just buy individual addresses at $0.97 each. Subscribe when your volume makes the per-address savings worth it." },
               ].map((faq, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}>
                   <AccordionItem value={`item-${i}`} className="bg-landing-bg/50 border border-landing-surface rounded-lg px-6 data-[state=open]:border-landing-accent/50">

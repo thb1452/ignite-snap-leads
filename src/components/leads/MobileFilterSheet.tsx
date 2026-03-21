@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SlidersHorizontal, X, ListPlus, Home, Info, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useQuery } from "@tanstack/react-query";
-import { useSubscription } from "@/hooks/useSubscription";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";

@@ -39,8 +39,8 @@ export default function AuditReport() {
             ["Cities Covered", "3,800+"],
             ["Scoring Engine Version", "v7.1"],
             ["AI Engine", "v4.1 Hybrid (Gemini 3 Flash Preview)"],
-            ["Subscription Tiers", "Starter ($79/mo) · Professional ($149/mo) · Elite ($299/mo)"],
-            ["Trial Period", "3-day free trial"],
+            ["Subscription Tiers", "Starter ($49/mo) · Pro ($99/mo) · Elite ($199/mo)"],
+            ["Pricing Model", "Free + Pay As You Go ($0.97/address) + Subscriptions"],
             ["Payment Processing", "Stripe (Test Mode)"],
           ]} />
         </Section>

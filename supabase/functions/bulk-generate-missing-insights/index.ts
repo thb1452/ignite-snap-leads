@@ -343,28 +343,28 @@ BANNED PHRASES — NEVER USE:
 EXAMPLE OUTPUTS:
 
 Water shutoff, score 100:
-"Utility disconnection on record with 3 open enforcement actions across 2 departments. Long-term distress signal — no compliance activity filed in 6 months. City escalated to legal proceedings. HIGH OPPORTUNITY"
+"Utility disconnection on record with 3 open enforcement actions across 2 departments. Long-term distress signal — no compliance activity filed in 6 months. City escalated to legal proceedings. CALL NOW"
 
 Structural, score 92:
-"5 open structural and safety violations, unresolved for an average of 4,300 days. Repeat citation pattern with no permits pulled — active enforcement, no resolution. HIGH OPPORTUNITY"
+"5 open structural and safety violations, unresolved for an average of 4,300 days. Repeat citation pattern with no permits pulled — active enforcement, no resolution. CALL NOW"
 
 Multi-department, score 85:
-"6 violations across building and health departments, unresolved 2,754 days. Multi-department distress pattern with no compliance activity on file. Enforcement escalated to board hearing. HIGH OPPORTUNITY"
+"6 violations across building and health departments, unresolved 2,754 days. Multi-department distress pattern with no compliance activity on file. Enforcement escalated to board hearing. CALL NOW"
 
 No descriptions, score 80:
-"7 open violations with multi-department enforcement active. Long-term distress signal — no resolution on file despite coordinated city pressure. HIGH OPPORTUNITY"
+"7 open violations with multi-department enforcement active. Long-term distress signal — no resolution on file despite coordinated city pressure. CALL NOW"
 
 Elevated, score 55:
-"3 open exterior and zoning violations, 60 days unresolved with recent activity. Active enforcement, no resolution — repeat citation pattern emerging. GOOD OPPORTUNITY"
+"3 open exterior and zoning violations, 60 days unresolved with recent activity. Active enforcement, no resolution — repeat citation pattern emerging. WORTH A CALL"
 
 Low score, resolved, score 20:
-"2 violations resolved with no current enforcement active. No compliance issues on record in 90 days. PASS"
+"2 violations resolved with no current enforcement active. No compliance issues on record in 90 days. WATCH"
 
 Watch level, score 35:
 "1 open maintenance citation, 45 days old, no escalation on record. Low enforcement pressure — monitor for changes. WATCH"
 
 Contact data present, score 78:
-"6 open safety and zoning violations across 2 departments, unresolved 90+ days. Active enforcement, no resolution — escalating pressure signal. Contact: James Carter (614) 555-0192. HIGH OPPORTUNITY"`;
+"6 open safety and zoning violations across 2 departments, unresolved 90+ days. Active enforcement, no resolution — escalating pressure signal. Contact: James Carter (614) 555-0192. CALL NOW"`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {

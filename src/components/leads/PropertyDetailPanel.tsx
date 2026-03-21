@@ -125,23 +125,21 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
     }
   }, [property?.id, property?.violations, open]);
 
-  if (!property) return null;
-
-  const getScoreColor = (score: number | null) => {
+  const getScoreColor = useCallback((score: number | null) => {
     if (!score) return "bg-muted text-muted-foreground";
     if (score >= 75) return "bg-red-500 text-white";
     if (score >= 50) return "bg-orange-500 text-white";
     if (score >= 25) return "bg-yellow-500 text-black";
     return "bg-green-500 text-white";
-  };
+  }, []);
 
-  const getScoreDot = (score: number | null) => {
+  const getScoreDot = useCallback((score: number | null) => {
     if (!score) return "bg-muted-foreground";
     if (score >= 75) return "bg-red-500";
     if (score >= 50) return "bg-orange-500";
     if (score >= 25) return "bg-yellow-500";
     return "bg-green-500";
-  };
+  }, []);
 
   const formatDate = useCallback((dateString: string | null) => {
     if (!dateString) return "N/A";
@@ -153,15 +151,18 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
   }, []);
 
   const googleMapsUrl = useMemo(() =>
-    property.latitude && property.longitude
-      ? `https://www.google.com/maps?q=${property.latitude},${property.longitude}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip}`)}`,
-    [property.latitude, property.longitude, property.address, property.city, property.state, property.zip]
+    property
+      ? (property.latitude && property.longitude
+          ? `https://www.google.com/maps?q=${property.latitude},${property.longitude}`
+          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip}`)}`)
+      : "",
+    [property?.latitude, property?.longitude, property?.address, property?.city, property?.state, property?.zip]
   );
 
-  const snapScore = property.snap_score;
+  const snapScore = property?.snap_score ?? null;
 
   const handleBriefGenerated = useCallback(async (brief: InvestorBrief) => {
+    if (!property) return;
     try {
       await supabase
         .from('properties')
@@ -170,7 +171,9 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
     } catch (err) {
       // silently fail
     }
-  }, [property.id]);
+  }, [property?.id]);
+
+  if (!property) return null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

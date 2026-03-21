@@ -369,7 +369,7 @@ export default function Landing() {
                 step: "02",
                 icon: Zap,
                 title: "Find a Hot Lead",
-                description: 'AI insight: "Water cut off. 3 violations. Owner not responding. HIGH OPPORTUNITY."',
+                description: 'AI insight: "Water cut off. 3 violations. Owner not responding. CALL NOW."',
               },
               {
                 step: "03",

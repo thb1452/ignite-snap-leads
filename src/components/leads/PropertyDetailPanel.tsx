@@ -15,6 +15,7 @@ import { InvestorInsightCard } from "./InvestorInsightCard";
 import { exportFilteredCsv } from "@/services/export";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { TrialExportGate } from "@/components/trial/TrialExportGate";
+import { OwnerContactSection } from "./OwnerContactSection";
 
 interface Violation {
   id: string;

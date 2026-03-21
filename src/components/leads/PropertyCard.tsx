@@ -114,9 +114,20 @@ export const PropertyCard = memo(function PropertyCard({
             </span>
           )}
         </p>
-        <p className="text-sm text-slate-400 mb-4">
+        <p className="text-sm text-slate-400 mb-2">
           {formatCity(property.city)}, {property.state} {property.zip}
         </p>
+
+        {/* Violation Tags */}
+        {property.violation_types && property.violation_types.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {property.violation_types.slice(0, 4).map((vt) => (
+              <span key={vt} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                🔥 {vt}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* AI Insight */}
         {insightText && (

@@ -690,7 +690,7 @@ export default function Landing() {
                   <Button
                     className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold shadow-xl"
                   >
-                    <MapPin className="w-4 h-4 mr-2" /> Reveal Full Addresses — $5 or 1 Credit
+                    <MapPin className="w-4 h-4 mr-2" /> Reveal Full Addresses — $0.97 Each
                   </Button>
                 </Link>
               </div>

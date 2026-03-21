@@ -97,6 +97,7 @@ export function UnlockModal({
       queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
       queryClient.invalidateQueries({ queryKey: ["credits"] });
       queryClient.invalidateQueries({ queryKey: ["user", "credits"] });
+      queryClient.invalidateQueries({ queryKey: ["property-contacts", property.id] });
 
       onUnlocked?.();
       onOpenChange(false);

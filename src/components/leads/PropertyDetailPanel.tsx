@@ -286,6 +286,17 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
               />
             </motion.div>
 
+            {/* Owner Contact Info (unlocked only) */}
+            {isUnlocked && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.04 }}
+              >
+                <OwnerContactSection propertyId={property.id} isUnlocked={isUnlocked} />
+              </motion.div>
+            )}
+
             {/* Metrics Grid */}
             <motion.div
               initial={{ opacity: 0, y: 8 }}

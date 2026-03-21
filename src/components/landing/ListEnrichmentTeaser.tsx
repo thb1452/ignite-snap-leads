@@ -40,7 +40,7 @@ export function ListEnrichmentTeaser() {
           <div className="absolute -top-20 -right-20 w-60 h-60 bg-landing-accent/10 rounded-full blur-3xl pointer-events-none" />
 
           <h3 className="text-xl md:text-2xl font-bold text-landing-text mb-3">
-            🔥 Coming Soon: Scan
+            🔥 Scan Your List
           </h3>
 
           <p className="text-sm md:text-base text-landing-text-muted leading-relaxed mb-2">

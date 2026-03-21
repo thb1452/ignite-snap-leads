@@ -75,13 +75,12 @@ export function MobileFilterSheet({
   const [loadingCities, setLoadingCities] = useState(false);
 
   // Subscription gating
-  const { subscription } = useSubscription();
+  const { hasFeature } = useFeatureAccess();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const planName = subscription?.plan_name;
-  const isProOrHigher = planName === 'professional' || planName === 'enterprise';
+  const isProOrHigher = hasFeature('advanced_filters') || isAdmin;
   const isEnterprise = isAdmin || planName === 'enterprise';
 
   const isLockedCategory = (categoryId: string) => {

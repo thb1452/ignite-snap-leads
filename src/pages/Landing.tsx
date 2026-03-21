@@ -128,7 +128,7 @@ function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
       ) : (
         <Button className="w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
           <Lock className="w-4 h-4 mr-2" />
-          Unlock for $5 or 1 Credit
+          Unlock for $0.97
         </Button>
       )}
     </div>

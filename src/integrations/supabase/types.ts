@@ -1447,6 +1447,7 @@ export type Database = {
           created_by: string
           email: string | null
           id: string
+          mailing_address: string | null
           name: string | null
           phone: string | null
           property_id: string
@@ -1458,6 +1459,7 @@ export type Database = {
           created_by: string
           email?: string | null
           id?: string
+          mailing_address?: string | null
           name?: string | null
           phone?: string | null
           property_id: string
@@ -1469,6 +1471,7 @@ export type Database = {
           created_by?: string
           email?: string | null
           id?: string
+          mailing_address?: string | null
           name?: string | null
           phone?: string | null
           property_id?: string

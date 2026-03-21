@@ -97,6 +97,7 @@ export function UnlockModal({
       queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
       queryClient.invalidateQueries({ queryKey: ["credits"] });
       queryClient.invalidateQueries({ queryKey: ["user", "credits"] });
+      queryClient.invalidateQueries({ queryKey: ["property-contacts", property.id] });
 
       onUnlocked?.();
       onOpenChange(false);
@@ -241,7 +242,7 @@ export function UnlockModal({
             ) : (
               <CreditCard className="h-4 w-4" />
             )}
-            Buy Unlock — $5
+            Buy Unlock — $0.97
           </Button>
 
           {/* Subscribe CTA */}

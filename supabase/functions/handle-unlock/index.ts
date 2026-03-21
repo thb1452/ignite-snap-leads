@@ -76,7 +76,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const result = data as Record<string, any>;
 
     if (!result.success) {
-      // Return 402 Payment Required with balance info
       return new Response(
         JSON.stringify({
           error: result.error,
@@ -89,7 +88,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // On success, fetch full property details (including street_number)
+    // On success, fetch full property details
     const { data: property, error: propErr } = await supabase
       .from("properties")
       .select(
@@ -122,10 +121,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
             },
             body: JSON.stringify({
               requests: [{
-                streetAddress: property.address,
-                city: property.city,
-                state: property.state,
-                zip: property.zip,
+                propertyAddress: {
+                  street: property.address,
+                  city: property.city,
+                  state: property.state,
+                  zip: property.zip,
+                },
               }],
             }),
           });
@@ -135,21 +136,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
             const persons = batchData?.results?.persons || batchData?.results?.[0]?.persons || [];
 
             if (persons.length > 0) {
-              const contacts = persons.slice(0, 3).map((person: any) => ({
-                property_id,
-                created_by: user.id,
-                source: "batchdata",
-                name: [person.firstName, person.lastName].filter(Boolean).join(" ") || person.name || null,
-                phone: person.phones?.[0]?.phone || person.phoneNumbers?.[0]?.number || null,
-                email: person.emails?.[0]?.email || person.emailAddresses?.[0]?.address || null,
-                raw_payload: person,
-              }));
+              const contacts = persons.slice(0, 3).map((person: any) => {
+                const mailingAddr = person.addresses?.[0];
+                return {
+                  property_id,
+                  created_by: user.id,
+                  source: "batchdata",
+                  name: [person.firstName, person.lastName].filter(Boolean).join(" ") || person.name || null,
+                  phone: person.phones?.[0]?.phone || person.phoneNumbers?.[0]?.number || null,
+                  email: person.emails?.[0]?.email || person.emailAddresses?.[0]?.address || null,
+                  mailing_address: mailingAddr
+                    ? [mailingAddr.street, mailingAddr.city, mailingAddr.state, mailingAddr.zip].filter(Boolean).join(", ")
+                    : null,
+                  raw_payload: person,
+                };
+              });
               await supabase.from("property_contacts").insert(contacts);
             } else {
               // Store empty marker
               await supabase.from("property_contacts").insert({
                 property_id, created_by: user.id, source: "batchdata",
-                name: null, phone: null, email: null, raw_payload: batchData,
+                name: null, phone: null, email: null, mailing_address: null, raw_payload: batchData,
               });
             }
           } else {
@@ -164,7 +171,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Fetch contacts (may have just been created by enrichment above)
     const { data: contacts } = await supabase
       .from("property_contacts")
-      .select("name, phone, email, source")
+      .select("name, phone, email, mailing_address, source")
       .eq("property_id", property_id);
 
     return new Response(

@@ -15,6 +15,7 @@ import { InvestorInsightCard } from "./InvestorInsightCard";
 import { exportFilteredCsv } from "@/services/export";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { TrialExportGate } from "@/components/trial/TrialExportGate";
+import { OwnerContactSection } from "./OwnerContactSection";
 
 interface Violation {
   id: string;
@@ -284,6 +285,17 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
                 onBriefGenerated={handleBriefGenerated}
               />
             </motion.div>
+
+            {/* Owner Contact Info (unlocked only) */}
+            {isUnlocked && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.04 }}
+              >
+                <OwnerContactSection propertyId={property.id} isUnlocked={isUnlocked} />
+              </motion.div>
+            )}
 
             {/* Metrics Grid */}
             <motion.div

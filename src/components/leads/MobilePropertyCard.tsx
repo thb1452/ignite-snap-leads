@@ -41,14 +41,20 @@ interface MobilePropertyCardProps {
 }
 
 function getActionLabel(text: string): { label: string; colorClass: string } | null {
-  if (/CALL NOW/i.test(text)) return { label: "CALL NOW", colorClass: "text-red-500 font-semibold" };
-  if (/WORTH A CALL/i.test(text)) return { label: "WORTH A CALL", colorClass: "text-orange-400 font-semibold" };
-  if (/WATCH/i.test(text)) return { label: "WATCH", colorClass: "text-gray-400 font-semibold" };
+  if (/CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY/i.test(text))
+    return { label: "CALL NOW", colorClass: "text-red-500 font-bold" };
+  if (/WORTH A CALL|MONITOR/i.test(text))
+    return { label: "WORTH A CALL", colorClass: "text-orange-400 font-bold" };
+  if (/WATCH|LOW PRIORITY|WATCH\/PASS/i.test(text))
+    return { label: "WATCH", colorClass: "text-gray-400 font-bold" };
   return null;
 }
 
 function stripActionLabel(text: string): string {
-  return text.replace(/\*?\*?(CALL NOW|WORTH A CALL|WATCH)\*?\*?\.?/gi, "").trim();
+  return text
+    .replace(/\*?\*?(CALL NOW|WORTH A CALL|WATCH|HIGH OPPORTUNITY|GOOD OPPORTUNITY|MONITOR|LOW PRIORITY|WATCH\/PASS)\*?\*?\.?/gi, "")
+    .replace(/\*\*/g, "")
+    .trim();
 }
 
 export const MobilePropertyCard = memo(function MobilePropertyCard({
@@ -176,17 +182,18 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
               >
                 Export Lead
               </Button>
-              {onToggleSaved && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-slate-600 text-slate-100 hover:bg-slate-700 text-xs flex-1"
-                  onClick={(e) => { e.stopPropagation(); onToggleSaved(property.id); }}
-                >
-                  <Heart className={`h-3.5 w-3.5 mr-1 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleSaved?.(property.id); }}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors"
+              >
+                <Heart
+                  className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"}
+                  size={18}
+                />
+                <span className="text-sm font-medium text-slate-200">
                   {isSaved ? "Saved" : "Save"}
-                </Button>
-              )}
+                </span>
+              </button>
             </div>
           </div>
         ) : (

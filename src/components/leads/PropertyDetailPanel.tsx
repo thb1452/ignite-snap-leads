@@ -294,7 +294,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
                 distressSignals={property.distress_signals ?? null}
                 newestViolationDate={property.newest_violation_date ?? null}
                 cachedBrief={property.investor_insight_brief ?? null}
-                onBriefGenerated={handleBriefGenerated}
               />
             </motion.div>
 

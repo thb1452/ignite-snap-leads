@@ -2,13 +2,16 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, MapPin, ExternalLink, Clock, Loader2, ListPlus, Download } from "lucide-react";
+import { X, MapPin, ExternalLink, Clock, Loader2, ListPlus, Download, Lock, Unlock, Flame, Sparkles, Heart, Users, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
+import { formatViolationType } from "@/utils/formatViolationType";
 import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
 import { GroupedViolationsList } from "./GroupedViolationsList";
+import { OwnerContactSection } from "./OwnerContactSection";
 import { exportFilteredCsv } from "@/services/export";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { TrialExportGate } from "@/components/trial/TrialExportGate";
@@ -25,6 +28,8 @@ interface Violation {
 interface PropertyWithViolations {
   id: string;
   address: string;
+  street_number?: string | null;
+  street_name?: string | null;
   city: string;
   state: string;
   zip: string;
@@ -34,6 +39,8 @@ interface PropertyWithViolations {
   latitude: number | null;
   longitude: number | null;
   updated_at: string | null;
+  violation_types?: string[] | null;
+  enforcement_type?: string;
   violations: Violation[];
 }
 
@@ -42,9 +49,33 @@ interface MobilePropertyDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAddToList?: (propertyId: string) => void;
+  isUnlocked?: boolean;
+  onUnlock?: (propertyId: string) => void;
+  isSaved?: boolean;
+  onToggleSaved?: (id: string) => void;
 }
 
-export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddToList }: MobilePropertyDetailSheetProps) {
+function getActionLabel(text: string): { label: string; colorClass: string } | null {
+  if (/CALL NOW/i.test(text)) return { label: "CALL NOW", colorClass: "text-red-500 font-semibold" };
+  if (/WORTH A CALL/i.test(text)) return { label: "WORTH A CALL", colorClass: "text-orange-400 font-semibold" };
+  if (/WATCH/i.test(text)) return { label: "WATCH", colorClass: "text-gray-400 font-semibold" };
+  return null;
+}
+
+function stripActionLabel(text: string): string {
+  return text.replace(/\*?\*?(CALL NOW|WORTH A CALL|WATCH)\*?\*?\.?/gi, "").trim();
+}
+
+export function MobilePropertyDetailSheet({
+  property,
+  open,
+  onOpenChange,
+  onAddToList,
+  isUnlocked = true,
+  onUnlock,
+  isSaved = false,
+  onToggleSaved,
+}: MobilePropertyDetailSheetProps) {
   const [violations, setViolations] = useState<Violation[]>([]);
   const [isLoadingViolations, setIsLoadingViolations] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -60,47 +91,54 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
     refetch: refetchTrial,
   } = useTrialStatus();
 
-  // Fetch violations when property changes
   useEffect(() => {
     if (property && open) {
+      if (property.violations && property.violations.length > 0) {
+        setViolations(property.violations);
+        setIsLoadingViolations(false);
+        return;
+      }
+
       const fetchViolations = async () => {
         setIsLoadingViolations(true);
         try {
           const { data, error } = await supabase
             .from('violations')
-            .select('id, violation_type, status, opened_date, days_open, case_id')
+            .select('id, violation_type, status, opened_date, days_open, case_id, property_id')
             .eq('property_id', property.id)
             .order('opened_date', { ascending: false });
 
-          if (!error) {
+          if (error) {
+            setViolations([]);
+          } else {
             setViolations(data || []);
           }
         } catch (err) {
-          console.error("Error fetching violations:", err);
+          setViolations([]);
         } finally {
           setIsLoadingViolations(false);
         }
       };
+
       fetchViolations();
     } else {
       setViolations([]);
     }
-  }, [property?.id, open]);
+  }, [property?.id, property?.violations, open]);
 
   if (!property) return null;
 
-  const getScoreColor = (score: number | null) => {
-    if (!score) return "bg-muted text-muted-foreground";
-    if (score >= 75) return "bg-red-500 text-white";
-    if (score >= 50) return "bg-orange-500 text-white";
-    if (score >= 25) return "bg-yellow-500 text-black";
-    return "bg-blue-500 text-white";
+  const getScoreDot = (score: number | null) => {
+    if (!score) return "bg-muted-foreground";
+    if (score >= 75) return "bg-red-500";
+    if (score >= 50) return "bg-orange-500";
+    if (score >= 25) return "bg-yellow-500";
+    return "bg-green-500";
   };
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "N/A";
-    return format(new Date(dateString), "MMM d, yyyy");
-  };
+  const insightText = property.snap_insight || "";
+  const actionLabel = getActionLabel(insightText);
+  const briefBody = stripActionLabel(insightText);
 
   const googleMapsUrl = property.latitude && property.longitude
     ? `https://www.google.com/maps?q=${property.latitude},${property.longitude}`
@@ -118,7 +156,7 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
             <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
           </div>
 
-          {/* Close Button - positioned absolutely */}
+          {/* Close Button */}
           <button
             type="button"
             aria-label="Close"
@@ -130,27 +168,45 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
 
           {/* Header */}
           <div className="px-5 pt-2 pb-4 border-b shrink-0">
-            <div className="flex items-start gap-3 pr-10">
-              <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-semibold text-foreground leading-tight">
-                  {formatAddress(property.address)}
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {formatCity(property.city)}, {property.state} {property.zip}
-                </p>
-                {property.updated_at && (
-                  <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span>
-                      Updated {formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })}
-                    </span>
-                  </div>
+            {/* 1. Lock/Unlock + SnapScore */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                {isUnlocked ? (
+                  <Unlock className="h-4 w-4 text-teal-500" />
+                ) : (
+                  <Lock className="h-4 w-4 text-muted-foreground" />
                 )}
+                <span className={`text-xs font-semibold uppercase tracking-wider ${isUnlocked ? "text-teal-500" : "text-muted-foreground"}`}>
+                  {isUnlocked ? "Unlocked" : "Locked"}
+                </span>
               </div>
-              <Badge className={`${getScoreColor(property.snap_score)} text-base font-bold px-3 py-1.5 shrink-0`}>
-                {property.snap_score || 0}
-              </Badge>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-2.5 h-2.5 rounded-full ${getScoreDot(property.snap_score)}`} />
+                <span className="text-sm font-bold text-teal-500">SnapScore {property.snap_score || 0}</span>
+              </div>
             </div>
+
+            {/* 2. Address */}
+            <h2 className="text-xl font-bold text-foreground leading-tight pr-10">
+              {isUnlocked
+                ? formatAddress(property.address)
+                : (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="blur-[4px] select-none pointer-events-none">####</span>
+                    <span>{property.street_name || property.address?.replace(/^\d+\s*/, '')}</span>
+                  </span>
+                )}
+            </h2>
+            {/* 3. City, State ZIP */}
+            <p className="text-sm text-muted-foreground mt-1">
+              {formatCity(property.city)}, {property.state} {property.zip}
+            </p>
+            {property.updated_at && (
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                <span>Updated {formatDistanceToNow(new Date(property.updated_at), { addSuffix: true })}</span>
+              </div>
+            )}
           </div>
 
           {/* Content - Scrollable */}
@@ -161,6 +217,44 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
               overscrollBehavior: 'contain'
             }}
           >
+            {/* 4. Violation tags */}
+            {(property.violation_types?.filter(v => v !== 'Unknown').length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {property.enforcement_type === 'water_shutoff' && (
+                  <Badge variant="outline" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200 px-2 py-0.5">
+                    💧 Water Disconnection
+                  </Badge>
+                )}
+                {property.violation_types?.filter(v => v !== 'Unknown').slice(0, 5).map((vt, i) => (
+                  <Badge key={i} variant="outline" className="text-xs px-2 py-0.5 bg-orange-50 text-orange-700 border-orange-200 gap-1">
+                    <Flame className="h-3 w-3" />
+                    {formatViolationType(vt)}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {/* 5. AI Investor Brief — dark bg, always visible */}
+            {insightText && (
+              <div className="bg-slate-900 rounded-lg p-4 border border-teal-500/20">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Sparkles className="w-4 h-4 text-teal-400" />
+                  <span className="text-xs font-semibold text-teal-400">AI Investor Brief</span>
+                </div>
+                <p className="text-sm text-slate-300 leading-relaxed">
+                  {briefBody}{" "}
+                  {actionLabel && (
+                    <span className={actionLabel.colorClass}>{actionLabel.label}.</span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {/* 6. Owner Contact (unlocked only) */}
+            {isUnlocked && (
+              <OwnerContactSection propertyId={property.id} isUnlocked={isUnlocked} />
+            )}
+
             {/* Metrics Grid */}
             <PropertyMetricsGrid
               snapScore={property.snap_score}
@@ -174,23 +268,10 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
               ) || null}
             />
 
-            {/* SnapInsight */}
-            {property.snap_insight && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg">💡</span>
-                  <div>
-                    <div className="text-xs font-medium text-amber-900 mb-1">SnapInsight</div>
-                    <p className="text-sm text-amber-800 leading-relaxed">{property.snap_insight}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Map Preview */}
-            <div className="rounded-xl border bg-card overflow-hidden">
-              <div className="aspect-video bg-muted relative">
-                {property.latitude && property.longitude ? (
+            {/* Map Preview - only if coordinates exist */}
+            {property.latitude && property.longitude && (
+              <div className="rounded-xl border bg-card overflow-hidden">
+                <div className="aspect-video bg-muted relative">
                   <iframe
                     title="Property Map"
                     width="100%"
@@ -200,26 +281,19 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
                     referrerPolicy="no-referrer-when-downgrade"
                     src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${property.latitude},${property.longitude}&zoom=17&maptype=satellite`}
                   />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div className="text-center text-muted-foreground">
-                      <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Map preview unavailable</p>
-                    </div>
-                  </div>
-                )}
+                </div>
+                <a
+                  href={googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 p-3 text-sm text-primary font-medium"
+                >
+                  <MapPin className="h-4 w-4" />
+                  View on Google Maps
+                  <ExternalLink className="h-3 w-3" />
+                </a>
               </div>
-              <a
-                href={googleMapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 p-3 text-sm text-primary font-medium"
-              >
-                <MapPin className="h-4 w-4" />
-                View on Google Maps
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
+            )}
 
             {/* Violations */}
             <div className="rounded-xl border bg-card p-4">
@@ -254,41 +328,97 @@ export function MobilePropertyDetailSheet({ property, open, onOpenChange, onAddT
             </div>
           </div>
 
-          {/* Action Footer - Sticky */}
+          {/* 7. Action Footer — Sticky */}
           <div className="border-t p-4 bg-background pb-[calc(env(safe-area-inset-bottom)+16px)] shrink-0">
-            <div className="flex items-center gap-2">
-              {onAddToList && (
+            {isUnlocked ? (
+              <div className="flex items-center gap-2">
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
-                  className="flex-1 gap-2"
-                  onClick={() => {
-                    onAddToList(property.id);
-                    onOpenChange(false);
+                  className="flex-1 gap-2 bg-teal-500 hover:bg-teal-600 text-white"
+                  disabled={isExporting}
+                  onClick={async () => {
+                    if (hasTrialExpired) {
+                      setTrialGateType('expired');
+                      setTrialGateOpen(true);
+                      return;
+                    }
+                    if (isOnTrial && trialExportsRemaining <= 0) {
+                      setTrialGateType('exhausted');
+                      setTrialGateOpen(true);
+                      return;
+                    }
+
+                    setIsExporting(true);
+                    try {
+                      await exportFilteredCsv({
+                        propertyIds: [property.id],
+                        expectedPropertyCount: 1,
+                      });
+                      if (isOnTrial) refetchTrial();
+                      toast({
+                        title: "Export Complete",
+                        description: "Property exported successfully.",
+                      });
+                    } catch (error: any) {
+                      if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+                        setTrialGateType('exhausted');
+                        setTrialGateOpen(true);
+                      } else if (error.message === "TRIAL_EXPIRED") {
+                        setTrialGateType('expired');
+                        setTrialGateOpen(true);
+                      } else {
+                        toast({
+                          title: "Export Failed",
+                          description: error.message || "Failed to export property",
+                          variant: "destructive",
+                        });
+                      }
+                    } finally {
+                      setIsExporting(false);
+                    }
                   }}
                 >
-                  <ListPlus className="h-4 w-4" />
-                  Add to List
+                  {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Export Lead
                 </Button>
-              )}
+                {onToggleSaved && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-2"
+                    onClick={() => onToggleSaved(property.id)}
+                  >
+                    <Heart className={`h-4 w-4 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />
+                    {isSaved ? "Saved" : "Save"}
+                  </Button>
+                )}
+              </div>
+            ) : (
               <Button
-                variant="default"
-                size="sm"
-                className="flex-1 gap-2"
-                disabled={isExporting}
-                onClick={async () => {
-                  // Trial export gating
-                  if (hasTrialExpired) {
-                    setTrialGateType('expired');
-                    setTrialGateOpen(true);
-                    return;
-                  }
-                  if (isOnTrial && trialExportsRemaining <= 0) {
-                    setTrialGateType('exhausted');
-                    setTrialGateOpen(true);
-                    return;
-                  }
+                className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                size="default"
+                onClick={() => onUnlock?.(property.id)}
+              >
+                <Lock className="h-4 w-4" />
+                Unlock for $0.97
+              </Button>
+            )}
+          </div>
 
+          {/* Trial Export Gate */}
+          <TrialExportGate
+            open={trialGateOpen}
+            onOpenChange={setTrialGateOpen}
+            type={trialGateType}
+            trialTier={trialTier}
+            trialEndsAt={trialEndsAt}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
                   setIsExporting(true);
                   try {
                     await exportFilteredCsv({

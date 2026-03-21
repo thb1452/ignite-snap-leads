@@ -21,7 +21,7 @@ export type FeatureType =
 export type LimitType = UsageType | FeatureType;
 
 // Plan tier names (match database)
-export type PlanTierName = 'starter' | 'professional' | 'enterprise';
+export type PlanTierName = 'starter' | 'professional' | 'enterprise' | 'enterprise_admin' | 'free_trial';
 
 export interface SubscriptionPlan {
   id: string;

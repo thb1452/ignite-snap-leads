@@ -81,7 +81,7 @@ export function MobileFilterSheet({
   const { toast } = useToast();
 
   const isProOrHigher = hasFeature('advanced_filters') || isAdmin;
-  const isEnterprise = isAdmin || planName === 'enterprise';
+  const isEnterprise = hasFeature('escalation_alerts') || isAdmin;
 
   const isLockedCategory = (categoryId: string) => {
     return ENTERPRISE_ONLY_CATEGORIES.includes(categoryId) && !isEnterprise;

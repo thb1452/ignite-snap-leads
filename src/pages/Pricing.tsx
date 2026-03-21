@@ -328,11 +328,9 @@ export default function Pricing() {
             className={`w-full mb-2 ${
               tier.popular
                 ? "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
-                : tier.isPayg
-                  ? "bg-amber-500 hover:bg-amber-600 text-white"
-                  : ""
+                : "bg-teal-500 hover:bg-teal-600 text-white"
             }`}
-            variant={tier.popular || tier.isPayg ? "default" : "outline"}
+            variant="default"
             size="lg"
           >
             {isUpgrading ? (

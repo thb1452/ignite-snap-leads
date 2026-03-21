@@ -15,9 +15,9 @@ import { ArrowRight, Building2 } from "lucide-react";
 const SESSION_KEY = 'snap_trial_expired_shown';
 
 const TIER_PRICES: Record<string, number> = {
-  starter: 79,
-  professional: 149,
-  enterprise: 299,
+  starter: 49,
+  professional: 99,
+  enterprise: 199,
 };
 
 export function TrialExpiredModal() {

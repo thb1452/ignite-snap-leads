@@ -196,7 +196,7 @@ utility_enforcement = non-water utility violation on record
 
 MASTER VIOLATION TIERS:
 
-TIER 1 — CRITICAL (always HIGH OPPORTUNITY):
+TIER 1 — CRITICAL (always CALL NOW):
 
 Water shutoff / utility disconnected
 Condemned / unsafe for occupancy
@@ -275,10 +275,10 @@ Water runoff disputes
 
 TIER SCORING RULES:
 
-Tier 1 present = HIGH OPPORTUNITY regardless of description
-Tier 2 + snap_score 70+ = HIGH OPPORTUNITY
-Tier 2 + snap_score 40-69 = GOOD OPPORTUNITY
-Tier 3 only = GOOD OPPORTUNITY or WATCH
+Tier 1 present = CALL NOW regardless of description
+Tier 2 + snap_score 70+ = CALL NOW
+Tier 2 + snap_score 40-69 = WORTH A CALL
+Tier 3 only = WORTH A CALL or WATCH
 Tier 4 and 5 only = WATCH or PASS
 Mixed tiers = always lead with highest tier present
 

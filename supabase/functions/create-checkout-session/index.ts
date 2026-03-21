@@ -20,7 +20,7 @@ const CREDIT_PACKS: Record<string, { amount: number; credits: number; label: str
 };
 
 // Single unlock price in cents
-const SINGLE_UNLOCK_PRICE = 500; // $5
+const SINGLE_UNLOCK_PRICE = 97; // $0.97
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {

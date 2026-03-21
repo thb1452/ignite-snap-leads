@@ -1,12 +1,8 @@
-import { useState, memo } from "react";
+import { memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
-import { formatBlurredStreet } from "@/utils/blurredAddress";
-import { Lock, Unlock, Flame, Sparkles, Download, Heart, Users, Phone } from "lucide-react";
-import { SaveHeartButton } from "./SaveHeartButton";
+import { Lock, Unlock, Sparkles, Heart, Users, Phone } from "lucide-react";
 import { ScarcityBadge } from "./ScarcityBadge";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 
@@ -68,105 +64,68 @@ export const PropertyCard = memo(function PropertyCard({
 }: PropertyCardProps) {
   const { data: contacts } = usePropertyContacts(isUnlocked ? property.id : "");
 
-  const getScoreColor = (score: number | null) => {
-    if (!score) return "bg-muted text-muted-foreground";
-    if (score >= 75) return "bg-red-500 text-white";
-    if (score >= 50) return "bg-orange-500 text-white";
-    if (score >= 25) return "bg-yellow-500 text-black";
-    return "bg-green-500 text-white";
-  };
-
   const getScoreDot = (score: number | null) => {
-    if (!score) return "bg-muted-foreground";
+    if (!score) return "bg-slate-500";
     if (score >= 75) return "bg-red-500";
-    if (score >= 50) return "bg-orange-500";
-    if (score >= 25) return "bg-yellow-500";
-    return "bg-green-500";
+    if (score >= 50) return "bg-orange-400";
+    if (score >= 25) return "bg-yellow-400";
+    return "bg-teal-500";
   };
 
   const insightText = property.snap_insight || "";
   const actionLabel = getActionLabel(insightText);
   const briefBody = stripActionLabel(insightText);
-
   const ownerContact = contacts?.find(c => c.name);
 
   return (
-    <div
-      className={`group border-b transition-colors cursor-pointer ${
-        isSelected ? "bg-accent/30" : "bg-background"
-      }`}
-      onClick={onClick}
-    >
-      <div className="p-4 space-y-3">
-        {/* Row 1: Checkbox + Lock/Unlock + Address + SnapScore */}
-        <div className="flex items-start gap-3">
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={() => onToggleSelect(property.id)}
-            onClick={(e) => e.stopPropagation()}
-            className="shrink-0 mt-1"
-          />
-          <div className="flex-1 min-w-0">
-            {/* Status row */}
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                {isUnlocked ? (
-                  <Unlock className="h-3.5 w-3.5 text-teal-500" />
-                ) : (
-                  <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-                <span className={`text-xs font-semibold uppercase tracking-wider ${isUnlocked ? "text-teal-500" : "text-muted-foreground"}`}>
-                  {isUnlocked ? "Unlocked" : "Locked"}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className={`w-2 h-2 rounded-full ${getScoreDot(property.snap_score)}`} />
-                <span className="text-xs font-bold text-teal-500">SnapScore {property.snap_score || 0}</span>
-              </div>
-            </div>
+    <div className="p-3 border-b border-slate-800 bg-slate-950" onClick={onClick}>
+      <div className={`bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-xl cursor-pointer transition-all ${isSelected ? "ring-2 ring-teal-500" : ""}`}>
 
-            {/* Address */}
-            <h3 className="property-address font-bold text-base leading-snug">
-              {isUnlocked
-                ? formatAddress(property.address)
-                : (
-                  <span className="inline-flex items-center gap-1">
-                    <span className="blur-[4px] select-none pointer-events-none">####</span>
-                    <span>{property.street_name || property.address?.replace(/^\d+\s*/, '')}</span>
-                  </span>
-                )}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {formatCity(property.city)}, {property.state} {property.zip}
-            </p>
-
-            {/* Violation tags */}
-            {(property.violation_types?.filter(v => v !== 'Unknown').length ?? 0) > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {property.enforcement_type === 'water_shutoff' && (
-                  <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-cyan-50 text-cyan-700 border-cyan-200">
-                    💧 Water Disconnection
-                  </Badge>
-                )}
-                {property.violation_types?.filter(v => v !== 'Unknown').slice(0, 3).map((vt, i) => (
-                  <Badge key={i} variant="outline" className="text-[11px] px-1.5 py-0 h-[18px] bg-orange-50 text-orange-700 border-orange-200 gap-0.5">
-                    <Flame className="h-3 w-3" />
-                    {formatViolationType(vt)}
-                  </Badge>
-                ))}
-              </div>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => onToggleSelect(property.id)}
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0"
+            />
+            {isUnlocked ? (
+              <Unlock className="w-4 h-4 text-teal-400" />
+            ) : (
+              <Lock className="w-4 h-4 text-slate-400" />
             )}
+            <span className={`text-xs font-semibold uppercase tracking-wider ${isUnlocked ? "text-teal-400" : "text-slate-400"}`}>
+              {isUnlocked ? "Unlocked" : "Locked"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className={`w-2 h-2 rounded-full ${getScoreDot(property.snap_score)}`} />
+            <span className="text-xs font-bold text-teal-400">SnapScore {property.snap_score || 0}</span>
           </div>
         </div>
 
-        {/* AI Brief - always visible */}
+        {/* Address */}
+        <p className="property-address text-lg font-bold mb-1 text-slate-100">
+          {isUnlocked ? formatAddress(property.address) : (
+            <span className="inline-flex items-center gap-2">
+              <span className="blur-[4px] select-none pointer-events-none">1423</span>
+              <span>{property.street_name || property.address?.replace(/^\d+\s*/, "")}</span>
+            </span>
+          )}
+        </p>
+        <p className="text-sm text-slate-400 mb-4">
+          {formatCity(property.city)}, {property.state} {property.zip}
+        </p>
+
+        {/* AI Insight */}
         {insightText && (
-          <div className="bg-slate-900 rounded-lg p-3 border border-teal-500/20">
+          <div className="bg-slate-900 rounded-lg p-3 mb-4 border border-teal-500/20">
             <div className="flex items-center gap-1.5 mb-1.5">
               <Sparkles className="w-3.5 h-3.5 text-teal-400" />
               <span className="text-xs font-semibold text-teal-400">AI Investor Brief</span>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="snap-insight-text text-xs text-slate-400 leading-relaxed">
               {briefBody}{" "}
               {actionLabel && (
                 <span className={actionLabel.colorClass}>{actionLabel.label}.</span>
@@ -175,61 +134,64 @@ export const PropertyCard = memo(function PropertyCard({
           </div>
         )}
 
-        {/* Owner contact (unlocked only) */}
-        {isUnlocked && ownerContact && (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sm">
-              <Users className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>{ownerContact.name} <span className="text-muted-foreground">(Owner)</span></span>
-            </div>
-            {ownerContact.phone && (
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="w-3.5 h-3.5 text-muted-foreground" />
-                <a href={`tel:${ownerContact.phone}`} className="text-primary hover:underline" onClick={e => e.stopPropagation()}>
-                  {ownerContact.phone}
-                </a>
-              </div>
+        {/* Contact / CTA */}
+        {isUnlocked ? (
+          <div className="space-y-2">
+            {ownerContact && (
+              <>
+                <div className="flex items-center gap-2 text-sm">
+                  <Users className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-slate-100">{ownerContact.name} (Owner)</span>
+                </div>
+                {ownerContact.phone && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="w-3.5 h-3.5 text-slate-400" />
+                    <a
+                      href={`tel:${ownerContact.phone}`}
+                      className="text-slate-100 hover:text-teal-400"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {ownerContact.phone}
+                    </a>
+                  </div>
+                )}
+              </>
             )}
-          </div>
-        )}
-
-        {/* Action buttons */}
-        <div className="flex gap-2">
-          {isUnlocked ? (
-            <>
+            <div className="flex gap-2 mt-3">
               <Button
                 size="sm"
-                className="flex-1 bg-teal-500 hover:bg-teal-600 text-white text-xs"
-                onClick={(e) => { e.stopPropagation(); }}
+                className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold text-xs flex-1"
+                onClick={(e) => e.stopPropagation()}
               >
-                <Download className="h-3.5 w-3.5 mr-1.5" />
                 Export Lead
               </Button>
               {onToggleSaved && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="flex-1 text-xs"
+                  className="border-slate-600 text-slate-100 hover:bg-slate-700 text-xs flex-1"
                   onClick={(e) => { e.stopPropagation(); onToggleSaved(property.id); }}
                 >
-                  <Heart className={`h-3.5 w-3.5 mr-1.5 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />
+                  <Heart className={`h-3.5 w-3.5 mr-1 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />
                   {isSaved ? "Saved" : "Save"}
                 </Button>
               )}
-            </>
-          ) : (
+            </div>
+          </div>
+        ) : (
+          <>
             <Button
-              size="sm"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs"
+              className="w-full bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold"
               onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
             >
-              <Lock className="h-3.5 w-3.5 mr-1.5" />
+              <Lock className="w-4 h-4 mr-2" />
               Unlock for $0.97
             </Button>
-          )}
-        </div>
-
-        {!isUnlocked && <ScarcityBadge propertyId={property.id} />}
+            <div className="mt-2">
+              <ScarcityBadge propertyId={property.id} />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

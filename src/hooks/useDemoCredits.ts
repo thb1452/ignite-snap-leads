@@ -1,27 +1,21 @@
 import { useAuth } from './use-auth';
 import { useCreditBalance } from './useCredits';
 
-const DEMO_CREDIT_AMOUNT = 1000;
-
 export function useDemoCredits() {
   const { isAdmin, loading: authLoading } = useAuth();
   const { data: balance, isLoading: creditsLoading } = useCreditBalance();
 
-  // Admin users get unlimited credits (shown as demo credits)
-  // Non-admin users with low credits can use demo mode
-  const effectiveBalance = isAdmin ? DEMO_CREDIT_AMOUNT : (balance ?? 0);
-  const isDemoMode = isAdmin || (balance ?? 0) < 10;
+  const effectiveBalance = balance ?? 0;
   const hasCredits = effectiveBalance > 0;
 
   return {
     balance: effectiveBalance,
-    isDemoMode,
+    isDemoMode: isAdmin, // Only admins are in demo mode, never paying users
     isAdmin,
     hasCredits,
     loading: authLoading || creditsLoading,
-    // Helper to check if action is allowed
     canPerformAction: (creditCost: number = 1) => {
-      if (isAdmin) return true; // Admins bypass credit checks
+      if (isAdmin) return true;
       return effectiveBalance >= creditCost;
     },
   };

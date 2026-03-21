@@ -33,6 +33,7 @@ interface VirtualizedMobilePropertyListProps {
   savedSet?: Set<string>;
   onToggleSaved?: (id: string) => void;
   unlockedSet?: Set<string>;
+  onUnlock?: (propertyId: string) => void;
 }
 
 export function VirtualizedMobilePropertyList({
@@ -43,13 +44,14 @@ export function VirtualizedMobilePropertyList({
   savedSet,
   onToggleSaved,
   unlockedSet,
+  onUnlock,
 }: VirtualizedMobilePropertyListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 200, // Mobile cards are roughly 200px tall
+    estimateSize: () => 300, // Mobile cards with dark brief box are roughly 300px tall
     overscan: 3,
   });
 
@@ -90,6 +92,7 @@ export function VirtualizedMobilePropertyList({
                 isSaved={savedSet?.has(property.id) ?? false}
                 onToggleSaved={onToggleSaved}
                 isUnlocked={unlockedSet?.has(property.id) ?? true}
+                onUnlock={onUnlock}
               />
             </div>
           );

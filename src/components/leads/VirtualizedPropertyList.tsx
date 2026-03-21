@@ -35,8 +35,8 @@ interface VirtualizedPropertyListProps {
   onUnlock?: (propertyId: string) => void;
 }
 
-// Rich card height - accommodates full insight text, violation badges, freshness
-const CARD_HEIGHT = 140;
+// Rich card height - accommodates full insight text (with dark brief box), violation badges, freshness
+const CARD_HEIGHT = 220;
 
 const VirtualizedPropertyListInner = ({
   properties,

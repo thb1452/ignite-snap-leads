@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, RefreshCw, AlertTriangle, Clock, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -92,9 +92,9 @@ function buildRuleBasedSummary(
 
   // Sentence 4: action label — must match AI system prompt tiers (70/40 thresholds)
   if (highDistress || (snapScore !== null && snapScore >= 70)) {
-    parts.push("**HIGH OPPORTUNITY** — high distress signals detected, act now.");
+    parts.push("**CALL NOW** — high distress signals detected, act now.");
   } else if (snapScore !== null && snapScore >= 40) {
-    parts.push("**GOOD OPPORTUNITY** — elevated enforcement, worth investigating.");
+    parts.push("**WORTH A CALL** — elevated enforcement, worth investigating.");
   } else if (violations > 0) {
     parts.push("**WATCH** — active violations present, monitor for changes.");
   } else {
@@ -278,23 +278,38 @@ export function InvestorInsightCard({
     return "bg-blue-100 text-blue-700 border-blue-200";
   };
 
-  // Render brief text with **bold** markdown converted to <strong>
+  // Render brief text with **bold** markdown converted to <strong>, with action label colors
   const renderBriefText = (text: string) => {
-    // Get the full text — support new format (brief_text) or legacy (concatenated sections)
-    const fullText = text;
-    // Split on **bold** markers
-    const parts = fullText.split(/\*\*(.*?)\*\*/g);
-    return (
-      <p className="text-sm text-slate-800 leading-relaxed">
-        {parts.map((part, i) =>
-          i % 2 === 1 ? (
-            <strong key={i} className="font-bold text-slate-900">{part}</strong>
-          ) : (
-            <span key={i}>{part}</span>
-          )
-        )}
-      </p>
-    );
+    const ACTION_LABELS = ["CALL NOW", "WORTH A CALL", "WATCH", "PASS"];
+    const getLabelClass = (label: string) => {
+      if (label === "CALL NOW") return "text-red-500 font-bold";
+      if (label === "WORTH A CALL") return "text-orange-400 font-bold";
+      if (label === "WATCH") return "text-gray-400 font-bold";
+      return "text-gray-500 font-bold";
+    };
+    const boldParts = text.split(/\*\*(.*?)\*\*/g);
+    const elements: React.ReactNode[] = [];
+    boldParts.forEach((part, i) => {
+      if (i % 2 === 1) {
+        const upper = part.toUpperCase();
+        if (ACTION_LABELS.includes(upper)) {
+          elements.push(<strong key={i} className={getLabelClass(upper)}>{upper}</strong>);
+        } else {
+          elements.push(<strong key={i} className="font-bold text-white">{part}</strong>);
+        }
+      } else {
+        const regex = new RegExp(`(${ACTION_LABELS.join("|")})`, "g");
+        const subParts = part.split(regex);
+        subParts.forEach((subPart, j) => {
+          if (ACTION_LABELS.includes(subPart)) {
+            elements.push(<strong key={`${i}-${j}`} className={getLabelClass(subPart)}>{subPart}</strong>);
+          } else {
+            elements.push(<span key={`${i}-${j}`}>{subPart}</span>);
+          }
+        });
+      }
+    });
+    return <p className="text-sm text-gray-200 leading-relaxed">{elements}</p>;
   };
 
   // Get the displayable text from a brief (supports new + legacy format)
@@ -327,9 +342,9 @@ export function InvestorInsightCard({
   // ── Loading skeleton ──
   if (state === "loading") {
     return (
-      <div className="rounded-xl border border-indigo-200/50 bg-indigo-50/30 p-4 space-y-3">
+      <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-indigo-400 animate-pulse" />
+          <Sparkles className="h-4 w-4 text-teal-400 animate-pulse" />
           <Skeleton className="h-4 w-32" />
           <div className="ml-auto flex gap-1.5">
             <Skeleton className="h-5 w-14 rounded-full" />
@@ -403,28 +418,28 @@ export function InvestorInsightCard({
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl border border-amber-200/70 bg-amber-50/50 p-4"
+        className="rounded-lg border border-slate-700 bg-slate-900 p-3"
       >
         <div className="flex items-start gap-2">
-          <Sparkles className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+          <Sparkles className="h-4 w-4 text-teal-400 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
             <div className="flex items-center justify-between">
-              <div className="text-xs font-medium text-amber-900 mb-1">
-                Cached Insight (AI temporarily unavailable)
+              <div className="text-sm font-semibold text-teal-400 mb-1">
+                AI Investor Brief
               </div>
               <button
                 onClick={handleRegenerate}
                 disabled={isRegenerating}
-                className="text-xs text-amber-600 hover:text-amber-800 underline underline-offset-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                className="text-xs text-slate-400 hover:text-slate-200 underline underline-offset-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 {isRegenerating ? (
                   <RefreshCw className="h-3 w-3 animate-spin" />
                 ) : (
-                  "Retry"
+                  "Retry AI"
                 )}
               </button>
             </div>
-            <p className="text-sm text-amber-800 leading-relaxed">
+            <p className="text-sm text-gray-200 leading-relaxed">
               {snapInsight}
             </p>
           </div>
@@ -439,17 +454,14 @@ export function InvestorInsightCard({
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl border border-slate-300/70 bg-gradient-to-b from-slate-50/60 to-white p-4 space-y-3"
+        className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-3"
       >
         {/* Header */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-slate-500" />
-            <span className="text-sm font-semibold text-slate-800">
-              Investor Insight
-            </span>
-            <span className="text-[10px] font-medium text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">
-              Auto
+            <Sparkles className="h-4 w-4 text-teal-400" />
+            <span className="text-sm font-semibold text-teal-400">
+              AI Investor Brief
             </span>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -472,8 +484,8 @@ export function InvestorInsightCard({
         </div>
 
         {/* Footer with retry */}
-        <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-          <span className="text-[11px] text-slate-400">
+        <div className="pt-2 border-t border-slate-700 flex items-center justify-between">
+          <span className="text-[11px] text-slate-500">
             Rule-based summary (AI unavailable)
           </span>
           <Button
@@ -481,7 +493,7 @@ export function InvestorInsightCard({
             size="sm"
             onClick={handleRegenerate}
             disabled={isRegenerating}
-            className="text-xs text-slate-500 hover:text-slate-700 min-w-[44px] min-h-[44px] px-3"
+            className="text-xs text-slate-400 hover:text-slate-200 min-w-[44px] min-h-[44px] px-3"
           >
             <RefreshCw className={`h-3 w-3 mr-1 ${isRegenerating ? "animate-spin" : ""}`} />
             Try AI
@@ -520,17 +532,14 @@ export function InvestorInsightCard({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl border border-indigo-200/70 bg-gradient-to-b from-indigo-50/60 to-white p-4 space-y-3"
+      className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-3"
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-indigo-500" />
-          <span className="text-sm font-semibold text-indigo-900">
-            Investor Insight
-          </span>
-          <span className="text-[10px] font-medium text-indigo-400 bg-indigo-100 px-1.5 py-0.5 rounded">
-            AI
+          <Sparkles className="h-4 w-4 text-teal-400" />
+          <span className="text-sm font-semibold text-teal-400">
+            AI Investor Brief
           </span>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -558,9 +567,9 @@ export function InvestorInsightCard({
 
       {/* Score change warning */}
       {showScoreWarning && (
-        <div className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-1.5">
-          <AlertTriangle className="h-3.5 w-3.5 text-yellow-600 flex-shrink-0" />
-          <span className="text-xs text-yellow-700">
+        <div className="flex items-center gap-1.5 bg-yellow-900/30 border border-yellow-700/50 rounded-lg px-3 py-1.5">
+          <AlertTriangle className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" />
+          <span className="text-xs text-yellow-400">
             Score has changed since this brief was generated — click Regenerate
           </span>
         </div>
@@ -568,9 +577,9 @@ export function InvestorInsightCard({
 
       {/* New activity warning */}
       {showNewActivityWarning && (
-        <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
-          <Activity className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
-          <span className="text-xs text-blue-700">
+        <div className="flex items-center gap-1.5 bg-blue-900/30 border border-blue-700/50 rounded-lg px-3 py-1.5">
+          <Activity className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
+          <span className="text-xs text-blue-400">
             New violation activity since this brief was generated — click Regenerate for updated analysis
           </span>
         </div>
@@ -582,9 +591,9 @@ export function InvestorInsightCard({
       </div>
 
       {/* Footer */}
-      <div className="pt-2 border-t border-indigo-100 flex items-center justify-between">
-        <span className="text-[11px] text-slate-400">
-          {isCached ? "Cached Insight" : "Generated"}{" "}
+      <div className="pt-2 border-t border-slate-700 flex items-center justify-between">
+        <span className="text-[11px] text-slate-500">
+          {isCached ? "Cached" : "Generated"}{" "}
           {new Date(brief.generated_at).toLocaleString()}
         </span>
         <Button
@@ -592,7 +601,7 @@ export function InvestorInsightCard({
           size="sm"
           onClick={handleRegenerate}
           disabled={isRegenerating}
-          className="text-xs text-indigo-500 hover:text-indigo-700 min-w-[44px] min-h-[44px] px-3"
+          className="text-xs text-slate-400 hover:text-slate-200 min-w-[44px] min-h-[44px] px-3"
         >
           <RefreshCw
             className={`h-3 w-3 mr-1 ${isRegenerating ? "animate-spin" : ""}`}

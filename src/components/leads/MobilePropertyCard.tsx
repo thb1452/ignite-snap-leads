@@ -2,7 +2,7 @@ import { useState, memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, AlertTriangle, Flame, Lock } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, Flame, Lock, Sparkles } from "lucide-react";
 import { SaveHeartButton } from "./SaveHeartButton";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
@@ -39,6 +39,7 @@ interface MobilePropertyCardProps {
   isSaved?: boolean;
   onToggleSaved?: (id: string) => void;
   isUnlocked?: boolean;
+  onUnlock?: (propertyId: string) => void;
 }
 
 export const MobilePropertyCard = memo(function MobilePropertyCard({
@@ -49,6 +50,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
   isSaved = false,
   onToggleSaved,
   isUnlocked = true,
+  onUnlock,
 }: MobilePropertyCardProps) {
   const [insightExpanded, setInsightExpanded] = useState(false);
   
@@ -149,28 +151,49 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
           </div>
 
           {/* AI Insight - Collapsible */}
-          <div className="mt-3">
-            <p className={`snap-insight-text text-sm text-muted-foreground leading-relaxed ${!insightExpanded && shouldShowExpand ? 'line-clamp-2' : ''}`}>
-              {insightText}
-            </p>
-            {shouldShowExpand && (
-              <Button
-                variant="ghost"
-                size="sm"
+          {property.snap_insight && (
+            <div className="mt-3 rounded-lg bg-slate-900 border border-slate-700 p-3" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Sparkles className="h-3.5 w-3.5 text-teal-400 shrink-0" />
+                <span className="text-teal-400 text-sm font-semibold">AI Investor Brief</span>
+              </div>
+              <p className={`snap-insight-text text-sm text-gray-200 leading-relaxed ${!insightExpanded && shouldShowExpand ? 'line-clamp-2' : ''}`}>
+                {insightText}
+              </p>
+              {shouldShowExpand && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setInsightExpanded(!insightExpanded);
+                  }}
+                  className="h-auto p-0 mt-1 text-xs text-slate-400 hover:text-slate-200 hover:bg-transparent"
+                >
+                  {insightExpanded ? (
+                    <>Show less <ChevronUp className="h-3 w-3 ml-1" /></>
+                  ) : (
+                    <>Read more <ChevronDown className="h-3 w-3 ml-1" /></>
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Unlock button for locked properties */}
+          {!isUnlocked && onUnlock && (
+            <div className="mt-2">
+              <button
+                className="text-sm font-medium text-primary hover:text-primary/80 underline underline-offset-2 min-h-[44px] flex items-center"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setInsightExpanded(!insightExpanded);
+                  onUnlock(property.id);
                 }}
-                className="h-auto p-0 mt-1 text-xs text-primary hover:bg-transparent"
               >
-                {insightExpanded ? (
-                  <>Show less <ChevronUp className="h-3 w-3 ml-1" /></>
-                ) : (
-                  <>Read more <ChevronDown className="h-3 w-3 ml-1" /></>
-                )}
-              </Button>
-            )}
-          </div>
+                Unlock property
+              </button>
+            </div>
+          )}
 
         </div>
       </div>

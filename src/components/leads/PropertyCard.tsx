@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
-import { AlertTriangle, Flame, Clock, Lock } from "lucide-react";
+import { AlertTriangle, Flame, Clock, Lock, Sparkles } from "lucide-react";
 import { SaveHeartButton } from "./SaveHeartButton";
 import { ScarcityBadge } from "./ScarcityBadge";
 import { formatDistanceToNow } from "date-fns";
@@ -163,13 +163,17 @@ export const PropertyCard = memo(function PropertyCard({
 
           {/* Row 3: AI Insight */}
           {insightText && (
-            <div className="mt-1.5">
-              <p className="snap-insight-text text-xs text-muted-foreground leading-relaxed">
+            <div className="mt-1.5 rounded-lg bg-slate-900 border border-slate-700 p-3" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Sparkles className="h-3.5 w-3.5 text-teal-400 shrink-0" />
+                <span className="text-teal-400 text-sm font-semibold">AI Investor Brief</span>
+              </div>
+              <p className="snap-insight-text text-gray-200 text-sm leading-relaxed">
                 {displayInsight}
               </p>
               {isLong && (
                 <button
-                  className="text-xs text-primary hover:underline mt-0.5"
+                  className="text-xs text-slate-400 hover:text-slate-200 mt-0.5"
                   onClick={(e) => {
                     e.stopPropagation();
                     setExpanded(!expanded);
@@ -178,6 +182,21 @@ export const PropertyCard = memo(function PropertyCard({
                   {expanded ? "Show less" : "Read more ↓"}
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Unlock button for locked properties */}
+          {!isUnlocked && onUnlock && (
+            <div className="mt-1.5">
+              <button
+                className="text-xs font-medium text-primary hover:text-primary/80 underline underline-offset-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUnlock(property.id);
+                }}
+              >
+                Unlock property
+              </button>
             </div>
           )}
 

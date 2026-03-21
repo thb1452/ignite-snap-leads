@@ -40,6 +40,7 @@ interface MobilePropertyCardProps {
   isSaved?: boolean;
   onToggleSaved?: (id: string) => void;
   isUnlocked?: boolean;
+  onUnlock?: (propertyId: string) => void;
 }
 
 function getActionLabel(text: string): { label: string; colorClass: string } | null {
@@ -61,6 +62,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
   isSaved = false,
   onToggleSaved,
   isUnlocked = true,
+  onUnlock,
 }: MobilePropertyCardProps) {
   const { data: contacts } = usePropertyContacts(isUnlocked ? property.id : "");
 
@@ -202,7 +204,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
             <Button
               size="sm"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs"
-              onClick={(e) => { e.stopPropagation(); }}
+              onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
             >
               <Lock className="h-3.5 w-3.5 mr-1.5" />
               Unlock for $0.97

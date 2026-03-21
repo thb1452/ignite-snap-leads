@@ -1264,6 +1264,13 @@ function Leads() {
             property={selectedPropertyWithFetched}
             open={!!selectedPropertyId}
             onOpenChange={(open) => !open && setSelectedPropertyId(null)}
+            isUnlocked={selectedPropertyWithFetched ? unlockedSet.has(selectedPropertyWithFetched.id) : true}
+            onUnlock={(id) => {
+              const prop = mappedProperties.find(p => p.id === id);
+              if (prop) setUnlockModalProperty(prop);
+            }}
+            isSaved={selectedPropertyWithFetched ? savedSet.has(selectedPropertyWithFetched.id) : false}
+            onToggleSaved={toggleSaved}
             onAddToList={(propertyId) => {
               setSelectedIds([propertyId]);
               setShowAddToListDialog(true);

@@ -21,8 +21,8 @@ const corsHeaders = {
 };
 
 const BATCH_SIZE = 200;
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const AI_MODEL = "google/gemini-2.5-flash";
+const AI_GATEWAY_URL = "https://api.deepseek.com/v1/chat/completions";
+const AI_MODEL = "deepseek-chat";
 const AI_MAX_TOKENS = 500;
 const CONCURRENCY = 10; // Process 10 AI calls in parallel
 const DELAY_BETWEEN_WAVES_MS = 500; // Delay between waves of concurrent calls
@@ -376,14 +376,14 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Missing required environment variables");
     }
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    if (!DEEPSEEK_API_KEY) {
+      throw new Error("DEEPSEEK_API_KEY not configured");
     }
 
     // Authenticate: allow service-role self-invocations, test mode with specific IDs, OR admin users
@@ -435,7 +435,7 @@ serve(async (req) => {
       const results = [];
 
       for (const propId of propertyIds) {
-        const result = await generateInsightForProperty(supabase, propId, LOVABLE_API_KEY, false);
+        const result = await generateInsightForProperty(supabase, propId, DEEPSEEK_API_KEY, false);
         results.push(result);
         if (result.status === 'credits_exhausted') break;
         await delay(200);
@@ -508,7 +508,7 @@ serve(async (req) => {
         
         const wave = properties.slice(i, i + CONCURRENCY);
         const waveResults = await Promise.allSettled(
-          wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true, aiOnly))
+          wave.map(prop => generateInsightForProperty(supabase, prop.id, DEEPSEEK_API_KEY, true, aiOnly))
         );
 
         for (const result of waveResults) {

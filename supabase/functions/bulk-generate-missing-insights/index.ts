@@ -423,6 +423,7 @@ serve(async (req) => {
       forceRefresh = false, 
       minScore = 0, 
       aiOnly = false,
+      deterministicOnly = false,
       testMode = false,
       propertyIds = [],
     } = body;
@@ -435,7 +436,7 @@ serve(async (req) => {
       const results = [];
 
       for (const propId of propertyIds) {
-        const result = await generateInsightForProperty(supabase, propId, LOVABLE_API_KEY, false);
+        const result = await generateInsightForProperty(supabase, propId, LOVABLE_API_KEY, false, aiOnly);
         results.push(result);
         if (result.status === 'credits_exhausted') break;
         await delay(200);
@@ -457,11 +458,25 @@ serve(async (req) => {
     let fetchQuery = supabase.from("properties").select("id, snap_score");
 
     if (forceRefresh) {
+      if (deterministicOnly) {
+        countQuery = countQuery
+          .filter("snap_insight", "not.is", "null")
+          .not("snap_insight", "ilike", "%CALL NOW%")
+          .not("snap_insight", "ilike", "%WORTH A CALL%")
+          .not("snap_insight", "ilike", "%WATCH%");
+
+        fetchQuery = fetchQuery
+          .filter("snap_insight", "not.is", "null")
+          .not("snap_insight", "ilike", "%CALL NOW%")
+          .not("snap_insight", "ilike", "%WORTH A CALL%")
+          .not("snap_insight", "ilike", "%WATCH%");
+      }
+
       if (minScore > 0) {
         countQuery = countQuery.gte("snap_score", minScore);
         fetchQuery = fetchQuery.gte("snap_score", minScore);
       }
-      console.log(`[bulk-insights-v9] FORCE REFRESH: score >= ${minScore || 'ALL'}`);
+      console.log(`[bulk-insights-v9] FORCE REFRESH${deterministicOnly ? ' deterministic-only' : ''}: score >= ${minScore || 'ALL'}`);
     } else {
       countQuery = countQuery.is("snap_insight", null);
       fetchQuery = fetchQuery.is("snap_insight", null);
@@ -501,12 +516,9 @@ serve(async (req) => {
     const errors: string[] = [];
 
     if (!dryRun) {
-      // Process in waves of CONCURRENCY parallel calls
       for (let i = 0; i < properties.length; i += CONCURRENCY) {
-        // SAFETY: Stop immediately when credits exhausted during forceRefresh
-        // to prevent deterministic engine from overwriting existing AI insights
         if (creditsExhausted && (aiOnly || forceRefresh)) break;
-        
+
         const wave = properties.slice(i, i + CONCURRENCY);
         const waveResults = await Promise.allSettled(
           wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true, aiOnly, forceRefresh && creditsExhausted))
@@ -536,7 +548,6 @@ serve(async (req) => {
           }
         }
 
-        // Small delay between waves to avoid rate limiting
         if (i + CONCURRENCY < properties.length) {
           await delay(creditsExhausted ? 100 : DELAY_BETWEEN_WAVES_MS);
         }
@@ -551,9 +562,8 @@ serve(async (req) => {
     console.log(`[bulk-insights-v9] Batch done: ${totalAI} AI, ${totalRuleBased} rule-based, ${totalSkipped} skipped in ${elapsed}ms`);
     console.log(`[bulk-insights-v9] Progress: ${Math.min(100, progress)}% (${Math.min(nextOffset, totalMissing || 0)}/${totalMissing})`);
 
-    // Stop if credits exhausted in aiOnly OR forceRefresh mode to protect existing insights
     if ((aiOnly || forceRefresh) && creditsExhausted) {
-      console.log(`[bulk-insights-v9] ⚠️ STOPPING: AI credits exhausted (aiOnly mode). Processed ${offset + totalProcessed} total.`);
+      console.log(`[bulk-insights-v9] ⚠️ STOPPING: AI credits exhausted. Processed ${offset + totalProcessed} total.`);
       return new Response(
         JSON.stringify({
           success: true,
@@ -578,12 +588,11 @@ serve(async (req) => {
       );
     }
 
-    // Auto-continue
     const selfUrl = `${SUPABASE_URL}/functions/v1/bulk-generate-missing-insights`;
     
     if (!isComplete && !dryRun && autoResume) {
       const triggerNext = async () => {
-        await delay(2000); // 2 second delay between batches
+        await delay(2000);
         try {
           const res = await fetch(selfUrl, {
             method: 'POST',
@@ -592,7 +601,7 @@ serve(async (req) => {
               'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               'x-internal-secret': SUPABASE_SERVICE_ROLE_KEY,
             },
-            body: JSON.stringify({ offset: nextOffset, autoResume, forceRefresh, minScore, aiOnly }),
+            body: JSON.stringify({ offset: nextOffset, autoResume, forceRefresh, minScore, aiOnly, deterministicOnly }),
           });
           console.log(`[bulk-insights-v9] Next batch triggered, status: ${res.status}`);
         } catch (err) {

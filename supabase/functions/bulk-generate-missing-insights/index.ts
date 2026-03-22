@@ -674,6 +674,12 @@ async function generateInsightForProperty(
 
     const score = property.snap_score ?? 0;
 
+    // SAFETY: If skipOverwrite is true (credits exhausted during forceRefresh),
+    // never overwrite an existing insight with a lower-quality deterministic one
+    if (skipOverwrite && property.snap_insight && property.snap_insight.length > 20) {
+      return { status: 'skipped_preserve', property_id: propertyId, method: 'preserved' };
+    }
+
     // ── LOW SCORE: Use rule-based investor voice engine ──
     if (score < AI_SCORE_THRESHOLD && !aiOnly) {
       const ruleInsight = composeInvestorInsight(property);

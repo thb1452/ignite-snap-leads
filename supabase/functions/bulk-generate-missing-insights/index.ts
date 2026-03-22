@@ -503,12 +503,13 @@ serve(async (req) => {
     if (!dryRun) {
       // Process in waves of CONCURRENCY parallel calls
       for (let i = 0; i < properties.length; i += CONCURRENCY) {
-        // Only stop for credits_exhausted if aiOnly mode
-        if (creditsExhausted && aiOnly) break;
+        // SAFETY: Stop immediately when credits exhausted during forceRefresh
+        // to prevent deterministic engine from overwriting existing AI insights
+        if (creditsExhausted && (aiOnly || forceRefresh)) break;
         
         const wave = properties.slice(i, i + CONCURRENCY);
         const waveResults = await Promise.allSettled(
-          wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true, aiOnly))
+          wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true, aiOnly, forceRefresh && creditsExhausted))
         );
 
         for (const result of waveResults) {
@@ -520,6 +521,8 @@ serve(async (req) => {
               else totalRuleBased++;
             } else if (r.status === 'credits_exhausted') {
               creditsExhausted = true;
+            } else if (r.status === 'skipped_preserve') {
+              totalSkipped++;
             } else if (r.status === 'rate_limited') {
               totalSkipped++;
               errors.push(`${r.property_id}: rate_limited`);

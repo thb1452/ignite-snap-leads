@@ -654,6 +654,20 @@ serve(async (req) => {
 // AI threshold — properties below this score use rule-based engine
 const AI_SCORE_THRESHOLD = 50;
 
+function normalizeInsightText(text: string | null | undefined): string {
+  return (text ?? "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+}
+
+function isAiGeneratedInsight(text: string | null | undefined, cachedBrief: unknown): boolean {
+  if (cachedBrief && typeof cachedBrief === "object") return true;
+  return /\b(CALL NOW|WORTH A CALL|WATCH)\b/i.test(normalizeInsightText(text));
+}
+
+function isDeterministicInsight(text: string | null | undefined): boolean {
+  const normalized = normalizeInsightText(text);
+  return normalized.length > 0 && !/\b(CALL NOW|WORTH A CALL|WATCH)\b/i.test(normalized);
+}
+
 // ── Generate insight for a single property — AI for high score, rule-based for low ──
 async function generateInsightForProperty(
   supabase: ReturnType<typeof createClient>,
@@ -668,7 +682,7 @@ async function generateInsightForProperty(
       .from("properties")
       .select(`
         id, address, city, state, zip, county,
-        snap_score, snap_insight, distress_signals, violation_types,
+        snap_score, snap_insight, investor_insight_brief, distress_signals, violation_types,
         open_violations, total_violations, enforcement_type,
         escalated, repeat_offender, multi_department,
         avg_days_open, oldest_violation_date, newest_violation_date,
@@ -682,16 +696,20 @@ async function generateInsightForProperty(
     }
 
     const score = property.snap_score ?? 0;
+    const existingAiGenerated = isAiGeneratedInsight(property.snap_insight, property.investor_insight_brief);
 
-    // SAFETY: If skipOverwrite is true (credits exhausted during forceRefresh),
-    // never overwrite an existing insight with a lower-quality deterministic one
     if (skipOverwrite && property.snap_insight && property.snap_insight.length > 20) {
       return { status: 'skipped_preserve', property_id: propertyId, method: 'preserved' };
     }
 
-    // ── LOW SCORE: Use rule-based investor voice engine ──
     if (score < AI_SCORE_THRESHOLD && !aiOnly) {
       const ruleInsight = composeInvestorInsight(property);
+
+      // NEVER overwrite existing AI briefs with fallback text
+      if (existingAiGenerated && isDeterministicInsight(ruleInsight)) {
+        return { status: 'skipped_preserve', property_id: propertyId, method: 'preserved_ai_over_deterministic' };
+      }
+
       if (writeToDb) {
         const { error: updateError } = await supabase
           .from("properties")
@@ -704,7 +722,6 @@ async function generateInsightForProperty(
       return { status: 'success', property_id: propertyId, snap_insight: ruleInsight, method: 'rule_based' };
     }
 
-    // ── HIGH SCORE: Use AI ──
     const { data: violations } = await supabase
       .from("violations")
       .select("violation_type, status, raw_description, days_open, opened_date, case_id")

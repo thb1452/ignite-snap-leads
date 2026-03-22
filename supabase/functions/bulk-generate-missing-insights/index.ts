@@ -503,12 +503,13 @@ serve(async (req) => {
     if (!dryRun) {
       // Process in waves of CONCURRENCY parallel calls
       for (let i = 0; i < properties.length; i += CONCURRENCY) {
-        // Only stop for credits_exhausted if aiOnly mode
-        if (creditsExhausted && aiOnly) break;
+        // SAFETY: Stop immediately when credits exhausted during forceRefresh
+        // to prevent deterministic engine from overwriting existing AI insights
+        if (creditsExhausted && (aiOnly || forceRefresh)) break;
         
         const wave = properties.slice(i, i + CONCURRENCY);
         const waveResults = await Promise.allSettled(
-          wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true, aiOnly))
+          wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true, aiOnly, forceRefresh && creditsExhausted))
         );
 
         for (const result of waveResults) {
@@ -520,6 +521,8 @@ serve(async (req) => {
               else totalRuleBased++;
             } else if (r.status === 'credits_exhausted') {
               creditsExhausted = true;
+            } else if (r.status === 'skipped_preserve') {
+              totalSkipped++;
             } else if (r.status === 'rate_limited') {
               totalSkipped++;
               errors.push(`${r.property_id}: rate_limited`);
@@ -548,8 +551,8 @@ serve(async (req) => {
     console.log(`[bulk-insights-v9] Batch done: ${totalAI} AI, ${totalRuleBased} rule-based, ${totalSkipped} skipped in ${elapsed}ms`);
     console.log(`[bulk-insights-v9] Progress: ${Math.min(100, progress)}% (${Math.min(nextOffset, totalMissing || 0)}/${totalMissing})`);
 
-    // Stop if credits exhausted in aiOnly mode
-    if (aiOnly && creditsExhausted) {
+    // Stop if credits exhausted in aiOnly OR forceRefresh mode to protect existing insights
+    if ((aiOnly || forceRefresh) && creditsExhausted) {
       console.log(`[bulk-insights-v9] ⚠️ STOPPING: AI credits exhausted (aiOnly mode). Processed ${offset + totalProcessed} total.`);
       return new Response(
         JSON.stringify({
@@ -648,7 +651,8 @@ async function generateInsightForProperty(
   propertyId: string,
   apiKey: string,
   writeToDb: boolean,
-  aiOnly = false
+  aiOnly = false,
+  skipOverwrite = false
 ): Promise<{ status: string; property_id: string; snap_insight?: string; error?: string; method?: string }> {
   try {
     const { data: property, error: propError } = await supabase
@@ -669,6 +673,12 @@ async function generateInsightForProperty(
     }
 
     const score = property.snap_score ?? 0;
+
+    // SAFETY: If skipOverwrite is true (credits exhausted during forceRefresh),
+    // never overwrite an existing insight with a lower-quality deterministic one
+    if (skipOverwrite && property.snap_insight && property.snap_insight.length > 20) {
+      return { status: 'skipped_preserve', property_id: propertyId, method: 'preserved' };
+    }
 
     // ── LOW SCORE: Use rule-based investor voice engine ──
     if (score < AI_SCORE_THRESHOLD && !aiOnly) {

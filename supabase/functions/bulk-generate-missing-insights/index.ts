@@ -423,6 +423,7 @@ serve(async (req) => {
       forceRefresh = false, 
       minScore = 0, 
       aiOnly = false,
+      deterministicOnly = false,
       testMode = false,
       propertyIds = [],
     } = body;
@@ -435,7 +436,7 @@ serve(async (req) => {
       const results = [];
 
       for (const propId of propertyIds) {
-        const result = await generateInsightForProperty(supabase, propId, LOVABLE_API_KEY, false);
+        const result = await generateInsightForProperty(supabase, propId, LOVABLE_API_KEY, false, aiOnly);
         results.push(result);
         if (result.status === 'credits_exhausted') break;
         await delay(200);
@@ -457,11 +458,25 @@ serve(async (req) => {
     let fetchQuery = supabase.from("properties").select("id, snap_score");
 
     if (forceRefresh) {
+      if (deterministicOnly) {
+        countQuery = countQuery
+          .filter("snap_insight", "not.is", "null")
+          .not("snap_insight", "ilike", "%CALL NOW%")
+          .not("snap_insight", "ilike", "%WORTH A CALL%")
+          .not("snap_insight", "ilike", "%WATCH%");
+
+        fetchQuery = fetchQuery
+          .filter("snap_insight", "not.is", "null")
+          .not("snap_insight", "ilike", "%CALL NOW%")
+          .not("snap_insight", "ilike", "%WORTH A CALL%")
+          .not("snap_insight", "ilike", "%WATCH%");
+      }
+
       if (minScore > 0) {
         countQuery = countQuery.gte("snap_score", minScore);
         fetchQuery = fetchQuery.gte("snap_score", minScore);
       }
-      console.log(`[bulk-insights-v9] FORCE REFRESH: score >= ${minScore || 'ALL'}`);
+      console.log(`[bulk-insights-v9] FORCE REFRESH${deterministicOnly ? ' deterministic-only' : ''}: score >= ${minScore || 'ALL'}`);
     } else {
       countQuery = countQuery.is("snap_insight", null);
       fetchQuery = fetchQuery.is("snap_insight", null);
@@ -501,12 +516,9 @@ serve(async (req) => {
     const errors: string[] = [];
 
     if (!dryRun) {
-      // Process in waves of CONCURRENCY parallel calls
       for (let i = 0; i < properties.length; i += CONCURRENCY) {
-        // SAFETY: Stop immediately when credits exhausted during forceRefresh
-        // to prevent deterministic engine from overwriting existing AI insights
         if (creditsExhausted && (aiOnly || forceRefresh)) break;
-        
+
         const wave = properties.slice(i, i + CONCURRENCY);
         const waveResults = await Promise.allSettled(
           wave.map(prop => generateInsightForProperty(supabase, prop.id, LOVABLE_API_KEY, true, aiOnly, forceRefresh && creditsExhausted))
@@ -536,7 +548,6 @@ serve(async (req) => {
           }
         }
 
-        // Small delay between waves to avoid rate limiting
         if (i + CONCURRENCY < properties.length) {
           await delay(creditsExhausted ? 100 : DELAY_BETWEEN_WAVES_MS);
         }
@@ -551,9 +562,8 @@ serve(async (req) => {
     console.log(`[bulk-insights-v9] Batch done: ${totalAI} AI, ${totalRuleBased} rule-based, ${totalSkipped} skipped in ${elapsed}ms`);
     console.log(`[bulk-insights-v9] Progress: ${Math.min(100, progress)}% (${Math.min(nextOffset, totalMissing || 0)}/${totalMissing})`);
 
-    // Stop if credits exhausted in aiOnly OR forceRefresh mode to protect existing insights
     if ((aiOnly || forceRefresh) && creditsExhausted) {
-      console.log(`[bulk-insights-v9] ⚠️ STOPPING: AI credits exhausted (aiOnly mode). Processed ${offset + totalProcessed} total.`);
+      console.log(`[bulk-insights-v9] ⚠️ STOPPING: AI credits exhausted. Processed ${offset + totalProcessed} total.`);
       return new Response(
         JSON.stringify({
           success: true,
@@ -578,12 +588,11 @@ serve(async (req) => {
       );
     }
 
-    // Auto-continue
     const selfUrl = `${SUPABASE_URL}/functions/v1/bulk-generate-missing-insights`;
     
     if (!isComplete && !dryRun && autoResume) {
       const triggerNext = async () => {
-        await delay(2000); // 2 second delay between batches
+        await delay(2000);
         try {
           const res = await fetch(selfUrl, {
             method: 'POST',
@@ -592,7 +601,7 @@ serve(async (req) => {
               'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               'x-internal-secret': SUPABASE_SERVICE_ROLE_KEY,
             },
-            body: JSON.stringify({ offset: nextOffset, autoResume, forceRefresh, minScore, aiOnly }),
+            body: JSON.stringify({ offset: nextOffset, autoResume, forceRefresh, minScore, aiOnly, deterministicOnly }),
           });
           console.log(`[bulk-insights-v9] Next batch triggered, status: ${res.status}`);
         } catch (err) {
@@ -645,6 +654,20 @@ serve(async (req) => {
 // AI threshold — properties below this score use rule-based engine
 const AI_SCORE_THRESHOLD = 50;
 
+function normalizeInsightText(text: string | null | undefined): string {
+  return (text ?? "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+}
+
+function isAiGeneratedInsight(text: string | null | undefined, cachedBrief: unknown): boolean {
+  if (cachedBrief && typeof cachedBrief === "object") return true;
+  return /\b(CALL NOW|WORTH A CALL|WATCH)\b/i.test(normalizeInsightText(text));
+}
+
+function isDeterministicInsight(text: string | null | undefined): boolean {
+  const normalized = normalizeInsightText(text);
+  return normalized.length > 0 && !/\b(CALL NOW|WORTH A CALL|WATCH)\b/i.test(normalized);
+}
+
 // ── Generate insight for a single property — AI for high score, rule-based for low ──
 async function generateInsightForProperty(
   supabase: ReturnType<typeof createClient>,
@@ -659,7 +682,7 @@ async function generateInsightForProperty(
       .from("properties")
       .select(`
         id, address, city, state, zip, county,
-        snap_score, snap_insight, distress_signals, violation_types,
+        snap_score, snap_insight, investor_insight_brief, distress_signals, violation_types,
         open_violations, total_violations, enforcement_type,
         escalated, repeat_offender, multi_department,
         avg_days_open, oldest_violation_date, newest_violation_date,
@@ -673,16 +696,20 @@ async function generateInsightForProperty(
     }
 
     const score = property.snap_score ?? 0;
+    const existingAiGenerated = isAiGeneratedInsight(property.snap_insight, property.investor_insight_brief);
 
-    // SAFETY: If skipOverwrite is true (credits exhausted during forceRefresh),
-    // never overwrite an existing insight with a lower-quality deterministic one
     if (skipOverwrite && property.snap_insight && property.snap_insight.length > 20) {
       return { status: 'skipped_preserve', property_id: propertyId, method: 'preserved' };
     }
 
-    // ── LOW SCORE: Use rule-based investor voice engine ──
     if (score < AI_SCORE_THRESHOLD && !aiOnly) {
       const ruleInsight = composeInvestorInsight(property);
+
+      // NEVER overwrite existing AI briefs with fallback text
+      if (existingAiGenerated && isDeterministicInsight(ruleInsight)) {
+        return { status: 'skipped_preserve', property_id: propertyId, method: 'preserved_ai_over_deterministic' };
+      }
+
       if (writeToDb) {
         const { error: updateError } = await supabase
           .from("properties")
@@ -695,7 +722,6 @@ async function generateInsightForProperty(
       return { status: 'success', property_id: propertyId, snap_insight: ruleInsight, method: 'rule_based' };
     }
 
-    // ── HIGH SCORE: Use AI ──
     const { data: violations } = await supabase
       .from("violations")
       .select("violation_type, status, raw_description, days_open, opened_date, case_id")

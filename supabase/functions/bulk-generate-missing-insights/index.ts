@@ -651,7 +651,8 @@ async function generateInsightForProperty(
   propertyId: string,
   apiKey: string,
   writeToDb: boolean,
-  aiOnly = false
+  aiOnly = false,
+  skipOverwrite = false
 ): Promise<{ status: string; property_id: string; snap_insight?: string; error?: string; method?: string }> {
   try {
     const { data: property, error: propError } = await supabase

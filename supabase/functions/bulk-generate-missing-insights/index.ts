@@ -551,8 +551,8 @@ serve(async (req) => {
     console.log(`[bulk-insights-v9] Batch done: ${totalAI} AI, ${totalRuleBased} rule-based, ${totalSkipped} skipped in ${elapsed}ms`);
     console.log(`[bulk-insights-v9] Progress: ${Math.min(100, progress)}% (${Math.min(nextOffset, totalMissing || 0)}/${totalMissing})`);
 
-    // Stop if credits exhausted in aiOnly mode
-    if (aiOnly && creditsExhausted) {
+    // Stop if credits exhausted in aiOnly OR forceRefresh mode to protect existing insights
+    if ((aiOnly || forceRefresh) && creditsExhausted) {
       console.log(`[bulk-insights-v9] ⚠️ STOPPING: AI credits exhausted (aiOnly mode). Processed ${offset + totalProcessed} total.`);
       return new Response(
         JSON.stringify({

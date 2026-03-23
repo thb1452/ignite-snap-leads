@@ -8,26 +8,30 @@ import { useAuth } from "./use-auth";
 export function useFreeUnlocks() {
   const { user } = useAuth();
 
-  const { data: freeUnlocksRemaining = 3, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["free-unlocks", user?.id],
     queryFn: async () => {
-      if (!user?.id) return 3;
-      const { data, error } = await supabase
+      if (!user?.id) return 0;
+      const { data: row, error } = await supabase
         .from("profiles")
         .select("free_unlocks_remaining")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("[useFreeUnlocks] Error:", error);
-        return 3;
+        return 0;
       }
-
-      return data?.free_unlocks_remaining ?? 3;
+      if (!row) return 0;
+      return row.free_unlocks_remaining;
     },
     enabled: !!user?.id,
     staleTime: 15000,
   });
+
+  // While loading, assume defaults match a normal account (avoids unlock UI flicker).
+  const freeUnlocksRemaining =
+    data !== undefined ? data : isLoading ? 3 : 0;
 
   return { freeUnlocksRemaining, isLoading };
 }

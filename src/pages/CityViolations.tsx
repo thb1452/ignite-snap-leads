@@ -101,7 +101,7 @@ export default function CityViolations() {
           <BrandLogo size="md" />
           <div className="flex items-center gap-4">
             <Link to="/code-violations"><Button variant="ghost" className="text-[hsl(var(--landing-text-muted))] hover:text-[hsl(var(--landing-text))]">All Cities</Button></Link>
-            <Link to="/auth"><Button className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))]">Start Free Trial</Button></Link>
+            <Link to="/auth?mode=signup"><Button className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))]">Start Free Trial</Button></Link>
           </div>
         </div>
       </nav>
@@ -125,7 +125,7 @@ export default function CityViolations() {
               <p className="text-lg md:text-xl text-[hsl(var(--landing-text-muted))] max-w-2xl mx-auto mb-8">
                 Snap Ignite tracks {jurisdiction.propertyCount.toLocaleString()} properties with enforcement records in {jurisdiction.city}. Access violation data, SnapScores, and distress signals — sourced directly from municipal records.
               </p>
-              <Link to="/auth">
+              <Link to="/auth?mode=signup">
                 <Button size="lg" className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))] px-8">
                   Access {jurisdiction.city} Data <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -205,7 +205,7 @@ export default function CityViolations() {
               <p className="text-[hsl(var(--landing-text-muted))] text-lg mb-8 max-w-xl mx-auto">
                 Snap Ignite analyzes municipal code violations to help investors discover off-market deals before they hit the MLS.
               </p>
-              <Link to="/auth">
+              <Link to="/auth?mode=signup">
                 <Button size="lg" className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))] px-10">
                   Search {jurisdiction.city} Violation Leads <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -246,7 +246,7 @@ export default function CityViolations() {
               We're actively expanding our enforcement data coverage. Sign up to be notified when we add this jurisdiction — or explore 3,800+ cities we already track.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/auth">
+              <Link to="/auth?mode=signup">
                 <Button size="lg" className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))] px-8">
                   Get Notified <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -268,7 +268,7 @@ export default function CityViolations() {
           <p className="text-[hsl(var(--landing-text-muted))] text-lg mb-8">
             Free trial — no credit card required to browse. Pay only when you're ready to export.
           </p>
-          <Link to="/auth">
+          <Link to="/auth?mode=signup">
             <Button size="lg" className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))] px-10">
               Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

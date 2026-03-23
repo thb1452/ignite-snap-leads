@@ -305,7 +305,7 @@ export function RoleProtectedRoute({
 
   // Not logged in
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth?mode=signin" replace />;
   }
 
   // Require email verification
@@ -354,7 +354,7 @@ export function RoleProtectedRoute({
         <div className="min-h-screen flex items-center justify-center flex-col gap-4">
           <h1 className="text-2xl font-bold text-foreground">Access Denied</h1>
           <p className="text-muted-foreground">You don't have permission to access this page.</p>
-          <a href="/auth" className="text-primary hover:underline">Sign in with a different account</a>
+          <a href="/auth?mode=signin" className="text-primary hover:underline">Sign in with a different account</a>
         </div>
       );
     }

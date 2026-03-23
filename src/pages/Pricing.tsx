@@ -199,7 +199,7 @@ export default function Pricing() {
 
   const handlePlanClick = (tier: PricingTier) => {
     if (tier.isFree) {
-      navigate('/auth');
+      navigate('/auth?mode=signup');
       return;
     }
     if (tier.isEnterprise) {
@@ -209,7 +209,7 @@ export default function Pricing() {
     if (tier.isPayg) {
       // Navigate to leads where they can buy individual addresses
       if (!user) {
-        navigate('/auth');
+        navigate('/auth?mode=signup');
       } else {
         navigate('/leads');
       }
@@ -220,7 +220,7 @@ export default function Pricing() {
       return;
     }
     if (!user) {
-      navigate('/auth');
+      navigate(`/auth?mode=signup&plan=${encodeURIComponent(tier.name)}`);
       return;
     }
     handleDirectUpgrade(tier.name);

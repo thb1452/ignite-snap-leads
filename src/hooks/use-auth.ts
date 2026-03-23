@@ -171,8 +171,13 @@ export function useAuth() {
         const cachedRoles = getCachedRoles(currentUser.id);
         if (cachedRoles) {
           setRoles(cachedRoles);
+        } else {
+          // Optimistic default matches handle_new_user trigger; avoids empty-roles
+          // flash on /properties before fetchRolesWithRetry completes.
+          setRoles(['user']);
+          cacheRoles(currentUser.id, ['user']);
         }
-        
+
         // Defer Supabase calls with setTimeout per best practices
         setTimeout(() => {
           fetchRolesWithRetry(currentUser.id).then(freshRoles => {
@@ -211,19 +216,8 @@ export function useAuth() {
       if (error) throw error;
 
       if (data.user) {
-        // Create profile after successful signup
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: data.user.id,
-            org_id: '00000000-0000-0000-0000-000000000001', // Demo org
-            email,
-            full_name: fullName,
-          });
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-        }
+        // public.profiles is created by handle_new_user (DB trigger) with
+        // free_unlocks_remaining default — works even without a session (email confirm).
 
         // If there's an invite token, mark invitation as accepted and assign role
         if (inviteToken) {

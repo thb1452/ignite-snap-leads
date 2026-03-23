@@ -79,7 +79,7 @@ export default function CheckoutSuccess() {
   useEffect(() => {
     if (!authLoading && !user) {
       console.log('[CheckoutSuccess] No user, redirecting to auth');
-      navigate('/auth', { replace: true });
+      navigate('/auth?mode=signin', { replace: true });
     }
   }, [user, authLoading, navigate]);
 

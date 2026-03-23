@@ -69,7 +69,7 @@ export default function CityViolationsIndex() {
           <BrandLogo size="md" />
           <div className="flex items-center gap-4">
             <Link to="/pricing"><Button variant="ghost" className="text-[hsl(var(--landing-text-muted))] hover:text-[hsl(var(--landing-text))]">Pricing</Button></Link>
-            <Link to="/auth"><Button className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))]">Start Free Trial</Button></Link>
+            <Link to="/auth?mode=signup"><Button className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))]">Start Free Trial</Button></Link>
           </div>
         </div>
       </nav>
@@ -136,7 +136,7 @@ export default function CityViolationsIndex() {
           <p className="text-[hsl(var(--landing-text-muted))] text-lg mb-8">
             Start your free trial and search violation records across thousands of cities. No credit card required.
           </p>
-          <Link to="/auth">
+          <Link to="/auth?mode=signup">
             <Button size="lg" className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))] px-10">
               Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

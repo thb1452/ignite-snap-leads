@@ -25,7 +25,7 @@ export default function CodeViolationLeads() {
           <BrandLogo size="md" />
           <div className="flex items-center gap-4">
             <Link to="/pricing"><Button variant="ghost" className="text-[hsl(var(--landing-text-muted))] hover:text-[hsl(var(--landing-text))]">Pricing</Button></Link>
-            <Link to="/auth"><Button className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))]">Start Free Trial</Button></Link>
+            <Link to="/auth?mode=signup"><Button className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))]">Start Free Trial</Button></Link>
           </div>
         </div>
       </nav>
@@ -41,7 +41,7 @@ export default function CodeViolationLeads() {
             Stop chasing cold lists. Snap Ignite surfaces properties under active municipal enforcement — owners who are motivated to sell before fines escalate.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/auth">
+            <Link to="/auth?mode=signup">
               <Button size="lg" className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))] px-8">
                 Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -127,7 +127,7 @@ export default function CodeViolationLeads() {
           <p className="text-[hsl(var(--landing-text-muted))] text-lg mb-8">
             Start your 3-day free trial. No credit card required to browse — pay only when you're ready to export.
           </p>
-          <Link to="/auth">
+          <Link to="/auth?mode=signup">
             <Button size="lg" className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))] px-10">
               Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

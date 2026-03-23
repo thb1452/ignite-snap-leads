@@ -13,7 +13,7 @@ const corsHeaders = {
 };
 
 // PAYG: $0.97 per address using Stripe price
-const PAYG_PRICE_ID = "price_PAYG_ID";
+const PAYG_PRICE_ID = "price_1TEGY7PfDZrVNjz5TDRaviMn";
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -113,10 +113,10 @@ async function handleSubscription(
 
   // Stripe Price IDs — replace placeholders with real IDs
   const STRIPE_PRICE_IDS: Record<string, string> = {
-    starter: "price_STARTER_ID",
-    professional: "price_PRO_ID",
-    enterprise: "price_ELITE_ID",
-    elite: "price_ELITE_ID",
+    starter: "price_1TEGVNPfDZrVNjz5kH849WuD",
+    professional: "price_1TEGVqPfDZrVNjz5A797mvBk",
+    enterprise: "price_1TEGWJPfDZrVNjz5Jw5cNEAm",
+    elite: "price_1TEGWJPfDZrVNjz5Jw5cNEAm",
   };
 
   const priceId = STRIPE_PRICE_IDS[tier_name.toLowerCase()];

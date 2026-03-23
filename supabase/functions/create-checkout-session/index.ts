@@ -13,7 +13,7 @@ const corsHeaders = {
 };
 
 // PAYG: $0.97 per address using Stripe price
-const PAYG_PRICE_ID = "price_PAYG_ID";
+const PAYG_PRICE_ID = "price_1TEGY7PfDZrVNjz5TDRaviMn";
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {

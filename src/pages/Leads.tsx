@@ -61,6 +61,10 @@ import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
 import { UnlockModal } from "@/components/leads/UnlockModal";
 import { ViewLimitModal } from "@/components/leads/ViewLimitModal";
 import { BulkUnlockBar } from "@/components/leads/BulkUnlockBar";
+import {
+  clearPendingStripeUnlockCheckout,
+  getPendingStripeUnlockSessionId,
+} from "@/utils/pendingStripeUnlock";
 
 const PAGE_SIZE = 50;
 
@@ -214,8 +218,16 @@ function Leads() {
     const propertyIdParam = searchParams.get("propertyId");
     const unlockedLegacy = searchParams.get("unlocked");
     const checkout = searchParams.get("checkout");
-    const sessionId = searchParams.get("session_id");
+    const sessionIdParam = searchParams.get("session_id");
     const creditsAdded = searchParams.get("credits_added");
+    const unlockCancelled = searchParams.get("unlock_cancelled");
+
+    if (unlockCancelled) {
+      clearPendingStripeUnlockCheckout();
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("unlock_cancelled");
+      setSearchParams(newParams, { replace: true });
+    }
 
     if (creditsAdded) {
       toast({
@@ -256,22 +268,26 @@ function Leads() {
       (async () => {
         setSelectedPropertyId(targetUnlockPropertyId);
 
-        if (sessionId) {
+        const stripeSessionId =
+          sessionIdParam || getPendingStripeUnlockSessionId(targetUnlockPropertyId);
+
+        if (stripeSessionId) {
           try {
             const { data: session } = await supabase.auth.getSession();
             const token = session.session?.access_token;
             if (token) {
               const base = import.meta.env.VITE_SUPABASE_URL || "";
-            const res = await fetch(`${base}/functions/v1/handle-unlock`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({ stripe_session_id: sessionId }),
-            });
+              const res = await fetch(`${base}/functions/v1/handle-unlock`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ stripe_session_id: stripeSessionId }),
+              });
               const body = await res.json().catch(() => ({}));
               if (!cancelled && res.ok && body.success) {
+                clearPendingStripeUnlockCheckout();
                 queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
                 toast({
                   title: "Property unlocked! 🔓",
@@ -288,6 +304,7 @@ function Leads() {
 
         for (let i = 0; i < 20 && !cancelled; i++) {
           if (await confirmUnlockInDb()) {
+            clearPendingStripeUnlockCheckout();
             queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
             toast({
               title: "Property unlocked! 🔓",
@@ -314,8 +331,8 @@ function Leads() {
       };
     }
 
-    // Legacy ?unlocked= only (no session id): do not toast until DB confirms
-    if (unlockedLegacy && !sessionId && !checkout) {
+    // Legacy ?unlocked= only (older success_url): try handle-unlock using session id saved before Stripe redirect, else poll DB.
+    if (unlockedLegacy && !sessionIdParam && !checkout) {
       if (isLoading || !user?.id) return;
 
       let cancelled = false;
@@ -323,6 +340,41 @@ function Leads() {
 
       (async () => {
         setSelectedPropertyId(unlockedLegacy);
+
+        const storedSessionId = getPendingStripeUnlockSessionId(unlockedLegacy);
+        if (storedSessionId) {
+          try {
+            const { data: session } = await supabase.auth.getSession();
+            const token = session.session?.access_token;
+            if (token) {
+              const base = import.meta.env.VITE_SUPABASE_URL || "";
+              const res = await fetch(`${base}/functions/v1/handle-unlock`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ stripe_session_id: storedSessionId }),
+              });
+              const body = await res.json().catch(() => ({}));
+              if (!cancelled && res.ok && body.success) {
+                clearPendingStripeUnlockCheckout();
+                queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
+                toast({
+                  title: "Property unlocked! 🔓",
+                  description: "Full address and contacts are now available.",
+                });
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete("unlocked");
+                setSearchParams(newParams, { replace: true });
+                return;
+              }
+            }
+          } catch (e) {
+            console.error("[Leads] handle-unlock (legacy return):", e);
+          }
+        }
+
         for (let i = 0; i < 20 && !cancelled; i++) {
           const { data, error } = await supabase.rpc("fn_check_unlocked_batch", {
             p_user_id: user.id,
@@ -333,6 +385,7 @@ function Leads() {
             Array.isArray(data) &&
             data.some((row: { property_id: string }) => row.property_id === unlockedLegacy);
           if (ok) {
+            clearPendingStripeUnlockCheckout();
             queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
             toast({
               title: "Property unlocked! 🔓",

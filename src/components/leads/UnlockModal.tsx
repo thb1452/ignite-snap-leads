@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCreditBalance } from "@/hooks/useCredits";
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
+import { setPendingStripeUnlockCheckout } from "@/utils/pendingStripeUnlock";
 
 interface UnlockModalProps {
   open: boolean;
@@ -143,7 +144,12 @@ export function UnlockModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Checkout failed");
 
+      const checkoutSessionId = data.sessionId ?? data.session_id;
       if (data.url) {
+        // Lovable/old deploys may omit session_id from success_url — we still need it to call handle-unlock after pay.
+        if (checkoutSessionId) {
+          setPendingStripeUnlockCheckout(checkoutSessionId, property.id);
+        }
         window.location.href = data.url;
       }
     } catch (err: any) {

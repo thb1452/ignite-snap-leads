@@ -43,7 +43,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     console.log("[webhook] Received event:", event.type, event.id);
 
     // ---- Helper: log webhook errors ----
-    async function logWebhookError(eventType: string | null, eventId: string | null, errorMessage: string, payload: any) {
+    async function logWebhookError(
+      eventType: string | null,
+      eventId: string | null,
+      errorMessage: string,
+      payload: any,
+    ) {
       try {
         await supabase.from("webhook_errors").insert({
           webhook_type: "stripe",
@@ -52,7 +57,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
           error_message: errorMessage.slice(0, 2000),
           payload,
         });
-      } catch { /* silent */ }
+      } catch {
+        /* silent */
+      }
     }
 
     // ---- Idempotency Check ----
@@ -146,7 +153,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
           payload: { raw_error: true },
         });
       }
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
     return new Response(JSON.stringify({ error: e.message }), { status: 500 });
   }
 });
@@ -198,15 +207,16 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
   // Record transaction (skip if no payment_intent id — e.g. expanded object edge cases)
   const { error: txError } = paymentIntentId
     ? await supabase.from("transactions").insert({
-    user_id: userId,
-    stripe_payment_intent_id: paymentIntentId,
-    amount: session.amount_total ?? 0,
-    description: checkoutType === "single_unlock"
-      ? "Single Property Unlock"
-      : `Credit Pack: ${session.metadata?.credits ?? 0} credits`,
-    metadata: session.metadata,
-    status: "succeeded",
-  })
+        user_id: userId,
+        stripe_payment_intent_id: paymentIntentId,
+        amount: session.amount_total ?? 0,
+        description:
+          checkoutType === "single_unlock"
+            ? "Single Property Unlock"
+            : `Credit Pack: ${session.metadata?.credits ?? 0} credits`,
+        metadata: session.metadata,
+        status: "succeeded",
+      })
     : { error: null as any };
 
   if (txError) {
@@ -365,7 +375,7 @@ async function recordAffiliateCommission(
   supabase: any,
   userId: string,
   amountCents: number,
-  paymentIntentId: string | null
+  paymentIntentId: string | null,
 ) {
   if (!amountCents || amountCents <= 0) return;
 
@@ -441,7 +451,12 @@ async function recordAffiliateCommission(
     if (commErr) {
       console.error("[webhook] Error recording commission:", commErr);
     } else {
-      console.log("[webhook] Affiliate commission recorded:", commissionAmount, "cents for referrer:", referral.referrer_id);
+      console.log(
+        "[webhook] Affiliate commission recorded:",
+        commissionAmount,
+        "cents for referrer:",
+        referral.referrer_id,
+      );
     }
   } catch (e: any) {
     console.error("[webhook] Affiliate commission error:", e?.message);

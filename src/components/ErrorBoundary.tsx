@@ -1,6 +1,7 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { attemptChunkRecovery } from "@/services/chunkRecovery";
 import { logErrorToDb } from "@/services/errorLogger";
 
 interface Props {
@@ -25,6 +26,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    if (attemptChunkRecovery("error-boundary", error)) {
+      return;
+    }
+
     console.error("[ErrorBoundary] Caught error:", error);
     console.error("[ErrorBoundary] Error info:", errorInfo);
     this.setState({ errorInfo });

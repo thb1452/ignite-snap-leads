@@ -94,9 +94,13 @@ export function UnlockModal({
       });
 
       // Invalidate relevant queries
+      if (data.source === "free_credit" && typeof data.free_remaining === "number" && user?.id) {
+        queryClient.setQueryData(["free-unlocks", user.id], data.free_remaining);
+      }
       queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
       queryClient.invalidateQueries({ queryKey: ["credits"] });
       queryClient.invalidateQueries({ queryKey: ["user", "credits"] });
+      queryClient.invalidateQueries({ queryKey: ["free-unlocks"] });
       queryClient.invalidateQueries({ queryKey: ["property-contacts", property.id] });
 
       onUnlocked?.();

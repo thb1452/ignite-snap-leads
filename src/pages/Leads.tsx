@@ -41,8 +41,9 @@ import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
 import { exportFilteredCsv } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
 import type { LeadFilters } from "@/schemas";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
+import { useAuth } from "@/hooks/use-auth";
 import { Input } from "@/components/ui/input";
 import { ExportQuotaDisplay } from "@/components/leads/ExportQuotaDisplay";
 import { WaterShutoffUpgradeBanner } from "@/components/leads/WaterShutoffUpgradeBanner";
@@ -65,6 +66,8 @@ const PAGE_SIZE = 50;
 
 function Leads() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { showOnboarding, setShowOnboarding, markOnboardingComplete } = useOnboarding();
   const { plan, usage, refetch: refetchSubscription, getRemainingCount, hasActiveSubscription } = useSubscription();
@@ -206,10 +209,12 @@ function Leads() {
   // Use paginated properties hook for the list
   const { data, isLoading, error, refetch } = useProperties(page, PAGE_SIZE, filters);
 
-  // Auto-select property from URL param (e.g. from digest email or Stripe unlock return)
+  // URL params: credits, Stripe checkout return (fulfill + invalidate), digest deep-link
   useEffect(() => {
     const propertyIdParam = searchParams.get("propertyId");
-    const unlockedParam = searchParams.get("unlocked");
+    const unlockedLegacy = searchParams.get("unlocked");
+    const checkout = searchParams.get("checkout");
+    const sessionId = searchParams.get("session_id");
     const creditsAdded = searchParams.get("credits_added");
 
     if (creditsAdded) {
@@ -222,21 +227,132 @@ function Leads() {
       setSearchParams(newParams, { replace: true });
     }
 
-    if (unlockedParam) {
-      if (!isLoading) {
-        setSelectedPropertyId(unlockedParam);
-        invalidateUnlocks();
-        toast({
-          title: "Property unlocked! 🔓",
-          description: "Full address and contacts are now available.",
-        });
+    const targetUnlockPropertyId = propertyIdParam || unlockedLegacy;
+
+    // Paid single-unlock return: verify session server-side when possible, then confirm row in DB (webhook may lag).
+    if (checkout === "success" && targetUnlockPropertyId && user?.id) {
+      if (isLoading) return;
+
+      let cancelled = false;
+      const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      const clearCheckoutParams = () => {
         const newParams = new URLSearchParams(searchParams);
+        newParams.delete("checkout");
+        newParams.delete("session_id");
+        newParams.delete("propertyId");
         newParams.delete("unlocked");
         setSearchParams(newParams, { replace: true });
-      }
-      return;
+      };
+
+      const confirmUnlockInDb = async (): Promise<boolean> => {
+        const { data, error } = await supabase.rpc("fn_check_unlocked_batch", {
+          p_user_id: user.id,
+          p_property_ids: [targetUnlockPropertyId],
+        });
+        if (error) return false;
+        return Array.isArray(data) && data.some((row: { property_id: string }) => row.property_id === targetUnlockPropertyId);
+      };
+
+      (async () => {
+        setSelectedPropertyId(targetUnlockPropertyId);
+
+        if (sessionId) {
+          try {
+            const { data: session } = await supabase.auth.getSession();
+            const token = session.session?.access_token;
+            if (token) {
+              const base = import.meta.env.VITE_SUPABASE_URL || "";
+            const res = await fetch(`${base}/functions/v1/handle-unlock`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ stripe_session_id: sessionId }),
+            });
+              const body = await res.json().catch(() => ({}));
+              if (!cancelled && res.ok && body.success) {
+                queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
+                toast({
+                  title: "Property unlocked! 🔓",
+                  description: "Full address and contacts are now available.",
+                });
+                clearCheckoutParams();
+                return;
+              }
+            }
+          } catch (e) {
+            console.error("[Leads] handle-unlock (stripe session):", e);
+          }
+        }
+
+        for (let i = 0; i < 20 && !cancelled; i++) {
+          if (await confirmUnlockInDb()) {
+            queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
+            toast({
+              title: "Property unlocked! 🔓",
+              description: "Full address and contacts are now available.",
+            });
+            clearCheckoutParams();
+            return;
+          }
+          await wait(1200);
+        }
+
+        if (!cancelled) {
+          toast({
+            title: "Unlock pending",
+            description: "Payment received. If this property stays locked, refresh in a moment or contact support.",
+            variant: "destructive",
+          });
+          clearCheckoutParams();
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
     }
 
+    // Legacy ?unlocked= only (no session id): do not toast until DB confirms
+    if (unlockedLegacy && !sessionId && !checkout) {
+      if (isLoading || !user?.id) return;
+
+      let cancelled = false;
+      const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+      (async () => {
+        setSelectedPropertyId(unlockedLegacy);
+        for (let i = 0; i < 20 && !cancelled; i++) {
+          const { data, error } = await supabase.rpc("fn_check_unlocked_batch", {
+            p_user_id: user.id,
+            p_property_ids: [unlockedLegacy],
+          });
+          const ok =
+            !error &&
+            Array.isArray(data) &&
+            data.some((row: { property_id: string }) => row.property_id === unlockedLegacy);
+          if (ok) {
+            queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
+            toast({
+              title: "Property unlocked! 🔓",
+              description: "Full address and contacts are now available.",
+            });
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete("unlocked");
+            setSearchParams(newParams, { replace: true });
+            return;
+          }
+          await wait(1200);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (searchParams.get("checkout")) return;
     if (!propertyIdParam) return;
     if (isLoading) return;
 
@@ -245,7 +361,7 @@ function Leads() {
     const newParams = new URLSearchParams(searchParams);
     newParams.delete("propertyId");
     setSearchParams(newParams, { replace: true });
-  }, [searchParams, isLoading, setSearchParams]);
+  }, [searchParams, isLoading, setSearchParams, toast, user?.id, queryClient]);
 
   // Map now uses viewport-based loading - no pre-fetching needed
 
@@ -692,7 +808,14 @@ function Leads() {
   // Fetch violations for all properties (enables instant PropertyDetailPanel)
   // Memoize propertyIds to prevent query cache invalidation on every render
   const propertyIds = useMemo(() => properties.map((p) => p.id), [properties]);
-  const { unlockedSet, invalidate: invalidateUnlocks } = useUnlockedProperties(propertyIds);
+  const unlockCheckIds = useMemo(() => {
+    const ids = [...propertyIds];
+    if (selectedPropertyId && !ids.includes(selectedPropertyId)) {
+      ids.push(selectedPropertyId);
+    }
+    return ids;
+  }, [propertyIds, selectedPropertyId]);
+  const { unlockedSet, invalidate: invalidateUnlocks } = useUnlockedProperties(unlockCheckIds);
   const { data: violationsData = [], error: violationsError } = useQuery({
     queryKey: ["violations-for-properties", propertyIds],
     enabled: propertyIds.length > 0,
@@ -1214,6 +1337,11 @@ function Leads() {
                     onPropertyClick={handlePropertyClick}
                     savedSet={savedSet}
                     onToggleSaved={toggleSaved}
+                    unlockedSet={unlockedSet}
+                    onUnlock={(id) => {
+                      const prop = mappedProperties.find((p) => p.id === id);
+                      if (prop) setUnlockModalProperty(prop);
+                    }}
                   />
 
                   {/* Mobile Pagination */}

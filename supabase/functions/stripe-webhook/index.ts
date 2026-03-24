@@ -153,22 +153,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
 // ---- Event Handlers ----
 
+function paymentIntentIdFromSession(session: Stripe.Checkout.Session): string | null {
+  const pi = session.payment_intent;
+  if (typeof pi === "string") return pi;
+  if (pi && typeof pi === "object" && "id" in pi) return (pi as Stripe.PaymentIntent).id;
+  return null;
+}
+
 async function handleCheckoutCompleted(supabase: any, stripe: Stripe, session: Stripe.Checkout.Session) {
   console.log("[webhook] Checkout completed:", session.id, "mode:", session.mode);
 
   // Route based on mode
   if (session.mode === "payment") {
-    await handleOneTimePayment(supabase, session);
+    let fullSession = session;
+    if (!paymentIntentIdFromSession(session)) {
+      try {
+        fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+          expand: ["payment_intent"],
+        });
+      } catch (e: any) {
+        console.error("[webhook] Failed to retrieve checkout session:", e?.message ?? e);
+      }
+    }
+    await handleOneTimePayment(supabase, fullSession);
   } else if (session.mode === "subscription") {
     await handleSubscriptionCheckout(supabase, stripe, session);
   }
 }
 
 // ---- One-Time Payment Handler (single unlock + credit packs) ----
+
 async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Session) {
   const userId = session.metadata?.user_id;
   const checkoutType = session.metadata?.checkout_type;
-  const paymentIntentId = session.payment_intent as string;
+  const paymentIntentId = paymentIntentIdFromSession(session);
 
   if (!userId || !checkoutType) {
     console.error("[webhook] Missing metadata in one-time payment session");
@@ -177,8 +195,9 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
 
   console.log("[webhook] One-time payment:", checkoutType, "user:", userId);
 
-  // Record transaction
-  const { error: txError } = await supabase.from("transactions").insert({
+  // Record transaction (skip if no payment_intent id — e.g. expanded object edge cases)
+  const { error: txError } = paymentIntentId
+    ? await supabase.from("transactions").insert({
     user_id: userId,
     stripe_payment_intent_id: paymentIntentId,
     amount: session.amount_total ?? 0,
@@ -187,7 +206,8 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
       : `Credit Pack: ${session.metadata?.credits ?? 0} credits`,
     metadata: session.metadata,
     status: "succeeded",
-  });
+  })
+    : { error: null as any };
 
   if (txError) {
     console.error("[webhook] Error recording transaction:", txError);

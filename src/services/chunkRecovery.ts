@@ -95,7 +95,7 @@ export function installChunkRecoveryHandlers(): void {
   }
 
   window.addEventListener("vite:preloadError", (event: Event) => {
-    const payload = (event as CustomEvent).payload;
+    const payload = (event as CustomEvent).detail;
     if (attemptChunkRecovery("vite:preloadError", payload)) {
       event.preventDefault();
     }

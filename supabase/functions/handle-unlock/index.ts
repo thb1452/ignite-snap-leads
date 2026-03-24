@@ -197,6 +197,10 @@
 // POST { property_id: string } — free unlocks / credits via fn_unlock_property
 // POST { stripe_session_id: string } — paid $0.97 single-unlock after Stripe Checkout (verifies session, idempotent row)
 
+// Supabase Edge Function: Handle Property Unlock
+// POST { property_id: string } — free unlocks / credits via fn_unlock_property
+// POST { stripe_session_id: string } — paid single-unlock after Stripe Checkout (verifies session, idempotent)
+
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
@@ -225,6 +229,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      console.warn("[handle-unlock] missing Authorization bearer");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers,
@@ -239,6 +244,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     } = await supabase.auth.getUser(token);
 
     if (authErr || !user) {
+      console.warn("[handle-unlock] auth failed:", authErr?.message ?? "no user");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers,
@@ -249,6 +255,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const stripe_session_id = typeof body.stripe_session_id === "string" ? body.stripe_session_id.trim() : "";
     const property_id_input = body.property_id as string | undefined;
 
+    console.info("[handle-unlock]", {
+      mode: stripe_session_id ? "stripe_checkout" : property_id_input ? "credits_or_free" : "missing_input",
+      user_id: user.id,
+    });
+
     let property_id: string;
     let source: string;
     let free_remaining: number | undefined;
@@ -257,10 +268,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (stripe_session_id) {
       const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
       if (!stripeKey) {
-        return new Response(JSON.stringify({ error: "Stripe not configured" }), {
-          status: 500,
-          headers,
-        });
+        console.error(
+          "[handle-unlock] STRIPE_SECRET_KEY is not set for this function — add it in Dashboard → Edge Functions secrets (or project secrets).",
+        );
+        return new Response(
+          JSON.stringify({
+            error: "Stripe not configured",
+            hint: "Set STRIPE_SECRET_KEY for edge functions (same key as create-checkout-session).",
+          }),
+          { status: 500, headers },
+        );
       }
 
       const stripe = new Stripe(stripeKey, {
@@ -268,15 +285,29 @@ Deno.serve(async (req: Request): Promise<Response> => {
         httpClient: Stripe.createFetchHttpClient(),
       });
 
-      const session = await stripe.checkout.sessions.retrieve(stripe_session_id, {
-        expand: ["payment_intent"],
-      });
+      let session: Stripe.Checkout.Session;
+      try {
+        session = await stripe.checkout.sessions.retrieve(stripe_session_id, {
+          expand: ["payment_intent"],
+        });
+      } catch (e: unknown) {
+        const msg = (e as Error)?.message ?? String(e);
+        console.error("[handle-unlock] Stripe sessions.retrieve failed:", msg);
+        return new Response(
+          JSON.stringify({
+            error: "Invalid or expired checkout session",
+            hint: "Complete payment on Stripe, or start checkout again. Test mode sessions cannot be used with live keys and vice versa.",
+          }),
+          { status: 400, headers },
+        );
+      }
 
       const metaUserId = session.metadata?.user_id;
       const checkoutType = session.metadata?.checkout_type;
       const metaPropertyId = session.metadata?.property_id;
 
-      if (metaUserId !== user.id) {
+      if (!metaUserId || String(metaUserId) !== String(user.id)) {
+        console.error("[handle-unlock] session user mismatch", { metaUserId, authUserId: user.id });
         return new Response(JSON.stringify({ error: "Session does not belong to this user" }), {
           status: 403,
           headers,
@@ -284,6 +315,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
 
       if (checkoutType !== "single_unlock") {
+        console.error("[handle-unlock] wrong checkout_type:", checkoutType);
         return new Response(JSON.stringify({ error: "Not a single-unlock checkout" }), {
           status: 400,
           headers,
@@ -305,6 +337,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
 
       if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
+        console.info("[handle-unlock] payment not complete yet:", session.payment_status);
         return new Response(
           JSON.stringify({
             success: false,
@@ -362,6 +395,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const result = data as Record<string, unknown>;
 
       if (!result.success) {
+        console.info("[handle-unlock] fn_unlock_property declined:", result.error);
         return new Response(
           JSON.stringify({
             error: result.error,
@@ -377,6 +411,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       free_remaining = result.free_remaining as number | undefined;
       credits_remaining = result.credits_remaining as number | undefined;
     } else {
+      console.warn("[handle-unlock] body missing property_id and stripe_session_id");
       return new Response(JSON.stringify({ error: "property_id or stripe_session_id required" }), {
         status: 400,
         headers,
@@ -482,6 +517,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .from("property_contacts")
       .select("name, phone, email, mailing_address, source")
       .eq("property_id", property_id);
+
+    console.info("[handle-unlock] success", { source, property_id });
 
     return new Response(
       JSON.stringify({

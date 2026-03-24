@@ -273,29 +273,20 @@ function Leads() {
 
         if (stripeSessionId) {
           try {
-            const { data: session } = await supabase.auth.getSession();
-            const token = session.session?.access_token;
-            if (token) {
-              const base = import.meta.env.VITE_SUPABASE_URL || "";
-              const res = await fetch(`${base}/functions/v1/handle-unlock`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ stripe_session_id: stripeSessionId }),
+            const { data: unlockData, error: unlockErr } = await supabase.functions.invoke<{
+              success?: boolean;
+            }>("handle-unlock", {
+              body: { stripe_session_id: stripeSessionId },
+            });
+            if (!cancelled && !unlockErr && unlockData?.success) {
+              clearPendingStripeUnlockCheckout();
+              queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
+              toast({
+                title: "Property unlocked! 🔓",
+                description: "Full address and contacts are now available.",
               });
-              const body = await res.json().catch(() => ({}));
-              if (!cancelled && res.ok && body.success) {
-                clearPendingStripeUnlockCheckout();
-                queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
-                toast({
-                  title: "Property unlocked! 🔓",
-                  description: "Full address and contacts are now available.",
-                });
-                clearCheckoutParams();
-                return;
-              }
+              clearCheckoutParams();
+              return;
             }
           } catch (e) {
             console.error("[Leads] handle-unlock (stripe session):", e);
@@ -344,31 +335,22 @@ function Leads() {
         const storedSessionId = getPendingStripeUnlockSessionId(unlockedLegacy);
         if (storedSessionId) {
           try {
-            const { data: session } = await supabase.auth.getSession();
-            const token = session.session?.access_token;
-            if (token) {
-              const base = import.meta.env.VITE_SUPABASE_URL || "";
-              const res = await fetch(`${base}/functions/v1/handle-unlock`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ stripe_session_id: storedSessionId }),
+            const { data: unlockData, error: unlockErr } = await supabase.functions.invoke<{
+              success?: boolean;
+            }>("handle-unlock", {
+              body: { stripe_session_id: storedSessionId },
+            });
+            if (!cancelled && !unlockErr && unlockData?.success) {
+              clearPendingStripeUnlockCheckout();
+              queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
+              toast({
+                title: "Property unlocked! 🔓",
+                description: "Full address and contacts are now available.",
               });
-              const body = await res.json().catch(() => ({}));
-              if (!cancelled && res.ok && body.success) {
-                clearPendingStripeUnlockCheckout();
-                queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
-                toast({
-                  title: "Property unlocked! 🔓",
-                  description: "Full address and contacts are now available.",
-                });
-                const newParams = new URLSearchParams(searchParams);
-                newParams.delete("unlocked");
-                setSearchParams(newParams, { replace: true });
-                return;
-              }
+              const newParams = new URLSearchParams(searchParams);
+              newParams.delete("unlocked");
+              setSearchParams(newParams, { replace: true });
+              return;
             }
           } catch (e) {
             console.error("[Leads] handle-unlock (legacy return):", e);

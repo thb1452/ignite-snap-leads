@@ -43,12 +43,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     console.log("[webhook] Received event:", event.type, event.id);
 
     // ---- Helper: log webhook errors ----
-    async function logWebhookError(
-      eventType: string | null,
-      eventId: string | null,
-      errorMessage: string,
-      payload: any,
-    ) {
+    async function logWebhookError(eventType: string | null, eventId: string | null, errorMessage: string, payload: any) {
       try {
         await supabase.from("webhook_errors").insert({
           webhook_type: "stripe",
@@ -57,9 +52,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           error_message: errorMessage.slice(0, 2000),
           payload,
         });
-      } catch {
-        /* silent */
-      }
+      } catch { /* silent */ }
     }
 
     // ---- Idempotency Check ----
@@ -153,49 +146,29 @@ Deno.serve(async (req: Request): Promise<Response> => {
           payload: { raw_error: true },
         });
       }
-    } catch {
-      /* silent */
-    }
+    } catch { /* silent */ }
     return new Response(JSON.stringify({ error: e.message }), { status: 500 });
   }
 });
 
 // ---- Event Handlers ----
 
-function paymentIntentIdFromSession(session: Stripe.Checkout.Session): string | null {
-  const pi = session.payment_intent;
-  if (typeof pi === "string") return pi;
-  if (pi && typeof pi === "object" && "id" in pi) return (pi as Stripe.PaymentIntent).id;
-  return null;
-}
-
 async function handleCheckoutCompleted(supabase: any, stripe: Stripe, session: Stripe.Checkout.Session) {
   console.log("[webhook] Checkout completed:", session.id, "mode:", session.mode);
 
   // Route based on mode
   if (session.mode === "payment") {
-    let fullSession = session;
-    if (!paymentIntentIdFromSession(session)) {
-      try {
-        fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-          expand: ["payment_intent"],
-        });
-      } catch (e: any) {
-        console.error("[webhook] Failed to retrieve checkout session:", e?.message ?? e);
-      }
-    }
-    await handleOneTimePayment(supabase, fullSession);
+    await handleOneTimePayment(supabase, session);
   } else if (session.mode === "subscription") {
     await handleSubscriptionCheckout(supabase, stripe, session);
   }
 }
 
 // ---- One-Time Payment Handler (single unlock + credit packs) ----
-
 async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Session) {
   const userId = session.metadata?.user_id;
   const checkoutType = session.metadata?.checkout_type;
-  const paymentIntentId = paymentIntentIdFromSession(session);
+  const paymentIntentId = session.payment_intent as string;
 
   if (!userId || !checkoutType) {
     console.error("[webhook] Missing metadata in one-time payment session");
@@ -204,20 +177,17 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
 
   console.log("[webhook] One-time payment:", checkoutType, "user:", userId);
 
-  // Record transaction (skip if no payment_intent id — e.g. expanded object edge cases)
-  const { error: txError } = paymentIntentId
-    ? await supabase.from("transactions").insert({
-        user_id: userId,
-        stripe_payment_intent_id: paymentIntentId,
-        amount: session.amount_total ?? 0,
-        description:
-          checkoutType === "single_unlock"
-            ? "Single Property Unlock"
-            : `Credit Pack: ${session.metadata?.credits ?? 0} credits`,
-        metadata: session.metadata,
-        status: "succeeded",
-      })
-    : { error: null as any };
+  // Record transaction
+  const { error: txError } = await supabase.from("transactions").insert({
+    user_id: userId,
+    stripe_payment_intent_id: paymentIntentId,
+    amount: session.amount_total ?? 0,
+    description: checkoutType === "single_unlock"
+      ? "Single Property Unlock"
+      : `Credit Pack: ${session.metadata?.credits ?? 0} credits`,
+    metadata: session.metadata,
+    status: "succeeded",
+  });
 
   if (txError) {
     console.error("[webhook] Error recording transaction:", txError);
@@ -375,7 +345,7 @@ async function recordAffiliateCommission(
   supabase: any,
   userId: string,
   amountCents: number,
-  paymentIntentId: string | null,
+  paymentIntentId: string | null
 ) {
   if (!amountCents || amountCents <= 0) return;
 
@@ -451,12 +421,7 @@ async function recordAffiliateCommission(
     if (commErr) {
       console.error("[webhook] Error recording commission:", commErr);
     } else {
-      console.log(
-        "[webhook] Affiliate commission recorded:",
-        commissionAmount,
-        "cents for referrer:",
-        referral.referrer_id,
-      );
+      console.log("[webhook] Affiliate commission recorded:", commissionAmount, "cents for referrer:", referral.referrer_id);
     }
   } catch (e: any) {
     console.error("[webhook] Affiliate commission error:", e?.message);

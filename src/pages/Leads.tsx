@@ -61,6 +61,7 @@ import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
 import { UnlockModal } from "@/components/leads/UnlockModal";
 import { ViewLimitModal } from "@/components/leads/ViewLimitModal";
 import { BulkUnlockBar } from "@/components/leads/BulkUnlockBar";
+import { UnlockUpsellBanner } from "@/components/leads/UnlockUpsellBanner";
 import {
   clearPendingStripeUnlockCheckout,
   getPendingStripeUnlockSessionId,
@@ -948,6 +949,10 @@ function Leads() {
   const isCancelled = subscriptionStatus === "cancelled" || subscriptionStatus === "expired";
   const isFullyGated = (hasTrialExpired || isCancelled) && !hasActiveSubscription;
 
+  // Unlock upsell banner: show after 3 free unlocks are used, for non-paid-subscribers only
+  const isPaidSubscriber = !!plan && plan.name !== "free_trial";
+  const showUnlockUpsellBanner = !isPaidSubscriber && freeUnlocksRemaining === 0;
+
   return (
     <AppLayout>
       <div className="relative flex flex-col h-[calc(100vh-3.5rem)]">
@@ -1229,6 +1234,9 @@ function Leads() {
               </div>
             )}
 
+            {/* Unlock upsell banner — shown after 3 free unlocks used, non-subscribers only */}
+            <UnlockUpsellBanner show={showUnlockUpsellBanner} />
+
             <div ref={desktopListRef} className="flex-1 overflow-hidden">
               {isLoading ? (
                 <div className="p-8 text-center text-muted-foreground">Loading properties...</div>
@@ -1363,6 +1371,9 @@ function Leads() {
                       )}
                     </div>
                   </div>
+
+                  {/* Unlock upsell banner — shown after 3 free unlocks used, non-subscribers only */}
+                  <UnlockUpsellBanner show={showUnlockUpsellBanner} />
 
                   {/* Virtualized Mobile Property List */}
                   <VirtualizedMobilePropertyList

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -98,9 +99,22 @@ export function SelectionActionBar({
             {isOverExportLimit && (
               <div className="flex items-center gap-1.5 text-xs text-amber-600 mb-2 px-1">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                <span>
-                  {exportRemaining!.toLocaleString()} exports remaining. Reduce selection or upgrade.
-                </span>
+                {exportRemaining === 0 ? (
+                  <span className="flex-1">
+                    You've hit your export limit. Upgrade to unlock 10,000–unlimited exports per month.
+                  </span>
+                ) : (
+                  <span className="flex-1">
+                    {exportRemaining!.toLocaleString()} exports remaining. Reduce selection or upgrade.
+                  </span>
+                )}
+                {exportRemaining === 0 && (
+                  <Link to="/pricing" className="ml-1 shrink-0">
+                    <Button size="sm" className="h-6 text-xs px-2 bg-amber-600 hover:bg-amber-700 text-white">
+                      Upgrade Now
+                    </Button>
+                  </Link>
+                )}
               </div>
             )}
 

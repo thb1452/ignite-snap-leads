@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download, ListPlus, Lock, Unlock, Heart, Users, Phone } from "lucide-react";
+import { ExternalLink, MapPin, Clock, Loader2, X, ArrowLeft, Download, ListPlus, Lock, Unlock, Heart, Users, Phone, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AddToListDialog } from "./AddToListDialog";
 import { formatDistanceToNow, format } from "date-fns";
@@ -13,6 +13,7 @@ import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
 import { GroupedViolationsList } from "./GroupedViolationsList";
 import { InvestorInsightCard } from "./InvestorInsightCard";
 import { exportFilteredCsv } from "@/services/export";
+import { Link } from "react-router-dom";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { TrialExportGate } from "@/components/trial/TrialExportGate";
 import { OwnerContactSection } from "./OwnerContactSection";
@@ -378,6 +379,20 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
 
           {/* Sticky Action Footer */}
           <div className="border-t p-4 md:p-5 bg-background sticky bottom-0 pb-[calc(env(safe-area-inset-bottom)+16px)] flex-shrink-0">
+            {/* Export limit warning — shown when trial exports exhausted */}
+            {isUnlocked && isOnTrial && trialExportsRemaining <= 0 && !hasTrialExpired && (
+              <div className="flex items-start gap-2 mb-3 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 dark:text-amber-300 flex-1 leading-snug">
+                  You've hit your export limit. Upgrade to unlock 10,000–unlimited exports per month.
+                </p>
+                <Link to="/pricing" className="shrink-0">
+                  <Button size="sm" className="h-6 text-xs px-2 bg-amber-600 hover:bg-amber-700 text-white">
+                    Upgrade Now
+                  </Button>
+                </Link>
+              </div>
+            )}
             {isUnlocked ? (
               <div className="flex items-center gap-2">
                 <Button

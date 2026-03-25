@@ -109,8 +109,8 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
         <p className="property-address text-lg font-bold mb-1 text-slate-100">
           {isUnlocked ? formatAddress(property.address) : (
             <span className="inline-flex items-center gap-2">
-              <span className="blur-[4px] select-none pointer-events-none">1423</span>
-              <span>{property.street_name || property.address?.replace(/^\d+\s*/, "")}</span>
+              <span className="blur-[4px] select-none pointer-events-none">####</span>
+              <span>{property.address?.replace(/^\d+\s*/, "")}</span>
             </span>
           )}
         </p>

@@ -76,6 +76,13 @@ const FoiaVADashboard = lazy(() => import("./pages/foia/va/FoiaVADashboard"));
 const FoiaVAQueue = lazy(() => import("./pages/foia/va/FoiaVAQueue"));
 const FoiaVAHistory = lazy(() => import("./pages/foia/va/FoiaVAHistory"));
 
+// Visionary Server Dashboard pages
+const VisionaryDashboard = lazy(() => import("./pages/visionary/VisionaryDashboard"));
+const VisionaryServers = lazy(() => import("./pages/visionary/VisionaryServers"));
+const VisionaryContainers = lazy(() => import("./pages/visionary/VisionaryContainers"));
+const VisionaryDeployments = lazy(() => import("./pages/visionary/VisionaryDeployments"));
+const VisionaryLogs = lazy(() => import("./pages/visionary/VisionaryLogs"));
+
 // ── Suspense fallback ────────────────────────────────────────
 function PageLoader() {
   return (

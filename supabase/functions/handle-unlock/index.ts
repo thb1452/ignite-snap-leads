@@ -15,7 +15,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
-  // check
+  // trigger redeploy
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

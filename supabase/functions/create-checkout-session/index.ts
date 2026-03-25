@@ -1,14 +1,11 @@
-// Supabase Edge Function: Create Stripe Checkout Session
-// Route: POST /create-checkout-session
-// Supports: subscriptions AND single-unlock (PAYG)
-
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -67,7 +64,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
 // ---- Single Unlock (PAYG $0.97) ----
 async function handleSingleUnlock(
-  stripe: Stripe, supabase: any, user: any, body: any, appUrl: string, headers: Record<string, string>
+  stripe: Stripe,
+  supabase: any,
+  user: any,
+  body: any,
+  appUrl: string,
+  headers: Record<string, string>,
 ) {
   const { property_id } = body;
   if (!property_id) {
@@ -81,7 +83,8 @@ async function handleSingleUnlock(
     payment_method_types: ["card"],
     line_items: [{ price: PAYG_PRICE_ID, quantity: 1 }],
     mode: "payment",
-    success_url: `${appUrl}/properties?unlocked=${property_id}`,
+    // Stripe replaces {CHECKOUT_SESSION_ID}. Client calls handle-unlock with stripe_session_id so unlock works if webhook is delayed.
+    success_url: `${appUrl}/properties?checkout=success&propertyId=${property_id}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/properties?unlock_cancelled=true`,
     metadata: {
       user_id: user.id,
@@ -92,15 +95,19 @@ async function handleSingleUnlock(
 
   console.log("[checkout] Created single unlock session:", session.id, "for property:", property_id);
 
-  return new Response(
-    JSON.stringify({ sessionId: session.id, checkout_url: session.url, url: session.url }),
-    { headers }
-  );
+  return new Response(JSON.stringify({ sessionId: session.id, checkout_url: session.url, url: session.url }), {
+    headers,
+  });
 }
 
 // ---- Subscription ----
 async function handleSubscription(
-  stripe: Stripe, supabase: any, user: any, body: any, appUrl: string, headers: Record<string, string>
+  stripe: Stripe,
+  supabase: any,
+  user: any,
+  body: any,
+  appUrl: string,
+  headers: Record<string, string>,
 ) {
   const { tier_name, billing_cycle = "monthly", trial = false } = body;
 
@@ -143,7 +150,8 @@ async function handleSubscription(
   if (
     existingSubscription?.stripe_subscription_id &&
     (existingSubscription.status === "trialing" || existingSubscription.status === "trial") &&
-    plan?.id && existingSubscription.plan_id === plan.id
+    plan?.id &&
+    existingSubscription.plan_id === plan.id
   ) {
     try {
       const updated = await stripe.subscriptions.update(existingSubscription.stripe_subscription_id, {
@@ -160,8 +168,12 @@ async function handleSubscription(
         .eq("stripe_subscription_id", existingSubscription.stripe_subscription_id);
 
       return new Response(
-        JSON.stringify({ upgraded: true, message: "Trial converted to active subscription", redirect_url: `${appUrl}/checkout/success` }),
-        { headers }
+        JSON.stringify({
+          upgraded: true,
+          message: "Trial converted to active subscription",
+          redirect_url: `${appUrl}/checkout/success`,
+        }),
+        { headers },
       );
     } catch (stripeErr: any) {
       console.error("[checkout] Failed to end trial:", stripeErr.message);
@@ -169,8 +181,11 @@ async function handleSubscription(
   }
 
   // Cancel internal trial record
-  if (existingSubscription && !existingSubscription.stripe_subscription_id &&
-    (existingSubscription.status === "trial" || existingSubscription.status === "trialing")) {
+  if (
+    existingSubscription &&
+    !existingSubscription.stripe_subscription_id &&
+    (existingSubscription.status === "trial" || existingSubscription.status === "trialing")
+  ) {
     await supabase
       .from("user_subscriptions")
       .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
@@ -201,10 +216,9 @@ async function handleSubscription(
     allow_promotion_codes: true,
   });
 
-  return new Response(
-    JSON.stringify({ sessionId: session.id, checkout_url: session.url, url: session.url }),
-    { headers }
-  );
+  return new Response(JSON.stringify({ sessionId: session.id, checkout_url: session.url, url: session.url }), {
+    headers,
+  });
 }
 
 // ---- Shared: Get or Create Stripe Customer ----

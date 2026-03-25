@@ -407,6 +407,14 @@ const App = () => (
                 }
               />
               {/* /live-feed removed – components now live on Landing */}
+
+              {/* Visionary Server Dashboard */}
+              <Route path="/vsd" element={<VisionaryDashboard />} />
+              <Route path="/vsd/servers" element={<VisionaryServers />} />
+              <Route path="/vsd/containers" element={<VisionaryContainers />} />
+              <Route path="/vsd/deployments" element={<VisionaryDeployments />} />
+              <Route path="/vsd/logs" element={<VisionaryLogs />} />
+
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

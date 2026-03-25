@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SlidersHorizontal, X, ListPlus, Home, Info, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useQuery } from "@tanstack/react-query";
-import { useSubscription } from "@/hooks/useSubscription";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -75,14 +75,13 @@ export function MobileFilterSheet({
   const [loadingCities, setLoadingCities] = useState(false);
 
   // Subscription gating
-  const { subscription } = useSubscription();
+  const { hasFeature } = useFeatureAccess();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const planName = subscription?.plan_name;
-  const isProOrHigher = planName === 'professional' || planName === 'enterprise';
-  const isEnterprise = isAdmin || planName === 'enterprise';
+  const isProOrHigher = hasFeature('advanced_filters') || isAdmin;
+  const isEnterprise = hasFeature('escalation_alerts') || isAdmin;
 
   const isLockedCategory = (categoryId: string) => {
     return ENTERPRISE_ONLY_CATEGORIES.includes(categoryId) && !isEnterprise;

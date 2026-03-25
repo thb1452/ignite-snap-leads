@@ -134,14 +134,8 @@ const PRICING_TIERS: PricingTier[] = [
     name: "custom",
     display_name: "Enterprise",
     price: null,
-    description: "For teams needing 25,000+ addresses.",
-    features: [
-      "25,000+ addresses",
-      "API access",
-      "Dedicated account manager",
-      "Custom contract",
-      "Everything in Elite",
-    ],
+    description: "For teams, funds, and high-volume operators. Custom pricing, API access, and dedicated support.",
+    features: [],
     icon: Shield,
     cta: "Contact Us",
     isEnterprise: true,
@@ -205,7 +199,7 @@ export default function Pricing() {
 
   const handlePlanClick = (tier: PricingTier) => {
     if (tier.isFree) {
-      navigate('/auth');
+      navigate('/auth?mode=signup');
       return;
     }
     if (tier.isEnterprise) {
@@ -215,7 +209,7 @@ export default function Pricing() {
     if (tier.isPayg) {
       // Navigate to leads where they can buy individual addresses
       if (!user) {
-        navigate('/auth');
+        navigate('/auth?mode=signup');
       } else {
         navigate('/leads');
       }
@@ -226,7 +220,7 @@ export default function Pricing() {
       return;
     }
     if (!user) {
-      navigate('/auth');
+      navigate(`/auth?mode=signup&plan=${encodeURIComponent(tier.name)}`);
       return;
     }
     handleDirectUpgrade(tier.name);
@@ -334,11 +328,9 @@ export default function Pricing() {
             className={`w-full mb-2 ${
               tier.popular
                 ? "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
-                : tier.isPayg
-                  ? "bg-amber-500 hover:bg-amber-600 text-white"
-                  : ""
+                : "bg-teal-500 hover:bg-teal-600 text-white"
             }`}
-            variant={tier.popular || tier.isPayg ? "default" : "outline"}
+            variant="default"
             size="lg"
           >
             {isUpgrading ? (

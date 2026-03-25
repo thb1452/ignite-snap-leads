@@ -50,7 +50,7 @@ export default function ResetPassword() {
           description: "Please request a new password reset link",
           variant: "destructive",
         });
-        navigate('/auth');
+        navigate('/auth?mode=signin');
       }
     };
 
@@ -99,7 +99,7 @@ export default function ResetPassword() {
 
       // Sign out after password change so user logs in fresh with new password
       await supabase.auth.signOut();
-      navigate('/auth');
+      navigate('/auth?mode=signin');
     } catch (error: any) {
       console.error('[ResetPassword] Update failed:', error);
       setError(error.message);

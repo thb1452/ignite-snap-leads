@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCreditBalance } from "@/hooks/useCredits";
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
+import { setPendingStripeUnlockCheckout } from "@/utils/pendingStripeUnlock";
 
 interface UnlockModalProps {
   open: boolean;
@@ -49,40 +50,39 @@ export function UnlockModal({
   const canUseFreeUnlock = freeUnlocksRemaining > 0;
   const canUseCredit = creditBalance >= 1;
 
+  /** Plain fetch omits `apikey`; the gateway returns 401 Unauthorized. Invoke uses the same headers as Pricing / other flows. */
   const handleUnlockWithCredits = async () => {
     if (!user) return;
     setIsUnlocking(true);
 
     try {
-      const { data: session } = await supabase.auth.getSession();
-      const token = session.session?.access_token;
-      if (!token) throw new Error("Not authenticated");
+      const { data, error, response } = await supabase.functions.invoke<{
+        success?: boolean;
+        error?: string;
+        source?: string;
+        free_remaining?: number;
+        credits_remaining?: number;
+      }>("handle-unlock", {
+        body: { property_id: property.id },
+      });
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/handle-unlock`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ property_id: property.id }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        if (res.status === 402) {
+      if (error && response) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        if (response.status === 402) {
           toast({
             variant: "destructive",
             title: "Insufficient balance",
             description: "Purchase credits or subscribe to unlock properties.",
           });
-        } else {
-          throw new Error(data.error || "Unlock failed");
+          return;
         }
-        return;
+        throw new Error(typeof payload.error === "string" ? payload.error : error.message);
+      }
+
+      if (error) throw new Error(error.message);
+
+      if (!data?.success) {
+        throw new Error(data?.error || "Unlock failed");
       }
 
       toast({
@@ -94,9 +94,13 @@ export function UnlockModal({
       });
 
       // Invalidate relevant queries
+      if (data.source === "free_credit" && typeof data.free_remaining === "number" && user?.id) {
+        queryClient.setQueryData(["free-unlocks", user.id], data.free_remaining);
+      }
       queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
       queryClient.invalidateQueries({ queryKey: ["credits"] });
       queryClient.invalidateQueries({ queryKey: ["user", "credits"] });
+      queryClient.invalidateQueries({ queryKey: ["free-unlocks"] });
       queryClient.invalidateQueries({ queryKey: ["property-contacts", property.id] });
 
       onUnlocked?.();
@@ -117,29 +121,33 @@ export function UnlockModal({
     setIsCheckingOut(true);
 
     try {
-      const { data: session } = await supabase.auth.getSession();
-      const token = session.session?.access_token;
-      if (!token) throw new Error("Not authenticated");
+      const { data, error, response } = await supabase.functions.invoke<{
+        sessionId?: string;
+        session_id?: string;
+        url?: string;
+        error?: string;
+      }>("create-checkout-session", {
+        body: {
+          checkout_type: "single_unlock",
+          property_id: property.id,
+        },
+      });
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            checkout_type: "single_unlock",
-            property_id: property.id,
-          }),
+      if (error) {
+        const payload = response
+          ? ((await response.json().catch(() => ({}))) as { error?: string })
+          : {};
+        throw new Error(
+          typeof payload.error === "string" ? payload.error : error.message || "Checkout failed",
+        );
+      }
+
+      const checkoutSessionId = data?.sessionId ?? data?.session_id;
+      if (data?.url) {
+        // Lovable/old deploys may omit session_id from success_url — we still need it to call handle-unlock after pay.
+        if (checkoutSessionId) {
+          setPendingStripeUnlockCheckout(checkoutSessionId, property.id);
         }
-      );
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Checkout failed");
-
-      if (data.url) {
         window.location.href = data.url;
       }
     } catch (err: any) {

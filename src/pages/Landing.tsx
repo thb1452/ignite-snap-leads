@@ -194,7 +194,7 @@ export default function Landing() {
             <Link to="/auth?mode=signin">
               <Button variant="ghost" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface/50">Sign In</Button>
             </Link>
-            <Link to="/auth">
+            <Link to="/auth?mode=signup">
               <Button
                 className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
               >
@@ -219,7 +219,7 @@ export default function Landing() {
                     {id.replace(/-/g, " ")}
                   </button>
                 ))}
-                <Link to="/auth" className="w-full">
+                <Link to="/auth?mode=signup" className="w-full">
                   <Button className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
                     Start Free <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -259,7 +259,7 @@ export default function Landing() {
 
               <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="flex flex-col sm:flex-row gap-3">
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
-                  <Link to="/auth">
+                  <Link to="/auth?mode=signup">
                     <Button
                       size="lg"
                       onClick={() => trackEvent("hero_cta_click", { location: "hero" })}
@@ -523,7 +523,7 @@ export default function Landing() {
                     </li>
                   ))}
                 </ul>
-                <Link to={(plan as any).isEnterprise ? "mailto:hello@snapignite.com" : "/auth"}>
+                <Link to={(plan as any).isEnterprise ? "mailto:hello@snapignite.com" : "/auth?mode=signup"}>
                   <Button
                     className={`w-full text-sm ${
                       plan.highlighted
@@ -686,7 +686,7 @@ export default function Landing() {
 
               {/* CTA overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent flex items-end justify-center pb-8">
-                <Link to="/auth">
+                <Link to="/auth?mode=signup">
                   <Button
                     className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold shadow-xl"
                   >
@@ -725,7 +725,7 @@ export default function Landing() {
             </motion.p>
 
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
-              <Link to="/auth">
+              <Link to="/auth?mode=signup">
                 <Button
                   size="lg"
                   className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-10 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
@@ -810,10 +810,10 @@ export default function Landing() {
               <p className="text-landing-text-muted text-xs mt-1">Snap Intelligence LLC · 1621 Central Ave, Cheyenne, WY 82001</p>
             </div>
             <div className="flex items-center gap-4">
-              <Link to="/auth">
+              <Link to="/auth?mode=signin">
                 <Button variant="ghost" size="sm" className="text-landing-text-muted hover:text-landing-text">Sign In</Button>
               </Link>
-              <Link to="/auth">
+              <Link to="/auth?mode=signup">
                 <Button size="sm" className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">
                   Start Free
                 </Button>

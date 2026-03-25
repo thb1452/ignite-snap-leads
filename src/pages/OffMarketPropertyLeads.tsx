@@ -23,7 +23,7 @@ export default function OffMarketPropertyLeads() {
           <BrandLogo size="md" />
           <div className="flex items-center gap-4">
             <Link to="/pricing"><Button variant="ghost" className="text-[hsl(var(--landing-text-muted))] hover:text-[hsl(var(--landing-text))]">Pricing</Button></Link>
-            <Link to="/auth"><Button className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))]">Start Free Trial</Button></Link>
+            <Link to="/auth?mode=signup"><Button className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))]">Start Free Trial</Button></Link>
           </div>
         </div>
       </nav>
@@ -38,7 +38,7 @@ export default function OffMarketPropertyLeads() {
             Everyone's chasing the same foreclosure lists, probate filings, and driving-for-dollars routes. The enforcement layer is the off-market signal almost nobody is tracking.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/auth">
+            <Link to="/auth?mode=signup">
               <Button size="lg" className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))] px-8">
                 Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -136,7 +136,7 @@ export default function OffMarketPropertyLeads() {
           <p className="text-[hsl(var(--landing-text-muted))] text-lg mb-8">
             Start your free trial and access the enforcement intelligence layer that most investors don't even know exists.
           </p>
-          <Link to="/auth">
+          <Link to="/auth?mode=signup">
             <Button size="lg" className="bg-[hsl(var(--landing-accent))] hover:bg-[hsl(var(--landing-accent))]/90 text-[hsl(var(--landing-bg))] px-10">
               Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

@@ -5,6 +5,7 @@ import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { Lock, Unlock, Sparkles, Heart, Users, Phone } from "lucide-react";
 import { ScarcityBadge } from "./ScarcityBadge";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
+import { formatContactName } from "@/utils/formatContactName";
 
 interface Violation {
   id: string;
@@ -42,14 +43,20 @@ interface PropertyCardProps {
 }
 
 function getActionLabel(text: string): { label: string; colorClass: string } | null {
-  if (/CALL NOW/i.test(text)) return { label: "CALL NOW", colorClass: "text-red-500 font-semibold" };
-  if (/WORTH A CALL/i.test(text)) return { label: "WORTH A CALL", colorClass: "text-orange-400 font-semibold" };
-  if (/WATCH/i.test(text)) return { label: "WATCH", colorClass: "text-gray-400 font-semibold" };
+  if (/CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY/i.test(text))
+    return { label: "CALL NOW", colorClass: "text-red-500 font-bold" };
+  if (/WORTH A CALL|MONITOR/i.test(text))
+    return { label: "WORTH A CALL", colorClass: "text-orange-400 font-bold" };
+  if (/WATCH|LOW PRIORITY|WATCH\/PASS/i.test(text))
+    return { label: "WATCH", colorClass: "text-gray-400 font-bold" };
   return null;
 }
 
 function stripActionLabel(text: string): string {
-  return text.replace(/\*?\*?(CALL NOW|WORTH A CALL|WATCH)\*?\*?\.?/gi, "").trim();
+  return text
+    .replace(/\*?\*?(CALL NOW|WORTH A CALL|WATCH|HIGH OPPORTUNITY|GOOD OPPORTUNITY|MONITOR|LOW PRIORITY|WATCH\/PASS)\*?\*?\.?/gi, "")
+    .replace(/\*\*/g, "")
+    .trim();
 }
 
 export const PropertyCard = memo(function PropertyCard({
@@ -114,9 +121,20 @@ export const PropertyCard = memo(function PropertyCard({
             </span>
           )}
         </p>
-        <p className="text-sm text-slate-400 mb-4">
+        <p className="text-sm text-slate-400 mb-2">
           {formatCity(property.city)}, {property.state} {property.zip}
         </p>
+
+        {/* Violation Tags */}
+        {property.violation_types && property.violation_types.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {property.violation_types.slice(0, 4).map((vt) => (
+              <span key={vt} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                🔥 {vt}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* AI Insight */}
         {insightText && (
@@ -141,7 +159,7 @@ export const PropertyCard = memo(function PropertyCard({
               <>
                 <div className="flex items-center gap-2 text-sm">
                   <Users className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-slate-100">{ownerContact.name} (Owner)</span>
+                  <span className="text-slate-100">{formatContactName(ownerContact.name)} (Owner)</span>
                 </div>
                 {ownerContact.phone && (
                   <div className="flex items-center gap-2 text-sm">
@@ -165,17 +183,18 @@ export const PropertyCard = memo(function PropertyCard({
               >
                 Export Lead
               </Button>
-              {onToggleSaved && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-slate-600 text-slate-100 hover:bg-slate-700 text-xs flex-1"
-                  onClick={(e) => { e.stopPropagation(); onToggleSaved(property.id); }}
-                >
-                  <Heart className={`h-3.5 w-3.5 mr-1 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleSaved?.(property.id); }}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors"
+              >
+                <Heart
+                  className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"}
+                  size={18}
+                />
+                <span className="text-sm font-medium text-slate-200">
                   {isSaved ? "Saved" : "Save"}
-                </Button>
-              )}
+                </span>
+              </button>
             </div>
           </div>
         ) : (

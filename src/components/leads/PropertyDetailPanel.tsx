@@ -161,17 +161,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
 
   const snapScore = property?.snap_score ?? null;
 
-  const handleBriefGenerated = useCallback(async (brief: InvestorBrief) => {
-    if (!property) return;
-    try {
-      await supabase
-        .from('properties')
-        .update({ investor_insight_brief: brief as any })
-        .eq('id', property.id);
-    } catch (err) {
-      // silently fail
-    }
-  }, [property?.id]);
+  // Brief is display-only — no on-demand generation
 
   if (!property) return null;
 
@@ -304,7 +294,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
                 distressSignals={property.distress_signals ?? null}
                 newestViolationDate={property.newest_violation_date ?? null}
                 cachedBrief={property.investor_insight_brief ?? null}
-                onBriefGenerated={handleBriefGenerated}
               />
             </motion.div>
 

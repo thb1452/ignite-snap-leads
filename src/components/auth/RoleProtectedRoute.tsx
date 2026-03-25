@@ -223,21 +223,19 @@ export function RoleProtectedRoute({
     }
   }
 
-  // Admin and VA bypass
-  if (user && (emailVerified || loadingTimedOut) && (isAdmin || isVA) && hasRequiredRole) {
+  // Grant access to any authenticated user with the required role
+  // Subscription/trial gates should apply to features, not dashboard access
+  if (user && (emailVerified || loadingTimedOut) && hasRequiredRole) {
+    console.log('[RoleProtectedRoute] Access granted - user has required role:', roles);
     return <>{children}</>;
   }
 
-  // Early grant: if user has active subscription or trial, skip role/subscription checks
-  if (user && (emailVerified || loadingTimedOut) && !subLoading) {
-    const hasActiveSub = hasActiveSubscription && plan?.name;
-    if (hasActiveSub || isOnTrial || hasTrialExpired || isCancelledOrExpired) {
-      console.log('[RoleProtectedRoute] Early access grant - subscription/trial active');
-      return <>{children}</>;
-    }
+  // Admin and VA bypass (for routes they don't have explicit role match)
+  if (user && (emailVerified || loadingTimedOut) && (isAdmin || isVA)) {
+    return <>{children}</>;
   }
 
-  // Wait for subscription to load
+  // Wait for subscription to load (only for users without the required role)
   if (subLoading && !loadingTimedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -305,7 +303,7 @@ export function RoleProtectedRoute({
 
   // Not logged in
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth?mode=signin" replace />;
   }
 
   // Require email verification
@@ -354,7 +352,7 @@ export function RoleProtectedRoute({
         <div className="min-h-screen flex items-center justify-center flex-col gap-4">
           <h1 className="text-2xl font-bold text-foreground">Access Denied</h1>
           <p className="text-muted-foreground">You don't have permission to access this page.</p>
-          <a href="/auth" className="text-primary hover:underline">Sign in with a different account</a>
+          <a href="/auth?mode=signin" className="text-primary hover:underline">Sign in with a different account</a>
         </div>
       );
     }

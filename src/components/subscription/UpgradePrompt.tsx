@@ -236,87 +236,34 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
       );
     }
 
-    // Case 2: Quota exhausted (no remaining exports)
+    // Case 2: Quota exhausted (exports remaining === 0 only) — minimal upsell
     if (remainingCount === 0) {
+      const handleUpgradeNow = () => {
+        onOpenChange(false);
+        navigate("/pricing");
+      };
+
       return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                  <AlertTriangle className="h-6 w-6 text-red-600" />
-                </div>
-                <div>
-                  <DialogTitle className="text-xl">Export Limit Reached</DialogTitle>
-                  <DialogDescription className="text-sm mt-1">
-                    You've used all your exports for this billing period.
-                  </DialogDescription>
-                </div>
+          <DialogContent className="max-w-md sm:max-w-md p-6 gap-0">
+            <DialogHeader className="text-center sm:text-center space-y-3 pb-6">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <TrendingUp className="h-7 w-7 text-primary" aria-hidden />
               </div>
+              <DialogTitle className="text-xl font-semibold tracking-tight">Export Limit Reached</DialogTitle>
+              <DialogDescription className="text-base text-muted-foreground leading-relaxed px-1">
+                You&apos;ve hit your export limit. Upgrade to get 150–1,000 exports/month starting at $49.
+              </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-5 mt-2">
-              <div className="rounded-lg bg-red-50 border border-red-200 p-4 space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-red-800">List size</span>
-                  <span className="font-bold text-red-900">{requestedCount.toLocaleString()} properties</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-red-800">Monthly usage</span>
-                  <span className="font-bold text-red-900">{usedCount.toLocaleString()} / {maxCount.toLocaleString()} used</span>
-                </div>
-                <div className="border-t border-red-200 pt-2 text-sm text-red-700">
-                  No exports remaining this month. Your quota resets at the start of your next billing cycle.
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="font-medium text-ink-900">Your options:</h4>
-                <ul className="space-y-2 text-sm text-ink-700">
-                  {!isMaxPlan && (
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
-                      <span><strong>Upgrade your plan</strong> for a higher monthly limit</span>
-                    </li>
-                  )}
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
-                    <span><strong>Wait for next billing cycle</strong> when your quota resets</span>
-                  </li>
-                  {listId && (
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
-                      <span><strong>Edit list</strong> to prepare for export when quota resets</span>
-                    </li>
-                  )}
-                </ul>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                {!isMaxPlan && (
-                  <Button className="w-full gap-2" onClick={handleUpgrade}>
-                    <Sparkles className="h-4 w-4" />
-                    Upgrade for higher limits
-                  </Button>
-                )}
-
-                {listId && (
-                  <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>
-                    <Pencil className="h-4 w-4" />
-                    Edit List
-                  </Button>
-                )}
-
-                {isMaxPlan && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    You're on the max plan. Contact support for custom enterprise options.
-                  </p>
-                )}
-
-                <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
-                  Cancel
-                </Button>
-              </div>
+            <div className="flex flex-col gap-3">
+              <Button size="lg" className="w-full gap-2 font-semibold" onClick={handleUpgradeNow}>
+                <Sparkles className="h-4 w-4 shrink-0" />
+                Upgrade Now
+              </Button>
+              <Button variant="outline" size="lg" className="w-full" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

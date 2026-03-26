@@ -241,6 +241,62 @@ function Leads() {
 
     const targetUnlockPropertyId = propertyIdParam || unlockedLegacy;
 
+    // Stripe return with only session_id (older / misconfigured success_url): fulfill via handle-unlock using session metadata.
+    if (!checkout && sessionIdParam && !propertyIdParam && !unlockedLegacy && user?.id) {
+      if (isLoading) return;
+
+      let cancelled = false;
+      const clearCheckoutParams = () => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("checkout");
+        newParams.delete("session_id");
+        newParams.delete("propertyId");
+        newParams.delete("unlocked");
+        setSearchParams(newParams, { replace: true });
+      };
+
+      (async () => {
+        try {
+          const { data: unlockData, error: unlockErr } = await supabase.functions.invoke<{
+            success?: boolean;
+            property_id?: string;
+          }>("handle-unlock", {
+            body: { stripe_session_id: sessionIdParam },
+          });
+
+          const unlockedPropertyId = unlockData?.property_id;
+
+          if (!cancelled && !unlockErr && unlockData?.success && unlockedPropertyId) {
+            clearPendingStripeUnlockCheckout();
+            queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
+            setSelectedPropertyId(unlockedPropertyId);
+            toast({
+              title: "Property unlocked! 🔓",
+              description: "Full address and contacts are now available.",
+            });
+            clearCheckoutParams();
+            return;
+          }
+        } catch (e) {
+          console.error("[Leads] handle-unlock (session_id only):", e);
+        }
+
+        if (!cancelled) {
+          toast({
+            title: "Unlock pending",
+            description:
+              "Payment received. If this property stays locked, refresh in a moment or contact support.",
+            variant: "destructive",
+          });
+          clearCheckoutParams();
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
     // Paid single-unlock return: verify session server-side when possible, then confirm row in DB (webhook may lag).
     if (checkout === "success" && targetUnlockPropertyId && user?.id) {
       if (isLoading) return;
@@ -333,6 +389,7 @@ function Leads() {
         setSelectedPropertyId(unlockedLegacy);
 
         const storedSessionId = getPendingStripeUnlockSessionId(unlockedLegacy);
+
         if (storedSessionId) {
           try {
             const { data: unlockData, error: unlockErr } = await supabase.functions.invoke<{

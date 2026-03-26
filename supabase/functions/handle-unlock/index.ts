@@ -320,6 +320,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         success: true,
+        property_id,
         source,
         free_remaining,
         credits_remaining,

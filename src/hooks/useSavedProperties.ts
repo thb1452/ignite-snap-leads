@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -32,30 +32,6 @@ export function useSavedProperties() {
   });
 
   const savedSet = useMemo(() => new Set(savedIds), [savedIds]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channel = supabase
-      .channel(`saved-properties-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "saved_properties",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: [QUERY_KEY, user.id] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, queryClient]);
 
   const isSaved = useCallback(
     (propertyId: string) => savedSet.has(propertyId),

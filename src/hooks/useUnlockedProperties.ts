@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./use-auth";
@@ -12,7 +12,7 @@ export function useUnlockedProperties(propertyIds: string[] = []) {
   const queryClient = useQueryClient();
 
   const { data: unlockedSet = new Set<string>(), isLoading } = useQuery({
-    queryKey: ["unlocked-properties", user?.id, [...propertyIds].sort().join(",")],
+    queryKey: ["unlocked-properties", user?.id, propertyIds.sort().join(",")],
     queryFn: async () => {
       if (!user?.id || propertyIds.length === 0) return new Set<string>();
 

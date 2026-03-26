@@ -222,7 +222,7 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                 <Button
                   className="w-full gap-2"
                   variant="outline"
-                  onClick={() => { onOpenChange(false); navigate('/settings?tab=subscription'); }}
+                  onClick={() => { onOpenChange(false); navigate('/pricing'); }}
                 >
                   <DollarSign className="h-4 w-4" />
                   Pay-as-you-go — ${(requestedCount * 0.97).toFixed(2)} ($0.97 each)
@@ -318,7 +318,7 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                 <Button
                   className="w-full gap-2"
                   variant="outline"
-                  onClick={() => { onOpenChange(false); navigate('/settings?tab=subscription'); }}
+                  onClick={() => { onOpenChange(false); navigate('/pricing'); }}
                 >
                   <DollarSign className="h-4 w-4" />
                   Pay-as-you-go — ${(requestedCount * 0.97).toFixed(2)} ($0.97 each)
@@ -431,7 +431,7 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                 <Button
                   className="w-full gap-2"
                   variant="outline"
-                  onClick={() => { onOpenChange(false); navigate('/settings?tab=subscription'); }}
+                  onClick={() => { onOpenChange(false); navigate('/pricing'); }}
                 >
                   <DollarSign className="h-4 w-4" />
                   Pay-as-you-go — ${(requestedCount * 0.97).toFixed(2)} ($0.97 each)

@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Sparkles, TrendingUp, Download, AlertTriangle, Pencil } from "lucide-react";
+import { CheckCircle2, Sparkles, TrendingUp, Download, AlertTriangle, Pencil, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { LimitType, PlanTierName } from "@/types/subscription";
 
@@ -165,7 +165,9 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                   <span className="font-bold text-red-900">{maxCount.toLocaleString()} properties</span>
                 </div>
                 <div className="border-t border-red-200 pt-2 text-sm text-red-700">
-                  This list requires {Math.ceil(requestedCount / maxCount)} months to fully export on your current plan.
+                  {maxCount > 0
+                    ? `This list requires ${Math.ceil(requestedCount / maxCount)} months to fully export on your current plan.`
+                    : "You have no exports remaining on your current plan."}
                 </div>
               </div>
 
@@ -212,6 +214,15 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                     Export {remainingCount.toLocaleString()} now
                   </Button>
                 )}
+
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={() => { onOpenChange(false); navigate('/settings?tab=subscription'); }}
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Pay-as-you-go — ${(requestedCount * 0.97).toFixed(2)} total ($0.97 each)
+                </Button>
 
                 {listId && (
                   <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>
@@ -299,6 +310,15 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                     Upgrade for higher limits
                   </Button>
                 )}
+
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={() => { onOpenChange(false); navigate('/settings?tab=subscription'); }}
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Pay-as-you-go — ${(requestedCount * 0.97).toFixed(2)} total ($0.97 each)
+                </Button>
 
                 {listId && (
                   <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>

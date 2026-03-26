@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/externalClient';
 import { useAuth } from '@/hooks/use-auth';
@@ -9,6 +11,14 @@ import { HelpSection } from '@/components/settings/HelpSection';
 
 export function Settings() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const planSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'subscription' && planSectionRef.current) {
+      planSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [searchParams]);
 
   // Fetch lists count
   const { data: listsCount = 0 } = useQuery({
@@ -45,10 +55,12 @@ export function Settings() {
       </div>
 
       <div className="space-y-6">
-        <PlanUsageSection 
-          listsCount={listsCount} 
-          propertiesCount={propertiesCount} 
-        />
+        <div ref={planSectionRef}>
+          <PlanUsageSection
+            listsCount={listsCount}
+            propertiesCount={propertiesCount}
+          />
+        </div>
         <NotificationsSection />
         <AccountDetailsSection />
         <PrivacySection />

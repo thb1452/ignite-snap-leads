@@ -146,9 +146,13 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                   <AlertTriangle className="h-6 w-6 text-red-600" />
                 </div>
                 <div>
-                  <DialogTitle className="text-xl">List Exceeds Monthly Limit</DialogTitle>
+                  <DialogTitle className="text-xl">
+                    {maxCount === 0 ? "No Export Plan" : "List Exceeds Monthly Limit"}
+                  </DialogTitle>
                   <DialogDescription className="text-sm mt-1">
-                    This list is too large for a single export on your plan.
+                    {maxCount === 0
+                      ? "Subscribe to export properties as CSV, or unlock addresses individually at $0.97 each."
+                      : "This list is too large for a single export on your plan."}
                   </DialogDescription>
                 </div>
               </div>
@@ -221,7 +225,7 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                   onClick={() => { onOpenChange(false); navigate('/settings?tab=subscription'); }}
                 >
                   <DollarSign className="h-4 w-4" />
-                  Pay-as-you-go — ${(requestedCount * 0.97).toFixed(2)} total ($0.97 each)
+                  Pay-as-you-go — ${(requestedCount * 0.97).toFixed(2)} ($0.97 each)
                 </Button>
 
                 {listId && (
@@ -317,7 +321,7 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                   onClick={() => { onOpenChange(false); navigate('/settings?tab=subscription'); }}
                 >
                   <DollarSign className="h-4 w-4" />
-                  Pay-as-you-go — ${(requestedCount * 0.97).toFixed(2)} total ($0.97 each)
+                  Pay-as-you-go — ${(requestedCount * 0.97).toFixed(2)} ($0.97 each)
                 </Button>
 
                 {listId && (
@@ -423,6 +427,15 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                     Export {remainingCount.toLocaleString()} now
                   </Button>
                 )}
+
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={() => { onOpenChange(false); navigate('/settings?tab=subscription'); }}
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Pay-as-you-go — ${(requestedCount * 0.97).toFixed(2)} ($0.97 each)
+                </Button>
 
                 {listId && (
                   <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>

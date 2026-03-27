@@ -198,7 +198,7 @@ export default function Landing() {
               <Button
                 className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
               >
-                Start Free <ArrowRight className="w-4 h-4 ml-2" />
+                Join Waitlist <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
           </div>
@@ -221,7 +221,7 @@ export default function Landing() {
                 ))}
                 <Link to="/auth?mode=signup" className="w-full">
                   <Button className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
-                    Start Free <ArrowRight className="w-4 h-4 ml-2" />
+                    Join Waitlist <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
               </div>
@@ -265,7 +265,7 @@ export default function Landing() {
                       onClick={() => trackEvent("hero_cta_click", { location: "hero" })}
                       className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
                     >
-                      Start Free — No Credit Card <ArrowRight className="w-5 h-5 ml-2" />
+                      Join the Waitlist <ArrowRight className="w-5 h-5 ml-2" />
                     </Button>
                   </Link>
                 </motion.div>
@@ -690,7 +690,7 @@ export default function Landing() {
                   <Button
                     className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold shadow-xl"
                   >
-                    <MapPin className="w-4 h-4 mr-2" /> Reveal Full Addresses — $0.97 Each
+                    <MapPin className="w-4 h-4 mr-2" /> Join Waitlist for Early Access
                   </Button>
                 </Link>
               </div>
@@ -703,25 +703,22 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── 9. Start Free CTA ─────────────────────────── */}
+      {/* ─── 9. Join Waitlist CTA ─────────────────────────── */}
       <section id="start-free" className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-t from-landing-accent/10 to-transparent" />
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-landing-accent/10 border border-landing-accent/30 text-landing-accent text-sm font-medium mb-6">
               <Unlock className="w-4 h-4" />
-              Free to Browse — Pay Only for Addresses
+              Private Beta — Limited Spots
             </motion.div>
 
             <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-5xl font-bold mb-4">
-              Start finding motivated sellers today
+              Get early access to Snap Ignite
             </motion.h2>
 
-            <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-lg text-landing-text-muted mb-3 max-w-2xl mx-auto">
-              Browse every property free. See AI insights, SnapScores, and violation data — no credit card required.
-            </motion.p>
-            <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }} className="text-sm text-landing-text-muted mb-10">
-              3 free unlocks included. No subscription needed.
+            <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-lg text-landing-text-muted mb-10 max-w-2xl mx-auto">
+              We're onboarding investors in waves. Join the waitlist and we'll notify you when your spot opens up.
             </motion.p>
 
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
@@ -730,7 +727,7 @@ export default function Landing() {
                   size="lg"
                   className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-10 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
                 >
-                  Start Free — No Credit Card Required <ArrowRight className="w-5 h-5 ml-2" />
+                  Join the Waitlist <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
             </motion.div>
@@ -815,7 +812,7 @@ export default function Landing() {
               </Link>
               <Link to="/auth?mode=signup">
                 <Button size="sm" className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">
-                  Start Free
+                  Join Waitlist
                 </Button>
               </Link>
             </div>

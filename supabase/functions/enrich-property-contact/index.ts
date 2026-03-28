@@ -120,7 +120,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const contacts = results.slice(0, 3).map((person: any) => {
       const phone = person.phones?.[0]?.phone || person.phoneNumbers?.[0]?.number || null;
       const email = person.emails?.[0]?.email || person.emailAddresses?.[0]?.address || null;
-      const name = [person.firstName, person.lastName].filter(Boolean).join(" ") || person.name || null;
+      const nameObj = person.name;
+      const firstName = person.firstName || (typeof nameObj === "object" && nameObj !== null ? nameObj.first : undefined);
+      const lastName = person.lastName || (typeof nameObj === "object" && nameObj !== null ? nameObj.last : undefined);
+      const name = [firstName, lastName].filter(Boolean).join(" ") || (typeof nameObj === "string" ? nameObj : null);
       
       // Extract mailing address if different from property
       const mailingAddr = person.addresses?.[0];

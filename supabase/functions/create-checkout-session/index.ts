@@ -9,8 +9,15 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// PAYG: $0.97 per address using Stripe price
-const PAYG_PRICE_ID = "price_1TEGY7PfDZrVNjz5TDRaviMn";
+// PAYG: $0.67 per credit (single address unlock)
+const PAYG_PRICE_ID = "price_1TGleEPfDZrVNjz5uPoCIrhU";
+
+// Bulk credit packs (one-time payments)
+const BULK_PRICE_IDS: Record<string, { priceId: string; credits: number }> = {
+  "5000":  { priceId: "price_1TGlsfPfDZrVNjz5rpCB2h8c", credits: 5000 },
+  "10000": { priceId: "price_1TGlu5PfDZrVNjz5GyjhPbEp", credits: 10000 },
+  "20000": { priceId: "price_1TGlv7PfDZrVNjz5akOCyZbl", credits: 20000 },
+};
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {

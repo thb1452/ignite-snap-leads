@@ -297,9 +297,12 @@ export default function Pricing() {
                 <span className="text-muted-foreground">/forever</span>
               </div>
             ) : tier.isPayg ? (
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold">$0.97</span>
-                <span className="text-muted-foreground">/address</span>
+              <div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold">$0.67</span>
+                  <span className="text-muted-foreground">/address</span>
+                </div>
+                <div className="text-xs font-medium text-muted-foreground mt-1">Data Only</div>
               </div>
             ) : (
               <>

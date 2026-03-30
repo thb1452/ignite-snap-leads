@@ -9,7 +9,8 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// PAYG: $0.97 per address using Stripe price
+// PAYG: $0.67 per credit using Stripe price
+// ⚠️  VERIFY: this price ID must be confirmed in the Stripe dashboard to charge $0.67 (not $0.97)
 const PAYG_PRICE_ID = "price_1TEGY7PfDZrVNjz5TDRaviMn";
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -62,7 +63,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 });
 
-// ---- Single Unlock (PAYG $0.97) ----
+// ---- Single Unlock (PAYG $0.67) ----
 async function handleSingleUnlock(
   stripe: Stripe,
   supabase: any,
@@ -123,10 +124,10 @@ async function handleSubscription(
     starter: "price_1TEGVNPfDZrVNjz5kH849WuD",
     professional: "price_1TEGVqPfDZrVNjz5A797mvBk",
     enterprise: "price_1TEGWJPfDZrVNjz5Jw5cNEAm",
-    elite: "price_1TEGWJPfDZrVNjz5Jw5cNEAm",
   };
 
-  const priceId = STRIPE_PRICE_IDS[tier_name.toLowerCase()];
+  // Use the aliased name so "elite" resolves to the enterprise price
+  const priceId = STRIPE_PRICE_IDS[dbTierName];
   if (!priceId) {
     return new Response(JSON.stringify({ error: `Unknown plan: ${tier_name}` }), { status: 400, headers });
   }

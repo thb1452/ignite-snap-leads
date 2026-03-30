@@ -242,7 +242,7 @@ export function UnlockModal({
             ) : (
               <CreditCard className="h-4 w-4" />
             )}
-            Buy Unlock — $0.97
+            Buy Unlock — $0.67
           </Button>
 
           {/* Subscribe CTA */}

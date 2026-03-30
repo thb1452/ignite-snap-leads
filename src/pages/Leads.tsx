@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2, Lock } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
@@ -94,7 +94,8 @@ function Leads() {
   const { savedSet, toggleSaved, isSaved } = useSavedProperties();
   const { freeUnlocksRemaining } = useFreeUnlocks();
   const { viewCount, viewLimit, limitReached, recordView } = useViewLimit();
-  const { isElitePlan } = useFeatureAccess();
+  const { isElitePlan, hasFeature } = useFeatureAccess();
+  const canUsePressureLevelFilters = hasFeature('advanced_filters') || isElitePlan;
   const [unlockModalProperty, setUnlockModalProperty] = useState<any>(null);
   const [viewLimitModalOpen, setViewLimitModalOpen] = useState(false);
   // Refs for scrolling list containers to top on page change
@@ -1073,24 +1074,35 @@ function Leads() {
             selectedCity={selectedCity}
           />
 
-          {/* Pressure Level */}
-          <PressureLevelFilter
-            openViolationsOnly={openViolationsOnly}
-            onOpenViolationsChange={(v) => {
-              setOpenViolationsOnly(v);
-              setPage(1);
-            }}
-            multipleViolationsOnly={multipleViolationsOnly}
-            onMultipleViolationsChange={(v) => {
-              setMultipleViolationsOnly(v);
-              setPage(1);
-            }}
-            repeatOffenderOnly={repeatOffenderOnly}
-            onRepeatOffenderChange={(v) => {
-              setRepeatOffenderOnly(v);
-              setPage(1);
-            }}
-          />
+          {/* Pressure Level — Pro/Elite only */}
+          {canUsePressureLevelFilters ? (
+            <PressureLevelFilter
+              openViolationsOnly={openViolationsOnly}
+              onOpenViolationsChange={(v) => {
+                setOpenViolationsOnly(v);
+                setPage(1);
+              }}
+              multipleViolationsOnly={multipleViolationsOnly}
+              onMultipleViolationsChange={(v) => {
+                setMultipleViolationsOnly(v);
+                setPage(1);
+              }}
+              repeatOffenderOnly={repeatOffenderOnly}
+              onRepeatOffenderChange={(v) => {
+                setRepeatOffenderOnly(v);
+                setPage(1);
+              }}
+            />
+          ) : (
+            <a
+              href="/pricing"
+              className="flex items-center gap-1.5 px-2 py-1 rounded border border-dashed border-muted-foreground/40 text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+              title="Pressure Level™ filters — Pro/Elite only"
+            >
+              <Lock className="h-3 w-3" />
+              Pressure Level™
+            </a>
+          )}
 
           {/* Spacer + Actions */}
           <div className="flex-1" />

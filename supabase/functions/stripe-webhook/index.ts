@@ -354,6 +354,8 @@ async function handleSubscriptionCheckout(supabase: any, stripe: Stripe, session
     subscriptionRecord.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
     subscriptionRecord.trial_tier = trialTier;
     subscriptionRecord.trial_exports_used = 0;
+    // NOTE (M-7): Trial export limit is 500 — not disclosed on the pricing page.
+    // Update pricing copy or change this value if the trial limits change.
     subscriptionRecord.trial_exports_limit = 500;
   }
 
@@ -510,6 +512,20 @@ async function handleSubscriptionChange(supabase: any, stripe: Stripe, subscript
     cancel_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
   };
 
+  // M-4: sync plan_id when a user upgrades/downgrades mid-subscription
+  const stripePriceId = subscription.items?.data?.[0]?.price?.id;
+  if (stripePriceId) {
+    const { data: planRow } = await supabase
+      .from("subscription_plans")
+      .select("id")
+      .eq("stripe_price_id", stripePriceId)
+      .maybeSingle();
+    if (planRow?.id) {
+      updatePayload.plan_id = planRow.id;
+      console.log("[webhook] Updating plan_id from stripe price:", stripePriceId, "→", planRow.id);
+    }
+  }
+
   if (subscription.status === "active") {
     const { data: currentSub } = await supabase
       .from("user_subscriptions")
@@ -579,9 +595,23 @@ async function handlePaymentSucceeded(supabase: any, invoice: Stripe.Invoice) {
   const subscriptionId = invoice.subscription as string;
   if (!subscriptionId) return;
 
+  // Build update payload — always mark active
+  const updatePayload: Record<string, any> = { status: "active" };
+
+  // On renewal invoices, update billing period so the monthly usage counter resets.
+  // invoice.period_start / period_end reflect the new billing cycle.
+  if (invoice.period_start && invoice.period_end) {
+    updatePayload.current_period_start = new Date(invoice.period_start * 1000).toISOString();
+    updatePayload.current_period_end   = new Date(invoice.period_end   * 1000).toISOString();
+    console.log(
+      "[webhook] Updating billing period for subscription:", subscriptionId,
+      "new period:", updatePayload.current_period_start, "→", updatePayload.current_period_end,
+    );
+  }
+
   const { error } = await supabase
     .from("user_subscriptions")
-    .update({ status: "active" })
+    .update(updatePayload)
     .eq("stripe_subscription_id", subscriptionId);
 
   if (error) {

@@ -75,7 +75,7 @@ const ONBOARDING_STEPS = [
             </ul>
           </div>
           <div className="p-3 bg-brand/5 border border-brand/30 rounded-lg">
-            <h4 className="font-semibold text-sm text-brand mb-2">Unlocked ($0.97)</h4>
+            <h4 className="font-semibold text-sm text-brand mb-2">Unlocked ($0.67)</h4>
             <ul className="space-y-1.5 text-xs text-ink-600">
               <li className="flex items-start gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
@@ -94,8 +94,8 @@ const ONBOARDING_STEPS = [
         </div>
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
-            <strong>No monthly fee required.</strong> Pay $0.97 per unlock, or subscribe for bulk
-            unlocks and advanced features.
+            <strong>No monthly fee required.</strong> Pay $0.67 per credit, or subscribe for monthly
+            credits and advanced features.
           </p>
         </div>
       </div>
@@ -168,7 +168,7 @@ const ONBOARDING_STEPS = [
             </div>
             <div>
               <h4 className="font-semibold text-sm text-ink-900">Pay‑as‑you‑go</h4>
-              <p className="text-xs text-ink-600">$0.97 per unlock. No commitment.</p>
+              <p className="text-xs text-ink-600">$0.67 per credit. No commitment.</p>
             </div>
           </div>
 

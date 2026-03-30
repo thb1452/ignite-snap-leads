@@ -39,7 +39,7 @@ const PRICING_TIERS: PricingTier[] = [
     price: 0,
     description: "Browse everything. Pay nothing.",
     features: [
-      "3 unlocks + 3 exports on signup",
+      "3 free unlocks on signup",
       "Browse all properties",
       "AI investor briefs",
       "SnapScore ranking",
@@ -66,7 +66,7 @@ const PRICING_TIERS: PricingTier[] = [
       "Perfect for thin markets",
     ],
     icon: Zap,
-    cta: "Buy Addresses",
+    cta: "Buy Credits",
     isPayg: true,
     borderClass: "border-amber-500 dark:border-amber-400",
     footnote: undefined,
@@ -390,8 +390,8 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <SEOHead
-        title="Pricing — Plans from $0.67/address | Snap Ignite"
-        description="Choose your Snap Ignite plan. Free forever, Pay As You Go ($0.67/address), Starter ($49/mo), Pro ($99/mo), or Elite ($199/mo). One deal pays for years of Snap Ignite."
+        title="Pricing — Plans from $0.67/credit | Snap Ignite"
+        description="Choose your Snap Ignite plan. Free forever, Pay As You Go ($0.67/credit), Starter ($49/mo), Pro ($99/mo), or Elite ($199/mo). One deal pays for years of Snap Ignite."
         canonical="https://snapignite.com/pricing"
       />
 
@@ -519,7 +519,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">How does Pay As You Go work?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Buy addresses one at a time for $0.67 each. Each unlock includes the full address + violation data.
+                  Buy credits one at a time for $0.67 each. Each credit unlocks one property — full address + violation data.
                   No monthly commitment, no expiration.
                 </p>
               </CardContent>

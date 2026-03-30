@@ -204,7 +204,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
             onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
           >
             <Lock className="w-4 h-4 mr-2" />
-            Unlock for $0.97
+            Unlock for $0.67
           </Button>
         )}
       </div>

@@ -61,6 +61,7 @@ import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
 import { UnlockModal } from "@/components/leads/UnlockModal";
 import { ViewLimitModal } from "@/components/leads/ViewLimitModal";
 import { BulkUnlockBar } from "@/components/leads/BulkUnlockBar";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import {
   clearPendingStripeUnlockCheckout,
   getPendingStripeUnlockSessionId,

@@ -497,14 +497,14 @@ function Leads() {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const handlePropertyClick = useCallback((id: string) => {
-    // Check view limit for free users before showing details
-    if (limitReached && !hasActiveSubscription) {
+    // Elite users bypass view limits entirely
+    if (!isElitePlan && limitReached && !hasActiveSubscription) {
       setViewLimitModalOpen(true);
       return;
     }
-    recordView();
+    if (!isElitePlan) recordView();
     setSelectedPropertyId(id);
-  }, [limitReached, hasActiveSubscription, recordView]);
+  }, [isElitePlan, limitReached, hasActiveSubscription, recordView]);
 
   const handleClearFilters = useCallback(() => {
     setSearchInput("");
@@ -1005,7 +1005,8 @@ function Leads() {
 
   // Determine if user should be gated (expired trial or cancelled subscription, no active paid plan)
   const isCancelled = subscriptionStatus === "cancelled" || subscriptionStatus === "expired";
-  const isFullyGated = (hasTrialExpired || isCancelled) && !hasActiveSubscription;
+  // Elite users are never gated
+  const isFullyGated = !isElitePlan && (hasTrialExpired || isCancelled) && !hasActiveSubscription;
 
   return (
     <AppLayout>

@@ -421,11 +421,8 @@ export default function Landing() {
           <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-4xl font-bold text-center mb-4">
             Simple, Transparent Pricing
           </motion.h2>
-          <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-xl text-landing-text-muted text-center mb-4">
-            Only pay for what's actually in your market. No wasted spend.
-          </motion.p>
-          <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }} className="text-sm text-landing-text-muted text-center mb-16">
-            One deal pays for 10,000 addresses.
+          <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-xl text-landing-text-muted text-center mb-16">
+            Only pay for what's in your market. One deal pays for years of Snap Ignite.
           </motion.p>
 
           {/* Pricing tiers */}
@@ -522,7 +519,15 @@ export default function Landing() {
                   <div className="mb-1">
                     <span className="text-3xl font-bold">{plan.price}</span>
                     {plan.suffix && <span className="text-landing-text-muted">{plan.suffix}</span>}
-                  </div>
+                   </div>
+                  {plan.name === "Pay As You Go" && (
+                    <>
+                      <p className="text-xs text-landing-text-muted mt-1">Data Only</p>
+                      <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded-full bg-landing-accent/20 text-landing-accent text-[10px] font-semibold">
+                        Skip Trace Coming Soon
+                      </div>
+                    </>
+                  )}
                   {(plan as any).savingsBadge && (
                     <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-semibold">
                       <Sparkles className="w-2.5 h-2.5" />

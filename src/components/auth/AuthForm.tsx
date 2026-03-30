@@ -10,6 +10,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
 import { WaitlistForm } from '@/components/waitlist/WaitlistForm';
+import { lovable } from '@/integrations/lovable/index';
+import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),

@@ -60,7 +60,7 @@ const PRICING_TIERS: PricingTier[] = [
     description: "No monthly fee. No commitment.",
     features: [
       "$0.67 per address",
-      "1 unlock = 1 export, always",
+      "Each credit = 1 full unlock + export",
       "Credits never expire",
       "No subscription required",
       "Perfect for thin markets",
@@ -69,7 +69,7 @@ const PRICING_TIERS: PricingTier[] = [
     cta: "Buy Addresses",
     isPayg: true,
     borderClass: "border-amber-500 dark:border-amber-400",
-    footnote: "Credits never expire. Buy exactly what you need.",
+    footnote: undefined,
   },
   {
     id: "starter",
@@ -79,15 +79,15 @@ const PRICING_TIERS: PricingTier[] = [
     perAddress: "$0.07/address",
     description: "For investors getting started with enforcement data.",
     features: [
-      "750 addresses/month",
-      "750 exports/month",
+      "750 unlocks + exports per month",
+      "1 unlock = 1 export, always.",
       "All Free features",
       "Code violation data",
       "Basic filters",
     ],
     icon: Zap,
     cta: "Get Starter",
-    footnote: "1 unlock = 1 export. Always.",
+    footnote: undefined,
   },
   {
     id: "professional",
@@ -97,8 +97,8 @@ const PRICING_TIERS: PricingTier[] = [
     perAddress: "$0.07/address",
     description: "For serious operators stacking enforcement data.",
     features: [
-      "1,500 addresses/month",
-      "1,500 exports/month",
+      "1,500 unlocks + exports per month",
+      "1 unlock = 1 export, always.",
       "All Starter features",
       "Pressure Level™ filters",
       "Priority support",
@@ -108,7 +108,7 @@ const PRICING_TIERS: PricingTier[] = [
     badge: "Most Popular",
     savingsBadge: "Save $553 vs Pay As You Go",
     cta: "Get Pro",
-    footnote: "1 unlock = 1 export. Always.",
+    footnote: undefined,
   },
   {
     id: "enterprise",
@@ -118,8 +118,8 @@ const PRICING_TIERS: PricingTier[] = [
     perAddress: "$0.07/address",
     description: "For teams running enforcement-first strategies.",
     features: [
-      "3,000 addresses/month",
-      "3,000 exports/month",
+      "3,000 unlocks + exports per month",
+      "1 unlock = 1 export, always.",
       "All Pro features",
       "Water shutoff data",
       "API Access",
@@ -128,7 +128,7 @@ const PRICING_TIERS: PricingTier[] = [
     icon: Building2,
     savingsBadge: "Save $1,812 vs Pay As You Go",
     cta: "Get Elite",
-    footnote: "1 unlock = 1 export. Always.",
+    footnote: undefined,
   },
   {
     id: "custom",
@@ -136,7 +136,15 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: "Enterprise",
     price: null,
     description: "For teams, funds, and high-volume operators. Custom pricing, API access, and dedicated support.",
-    features: [],
+    features: [
+      "25,000+ addresses",
+      "API access",
+      "Dedicated account manager",
+      "Custom contract",
+      "Custom rate limits",
+      "Dedicated onboarding",
+      "SLA guarantee",
+    ],
     icon: Shield,
     cta: "Contact Us",
     isEnterprise: true,
@@ -374,12 +382,6 @@ export default function Pricing() {
               Skip Trace Coming Soon
             </div>
           )}
-
-          {tier.footnote && (
-            <p className="text-xs text-center text-muted-foreground mt-4 pt-4 border-t border-border">
-              {tier.footnote}
-            </p>
-          )}
         </CardContent>
       </Card>
     );
@@ -439,9 +441,6 @@ export default function Pricing() {
           <p className="text-xl text-muted-foreground mb-2">
             Only pay for what's in your market. One deal pays for years of Snap Ignite.
           </p>
-          <p className="text-sm text-muted-foreground">
-            Only pay for what's actually in your market. No wasted spend.
-          </p>
         </div>
 
         {/* 6-tier grid */}
@@ -454,7 +453,8 @@ export default function Pricing() {
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-2">
             Need a large targeted list? Buy once, use anytime.
           </h2>
-          <p className="text-center text-muted-foreground mb-8">No subscription required.</p>
+          <p className="text-center text-muted-foreground mb-2">No subscription required.</p>
+          <p className="text-center text-sm text-muted-foreground mb-8">Each credit unlocks one full property record including address and violation data.</p>
           <div className="grid sm:grid-cols-3 gap-6">
             {[
               { credits: "5,000", price: "$750", per: "$0.15/export" },
@@ -480,7 +480,7 @@ export default function Pricing() {
             ))}
           </div>
           <p className="text-center text-sm text-muted-foreground mt-4">
-            Need 25,000+? <a href="mailto:hello@snapignite.com?subject=Enterprise%20Pricing%20Inquiry" className="text-primary hover:underline">Contact us for Enterprise pricing.</a>
+            Need 25,000+? <a href="mailto:hello@snapignite.com?subject=Enterprise%20Pricing%20Inquiry" className="text-primary hover:underline">Contact us</a> for Enterprise pricing.
           </p>
         </div>
 

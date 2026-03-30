@@ -251,3 +251,47 @@ async function getOrCreateCustomer(stripe: Stripe, supabase: any, user: any): Pr
   });
   return customer.id;
 }
+
+// ---- Bulk Credits (one-time payment) ----
+async function handleBulkCredits(
+  stripe: Stripe,
+  supabase: any,
+  user: any,
+  body: any,
+  appUrl: string,
+  headers: Record<string, string>,
+) {
+  const { credit_count } = body;
+  const key = String(credit_count);
+  const pack = BULK_PRICE_IDS[key];
+
+  if (!pack) {
+    return new Response(
+      JSON.stringify({ error: `Invalid credit pack: ${credit_count}. Valid: 5000, 10000, 20000` }),
+      { status: 400, headers },
+    );
+  }
+
+  const customerId = await getOrCreateCustomer(stripe, supabase, user);
+
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    payment_method_types: ["card"],
+    line_items: [{ price: pack.priceId, quantity: 1 }],
+    mode: "payment",
+    success_url: `${appUrl}/properties?credits_added=${pack.credits}`,
+    cancel_url: `${appUrl}/pricing?canceled=true`,
+    metadata: {
+      user_id: user.id,
+      checkout_type: "bulk_credits",
+      credit_count: String(pack.credits),
+    },
+  });
+
+  console.log("[checkout] Created bulk credits session:", session.id, "credits:", pack.credits);
+
+  return new Response(
+    JSON.stringify({ sessionId: session.id, checkout_url: session.url, url: session.url }),
+    { headers },
+  );
+}

@@ -457,9 +457,9 @@ export default function Pricing() {
           <p className="text-center text-sm text-muted-foreground mb-8">Each credit unlocks one full property record including address and violation data.</p>
           <div className="grid sm:grid-cols-3 gap-6">
             {[
-              { credits: "5,000", price: "$750", per: "$0.15/export" },
-              { credits: "10,000", price: "$1,300", per: "$0.13/export" },
-              { credits: "20,000", price: "$2,200", per: "$0.11/export" },
+              { credits: "5,000", price: "$750", per: "$0.15/credit" },
+              { credits: "10,000", price: "$1,300", per: "$0.13/credit" },
+              { credits: "20,000", price: "$2,200", per: "$0.11/credit" },
             ].map((pkg) => (
               <Card key={pkg.credits} className="text-center border-border hover:shadow-lg transition-all">
                 <CardHeader className="pb-2">

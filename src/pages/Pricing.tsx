@@ -55,11 +55,11 @@ const PRICING_TIERS: PricingTier[] = [
     id: "payg",
     name: "payg",
     display_name: "Pay As You Go",
-    price: 0.97,
-    perAddress: "$0.97/address",
+    price: 0.67,
+    perAddress: "$0.67/address",
     description: "No monthly fee. No commitment.",
     features: [
-      "$0.97 per address",
+      "$0.67 per address",
       "1 unlock = 1 export, always",
       "Credits never expire",
       "No subscription required",
@@ -76,11 +76,11 @@ const PRICING_TIERS: PricingTier[] = [
     name: "starter",
     display_name: "Starter",
     price: 49,
-    perAddress: "$0.33/address",
+    perAddress: "$0.07/address",
     description: "For investors getting started with enforcement data.",
     features: [
-      "150 addresses/month",
-      "150 exports/month",
+      "750 addresses/month",
+      "750 exports/month",
       "All Free features",
       "Code violation data",
       "Basic filters",
@@ -94,11 +94,11 @@ const PRICING_TIERS: PricingTier[] = [
     name: "professional",
     display_name: "Pro",
     price: 99,
-    perAddress: "$0.25/address",
+    perAddress: "$0.07/address",
     description: "For serious operators stacking enforcement data.",
     features: [
-      "400 addresses/month",
-      "400 exports/month",
+      "1,500 addresses/month",
+      "1,500 exports/month",
       "All Starter features",
       "Pressure Level™ filters",
       "Priority support",
@@ -106,7 +106,7 @@ const PRICING_TIERS: PricingTier[] = [
     icon: TrendingUp,
     popular: true,
     badge: "Most Popular",
-    savingsBadge: "Save $289 vs Pay As You Go",
+    savingsBadge: "Save $553 vs Pay As You Go",
     cta: "Get Pro",
     footnote: "1 unlock = 1 export. Always.",
   },
@@ -115,17 +115,18 @@ const PRICING_TIERS: PricingTier[] = [
     name: "enterprise",
     display_name: "Elite",
     price: 199,
-    perAddress: "$0.20/address",
+    perAddress: "$0.07/address",
     description: "For teams running enforcement-first strategies.",
     features: [
-      "1,000 addresses/month",
-      "1,000 exports/month",
+      "3,000 addresses/month",
+      "3,000 exports/month",
       "All Pro features",
       "Water shutoff data",
+      "API Access",
       "Priority support",
     ],
     icon: Building2,
-    savingsBadge: "Save $771 vs Pay As You Go",
+    savingsBadge: "Save $1,812 vs Pay As You Go",
     cta: "Get Elite",
     footnote: "1 unlock = 1 export. Always.",
   },
@@ -296,9 +297,12 @@ export default function Pricing() {
                 <span className="text-muted-foreground">/forever</span>
               </div>
             ) : tier.isPayg ? (
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold">$0.97</span>
-                <span className="text-muted-foreground">/address</span>
+              <div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold">$0.67</span>
+                  <span className="text-muted-foreground">/address</span>
+                </div>
+                <div className="text-xs font-medium text-muted-foreground mt-1">Data Only</div>
               </div>
             ) : (
               <>
@@ -356,7 +360,20 @@ export default function Pricing() {
                 <span className="text-sm">{feature}</span>
               </li>
             ))}
+            {!tier.isFree && !tier.isEnterprise && (
+              <li className="flex items-start gap-2.5">
+                <Check className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5" />
+                <span className="text-sm text-muted-foreground/60 italic">Skip Trace — Coming Soon</span>
+              </li>
+            )}
           </ul>
+
+          {tier.isPayg && (
+            <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 text-xs font-semibold">
+              <Sparkles className="w-3 h-3" />
+              Skip Trace Coming Soon
+            </div>
+          )}
 
           {tier.footnote && (
             <p className="text-xs text-center text-muted-foreground mt-4 pt-4 border-t border-border">
@@ -371,8 +388,8 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <SEOHead
-        title="Pricing — Plans from $0.97/address | Snap Ignite"
-        description="Choose your Snap Ignite plan. Free forever, Pay As You Go ($0.97/address), Starter ($49/mo), Pro ($99/mo), or Elite ($199/mo). One deal pays for 10,000 addresses."
+        title="Pricing — Plans from $0.67/address | Snap Ignite"
+        description="Choose your Snap Ignite plan. Free forever, Pay As You Go ($0.67/address), Starter ($49/mo), Pro ($99/mo), or Elite ($199/mo). One deal pays for years of Snap Ignite."
         canonical="https://snapignite.com/pricing"
       />
 
@@ -420,7 +437,7 @@ export default function Pricing() {
             Our competitor sells raw code violation CSVs. We show you which ones to call first and why.
           </h1>
           <p className="text-xl text-muted-foreground mb-2">
-            One deal pays for 10,000 addresses.
+            Only pay for what's in your market. One deal pays for years of Snap Ignite.
           </p>
           <p className="text-sm text-muted-foreground">
             Only pay for what's actually in your market. No wasted spend.
@@ -430,6 +447,41 @@ export default function Pricing() {
         {/* 6-tier grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
           {PRICING_TIERS.map((tier) => renderPlanCard(tier))}
+        </div>
+
+        {/* Bulk Credits Section */}
+        <div className="max-w-4xl mx-auto mb-16">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-2">
+            Need a large targeted list? Buy once, use anytime.
+          </h2>
+          <p className="text-center text-muted-foreground mb-8">No subscription required.</p>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              { credits: "5,000", price: "$750", per: "$0.15/export" },
+              { credits: "10,000", price: "$1,300", per: "$0.13/export" },
+              { credits: "20,000", price: "$2,200", per: "$0.11/export" },
+            ].map((pkg) => (
+              <Card key={pkg.credits} className="text-center border-border hover:shadow-lg transition-all">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-2xl">{pkg.credits} Credits</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold mb-1">{pkg.price}</div>
+                  <div className="text-sm text-muted-foreground mb-4">{pkg.per}</div>
+                  <Button
+                    onClick={() => window.location.href = 'mailto:hello@snapignite.com?subject=Bulk%20Credits%20Inquiry%20-%20' + pkg.credits}
+                    className="w-full bg-teal-500 hover:bg-teal-600 text-white"
+                    size="lg"
+                  >
+                    Get {pkg.credits} Credits <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            Need 25,000+? <a href="mailto:hello@snapignite.com?subject=Enterprise%20Pricing%20Inquiry" className="text-primary hover:underline">Contact us for Enterprise pricing.</a>
+          </p>
         </div>
 
         {/* Water shutoff callout */}
@@ -458,7 +510,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">Do I need a subscription?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  No. Browse everything free. When you find a lead worth pursuing, unlock it for $0.97 — no subscription required.
+                  No. Browse everything free. When you find a lead worth pursuing, unlock it for $0.67 — no subscription required.
                   Subscriptions give you a better per-address rate if you're unlocking regularly.
                 </p>
               </CardContent>
@@ -467,7 +519,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">How does Pay As You Go work?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Buy addresses one at a time for $0.97 each. Each unlock includes the full address + CSV export.
+                  Buy addresses one at a time for $0.67 each. Each unlock includes the full address + violation data.
                   No monthly commitment, no expiration.
                 </p>
               </CardContent>
@@ -495,6 +547,9 @@ export default function Pricing() {
         </div>
 
         <div className="text-center mt-16">
+          <p className="text-sm text-muted-foreground mb-6 italic">
+            Each export includes full address + violation data. Skip trace (owner phone/contact) coming soon.
+          </p>
           <p className="text-muted-foreground mb-4">
             Questions? Email us at <a href="mailto:hello@snapignite.com" className="text-blue-600 dark:text-blue-400 hover:underline">hello@snapignite.com</a>
           </p>

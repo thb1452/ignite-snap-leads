@@ -455,56 +455,7 @@ export default function Pricing() {
           </h2>
           <p className="text-center text-muted-foreground mb-2">No subscription required.</p>
           <p className="text-center text-sm text-muted-foreground mb-8">Each credit unlocks one full property record including address and violation data.</p>
-          <div className="grid sm:grid-cols-3 gap-6">
-            {[
-              { credits: "5,000", rawCount: 5000, price: "$750", per: "$0.15/credit" },
-              { credits: "10,000", rawCount: 10000, price: "$1,300", per: "$0.13/credit" },
-              { credits: "20,000", rawCount: 20000, price: "$2,200", per: "$0.11/credit" },
-            ].map((pkg) => {
-              const [loading, setLoading] = useState(false);
-              const handleBuy = async () => {
-                if (!session?.user) {
-                  navigate("/auth?redirect=/pricing");
-                  return;
-                }
-                setLoading(true);
-                try {
-                  const { data: { session: authSession } } = await supabase.auth.getSession();
-                  const res = await supabase.functions.invoke("create-checkout-session", {
-                    body: { checkout_type: "bulk_credits", credit_count: pkg.rawCount },
-                    headers: { Authorization: `Bearer ${authSession?.access_token}` },
-                  });
-                  const url = res.data?.url || res.data?.checkout_url;
-                  if (url) window.location.href = url;
-                  else throw new Error(res.data?.error || "Failed to create checkout");
-                } catch (e: any) {
-                  toast({ title: "Error", description: e.message, variant: "destructive" });
-                } finally {
-                  setLoading(false);
-                }
-              };
-              return (
-                <Card key={pkg.credits} className="text-center border-border hover:shadow-lg transition-all">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-2xl">{pkg.credits} Credits</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold mb-1">{pkg.price}</div>
-                    <div className="text-sm text-muted-foreground mb-4">{pkg.per}</div>
-                    <Button
-                      onClick={handleBuy}
-                      disabled={loading}
-                      className="w-full bg-teal-500 hover:bg-teal-600 text-white"
-                      size="lg"
-                    >
-                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      Buy Now <ArrowRight className="ml-2 w-4 h-4" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <BulkCreditCards user={user} navigate={navigate} toast={toast} />
           <p className="text-center text-sm text-muted-foreground mt-4">
             Need 25,000+? <a href="mailto:hello@snapignite.com?subject=Enterprise%20Pricing%20Inquiry" className="text-primary hover:underline">Contact us</a> for Enterprise pricing.
           </p>

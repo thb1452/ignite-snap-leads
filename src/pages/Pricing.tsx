@@ -56,11 +56,11 @@ const PRICING_TIERS: PricingTier[] = [
     name: "payg",
     display_name: "Pay As You Go",
     price: 0.67,
-    perAddress: "$0.67/address",
+    perAddress: "$0.67/credit",
     description: "No monthly fee. No commitment.",
     features: [
-      "$0.67 per address",
-      "Each credit = 1 full unlock + export",
+      "$0.67 per credit",
+      "1 credit = 1 unlock + export",
       "Credits never expire",
       "No subscription required",
       "Perfect for thin markets",
@@ -79,8 +79,8 @@ const PRICING_TIERS: PricingTier[] = [
     perAddress: "$0.07/address",
     description: "For investors getting started with enforcement data.",
     features: [
-      "750 unlocks + exports per month",
-      "1 unlock = 1 export, always.",
+      "750 credits/month",
+      "1 credit = 1 unlock + export",
       "All Free features",
       "Code violation data",
       "Basic filters",
@@ -97,8 +97,8 @@ const PRICING_TIERS: PricingTier[] = [
     perAddress: "$0.07/address",
     description: "For serious operators stacking enforcement data.",
     features: [
-      "1,500 unlocks + exports per month",
-      "1 unlock = 1 export, always.",
+      "1,500 credits/month",
+      "1 credit = 1 unlock + export",
       "All Starter features",
       "Pressure Level™ filters",
       "Priority support",
@@ -118,8 +118,8 @@ const PRICING_TIERS: PricingTier[] = [
     perAddress: "$0.07/address",
     description: "For teams running enforcement-first strategies.",
     features: [
-      "3,000 unlocks + exports per month",
-      "1 unlock = 1 export, always.",
+      "3,000 credits/month",
+      "1 credit = 1 unlock + export",
       "All Pro features",
       "Water shutoff data",
       "API Access",
@@ -308,7 +308,7 @@ export default function Pricing() {
               <div>
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl font-bold">$0.67</span>
-                  <span className="text-muted-foreground">/address</span>
+                  <span className="text-muted-foreground">/credit</span>
                 </div>
                 <div className="text-xs font-medium text-muted-foreground mt-1">Data Only</div>
               </div>
@@ -457,9 +457,9 @@ export default function Pricing() {
           <p className="text-center text-sm text-muted-foreground mb-8">Each credit unlocks one full property record including address and violation data.</p>
           <div className="grid sm:grid-cols-3 gap-6">
             {[
-              { credits: "5,000", price: "$750", per: "$0.15/export" },
-              { credits: "10,000", price: "$1,300", per: "$0.13/export" },
-              { credits: "20,000", price: "$2,200", per: "$0.11/export" },
+              { credits: "5,000", price: "$750", per: "$0.15/credit" },
+              { credits: "10,000", price: "$1,300", per: "$0.13/credit" },
+              { credits: "20,000", price: "$2,200", per: "$0.11/credit" },
             ].map((pkg) => (
               <Card key={pkg.credits} className="text-center border-border hover:shadow-lg transition-all">
                 <CardHeader className="pb-2">
@@ -548,7 +548,7 @@ export default function Pricing() {
 
         <div className="text-center mt-16">
           <p className="text-sm text-muted-foreground mb-6 italic">
-            Each export includes full address + violation data. Skip trace (owner phone/contact) coming soon.
+            Each credit unlocks one full property record including address and violation data. Skip trace (owner phone/contact) coming soon.
           </p>
           <p className="text-muted-foreground mb-4">
             Questions? Email us at <a href="mailto:hello@snapignite.com" className="text-blue-600 dark:text-blue-400 hover:underline">hello@snapignite.com</a>

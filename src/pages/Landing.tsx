@@ -636,7 +636,43 @@ export default function Landing() {
       {/* ─── 7. Social Proof ─────────────────────── */}
       <section className="py-24 bg-landing-surface/30">
         <div className="container mx-auto px-4">
-          <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="text-center text-landing-text-muted text-lg">
+          <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-3xl md:text-4xl font-bold text-center mb-16">
+            What Investors Are Saying
+          </motion.h2>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {[
+              {
+                initials: "JM", name: "Jake M.", role: "Wholesaler, Phoenix AZ",
+                quote: "I used to waste hours calling through expireds, hoping someone was motivated. Now I filter by SnapScore and immediately know which owners are under real city pressure. In 6 weeks, I've closed 3 contracts from a list half the size. SnapScore is my secret weapon.",
+                result: "3 contracts in 6 weeks",
+              },
+              {
+                initials: "SR", name: "Sarah R.", role: "Acquisition Manager, Southeast Portfolio",
+                quote: "We manage a portfolio across several states. Snap's data shows us which properties are heating up – often a month before they hit public records. By the time other investors notice, we're already negotiating. Our contact-to-contract rate jumped 40%, and we've locked up deals we never would have seen otherwise.",
+                result: "40% improvement in contact-to-contract rate",
+              },
+              {
+                initials: "MT", name: "Marcus T.", role: "Fix & Flip Operator, Dallas‑Fort Worth",
+                quote: "I was skeptical about another data tool. Then I ran a test on a zip code I know well. Snap flagged a property with a water shutoff that I'd never seen on any list. I called the owner, made an offer, and closed my first deal in weeks. That single deal paid for two years of Snap Ignite. The ROI was instant.",
+                result: "First deal paid for 2 years of subscription",
+              },
+            ].map((t, i) => (
+              <motion.div key={i} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="bg-landing-surface/50 border border-landing-surface rounded-xl p-8">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-landing-accent/20 flex items-center justify-center text-landing-accent font-bold">{t.initials}</div>
+                  <div>
+                    <div className="font-semibold">{t.name}</div>
+                    <div className="text-sm text-landing-text-muted">{t.role}</div>
+                  </div>
+                </div>
+                <blockquote className="text-landing-text-muted mb-4 italic">"{t.quote}"</blockquote>
+                <div className="text-landing-accent font-semibold text-sm">{t.result}</div>
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="text-center text-landing-text-muted text-sm mt-10">
             Hundreds of investors use Snap Ignite to find deals before they hit the market.
           </motion.p>
         </div>

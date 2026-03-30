@@ -455,33 +455,36 @@ export default function Landing() {
                 name: "Starter",
                 price: "$49",
                 suffix: "/mo",
-                features: ["150 addresses/month", "150 exports/month", "Code violation data", "Basic filters"],
+                features: ["750 addresses/month", "750 exports/month", "Code violation data", "Basic filters"],
                 cta: "Get Starter",
                 highlighted: false,
                 badge: undefined,
                 borderClass: "",
+                skipTrace: true,
               },
               {
                 name: "Pro",
                 price: "$99",
                 suffix: "/mo",
-                features: ["400 addresses/month", "400 exports/month", "Pressure Level™ filters", "Priority support"],
+                features: ["1,500 addresses/month", "1,500 exports/month", "Pressure Level™ filters", "Priority support"],
                 cta: "Get Pro",
                 highlighted: true,
                 badge: "Most Popular",
-                savingsBadge: "Save $289 vs Pay As You Go",
+                savingsBadge: "Save $553 vs Pay As You Go",
                 borderClass: "",
+                skipTrace: true,
               },
               {
                 name: "Elite",
                 price: "$199",
                 suffix: "/mo",
-                features: ["1,000 addresses/month", "1,000 exports/month", "Water shutoff data", "All Pro features"],
+                features: ["3,000 addresses/month", "3,000 exports/month", "Water shutoff data", "API Access", "All Pro features"],
                 cta: "Get Elite",
                 highlighted: false,
                 badge: undefined,
-                savingsBadge: "Save $771 vs Pay As You Go",
+                savingsBadge: "Save $1,812 vs Pay As You Go",
                 borderClass: "",
+                skipTrace: true,
               },
               {
                 name: "Enterprise",
@@ -534,6 +537,12 @@ export default function Landing() {
                       <span>{f}</span>
                     </li>
                   ))}
+                  {(plan as any).skipTrace && (
+                    <li className="flex items-start gap-2 text-sm text-landing-text-muted/50">
+                      <Check className="w-4 h-4 shrink-0 mt-0.5 opacity-30" />
+                      <span>Skip Trace — Coming Soon</span>
+                    </li>
+                  )}
                 </ul>
                 <Link to={(plan as any).isEnterprise ? "mailto:hello@snapignite.com" : "/auth?mode=signup"}>
                   <Button
@@ -556,6 +565,34 @@ export default function Landing() {
               </motion.div>
             ))}
           </div>
+
+          {/* Bulk Credits */}
+          <div className="max-w-4xl mx-auto mt-16">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-8">
+              <h3 className="text-2xl font-bold mb-2">Bulk Credits</h3>
+              <p className="text-landing-text-muted">Need a large targeted list? Buy once, use anytime. No subscription required.</p>
+            </motion.div>
+            <div className="grid sm:grid-cols-3 gap-6">
+              {[
+                { credits: "5,000", price: "$750", per: "$0.15/export" },
+                { credits: "10,000", price: "$1,300", per: "$0.13/export" },
+                { credits: "20,000", price: "$2,200", per: "$0.11/export" },
+              ].map((pkg, i) => (
+                <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
+                  className="rounded-xl p-6 bg-landing-bg/50 border border-landing-surface text-center">
+                  <p className="text-2xl font-bold mb-1">{pkg.credits} credits</p>
+                  <p className="text-3xl font-bold text-landing-accent mb-1">{pkg.price}</p>
+                  <p className="text-sm text-landing-text-muted">{pkg.per}</p>
+                </motion.div>
+              ))}
+            </div>
+            <p className="text-center text-sm text-landing-text-muted mt-4">Need 25,000+? <a href="mailto:hello@snapignite.com" className="text-landing-accent hover:underline">Contact us</a> for Enterprise pricing.</p>
+          </div>
+
+          {/* Footnote */}
+          <p className="text-center text-xs text-landing-text-muted/60 mt-8 max-w-2xl mx-auto">
+            Each export includes full address + violation data. Skip trace (owner phone/contact) coming soon.
+          </p>
         </div>
       </section>
 
@@ -574,7 +611,7 @@ export default function Landing() {
               { icon: Sparkles, title: "AI Investor Briefs", desc: "2-sentence plain-English analysis on every property.", highlight: true },
               { icon: Eye, title: "Blurred Address Preview", desc: "See the insight before paying. Street name, score, AI brief — free." },
               { icon: DollarSign, title: "Pay As You Go", desc: "$0.67 per address, no commitment. Only pay for what you use." },
-              { icon: TrendingUp, title: "Subscriptions", desc: "150–1,000 addresses/month. Best value for regular users." },
+              { icon: TrendingUp, title: "Subscriptions", desc: "750–3,000 addresses/month. Best value for regular users." },
               { icon: Search, title: "Scan Your List", desc: "Upload addresses, get AI insights + SnapScore back." },
               { icon: Bell, title: "Real-Time Notifications", desc: "Alerts when new violations hit saved properties." },
               { icon: Download, title: "CSV Export", desc: "Build targeted lists and export instantly." },

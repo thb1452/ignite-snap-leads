@@ -420,7 +420,7 @@ export default function Pricing() {
             Our competitor sells raw code violation CSVs. We show you which ones to call first and why.
           </h1>
           <p className="text-xl text-muted-foreground mb-2">
-            One deal pays for 10,000 addresses.
+            Only pay for what's in your market. One deal pays for years of Snap Ignite.
           </p>
           <p className="text-sm text-muted-foreground">
             Only pay for what's actually in your market. No wasted spend.

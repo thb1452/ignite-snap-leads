@@ -360,7 +360,20 @@ export default function Pricing() {
                 <span className="text-sm">{feature}</span>
               </li>
             ))}
+            {!tier.isFree && !tier.isEnterprise && (
+              <li className="flex items-start gap-2.5">
+                <Check className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5" />
+                <span className="text-sm text-muted-foreground/60 italic">Skip Trace — Coming Soon</span>
+              </li>
+            )}
           </ul>
+
+          {tier.isPayg && (
+            <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 text-xs font-semibold">
+              <Sparkles className="w-3 h-3" />
+              Skip Trace Coming Soon
+            </div>
+          )}
 
           {tier.footnote && (
             <p className="text-xs text-center text-muted-foreground mt-4 pt-4 border-t border-border">

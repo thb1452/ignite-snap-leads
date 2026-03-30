@@ -118,8 +118,8 @@ const PRICING_TIERS: PricingTier[] = [
     perAddress: "$0.07/address",
     description: "For teams running enforcement-first strategies.",
     features: [
-      "3,000 unlocks + exports per month",
-      "1 unlock = 1 export, always.",
+      "3,000 credits/month",
+      "1 credit = 1 unlock + export",
       "All Pro features",
       "Water shutoff data",
       "API Access",

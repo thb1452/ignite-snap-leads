@@ -510,7 +510,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">Do I need a subscription?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  No. Browse everything free. When you find a lead worth pursuing, unlock it for $0.97 — no subscription required.
+                  No. Browse everything free. When you find a lead worth pursuing, unlock it for $0.67 — no subscription required.
                   Subscriptions give you a better per-address rate if you're unlocking regularly.
                 </p>
               </CardContent>

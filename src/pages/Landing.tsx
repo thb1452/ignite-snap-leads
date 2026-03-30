@@ -611,7 +611,7 @@ export default function Landing() {
               { icon: Sparkles, title: "AI Investor Briefs", desc: "2-sentence plain-English analysis on every property.", highlight: true },
               { icon: Eye, title: "Blurred Address Preview", desc: "See the insight before paying. Street name, score, AI brief — free." },
               { icon: DollarSign, title: "Pay As You Go", desc: "$0.67 per address, no commitment. Only pay for what you use." },
-              { icon: TrendingUp, title: "Subscriptions", desc: "150–1,000 addresses/month. Best value for regular users." },
+              { icon: TrendingUp, title: "Subscriptions", desc: "750–3,000 addresses/month. Best value for regular users." },
               { icon: Search, title: "Scan Your List", desc: "Upload addresses, get AI insights + SnapScore back." },
               { icon: Bell, title: "Real-Time Notifications", desc: "Alerts when new violations hit saved properties." },
               { icon: Download, title: "CSV Export", desc: "Build targeted lists and export instantly." },

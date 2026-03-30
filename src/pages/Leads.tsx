@@ -61,6 +61,7 @@ import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
 import { UnlockModal } from "@/components/leads/UnlockModal";
 import { ViewLimitModal } from "@/components/leads/ViewLimitModal";
 import { BulkUnlockBar } from "@/components/leads/BulkUnlockBar";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import {
   clearPendingStripeUnlockCheckout,
   getPendingStripeUnlockSessionId,
@@ -93,6 +94,7 @@ function Leads() {
   const { savedSet, toggleSaved, isSaved } = useSavedProperties();
   const { freeUnlocksRemaining } = useFreeUnlocks();
   const { viewCount, viewLimit, limitReached, recordView } = useViewLimit();
+  const { isElitePlan } = useFeatureAccess();
   const [unlockModalProperty, setUnlockModalProperty] = useState<any>(null);
   const [viewLimitModalOpen, setViewLimitModalOpen] = useState(false);
   // Refs for scrolling list containers to top on page change
@@ -495,14 +497,14 @@ function Leads() {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const handlePropertyClick = useCallback((id: string) => {
-    // Check view limit for free users before showing details
-    if (limitReached && !hasActiveSubscription) {
+    // Elite users bypass view limits entirely
+    if (!isElitePlan && limitReached && !hasActiveSubscription) {
       setViewLimitModalOpen(true);
       return;
     }
-    recordView();
+    if (!isElitePlan) recordView();
     setSelectedPropertyId(id);
-  }, [limitReached, hasActiveSubscription, recordView]);
+  }, [isElitePlan, limitReached, hasActiveSubscription, recordView]);
 
   const handleClearFilters = useCallback(() => {
     setSearchInput("");
@@ -1003,7 +1005,8 @@ function Leads() {
 
   // Determine if user should be gated (expired trial or cancelled subscription, no active paid plan)
   const isCancelled = subscriptionStatus === "cancelled" || subscriptionStatus === "expired";
-  const isFullyGated = (hasTrialExpired || isCancelled) && !hasActiveSubscription;
+  // Elite users are never gated
+  const isFullyGated = !isElitePlan && (hasTrialExpired || isCancelled) && !hasActiveSubscription;
 
   return (
     <AppLayout>

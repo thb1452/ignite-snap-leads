@@ -537,6 +537,12 @@ export default function Landing() {
                       <span>{f}</span>
                     </li>
                   ))}
+                  {(plan as any).skipTrace && (
+                    <li className="flex items-start gap-2 text-sm text-landing-text-muted/50">
+                      <Check className="w-4 h-4 shrink-0 mt-0.5 opacity-30" />
+                      <span>Skip Trace — Coming Soon</span>
+                    </li>
+                  )}
                 </ul>
                 <Link to={(plan as any).isEnterprise ? "mailto:hello@snapignite.com" : "/auth?mode=signup"}>
                   <Button

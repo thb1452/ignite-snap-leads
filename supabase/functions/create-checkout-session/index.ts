@@ -127,12 +127,12 @@ async function handleSubscription(
   const TIER_ALIAS: Record<string, string> = { elite: "enterprise" };
   const dbTierName = TIER_ALIAS[tier_name.toLowerCase()] || tier_name.toLowerCase();
 
-  // Stripe Price IDs — replace placeholders with real IDs
+  // Stripe Price IDs (monthly subscriptions)
   const STRIPE_PRICE_IDS: Record<string, string> = {
-    starter: "price_1TEGVNPfDZrVNjz5kH849WuD",
-    professional: "price_1TEGVqPfDZrVNjz5A797mvBk",
-    enterprise: "price_1TEGWJPfDZrVNjz5Jw5cNEAm",
-    elite: "price_1TEGWJPfDZrVNjz5Jw5cNEAm",
+    starter: "price_1TGlbmPfDZrVNjz5doWbUyvN",
+    professional: "price_1TGlb4PfDZrVNjz5WqCEG1D9",
+    enterprise: "price_1TGlcePfDZrVNjz5VLCsLkBQ",
+    elite: "price_1TGlcePfDZrVNjz5VLCsLkBQ",
   };
 
   const priceId = STRIPE_PRICE_IDS[tier_name.toLowerCase()];

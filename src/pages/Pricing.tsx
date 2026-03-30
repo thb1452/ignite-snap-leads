@@ -285,7 +285,7 @@ export default function Pricing() {
       return;
     }
     if (!user) {
-      navigate(`/auth?mode=signup&plan=${encodeURIComponent(tier.name)}`);
+      navigate(`/auth?mode=signin&plan=${encodeURIComponent(tier.name)}`);
       return;
     }
     handleDirectUpgrade(tier.name);

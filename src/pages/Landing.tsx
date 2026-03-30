@@ -138,8 +138,18 @@ function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
 }
 
 export default function Landing() {
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [heroFlipped, setHeroFlipped] = useState(false);
+
+  // Redirect authenticated users (e.g. returning from Google OAuth) to dashboard
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        navigate('/properties', { replace: true });
+      }
+    });
+  }, [navigate]);
 
   // Auto-flip hero card demo
   useEffect(() => {

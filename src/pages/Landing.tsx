@@ -519,7 +519,15 @@ export default function Landing() {
                   <div className="mb-1">
                     <span className="text-3xl font-bold">{plan.price}</span>
                     {plan.suffix && <span className="text-landing-text-muted">{plan.suffix}</span>}
-                  </div>
+                   </div>
+                  {plan.name === "Pay As You Go" && (
+                    <>
+                      <p className="text-xs text-landing-text-muted mt-1">Data Only</p>
+                      <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded-full bg-landing-accent/20 text-landing-accent text-[10px] font-semibold">
+                        Skip Trace Coming Soon
+                      </div>
+                    </>
+                  )}
                   {(plan as any).savingsBadge && (
                     <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-semibold">
                       <Sparkles className="w-2.5 h-2.5" />

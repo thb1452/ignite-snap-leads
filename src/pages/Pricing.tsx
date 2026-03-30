@@ -274,7 +274,7 @@ export default function Pricing() {
     if (tier.isPayg) {
       // Navigate to leads where they can buy individual addresses
       if (!user) {
-        navigate('/auth?mode=signup');
+        navigate('/auth?mode=signin');
       } else {
         navigate('/leads');
       }

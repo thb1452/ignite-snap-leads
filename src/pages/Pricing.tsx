@@ -163,7 +163,7 @@ function BulkCreditCards({ user, navigate, toast }: { user: any; navigate: any; 
 
   const handleBuy = async (rawCount: number) => {
     if (!user) {
-      navigate("/auth?redirect=/pricing");
+      navigate("/auth?mode=signup");
       return;
     }
     setLoadingPack(rawCount);

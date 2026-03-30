@@ -59,8 +59,8 @@ const PRICING_TIERS: PricingTier[] = [
     perAddress: "$0.67/credit",
     description: "No monthly fee. No commitment.",
     features: [
-      "$0.67 per address",
-      "Each credit = 1 full unlock + export",
+      "$0.67 per credit",
+      "1 credit = 1 unlock + export",
       "Credits never expire",
       "No subscription required",
       "Perfect for thin markets",

@@ -60,6 +60,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     if (checkout_type === "single_unlock") {
       return await handleSingleUnlock(stripe, supabase, user, body, appUrl, headers);
+    } else if (checkout_type === "bulk_credits") {
+      return await handleBulkCredits(stripe, supabase, user, body, appUrl, headers);
     } else {
       return await handleSubscription(stripe, supabase, user, body, appUrl, headers);
     }

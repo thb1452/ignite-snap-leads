@@ -565,6 +565,34 @@ export default function Landing() {
               </motion.div>
             ))}
           </div>
+
+          {/* Bulk Credits */}
+          <div className="max-w-4xl mx-auto mt-16">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-8">
+              <h3 className="text-2xl font-bold mb-2">Bulk Credits</h3>
+              <p className="text-landing-text-muted">Need a large targeted list? Buy once, use anytime. No subscription required.</p>
+            </motion.div>
+            <div className="grid sm:grid-cols-3 gap-6">
+              {[
+                { credits: "5,000", price: "$750", per: "$0.15/export" },
+                { credits: "10,000", price: "$1,300", per: "$0.13/export" },
+                { credits: "20,000", price: "$2,200", per: "$0.11/export" },
+              ].map((pkg, i) => (
+                <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
+                  className="rounded-xl p-6 bg-landing-bg/50 border border-landing-surface text-center">
+                  <p className="text-2xl font-bold mb-1">{pkg.credits} credits</p>
+                  <p className="text-3xl font-bold text-landing-accent mb-1">{pkg.price}</p>
+                  <p className="text-sm text-landing-text-muted">{pkg.per}</p>
+                </motion.div>
+              ))}
+            </div>
+            <p className="text-center text-sm text-landing-text-muted mt-4">Need 25,000+? <a href="mailto:hello@snapignite.com" className="text-landing-accent hover:underline">Contact us</a> for Enterprise pricing.</p>
+          </div>
+
+          {/* Footnote */}
+          <p className="text-center text-xs text-landing-text-muted/60 mt-8 max-w-2xl mx-auto">
+            Each export includes full address + violation data. Skip trace (owner phone/contact) coming soon.
+          </p>
         </div>
       </section>
 

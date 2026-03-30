@@ -94,6 +94,7 @@ function Leads() {
   const { savedSet, toggleSaved, isSaved } = useSavedProperties();
   const { freeUnlocksRemaining } = useFreeUnlocks();
   const { viewCount, viewLimit, limitReached, recordView } = useViewLimit();
+  const { isElitePlan } = useFeatureAccess();
   const [unlockModalProperty, setUnlockModalProperty] = useState<any>(null);
   const [viewLimitModalOpen, setViewLimitModalOpen] = useState(false);
   // Refs for scrolling list containers to top on page change

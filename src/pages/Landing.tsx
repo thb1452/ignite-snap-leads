@@ -141,6 +141,7 @@ export default function Landing() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [heroFlipped, setHeroFlipped] = useState(false);
+  const [loadingBulkPack, setLoadingBulkPack] = useState<number | null>(null);
 
   // Redirect authenticated users (e.g. returning from Google OAuth) to dashboard
   useEffect(() => {
@@ -164,6 +165,38 @@ export default function Landing() {
     }, 100);
   };
 
+  const handleBulkCreditCheckout = async (pkg: { rawCount: number; priceId: string }) => {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      navigate("/auth?mode=signin&redirect=/index");
+      return;
+    }
+
+    setLoadingBulkPack(pkg.rawCount);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+        body: {
+          checkout_type: "bulk_credits",
+          credit_count: pkg.rawCount,
+          price_id: pkg.priceId,
+        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (error) throw error;
+
+      const checkoutUrl = data?.url || data?.checkout_url;
+      if (!checkoutUrl) throw new Error("Checkout URL missing");
+
+      window.location.href = checkoutUrl;
+    } catch (error) {
+      console.error("[landing] bulk checkout failed", error);
+    } finally {
+      setLoadingBulkPack(null);
+    }
+  };
   return (
     <div className="min-h-screen bg-landing-bg text-landing-text overflow-x-hidden">
       <SEOHead

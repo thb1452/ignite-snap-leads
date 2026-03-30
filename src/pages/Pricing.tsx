@@ -388,8 +388,8 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <SEOHead
-        title="Pricing — Plans from $0.97/address | Snap Ignite"
-        description="Choose your Snap Ignite plan. Free forever, Pay As You Go ($0.97/address), Starter ($49/mo), Pro ($99/mo), or Elite ($199/mo). One deal pays for 10,000 addresses."
+        title="Pricing — Plans from $0.67/address | Snap Ignite"
+        description="Choose your Snap Ignite plan. Free forever, Pay As You Go ($0.67/address), Starter ($49/mo), Pro ($99/mo), or Elite ($199/mo). One deal pays for years of Snap Ignite."
         canonical="https://snapignite.com/pricing"
       />
 

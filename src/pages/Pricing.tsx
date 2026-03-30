@@ -79,8 +79,8 @@ const PRICING_TIERS: PricingTier[] = [
     perAddress: "$0.07/address",
     description: "For investors getting started with enforcement data.",
     features: [
-      "750 unlocks + exports per month",
-      "1 unlock = 1 export, always.",
+      "750 credits/month",
+      "1 credit = 1 unlock + export",
       "All Free features",
       "Code violation data",
       "Basic filters",

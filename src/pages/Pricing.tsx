@@ -519,7 +519,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">How does Pay As You Go work?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Buy addresses one at a time for $0.97 each. Each unlock includes the full address + CSV export.
+                  Buy addresses one at a time for $0.67 each. Each unlock includes the full address + violation data.
                   No monthly commitment, no expiration.
                 </p>
               </CardContent>

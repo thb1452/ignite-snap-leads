@@ -264,7 +264,7 @@ export default function Pricing() {
 
   const handlePlanClick = (tier: PricingTier) => {
     if (tier.isFree) {
-      navigate('/auth?mode=signup');
+      navigate('/auth?mode=signin');
       return;
     }
     if (tier.isEnterprise) {

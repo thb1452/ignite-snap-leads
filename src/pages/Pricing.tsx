@@ -56,7 +56,7 @@ const PRICING_TIERS: PricingTier[] = [
     name: "payg",
     display_name: "Pay As You Go",
     price: 0.67,
-    perAddress: "$0.67/address",
+    perAddress: "$0.67/credit",
     description: "No monthly fee. No commitment.",
     features: [
       "$0.67 per address",

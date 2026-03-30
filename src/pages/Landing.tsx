@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import SEOHead from "@/components/SEOHead";
 import { trackEvent } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/externalClient";
 
 
 import {
@@ -136,8 +138,18 @@ function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
 }
 
 export default function Landing() {
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [heroFlipped, setHeroFlipped] = useState(false);
+
+  // Redirect authenticated users (e.g. returning from Google OAuth) to dashboard
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        navigate('/properties', { replace: true });
+      }
+    });
+  }, [navigate]);
 
   // Auto-flip hero card demo
   useEffect(() => {

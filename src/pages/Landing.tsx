@@ -598,15 +598,28 @@ export default function Landing() {
             </motion.div>
             <div className="grid sm:grid-cols-3 gap-6">
               {[
-                { credits: "5,000", price: "$750", per: "$0.15/export" },
-                { credits: "10,000", price: "$1,300", per: "$0.13/export" },
-                { credits: "20,000", price: "$2,200", per: "$0.11/export" },
+                { credits: "5,000", rawCount: 5000, price: "$750", per: "$0.15/credit", priceId: "price_1TGlsfPfDZrVNjz5rpCB2h8c" },
+                { credits: "10,000", rawCount: 10000, price: "$1,300", per: "$0.13/credit", priceId: "price_1TGlu5PfDZrVNjz5GyjhPbEp" },
+                { credits: "20,000", rawCount: 20000, price: "$2,200", per: "$0.11/credit", priceId: "price_1TGlv7PfDZrVNjz5akOCyZbl" },
               ].map((pkg, i) => (
-                <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
-                  className="rounded-xl p-6 bg-landing-bg/50 border border-landing-surface text-center">
+                <motion.div
+                  key={pkg.rawCount}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.07 }}
+                  className="rounded-xl p-6 bg-landing-bg/50 border border-landing-surface text-center"
+                >
                   <p className="text-2xl font-bold mb-1">{pkg.credits} credits</p>
                   <p className="text-3xl font-bold text-landing-accent mb-1">{pkg.price}</p>
-                  <p className="text-sm text-landing-text-muted">{pkg.per}</p>
+                  <p className="text-sm text-landing-text-muted mb-4">{pkg.per}</p>
+                  <Button
+                    onClick={() => handleBulkCreditCheckout(pkg)}
+                    disabled={loadingBulkPack === pkg.rawCount}
+                    className="w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
+                  >
+                    {loadingBulkPack === pkg.rawCount ? "Starting checkout..." : "Buy Now"}
+                  </Button>
                 </motion.div>
               ))}
             </div>

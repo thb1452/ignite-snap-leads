@@ -152,7 +152,63 @@ const PRICING_TIERS: PricingTier[] = [
   },
 ];
 
-export default function Pricing() {
+const BULK_PACKS = [
+  { credits: "5,000", rawCount: 5000, price: "$750", per: "$0.15/credit" },
+  { credits: "10,000", rawCount: 10000, price: "$1,300", per: "$0.13/credit" },
+  { credits: "20,000", rawCount: 20000, price: "$2,200", per: "$0.11/credit" },
+];
+
+function BulkCreditCards({ user, navigate, toast }: { user: any; navigate: any; toast: any }) {
+  const [loadingPack, setLoadingPack] = useState<number | null>(null);
+
+  const handleBuy = async (rawCount: number) => {
+    if (!user) {
+      navigate("/auth?redirect=/pricing");
+      return;
+    }
+    setLoadingPack(rawCount);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("create-checkout-session", {
+        body: { checkout_type: "bulk_credits", credit_count: rawCount },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      const url = res.data?.url || res.data?.checkout_url;
+      if (url) window.location.href = url;
+      else throw new Error(res.data?.error || "Failed to create checkout");
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setLoadingPack(null);
+    }
+  };
+
+  return (
+    <div className="grid sm:grid-cols-3 gap-6">
+      {BULK_PACKS.map((pkg) => (
+        <Card key={pkg.credits} className="text-center border-border hover:shadow-lg transition-all">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl">{pkg.credits} Credits</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold mb-1">{pkg.price}</div>
+            <div className="text-sm text-muted-foreground mb-4">{pkg.per}</div>
+            <Button
+              onClick={() => handleBuy(pkg.rawCount)}
+              disabled={loadingPack === pkg.rawCount}
+              className="w-full bg-teal-500 hover:bg-teal-600 text-white"
+              size="lg"
+            >
+              {loadingPack === pkg.rawCount ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Buy Now <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { subscription, hasActiveSubscription: hasPaidSubscription, refetch: refetchSubscription } = useSubscription();

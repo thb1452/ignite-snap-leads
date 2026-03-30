@@ -208,7 +208,7 @@ function BulkCreditCards({ user, navigate, toast }: { user: any; navigate: any; 
     </div>
   );
 }
-
+export default function Pricing() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { subscription, hasActiveSubscription: hasPaidSubscription, refetch: refetchSubscription } = useSubscription();

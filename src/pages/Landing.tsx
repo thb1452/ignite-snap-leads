@@ -130,7 +130,7 @@ function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
       ) : (
         <Button className="w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
           <Lock className="w-4 h-4 mr-2" />
-          Unlock for $0.97
+          Unlock for $0.67
         </Button>
       )}
     </div>
@@ -350,7 +350,7 @@ export default function Landing() {
                 Full AI insights free. No subscription needed to see what's hot. Pay only when you want the address.
               </p>
               <div className="space-y-3 text-sm text-landing-text-muted">
-                {["AI brief + blurred preview — free", "Active enforcement data, updated weekly", "Pay-per-address: $0.97 per unlock"].map((item, i) => (
+                {["AI brief + blurred preview — free", "Active enforcement data, updated weekly", "Pay-per-address: $0.67 per unlock"].map((item, i) => (
                   <div key={i} className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-landing-accent shrink-0" />{item}</div>
                 ))}
               </div>
@@ -387,7 +387,7 @@ export default function Landing() {
                 step: "03",
                 icon: Unlock,
                 title: "Unlock the Address",
-                description: "Pay $0.97 one-time, use a credit, or subscribe. Get full address, owner contact, and export.",
+                description: "Pay $0.67 one-time, use a credit, or subscribe. Get full address, owner contact, and export.",
               },
             ].map((s, i) => (
               <motion.div
@@ -443,7 +443,7 @@ export default function Landing() {
               },
               {
                 name: "Pay As You Go",
-                price: "$0.97",
+                price: "$0.67",
                 suffix: "/address",
                 features: ["No monthly fee", "1 unlock = 1 export", "Credits never expire", "No commitment"],
                 cta: "Buy Addresses",
@@ -573,7 +573,7 @@ export default function Landing() {
             {[
               { icon: Sparkles, title: "AI Investor Briefs", desc: "2-sentence plain-English analysis on every property.", highlight: true },
               { icon: Eye, title: "Blurred Address Preview", desc: "See the insight before paying. Street name, score, AI brief — free." },
-              { icon: DollarSign, title: "Pay As You Go", desc: "$0.97 per address, no commitment. Only pay for what you use." },
+              { icon: DollarSign, title: "Pay As You Go", desc: "$0.67 per address, no commitment. Only pay for what you use." },
               { icon: TrendingUp, title: "Subscriptions", desc: "150–1,000 addresses/month. Best value for regular users." },
               { icon: Search, title: "Scan Your List", desc: "Upload addresses, get AI insights + SnapScore back." },
               { icon: Bell, title: "Real-Time Notifications", desc: "Alerts when new violations hit saved properties." },
@@ -757,12 +757,12 @@ export default function Landing() {
 
             <Accordion type="single" collapsible className="space-y-4">
               {[
-                { q: "Do I need a subscription to use Snap?", a: "No. Browse insights free. Pay only for addresses you want to unlock — $0.97 each." },
-                { q: "How does the free tier work?", a: "AI insights, SnapScore, and blurred address previews are always free. You get 3 free unlocks to try it out. After that, pay $0.97 per unlock or subscribe for a better rate." },
+                { q: "Do I need a subscription to use Snap?", a: "No. Browse insights free. Pay only for addresses you want to unlock — $0.67 each." },
+                { q: "How does the free tier work?", a: "AI insights, SnapScore, and blurred address previews are always free. You get 3 free unlocks to try it out. After that, pay $0.67 per unlock or subscribe for a better rate." },
                 { q: "What happens when I unlock a property?", a: "You get the full street address, owner contact information (where available), and the ability to export or save the lead." },
-                { q: "How does Pay As You Go work?", a: "Pay $0.97 per address. No subscription, no commitment. 1 unlock = 1 export. Credits never expire." },
+                { q: "How does Pay As You Go work?", a: "Pay $0.67 per address. No subscription, no commitment. 1 unlock = 1 export. Credits never expire." },
                 { q: "Can I cancel anytime?", a: "Yes — all plans are month-to-month. No contracts, no cancellation fees." },
-                { q: "I only do 1–2 deals/month. Should I subscribe?", a: "Not necessarily. Just buy individual addresses at $0.97 each. Subscribe when your volume makes the per-address savings worth it." },
+                { q: "I only do 1–2 deals/month. Should I subscribe?", a: "Not necessarily. Just buy individual addresses at $0.67 each. Subscribe when your volume makes the per-address savings worth it." },
               ].map((faq, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}>
                   <AccordionItem value={`item-${i}`} className="bg-landing-bg/50 border border-landing-surface rounded-lg px-6 data-[state=open]:border-landing-accent/50">

@@ -137,11 +137,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
         // If no plan_id in metadata, try to match by price
         if (!dbPlanId) {
           const priceId = sub.items.data[0]?.price?.id;
-          // TODO: Replace these placeholder IDs with real Stripe price IDs
           const PRICE_TO_PLAN: Record<string, string> = {
-            "price_STARTER_ID": "starter",
-            "price_PRO_ID": "professional",
-            "price_ELITE_ID": "enterprise",
+            "price_1TGlbmPfDZrVNjz5doWbUyvN": "starter",
+            "price_1TGlb4PfDZrVNjz5WqCEG1D9": "professional",
+            "price_1TGlcePfDZrVNjz5VLCsLkBQ": "enterprise",
           };
           const matchedPlanName = priceId ? PRICE_TO_PLAN[priceId] : null;
           if (matchedPlanName) {

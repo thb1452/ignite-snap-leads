@@ -449,6 +449,41 @@ export default function Pricing() {
           {PRICING_TIERS.map((tier) => renderPlanCard(tier))}
         </div>
 
+        {/* Bulk Credits Section */}
+        <div className="max-w-4xl mx-auto mb-16">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-2">
+            Need a large targeted list? Buy once, use anytime.
+          </h2>
+          <p className="text-center text-muted-foreground mb-8">No subscription required.</p>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              { credits: "5,000", price: "$750", per: "$0.15/export" },
+              { credits: "10,000", price: "$1,300", per: "$0.13/export" },
+              { credits: "20,000", price: "$2,200", per: "$0.11/export" },
+            ].map((pkg) => (
+              <Card key={pkg.credits} className="text-center border-border hover:shadow-lg transition-all">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-2xl">{pkg.credits} Credits</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold mb-1">{pkg.price}</div>
+                  <div className="text-sm text-muted-foreground mb-4">{pkg.per}</div>
+                  <Button
+                    onClick={() => window.location.href = 'mailto:hello@snapignite.com?subject=Bulk%20Credits%20Inquiry%20-%20' + pkg.credits}
+                    className="w-full bg-teal-500 hover:bg-teal-600 text-white"
+                    size="lg"
+                  >
+                    Get {pkg.credits} Credits <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            Need 25,000+? <a href="mailto:hello@snapignite.com?subject=Enterprise%20Pricing%20Inquiry" className="text-primary hover:underline">Contact us for Enterprise pricing.</a>
+          </p>
+        </div>
+
         {/* Water shutoff callout */}
         <div className="max-w-3xl mx-auto mb-16">
           <Card className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/20 dark:to-blue-950/20 border-cyan-200 dark:border-cyan-800">

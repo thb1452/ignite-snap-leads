@@ -308,7 +308,7 @@ export default function Pricing() {
               <div>
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl font-bold">$0.67</span>
-                  <span className="text-muted-foreground">/address</span>
+                  <span className="text-muted-foreground">/credit</span>
                 </div>
                 <div className="text-xs font-medium text-muted-foreground mt-1">Data Only</div>
               </div>

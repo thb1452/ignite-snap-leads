@@ -548,7 +548,7 @@ export default function Pricing() {
 
         <div className="text-center mt-16">
           <p className="text-sm text-muted-foreground mb-6 italic">
-            Each export includes full address + violation data. Skip trace (owner phone/contact) coming soon.
+            Each credit unlocks one full property record including address and violation data. Skip trace (owner phone/contact) coming soon.
           </p>
           <p className="text-muted-foreground mb-4">
             Questions? Email us at <a href="mailto:hello@snapignite.com" className="text-blue-600 dark:text-blue-400 hover:underline">hello@snapignite.com</a>

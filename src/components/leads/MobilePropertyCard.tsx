@@ -1,12 +1,14 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Lock, Unlock, Sparkles, Heart, Users, Phone } from "lucide-react";
+import { Lock, Unlock, Sparkles, Heart, Users, Phone, Download, Loader2 } from "lucide-react";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
 import { formatOwnerName } from "@/utils/formatOwnerName";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
+import { exportFilteredCsv } from "@/services/export";
+import { useToast } from "@/hooks/use-toast";
 
 interface Violation {
   id: string;
@@ -70,6 +72,8 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
   onUnlock,
 }: MobilePropertyCardProps) {
   const { data: contacts } = usePropertyContacts(isUnlocked ? property.id : "");
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
 
   const getScoreDot = (score: number | null) => {
     if (!score) return "bg-slate-500";
@@ -180,8 +184,33 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
               <Button
                 size="sm"
                 className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold text-xs flex-1"
-                onClick={(e) => e.stopPropagation()}
+                disabled={isExporting}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (!isUnlocked) return;
+                  setIsExporting(true);
+                  try {
+                    await exportFilteredCsv({ propertyIds: [property.id], expectedPropertyCount: 1 });
+                    toast({
+                      title: "Export Complete",
+                      description: "Property exported successfully.",
+                    });
+                  } catch (err: any) {
+                    toast({
+                      title: "Export Failed",
+                      description: err?.message || "Failed to export property",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsExporting(false);
+                  }
+                }}
               >
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
                 Export Lead
               </Button>
               <button

@@ -8,6 +8,9 @@ export function CreditBalanceChip() {
 
   if (isLoading || balance === undefined) return null;
 
+  const display =
+    balance === Number.POSITIVE_INFINITY ? "∞" : balance.toLocaleString();
+
   return (
     <Tooltip delayDuration={0}>
       <TooltipTrigger asChild>
@@ -16,11 +19,11 @@ export function CreditBalanceChip() {
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition-colors"
         >
           <Coins className="h-3.5 w-3.5" />
-          <span>{balance.toLocaleString()}</span>
+          <span>{display}</span>
         </Link>
       </TooltipTrigger>
       <TooltipContent>
-        <p className="text-xs">{balance.toLocaleString()} credits remaining</p>
+        <p className="text-xs">{display} credits remaining</p>
       </TooltipContent>
     </Tooltip>
   );

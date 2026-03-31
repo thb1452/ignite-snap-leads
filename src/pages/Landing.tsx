@@ -583,7 +583,7 @@ export default function Landing() {
                   <p className="text-3xl font-bold text-landing-accent mb-1">{pkg.price}</p>
                   <p className="text-sm text-landing-text-muted mb-4">{pkg.per}</p>
                   <Button
-                    onClick={() => navigate("/auth?mode=signin")}
+                    onClick={() => navigate("/auth?mode=signup")}
                     className="w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
                   >
                     Buy Now

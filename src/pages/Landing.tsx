@@ -233,9 +233,9 @@ export default function Landing() {
                     {id.replace(/-/g, " ")}
                   </button>
                 ))}
-                <Link to="/auth?mode=signin" className="w-full">
+                <Link to="/auth?mode=signup" className="w-full">
                   <Button className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
-                    Get Early Access <ArrowRight className="w-4 h-4 ml-2" />
+                    Get Started Free <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
               </div>

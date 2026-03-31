@@ -263,10 +263,11 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
 
       console.log("[webhook] Property unlocked via payment:", propertyId);
     }
-  } else if (checkoutType === "credit_pack") {
-    const credits = parseInt(session.metadata?.credits ?? "0", 10);
+  } else if (checkoutType === "bulk_credits") {
+    // checkout-session sends checkout_type="bulk_credits" and credit_count="5000|10000|20000"
+    const credits = parseInt(session.metadata?.credit_count ?? "0", 10);
     if (credits <= 0) {
-      console.error("[webhook] Invalid credits amount for credit pack");
+      console.error("[webhook] Invalid credits amount for bulk_credits pack");
       return;
     }
 
@@ -276,9 +277,9 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
       delta: credits,
       reason: "credit_pack_purchase",
       meta: {
-        pack_id: session.metadata?.pack_id,
         stripe_session_id: session.id,
         payment_intent_id: paymentIntentId,
+        credit_count: credits,
       },
     });
 
@@ -287,7 +288,7 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
       throw creditErr;
     }
 
-    console.log("[webhook] Credits added:", credits, "for user:", userId);
+    console.log("[webhook] Bulk credits added:", credits, "for user:", userId);
   }
 
   // ---- Affiliate Commission ----

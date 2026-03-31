@@ -20,8 +20,11 @@ export interface MapBounds {
   maxLng: number;
 }
 
-/** Upper bound passed to RPC LIMIT */
-const VIEWPORT_LIMIT = 60000;
+/** Upper bound passed to RPC LIMIT — keep low to prevent 60+ sequential batch fetches.
+ *  At zoom levels where more than 2,000 markers would be in-viewport, the map is
+ *  too zoomed-out to show individual pins usefully anyway (clustering handles display).
+ *  Raise only if the map clustering layer can handle denser data. */
+const VIEWPORT_LIMIT = 2000;
 
 /** Supabase max_rows per response */
 const BATCH_SIZE = 1000;

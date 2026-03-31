@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Sparkles, TrendingUp, Download, AlertTriangle, Pencil } from "lucide-react";
+import { CheckCircle2, Sparkles, TrendingUp, Download, AlertTriangle, Pencil, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { LimitType, PlanTierName } from "@/types/subscription";
 
@@ -143,9 +143,13 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                   <AlertTriangle className="h-6 w-6 text-red-600" />
                 </div>
                 <div>
-                  <DialogTitle className="text-xl">List Exceeds Monthly Limit</DialogTitle>
+                  <DialogTitle className="text-xl">
+                    {maxCount === 0 ? "No Export Plan" : "List Exceeds Monthly Limit"}
+                  </DialogTitle>
                   <DialogDescription className="text-sm mt-1">
-                    This list is too large for a single export on your plan.
+                    {maxCount === 0
+                      ? "Subscribe to export properties as CSV, or unlock addresses individually at $0.67 each."
+                      : "This list is too large for a single export on your plan."}
                   </DialogDescription>
                 </div>
               </div>
@@ -162,7 +166,9 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                   <span className="font-bold text-red-900">{maxCount.toLocaleString()} properties</span>
                 </div>
                 <div className="border-t border-red-200 pt-2 text-sm text-red-700">
-                  This list requires {Math.ceil(requestedCount / maxCount)} months to fully export on your current plan.
+                  {maxCount > 0
+                    ? `This list requires ${Math.ceil(requestedCount / maxCount)} months to fully export on your current plan.`
+                    : "You have no exports remaining on your current plan."}
                 </div>
               </div>
 
@@ -210,6 +216,15 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                   </Button>
                 )}
 
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={() => { onOpenChange(false); navigate('/pricing'); }}
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Pay-as-you-go — ${(requestedCount * 0.67).toFixed(2)} ($0.67 each)
+                </Button>
+
                 {listId && (
                   <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>
                     <Pencil className="h-4 w-4" />
@@ -253,14 +268,77 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
               </DialogDescription>
             </DialogHeader>
 
-            <div className="flex flex-col gap-3">
-              <Button size="lg" className="w-full gap-2 font-semibold" onClick={handleUpgradeNow}>
-                <Sparkles className="h-4 w-4 shrink-0" />
-                Upgrade Now
-              </Button>
-              <Button variant="outline" size="lg" className="w-full" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
+            <div className="space-y-5 mt-2">
+              <div className="rounded-lg bg-red-50 border border-red-200 p-4 space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-red-800">List size</span>
+                  <span className="font-bold text-red-900">{requestedCount.toLocaleString()} properties</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-red-800">Monthly usage</span>
+                  <span className="font-bold text-red-900">{usedCount.toLocaleString()} / {maxCount.toLocaleString()} used</span>
+                </div>
+                <div className="border-t border-red-200 pt-2 text-sm text-red-700">
+                  No exports remaining this month. Your quota resets at the start of your next billing cycle.
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-medium text-ink-900">Your options:</h4>
+                <ul className="space-y-2 text-sm text-ink-700">
+                  {!isMaxPlan && (
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
+                      <span><strong>Upgrade your plan</strong> for a higher monthly limit</span>
+                    </li>
+                  )}
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
+                    <span><strong>Wait for next billing cycle</strong> when your quota resets</span>
+                  </li>
+                  {listId && (
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-brand mt-0.5 flex-shrink-0" />
+                      <span><strong>Edit list</strong> to prepare for export when quota resets</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                {!isMaxPlan && (
+                  <Button className="w-full gap-2" onClick={handleUpgradeNow}>
+                    <Sparkles className="h-4 w-4" />
+                    Upgrade for higher limits
+                  </Button>
+                )}
+
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={() => { onOpenChange(false); navigate('/pricing'); }}
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Pay-as-you-go — ${(requestedCount * 0.67).toFixed(2)} ($0.67 each)
+                </Button>
+
+                {listId && (
+                  <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>
+                    <Pencil className="h-4 w-4" />
+                    Edit List
+                  </Button>
+                )}
+
+                {isMaxPlan && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    You're on the max plan. Contact support for custom enterprise options.
+                  </p>
+                )}
+
+                <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
@@ -347,6 +425,15 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                     Export {remainingCount.toLocaleString()} now
                   </Button>
                 )}
+
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={() => { onOpenChange(false); navigate('/pricing'); }}
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Pay-as-you-go — ${(requestedCount * 0.67).toFixed(2)} ($0.67 each)
+                </Button>
 
                 {listId && (
                   <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>

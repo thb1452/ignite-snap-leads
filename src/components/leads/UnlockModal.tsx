@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCreditBalance } from "@/hooks/useCredits";
 import { useAuth } from "@/hooks/use-auth";
+import { PAYG_PRICE_DISPLAY } from "@/lib/pricing";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface UnlockModalProps {
@@ -242,7 +243,7 @@ export function UnlockModal({
             ) : (
               <CreditCard className="h-4 w-4" />
             )}
-            Buy Unlock — $0.67
+            Buy Unlock — {PAYG_PRICE_DISPLAY}
           </Button>
 
           {/* Subscribe CTA */}

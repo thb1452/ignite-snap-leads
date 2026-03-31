@@ -273,13 +273,13 @@ export default function Landing() {
 
               <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="flex flex-col sm:flex-row gap-3">
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
-                  <Link to="/auth?mode=signin">
+                  <Link to="/auth?mode=signup">
                     <Button
                       size="lg"
                       onClick={() => trackEvent("hero_cta_click", { location: "hero" })}
                       className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
                     >
-                      Get Early Access <ArrowRight className="w-5 h-5 ml-2" />
+                      Get Started Free <ArrowRight className="w-5 h-5 ml-2" />
                     </Button>
                   </Link>
                 </motion.div>

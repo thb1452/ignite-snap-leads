@@ -208,11 +208,11 @@ export default function Landing() {
             <Link to="/auth?mode=signin">
               <Button variant="ghost" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface/50">Sign In</Button>
             </Link>
-            <Link to="/auth?mode=signin">
+            <Link to="/auth?mode=signup">
               <Button
                 className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
               >
-                Get Early Access <ArrowRight className="w-4 h-4 ml-2" />
+                Get Started Free <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
           </div>

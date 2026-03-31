@@ -543,7 +543,7 @@ export default function Landing() {
                     </li>
                   )}
                 </ul>
-                <Link to={(plan as any).isEnterprise ? "mailto:hello@snapignite.com" : "/auth?mode=signin"}>
+                <Link to={(plan as any).isEnterprise ? "mailto:hello@snapignite.com" : "/auth?mode=signup"}>
                   <Button
                     className={`w-full text-sm ${
                       plan.highlighted

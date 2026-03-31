@@ -98,15 +98,31 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    // Reject expired trial users and users with no subscription
+    // Reject expired trial users and users with no subscription.
+    // Exception: PAYG users have no subscription row but may have credit_ledger balance.
+    let isPaygUser = false;
     if (!subData) {
-      return new Response(
-        JSON.stringify({ error: 'No active subscription', code: 'NO_SUBSCRIPTION' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Check whether the user has any credit_ledger balance (PAYG credits purchased)
+      const { data: ledger } = await supabase
+        .from('credit_ledger')
+        .select('amount')
+        .eq('user_id', user.id);
+
+      const balance = (ledger || []).reduce((sum: number, row: any) => sum + (row.amount || 0), 0);
+
+      if (balance <= 0) {
+        return new Response(
+          JSON.stringify({ error: 'No active subscription', code: 'NO_SUBSCRIPTION' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // PAYG user with credits — allow export of their already-unlocked data
+      isPaygUser = true;
+      console.log('[export-csv] PAYG user with credit balance', balance, '— allowing export');
     }
 
-    const isTrialUser = subData.status === 'trial' || subData.status === 'trialing';
+    const isTrialUser = !isPaygUser && (subData!.status === 'trial' || subData!.status === 'trialing');
 
     // Check if trial has expired
     if (isTrialUser && subData.trial_ends_at && new Date(subData.trial_ends_at) < new Date()) {
@@ -118,7 +134,7 @@ serve(async (req) => {
 
     const dataTier = (subData?.plan as any)?.data_tier || 'basic';
     const maxExports = (subData?.plan as any)?.max_monthly_exports || 0;
-    console.log('[export-csv] User data tier:', dataTier, 'max exports:', maxExports, 'status:', subData.status);
+    console.log('[export-csv] User data tier:', dataTier, 'max exports:', maxExports, 'status:', subData?.status ?? 'payg');
 
     // Helper to build a query for filter-based exports (no propertyIds)
     const buildFilterQuery = () => {
@@ -250,7 +266,10 @@ serve(async (req) => {
     console.log(`[export-csv] Exporting ${exportCount} properties for user ${user.id}`);
 
     // ---- Check and Reserve Usage ----
-    if (isTrialUser) {
+    // PAYG users: no monthly quota — they pay per unlock, CSV is just an export of their data
+    if (isPaygUser) {
+      console.log('[export-csv] PAYG user — skipping quota check, exporting', exportCount, 'properties');
+    } else if (isTrialUser) {
       // Trial users: check and increment trial exports atomically via DB function
       const trialUsed = subData.trial_exports_used || 0;
       const trialLimit = subData.trial_exports_limit || 500;
@@ -321,9 +340,9 @@ serve(async (req) => {
         console.log('[export-csv] User hit export limit:', user.id, 'tried to export:', exportCount);
         return new Response(
           JSON.stringify({
-            error: 'CSV export limit reached',
-            code: 'EXPORT_LIMIT_EXCEEDED',
-            message: usageResult.message || `Cannot export ${exportCount} properties. You have reached your monthly limit. Please upgrade your plan to continue exporting.`,
+            error: 'Credit limit reached',
+            code: 'CREDIT_LIMIT_EXCEEDED',
+            message: usageResult.message || `Cannot export ${exportCount} properties. You have reached your monthly credit limit. Please upgrade your plan to continue.`,
             requested: exportCount,
             remaining: usageResult.remaining || 0
           }),

@@ -7,7 +7,10 @@
  * - Never mix them
  */
 
-// Usage types are things we count and limit
+// Usage types are things we count and limit.
+// NOTE (L-3): 'exports' maps to fn_consume_usage p_usage_type='exports' and the
+// subscription_usage.exports_count column. Renaming to 'credits' here would require
+// a coordinated DB migration + fn_consume_usage update. Deferred until that work is done.
 export type UsageType = 'exports' | 'api_calls';
 
 // Feature types are plan capabilities (boolean flags)

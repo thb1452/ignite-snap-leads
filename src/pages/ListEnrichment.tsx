@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useDropzone } from "react-dropzone";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -30,6 +31,14 @@ import {
   type EnrichmentResult,
   type EnrichmentUsage,
 } from "@/services/enrichment";
+import {
+  countAdditionalHighSnapInZips,
+  normalizeAddressForMatch,
+  normalizeZip,
+  parseFullCsvRows,
+} from "@/services/listEnrichmentAdditionalLeads";
+import { useSubscription } from "@/hooks/useSubscription";
+import { shouldLogListEnrichmentY } from "@/utils/listEnrichmentDebug";
 import { Link } from "react-router-dom";
 
 // Simple CSV parser for preview (handles quoted fields)
@@ -138,6 +147,12 @@ type Stage = "upload" | "mapping" | "processing" | "complete" | "error";
 export function ListEnrichment() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const {
+    subscription,
+    loading: subscriptionOrUsageLoading,
+    subscriptionLoading,
+  } = useSubscription();
 
   // Stage management
   const [stage, setStage] = useState<Stage>("upload");
@@ -162,6 +177,13 @@ export function ListEnrichment() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isTrialLimitError, setIsTrialLimitError] = useState(false);
 
+  /** Additional high–SnapScore leads in same zips as upload (not on CSV); null = not computed */
+  const [additionalLeadsY, setAdditionalLeadsY] = useState<number | null>(null);
+  const [additionalLeadsLoading, setAdditionalLeadsLoading] = useState(false);
+
+  const isElitePlan =
+    subscription?.plan_name === "enterprise" || subscription?.plan_name === "enterprise_admin";
+
   // Usage
   const [usage, setUsage] = useState<EnrichmentUsage | null>(null);
   const [usageLoading, setUsageLoading] = useState(true);
@@ -174,6 +196,121 @@ export function ListEnrichment() {
       .then(setUsage)
       .finally(() => setUsageLoading(false));
   }, [user?.id]);
+
+  // After scan completes: count extra high-SnapScore properties in CSV zips (non-Elite only)
+  useEffect(() => {
+    const logY = shouldLogListEnrichmentY();
+
+    if (stage !== "complete") {
+      setAdditionalLeadsY(null);
+      setAdditionalLeadsLoading(false);
+      return;
+    }
+    if (!result || !file || addressCol < 0) {
+      if (logY) {
+        console.log("[ListEnrichment][Y] Skipped: missing result, file, or address column mapping", {
+          hasResult: !!result,
+          hasFile: !!file,
+          addressCol,
+        });
+      }
+      return;
+    }
+    if (zipCol < 0) {
+      setAdditionalLeadsY(null);
+      setAdditionalLeadsLoading(false);
+      if (logY) {
+        console.log(
+          "[ListEnrichment][Y] Skipped: no Zip column mapped. Map Zip in Column Mapping to compute Y and show upsell.",
+        );
+      }
+      return;
+    }
+    // Wait only for subscription (plan tier), not usage — usage can hang and would block Y forever.
+    if (subscriptionLoading || !user?.id) {
+      if (logY) {
+        console.log("[ListEnrichment][Y] Skipped: waiting for subscription (or no user)", {
+          subscriptionLoading,
+          userId: user?.id,
+        });
+      }
+      setAdditionalLeadsY(null);
+      return;
+    }
+    if (isElitePlan) {
+      // Elite never sees the upsell in the UI; skip the expensive count unless debugging.
+      if (!logY) {
+        setAdditionalLeadsY(null);
+        return;
+      }
+      console.log(
+        "[ListEnrichment][Y] Elite plan — upsell is hidden for this tier; computing Y anyway (debug only)",
+      );
+    }
+
+    let cancelled = false;
+    setAdditionalLeadsLoading(true);
+    setAdditionalLeadsY(null);
+
+    (async () => {
+      try {
+        const text = await file.text();
+        const rows = parseFullCsvRows(text);
+        if (rows.length < 2) {
+          if (!cancelled) setAdditionalLeadsY(0);
+          return;
+        }
+
+        const dataRows = rows.slice(1);
+        const zips: string[] = [];
+        const uploadedAddresses = new Set<string>();
+
+        for (const row of dataRows) {
+          if (row.length === 0) continue;
+          const zipRaw = row[zipCol];
+          if (zipRaw !== undefined && zipRaw !== null && String(zipRaw).trim() !== "") {
+            zips.push(typeof zipRaw === "number" ? zipRaw : String(zipRaw).trim());
+          }
+          const addrRaw = row[addressCol];
+          if (addrRaw) uploadedAddresses.add(normalizeAddressForMatch(String(addrRaw)));
+        }
+
+        if (shouldLogListEnrichmentY()) {
+          const normalizedSample = [...new Set(zips.map((z) => normalizeZip(z)).filter(Boolean))].slice(0, 40);
+          console.log("[ListEnrichment][Y] Extracted from CSV", {
+            zipColumnIndex: zipCol,
+            addressColumnIndex: addressCol,
+            rawZipValuesSample: zips.slice(0, 20),
+            rawZipRowCount: zips.length,
+            normalizedUniqueZipSample: normalizedSample,
+            normalizedUniqueZipCount: new Set(zips.map((z) => normalizeZip(z)).filter(Boolean)).size,
+            uploadedAddressCount: uploadedAddresses.size,
+          });
+        }
+
+        const y = await countAdditionalHighSnapInZips(zips, uploadedAddresses);
+        if (!cancelled) {
+          setAdditionalLeadsY(y);
+          if (shouldLogListEnrichmentY()) {
+            console.log(
+              "[ListEnrichment][Y] State updated: additionalLeadsY =",
+              y,
+              "(upsell shows when Y > 0 and not Elite)",
+            );
+          }
+        }
+      } catch (e) {
+        console.error("[ListEnrichment] additional leads count:", e);
+        if (!cancelled) setAdditionalLeadsY(0);
+      } finally {
+        if (!cancelled) setAdditionalLeadsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stage, result, file, zipCol, addressCol, subscriptionLoading, isElitePlan, user?.id]);
 
   // Count total rows when file is loaded
   const countRows = useCallback(async (f: File) => {
@@ -310,6 +447,8 @@ export function ListEnrichment() {
     setResult(null);
     setErrorMessage(null);
     setIsTrialLimitError(false);
+    setAdditionalLeadsY(null);
+    setAdditionalLeadsLoading(false);
     setProgressPercent(0);
     setStage("upload");
   };
@@ -647,6 +786,31 @@ export function ListEnrichment() {
                 </CardContent>
               </Card>
             </div>
+
+            {!subscriptionOrUsageLoading &&
+              !isElitePlan &&
+              !additionalLeadsLoading &&
+              additionalLeadsY !== null &&
+              additionalLeadsY > 0 && (
+                <Card className="border-brand/25 bg-gradient-to-br from-brand/5 to-transparent">
+                  <CardContent className="py-6 px-6 sm:px-8">
+                    <p className="text-sm sm:text-base text-ink-800 leading-relaxed max-w-2xl">
+                      We found{" "}
+                      <span className="font-semibold text-ink-900">
+                        {result.matchedRows.toLocaleString()}
+                      </span>{" "}
+                      properties on your list with active violations. We also found{" "}
+                      <span className="font-semibold text-brand">{additionalLeadsY.toLocaleString()}</span>{" "}
+                      additional properties in the same zip codes with high SnapScores not on your list — want to see
+                      them?
+                    </p>
+                    <Button className="mt-5 gap-2" onClick={() => navigate("/pricing")}>
+                      <Sparkles className="h-4 w-4" />
+                      Unlock Additional Leads
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
           </div>
         )}
 

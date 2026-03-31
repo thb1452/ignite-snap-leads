@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCreditBalance } from "@/hooks/useCredits";
 import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
 import { useQueryClient } from "@tanstack/react-query";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 interface BulkUnlockBarProps {
   selectedIds: string[];
@@ -21,11 +22,13 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked }: BulkUnlo
   const { data: creditBalance = 0 } = useCreditBalance();
   const { freeUnlocksRemaining } = useFreeUnlocks();
   const queryClient = useQueryClient();
+  const { isElitePlan } = useFeatureAccess();
 
   const lockedIds = selectedIds.filter((id) => !unlockedSet.has(id));
   const unlockedCount = selectedIds.length - lockedIds.length;
 
-  if (selectedIds.length === 0 || lockedIds.length === 0) return null;
+  // Elite users never see this bar — all properties are auto-unlocked
+  if (isElitePlan || selectedIds.length === 0 || lockedIds.length === 0) return null;
 
   const canUnlockWithBalance = freeUnlocksRemaining + creditBalance >= lockedIds.length;
 

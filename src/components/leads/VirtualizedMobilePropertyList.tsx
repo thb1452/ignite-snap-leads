@@ -12,6 +12,8 @@ interface Violation {
 interface Property {
   id: string;
   address: string;
+  street_number?: string | null;
+  street_name?: string | null;
   city: string;
   state: string;
   zip: string;

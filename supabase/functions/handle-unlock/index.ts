@@ -261,17 +261,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
             const batchData = await batchRes.json();
             const persons = batchData?.results?.persons || batchData?.results?.[0]?.persons || [];
 
-            if (persons.length > 0) {
+              if (persons.length > 0) {
               const contacts = persons.slice(0, 3).map((person: Record<string, unknown>) => {
                 const mailingAddr = (person.addresses as Record<string, unknown>[] | undefined)?.[0] as
                   | Record<string, string>
                   | undefined;
+                // BatchData returns name as { first, last } object or flat firstName/lastName
+                const nameObj = person.name as Record<string, string> | string | undefined;
+                const firstName = person.firstName as string | undefined
+                  || (typeof nameObj === "object" && nameObj !== null ? nameObj.first : undefined);
+                const lastName = person.lastName as string | undefined
+                  || (typeof nameObj === "object" && nameObj !== null ? nameObj.last : undefined);
+                const fullName = [firstName, lastName].filter(Boolean).join(" ")
+                  || (typeof nameObj === "string" ? nameObj : null);
                 return {
                   property_id,
                   created_by: user.id,
                   source: "batchdata",
-                  name:
-                    [person.firstName, person.lastName].filter(Boolean).join(" ") || (person.name as string) || null,
+                  name: fullName || null,
                   phone:
                     (person.phones as { phone?: string }[] | undefined)?.[0]?.phone ||
                     (person.phoneNumbers as { number?: string }[] | undefined)?.[0]?.number ||
@@ -320,6 +327,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         success: true,
+        property_id,
         source,
         free_remaining,
         credits_remaining,

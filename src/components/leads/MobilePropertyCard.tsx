@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Lock, Unlock, Sparkles, Heart, Users, Phone } from "lucide-react";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
+import { formatOwnerName } from "@/utils/formatOwnerName";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 
 interface Violation {
@@ -116,7 +118,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
           {isUnlocked ? formatAddress(property.address) : (
             <span className="inline-flex items-center gap-2">
               <span className="blur-[4px] select-none pointer-events-none">1423</span>
-              <span>{property.street_name || property.address?.replace(/^\d+\s*/, "")}</span>
+              <span>{formatBlurredStreet(property, false)}</span>
             </span>
           )}
         </p>
@@ -158,7 +160,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
               <>
                 <div className="flex items-center gap-2 text-sm">
                   <Users className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-slate-100">{ownerContact.name} (Owner)</span>
+                  <span className="text-slate-100">{formatOwnerName(ownerContact.name)} (Owner)</span>
                 </div>
                 {ownerContact.phone && (
                   <div className="flex items-center gap-2 text-sm">

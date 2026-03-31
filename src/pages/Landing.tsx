@@ -854,9 +854,9 @@ export default function Landing() {
               <Link to="/auth?mode=signin">
                 <Button variant="ghost" size="sm" className="text-landing-text-muted hover:text-landing-text">Sign In</Button>
               </Link>
-              <Link to="/auth?mode=signin">
+              <Link to="/auth?mode=signup">
                 <Button size="sm" className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">
-                  Get Early Access
+                  Get Started Free
                 </Button>
               </Link>
             </div>

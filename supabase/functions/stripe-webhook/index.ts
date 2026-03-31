@@ -98,6 +98,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
 
         case "customer.subscription.created":
+        // NOTE (L-7): Stripe may fire subscription.created and subscription.updated
+        // in rapid succession for the same subscription (e.g. after checkout). Both
+        // call handleSubscriptionChange, which does a blind UPDATE by stripe_subscription_id.
+        // If the subscription row doesn't exist yet (checkout webhook still processing),
+        // the UPDATE is a no-op — the subscription.created event is safe to be idempotent.
+        // Risk is low because checkout.session.completed fires first and upserts the row,
+        // but if events arrive out of order the subscription row could be orphaned until
+        // the next update. Mitigation: handleSubscriptionChange could be changed to upsert
+        // once handleSubscriptionCheckout fully handles the initial state.
         case "customer.subscription.updated": {
           const subscription = event.data.object as Stripe.Subscription;
           await handleSubscriptionChange(supabase, stripe, subscription);
@@ -354,6 +363,8 @@ async function handleSubscriptionCheckout(supabase: any, stripe: Stripe, session
     subscriptionRecord.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
     subscriptionRecord.trial_tier = trialTier;
     subscriptionRecord.trial_exports_used = 0;
+    // NOTE (M-7): Trial export limit is 500 — not disclosed on the pricing page.
+    // Update pricing copy or change this value if the trial limits change.
     subscriptionRecord.trial_exports_limit = 500;
   }
 
@@ -510,6 +521,20 @@ async function handleSubscriptionChange(supabase: any, stripe: Stripe, subscript
     cancel_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
   };
 
+  // M-4: sync plan_id when a user upgrades/downgrades mid-subscription
+  const stripePriceId = subscription.items?.data?.[0]?.price?.id;
+  if (stripePriceId) {
+    const { data: planRow } = await supabase
+      .from("subscription_plans")
+      .select("id")
+      .eq("stripe_price_id", stripePriceId)
+      .maybeSingle();
+    if (planRow?.id) {
+      updatePayload.plan_id = planRow.id;
+      console.log("[webhook] Updating plan_id from stripe price:", stripePriceId, "→", planRow.id);
+    }
+  }
+
   if (subscription.status === "active") {
     const { data: currentSub } = await supabase
       .from("user_subscriptions")
@@ -579,13 +604,75 @@ async function handlePaymentSucceeded(supabase: any, invoice: Stripe.Invoice) {
   const subscriptionId = invoice.subscription as string;
   if (!subscriptionId) return;
 
+  // Build update payload — always mark active
+  const updatePayload: Record<string, any> = { status: "active" };
+
+  // On renewal invoices, update billing period so the monthly usage counter resets.
+  // invoice.period_start / period_end reflect the new billing cycle.
+  if (invoice.period_start && invoice.period_end) {
+    updatePayload.current_period_start = new Date(invoice.period_start * 1000).toISOString();
+    updatePayload.current_period_end   = new Date(invoice.period_end   * 1000).toISOString();
+    console.log(
+      "[webhook] Updating billing period for subscription:", subscriptionId,
+      "new period:", updatePayload.current_period_start, "→", updatePayload.current_period_end,
+    );
+  }
+
   const { error } = await supabase
     .from("user_subscriptions")
-    .update({ status: "active" })
+    .update(updatePayload)
     .eq("stripe_subscription_id", subscriptionId);
 
   if (error) {
     console.error("[webhook] Error updating subscription after payment:", error);
+  }
+
+  // M-8: Allocate monthly credits to credit_ledger for subscription renewals.
+  // Subscribers use fn_unlock_property which draws from credit_ledger, so they
+  // need credits allocated each billing cycle.
+  // Skip the very first invoice (billing_reason === "subscription_create") because
+  // handleSubscriptionCheckout already upserts the subscription row and the user
+  // hasn't used any credits yet. Only allocate on renewals and cycle changes.
+  if (invoice.billing_reason === "subscription_create") {
+    console.log("[webhook] Skipping credit allocation for new subscription:", subscriptionId);
+    return;
+  }
+
+  // Look up the user's active subscription to get plan credits
+  const { data: subRow } = await supabase
+    .from("user_subscriptions")
+    .select("user_id, plan:subscription_plans(max_monthly_exports)")
+    .eq("stripe_subscription_id", subscriptionId)
+    .maybeSingle();
+
+  if (!subRow?.user_id) {
+    console.error("[webhook] Could not find subscription row for credit allocation:", subscriptionId);
+    return;
+  }
+
+  const monthlyCredits: number = (subRow.plan as any)?.max_monthly_exports ?? 0;
+  if (monthlyCredits <= 0) {
+    console.log("[webhook] No credits to allocate for subscription:", subscriptionId);
+    return;
+  }
+
+  const { error: creditErr } = await supabase.from("credit_ledger").insert({
+    user_id: subRow.user_id,
+    delta: monthlyCredits,
+    reason: "subscription_renewal",
+    meta: {
+      stripe_subscription_id: subscriptionId,
+      stripe_invoice_id: invoice.id,
+      billing_reason: invoice.billing_reason,
+      period_start: updatePayload.current_period_start,
+      period_end: updatePayload.current_period_end,
+    },
+  });
+
+  if (creditErr) {
+    console.error("[webhook] Error allocating monthly credits:", creditErr);
+  } else {
+    console.log("[webhook] Allocated", monthlyCredits, "monthly credits to user:", subRow.user_id);
   }
 }
 

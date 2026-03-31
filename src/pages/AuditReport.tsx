@@ -40,7 +40,7 @@ export default function AuditReport() {
             ["Scoring Engine Version", "v7.1"],
             ["AI Engine", "v4.1 Hybrid (Gemini 3 Flash Preview)"],
             ["Subscription Tiers", "Starter ($49/mo) · Pro ($99/mo) · Elite ($199/mo)"],
-            ["Pricing Model", "Free + Pay As You Go ($0.97/address) + Subscriptions"],
+            ["Pricing Model", "Free + Pay As You Go ($0.67/credit) + Subscriptions"],
             ["Payment Processing", "Stripe (Test Mode)"],
           ]} />
         </Section>
@@ -138,7 +138,7 @@ export default function AuditReport() {
         {/* 6. Feature System */}
         <Section title="6. Feature System">
           <Table headers={["Feature", "Starter ($49/mo)", "Pro ($99/mo)", "Elite ($199/mo)"]} rows={[
-            ["Addresses/Month", "150", "400", "1,000"],
+            ["Credits/Month", "750", "1,500", "3,000"],
             ["Cities Nationwide", "3,800+", "3,800+", "3,800+"],
             ["Code Violation Data", "✓", "✓", "✓"],
             ["Basic Filters (location, category, search)", "✓", "✓", "✓"],

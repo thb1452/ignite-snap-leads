@@ -25,8 +25,8 @@ interface UpgradePromptProps {
 // Messages for usage limits (counters)
 const LIMIT_MESSAGES: Record<LimitType, { title: string; description: string; icon: typeof TrendingUp; color: string }> = {
   exports: {
-    title: "Property Export Limit Reached",
-    description: "You've exported all the properties available in your plan this month. Each property exported counts against your monthly limit.",
+    title: "Credit Limit Reached",
+    description: "You've used all your credits for this month. Each credit used counts against your monthly credit limit.",
     icon: TrendingUp,
     color: "text-blue-500",
   },
@@ -69,8 +69,7 @@ const PLAN_FEATURES = {
     price: "$49/mo",
     badge: "",
     features: [
-      "150 addresses/month",
-      "150 exports/month",
+      "750 credits/month",
       "Code violation data",
       "Basic filters",
     ],
@@ -79,8 +78,7 @@ const PLAN_FEATURES = {
     name: "Pro",
     price: "$99/mo",
     features: [
-      "400 addresses/month",
-      "400 exports/month",
+      "1,500 credits/month",
       "Pressure Level™ filters",
       "Priority support",
     ],
@@ -90,8 +88,7 @@ const PLAN_FEATURES = {
     name: "Elite",
     price: "$199/mo",
     features: [
-      "1,000 addresses/month",
-      "1,000 exports/month",
+      "3,000 credits/month",
       "Water shutoff data",
       "All Pro features",
     ],
@@ -250,9 +247,9 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
                 <TrendingUp className="h-7 w-7 text-primary" aria-hidden />
               </div>
-              <DialogTitle className="text-xl font-semibold tracking-tight">Export Limit Reached</DialogTitle>
+              <DialogTitle className="text-xl font-semibold tracking-tight">Credit Limit Reached</DialogTitle>
               <DialogDescription className="text-base text-muted-foreground leading-relaxed px-1">
-                You&apos;ve hit your export limit. Upgrade to get 150–1,000 exports/month starting at $49.
+                You&apos;ve used all your credits this month. Upgrade to get 750–3,000 credits/month starting at $49.
               </DialogDescription>
             </DialogHeader>
 

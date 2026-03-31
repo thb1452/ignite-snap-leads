@@ -71,7 +71,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 });
 
-// ---- Single Unlock (PAYG $0.97) ----
+// ---- Single Unlock (PAYG $0.67) ----
 async function handleSingleUnlock(
   stripe: Stripe,
   supabase: any,
@@ -132,10 +132,10 @@ async function handleSubscription(
     starter: "price_1TGlbmPfDZrVNjz5doWbUyvN",
     professional: "price_1TGlb4PfDZrVNjz5WqCEG1D9",
     enterprise: "price_1TGlcePfDZrVNjz5VLCsLkBQ",
-    elite: "price_1TGlcePfDZrVNjz5VLCsLkBQ",
   };
 
-  const priceId = STRIPE_PRICE_IDS[tier_name.toLowerCase()];
+  // Use the aliased name so "elite" resolves to the enterprise price
+  const priceId = STRIPE_PRICE_IDS[dbTierName];
   if (!priceId) {
     return new Response(JSON.stringify({ error: `Unknown plan: ${tier_name}` }), { status: 400, headers });
   }

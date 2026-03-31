@@ -27,8 +27,7 @@ const TIER_CONFIG: Record<string, {
     price: 49,
     icon: Zap,
     features: [
-      "150 addresses/month",
-      "150 exports/month",
+      "750 credits/month",
       "Code violation data",
       "Basic filters",
     ],
@@ -38,8 +37,7 @@ const TIER_CONFIG: Record<string, {
     price: 99,
     icon: TrendingUp,
     features: [
-      "400 addresses/month",
-      "400 exports/month",
+      "1,500 credits/month",
       "Pressure Level™ filtering",
       "Priority support",
     ],
@@ -49,8 +47,7 @@ const TIER_CONFIG: Record<string, {
     price: 199,
     icon: Building2,
     features: [
-      "1,000 addresses/month",
-      "1,000 exports/month",
+      "3,000 credits/month",
       "All Pro features",
       "Water shutoff data",
     ],
@@ -60,8 +57,7 @@ const TIER_CONFIG: Record<string, {
     price: 199,
     icon: Building2,
     features: [
-      "1,000 addresses/month",
-      "1,000 exports/month",
+      "3,000 credits/month",
       "All Pro features",
       "Water shutoff data",
     ],

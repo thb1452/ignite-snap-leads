@@ -314,8 +314,7 @@ export function SubscriptionSettings() {
                 name="Professional"
                 price="$99/mo"
                 features={[
-                  "400 addresses/month",
-                  "400 exports/month",
+                  "1,500 credits/month",
                   "Everything in Starter",
                   "Pressure Level™ filters",
                   "Priority support",
@@ -331,8 +330,7 @@ export function SubscriptionSettings() {
                 name="Elite"
                 price="$199/mo"
                 features={[
-                  "1,000 addresses/month",
-                  "1,000 exports/month",
+                  "3,000 credits/month",
                   "Water shutoff data",
                   "Everything in Pro",
                 ]}

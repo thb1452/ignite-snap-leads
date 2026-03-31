@@ -24,6 +24,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
 import { LogoWordmark } from "@/components/branding/LogoWordmark";
 import { TrialBanner } from "@/components/trial/TrialBanner";
 import { TrialExpiredModal } from "@/components/trial/TrialExpiredModal";
@@ -58,6 +59,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAdmin, isVA } = useUserRole();
+  // Pre-warm free unlocks cache so UnlockModal has data ready before user clicks Unlock
+  useFreeUnlocks();
   const {
     isOnTrial,
     hasTrialExpired,

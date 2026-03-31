@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronRight, ChevronLeft, Target, BarChart3, Lock, Zap, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { PAYG_PRICE_DISPLAY } from "@/lib/pricing";
 
 interface OnboardingFlowProps {
   open: boolean;
@@ -75,7 +76,7 @@ const ONBOARDING_STEPS = [
             </ul>
           </div>
           <div className="p-3 bg-brand/5 border border-brand/30 rounded-lg">
-            <h4 className="font-semibold text-sm text-brand mb-2">Unlocked ($0.97)</h4>
+            <h4 className="font-semibold text-sm text-brand mb-2">Unlocked ({PAYG_PRICE_DISPLAY})</h4>
             <ul className="space-y-1.5 text-xs text-ink-600">
               <li className="flex items-start gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
@@ -94,8 +95,7 @@ const ONBOARDING_STEPS = [
         </div>
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
-            <strong>No monthly fee required.</strong> Pay $0.97 per unlock, or subscribe for bulk
-            unlocks and advanced features.
+            <strong>No monthly fee required.</strong> Pay {PAYG_PRICE_DISPLAY} per credit, or subscribe for monthly credits and advanced features.
           </p>
         </div>
       </div>
@@ -168,7 +168,7 @@ const ONBOARDING_STEPS = [
             </div>
             <div>
               <h4 className="font-semibold text-sm text-ink-900">Pay‑as‑you‑go</h4>
-              <p className="text-xs text-ink-600">$0.97 per unlock. No commitment.</p>
+              <p className="text-xs text-ink-600">{PAYG_PRICE_DISPLAY} per credit. No commitment.</p>
             </div>
           </div>
 
@@ -178,7 +178,7 @@ const ONBOARDING_STEPS = [
             </div>
             <div>
               <h4 className="font-semibold text-sm text-ink-900">Starter — $49/mo</h4>
-              <p className="text-xs text-ink-600">150 unlocks + exports.</p>
+              <p className="text-xs text-ink-600">750 credits/month.</p>
             </div>
           </div>
 
@@ -188,7 +188,7 @@ const ONBOARDING_STEPS = [
             </div>
             <div>
               <h4 className="font-semibold text-sm text-ink-900">Pro — $99/mo</h4>
-              <p className="text-xs text-ink-600">400 unlocks + exports + advanced filters.</p>
+              <p className="text-xs text-ink-600">1,500 credits/month + advanced filters.</p>
             </div>
           </div>
 
@@ -198,7 +198,7 @@ const ONBOARDING_STEPS = [
             </div>
             <div>
               <h4 className="font-semibold text-sm text-ink-900">Elite — $199/mo</h4>
-              <p className="text-xs text-ink-600">1,000 unlocks + exports + water shutoff data.</p>
+              <p className="text-xs text-ink-600">3,000 credits/month + water shutoff data.</p>
             </div>
           </div>
         </div>

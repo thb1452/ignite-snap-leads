@@ -252,7 +252,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
                   size="default"
                 >
                   <Lock className="h-4 w-4" />
-                  Unlock for $0.97
+                  Unlock for $0.67
                 </Button>
               </div>
             )}
@@ -447,7 +447,7 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
                 onClick={() => onUnlock?.(property.id)}
               >
                 <Lock className="h-4 w-4" />
-                Unlock for $0.97
+                Unlock for $0.67
               </Button>
             )}
           </div>

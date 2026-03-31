@@ -739,11 +739,11 @@ export default function Landing() {
 
               {/* CTA overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-landing-bg/80 via-transparent to-transparent flex items-end justify-center pb-8">
-                <Link to="/auth?mode=signin">
+                <Link to="/auth?mode=signup">
                   <Button
                     className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold shadow-xl"
                   >
-                    <MapPin className="w-4 h-4 mr-2" /> Get Early Access
+                    <MapPin className="w-4 h-4 mr-2" /> Get Started Free
                   </Button>
                 </Link>
               </div>

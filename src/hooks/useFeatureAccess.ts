@@ -54,6 +54,9 @@ export function useFeatureAccess() {
     [subscription, isOnTrial, trialTier]
   );
 
+  const isElitePlan =
+    subscription?.plan_name === "enterprise" || subscription?.plan_name === "enterprise_admin";
+
   return {
     /** Check whether the current plan includes a specific feature */
     hasFeature,
@@ -61,5 +64,7 @@ export function useFeatureAccess() {
     planName: subscription?.plan_name ?? trialTier ?? null,
     /** True while subscription data is still loading */
     loading: subLoading || trialLoading,
+    /** True if user is on the Elite (enterprise) plan — bypasses all gates */
+    isElitePlan,
   };
 }

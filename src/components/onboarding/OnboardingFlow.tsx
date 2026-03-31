@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, ChevronLeft, Target, BarChart3, Lightbulb, Zap, CheckCircle2 } from "lucide-react";
+import { ChevronRight, ChevronLeft, Target, BarChart3, Lock, Zap, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { PAYG_PRICE_DISPLAY } from "@/lib/pricing";
 
 interface OnboardingFlowProps {
   open: boolean;
@@ -14,182 +15,198 @@ interface OnboardingFlowProps {
 
 const ONBOARDING_STEPS = [
   {
-    title: "Welcome to Snap",
+    title: "Welcome to Snap Ignite",
     icon: Target,
     content: (
       <div className="space-y-4">
         <p className="text-lg text-ink-700 font-medium">
-          You've just unlocked municipal enforcement pressure intelligence.
+          AI‑powered investor intelligence, not another lead list.
         </p>
         <div className="p-4 bg-brand/5 border border-brand/20 rounded-lg">
           <p className="text-sm text-ink-700">
-            <strong className="text-brand">Snap is NOT a lead list.</strong> It's an enforcement tracking platform
-            that monitors where cities are applying code enforcement actions.
+            Snap monitors active code violations, water shutoffs, and city enforcement across{" "}
+            <strong className="text-brand">3,800+ cities</strong>. Every property gets a{" "}
+            <strong className="text-brand">2-sentence Investor Brief</strong> that tells you exactly
+            what's happening and what to do next.
           </p>
         </div>
-        <div className="space-y-2">
-          <h4 className="font-semibold text-ink-900">What makes Snap different:</h4>
-          <ul className="space-y-2 text-sm text-ink-600">
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-              <span>Tracks enforcement pressure <strong>before</strong> market movement</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-              <span>AI-powered SnapScore identifies properties under <strong>highest pressure</strong></span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-              <span>3,800+ cities across all 50 states</span>
-            </li>
-          </ul>
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Lock className="h-4 w-4 text-ink-400" />
+            <span className="text-xs font-semibold text-ink-500 uppercase tracking-wide">
+              Example Property Card
+            </span>
+          </div>
+          <p className="text-sm text-ink-300 italic select-none">
+            ███ Oak Street, Austin TX
+          </p>
+          <p className="text-xs text-ink-600 mt-2">
+            "Active water shutoff notice filed. City enforcement escalated to structural review — immediate action window open."
+          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <Badge className="bg-score-red text-score-red-foreground text-xs">SnapScore 94</Badge>
+            <Lock className="h-3 w-3 text-ink-400" />
+            <span className="text-xs text-ink-400">Address locked</span>
+          </div>
         </div>
       </div>
     ),
   },
   {
-    title: "Understanding SnapScore",
+    title: "Browse free. Unlock when you're ready.",
+    icon: Lock,
+    content: (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <h4 className="font-semibold text-sm text-ink-900 mb-2">Free</h4>
+            <ul className="space-y-1.5 text-xs text-ink-600">
+              <li className="flex items-start gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                Full AI Investor Brief
+              </li>
+              <li className="flex items-start gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                SnapScore (0–100)
+              </li>
+              <li className="flex items-start gap-1.5">
+                <Lock className="h-3.5 w-3.5 text-ink-400 mt-0.5 flex-shrink-0" />
+                <span className="text-ink-400">Street name + city/state only</span>
+              </li>
+            </ul>
+          </div>
+          <div className="p-3 bg-brand/5 border border-brand/30 rounded-lg">
+            <h4 className="font-semibold text-sm text-brand mb-2">Unlocked ({PAYG_PRICE_DISPLAY})</h4>
+            <ul className="space-y-1.5 text-xs text-ink-600">
+              <li className="flex items-start gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                Full property address
+              </li>
+              <li className="flex items-start gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                Owner contact info
+              </li>
+              <li className="flex items-start gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                Export to CSV
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>No monthly fee required.</strong> Pay {PAYG_PRICE_DISPLAY} per credit, or subscribe for monthly credits and advanced features.
+          </p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    title: "Understand the signal",
     icon: BarChart3,
     content: (
       <div className="space-y-4">
         <p className="text-ink-700">
-          Every property gets a <strong>SnapScore</strong> from 0-100—a measure of enforcement intensity:
+          Every property includes a 2-sentence plain-English{" "}
+          <strong>Investor Brief</strong> and a <strong>SnapScore</strong> from 0–100.
         </p>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <Badge className="bg-score-red text-score-red-foreground mt-0.5">75-100</Badge>
-            <div className="flex-1">
-              <h4 className="font-semibold text-sm text-ink-900">Critical Intensity</h4>
-              <p className="text-xs text-ink-600">
-                High-priority citations, extended duration, escalated enforcement.
-              </p>
+            <Badge className="bg-score-red text-score-red-foreground mt-0.5 flex-shrink-0">
+              70–100
+            </Badge>
+            <div>
+              <h4 className="font-semibold text-sm text-ink-900">CALL NOW</h4>
+              <p className="text-xs text-ink-600">Highest urgency — act immediately.</p>
             </div>
           </div>
 
           <div className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <Badge className="bg-score-yellow text-score-yellow-foreground mt-0.5">25-74</Badge>
-            <div className="flex-1">
-              <h4 className="font-semibold text-sm text-ink-900">Moderate/High Intensity</h4>
-              <p className="text-xs text-ink-600">
-                Active enforcement cases with municipal attention.
-              </p>
+            <Badge className="bg-score-yellow text-score-yellow-foreground mt-0.5 flex-shrink-0">
+              40–69
+            </Badge>
+            <div>
+              <h4 className="font-semibold text-sm text-ink-900">STRONG OPPORTUNITY</h4>
+              <p className="text-xs text-ink-600">Active signal — worth your attention.</p>
             </div>
           </div>
 
           <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <Badge className="bg-score-blue text-score-blue-foreground mt-0.5">0-24</Badge>
-            <div className="flex-1">
-              <h4 className="font-semibold text-sm text-ink-900">Low Intensity</h4>
-              <p className="text-xs text-ink-600">
-                Minor citations or recently resolved cases.
-              </p>
+            <Badge className="bg-score-blue text-score-blue-foreground mt-0.5 flex-shrink-0">
+              0–39
+            </Badge>
+            <div>
+              <h4 className="font-semibold text-sm text-ink-900">WATCH</h4>
+              <p className="text-xs text-ink-600">Emerging or lower-priority signal.</p>
             </div>
           </div>
         </div>
 
-        <p className="text-xs text-ink-500 mt-4">
-          Calculated from: enforcement duration, municipal priority, repeat activity, agency involvement.
-        </p>
-      </div>
-    ),
-  },
-  {
-    title: "SnapInsight",
-    icon: Lightbulb,
-    content: (
-      <div className="space-y-4">
-        <p className="text-ink-700">
-          Every property includes a <strong>SnapInsight</strong>—an AI-generated enforcement activity summary.
-        </p>
-
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-start gap-2 mb-2">
-            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
-            <h4 className="font-semibold text-sm text-green-900">Example SnapInsight</h4>
+          <div className="flex items-center gap-2 mb-1">
+            <Badge className="bg-score-red text-score-red-foreground text-xs">SnapScore 100</Badge>
+            <span className="font-bold text-xs text-red-700">CALL NOW</span>
           </div>
-          <p className="text-sm text-green-800 italic">
-            "Active enforcement exceeds 180-day threshold. Multiple municipal agencies involved. Structural safety citation issued."
+          <p className="text-xs text-green-800 italic">
+            "Active water shutoff notice filed. City enforcement escalated — immediate action window
+            open."
           </p>
         </div>
-
-        <ul className="space-y-2 text-sm text-ink-600">
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-            <span>Summarizes enforcement activity based on municipal records</span>
-          </li>
-        </ul>
       </div>
     ),
   },
   {
-    title: "Your Workflow",
+    title: "Pay as you go, or subscribe for volume",
     icon: Zap,
     content: (
       <div className="space-y-4">
-        <p className="text-ink-700">Here's how to use Snap effectively:</p>
-
-        <div className="space-y-3">
-          <div className="flex items-start gap-3">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand/10 text-brand font-bold flex items-center justify-center text-sm">
-              1
+              $
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-ink-900">Browse Properties</h4>
-              <p className="text-xs text-ink-600">
-                View properties under enforcement pressure across 3,800+ cities.
-              </p>
+              <h4 className="font-semibold text-sm text-ink-900">Pay‑as‑you‑go</h4>
+              <p className="text-xs text-ink-600">{PAYG_PRICE_DISPLAY} per credit. No commitment.</p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
+          <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand/10 text-brand font-bold flex items-center justify-center text-sm">
-              2
+              S
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-ink-900">Read SnapInsights</h4>
-              <p className="text-xs text-ink-600">
-                Click any property to see AI-generated enforcement analysis.
-              </p>
+              <h4 className="font-semibold text-sm text-ink-900">Starter — $49/mo</h4>
+              <p className="text-xs text-ink-600">750 credits/month.</p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand/10 text-brand font-bold flex items-center justify-center text-sm">
-              3
+          <div className="flex items-center gap-3 p-3 bg-brand/5 border border-brand/30 rounded-lg">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand/20 text-brand font-bold flex items-center justify-center text-sm">
+              P
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-ink-900">Filter & Sort</h4>
-              <p className="text-xs text-ink-600">
-                <span className="text-ink-400">(Professional+ only)</span> Use SnapScore and advanced filters to identify highest-pressure properties.
-              </p>
+              <h4 className="font-semibold text-sm text-ink-900">Pro — $99/mo</h4>
+              <p className="text-xs text-ink-600">1,500 credits/month + advanced filters.</p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
+          <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand/10 text-brand font-bold flex items-center justify-center text-sm">
-              4
+              E
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-ink-900">Export Data</h4>
-              <p className="text-xs text-ink-600">
-                Build lists and export property data for your analysis.
-              </p>
+              <h4 className="font-semibold text-sm text-ink-900">Elite — $199/mo</h4>
+              <p className="text-xs text-ink-600">3,000 credits/month + water shutoff data.</p>
             </div>
           </div>
         </div>
 
-        <div className="p-4 bg-gradient-to-r from-brand/10 to-brand/5 border border-brand/20 rounded-lg mt-4">
-          <p className="text-sm font-semibold text-brand mb-1">💡 Pro Tip:</p>
-          <p className="text-sm text-ink-700">
-            Properties with SnapScore 70+ AND 180+ days open indicate highest enforcement pressure.
-          </p>
-        </div>
-
-        {/* Disclaimer */}
-        <div className="mt-6 pt-4 border-t border-slate-200">
+        <div className="pt-4 border-t border-slate-200">
           <p className="text-xs text-ink-500">
-            SnapInsights and SnapScore are probabilistic interpretations of public enforcement signals.
+            Investor Briefs and SnapScore are AI-generated interpretations of public enforcement
+            records.
           </p>
         </div>
       </div>
@@ -221,7 +238,7 @@ export function OnboardingFlow({ open, onOpenChange, onComplete }: OnboardingFlo
     // Store onboarding completion in localStorage
     localStorage.setItem('snap_onboarding_completed', 'true');
     // Navigate to properties dashboard
-    navigate('/properties');
+    navigate('/leads');
   };
 
   const handleSkip = () => {

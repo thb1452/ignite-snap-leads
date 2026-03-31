@@ -156,26 +156,17 @@ export function BulkActionBar({
                   </div>
                 )}
 
-                {/* Select Max */}
+                {/* Select Max — hidden when 0 available */}
                 {showSelectMax && onSelectMax && (() => {
-                  // Compute the max selectable: min of remaining exports and filtered results
-                  // exportRemaining === null means unlimited, so use totalFilteredCount
                   const maxAmount = exportRemaining === null || exportRemaining === undefined
                     ? (totalFilteredCount ?? 0)
                     : Math.min(exportRemaining, totalFilteredCount ?? 0);
-                  const isDisabled = maxAmount === 0;
+                  if (maxAmount === 0) return null;
 
                   return (
                     <button
-                      className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                        isDisabled
-                          ? "text-muted-foreground cursor-not-allowed"
-                          : "hover:bg-muted"
-                      }`}
-                      disabled={isDisabled}
-                      title={isDisabled ? "You've reached your monthly export limit. Upgrade to export more." : undefined}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
                       onClick={() => {
-                        if (isDisabled) return;
                         onSelectMax(maxAmount);
                         setDropdownOpen(false);
                       }}
@@ -204,7 +195,9 @@ export function BulkActionBar({
             <div className="flex items-center gap-1.5 text-xs text-amber-600 mr-2">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
               <span>
-                You have {exportRemaining!.toLocaleString()} exports remaining this month. Reduce your selection or upgrade your plan.
+                {exportRemaining! > 0
+                  ? `${exportRemaining!.toLocaleString()} exports available — click Export to see partial export options.`
+                  : "No exports remaining — click Export to see pay-as-you-go options."}
               </span>
             </div>
           )}
@@ -213,7 +206,7 @@ export function BulkActionBar({
             <>
               <Button
                 onClick={onExport}
-                disabled={isExporting || !hasSelection || isOverExportLimit}
+                disabled={isExporting || !hasSelection}
                 variant="default"
                 className="gap-2"
               >

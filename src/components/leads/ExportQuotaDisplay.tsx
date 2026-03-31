@@ -89,7 +89,7 @@ export function ExportQuotaDisplay() {
       <div className="flex flex-col gap-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">
-            Property Exports
+            Credits Used
           </span>
           {isUnlimited ? (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 gap-0.5">
@@ -114,7 +114,7 @@ export function ExportQuotaDisplay() {
               className={`h-1.5 w-20 ${isExhausted ? '[&>div]:bg-destructive' : isLow ? '[&>div]:bg-orange-500' : ''}`}
             />
             <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-              {usage.exports_count.toLocaleString()}/{plan.max_monthly_exports.toLocaleString()} properties
+              {usage.exports_count.toLocaleString()}/{plan.max_monthly_exports.toLocaleString()} credits
             </span>
           </div>
         )}

@@ -8,10 +8,10 @@ export function setPendingStripeUnlockCheckout(sessionId: string, propertyId: st
   try {
     sessionStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ sessionId, propertyId, at: Date.now() } satisfies Pending)
+      JSON.stringify({ sessionId, propertyId, at: Date.now() } satisfies Pending),
     );
   } catch {
-    /* Safari private mode, etc. */
+    /* ignore */
   }
 }
 
@@ -36,6 +36,7 @@ export function clearPendingStripeUnlockCheckout(): void {
   try {
     sessionStorage.removeItem(STORAGE_KEY);
   } catch {
-    /* */
+    /* ignore */
   }
 }
+

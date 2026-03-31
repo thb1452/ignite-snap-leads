@@ -39,7 +39,7 @@ const PRICING_TIERS: PricingTier[] = [
     price: 0,
     description: "Browse everything. Pay nothing.",
     features: [
-      "3 unlocks + 3 exports on signup",
+      "3 free unlocks on signup",
       "Browse all properties",
       "AI investor briefs",
       "SnapScore ranking",
@@ -55,50 +55,50 @@ const PRICING_TIERS: PricingTier[] = [
     id: "payg",
     name: "payg",
     display_name: "Pay As You Go",
-    price: 0.97,
-    perAddress: "$0.97/address",
+    price: 0.67,
+    perAddress: "$0.67/credit",
     description: "No monthly fee. No commitment.",
     features: [
-      "$0.97 per address",
-      "1 unlock = 1 export, always",
+      "$0.67 per credit",
+      "1 credit = 1 unlock + export",
       "Credits never expire",
       "No subscription required",
       "Perfect for thin markets",
     ],
     icon: Zap,
-    cta: "Buy Addresses",
+    cta: "Buy Credits",
     isPayg: true,
     borderClass: "border-amber-500 dark:border-amber-400",
-    footnote: "Credits never expire. Buy exactly what you need.",
+    footnote: undefined,
   },
   {
     id: "starter",
     name: "starter",
     display_name: "Starter",
     price: 49,
-    perAddress: "$0.33/address",
+    perAddress: "$0.07/address",
     description: "For investors getting started with enforcement data.",
     features: [
-      "150 addresses/month",
-      "150 exports/month",
+      "750 credits/month",
+      "1 credit = 1 unlock + export",
       "All Free features",
       "Code violation data",
       "Basic filters",
     ],
     icon: Zap,
     cta: "Get Starter",
-    footnote: "1 unlock = 1 export. Always.",
+    footnote: undefined,
   },
   {
     id: "professional",
     name: "professional",
     display_name: "Pro",
     price: 99,
-    perAddress: "$0.25/address",
+    perAddress: "$0.07/address",
     description: "For serious operators stacking enforcement data.",
     features: [
-      "400 addresses/month",
-      "400 exports/month",
+      "1,500 credits/month",
+      "1 credit = 1 unlock + export",
       "All Starter features",
       "Pressure Level™ filters",
       "Priority support",
@@ -106,28 +106,29 @@ const PRICING_TIERS: PricingTier[] = [
     icon: TrendingUp,
     popular: true,
     badge: "Most Popular",
-    savingsBadge: "Save $289 vs Pay As You Go",
+    savingsBadge: "Save $553 vs Pay As You Go",
     cta: "Get Pro",
-    footnote: "1 unlock = 1 export. Always.",
+    footnote: undefined,
   },
   {
     id: "enterprise",
     name: "enterprise",
     display_name: "Elite",
     price: 199,
-    perAddress: "$0.20/address",
+    perAddress: "$0.07/address",
     description: "For teams running enforcement-first strategies.",
     features: [
-      "1,000 addresses/month",
-      "1,000 exports/month",
+      "3,000 credits/month",
+      "1 credit = 1 unlock + export",
       "All Pro features",
       "Water shutoff data",
+      "API Access",
       "Priority support",
     ],
     icon: Building2,
-    savingsBadge: "Save $771 vs Pay As You Go",
+    savingsBadge: "Save $1,812 vs Pay As You Go",
     cta: "Get Elite",
-    footnote: "1 unlock = 1 export. Always.",
+    footnote: undefined,
   },
   {
     id: "custom",
@@ -135,7 +136,15 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: "Enterprise",
     price: null,
     description: "For teams, funds, and high-volume operators. Custom pricing, API access, and dedicated support.",
-    features: [],
+    features: [
+      "25,000+ addresses",
+      "API access",
+      "Dedicated account manager",
+      "Custom contract",
+      "Custom rate limits",
+      "Dedicated onboarding",
+      "SLA guarantee",
+    ],
     icon: Shield,
     cta: "Contact Us",
     isEnterprise: true,
@@ -143,6 +152,62 @@ const PRICING_TIERS: PricingTier[] = [
   },
 ];
 
+const BULK_PACKS = [
+  { credits: "5,000", rawCount: 5000, price: "$750", per: "$0.15/credit" },
+  { credits: "10,000", rawCount: 10000, price: "$1,300", per: "$0.13/credit" },
+  { credits: "20,000", rawCount: 20000, price: "$2,200", per: "$0.11/credit" },
+];
+
+function BulkCreditCards({ user, navigate, toast }: { user: any; navigate: any; toast: any }) {
+  const [loadingPack, setLoadingPack] = useState<number | null>(null);
+
+  const handleBuy = async (rawCount: number) => {
+    if (!user) {
+      navigate("/auth?mode=signup");
+      return;
+    }
+    setLoadingPack(rawCount);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("create-checkout-session", {
+        body: { checkout_type: "bulk_credits", credit_count: rawCount },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      const url = res.data?.url || res.data?.checkout_url;
+      if (url) window.location.href = url;
+      else throw new Error(res.data?.error || "Failed to create checkout");
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setLoadingPack(null);
+    }
+  };
+
+  return (
+    <div className="grid sm:grid-cols-3 gap-6">
+      {BULK_PACKS.map((pkg) => (
+        <Card key={pkg.credits} className="text-center border-border hover:shadow-lg transition-all">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl">{pkg.credits} Credits</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold mb-1">{pkg.price}</div>
+            <div className="text-sm text-muted-foreground mb-4">{pkg.per}</div>
+            <Button
+              onClick={() => handleBuy(pkg.rawCount)}
+              disabled={loadingPack === pkg.rawCount}
+              className="w-full bg-teal-500 hover:bg-teal-600 text-white"
+              size="lg"
+            >
+              {loadingPack === pkg.rawCount ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Buy Now <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 export default function Pricing() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -209,7 +274,7 @@ export default function Pricing() {
     if (tier.isPayg) {
       // Navigate to leads where they can buy individual addresses
       if (!user) {
-        navigate('/auth?mode=signup');
+        navigate('/auth?mode=signin');
       } else {
         navigate('/leads');
       }
@@ -296,9 +361,12 @@ export default function Pricing() {
                 <span className="text-muted-foreground">/forever</span>
               </div>
             ) : tier.isPayg ? (
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold">$0.97</span>
-                <span className="text-muted-foreground">/address</span>
+              <div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold">$0.67</span>
+                  <span className="text-muted-foreground">/credit</span>
+                </div>
+                <div className="text-xs font-medium text-muted-foreground mt-1">Data Only</div>
               </div>
             ) : (
               <>
@@ -356,12 +424,19 @@ export default function Pricing() {
                 <span className="text-sm">{feature}</span>
               </li>
             ))}
+            {!tier.isFree && !tier.isEnterprise && (
+              <li className="flex items-start gap-2.5">
+                <Check className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5" />
+                <span className="text-sm text-muted-foreground/60 italic">Skip Trace — Coming Soon</span>
+              </li>
+            )}
           </ul>
 
-          {tier.footnote && (
-            <p className="text-xs text-center text-muted-foreground mt-4 pt-4 border-t border-border">
-              {tier.footnote}
-            </p>
+          {tier.isPayg && (
+            <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 text-xs font-semibold">
+              <Sparkles className="w-3 h-3" />
+              Skip Trace Coming Soon
+            </div>
           )}
         </CardContent>
       </Card>
@@ -371,8 +446,8 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <SEOHead
-        title="Pricing — Plans from $0.97/address | Snap Ignite"
-        description="Choose your Snap Ignite plan. Free forever, Pay As You Go ($0.97/address), Starter ($49/mo), Pro ($99/mo), or Elite ($199/mo). One deal pays for 10,000 addresses."
+        title="Pricing — Plans from $0.67/credit | Snap Ignite"
+        description="Choose your Snap Ignite plan. Free forever, Pay As You Go ($0.67/credit), Starter ($49/mo), Pro ($99/mo), or Elite ($199/mo). One deal pays for years of Snap Ignite."
         canonical="https://snapignite.com/pricing"
       />
 
@@ -420,16 +495,26 @@ export default function Pricing() {
             Our competitor sells raw code violation CSVs. We show you which ones to call first and why.
           </h1>
           <p className="text-xl text-muted-foreground mb-2">
-            One deal pays for 10,000 addresses.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Only pay for what's actually in your market. No wasted spend.
+            Only pay for what's in your market. One deal pays for years of Snap Ignite.
           </p>
         </div>
 
         {/* 6-tier grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
           {PRICING_TIERS.map((tier) => renderPlanCard(tier))}
+        </div>
+
+        {/* Bulk Credits Section */}
+        <div className="max-w-4xl mx-auto mb-16">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-2">
+            Need a large targeted list? Buy once, use anytime.
+          </h2>
+          <p className="text-center text-muted-foreground mb-2">No subscription required.</p>
+          <p className="text-center text-sm text-muted-foreground mb-8">Each credit unlocks one full property record including address and violation data.</p>
+          <BulkCreditCards user={user} navigate={navigate} toast={toast} />
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            Need 25,000+? <a href="mailto:hello@snapignite.com?subject=Enterprise%20Pricing%20Inquiry" className="text-primary hover:underline">Contact us</a> for Enterprise pricing.
+          </p>
         </div>
 
         {/* Water shutoff callout */}
@@ -458,7 +543,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">Do I need a subscription?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  No. Browse everything free. When you find a lead worth pursuing, unlock it for $0.97 — no subscription required.
+                  No. Browse everything free. When you find a lead worth pursuing, unlock it for $0.67 — no subscription required.
                   Subscriptions give you a better per-address rate if you're unlocking regularly.
                 </p>
               </CardContent>
@@ -467,7 +552,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">How does Pay As You Go work?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Buy addresses one at a time for $0.97 each. Each unlock includes the full address + CSV export.
+                  Buy credits one at a time for $0.67 each. Each credit unlocks one property — full address + violation data.
                   No monthly commitment, no expiration.
                 </p>
               </CardContent>
@@ -495,6 +580,9 @@ export default function Pricing() {
         </div>
 
         <div className="text-center mt-16">
+          <p className="text-sm text-muted-foreground mb-6 italic">
+            Each credit unlocks one full property record including address and violation data. Skip trace (owner phone/contact) coming soon.
+          </p>
           <p className="text-muted-foreground mb-4">
             Questions? Email us at <a href="mailto:hello@snapignite.com" className="text-blue-600 dark:text-blue-400 hover:underline">hello@snapignite.com</a>
           </p>

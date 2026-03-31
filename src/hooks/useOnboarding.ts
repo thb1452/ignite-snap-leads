@@ -49,10 +49,12 @@ export function useOnboarding() {
 
       return data || { onboarding_completed: false };
     },
-    staleTime: 60000,
+    staleTime: Infinity, // onboarding_completed never changes back to false after being set
   });
 
-  const onboardingCompleted = profileData?.onboarding_completed ?? false;
+  // Only treat as "not completed" when we have a confirmed DB result.
+  // profileData === undefined means the query hasn't resolved yet — do not show modal.
+  const onboardingCompleted = profileData === undefined ? true : (profileData?.onboarding_completed ?? false);
 
   // Mutation to mark onboarding complete
   const markCompleteMutation = useMutation({

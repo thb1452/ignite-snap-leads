@@ -105,7 +105,7 @@ export default function RealEstateDistressSignals() {
               { stat: "500K+", label: "Properties Monitored" },
               { stat: "6", label: "Distress Signal Types" },
               { stat: "12–18mo", label: "Earlier Than Foreclosure" },
-              { stat: "$0.97", label: "Per Address" },
+              { stat: "$0.67", label: "Per Credit" },
             ].map((item, i) => (
               <div key={i}>
                 <div className="text-3xl md:text-4xl font-bold text-[hsl(var(--landing-accent))]">{item.stat}</div>

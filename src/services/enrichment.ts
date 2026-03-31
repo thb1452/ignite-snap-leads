@@ -17,14 +17,30 @@ export interface EnrichmentUsage {
   no_subscription?: boolean;
 }
 
+function isMissingEnrichmentUsageRpc(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === "PGRST202") return true;
+  const msg = String(error.message ?? "");
+  return msg.includes("fn_get_enrichment_usage") && msg.includes("schema cache");
+}
+
 export async function getEnrichmentUsage(userId: string): Promise<EnrichmentUsage> {
   const { data, error } = await (supabase.rpc as any)("fn_get_enrichment_usage", {
     p_user_id: userId,
   });
 
   if (error) {
-    console.error("Error fetching enrichment usage:", error);
-    // Return null-ish values so the UI can distinguish "error" from "0 credits"
+    if (isMissingEnrichmentUsageRpc(error)) {
+      if (import.meta.env.DEV) {
+        console.warn(
+          "[enrichment] RPC public.fn_get_enrichment_usage is not on this Supabase project. " +
+            "Apply repo migration supabase/migrations/20260314190000_list_enrichment_feature.sql (and follow-up grant migration if needed). " +
+            "Scan credits badge stays hidden until then.",
+        );
+      }
+    } else {
+      console.error("Error fetching enrichment usage:", error);
+    }
     return { used: 0, limit: null, remaining: null, is_trial: false };
   }
 

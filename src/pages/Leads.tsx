@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2, Lock } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
@@ -61,6 +61,7 @@ import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
 import { UnlockModal } from "@/components/leads/UnlockModal";
 import { ViewLimitModal } from "@/components/leads/ViewLimitModal";
 import { BulkUnlockBar } from "@/components/leads/BulkUnlockBar";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import {
   clearPendingStripeUnlockCheckout,
   getPendingStripeUnlockSessionId,
@@ -93,6 +94,8 @@ function Leads() {
   const { savedSet, toggleSaved, isSaved } = useSavedProperties();
   const { freeUnlocksRemaining } = useFreeUnlocks();
   const { viewCount, viewLimit, limitReached, recordView } = useViewLimit();
+  const { isElitePlan, hasFeature } = useFeatureAccess();
+  const canUsePressureLevelFilters = hasFeature('advanced_filters') || isElitePlan;
   const [unlockModalProperty, setUnlockModalProperty] = useState<any>(null);
   const [viewLimitModalOpen, setViewLimitModalOpen] = useState(false);
   // Refs for scrolling list containers to top on page change
@@ -241,6 +244,62 @@ function Leads() {
 
     const targetUnlockPropertyId = propertyIdParam || unlockedLegacy;
 
+    // Stripe return with only session_id (older / misconfigured success_url): fulfill via handle-unlock using session metadata.
+    if (!checkout && sessionIdParam && !propertyIdParam && !unlockedLegacy && user?.id) {
+      if (isLoading) return;
+
+      let cancelled = false;
+      const clearCheckoutParams = () => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("checkout");
+        newParams.delete("session_id");
+        newParams.delete("propertyId");
+        newParams.delete("unlocked");
+        setSearchParams(newParams, { replace: true });
+      };
+
+      (async () => {
+        try {
+          const { data: unlockData, error: unlockErr } = await supabase.functions.invoke<{
+            success?: boolean;
+            property_id?: string;
+          }>("handle-unlock", {
+            body: { stripe_session_id: sessionIdParam },
+          });
+
+          const unlockedPropertyId = unlockData?.property_id;
+
+          if (!cancelled && !unlockErr && unlockData?.success && unlockedPropertyId) {
+            clearPendingStripeUnlockCheckout();
+            queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
+            setSelectedPropertyId(unlockedPropertyId);
+            toast({
+              title: "Property unlocked! 🔓",
+              description: "Full address and contacts are now available.",
+            });
+            clearCheckoutParams();
+            return;
+          }
+        } catch (e) {
+          console.error("[Leads] handle-unlock (session_id only):", e);
+        }
+
+        if (!cancelled) {
+          toast({
+            title: "Unlock pending",
+            description:
+              "Payment received. If this property stays locked, refresh in a moment or contact support.",
+            variant: "destructive",
+          });
+          clearCheckoutParams();
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
     // Paid single-unlock return: verify session server-side when possible, then confirm row in DB (webhook may lag).
     if (checkout === "success" && targetUnlockPropertyId && user?.id) {
       if (isLoading) return;
@@ -333,6 +392,7 @@ function Leads() {
         setSelectedPropertyId(unlockedLegacy);
 
         const storedSessionId = getPendingStripeUnlockSessionId(unlockedLegacy);
+
         if (storedSessionId) {
           try {
             const { data: unlockData, error: unlockErr } = await supabase.functions.invoke<{
@@ -438,14 +498,14 @@ function Leads() {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const handlePropertyClick = useCallback((id: string) => {
-    // Check view limit for free users before showing details
-    if (limitReached && !hasActiveSubscription) {
+    // Elite users bypass view limits entirely
+    if (!isElitePlan && limitReached && !hasActiveSubscription) {
       setViewLimitModalOpen(true);
       return;
     }
-    recordView();
+    if (!isElitePlan) recordView();
     setSelectedPropertyId(id);
-  }, [limitReached, hasActiveSubscription, recordView]);
+  }, [isElitePlan, limitReached, hasActiveSubscription, recordView]);
 
   const handleClearFilters = useCallback(() => {
     setSearchInput("");
@@ -946,7 +1006,8 @@ function Leads() {
 
   // Determine if user should be gated (expired trial or cancelled subscription, no active paid plan)
   const isCancelled = subscriptionStatus === "cancelled" || subscriptionStatus === "expired";
-  const isFullyGated = (hasTrialExpired || isCancelled) && !hasActiveSubscription;
+  // Elite users are never gated
+  const isFullyGated = !isElitePlan && (hasTrialExpired || isCancelled) && !hasActiveSubscription;
 
   return (
     <AppLayout>
@@ -1013,24 +1074,35 @@ function Leads() {
             selectedCity={selectedCity}
           />
 
-          {/* Pressure Level */}
-          <PressureLevelFilter
-            openViolationsOnly={openViolationsOnly}
-            onOpenViolationsChange={(v) => {
-              setOpenViolationsOnly(v);
-              setPage(1);
-            }}
-            multipleViolationsOnly={multipleViolationsOnly}
-            onMultipleViolationsChange={(v) => {
-              setMultipleViolationsOnly(v);
-              setPage(1);
-            }}
-            repeatOffenderOnly={repeatOffenderOnly}
-            onRepeatOffenderChange={(v) => {
-              setRepeatOffenderOnly(v);
-              setPage(1);
-            }}
-          />
+          {/* Pressure Level — Pro/Elite only */}
+          {canUsePressureLevelFilters ? (
+            <PressureLevelFilter
+              openViolationsOnly={openViolationsOnly}
+              onOpenViolationsChange={(v) => {
+                setOpenViolationsOnly(v);
+                setPage(1);
+              }}
+              multipleViolationsOnly={multipleViolationsOnly}
+              onMultipleViolationsChange={(v) => {
+                setMultipleViolationsOnly(v);
+                setPage(1);
+              }}
+              repeatOffenderOnly={repeatOffenderOnly}
+              onRepeatOffenderChange={(v) => {
+                setRepeatOffenderOnly(v);
+                setPage(1);
+              }}
+            />
+          ) : (
+            <a
+              href="/pricing"
+              className="flex items-center gap-1.5 px-2 py-1 rounded border border-dashed border-muted-foreground/40 text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+              title="Pressure Level™ filters — Pro/Elite only"
+            >
+              <Lock className="h-3 w-3" />
+              Pressure Level™
+            </a>
+          )}
 
           {/* Spacer + Actions */}
           <div className="flex-1" />

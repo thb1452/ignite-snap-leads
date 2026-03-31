@@ -212,6 +212,8 @@ export function useSubscription() {
     plan,
     usage,
     loading: subscriptionLoading || usageLoading,
+    subscriptionLoading,
+    usageLoading,
     error: subscriptionError?.message || null,
     hasActiveSubscription: !!subscription && ['active', 'trialing', 'past_due', 'trial'].includes(subscription.status),
     

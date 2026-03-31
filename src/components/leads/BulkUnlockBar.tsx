@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCreditBalance } from "@/hooks/useCredits";
 import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
 import { useQueryClient } from "@tanstack/react-query";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 interface BulkUnlockBarProps {
   selectedIds: string[];
@@ -21,11 +22,13 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked }: BulkUnlo
   const { data: creditBalance = 0 } = useCreditBalance();
   const { freeUnlocksRemaining } = useFreeUnlocks();
   const queryClient = useQueryClient();
+  const { isElitePlan } = useFeatureAccess();
 
   const lockedIds = selectedIds.filter((id) => !unlockedSet.has(id));
   const unlockedCount = selectedIds.length - lockedIds.length;
 
-  if (selectedIds.length === 0 || lockedIds.length === 0) return null;
+  // Elite users never see this bar — all properties are auto-unlocked
+  if (isElitePlan || selectedIds.length === 0 || lockedIds.length === 0) return null;
 
   const canUnlockWithBalance = freeUnlocksRemaining + creditBalance >= lockedIds.length;
 
@@ -34,28 +37,37 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked }: BulkUnlo
     setIsUnlocking(true);
 
     try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
       let successCount = 0;
       let failCount = 0;
 
       for (const propertyId of lockedIds) {
         try {
-          const { data, error, response } = await supabase.functions.invoke<{
-            success?: boolean;
-          }>("handle-unlock", {
-            body: { property_id: propertyId },
-          });
+          const res = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/handle-unlock`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ property_id: propertyId }),
+            }
+          );
 
-          if (error && response?.status === 402) {
+          const data = await res.json();
+          if (res.ok && data.success) {
+            successCount++;
+          } else if (res.status === 402) {
             toast({
               variant: "destructive",
               title: "Insufficient balance",
               description: `Unlocked ${successCount} of ${lockedIds.length}. Purchase more credits to continue.`,
             });
             break;
-          }
-
-          if (!error && data?.success) {
-            successCount++;
           } else {
             failCount++;
           }

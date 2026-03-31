@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Lock, Unlock, Sparkles, Heart, Users, Phone } from "lucide-react";
 import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
+import { formatOwnerName } from "@/utils/formatOwnerName";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
-import { formatContactName } from "@/utils/formatContactName";
 
 interface Violation {
   id: string;
@@ -116,8 +117,8 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
         <p className="property-address text-lg font-bold mb-1 text-slate-100">
           {isUnlocked ? formatAddress(property.address) : (
             <span className="inline-flex items-center gap-2">
-              <span className="blur-[4px] select-none pointer-events-none">####</span>
-              <span>{property.address?.replace(/^\d+\s*/, "")}</span>
+              <span className="blur-[4px] select-none pointer-events-none">1423</span>
+              <span>{formatBlurredStreet(property, false)}</span>
             </span>
           )}
         </p>
@@ -159,7 +160,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
               <>
                 <div className="flex items-center gap-2 text-sm">
                   <Users className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-slate-100">{formatContactName(ownerContact.name)} (Owner)</span>
+                  <span className="text-slate-100">{formatOwnerName(ownerContact.name)} (Owner)</span>
                 </div>
                 {ownerContact.phone && (
                   <div className="flex items-center gap-2 text-sm">
@@ -203,7 +204,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
             onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
           >
             <Lock className="w-4 h-4 mr-2" />
-            Unlock for $0.97
+            Unlock for $0.67
           </Button>
         )}
       </div>

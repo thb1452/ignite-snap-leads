@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Sparkles, TrendingUp, Download, AlertTriangle, Pencil } from "lucide-react";
+import { CheckCircle2, Sparkles, TrendingUp, Download, AlertTriangle, Pencil, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { LimitType, PlanTierName } from "@/types/subscription";
 
@@ -25,8 +25,8 @@ interface UpgradePromptProps {
 // Messages for usage limits (counters)
 const LIMIT_MESSAGES: Record<LimitType, { title: string; description: string; icon: typeof TrendingUp; color: string }> = {
   exports: {
-    title: "Property Export Limit Reached",
-    description: "You've exported all the properties available in your plan this month. Each property exported counts against your monthly limit.",
+    title: "Credit Limit Reached",
+    description: "You've used all your credits for this month. Each credit used counts against your monthly credit limit.",
     icon: TrendingUp,
     color: "text-blue-500",
   },
@@ -69,8 +69,7 @@ const PLAN_FEATURES = {
     price: "$49/mo",
     badge: "",
     features: [
-      "150 addresses/month",
-      "150 exports/month",
+      "750 credits/month",
       "Code violation data",
       "Basic filters",
     ],
@@ -79,8 +78,7 @@ const PLAN_FEATURES = {
     name: "Pro",
     price: "$99/mo",
     features: [
-      "400 addresses/month",
-      "400 exports/month",
+      "1,500 credits/month",
       "Pressure Level™ filters",
       "Priority support",
     ],
@@ -90,8 +88,7 @@ const PLAN_FEATURES = {
     name: "Elite",
     price: "$199/mo",
     features: [
-      "1,000 addresses/month",
-      "1,000 exports/month",
+      "3,000 credits/month",
       "Water shutoff data",
       "All Pro features",
     ],
@@ -146,9 +143,13 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                   <AlertTriangle className="h-6 w-6 text-red-600" />
                 </div>
                 <div>
-                  <DialogTitle className="text-xl">List Exceeds Monthly Limit</DialogTitle>
+                  <DialogTitle className="text-xl">
+                    {maxCount === 0 ? "No Export Plan" : "List Exceeds Monthly Limit"}
+                  </DialogTitle>
                   <DialogDescription className="text-sm mt-1">
-                    This list is too large for a single export on your plan.
+                    {maxCount === 0
+                      ? "Subscribe to export properties as CSV, or unlock addresses individually at $0.67 each."
+                      : "This list is too large for a single export on your plan."}
                   </DialogDescription>
                 </div>
               </div>
@@ -165,7 +166,9 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                   <span className="font-bold text-red-900">{maxCount.toLocaleString()} properties</span>
                 </div>
                 <div className="border-t border-red-200 pt-2 text-sm text-red-700">
-                  This list requires {Math.ceil(requestedCount / maxCount)} months to fully export on your current plan.
+                  {maxCount > 0
+                    ? `This list requires ${Math.ceil(requestedCount / maxCount)} months to fully export on your current plan.`
+                    : "You have no exports remaining on your current plan."}
                 </div>
               </div>
 
@@ -213,6 +216,15 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                   </Button>
                 )}
 
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={() => { onOpenChange(false); navigate('/pricing'); }}
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Pay-as-you-go — ${(requestedCount * 0.67).toFixed(2)} ($0.67 each)
+                </Button>
+
                 {listId && (
                   <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>
                     <Pencil className="h-4 w-4" />
@@ -236,23 +248,24 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
       );
     }
 
-    // Case 2: Quota exhausted (no remaining exports)
+    // Case 2: Quota exhausted (exports remaining === 0 only) — minimal upsell
     if (remainingCount === 0) {
+      const handleUpgradeNow = () => {
+        onOpenChange(false);
+        navigate("/pricing");
+      };
+
       return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                  <AlertTriangle className="h-6 w-6 text-red-600" />
-                </div>
-                <div>
-                  <DialogTitle className="text-xl">Export Limit Reached</DialogTitle>
-                  <DialogDescription className="text-sm mt-1">
-                    You've used all your exports for this billing period.
-                  </DialogDescription>
-                </div>
+          <DialogContent className="max-w-md sm:max-w-md p-6 gap-0">
+            <DialogHeader className="text-center sm:text-center space-y-3 pb-6">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <TrendingUp className="h-7 w-7 text-primary" aria-hidden />
               </div>
+              <DialogTitle className="text-xl font-semibold tracking-tight">Credit Limit Reached</DialogTitle>
+              <DialogDescription className="text-base text-muted-foreground leading-relaxed px-1">
+                You&apos;ve used all your credits this month. Upgrade to get 750–3,000 credits/month starting at $49.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-5 mt-2">
@@ -294,11 +307,20 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
 
               <div className="space-y-2 pt-2">
                 {!isMaxPlan && (
-                  <Button className="w-full gap-2" onClick={handleUpgrade}>
+                  <Button className="w-full gap-2" onClick={handleUpgradeNow}>
                     <Sparkles className="h-4 w-4" />
                     Upgrade for higher limits
                   </Button>
                 )}
+
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={() => { onOpenChange(false); navigate('/pricing'); }}
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Pay-as-you-go — ${(requestedCount * 0.67).toFixed(2)} ($0.67 each)
+                </Button>
 
                 {listId && (
                   <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>
@@ -403,6 +425,15 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                     Export {remainingCount.toLocaleString()} now
                   </Button>
                 )}
+
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={() => { onOpenChange(false); navigate('/pricing'); }}
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Pay-as-you-go — ${(requestedCount * 0.67).toFixed(2)} ($0.67 each)
+                </Button>
 
                 {listId && (
                   <Button className="w-full gap-2" variant="outline" onClick={handleEditList}>

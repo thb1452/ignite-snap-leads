@@ -1,7 +1,7 @@
 import { User, Phone, Mail, MapPin, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
-import { formatContactName } from "@/utils/formatContactName";
+import { formatOwnerName } from "@/utils/formatOwnerName";
 
 interface OwnerContactSectionProps {
   propertyId: string;
@@ -46,7 +46,8 @@ export function OwnerContactSection({ propertyId, isUnlocked }: OwnerContactSect
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="text-sm font-medium text-foreground">
-                {formatContactName(contact.name)} <span className="text-muted-foreground font-normal">(Owner)</span>
+                {formatOwnerName(contact.name)}{" "}
+                <span className="text-muted-foreground font-normal">(Owner)</span>
               </span>
             </div>
           )}

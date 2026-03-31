@@ -2,10 +2,10 @@ import { memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+import { formatOwnerName } from "@/utils/formatOwnerName";
 import { Lock, Unlock, Sparkles, Heart, Users, Phone } from "lucide-react";
 import { ScarcityBadge } from "./ScarcityBadge";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
-import { formatContactName } from "@/utils/formatContactName";
 
 interface Violation {
   id: string;
@@ -159,7 +159,7 @@ export const PropertyCard = memo(function PropertyCard({
               <>
                 <div className="flex items-center gap-2 text-sm">
                   <Users className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-slate-100">{formatContactName(ownerContact.name)} (Owner)</span>
+                  <span className="text-slate-100">{formatOwnerName(ownerContact.name)} (Owner)</span>
                 </div>
                 {ownerContact.phone && (
                   <div className="flex items-center gap-2 text-sm">
@@ -204,7 +204,7 @@ export const PropertyCard = memo(function PropertyCard({
               onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
             >
               <Lock className="w-4 h-4 mr-2" />
-              Unlock for $0.97
+              Unlock for $0.67
             </Button>
             <div className="mt-2">
               <ScarcityBadge propertyId={property.id} />

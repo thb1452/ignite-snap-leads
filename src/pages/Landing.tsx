@@ -766,12 +766,12 @@ export default function Landing() {
             </motion.h2>
 
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
-              <Link to="/auth?mode=signin">
+              <Link to="/auth?mode=signup">
                 <Button
                   size="lg"
                   className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-10 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
                 >
-                  Get Early Access <ArrowRight className="w-5 h-5 ml-2" />
+                  Get Started Free <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
             </motion.div>

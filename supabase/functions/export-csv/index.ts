@@ -2,26 +2,26 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 // BACKWARD-COMPATIBLE EXPORT - Original column order preserved
 // One row per property with violation data aggregated into original column positions
 const EXPORT_COLUMNS = [
-  'address',
-  'city',
-  'state',
-  'zip',
-  'violation_type',      // Now contains aggregated types (semicolon-separated)
-  'opened_date',         // Now contains earliest violation date
-  'status',              // Now contains summary: "X open / Y total"
-  'snap_summary',
-  'snap_score'
+  "address",
+  "city",
+  "state",
+  "zip",
+  "violation_type", // Now contains aggregated types (semicolon-separated)
+  "opened_date", // Now contains earliest violation date
+  "status", // Now contains summary: "X open / Y total"
+  "snap_summary",
+  "snap_score",
 ];
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -34,7 +34,7 @@ serve(async (req) => {
     let jurisdictionId: string | null = null;
     let propertyIds: string[] | null = null;
 
-    if (req.method === 'POST') {
+    if (req.method === "POST") {
       const body = await req.json();
       city = body.city || null;
       minScore = body.minScore?.toString() || null;
@@ -44,12 +44,12 @@ serve(async (req) => {
       console.log(`[export-csv] POST request with ${propertyIds?.length || 0} propertyIds`);
     } else {
       const url = new URL(req.url);
-      city = url.searchParams.get('city');
-      minScore = url.searchParams.get('minScore');
-      maxScore = url.searchParams.get('maxScore');
-      jurisdictionId = url.searchParams.get('jurisdictionId');
-      const propertyIdsParam = url.searchParams.get('propertyIds');
-      propertyIds = propertyIdsParam ? propertyIdsParam.split(',').filter(id => id.trim()) : null;
+      city = url.searchParams.get("city");
+      minScore = url.searchParams.get("minScore");
+      maxScore = url.searchParams.get("maxScore");
+      jurisdictionId = url.searchParams.get("jurisdictionId");
+      const propertyIdsParam = url.searchParams.get("propertyIds");
+      propertyIds = propertyIdsParam ? propertyIdsParam.split(",").filter((id) => id.trim()) : null;
     }
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -62,10 +62,10 @@ serve(async (req) => {
     // ---- Auth ----
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
     const token = authHeader.replace("Bearer ", "");
 
@@ -73,28 +73,30 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: {
         headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
+          Authorization: `Bearer ${token}`,
+        },
+      },
     });
 
     const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
     if (claimsErr || !claimsData?.claims?.sub) {
-      console.error('[export-csv] Auth failed:', claimsErr?.message);
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("[export-csv] Auth failed:", claimsErr?.message);
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
     const user = { id: claimsData.claims.sub as string, email: claimsData.claims.email as string };
 
     // ---- Get user's subscription (including trial statuses) ----
     const { data: subData } = await supabase
-      .from('user_subscriptions')
-      .select('status, trial_exports_used, trial_exports_limit, trial_ends_at, plan:subscription_plans(data_tier, max_monthly_exports)')
-      .eq('user_id', user.id)
-      .in('status', ['active', 'trialing', 'past_due', 'trial'])
-      .order('created_at', { ascending: false })
+      .from("user_subscriptions")
+      .select(
+        "status, trial_exports_used, trial_exports_limit, trial_ends_at, plan:subscription_plans(data_tier, max_monthly_exports)",
+      )
+      .eq("user_id", user.id)
+      .in("status", ["active", "trialing", "past_due", "trial"])
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -102,45 +104,83 @@ serve(async (req) => {
     // Exception: PAYG users have no subscription row but may have credit_ledger balance.
     let isPaygUser = false;
     if (!subData) {
-      // Check whether the user has any credit_ledger balance (PAYG credits purchased)
-      const { data: ledger } = await supabase
-        .from('credit_ledger')
-        .select('amount')
-        .eq('user_id', user.id);
+      // No subscription row. Allow export if:
+      // - The requested propertyIds are already unlocked for this user, OR
+      // - The user has a positive credit balance (PAYG credits purchased).
 
-      const balance = (ledger || []).reduce((sum: number, row: any) => sum + (row.amount || 0), 0);
+      // If exporting explicit propertyIds, check unlock entitlement first.
+      if (propertyIds && propertyIds.length > 0) {
+        const { data: unlockedRows, error: unlockedErr } = await supabase.rpc("fn_check_unlocked_batch", {
+          p_user_id: user.id,
+          p_property_ids: propertyIds,
+        });
 
-      if (balance <= 0) {
-        return new Response(
-          JSON.stringify({ error: 'No active subscription', code: 'NO_SUBSCRIPTION' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        if (unlockedErr) {
+          console.error("[export-csv] Unlock entitlement check failed:", unlockedErr.message);
+        } else {
+          const unlockedSet = new Set(
+            (unlockedRows as { property_id: string }[] | null)?.map((r) => r.property_id) || [],
+          );
+          const allUnlocked = propertyIds.every((id) => unlockedSet.has(id));
+
+          if (allUnlocked) {
+            isPaygUser = true;
+            console.log("[export-csv] No subscription, but properties are unlocked — allowing export");
+          }
+        }
       }
 
-      // PAYG user with credits — allow export of their already-unlocked data
-      isPaygUser = true;
-      console.log('[export-csv] PAYG user with credit balance', balance, '— allowing export');
+      // If not entitled via unlocks, fall back to PAYG credit balance.
+      if (!isPaygUser) {
+        const { data: creditsRow, error: creditsErr } = await supabase
+          .from("v_user_credits")
+          .select("balance")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (creditsErr) {
+          console.error("[export-csv] Credit balance lookup failed:", creditsErr.message);
+        }
+
+        const balance = (creditsRow as any)?.balance ?? 0;
+
+        if (balance <= 0) {
+          return new Response(JSON.stringify({ error: "No active subscription", code: "NO_SUBSCRIPTION" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // PAYG user with credits — allow export of their already-unlocked data
+        isPaygUser = true;
+        console.log("[export-csv] PAYG user with credit balance", balance, "— allowing export");
+      }
     }
 
-    const isTrialUser = !isPaygUser && (subData!.status === 'trial' || subData!.status === 'trialing');
+    const isTrialUser = !isPaygUser && (subData!.status === "trial" || subData!.status === "trialing");
 
     // Check if trial has expired
     if (isTrialUser && subData.trial_ends_at && new Date(subData.trial_ends_at) < new Date()) {
       return new Response(
-        JSON.stringify({ error: 'Trial has expired. Please upgrade to continue exporting.', code: 'TRIAL_EXPIRED' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Trial has expired. Please upgrade to continue exporting.", code: "TRIAL_EXPIRED" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const dataTier = (subData?.plan as any)?.data_tier || 'basic';
+    const dataTier = (subData?.plan as any)?.data_tier || "basic";
     const maxExports = (subData?.plan as any)?.max_monthly_exports || 0;
-    console.log('[export-csv] User data tier:', dataTier, 'max exports:', maxExports, 'status:', subData?.status ?? 'payg');
+    console.log(
+      "[export-csv] User data tier:",
+      dataTier,
+      "max exports:",
+      maxExports,
+      "status:",
+      subData?.status ?? "payg",
+    );
 
     // Helper to build a query for filter-based exports (no propertyIds)
     const buildFilterQuery = () => {
-      let q = supabase
-        .from('properties')
-        .select(`
+      let q = supabase.from("properties").select(`
           address,
           city,
           state,
@@ -156,31 +196,31 @@ serve(async (req) => {
         `);
 
       if (city) {
-        q = q.eq('city', city);
+        q = q.eq("city", city);
       }
       if (jurisdictionId) {
-        q = q.eq('jurisdiction_id', jurisdictionId);
+        q = q.eq("jurisdiction_id", jurisdictionId);
       }
       if (minScore) {
-        q = q.gte('snap_score', parseInt(minScore));
+        q = q.gte("snap_score", parseInt(minScore));
       }
       if (maxScore) {
-        q = q.lte('snap_score', parseInt(maxScore));
+        q = q.lte("snap_score", parseInt(maxScore));
       }
 
       // CRITICAL: Enforce data tier - basic users can only export code_violation properties
-      if (dataTier === 'basic') {
-        q = q.eq('enforcement_type', 'code_violation');
+      if (dataTier === "basic") {
+        q = q.eq("enforcement_type", "code_violation");
       }
 
       // Order by snap_score descending (highest motivation first)
-      q = q.order('snap_score', { ascending: false, nullsFirst: false });
+      q = q.order("snap_score", { ascending: false, nullsFirst: false });
 
       return q;
     };
 
-    if (dataTier === 'basic') {
-      console.log('[export-csv] Filtering to code_violation only (basic tier)');
+    if (dataTier === "basic") {
+      console.log("[export-csv] Filtering to code_violation only (basic tier)");
     }
 
     const MAX_EXPORT_ROWS = 50000; // Hard limit to prevent memory issues
@@ -191,13 +231,14 @@ serve(async (req) => {
     if (propertyIds && propertyIds.length > 0) {
       const ID_BATCH_SIZE = 200; // Safe batch size for UUIDs in URL
       console.log(`[export-csv] Fetching ${propertyIds.length} properties in batches of ${ID_BATCH_SIZE}`);
-      
+
       for (let i = 0; i < propertyIds.length && allData.length < MAX_EXPORT_ROWS; i += ID_BATCH_SIZE) {
         const batchIds = propertyIds.slice(i, i + ID_BATCH_SIZE);
-        
+
         let q = supabase
-          .from('properties')
-          .select(`
+          .from("properties")
+          .select(
+            `
             address,
             city,
             state,
@@ -210,28 +251,31 @@ serve(async (req) => {
               status,
               opened_date
             )
-          `)
-          .in('id', batchIds);
+          `,
+          )
+          .in("id", batchIds);
 
         // Apply data tier filter
-        if (dataTier === 'basic') {
-          q = q.eq('enforcement_type', 'code_violation');
+        if (dataTier === "basic") {
+          q = q.eq("enforcement_type", "code_violation");
         }
 
-        q = q.order('snap_score', { ascending: false, nullsFirst: false });
+        q = q.order("snap_score", { ascending: false, nullsFirst: false });
 
         const { data, error } = await q;
 
         if (error) {
-          console.error('[export-csv] Query error:', error);
+          console.error("[export-csv] Query error:", error);
           throw error;
         }
 
         if (data && data.length > 0) {
           allData = allData.concat(data);
         }
-        
-        console.log(`[export-csv] Fetched ID batch ${Math.floor(i / ID_BATCH_SIZE) + 1}: got=${data?.length || 0}, total=${allData.length}`);
+
+        console.log(
+          `[export-csv] Fetched ID batch ${Math.floor(i / ID_BATCH_SIZE) + 1}: got=${data?.length || 0}, total=${allData.length}`,
+        );
       }
     } else {
       // Filter-based export: paginate normally
@@ -242,7 +286,7 @@ serve(async (req) => {
         const { data, error } = await buildFilterQuery().range(offset, offset + BATCH_SIZE - 1);
 
         if (error) {
-          console.error('[export-csv] Query error:', error);
+          console.error("[export-csv] Query error:", error);
           throw error;
         }
 
@@ -268,7 +312,7 @@ serve(async (req) => {
     // ---- Check and Reserve Usage ----
     // PAYG users: no monthly quota — they pay per unlock, CSV is just an export of their data
     if (isPaygUser) {
-      console.log('[export-csv] PAYG user — skipping quota check, exporting', exportCount, 'properties');
+      console.log("[export-csv] PAYG user — skipping quota check, exporting", exportCount, "properties");
     } else if (isTrialUser) {
       // Trial users: check and increment trial exports atomically via DB function
       const trialUsed = subData.trial_exports_used || 0;
@@ -276,81 +320,104 @@ serve(async (req) => {
       const trialRemaining = trialLimit - trialUsed;
 
       if (exportCount > trialRemaining) {
-        console.log('[export-csv] Trial user hit export limit:', user.id, 'tried:', exportCount, 'remaining:', trialRemaining);
+        console.log(
+          "[export-csv] Trial user hit export limit:",
+          user.id,
+          "tried:",
+          exportCount,
+          "remaining:",
+          trialRemaining,
+        );
         return new Response(
           JSON.stringify({
-            error: 'Trial export limit reached',
-            code: 'TRIAL_EXPORT_LIMIT_EXCEEDED',
+            error: "Trial export limit reached",
+            code: "TRIAL_EXPORT_LIMIT_EXCEEDED",
             message: `Cannot export ${exportCount} properties. You have ${trialRemaining} trial exports remaining. Upgrade to continue.`,
             requested: exportCount,
-            remaining: trialRemaining
+            remaining: trialRemaining,
           }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
       // Increment trial exports atomically
-      const { data: trialResult, error: trialError } = await supabase.rpc('fn_increment_trial_exports', {
+      const { data: trialResult, error: trialError } = await supabase.rpc("fn_increment_trial_exports", {
         p_user_id: user.id,
-        p_count: exportCount
+        p_count: exportCount,
       });
 
       if (trialError) {
-        console.error('[export-csv] Trial export tracking failed:', trialError.message);
-        return new Response(
-          JSON.stringify({ error: 'Export temporarily unavailable', code: 'USAGE_TRACKING_ERROR' }),
-          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error("[export-csv] Trial export tracking failed:", trialError.message);
+        return new Response(JSON.stringify({ error: "Export temporarily unavailable", code: "USAGE_TRACKING_ERROR" }), {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       if (trialResult && !trialResult.success) {
-        console.log('[export-csv] Trial export denied by DB:', trialResult.error);
+        console.log("[export-csv] Trial export denied by DB:", trialResult.error);
         return new Response(
           JSON.stringify({
-            error: 'Trial export limit reached',
-            code: 'TRIAL_EXPORT_LIMIT_EXCEEDED',
-            message: trialResult.error || 'Trial export limit exceeded',
-            remaining: trialResult.remaining || 0
+            error: "Trial export limit reached",
+            code: "TRIAL_EXPORT_LIMIT_EXCEEDED",
+            message: trialResult.error || "Trial export limit exceeded",
+            remaining: trialResult.remaining || 0,
           }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
-      console.log('[export-csv] Trial exports consumed:', exportCount, 'for user:', user.id, 'remaining:', trialResult?.remaining);
+      console.log(
+        "[export-csv] Trial exports consumed:",
+        exportCount,
+        "for user:",
+        user.id,
+        "remaining:",
+        trialResult?.remaining,
+      );
     } else {
       // Paid users: use the standard usage consumption function
-      const { data: usageResult, error: usageError } = await supabase.rpc('fn_consume_usage', {
-        p_usage_type: 'exports',
-        p_amount: exportCount
+      const { data: usageResult, error: usageError } = await supabase.rpc("fn_consume_usage", {
+        p_usage_type: "exports",
+        p_amount: exportCount,
       });
 
       if (usageError) {
-        console.error('[export-csv] Usage tracking failed:', usageError.message);
+        console.error("[export-csv] Usage tracking failed:", usageError.message);
         return new Response(
           JSON.stringify({
-            error: 'Export temporarily unavailable',
-            code: 'USAGE_TRACKING_ERROR',
-            message: 'Unable to process export at this time. Please try again.'
+            error: "Export temporarily unavailable",
+            code: "USAGE_TRACKING_ERROR",
+            message: "Unable to process export at this time. Please try again.",
           }),
-          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
       if (usageResult && usageResult.allowed === false) {
-        console.log('[export-csv] User hit export limit:', user.id, 'tried to export:', exportCount);
+        console.log("[export-csv] User hit export limit:", user.id, "tried to export:", exportCount);
         return new Response(
           JSON.stringify({
-            error: 'Credit limit reached',
-            code: 'CREDIT_LIMIT_EXCEEDED',
-            message: usageResult.message || `Cannot export ${exportCount} properties. You have reached your monthly credit limit. Please upgrade your plan to continue.`,
+            error: "Credit limit reached",
+            code: "CREDIT_LIMIT_EXCEEDED",
+            message:
+              usageResult.message ||
+              `Cannot export ${exportCount} properties. You have reached your monthly credit limit. Please upgrade your plan to continue.`,
             requested: exportCount,
-            remaining: usageResult.remaining || 0
+            remaining: usageResult.remaining || 0,
           }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
-      console.log('[export-csv] Usage consumed:', exportCount, 'for user:', user.id, 'remaining:', usageResult?.remaining);
+      console.log(
+        "[export-csv] Usage consumed:",
+        exportCount,
+        "for user:",
+        user.id,
+        "remaining:",
+        usageResult?.remaining,
+      );
     }
 
     // FIXED: One row per property with aggregated violations
@@ -359,7 +426,7 @@ serve(async (req) => {
 
     // Initialize CSV rows array with header
     const csvRows: string[] = [];
-    csvRows.push(EXPORT_COLUMNS.join(','));
+    csvRows.push(EXPORT_COLUMNS.join(","));
 
     for (const property of allData) {
       const violations = property.violations || [];
@@ -367,40 +434,37 @@ serve(async (req) => {
       // Aggregate violation data
       const violationCount = violations.length;
       const openViolationCount = violations.filter((v: any) =>
-        ['Open', 'Pending', 'Active', 'In Progress', 'New'].some(s =>
-          (v.status || '').toLowerCase().includes(s.toLowerCase())
-        )
+        ["Open", "Pending", "Active", "In Progress", "New"].some((s) =>
+          (v.status || "").toLowerCase().includes(s.toLowerCase()),
+        ),
       ).length;
 
       // Get unique violation types (semicolon-separated for backward compat)
-      const uniqueTypes = [...new Set(violations
-        .map((v: any) => v.violation_type)
-        .filter(Boolean)
-      )].join('; ');
+      const uniqueTypes = [...new Set(violations.map((v: any) => v.violation_type).filter(Boolean))].join("; ");
 
       // Get earliest date
       const dates = violations
         .map((v: any) => v.opened_date)
         .filter(Boolean)
         .sort();
-      const earliestDate = dates[0] || '';
+      const earliestDate = dates[0] || "";
 
       // Status summary: "X open / Y total"
       const statusSummary = `${openViolationCount} open / ${violationCount} total`;
 
       // ONE row per property - backward-compatible column order
       const row = [
-        escapeCSV(property.address || ''),
-        escapeCSV(property.city || ''),
-        escapeCSV(property.state || ''),
-        escapeCSV(property.zip || ''),
-        escapeCSV(uniqueTypes),           // violation_type column
-        escapeCSV(earliestDate),          // opened_date column
-        escapeCSV(statusSummary),         // status column
-        escapeCSV(property.snap_insight || ''),
-        property.snap_score?.toString() || ''
+        escapeCSV(property.address || ""),
+        escapeCSV(property.city || ""),
+        escapeCSV(property.state || ""),
+        escapeCSV(property.zip || ""),
+        escapeCSV(uniqueTypes), // violation_type column
+        escapeCSV(earliestDate), // opened_date column
+        escapeCSV(statusSummary), // status column
+        escapeCSV(property.snap_insight || ""),
+        property.snap_score?.toString() || "",
       ];
-      csvRows.push(row.join(','));
+      csvRows.push(row.join(","));
     }
 
     // Defensive check: exported rows should equal properties count + 1 header
@@ -409,41 +473,40 @@ serve(async (req) => {
       console.error(`[export-csv] ROW COUNT MISMATCH: expected ${expectedRows}, got ${csvRows.length}`);
     }
 
-    console.log('[export-csv] Export complete - properties:', allData.length, 'rows:', csvRows.length - 1);
+    console.log("[export-csv] Export complete - properties:", allData.length, "rows:", csvRows.length - 1);
 
-    const csvContent = csvRows.join('\n');
+    const csvContent = csvRows.join("\n");
 
     return new Response(csvContent, {
       headers: {
         ...corsHeaders,
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="snapignite_export_${Date.now()}.csv"`,
-        'X-Export-Property-Count': allData.length.toString()
-      }
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="snapignite_export_${Date.now()}.csv"`,
+        "X-Export-Property-Count": allData.length.toString(),
+      },
     });
-
   } catch (error) {
-    console.error('[export-csv] Error:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error("[export-csv] Error:", error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
 
 // Escape CSV field — also neutralize formula-injection characters
 // Excel/Sheets execute formulas starting with =, +, -, @, |, \t
 function escapeCSV(value: string): string {
-  if (!value) return '';
+  if (!value) return "";
 
   let safe = value;
   // Prepend a tab character to defuse formula injection
   if (/^[=+\-@|\t]/.test(safe)) {
-    safe = '\t' + safe;
+    safe = "\t" + safe;
   }
 
   // If value contains comma, newline, or quote, wrap in quotes and escape quotes
-  if (safe.includes(',') || safe.includes('\n') || safe.includes('"')) {
+  if (safe.includes(",") || safe.includes("\n") || safe.includes('"')) {
     return `"${safe.replace(/"/g, '""')}"`;
   }
   return safe;

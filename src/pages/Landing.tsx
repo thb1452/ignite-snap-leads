@@ -142,6 +142,7 @@ export default function Landing() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [heroFlipped, setHeroFlipped] = useState(false);
 
+
   // Redirect authenticated users (e.g. returning from Google OAuth) to dashboard
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -163,6 +164,7 @@ export default function Landing() {
       document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
     }, 100);
   };
+
 
   return (
     <div className="min-h-screen bg-landing-bg text-landing-text overflow-x-hidden">
@@ -210,7 +212,7 @@ export default function Landing() {
               <Button
                 className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold"
               >
-                Get Early Access <ArrowRight className="w-4 h-4 ml-2" />
+                Get Started Free <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
           </div>
@@ -233,7 +235,7 @@ export default function Landing() {
                 ))}
                 <Link to="/auth?mode=signup" className="w-full">
                   <Button className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
-                    Get Early Access <ArrowRight className="w-4 h-4 ml-2" />
+                    Get Started Free <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
               </div>
@@ -277,7 +279,7 @@ export default function Landing() {
                       onClick={() => trackEvent("hero_cta_click", { location: "hero" })}
                       className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
                     >
-                      Get Early Access <ArrowRight className="w-5 h-5 ml-2" />
+                      Get Started Free <ArrowRight className="w-5 h-5 ml-2" />
                     </Button>
                   </Link>
                 </motion.div>
@@ -565,15 +567,27 @@ export default function Landing() {
             </motion.div>
             <div className="grid sm:grid-cols-3 gap-6">
               {[
-                { credits: "5,000", price: "$750", per: "$0.15/export" },
-                { credits: "10,000", price: "$1,300", per: "$0.13/export" },
-                { credits: "20,000", price: "$2,200", per: "$0.11/export" },
+                { credits: "5,000", rawCount: 5000, price: "$750", per: "$0.15/credit", priceId: "price_1TGlsfPfDZrVNjz5rpCB2h8c" },
+                { credits: "10,000", rawCount: 10000, price: "$1,300", per: "$0.13/credit", priceId: "price_1TGlu5PfDZrVNjz5GyjhPbEp" },
+                { credits: "20,000", rawCount: 20000, price: "$2,200", per: "$0.11/credit", priceId: "price_1TGlv7PfDZrVNjz5akOCyZbl" },
               ].map((pkg, i) => (
-                <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
-                  className="rounded-xl p-6 bg-landing-bg/50 border border-landing-surface text-center">
+                <motion.div
+                  key={pkg.rawCount}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.07 }}
+                  className="rounded-xl p-6 bg-landing-bg/50 border border-landing-surface text-center"
+                >
                   <p className="text-2xl font-bold mb-1">{pkg.credits} credits</p>
                   <p className="text-3xl font-bold text-landing-accent mb-1">{pkg.price}</p>
-                  <p className="text-sm text-landing-text-muted">{pkg.per}</p>
+                  <p className="text-sm text-landing-text-muted mb-4">{pkg.per}</p>
+                  <Button
+                    onClick={() => navigate("/auth?mode=signup")}
+                    className="w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg"
+                  >
+                    Buy Now
+                  </Button>
                 </motion.div>
               ))}
             </div>
@@ -729,7 +743,7 @@ export default function Landing() {
                   <Button
                     className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold shadow-xl"
                   >
-                    <MapPin className="w-4 h-4 mr-2" /> Get Early Access
+                    <MapPin className="w-4 h-4 mr-2" /> Get Started Free
                   </Button>
                 </Link>
               </div>
@@ -757,7 +771,7 @@ export default function Landing() {
                   size="lg"
                   className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-10 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
                 >
-                  Get Early Access <ArrowRight className="w-5 h-5 ml-2" />
+                  Get Started Free <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
             </motion.div>
@@ -842,7 +856,7 @@ export default function Landing() {
               </Link>
               <Link to="/auth?mode=signup">
                 <Button size="sm" className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">
-                  Get Early Access
+                  Get Started Free
                 </Button>
               </Link>
             </div>

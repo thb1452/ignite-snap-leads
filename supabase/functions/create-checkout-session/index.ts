@@ -9,9 +9,15 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// PAYG: $0.67 per credit using Stripe price
-// ⚠️  VERIFY: this price ID must be confirmed in the Stripe dashboard to charge $0.67 (not $0.97)
-const PAYG_PRICE_ID = "price_1TEGY7PfDZrVNjz5TDRaviMn";
+// PAYG: $0.67 per credit (single address unlock)
+const PAYG_PRICE_ID = "price_1TGleEPfDZrVNjz5uPoCIrhU";
+
+// Bulk credit packs (one-time payments)
+const BULK_PRICE_IDS: Record<string, { priceId: string; credits: number }> = {
+  "5000":  { priceId: "price_1TGlsfPfDZrVNjz5rpCB2h8c", credits: 5000 },
+  "10000": { priceId: "price_1TGlu5PfDZrVNjz5GyjhPbEp", credits: 10000 },
+  "20000": { priceId: "price_1TGlv7PfDZrVNjz5akOCyZbl", credits: 20000 },
+};
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -54,6 +60,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     if (checkout_type === "single_unlock") {
       return await handleSingleUnlock(stripe, supabase, user, body, appUrl, headers);
+    } else if (checkout_type === "bulk_credits") {
+      return await handleBulkCredits(stripe, supabase, user, body, appUrl, headers);
     } else {
       return await handleSubscription(stripe, supabase, user, body, appUrl, headers);
     }
@@ -119,11 +127,11 @@ async function handleSubscription(
   const TIER_ALIAS: Record<string, string> = { elite: "enterprise" };
   const dbTierName = TIER_ALIAS[tier_name.toLowerCase()] || tier_name.toLowerCase();
 
-  // Stripe Price IDs — replace placeholders with real IDs
+  // Stripe Price IDs (monthly subscriptions)
   const STRIPE_PRICE_IDS: Record<string, string> = {
-    starter: "price_1TEGVNPfDZrVNjz5kH849WuD",
-    professional: "price_1TEGVqPfDZrVNjz5A797mvBk",
-    enterprise: "price_1TEGWJPfDZrVNjz5Jw5cNEAm",
+    starter: "price_1TGlbmPfDZrVNjz5doWbUyvN",
+    professional: "price_1TGlb4PfDZrVNjz5WqCEG1D9",
+    enterprise: "price_1TGlcePfDZrVNjz5VLCsLkBQ",
   };
 
   // Use the aliased name so "elite" resolves to the enterprise price
@@ -242,4 +250,48 @@ async function getOrCreateCustomer(stripe: Stripe, supabase: any, user: any): Pr
     metadata: { supabase_user_id: user.id },
   });
   return customer.id;
+}
+
+// ---- Bulk Credits (one-time payment) ----
+async function handleBulkCredits(
+  stripe: Stripe,
+  supabase: any,
+  user: any,
+  body: any,
+  appUrl: string,
+  headers: Record<string, string>,
+) {
+  const { credit_count } = body;
+  const key = String(credit_count);
+  const pack = BULK_PRICE_IDS[key];
+
+  if (!pack) {
+    return new Response(
+      JSON.stringify({ error: `Invalid credit pack: ${credit_count}. Valid: 5000, 10000, 20000` }),
+      { status: 400, headers },
+    );
+  }
+
+  const customerId = await getOrCreateCustomer(stripe, supabase, user);
+
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    payment_method_types: ["card"],
+    line_items: [{ price: pack.priceId, quantity: 1 }],
+    mode: "payment",
+    success_url: `${appUrl}/properties?credits_added=${pack.credits}`,
+    cancel_url: `${appUrl}/pricing?canceled=true`,
+    metadata: {
+      user_id: user.id,
+      checkout_type: "bulk_credits",
+      credit_count: String(pack.credits),
+    },
+  });
+
+  console.log("[checkout] Created bulk credits session:", session.id, "credits:", pack.credits);
+
+  return new Response(
+    JSON.stringify({ sessionId: session.id, checkout_url: session.url, url: session.url }),
+    { headers },
+  );
 }

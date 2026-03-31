@@ -163,7 +163,7 @@ function BulkCreditCards({ user, navigate, toast }: { user: any; navigate: any; 
 
   const handleBuy = async (rawCount: number) => {
     if (!user) {
-      navigate("/auth?mode=signin");
+      navigate("/auth?mode=signup");
       return;
     }
     setLoadingPack(rawCount);
@@ -264,7 +264,7 @@ export default function Pricing() {
 
   const handlePlanClick = (tier: PricingTier) => {
     if (tier.isFree) {
-      navigate('/auth?mode=signin');
+      navigate('/auth?mode=signup');
       return;
     }
     if (tier.isEnterprise) {
@@ -285,7 +285,7 @@ export default function Pricing() {
       return;
     }
     if (!user) {
-      navigate(`/auth?mode=signin&plan=${encodeURIComponent(tier.name)}`);
+      navigate(`/auth?mode=signup&plan=${encodeURIComponent(tier.name)}`);
       return;
     }
     handleDirectUpgrade(tier.name);

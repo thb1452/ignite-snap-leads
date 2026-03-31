@@ -94,6 +94,19 @@ export function UnlockModal({
             : `1 credit used. ${data.credits_remaining} credits remaining.`,
       });
 
+      // Optimistically mark unlocked immediately (works even before unlock queries exist).
+      queryClient.setQueryData(["optimistic-unlocked", user.id], (old: unknown) => {
+        const next = old instanceof Set ? new Set(old) : new Set<string>();
+        next.add(property.id);
+        return next;
+      });
+      // Mark confirmed locally too (this path only returns success after DB write).
+      queryClient.setQueryData(["confirmed-unlocked-local", user.id], (old: unknown) => {
+        const next = old instanceof Set ? new Set(old) : new Set<string>();
+        next.add(property.id);
+        return next;
+      });
+
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
       queryClient.invalidateQueries({ queryKey: ["credits"] });

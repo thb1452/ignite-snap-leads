@@ -1,9 +1,12 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Lock, Unlock, Download } from "lucide-react";
+import { Lock, Unlock, Download, Loader2 } from "lucide-react";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
+import { exportFilteredCsv } from "@/services/export";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface CompactPropertyRowProps {
   property: {
@@ -47,6 +50,8 @@ export function CompactPropertyRow({
   isUnlocked = true,
   onUnlock,
 }: CompactPropertyRowProps) {
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
   const getScoreColor = (score: number | null) => {
     if (!score) return "bg-muted text-muted-foreground";
     if (score >= 75) return "bg-red-500 text-white";
@@ -110,9 +115,29 @@ export function CompactPropertyRow({
             size="sm"
             variant="outline"
             className="h-7 text-xs px-2"
-            onClick={(e) => { e.stopPropagation(); }}
+            disabled={isExporting}
+            onClick={async (e) => {
+              e.stopPropagation();
+              setIsExporting(true);
+              try {
+                await exportFilteredCsv({ propertyIds: [property.id], expectedPropertyCount: 1 });
+                toast({ title: "Export Complete", description: "Property exported successfully." });
+              } catch (err: any) {
+                toast({
+                  title: "Export Failed",
+                  description: err?.message || "Failed to export property",
+                  variant: "destructive",
+                });
+              } finally {
+                setIsExporting(false);
+              }
+            }}
           >
-            <Download className="h-3 w-3 mr-1" />
+            {isExporting ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <Download className="h-3 w-3 mr-1" />
+            )}
             Export
           </Button>
         ) : (

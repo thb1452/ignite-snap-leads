@@ -171,6 +171,10 @@ function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
 
+  // When unlock confirmation finishes, we queue a toast to show only once the
+  // property is actually available in the UI (loaded/selected).
+  const [unlockToastPendingId, setUnlockToastPendingId] = useState<string | null>(null);
+
 
   const [showAddAllToListDialog, setShowAddAllToListDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -243,6 +247,15 @@ function Leads() {
     }
 
     const targetUnlockPropertyId = propertyIdParam || unlockedLegacy;
+    const queueUnlockToast = (propertyId: string) => setUnlockToastPendingId(propertyId);
+    const markConfirmedLocal = (propertyId: string) => {
+      if (!user?.id) return;
+      queryClient.setQueryData(["confirmed-unlocked-local", user.id], (old: unknown) => {
+        const next = old instanceof Set ? new Set(old) : new Set<string>();
+        next.add(propertyId);
+        return next;
+      });
+    };
 
     // Stripe return with only session_id (older / misconfigured success_url): fulfill via handle-unlock using session metadata.
     if (!checkout && sessionIdParam && !propertyIdParam && !unlockedLegacy && user?.id) {
@@ -271,12 +284,19 @@ function Leads() {
 
           if (!cancelled && !unlockErr && unlockData?.success && unlockedPropertyId) {
             clearPendingStripeUnlockCheckout();
+            // Optimistic cache update so unlocked state shows instantly after navigation
+            queryClient.setQueriesData(
+              { queryKey: ["unlocked-properties", user.id] },
+              (old: unknown) => {
+                const next = old instanceof Set ? new Set(old) : new Set<string>();
+                next.add(unlockedPropertyId);
+                return next;
+              }
+            );
             queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
             setSelectedPropertyId(unlockedPropertyId);
-            toast({
-              title: "Property unlocked! 🔓",
-              description: "Full address and contacts are now available.",
-            });
+            markConfirmedLocal(unlockedPropertyId);
+            queueUnlockToast(unlockedPropertyId);
             clearCheckoutParams();
             return;
           }
@@ -306,6 +326,20 @@ function Leads() {
 
       let cancelled = false;
       const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      const markOptimistic = () => {
+        queryClient.setQueryData(["optimistic-unlocked", user.id], (old: unknown) => {
+          const next = old instanceof Set ? new Set(old) : new Set<string>();
+          next.add(targetUnlockPropertyId);
+          return next;
+        });
+      };
+      const revertOptimistic = () => {
+        queryClient.setQueryData(["optimistic-unlocked", user.id], (old: unknown) => {
+          const next = old instanceof Set ? new Set(old) : new Set<string>();
+          next.delete(targetUnlockPropertyId);
+          return next;
+        });
+      };
       const clearCheckoutParams = () => {
         const newParams = new URLSearchParams(searchParams);
         newParams.delete("checkout");
@@ -326,6 +360,8 @@ function Leads() {
 
       (async () => {
         setSelectedPropertyId(targetUnlockPropertyId);
+        // Immediately show as unlocked after redirect; confirm in background.
+        markOptimistic();
 
         const stripeSessionId =
           sessionIdParam || getPendingStripeUnlockSessionId(targetUnlockPropertyId);
@@ -339,11 +375,10 @@ function Leads() {
             });
             if (!cancelled && !unlockErr && unlockData?.success) {
               clearPendingStripeUnlockCheckout();
+              markOptimistic();
               queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
-              toast({
-                title: "Property unlocked! 🔓",
-                description: "Full address and contacts are now available.",
-              });
+              markConfirmedLocal(targetUnlockPropertyId);
+              queueUnlockToast(targetUnlockPropertyId);
               clearCheckoutParams();
               return;
             }
@@ -355,11 +390,10 @@ function Leads() {
         for (let i = 0; i < 20 && !cancelled; i++) {
           if (await confirmUnlockInDb()) {
             clearPendingStripeUnlockCheckout();
+            markOptimistic();
             queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
-            toast({
-              title: "Property unlocked! 🔓",
-              description: "Full address and contacts are now available.",
-            });
+            markConfirmedLocal(targetUnlockPropertyId);
+            queueUnlockToast(targetUnlockPropertyId);
             clearCheckoutParams();
             return;
           }
@@ -367,6 +401,8 @@ function Leads() {
         }
 
         if (!cancelled) {
+          // If we couldn't confirm, revert the optimistic unlock to avoid a false-unlocked UI.
+          revertOptimistic();
           toast({
             title: "Unlock pending",
             description: "Payment received. If this property stays locked, refresh in a moment or contact support.",
@@ -402,11 +438,18 @@ function Leads() {
             });
             if (!cancelled && !unlockErr && unlockData?.success) {
               clearPendingStripeUnlockCheckout();
+              // Optimistic cache update so unlocked state shows instantly after navigation
+              queryClient.setQueriesData(
+                { queryKey: ["unlocked-properties", user.id] },
+                (old: unknown) => {
+                  const next = old instanceof Set ? new Set(old) : new Set<string>();
+                  next.add(unlockedLegacy);
+                  return next;
+                }
+              );
               queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
-              toast({
-                title: "Property unlocked! 🔓",
-                description: "Full address and contacts are now available.",
-              });
+              markConfirmedLocal(unlockedLegacy);
+              queueUnlockToast(unlockedLegacy);
               const newParams = new URLSearchParams(searchParams);
               newParams.delete("unlocked");
               setSearchParams(newParams, { replace: true });
@@ -428,11 +471,18 @@ function Leads() {
             data.some((row: { property_id: string }) => row.property_id === unlockedLegacy);
           if (ok) {
             clearPendingStripeUnlockCheckout();
+            // Optimistic cache update so unlocked state shows instantly after navigation
+            queryClient.setQueriesData(
+              { queryKey: ["unlocked-properties", user.id] },
+              (old: unknown) => {
+                const next = old instanceof Set ? new Set(old) : new Set<string>();
+                next.add(unlockedLegacy);
+                return next;
+              }
+            );
             queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
-            toast({
-              title: "Property unlocked! 🔓",
-              description: "Full address and contacts are now available.",
-            });
+            markConfirmedLocal(unlockedLegacy);
+            queueUnlockToast(unlockedLegacy);
             const newParams = new URLSearchParams(searchParams);
             newParams.delete("unlocked");
             setSearchParams(newParams, { replace: true });
@@ -910,7 +960,7 @@ function Leads() {
     }
     return ids;
   }, [propertyIds, selectedPropertyId]);
-  const { unlockedSet, invalidate: invalidateUnlocks } = useUnlockedProperties(unlockCheckIds);
+  const { unlockedSet, confirmedUnlockedSet, invalidate: invalidateUnlocks } = useUnlockedProperties(unlockCheckIds);
   const { data: violationsData = [], error: violationsError } = useQuery({
     queryKey: ["violations-for-properties", propertyIds],
     enabled: propertyIds.length > 0,
@@ -1003,6 +1053,21 @@ function Leads() {
       violations: [],
     };
   }, [selectedProperty, selectedPropertyData, selectedPropertyId]);
+
+  // Show unlock toast only when the property is actually available in UI.
+  useEffect(() => {
+    if (!unlockToastPendingId) return;
+    if (!selectedPropertyWithFetched) return;
+    if (selectedPropertyWithFetched.id !== unlockToastPendingId) return;
+    // Only toast after the unlock is confirmed (DB-backed), not optimistic.
+    if (!confirmedUnlockedSet.has(unlockToastPendingId)) return;
+
+    toast({
+      title: "Property unlocked! 🔓",
+      description: "Full address and contacts are now available.",
+    });
+    setUnlockToastPendingId(null);
+  }, [unlockToastPendingId, selectedPropertyWithFetched, confirmedUnlockedSet, toast]);
 
   // Determine if user should be gated (expired trial or cancelled subscription, no active paid plan)
   const isCancelled = subscriptionStatus === "cancelled" || subscriptionStatus === "expired";

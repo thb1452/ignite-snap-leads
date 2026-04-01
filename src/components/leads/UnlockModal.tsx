@@ -11,10 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Lock, Unlock, CreditCard, Coins, Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useCreditBalance } from "@/hooks/useCredits";
 import { useAuth } from "@/hooks/use-auth";
 import { PAYG_PRICE_DISPLAY } from "@/lib/pricing";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useUserCredits } from "@/hooks/useUserProfile";
 
 interface UnlockModalProps {
   open: boolean;
@@ -41,14 +42,21 @@ export function UnlockModal({
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const { toast } = useToast();
-  const { data: creditBalance = 0 } = useCreditBalance();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { hasActiveSubscription, getRemainingCount } = useSubscription();
+  const { data: bulkCreditBalance = 0 } = useUserCredits();
 
   if (!property) return null;
 
-  const canUseFreeUnlock = freeUnlocksRemaining > 0;
-  const canUseCredit = creditBalance >= 1;
+  const monthlyUnlocksRemaining = hasActiveSubscription ? getRemainingCount("exports") : 0;
+  const canUseSubscriptionUnlock =
+    hasActiveSubscription && (monthlyUnlocksRemaining === null || monthlyUnlocksRemaining > 0);
+  const canUseFreeUnlock = !canUseSubscriptionUnlock && freeUnlocksRemaining > 0;
+  const canUseCredit = !canUseSubscriptionUnlock && !canUseFreeUnlock && bulkCreditBalance >= 1;
+
+  const formatRemaining = (value: number | null | undefined) =>
+    value === null ? "∞" : Math.max(0, value ?? 0).toLocaleString();
 
   const handleUnlockWithCredits = async () => {
     if (!user) return;
@@ -78,7 +86,7 @@ export function UnlockModal({
           toast({
             variant: "destructive",
             title: "Insufficient balance",
-            description: "Purchase credits or subscribe to unlock properties.",
+             description: data.message || "Purchase credits or subscribe to unlock properties.",
           });
         } else {
           throw new Error(data.error || "Unlock failed");
@@ -86,12 +94,18 @@ export function UnlockModal({
         return;
       }
 
+       const unlockDescription =
+         data.source === "subscription_allowance"
+           ? `Monthly unlock used. ${formatRemaining(data.subscription_remaining)} remaining.`
+           : data.source === "free_credit"
+             ? `Free unlock used. ${formatRemaining(data.free_remaining)} remaining.`
+             : data.source === "credit_pack"
+               ? `1 credit used. ${formatRemaining(data.credits_remaining)} credits remaining.`
+               : "Full addresses and contacts are now available.";
+
       toast({
         title: "Property unlocked! 🔓",
-        description:
-          data.source === "free_credit"
-            ? `Free unlock used. ${data.free_remaining} remaining.`
-            : `1 credit used. ${data.credits_remaining} credits remaining.`,
+         description: unlockDescription,
       });
 
       // Optimistically mark unlocked immediately (works even before unlock queries exist).
@@ -111,6 +125,9 @@ export function UnlockModal({
       queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
       queryClient.invalidateQueries({ queryKey: ["credits"] });
       queryClient.invalidateQueries({ queryKey: ["user", "credits"] });
+       queryClient.invalidateQueries({ queryKey: ["subscription"] });
+       queryClient.invalidateQueries({ queryKey: ["subscription-usage"] });
+       queryClient.invalidateQueries({ queryKey: ["trial-status"] });
       queryClient.invalidateQueries({ queryKey: ["property-contacts", property.id] });
 
       onUnlocked?.();
@@ -209,12 +226,27 @@ export function UnlockModal({
 
         {/* Unlock Options */}
         <div className="space-y-3">
-          {/* Free unlock */}
+          {canUseSubscriptionUnlock && (
+            <Button
+              onClick={handleUnlockWithCredits}
+              disabled={isUnlocking}
+              className="w-full gap-2"
+              size="lg"
+            >
+              {isUnlocking ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Use Monthly Unlock ({formatRemaining(monthlyUnlocksRemaining)} remaining)
+            </Button>
+          )}
+
           {canUseFreeUnlock && (
             <Button
               onClick={handleUnlockWithCredits}
               disabled={isUnlocking}
-              className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700"
+              className="w-full gap-2"
               size="lg"
             >
               {isUnlocking ? (
@@ -226,8 +258,7 @@ export function UnlockModal({
             </Button>
           )}
 
-          {/* Credit unlock */}
-          {canUseCredit && !canUseFreeUnlock && (
+          {canUseCredit && (
             <Button
               onClick={handleUnlockWithCredits}
               disabled={isUnlocking}
@@ -239,7 +270,7 @@ export function UnlockModal({
               ) : (
                 <Coins className="h-4 w-4" />
               )}
-              Use 1 Credit ({creditBalance} available)
+              Use 1 Credit ({bulkCreditBalance} available)
             </Button>
           )}
 

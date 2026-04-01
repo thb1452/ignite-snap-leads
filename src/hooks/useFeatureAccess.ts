@@ -61,7 +61,7 @@ export function useFeatureAccess() {
     /** Check whether the current plan includes a specific feature */
     hasFeature,
     /** Current plan tier name (starter / professional / enterprise) or null */
-    planName: subscription?.plan_name ?? trialTier ?? null,
+    planName: subscription?.plan_name ?? (isOnTrial ? trialTier : null),
     /** True while subscription data is still loading */
     loading: subLoading || trialLoading,
     /** True if user is on the Elite (enterprise) plan — bypasses all gates */

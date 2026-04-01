@@ -675,6 +675,22 @@ async function handlePaymentSucceeded(supabase: any, invoice: Stripe.Invoice) {
   } else {
     console.log("[webhook] Allocated", monthlyCredits, "monthly credits to user:", subRow.user_id);
   }
+
+  // Reset subscription_usage.unlocks_count for the new billing period.
+  if (updatePayload.current_period_start && updatePayload.current_period_end) {
+    const periodStartDate = updatePayload.current_period_start.slice(0, 10);
+    const periodEndDate   = updatePayload.current_period_end.slice(0, 10);
+    const { error: resetErr } = await supabase.rpc("fn_reset_subscription_usage_for_period", {
+      p_user_id:     subRow.user_id,
+      p_period_start: periodStartDate,
+      p_period_end:   periodEndDate,
+    });
+    if (resetErr) {
+      console.error("[webhook] Error resetting subscription usage:", resetErr);
+    } else {
+      console.log("[webhook] Reset subscription_usage for period:", periodStartDate, "→", periodEndDate);
+    }
+  }
 }
 
 async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {

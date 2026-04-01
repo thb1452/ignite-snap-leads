@@ -8,13 +8,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Unlock, CreditCard, Coins, Sparkles, Loader2 } from "lucide-react";
+import { Lock, CreditCard, Coins, Sparkles, Loader2, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useCreditBalance } from "@/hooks/useCredits";
 import { useAuth } from "@/hooks/use-auth";
 import { PAYG_PRICE_DISPLAY } from "@/lib/pricing";
 import { useQueryClient } from "@tanstack/react-query";
+import { useUnlockBalances } from "@/hooks/useUnlockBalances";
 
 interface UnlockModalProps {
   open: boolean;
@@ -27,7 +27,8 @@ interface UnlockModalProps {
     snap_score: number | null;
     snap_insight: string | null;
   } | null;
-  freeUnlocksRemaining: number;
+  /** @deprecated balances are now fetched internally via useUnlockBalances */
+  freeUnlocksRemaining?: number;
   onUnlocked?: () => void;
 }
 
@@ -35,24 +36,26 @@ export function UnlockModal({
   open,
   onOpenChange,
   property,
-  freeUnlocksRemaining,
   onUnlocked,
 }: UnlockModalProps) {
-  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState<string | null>(null); // tracks which source is in-flight
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const { toast } = useToast();
-  const { data: creditBalance = 0 } = useCreditBalance();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { data: balances } = useUnlockBalances();
 
   if (!property) return null;
 
-  const canUseFreeUnlock = freeUnlocksRemaining > 0;
-  const canUseCredit = creditBalance >= 1;
+  const subscriptionRemaining = balances?.subscription_remaining ?? 0;
+  const creditBalance = balances?.credit_balance ?? 0;
+  const freeRemaining = balances?.free_remaining ?? 0;
+  const planName = balances?.plan_name ?? null;
+  const renewalDate = balances?.renewal_date ?? null;
 
-  const handleUnlockWithCredits = async () => {
+  const handleUnlock = async (source: "subscription" | "credit" | "free") => {
     if (!user) return;
-    setIsUnlocking(true);
+    setIsUnlocking(source);
 
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -67,7 +70,7 @@ export function UnlockModal({
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ property_id: property.id }),
+          body: JSON.stringify({ property_id: property.id, source }),
         }
       );
 
@@ -86,18 +89,22 @@ export function UnlockModal({
         return;
       }
 
+      const sourceLabels: Record<string, string> = {
+        subscription: "Monthly unlock used.",
+        credit: `1 credit used. ${data.credits_remaining ?? ""} remaining.`,
+        free: `Free unlock used. ${data.free_remaining ?? ""} remaining.`,
+        already_unlocked: "Already unlocked.",
+      };
+
       toast({
         title: "Property unlocked! 🔓",
-        description:
-          data.source === "free_credit"
-            ? `Free unlock used. ${data.free_remaining} remaining.`
-            : `1 credit used. ${data.credits_remaining} credits remaining.`,
+        description: sourceLabels[data.source] ?? "Unlocked successfully.",
       });
 
-      // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
       queryClient.invalidateQueries({ queryKey: ["credits"] });
       queryClient.invalidateQueries({ queryKey: ["user", "credits"] });
+      queryClient.invalidateQueries({ queryKey: ["unlock-balances"] });
       queryClient.invalidateQueries({ queryKey: ["property-contacts", property.id] });
 
       onUnlocked?.();
@@ -109,7 +116,7 @@ export function UnlockModal({
         description: err.message,
       });
     } finally {
-      setIsUnlocking(false);
+      setIsUnlocking(null);
     }
   };
 
@@ -162,6 +169,8 @@ export function UnlockModal({
     return "bg-blue-500";
   };
 
+  const anyActionBusy = isUnlocking !== null || isCheckingOut;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -194,34 +203,36 @@ export function UnlockModal({
           )}
         </div>
 
-        {/* Unlock Options */}
+        {/* Unlock Options — all shown simultaneously */}
         <div className="space-y-3">
-          {/* Free unlock */}
-          {canUseFreeUnlock && (
+          {/* 1. Subscription monthly allowance */}
+          {subscriptionRemaining > 0 && (
             <Button
-              onClick={handleUnlockWithCredits}
-              disabled={isUnlocking}
-              className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => handleUnlock("subscription")}
+              disabled={anyActionBusy}
+              className="w-full gap-2 bg-teal-600 hover:bg-teal-700"
               size="lg"
             >
-              {isUnlocking ? (
+              {isUnlocking === "subscription" ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Sparkles className="h-4 w-4" />
+                <CalendarDays className="h-4 w-4" />
               )}
-              Use Free Unlock ({freeUnlocksRemaining} left)
+              Use Monthly Unlock ({subscriptionRemaining} left
+              {planName ? ` · ${planName}` : ""}
+              {renewalDate ? ` · resets ${renewalDate}` : ""})
             </Button>
           )}
 
-          {/* Credit unlock */}
-          {canUseCredit && !canUseFreeUnlock && (
+          {/* 2. Bulk credits */}
+          {creditBalance >= 1 && (
             <Button
-              onClick={handleUnlockWithCredits}
-              disabled={isUnlocking}
-              className="w-full gap-2"
+              onClick={() => handleUnlock("credit")}
+              disabled={anyActionBusy}
+              className="w-full gap-2 bg-blue-600 hover:bg-blue-700"
               size="lg"
             >
-              {isUnlocking ? (
+              {isUnlocking === "credit" ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Coins className="h-4 w-4" />
@@ -230,11 +241,28 @@ export function UnlockModal({
             </Button>
           )}
 
-          {/* Buy single unlock */}
+          {/* 3. Free unlocks */}
+          {freeRemaining > 0 && (
+            <Button
+              onClick={() => handleUnlock("free")}
+              disabled={anyActionBusy}
+              className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700"
+              size="lg"
+            >
+              {isUnlocking === "free" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Use Free Unlock ({freeRemaining} left)
+            </Button>
+          )}
+
+          {/* 4. PAYG — always shown */}
           <Button
-            variant={canUseFreeUnlock || canUseCredit ? "outline" : "default"}
+            variant={subscriptionRemaining > 0 || creditBalance >= 1 || freeRemaining > 0 ? "outline" : "default"}
             onClick={handleBuyUnlock}
-            disabled={isCheckingOut}
+            disabled={anyActionBusy}
             className="w-full gap-2"
             size="lg"
           >
@@ -243,11 +271,11 @@ export function UnlockModal({
             ) : (
               <CreditCard className="h-4 w-4" />
             )}
-            Buy Unlock — {PAYG_PRICE_DISPLAY}
+            Buy Unlock — ${PAYG_PRICE_DISPLAY}
           </Button>
 
-          {/* Subscribe CTA */}
-          {!canUseFreeUnlock && !canUseCredit && (
+          {/* Subscribe CTA when no free options */}
+          {subscriptionRemaining <= 0 && creditBalance < 1 && freeRemaining <= 0 && (
             <p className="text-xs text-center text-muted-foreground">
               Or{" "}
               <a href="/pricing" className="text-primary hover:underline font-medium">

@@ -51,10 +51,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const body = await req.json().catch(() => ({}));
     const stripe_session_id = typeof body.stripe_session_id === "string" ? body.stripe_session_id.trim() : "";
     const property_id_input = body.property_id as string | undefined;
+    const source_input = typeof body.source === "string" ? body.source : null;
 
     console.info("[handle-unlock]", {
       mode: stripe_session_id ? "stripe_checkout" : property_id_input ? "credits_or_free" : "missing_input",
       user_id: user.id,
+      source: source_input,
     });
 
     let property_id: string;
@@ -176,10 +178,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     } else if (property_id_input) {
       property_id = property_id_input;
 
-      const { data, error } = await supabase.rpc("fn_unlock_property", {
+      const rpcArgs: Record<string, unknown> = {
         p_user_id: user.id,
         p_property_id: property_id,
-      });
+      };
+      if (source_input) rpcArgs.p_source = source_input;
+
+      const { data, error } = await supabase.rpc("fn_unlock_property", rpcArgs);
 
       if (error) {
         console.error("[handle-unlock] RPC error:", error);
@@ -206,7 +211,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       source = String(result.source ?? "unknown");
       free_remaining = result.free_remaining as number | undefined;
-      credits_remaining = result.credits_remaining as number | undefined;
+      credits_remaining = (result.credit_balance ?? result.credits_remaining) as number | undefined;
     } else {
       console.warn("[handle-unlock] body missing property_id and stripe_session_id");
       return new Response(JSON.stringify({ error: "property_id or stripe_session_id required" }), {
@@ -333,7 +338,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         credits_remaining,
         property: property ?? null,
         contacts: contacts ?? [],
-      }),
+      } as Record<string, unknown>),
       { headers },
     );
   } catch (e: unknown) {

@@ -157,10 +157,10 @@ serve(async (req) => {
       }
     }
 
-    const isTrialUser = !isPaygUser && (subData!.status === "trial" || subData!.status === "trialing");
+    const isTrialUser = !isPaygUser && !!subData && (subData.status === "trial" || subData.status === "trialing");
 
     // Check if trial has expired
-    if (isTrialUser && subData.trial_ends_at && new Date(subData.trial_ends_at) < new Date()) {
+    if (isTrialUser && subData?.trial_ends_at && new Date(subData.trial_ends_at) < new Date()) {
       return new Response(
         JSON.stringify({ error: "Trial has expired. Please upgrade to continue exporting.", code: "TRIAL_EXPIRED" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -315,8 +315,8 @@ serve(async (req) => {
       console.log("[export-csv] PAYG user — skipping quota check, exporting", exportCount, "properties");
     } else if (isTrialUser) {
       // Trial users: check and increment trial exports atomically via DB function
-      const trialUsed = subData.trial_exports_used || 0;
-      const trialLimit = subData.trial_exports_limit || 500;
+      const trialUsed = subData?.trial_exports_used || 0;
+      const trialLimit = subData?.trial_exports_limit || 500;
       const trialRemaining = trialLimit - trialUsed;
 
       if (exportCount > trialRemaining) {

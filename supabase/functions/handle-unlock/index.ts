@@ -19,6 +19,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
     if (!supabaseUrl || !supabaseKey) {
       throw new Error("SERVER_MISCONFIGURED");
@@ -35,6 +36,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const token = authHeader.replace("Bearer ", "");
+    const userClient = supabaseAnonKey
+      ? createClient(supabaseUrl, supabaseAnonKey, {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        })
+      : null;
     const {
       data: { user },
       error: authErr,
@@ -61,6 +71,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let source: string;
     let free_remaining: number | undefined;
     let credits_remaining: number | undefined;
+    let subscription_remaining: number | null | undefined;
 
     if (stripe_session_id) {
       const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
@@ -176,37 +187,130 @@ Deno.serve(async (req: Request): Promise<Response> => {
     } else if (property_id_input) {
       property_id = property_id_input;
 
-      const { data, error } = await supabase.rpc("fn_unlock_property", {
-        p_user_id: user.id,
-        p_property_id: property_id,
-      });
+      const { data: existingUnlock } = await supabase
+        .from("unlocked_properties")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("property_id", property_id)
+        .maybeSingle();
 
-      if (error) {
-        console.error("[handle-unlock] RPC error:", error);
-        return new Response(JSON.stringify({ error: "Failed to unlock property" }), {
-          status: 500,
-          headers,
+      if (existingUnlock) {
+        source = "already_unlocked";
+      } else if (userClient) {
+        const { data: limitData, error: limitError } = await userClient.rpc("fn_check_subscription_limit", {
+          p_usage_type: "exports",
+          p_amount: 1,
         });
+
+        const limitResult = (limitData ?? null) as { allowed?: boolean; remaining?: number | null } | null;
+
+        if (!limitError && limitResult?.allowed) {
+          const { error: insertError } = await supabase.from("unlocked_properties").insert({
+            user_id: user.id,
+            property_id,
+            credit_cost: 1,
+            unlock_source: "subscription_allowance",
+          });
+
+          if (insertError) {
+            console.error("[handle-unlock] subscription unlock insert error:", insertError);
+            return new Response(JSON.stringify({ error: "Failed to record subscription unlock" }), {
+              status: 500,
+              headers,
+            });
+          }
+
+          const { data: incremented, error: incrementError } = await userClient.rpc("fn_increment_usage", {
+            p_usage_type: "exports",
+            p_amount: 1,
+          });
+
+          if (incrementError || incremented !== true) {
+            console.error("[handle-unlock] subscription usage increment error:", incrementError);
+            await supabase
+              .from("unlocked_properties")
+              .delete()
+              .eq("user_id", user.id)
+              .eq("property_id", property_id)
+              .eq("unlock_source", "subscription_allowance");
+
+            return new Response(JSON.stringify({ error: "Failed to apply monthly unlock" }), {
+              status: 500,
+              headers,
+            });
+          }
+
+          source = "subscription_allowance";
+          subscription_remaining =
+            typeof limitResult.remaining === "number" ? Math.max(0, limitResult.remaining - 1) : null;
+        } else {
+          const { data, error } = await supabase.rpc("fn_unlock_property", {
+            p_user_id: user.id,
+            p_property_id: property_id,
+          });
+
+          if (error) {
+            console.error("[handle-unlock] RPC error:", error);
+            return new Response(JSON.stringify({ error: "Failed to unlock property" }), {
+              status: 500,
+              headers,
+            });
+          }
+
+          const result = data as Record<string, unknown>;
+
+          if (!result.success) {
+            console.info("[handle-unlock] fn_unlock_property declined:", result.error);
+            return new Response(
+              JSON.stringify({
+                error: result.error,
+                free_remaining: result.free_remaining ?? 0,
+                credits: result.credits ?? 0,
+                subscription_remaining: 0,
+                message: "No monthly unlocks, free unlocks, or credits remaining. Purchase credits or subscribe to unlock.",
+              }),
+              { status: 402, headers },
+            );
+          }
+
+          source = String(result.source ?? "unknown");
+          free_remaining = result.free_remaining as number | undefined;
+          credits_remaining = result.credits_remaining as number | undefined;
+        }
+      } else {
+        const { data, error } = await supabase.rpc("fn_unlock_property", {
+          p_user_id: user.id,
+          p_property_id: property_id,
+        });
+
+        if (error) {
+          console.error("[handle-unlock] RPC error:", error);
+          return new Response(JSON.stringify({ error: "Failed to unlock property" }), {
+            status: 500,
+            headers,
+          });
+        }
+
+        const result = data as Record<string, unknown>;
+
+        if (!result.success) {
+          console.info("[handle-unlock] fn_unlock_property declined:", result.error);
+          return new Response(
+            JSON.stringify({
+              error: result.error,
+              free_remaining: result.free_remaining ?? 0,
+              credits: result.credits ?? 0,
+              subscription_remaining: 0,
+              message: "No monthly unlocks, free unlocks, or credits remaining. Purchase credits or subscribe to unlock.",
+            }),
+            { status: 402, headers },
+          );
+        }
+
+        source = String(result.source ?? "unknown");
+        free_remaining = result.free_remaining as number | undefined;
+        credits_remaining = result.credits_remaining as number | undefined;
       }
-
-      const result = data as Record<string, unknown>;
-
-      if (!result.success) {
-        console.info("[handle-unlock] fn_unlock_property declined:", result.error);
-        return new Response(
-          JSON.stringify({
-            error: result.error,
-            free_remaining: result.free_remaining ?? 0,
-            credits: result.credits ?? 0,
-            message: "No free unlocks or credits remaining. Purchase credits or subscribe to unlock.",
-          }),
-          { status: 402, headers },
-        );
-      }
-
-      source = String(result.source ?? "unknown");
-      free_remaining = result.free_remaining as number | undefined;
-      credits_remaining = result.credits_remaining as number | undefined;
     } else {
       console.warn("[handle-unlock] body missing property_id and stripe_session_id");
       return new Response(JSON.stringify({ error: "property_id or stripe_session_id required" }), {
@@ -331,6 +435,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         source,
         free_remaining,
         credits_remaining,
+        subscription_remaining,
         property: property ?? null,
         contacts: contacts ?? [],
       }),

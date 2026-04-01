@@ -119,7 +119,9 @@ export function useSubscription() {
     queryKey: ['subscription', user?.id],
     queryFn: () => fetchSubscription(user!.id),
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 15 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Fetch usage
@@ -131,9 +133,9 @@ export function useSubscription() {
     queryKey: ['subscription-usage', user?.id],
     queryFn: () => fetchUsage(user!.id),
     enabled: !!user?.id,
-    staleTime: 30 * 1000, // 30 seconds - balance between freshness and performance
-    refetchOnMount: false, // Use stale data if available
-    refetchOnWindowFocus: false, // Only refetch when explicitly requested
+    staleTime: 10 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Build plan object from subscription data

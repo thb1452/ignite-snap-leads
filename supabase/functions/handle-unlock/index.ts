@@ -197,7 +197,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (existingUnlock) {
         source = "already_unlocked";
       } else if (userClient) {
-        const { data: limitData, error: limitError } = await userClient.rpc("fn_check_subscription_limit", {
+        const { data: limitData, error: limitError } = await supabase.rpc("fn_check_subscription_limit", {
+          p_user_id: user.id,
           p_usage_type: "exports",
           p_amount: 1,
         });
@@ -220,7 +221,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
             });
           }
 
-          const { data: incremented, error: incrementError } = await userClient.rpc("fn_increment_usage", {
+          const { data: incremented, error: incrementError } = await supabase.rpc("fn_increment_usage", {
+            p_user_id: user.id,
             p_usage_type: "exports",
             p_amount: 1,
           });

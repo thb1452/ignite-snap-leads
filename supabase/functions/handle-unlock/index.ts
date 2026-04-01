@@ -209,7 +209,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             user_id: user.id,
             property_id,
             credit_cost: 1,
-            unlock_source: "subscription_allowance",
+            unlock_source: "subscription",
           });
 
           if (insertError) {
@@ -232,7 +232,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
               .delete()
               .eq("user_id", user.id)
               .eq("property_id", property_id)
-              .eq("unlock_source", "subscription_allowance");
+              .eq("unlock_source", "subscription");
 
             return new Response(JSON.stringify({ error: "Failed to apply monthly unlock" }), {
               status: 500,
@@ -333,13 +333,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const batchdataKey = Deno.env.get("BATCHDATA_API_KEY");
     if (batchdataKey && property) {
-      const { data: existingContacts } = await supabase
-        .from("property_contacts")
-        .select("id")
-        .eq("property_id", property_id)
-        .limit(1);
+      const enrichPropertyContacts = async () => {
+        const { data: existingContacts } = await supabase
+          .from("property_contacts")
+          .select("id")
+          .eq("property_id", property_id)
+          .limit(1);
 
-      if (!existingContacts || existingContacts.length === 0) {
+        if (existingContacts && existingContacts.length > 0) return;
+
         try {
           const batchRes = await fetch("https://api.batchdata.com/api/v1/property/skip-trace", {
             method: "POST",
@@ -361,63 +363,76 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }),
           });
 
-          if (batchRes.ok) {
-            const batchData = await batchRes.json();
-            const persons = batchData?.results?.persons || batchData?.results?.[0]?.persons || [];
+          if (!batchRes.ok) {
+            console.error("[handle-unlock] BatchData error:", batchRes.status);
+            return;
+          }
 
-              if (persons.length > 0) {
-              const contacts = persons.slice(0, 3).map((person: Record<string, unknown>) => {
-                const mailingAddr = (person.addresses as Record<string, unknown>[] | undefined)?.[0] as
-                  | Record<string, string>
-                  | undefined;
-                // BatchData returns name as { first, last } object or flat firstName/lastName
-                const nameObj = person.name as Record<string, string> | string | undefined;
-                const firstName = person.firstName as string | undefined
-                  || (typeof nameObj === "object" && nameObj !== null ? nameObj.first : undefined);
-                const lastName = person.lastName as string | undefined
-                  || (typeof nameObj === "object" && nameObj !== null ? nameObj.last : undefined);
-                const fullName = [firstName, lastName].filter(Boolean).join(" ")
-                  || (typeof nameObj === "string" ? nameObj : null);
-                return {
-                  property_id,
-                  created_by: user.id,
-                  source: "batchdata",
-                  name: fullName || null,
-                  phone:
-                    (person.phones as { phone?: string }[] | undefined)?.[0]?.phone ||
-                    (person.phoneNumbers as { number?: string }[] | undefined)?.[0]?.number ||
-                    null,
-                  email:
-                    (person.emails as { email?: string }[] | undefined)?.[0]?.email ||
-                    (person.emailAddresses as { address?: string }[] | undefined)?.[0]?.address ||
-                    null,
-                  mailing_address: mailingAddr
-                    ? [mailingAddr.street, mailingAddr.city, mailingAddr.state, mailingAddr.zip]
-                        .filter(Boolean)
-                        .join(", ")
-                    : null,
-                  raw_payload: person,
-                };
-              });
-              await supabase.from("property_contacts").insert(contacts);
-            } else {
-              await supabase.from("property_contacts").insert({
+          const batchData = await batchRes.json();
+          const persons = batchData?.results?.persons || batchData?.results?.[0]?.persons || [];
+
+          if (persons.length > 0) {
+            const contacts = persons.slice(0, 3).map((person: Record<string, unknown>) => {
+              const mailingAddr = (person.addresses as Record<string, unknown>[] | undefined)?.[0] as
+                | Record<string, string>
+                | undefined;
+              const nameObj = person.name as Record<string, string> | string | undefined;
+              const firstName = person.firstName as string | undefined
+                || (typeof nameObj === "object" && nameObj !== null ? nameObj.first : undefined);
+              const lastName = person.lastName as string | undefined
+                || (typeof nameObj === "object" && nameObj !== null ? nameObj.last : undefined);
+              const fullName = [firstName, lastName].filter(Boolean).join(" ")
+                || (typeof nameObj === "string" ? nameObj : null);
+
+              return {
                 property_id,
                 created_by: user.id,
                 source: "batchdata",
-                name: null,
-                phone: null,
-                email: null,
-                mailing_address: null,
-                raw_payload: batchData,
-              });
-            }
-          } else {
-            console.error("[handle-unlock] BatchData error:", batchRes.status);
+                name: fullName || null,
+                phone:
+                  (person.phones as { phone?: string }[] | undefined)?.[0]?.phone ||
+                  (person.phoneNumbers as { number?: string }[] | undefined)?.[0]?.number ||
+                  null,
+                email:
+                  (person.emails as { email?: string }[] | undefined)?.[0]?.email ||
+                  (person.emailAddresses as { address?: string }[] | undefined)?.[0]?.address ||
+                  null,
+                mailing_address: mailingAddr
+                  ? [mailingAddr.street, mailingAddr.city, mailingAddr.state, mailingAddr.zip]
+                      .filter(Boolean)
+                      .join(", ")
+                  : null,
+                raw_payload: person,
+              };
+            });
+
+            await supabase.from("property_contacts").insert(contacts);
+            return;
           }
+
+          await supabase.from("property_contacts").insert({
+            property_id,
+            created_by: user.id,
+            source: "batchdata",
+            name: null,
+            phone: null,
+            email: null,
+            mailing_address: null,
+            raw_payload: batchData,
+          });
         } catch (enrichErr: unknown) {
           console.error("[handle-unlock] Enrichment error:", (enrichErr as Error)?.message);
         }
+      };
+
+      const runtime = (globalThis as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } })
+        .EdgeRuntime;
+      if (runtime?.waitUntil) {
+        runtime.waitUntil(enrichPropertyContacts());
+      } else {
+        enrichPropertyContacts().catch((enrichErr) =>
+          console.error("[handle-unlock] async enrichment fallback error:", enrichErr),
+        );
       }
     }
 

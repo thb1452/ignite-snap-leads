@@ -15,10 +15,55 @@ const PAYG_PRICE_ID = "price_1TGleEPfDZrVNjz5uPoCIrhU";
 
 // Bulk credit packs (one-time payments)
 const BULK_PRICE_IDS: Record<string, { priceId: string; credits: number }> = {
-  "5000":  { priceId: "price_1TGlsfPfDZrVNjz5rpCB2h8c", credits: 5000 },
+  "5000": { priceId: "price_1TGlsfPfDZrVNjz5rpCB2h8c", credits: 5000 },
   "10000": { priceId: "price_1TGlu5PfDZrVNjz5GyjhPbEp", credits: 10000 },
   "20000": { priceId: "price_1TGlv7PfDZrVNjz5akOCyZbl", credits: 20000 },
 };
+
+async function resolveLatestInvoice(stripe: Stripe, subscription: Stripe.Subscription): Promise<Stripe.Invoice | null> {
+  const li = subscription.latest_invoice;
+  if (!li) return null;
+  if (typeof li === "string") {
+    return await stripe.invoices.retrieve(li);
+  }
+  return li as Stripe.Invoice;
+}
+
+/** After subscriptions.update with pending_if_incomplete: send user to pay the invoice, or success if already paid. Never implies DB changes — webhooks sync plan/credits. */
+async function subscriptionChangePaymentResponse(
+  updated: Stripe.Subscription,
+  stripe: Stripe,
+  appUrl: string,
+  successPayload: { upgraded: boolean; message: string },
+): Promise<Record<string, unknown>> {
+  let inv = await resolveLatestInvoice(stripe, updated);
+  if (inv?.status === "draft" && typeof inv.id === "string") {
+    try {
+      inv = await stripe.invoices.finalizeInvoice(inv.id);
+    } catch {
+      /* keep draft */
+    }
+  }
+
+  const pending = updated.pending_update as { subscription_items?: unknown[] } | null | undefined;
+  const hasPendingPlanChange = Array.isArray(pending?.subscription_items) && pending.subscription_items.length > 0;
+
+  if (inv && inv.status !== "paid" && (inv.amount_due ?? 0) > 0 && inv.hosted_invoice_url) {
+    return { url: inv.hosted_invoice_url, checkout_url: inv.hosted_invoice_url };
+  }
+
+  if (hasPendingPlanChange && (!inv || inv.status !== "paid")) {
+    return {
+      error:
+        "Complete payment to apply this plan change. Use Settings → Manage subscription to pay open invoices or update your payment method.",
+    };
+  }
+
+  return {
+    ...successPayload,
+    redirect_url: `${appUrl}/checkout/success`,
+  };
+}
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -149,7 +194,7 @@ async function handleSubscription(
 
   let customerId = existingSubscription?.stripe_customer_id;
 
-  // If user already trialing same plan, convert to active
+  // If user already trialing same plan, convert to active (only after Stripe collects payment)
   if (
     existingSubscription?.stripe_subscription_id &&
     (existingSubscription.status === "trialing" || existingSubscription.status === "trial") &&
@@ -159,27 +204,25 @@ async function handleSubscription(
     try {
       const updated = await stripe.subscriptions.update(existingSubscription.stripe_subscription_id, {
         trial_end: "now",
+        proration_behavior: "always_invoice",
+        payment_behavior: "pending_if_incomplete",
       });
-      await supabase
-        .from("user_subscriptions")
-        .update({
-          status: "active",
-          trial_exports_used: 0,
-          current_period_start: new Date(updated.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(updated.current_period_end * 1000).toISOString(),
-        })
-        .eq("stripe_subscription_id", existingSubscription.stripe_subscription_id);
-
-      return new Response(
-        JSON.stringify({
-          upgraded: true,
-          message: "Trial converted to active subscription",
-          redirect_url: `${appUrl}/checkout/success`,
-        }),
-        { headers },
-      );
+      const body = await subscriptionChangePaymentResponse(updated, stripe, appUrl, {
+        upgraded: true,
+        message: "Trial converted to active subscription",
+      });
+      if (typeof body.error === "string") {
+        return new Response(JSON.stringify(body), { status: 400, headers });
+      }
+      return new Response(JSON.stringify(body), { headers });
     } catch (stripeErr: any) {
       console.error("[checkout] Failed to end trial:", stripeErr.message);
+      return new Response(
+        JSON.stringify({
+          error: "Could not complete trial conversion. Update your payment method in billing settings or try again.",
+        }),
+        { status: 400, headers },
+      );
     }
   }
 
@@ -196,7 +239,8 @@ async function handleSubscription(
         if (itemId) {
           const updated = await stripe.subscriptions.update(existingSubscription.stripe_subscription_id, {
             items: [{ id: itemId, price: priceId }],
-            proration_behavior: "create_prorations",
+            proration_behavior: "always_invoice",
+            payment_behavior: "pending_if_incomplete",
             metadata: {
               user_id: user.id,
               plan_id: plan.id,
@@ -204,35 +248,33 @@ async function handleSubscription(
               is_trial: trial ? "true" : "false",
             },
           });
-          const newStatus =
-            updated.status === "trialing"
-              ? "trialing"
-              : updated.status === "past_due"
-                ? "past_due"
-                : "active";
-          await supabase
-            .from("user_subscriptions")
-            .update({
-              plan_id: plan.id,
-              status: newStatus,
-              current_period_start: new Date(updated.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(updated.current_period_end * 1000).toISOString(),
-            })
-            .eq("stripe_subscription_id", existingSubscription.stripe_subscription_id);
-
-          return new Response(
-            JSON.stringify({
-              upgraded: true,
-              message: "Subscription plan updated",
-              redirect_url: `${appUrl}/checkout/success`,
-            }),
-            { headers },
-          );
+          // Do not update user_subscriptions here — webhooks apply plan/credits only after payment succeeds.
+          const body = await subscriptionChangePaymentResponse(updated, stripe, appUrl, {
+            upgraded: true,
+            message: "Subscription plan updated",
+          });
+          if (typeof body.error === "string") {
+            return new Response(JSON.stringify(body), { status: 400, headers });
+          }
+          return new Response(JSON.stringify(body), { headers });
         }
       }
+      return new Response(
+        JSON.stringify({
+          error: "Unable to change plan for this subscription. Use billing settings or contact support.",
+        }),
+        { status: 400, headers },
+      );
     } catch (stripeErr: unknown) {
       const msg = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
-      console.error("[checkout] Subscription update failed, falling back to Checkout session:", msg);
+      console.error("[checkout] Subscription plan change failed:", msg);
+      return new Response(
+        JSON.stringify({
+          error:
+            "Unable to change your plan right now. Confirm your payment method in billing settings, then try again.",
+        }),
+        { status: 400, headers },
+      );
     }
   }
 
@@ -313,10 +355,10 @@ async function handleBulkCredits(
   const pack = BULK_PRICE_IDS[key];
 
   if (!pack) {
-    return new Response(
-      JSON.stringify({ error: `Invalid credit pack: ${credit_count}. Valid: 5000, 10000, 20000` }),
-      { status: 400, headers },
-    );
+    return new Response(JSON.stringify({ error: `Invalid credit pack: ${credit_count}. Valid: 5000, 10000, 20000` }), {
+      status: 400,
+      headers,
+    });
   }
 
   const customerId = await getOrCreateCustomer(stripe, supabase, user);
@@ -337,8 +379,7 @@ async function handleBulkCredits(
 
   console.log("[checkout] Created bulk credits session:", session.id, "credits:", pack.credits);
 
-  return new Response(
-    JSON.stringify({ sessionId: session.id, checkout_url: session.url, url: session.url }),
-    { headers },
-  );
+  return new Response(JSON.stringify({ sessionId: session.id, checkout_url: session.url, url: session.url }), {
+    headers,
+  });
 }

@@ -36,15 +36,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const token = authHeader.replace("Bearer ", "");
-    const userClient = supabaseAnonKey
-      ? createClient(supabaseUrl, supabaseAnonKey, {
-          global: {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        })
-      : null;
+
+    const userScopedKey = supabaseAnonKey ?? supabaseKey;
+    const userClient = createClient(supabaseUrl, userScopedKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    });
     const {
       data: { user },
       error: authErr,
@@ -216,8 +216,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
           source = String(result.source ?? "unknown");
           free_remaining = result.free_remaining as number | undefined;
           credits_remaining = result.credits_remaining as number | undefined;
-        } else if (userClient) {
-          const { data: limitData, error: limitError } = await supabase.rpc("fn_check_subscription_limit", {
+        } else {
+          const { data: limitData, error: limitError } = await userClient.rpc("fn_check_subscription_limit", {
             p_user_id: user.id,
             p_usage_type: "exports",
             p_amount: 1,
@@ -241,7 +241,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
               });
             }
 
-            const { data: incremented, error: incrementError } = await supabase.rpc("fn_increment_usage", {
+            const { data: incremented, error: incrementError } = await userClient.rpc("fn_increment_usage", {
               p_user_id: user.id,
               p_usage_type: "exports",
               p_amount: 1,
@@ -264,7 +264,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
             source = "subscription_allowance";
             subscription_remaining =
-              typeof limitResult.remaining === "number" ? Math.max(0, limitResult.remaining) : null;
+              limitResult.remaining === null
+                ? null
+                : typeof limitResult.remaining === "number"
+                  ? Math.max(0, limitResult.remaining)
+                  : null;
           } else {
             console.info("[handle-unlock] fn_unlock_property declined:", result.error);
             return new Response(
@@ -272,24 +276,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 error: result.error,
                 free_remaining: result.free_remaining ?? 0,
                 credits: result.credits ?? 0,
-                subscription_remaining: limitResult?.remaining ?? 0,
+                subscription_remaining:
+                  typeof limitResult?.remaining === "number"
+                    ? Math.max(0, limitResult.remaining)
+                    : limitResult?.remaining === null
+                      ? null
+                      : 0,
                 message: "Insufficient balance. Buy unlock with Stripe to continue.",
               }),
               { status: 402, headers },
             );
           }
-        } else {
-          console.info("[handle-unlock] fn_unlock_property declined:", result.error);
-          return new Response(
-            JSON.stringify({
-              error: result.error,
-              free_remaining: result.free_remaining ?? 0,
-              credits: result.credits ?? 0,
-              subscription_remaining: 0,
-              message: "Insufficient balance. Buy unlock with Stripe to continue.",
-            }),
-            { status: 402, headers },
-          );
         }
       }
     } else {
@@ -358,12 +355,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 | Record<string, string>
                 | undefined;
               const nameObj = person.name as Record<string, string> | string | undefined;
-              const firstName = person.firstName as string | undefined
-                || (typeof nameObj === "object" && nameObj !== null ? nameObj.first : undefined);
-              const lastName = person.lastName as string | undefined
-                || (typeof nameObj === "object" && nameObj !== null ? nameObj.last : undefined);
-              const fullName = [firstName, lastName].filter(Boolean).join(" ")
-                || (typeof nameObj === "string" ? nameObj : null);
+              const firstName =
+                (person.firstName as string | undefined) ||
+                (typeof nameObj === "object" && nameObj !== null ? nameObj.first : undefined);
+              const lastName =
+                (person.lastName as string | undefined) ||
+                (typeof nameObj === "object" && nameObj !== null ? nameObj.last : undefined);
+              const fullName =
+                [firstName, lastName].filter(Boolean).join(" ") || (typeof nameObj === "string" ? nameObj : null);
 
               return {
                 property_id,
@@ -406,8 +405,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
       };
 
-      const runtime = (globalThis as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } })
-        .EdgeRuntime;
+      const runtime = (globalThis as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
       if (runtime?.waitUntil) {
         runtime.waitUntil(enrichPropertyContacts());
       } else {

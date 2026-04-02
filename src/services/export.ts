@@ -1,4 +1,5 @@
 import { supabase, supabaseUrl } from "@/integrations/supabase/externalClient";
+import { queryClient } from "@/lib/query";
 import { logExportEvent } from "./exportLog";
 
 interface ExportParams {
@@ -91,6 +92,11 @@ export async function exportFilteredCsv(params: ExportParams) {
   }
 
   const csv = await response.text();
+
+  // Server updated usage; refresh cached subscription/trial/credits so Settings counters update without a full reload.
+  void queryClient.invalidateQueries({ queryKey: ["subscription-usage"] });
+  void queryClient.invalidateQueries({ queryKey: ["trial-status"] });
+  void queryClient.invalidateQueries({ queryKey: ["credits"] });
 
   // Trigger browser download
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });

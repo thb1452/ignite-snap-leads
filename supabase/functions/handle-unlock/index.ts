@@ -19,7 +19,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
     if (!supabaseUrl || !supabaseKey) {
       throw new Error("SERVER_MISCONFIGURED");
@@ -36,15 +35,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const token = authHeader.replace("Bearer ", "");
-
-    const userScopedKey = supabaseAnonKey ?? supabaseKey;
-    const userClient = createClient(supabaseUrl, userScopedKey, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    });
     const {
       data: { user },
       error: authErr,
@@ -187,121 +177,43 @@ Deno.serve(async (req: Request): Promise<Response> => {
     } else if (property_id_input) {
       property_id = property_id_input;
 
-      const { data: existingUnlock } = await supabase
-        .from("unlocked_properties")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("property_id", property_id)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("fn_unlock_property", {
+        p_user_id: user.id,
+        p_property_id: property_id,
+      });
 
-      if (existingUnlock) {
-        source = "already_unlocked";
-      } else {
-        const { data, error } = await supabase.rpc("fn_unlock_property", {
-          p_user_id: user.id,
-          p_property_id: property_id,
+      if (error) {
+        console.error("[handle-unlock] RPC error:", error);
+        return new Response(JSON.stringify({ error: "Failed to unlock property" }), {
+          status: 500,
+          headers,
         });
-
-        if (error) {
-          console.error("[handle-unlock] RPC error:", error);
-          return new Response(JSON.stringify({ error: "Failed to unlock property" }), {
-            status: 500,
-            headers,
-          });
-        }
-
-        const result = data as Record<string, unknown>;
-
-        if (result.success) {
-          source = String(result.source ?? "unknown");
-          free_remaining = result.free_remaining as number | undefined;
-          credits_remaining = result.credits_remaining as number | undefined;
-        } else {
-          const { data: limitData, error: limitError } = await supabase.rpc("fn_check_subscription_limit", {
-            p_user_id: user.id,
-            p_usage_type: "exports",
-            p_amount: 1,
-          });
-
-          console.info("[handle-unlock] subscription check:", JSON.stringify({ limitData, limitError }));
-
-          const limitResult = (limitData ?? null) as { allowed?: boolean; remaining?: number | null } | null;
-
-          if (!limitError && limitResult?.allowed) {
-            const { error: insertError } = await supabase.from("unlocked_properties").insert({
-              user_id: user.id,
-              property_id,
-              credit_cost: 1,
-              unlock_source: "subscription",
-            });
-
-            if (insertError) {
-              console.error("[handle-unlock] subscription unlock insert error:", insertError);
-              return new Response(JSON.stringify({ error: "Failed to record subscription unlock" }), {
-                status: 500,
-                headers,
-              });
-            }
-
-            const { data: incremented, error: incrementError } = await supabase.rpc("fn_increment_usage", {
-              p_user_id: user.id,
-              p_usage_type: "exports",
-              p_amount: 1,
-            });
-
-            if (incrementError || incremented !== true) {
-              console.error("[handle-unlock] subscription usage increment error:", incrementError);
-              await supabase
-                .from("unlocked_properties")
-                .delete()
-                .eq("user_id", user.id)
-                .eq("property_id", property_id)
-                .eq("unlock_source", "subscription");
-
-              return new Response(JSON.stringify({ error: "Failed to apply monthly unlock" }), {
-                status: 500,
-                headers,
-              });
-            }
-
-            source = "subscription_allowance";
-            // Re-query the actual remaining AFTER the increment so we return fresh data
-            const { data: postIncrementData } = await supabase.rpc("fn_check_subscription_limit", {
-              p_user_id: user.id,
-              p_usage_type: "exports",
-              p_amount: 0, // just a read, no additional amount
-            });
-            const postResult = (postIncrementData ?? null) as { remaining?: number | null } | null;
-            subscription_remaining =
-              postResult?.remaining === null
-                ? null
-                : typeof postResult?.remaining === "number"
-                  ? Math.max(0, postResult.remaining)
-                  : (limitResult.remaining === null
-                      ? null
-                      : typeof limitResult.remaining === "number"
-                        ? Math.max(0, limitResult.remaining - 1)
-                        : null);
-          } else {
-            console.info("[handle-unlock] fn_unlock_property declined:", result.error);
-            return new Response(
-              JSON.stringify({
-                error: result.error,
-                free_remaining: result.free_remaining ?? 0,
-                credits: result.credits ?? 0,
-                subscription_remaining:
-                  typeof limitResult?.remaining === "number"
-                    ? Math.max(0, limitResult.remaining)
-                    : limitResult?.remaining === null
-                      ? null
-                      : 0,
-                message: "Insufficient balance. Buy unlock with Stripe to continue.",
-              }),
-              { status: 402, headers },
-            );
-          }
-        }
       }
+
+      const result = data as Record<string, unknown>;
+
+      if (!result.success) {
+        console.info("[handle-unlock] fn_unlock_property declined:", result.error);
+        const msg =
+          typeof result.message === "string" && result.message.length > 0
+            ? result.message
+            : "No free unlocks or credits remaining. Purchase credits or subscribe to unlock.";
+        return new Response(
+          JSON.stringify({
+            error: result.error,
+            free_remaining: result.free_remaining ?? 0,
+            credits: result.credits ?? 0,
+            subscription_remaining: result.subscription_remaining ?? 0,
+            message: msg,
+          }),
+          { status: 402, headers },
+        );
+      }
+
+      source = String(result.source ?? "unknown");
+      free_remaining = result.free_remaining as number | undefined;
+      credits_remaining = result.credits_remaining as number | undefined;
+      subscription_remaining = result.subscription_remaining as number | null | undefined;
     } else {
       console.warn("[handle-unlock] body missing property_id and stripe_session_id");
       return new Response(JSON.stringify({ error: "property_id or stripe_session_id required" }), {
@@ -324,15 +236,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const batchdataKey = Deno.env.get("BATCHDATA_API_KEY");
     if (batchdataKey && property) {
-      const enrichPropertyContacts = async () => {
-        const { data: existingContacts } = await supabase
-          .from("property_contacts")
-          .select("id")
-          .eq("property_id", property_id)
-          .limit(1);
+      const { data: existingContacts } = await supabase
+        .from("property_contacts")
+        .select("id")
+        .eq("property_id", property_id)
+        .limit(1);
 
-        if (existingContacts && existingContacts.length > 0) return;
-
+      if (!existingContacts || existingContacts.length === 0) {
         try {
           const batchRes = await fetch("https://api.batchdata.com/api/v1/property/skip-trace", {
             method: "POST",
@@ -354,77 +264,65 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }),
           });
 
-          if (!batchRes.ok) {
-            console.error("[handle-unlock] BatchData error:", batchRes.status);
-            return;
-          }
+          if (batchRes.ok) {
+            const batchData = await batchRes.json();
+            const persons = batchData?.results?.persons || batchData?.results?.[0]?.persons || [];
 
-          const batchData = await batchRes.json();
-          const persons = batchData?.results?.persons || batchData?.results?.[0]?.persons || [];
-
-          if (persons.length > 0) {
-            const contacts = persons.slice(0, 3).map((person: Record<string, unknown>) => {
-              const mailingAddr = (person.addresses as Record<string, unknown>[] | undefined)?.[0] as
-                | Record<string, string>
-                | undefined;
-              const nameObj = person.name as Record<string, string> | string | undefined;
-              const firstName =
-                (person.firstName as string | undefined) ||
-                (typeof nameObj === "object" && nameObj !== null ? nameObj.first : undefined);
-              const lastName =
-                (person.lastName as string | undefined) ||
-                (typeof nameObj === "object" && nameObj !== null ? nameObj.last : undefined);
-              const fullName =
-                [firstName, lastName].filter(Boolean).join(" ") || (typeof nameObj === "string" ? nameObj : null);
-
-              return {
+            if (persons.length > 0) {
+              const contacts = persons.slice(0, 3).map((person: Record<string, unknown>) => {
+                const mailingAddr = (person.addresses as Record<string, unknown>[] | undefined)?.[0] as
+                  | Record<string, string>
+                  | undefined;
+                // BatchData returns name as { first, last } object or flat firstName/lastName
+                const nameObj = person.name as Record<string, string> | string | undefined;
+                const firstName =
+                  (person.firstName as string | undefined) ||
+                  (typeof nameObj === "object" && nameObj !== null ? nameObj.first : undefined);
+                const lastName =
+                  (person.lastName as string | undefined) ||
+                  (typeof nameObj === "object" && nameObj !== null ? nameObj.last : undefined);
+                const fullName =
+                  [firstName, lastName].filter(Boolean).join(" ") || (typeof nameObj === "string" ? nameObj : null);
+                return {
+                  property_id,
+                  created_by: user.id,
+                  source: "batchdata",
+                  name: fullName || null,
+                  phone:
+                    (person.phones as { phone?: string }[] | undefined)?.[0]?.phone ||
+                    (person.phoneNumbers as { number?: string }[] | undefined)?.[0]?.number ||
+                    null,
+                  email:
+                    (person.emails as { email?: string }[] | undefined)?.[0]?.email ||
+                    (person.emailAddresses as { address?: string }[] | undefined)?.[0]?.address ||
+                    null,
+                  mailing_address: mailingAddr
+                    ? [mailingAddr.street, mailingAddr.city, mailingAddr.state, mailingAddr.zip]
+                        .filter(Boolean)
+                        .join(", ")
+                    : null,
+                  raw_payload: person,
+                };
+              });
+              await supabase.from("property_contacts").insert(contacts);
+            } else {
+              await supabase.from("property_contacts").insert({
                 property_id,
                 created_by: user.id,
                 source: "batchdata",
-                name: fullName || null,
-                phone:
-                  (person.phones as { phone?: string }[] | undefined)?.[0]?.phone ||
-                  (person.phoneNumbers as { number?: string }[] | undefined)?.[0]?.number ||
-                  null,
-                email:
-                  (person.emails as { email?: string }[] | undefined)?.[0]?.email ||
-                  (person.emailAddresses as { address?: string }[] | undefined)?.[0]?.address ||
-                  null,
-                mailing_address: mailingAddr
-                  ? [mailingAddr.street, mailingAddr.city, mailingAddr.state, mailingAddr.zip]
-                      .filter(Boolean)
-                      .join(", ")
-                  : null,
-                raw_payload: person,
-              };
-            });
-
-            await supabase.from("property_contacts").insert(contacts);
-            return;
+                name: null,
+                phone: null,
+                email: null,
+                mailing_address: null,
+                raw_payload: batchData,
+              });
+            }
+          } else {
+            console.error("[handle-unlock] BatchData error:", batchRes.status);
           }
-
-          await supabase.from("property_contacts").insert({
-            property_id,
-            created_by: user.id,
-            source: "batchdata",
-            name: null,
-            phone: null,
-            email: null,
-            mailing_address: null,
-            raw_payload: batchData,
-          });
         } catch (enrichErr: unknown) {
           console.error("[handle-unlock] Enrichment error:", (enrichErr as Error)?.message);
         }
-      };
-
-      const runtime = (globalThis as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
-      if (runtime?.waitUntil) {
-        runtime.waitUntil(enrichPropertyContacts());
-      } else {
-        enrichPropertyContacts().catch((enrichErr) =>
-          console.error("[handle-unlock] async enrichment fallback error:", enrichErr),
-        );
       }
     }
 

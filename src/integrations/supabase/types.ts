@@ -3274,6 +3274,13 @@ export type Database = {
           state: string
         }[]
       }
+      fn_export_properties_batch: {
+        Args: {
+          p_enforce_code_violation_only?: boolean
+          p_property_ids: string[]
+        }
+        Returns: Json
+      }
       fn_fix_city_names: { Args: { mappings: Json }; Returns: Json }
       fn_fulfillment_overview: {
         Args: never

@@ -78,7 +78,10 @@ export function UnlockModal({
           toast({
             variant: "destructive",
             title: "Insufficient balance",
-            description: "Purchase credits or subscribe to unlock properties.",
+            description:
+              typeof data.message === "string" && data.message.length > 0
+                ? data.message
+                : "Purchase credits or subscribe to unlock properties.",
           });
         } else {
           throw new Error(data.error || "Unlock failed");
@@ -91,7 +94,11 @@ export function UnlockModal({
         description:
           data.source === "free_credit"
             ? `Free unlock used. ${data.free_remaining} remaining.`
-            : `1 credit used. ${data.credits_remaining} credits remaining.`,
+            : data.source === "subscription"
+              ? typeof data.subscription_remaining === "number"
+                ? `1 plan credit used. ${data.subscription_remaining} remaining this billing period.`
+                : "Property unlocked using your plan."
+              : `1 credit used. ${data.credits_remaining} credits remaining.`,
       });
 
       // Optimistically mark unlocked immediately (works even before unlock queries exist).
@@ -111,6 +118,7 @@ export function UnlockModal({
       queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
       queryClient.invalidateQueries({ queryKey: ["credits"] });
       queryClient.invalidateQueries({ queryKey: ["user", "credits"] });
+      queryClient.invalidateQueries({ queryKey: ["subscription-usage"] });
       queryClient.invalidateQueries({ queryKey: ["property-contacts", property.id] });
 
       onUnlocked?.();

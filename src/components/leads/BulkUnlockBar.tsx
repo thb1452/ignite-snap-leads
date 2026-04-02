@@ -86,6 +86,7 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked }: BulkUnlo
 
         queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
         queryClient.invalidateQueries({ queryKey: ["credits"] });
+        queryClient.invalidateQueries({ queryKey: ["subscription-usage"] });
         queryClient.invalidateQueries({ queryKey: ["free-unlocks"] });
         onUnlocked();
       }

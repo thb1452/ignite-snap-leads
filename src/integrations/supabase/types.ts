@@ -3342,19 +3342,10 @@ export type Database = {
         Args: { p_count?: number; p_user_id: string }
         Returns: Json
       }
-      fn_increment_usage:
-        | {
-            Args: {
-              p_amount?: number
-              p_usage_type: string
-              p_user_id?: string
-            }
-            Returns: boolean
-          }
-        | {
-            Args: { p_amount?: number; p_usage_type: string; p_user_id: string }
-            Returns: boolean
-          }
+      fn_increment_usage: {
+        Args: { p_amount?: number; p_usage_type: string; p_user_id?: string }
+        Returns: boolean
+      }
       fn_job_status: { Args: { p_job_id: string }; Returns: Json }
       fn_jurisdiction_intelligence: {
         Args: never

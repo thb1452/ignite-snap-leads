@@ -5,7 +5,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
-import { resolvePlanFromStripeSubscription } from "../_shared/stripeSubscriptionPlan.ts";
 
 Deno.serve(async (req: Request): Promise<Response> => {
   try {
@@ -126,8 +125,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           break;
         }
 
-        case "invoice.payment_succeeded":
-        case "invoice.paid": {
+        case "invoice.payment_succeeded": {
           const invoice = event.data.object as Stripe.Invoice;
           await handlePaymentSucceeded(supabase, stripe, invoice);
           break;
@@ -300,72 +298,36 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
 // ---- Subscription Checkout Handler (existing logic, extracted) ----
 async function handleSubscriptionCheckout(supabase: any, stripe: Stripe, session: Stripe.Checkout.Session) {
   const userId = session.metadata?.user_id;
+  let planId = session.metadata?.plan_id;
   const customerId = session.customer as string;
-  const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+  const subscriptionId = session.subscription as string;
   const isTrial = session.metadata?.is_trial === "true";
 
-  if (!userId || !subscriptionId || !customerId) {
-    console.error(
-      "[webhook] Missing checkout fields:",
-      JSON.stringify({ has_user_id: !!userId, has_subscription_id: !!subscriptionId, has_customer: !!customerId }),
-    );
+  if (!userId || !planId) {
+    console.error("[webhook] Missing metadata in checkout session");
     return;
+  }
+
+  // If planId is not a UUID, resolve it from the DB
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(planId)) {
+    const TIER_ALIAS: Record<string, string> = { elite: "enterprise" };
+    const lookupName = TIER_ALIAS[planId.toLowerCase()] || planId.toLowerCase();
+    const { data: resolved } = await supabase
+      .from("subscription_plans")
+      .select("id")
+      .eq("name", lookupName)
+      .maybeSingle();
+    if (resolved?.id) {
+      console.log("[webhook] Resolved plan_id from name:", planId, "→", resolved.id);
+      planId = resolved.id;
+    } else {
+      console.error("[webhook] Could not resolve plan_id:", planId);
+      return;
+    }
   }
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-  const fromStripe = await resolvePlanFromStripeSubscription(supabase, subscription);
-  let planId: string | null = fromStripe?.planId ?? null;
-
-  if (fromStripe) {
-    console.log(
-      "[webhook] checkout.session.completed: plan from Stripe line items",
-      JSON.stringify({
-        plan_id: fromStripe.planId,
-        price_id: fromStripe.priceId,
-        source: fromStripe.source,
-        plan_name: fromStripe.planName,
-      }),
-    );
-  }
-
-  if (!planId && session.metadata?.plan_id) {
-    let metaPlan = session.metadata.plan_id as string;
-    if (!UUID_RE.test(metaPlan)) {
-      const TIER_ALIAS: Record<string, string> = { elite: "enterprise" };
-      const lookupName = TIER_ALIAS[metaPlan.toLowerCase()] || metaPlan.toLowerCase();
-      const { data: resolved } = await supabase
-        .from("subscription_plans")
-        .select("id")
-        .eq("name", lookupName)
-        .maybeSingle();
-      if (resolved?.id) {
-        console.log("[webhook] checkout: fallback plan_id from metadata tier name:", metaPlan, "→", resolved.id);
-        planId = resolved.id;
-      } else {
-        console.error("[webhook] checkout: could not resolve metadata plan_id:", metaPlan);
-      }
-    } else {
-      planId = metaPlan;
-      console.log("[webhook] checkout: fallback plan_id from metadata UUID:", planId);
-    }
-  }
-
-  if (!planId) {
-    console.error("[webhook] checkout: could not resolve plan_id from Stripe subscription items or metadata");
-    return;
-  }
-
-  if (fromStripe && session.metadata?.plan_id) {
-    const metaRaw = session.metadata.plan_id;
-    if (UUID_RE.test(metaRaw) && metaRaw !== fromStripe.planId) {
-      console.warn(
-        "[webhook] checkout: metadata plan_id differs from Stripe price mapping; using Stripe",
-        JSON.stringify({ metadata_plan_id: metaRaw, stripe_plan_id: fromStripe.planId }),
-      );
-    }
-  }
 
   // Cancel any existing active/trial subscriptions
   const { error: cancelError } = await supabase
@@ -412,22 +374,6 @@ async function handleSubscriptionCheckout(supabase: any, stripe: Stripe, session
   if (insertError) {
     console.error("[webhook] Error creating subscription:", insertError);
     throw insertError;
-  }
-
-  try {
-    const other = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 30,
-    });
-    for (const s of other.data) {
-      if (s.id !== subscriptionId) {
-        await stripe.subscriptions.cancel(s.id);
-        console.log("[webhook] Cancelled duplicate Stripe subscription after checkout:", s.id);
-      }
-    }
-  } catch (dupErr: any) {
-    console.error("[webhook] Could not cancel duplicate Stripe subscriptions:", dupErr?.message ?? dupErr);
   }
 
   // Record affiliate commission for subscription first payment
@@ -576,24 +522,18 @@ async function handleSubscriptionChange(supabase: any, stripe: Stripe, subscript
     cancel_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
   };
 
-  const planResolved = await resolvePlanFromStripeSubscription(supabase, subscription);
-  if (planResolved) {
-    updatePayload.plan_id = planResolved.planId;
-    console.log(
-      "[webhook] customer.subscription.*: plan_id sync",
-      JSON.stringify({
-        stripe_subscription_id: subscription.id,
-        plan_id: planResolved.planId,
-        price_id: planResolved.priceId,
-        source: planResolved.source,
-        plan_name: planResolved.planName,
-      }),
-    );
-  } else {
-    console.warn(
-      "[webhook] customer.subscription.*: no price→plan mapping; plan_id not updated from Stripe",
-      subscription.id,
-    );
+  // M-4: sync plan_id when a user upgrades/downgrades mid-subscription
+  const stripePriceId = subscription.items?.data?.[0]?.price?.id;
+  if (stripePriceId) {
+    const { data: planRow } = await supabase
+      .from("subscription_plans")
+      .select("id")
+      .eq("stripe_price_id", stripePriceId)
+      .maybeSingle();
+    if (planRow?.id) {
+      updatePayload.plan_id = planRow.id;
+      console.log("[webhook] Updating plan_id from stripe price:", stripePriceId, "→", planRow.id);
+    }
   }
 
   if (subscription.status === "active") {
@@ -613,28 +553,17 @@ async function handleSubscriptionChange(supabase: any, stripe: Stripe, subscript
     updatePayload.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
   }
 
-  const { data: updatedRows, error } = await supabase
+  const { error } = await supabase
     .from("user_subscriptions")
     .update(updatePayload)
-    .eq("stripe_subscription_id", subscription.id)
-    .select("id, user_id, plan_id");
+    .eq("stripe_subscription_id", subscription.id);
 
   if (error) {
     console.error("[webhook] Error updating subscription:", error);
     throw error;
   }
 
-  if (!updatedRows?.length) {
-    console.error(
-      "[webhook] subscription.update matched 0 DB rows (checkout may not have inserted yet):",
-      subscription.id,
-    );
-  } else {
-    console.log(
-      "[webhook] Subscription row updated:",
-      JSON.stringify({ user_id: userId, status, db_row: updatedRows[0] }),
-    );
-  }
+  console.log("[webhook] Subscription updated for user:", userId, "status:", status);
 }
 
 async function handleSubscriptionDeleted(supabase: any, subscription: Stripe.Subscription) {
@@ -670,59 +599,64 @@ async function handleSubscriptionDeleted(supabase: any, subscription: Stripe.Sub
   console.log("[webhook] Subscription cancelled for user:", userId);
 }
 
+async function syncUserSubscriptionPlanFromStripe(
+  supabase: any,
+  stripe: Stripe,
+  subscriptionId: string,
+): Promise<void> {
+  try {
+    const sub = await stripe.subscriptions.retrieve(subscriptionId);
+    const stripePriceId = sub.items?.data?.[0]?.price?.id;
+    if (!stripePriceId) return;
+    const { data: planRow } = await supabase
+      .from("subscription_plans")
+      .select("id")
+      .eq("stripe_price_id", stripePriceId)
+      .maybeSingle();
+    if (!planRow?.id) return;
+    const { error } = await supabase
+      .from("user_subscriptions")
+      .update({ plan_id: planRow.id })
+      .eq("stripe_subscription_id", subscriptionId);
+    if (error) {
+      console.error("[webhook] syncUserSubscriptionPlanFromStripe:", error);
+    }
+  } catch (e: any) {
+    console.error("[webhook] syncUserSubscriptionPlanFromStripe failed:", e?.message ?? e);
+  }
+}
+
 async function handlePaymentSucceeded(supabase: any, stripe: Stripe, invoice: Stripe.Invoice) {
   console.log("[webhook] Payment succeeded:", invoice.id);
 
-  const subscriptionId =
-    typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
+  const subscriptionId = invoice.subscription as string;
   if (!subscriptionId) return;
 
-  let stripeSub: Stripe.Subscription;
-  try {
-    stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
-  } catch (e: any) {
-    console.error("[webhook] Could not retrieve subscription for invoice:", subscriptionId, e?.message);
-    return;
-  }
-
-  const planResolved = await resolvePlanFromStripeSubscription(supabase, stripeSub);
-
+  // Build update payload — always mark active
   const updatePayload: Record<string, any> = { status: "active" };
-  if (planResolved) {
-    updatePayload.plan_id = planResolved.planId;
-    console.log(
-      "[webhook] invoice paid: plan sync",
-      JSON.stringify({
-        stripe_subscription_id: subscriptionId,
-        plan_id: planResolved.planId,
-        price_id: planResolved.priceId,
-        source: planResolved.source,
-      }),
-    );
-  }
 
+  // On renewal invoices, update billing period so the monthly usage counter resets.
+  // invoice.period_start / period_end reflect the new billing cycle.
   if (invoice.period_start && invoice.period_end) {
     updatePayload.current_period_start = new Date(invoice.period_start * 1000).toISOString();
     updatePayload.current_period_end = new Date(invoice.period_end * 1000).toISOString();
     console.log(
-      "[webhook] Updating billing period for subscription:", subscriptionId,
-      "new period:", updatePayload.current_period_start, "→", updatePayload.current_period_end,
+      "[webhook] Updating billing period for subscription:",
+      subscriptionId,
+      "new period:",
+      updatePayload.current_period_start,
+      "→",
+      updatePayload.current_period_end,
     );
-  } else {
-    updatePayload.current_period_start = new Date(stripeSub.current_period_start * 1000).toISOString();
-    updatePayload.current_period_end = new Date(stripeSub.current_period_end * 1000).toISOString();
   }
 
-  const { data: invUpdated, error } = await supabase
+  const { error } = await supabase
     .from("user_subscriptions")
     .update(updatePayload)
-    .eq("stripe_subscription_id", subscriptionId)
-    .select("id, plan_id");
+    .eq("stripe_subscription_id", subscriptionId);
 
   if (error) {
     console.error("[webhook] Error updating subscription after payment:", error);
-  } else if (!invUpdated?.length) {
-    console.warn("[webhook] invoice payment: no user_subscriptions row for", subscriptionId);
   }
 
   // M-8: Allocate monthly credits to credit_ledger for subscription renewals.
@@ -735,6 +669,9 @@ async function handlePaymentSucceeded(supabase: any, stripe: Stripe, invoice: St
     console.log("[webhook] Skipping credit allocation for new subscription:", subscriptionId);
     return;
   }
+
+  // Ensure plan_id matches Stripe before allocating credits (invoice may arrive before subscription.updated).
+  await syncUserSubscriptionPlanFromStripe(supabase, stripe, subscriptionId);
 
   // Look up the user's active subscription to get plan credits
   const { data: subRow } = await supabase

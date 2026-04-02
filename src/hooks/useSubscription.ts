@@ -75,7 +75,6 @@ async function checkLimit(
     p_user_id: userId,
     p_usage_type: usageType,
     p_amount: amount,
-    p_user_id: (await supabase.auth.getUser()).data.user?.id ?? '',
   } as any);
   
   if (error) {

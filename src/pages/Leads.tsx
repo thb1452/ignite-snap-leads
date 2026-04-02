@@ -38,11 +38,66 @@ import { PersonalStatsBar } from "@/components/leads/PersonalStatsBar";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
-import { exportFilteredCsv } from "@/services/export";
+import { exportFilteredCsv, getExportErrorToast, EXPORT_LIMIT_EXCEEDED } from "@/services/export";
 import { useProperties } from "@/hooks/useProperties";
 import type { LeadFilters } from "@/schemas";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
+
+/** Smaller RPC pages avoid huge JSON payloads and timeouts when selecting thousands of leads. */
+const LEAD_SELECTION_PAGE_SIZE = 500;
+
+async function fetchFilteredPropertyIdsForSelection(filtersObj: LeadFilters, maxIds: number): Promise<string[]> {
+  const ids: string[] = [];
+  const rpcName = filtersObj.violationType ? "fn_properties_by_category" : "fn_properties_paged";
+  let page = 1;
+
+  const categoryBase = {
+    p_category: filtersObj.violationType as string,
+    p_state: filtersObj.state || null,
+    p_city: filtersObj.cities?.length === 1 ? filtersObj.cities[0] : null,
+    p_search: filtersObj.search || null,
+    p_snap_min: filtersObj.snapScoreRange?.[0] ?? null,
+    p_snap_max: filtersObj.snapScoreRange?.[1] ?? null,
+    p_last_seen_days: filtersObj.lastSeenDays ?? null,
+    p_sort_by: filtersObj.sortBy || "recently_updated",
+    p_open_violations_only: filtersObj.openViolationsOnly ?? false,
+    p_multiple_violations_only: filtersObj.multipleViolationsOnly ?? false,
+    p_repeat_offender_only: filtersObj.repeatOffenderOnly ?? false,
+  };
+
+  const pagedBase = {
+    p_state: filtersObj.state || null,
+    p_city: filtersObj.cities?.length === 1 ? filtersObj.cities[0] : null,
+    p_search: filtersObj.search || null,
+    p_snap_min: filtersObj.snapScoreRange?.[0] ?? null,
+    p_snap_max: filtersObj.snapScoreRange?.[1] ?? null,
+    p_last_seen_days: filtersObj.lastSeenDays ?? null,
+    p_sort_by: filtersObj.sortBy || "recently_updated",
+    p_open_violations_only: filtersObj.openViolationsOnly ?? false,
+    p_multiple_violations_only: filtersObj.multipleViolationsOnly ?? false,
+    p_repeat_offender_only: filtersObj.repeatOffenderOnly ?? false,
+  };
+
+  while (ids.length < maxIds) {
+    const pageSize = Math.min(LEAD_SELECTION_PAGE_SIZE, maxIds - ids.length);
+    const params = filtersObj.violationType
+      ? { ...categoryBase, p_page: page, p_page_size: pageSize }
+      : { ...pagedBase, p_page: page, p_page_size: pageSize };
+
+    const { data: rpcData, error: rpcError } = await supabase.rpc(rpcName, params);
+    if (rpcError) throw rpcError;
+
+    const result = rpcData as { items: { id: string }[]; total: number };
+    const batch = (result.items ?? []).map((item) => item.id);
+    if (batch.length === 0) break;
+    ids.push(...batch);
+    if (batch.length < pageSize) break;
+    page += 1;
+  }
+
+  return ids;
+}
 import { useAuth } from "@/hooks/use-auth";
 import { Input } from "@/components/ui/input";
 import { ExportQuotaDisplay } from "@/components/leads/ExportQuotaDisplay";
@@ -590,47 +645,9 @@ function Leads() {
 
   const handleSelectCustomAmount = useCallback(async (amount: number) => {
     setSelectMode("custom");
-    // Fetch first N property IDs from the filtered result set
-    // Use the same RPC with a large page size to get IDs
     try {
       const filtersObj = filters as LeadFilters;
-      const rpcName = filtersObj.violationType ? "fn_properties_by_category" : "fn_properties_paged";
-      const params = filtersObj.violationType
-        ? {
-            p_category: filtersObj.violationType,
-            p_state: filtersObj.state || null,
-            p_city: filtersObj.cities?.length === 1 ? filtersObj.cities[0] : null,
-            p_search: filtersObj.search || null,
-            p_snap_min: filtersObj.snapScoreRange?.[0] ?? null,
-            p_snap_max: filtersObj.snapScoreRange?.[1] ?? null,
-            p_last_seen_days: filtersObj.lastSeenDays ?? null,
-            p_page: 1,
-            p_page_size: amount,
-            p_sort_by: filtersObj.sortBy || "recently_updated",
-            p_open_violations_only: filtersObj.openViolationsOnly ?? false,
-            p_multiple_violations_only: filtersObj.multipleViolationsOnly ?? false,
-            p_repeat_offender_only: filtersObj.repeatOffenderOnly ?? false,
-          }
-        : {
-            p_page: 1,
-            p_page_size: amount,
-            p_state: filtersObj.state || null,
-            p_city: filtersObj.cities?.length === 1 ? filtersObj.cities[0] : null,
-            p_search: filtersObj.search || null,
-            p_snap_min: filtersObj.snapScoreRange?.[0] ?? null,
-            p_snap_max: filtersObj.snapScoreRange?.[1] ?? null,
-            p_last_seen_days: filtersObj.lastSeenDays ?? null,
-            p_sort_by: filtersObj.sortBy || "recently_updated",
-            p_open_violations_only: filtersObj.openViolationsOnly ?? false,
-            p_multiple_violations_only: filtersObj.multipleViolationsOnly ?? false,
-            p_repeat_offender_only: filtersObj.repeatOffenderOnly ?? false,
-          };
-
-      const { data: rpcData, error: rpcError } = await supabase.rpc(rpcName, params);
-      if (rpcError) throw rpcError;
-
-      const result = rpcData as { items: { id: string }[]; total: number };
-      const ids = (result.items ?? []).map((item) => item.id);
+      const ids = await fetchFilteredPropertyIdsForSelection(filtersObj, amount);
       setSelectedIds(ids);
       toast({
         title: "Selection Updated",
@@ -649,47 +666,10 @@ function Leads() {
 
   const handleSelectMax = useCallback(async (amount: number) => {
     setSelectMode("all");
-    // Fetch property IDs up to the specified max amount
     try {
       const filtersObj = filters as LeadFilters;
       const fetchAmount = Math.min(amount, totalCount, 25000); // Cap at 25k
-      const rpcName = filtersObj.violationType ? "fn_properties_by_category" : "fn_properties_paged";
-      const params = filtersObj.violationType
-        ? {
-            p_category: filtersObj.violationType,
-            p_state: filtersObj.state || null,
-            p_city: filtersObj.cities?.length === 1 ? filtersObj.cities[0] : null,
-            p_search: filtersObj.search || null,
-            p_snap_min: filtersObj.snapScoreRange?.[0] ?? null,
-            p_snap_max: filtersObj.snapScoreRange?.[1] ?? null,
-            p_last_seen_days: filtersObj.lastSeenDays ?? null,
-            p_page: 1,
-            p_page_size: fetchAmount,
-            p_sort_by: filtersObj.sortBy || "recently_updated",
-            p_open_violations_only: filtersObj.openViolationsOnly ?? false,
-            p_multiple_violations_only: filtersObj.multipleViolationsOnly ?? false,
-            p_repeat_offender_only: filtersObj.repeatOffenderOnly ?? false,
-          }
-        : {
-            p_page: 1,
-            p_page_size: fetchAmount,
-            p_state: filtersObj.state || null,
-            p_city: filtersObj.cities?.length === 1 ? filtersObj.cities[0] : null,
-            p_search: filtersObj.search || null,
-            p_snap_min: filtersObj.snapScoreRange?.[0] ?? null,
-            p_snap_max: filtersObj.snapScoreRange?.[1] ?? null,
-            p_last_seen_days: filtersObj.lastSeenDays ?? null,
-            p_sort_by: filtersObj.sortBy || "recently_updated",
-            p_open_violations_only: filtersObj.openViolationsOnly ?? false,
-            p_multiple_violations_only: filtersObj.multipleViolationsOnly ?? false,
-            p_repeat_offender_only: filtersObj.repeatOffenderOnly ?? false,
-          };
-
-      const { data: rpcData, error: rpcError } = await supabase.rpc(rpcName, params);
-      if (rpcError) throw rpcError;
-
-      const result = rpcData as { items: { id: string }[]; total: number };
-      const ids = (result.items ?? []).map((item) => item.id);
+      const ids = await fetchFilteredPropertyIdsForSelection(filtersObj, fetchAmount);
       setSelectedIds(ids);
       toast({
         title: "Selection Updated",
@@ -799,20 +779,18 @@ function Leads() {
         });
 
         setSelectedIds([]);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("[Leads] Trial export error:", error);
-        if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+        const msg = error instanceof Error ? error.message : "";
+        if (msg === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
           setTrialGateType("exhausted");
           setTrialGateOpen(true);
-        } else if (error.message === "TRIAL_EXPIRED") {
+        } else if (msg === "TRIAL_EXPIRED") {
           setTrialGateType("expired");
           setTrialGateOpen(true);
         } else {
-          toast({
-            title: "Export Failed",
-            description: error.message || "Failed to export properties",
-            variant: "destructive",
-          });
+          const t = getExportErrorToast(error);
+          toast({ title: t.title, description: t.description, variant: t.variant });
         }
         await refetchTrial();
       } finally {
@@ -850,8 +828,9 @@ function Leads() {
               description: `Exported ${partialIds.length.toLocaleString()} properties`,
             });
             setSelectedIds([]);
-          } catch (err: any) {
-            toast({ title: "Export Failed", description: err.message || "Failed to export", variant: "destructive" });
+          } catch (err: unknown) {
+            const t = getExportErrorToast(err);
+            toast({ title: t.title, description: t.description, variant: t.variant });
           } finally {
             setIsExporting(false);
           }
@@ -889,21 +868,24 @@ function Leads() {
       });
 
       setSelectedIds([]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[Leads] Export error:", error);
+      const msg = error instanceof Error ? error.message : "";
 
-      if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+      if (msg === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
         setTrialGateType("exhausted");
         setTrialGateOpen(true);
         return;
       }
-      if (error.message === "TRIAL_EXPIRED") {
+      if (msg === "TRIAL_EXPIRED") {
         setTrialGateType("expired");
         setTrialGateOpen(true);
         return;
       }
-      if (error.message === "EXPORT_LIMIT_EXCEEDED") {
-        // Server rejected — build context for partial export
+      if (msg === EXPORT_LIMIT_EXCEEDED) {
+        const t = getExportErrorToast(error);
+        toast({ title: t.title, description: t.description, variant: t.variant });
+        // Server rejected — build context for partial export (or upgrade when remaining is 0)
         setUpgradeLimitType("exports");
         const serverRemaining = getRemainingCount("exports") ?? 0;
         setExportContextData({
@@ -929,8 +911,9 @@ function Leads() {
                 description: `Exported ${partialIds.length.toLocaleString()} properties`,
               });
               setSelectedIds([]);
-            } catch (err: any) {
-              toast({ title: "Export Failed", description: err.message || "Failed to export", variant: "destructive" });
+            } catch (err: unknown) {
+              const t = getExportErrorToast(err);
+              toast({ title: t.title, description: t.description, variant: t.variant });
             } finally {
               setIsExporting(false);
             }
@@ -940,11 +923,8 @@ function Leads() {
         return;
       }
 
-      toast({
-        title: "Export Failed",
-        description: error.message || "Failed to export properties",
-        variant: "destructive",
-      });
+      const t = getExportErrorToast(error);
+      toast({ title: t.title, description: t.description, variant: t.variant });
     } finally {
       setIsExporting(false);
     }

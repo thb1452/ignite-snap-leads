@@ -6,7 +6,7 @@ import { formatOwnerName } from "@/utils/formatOwnerName";
 import { Lock, Unlock, Sparkles, Heart, Users, Phone, Download, Loader2 } from "lucide-react";
 import { ScarcityBadge } from "./ScarcityBadge";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
-import { exportFilteredCsv } from "@/services/export";
+import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";
 
 interface Violation {
@@ -194,12 +194,9 @@ export const PropertyCard = memo(function PropertyCard({
                       title: "Export Complete",
                       description: "Property exported successfully.",
                     });
-                  } catch (err: any) {
-                    toast({
-                      title: "Export Failed",
-                      description: err?.message || "Failed to export property",
-                      variant: "destructive",
-                    });
+                  } catch (err: unknown) {
+                    const t = getExportErrorToast(err);
+                    toast({ title: t.title, description: t.description, variant: t.variant });
                   } finally {
                     setIsExporting(false);
                   }

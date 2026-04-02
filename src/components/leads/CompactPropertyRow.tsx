@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Lock, Unlock, Download, Loader2 } from "lucide-react";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
-import { exportFilteredCsv } from "@/services/export";
+import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
@@ -122,12 +122,9 @@ export function CompactPropertyRow({
               try {
                 await exportFilteredCsv({ propertyIds: [property.id], expectedPropertyCount: 1 });
                 toast({ title: "Export Complete", description: "Property exported successfully." });
-              } catch (err: any) {
-                toast({
-                  title: "Export Failed",
-                  description: err?.message || "Failed to export property",
-                  variant: "destructive",
-                });
+              } catch (err: unknown) {
+                const t = getExportErrorToast(err);
+                toast({ title: t.title, description: t.description, variant: t.variant });
               } finally {
                 setIsExporting(false);
               }

@@ -7,7 +7,7 @@ import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
 import { formatOwnerName } from "@/utils/formatOwnerName";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
-import { exportFilteredCsv } from "@/services/export";
+import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";
 
 interface Violation {
@@ -195,12 +195,9 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
                       title: "Export Complete",
                       description: "Property exported successfully.",
                     });
-                  } catch (err: any) {
-                    toast({
-                      title: "Export Failed",
-                      description: err?.message || "Failed to export property",
-                      variant: "destructive",
-                    });
+                  } catch (err: unknown) {
+                    const t = getExportErrorToast(err);
+                    toast({ title: t.title, description: t.description, variant: t.variant });
                   } finally {
                     setIsExporting(false);
                   }

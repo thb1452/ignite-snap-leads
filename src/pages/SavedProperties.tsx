@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useSavedProperties } from "@/hooks/useSavedProperties";
-import { exportFilteredCsv } from "@/services/export";
+import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
@@ -171,8 +171,9 @@ export default function SavedProperties() {
       setSelectMode("page");
       await refetchSubscription();
       if (isOnTrial) await refetchTrial();
-    } catch (error: any) {
-      toast({ title: "Export Failed", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      const t = getExportErrorToast(error);
+      toast({ title: t.title, description: t.description, variant: t.variant });
     } finally {
       setIsExporting(false);
     }

@@ -12,7 +12,7 @@ import { formatViolationType } from "@/utils/formatViolationType";
 import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
 import { GroupedViolationsList } from "./GroupedViolationsList";
 import { OwnerContactSection } from "./OwnerContactSection";
-import { exportFilteredCsv } from "@/services/export";
+import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { TrialExportGate } from "@/components/trial/TrialExportGate";
 
@@ -366,19 +366,17 @@ export function MobilePropertyDetailSheet({
                         title: "Export Complete",
                         description: "Property exported successfully.",
                       });
-                    } catch (error: any) {
-                      if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+                    } catch (error: unknown) {
+                      const msg = error instanceof Error ? error.message : "";
+                      if (msg === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
                         setTrialGateType('exhausted');
                         setTrialGateOpen(true);
-                      } else if (error.message === "TRIAL_EXPIRED") {
+                      } else if (msg === "TRIAL_EXPIRED") {
                         setTrialGateType('expired');
                         setTrialGateOpen(true);
                       } else {
-                        toast({
-                          title: "Export Failed",
-                          description: error.message || "Failed to export property",
-                          variant: "destructive",
-                        });
+                        const t = getExportErrorToast(error);
+                        toast({ title: t.title, description: t.description, variant: t.variant });
                       }
                     } finally {
                       setIsExporting(false);

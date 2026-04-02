@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useListProperties, useRemoveFromList, useUserLists } from "@/hooks/useLists";
-import { exportFilteredCsv } from "@/services/export";
+import { exportFilteredCsv, getExportErrorToast, EXPORT_LIMIT_EXCEEDED } from "@/services/export";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
@@ -202,19 +202,21 @@ export function ListDetail() {
 
       setSelectedIds([]);
       setSelectMode("page");
-    } catch (error: any) {
-      if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "";
+      if (msg === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
         setTrialGateType('exhausted');
         setTrialGateOpen(true);
         return;
       }
-      if (error.message === "TRIAL_EXPIRED") {
+      if (msg === "TRIAL_EXPIRED") {
         setTrialGateType('expired');
         setTrialGateOpen(true);
         return;
       }
-      if (error.message === "EXPORT_LIMIT_EXCEEDED") {
-        // Server rejected — build context for partial export
+      if (msg === EXPORT_LIMIT_EXCEEDED) {
+        const t = getExportErrorToast(error);
+        toast({ title: t.title, description: t.description, variant: t.variant });
         const remaining = getRemainingCount('exports') ?? 0;
         const used = usage?.exports_count ?? 0;
         const max = plan?.max_monthly_exports ?? 0;
@@ -229,11 +231,8 @@ export function ListDetail() {
         setShowUpgradePrompt(true);
         return;
       }
-      toast({
-        title: "Export Failed",
-        description: error.message || "Failed to export",
-        variant: "destructive",
-      });
+      const t = getExportErrorToast(error);
+      toast({ title: t.title, description: t.description, variant: t.variant });
     } finally {
       setIsExporting(false);
       setExportProgress(null);
@@ -358,12 +357,9 @@ export function ListDetail() {
 
       // Quota OK — proceed with full export
       await executeExport(idsToExport, propertyCount);
-    } catch (error: any) {
-      toast({
-        title: "Export Failed",
-        description: error.message || "Failed to export",
-        variant: "destructive",
-      });
+    } catch (error: unknown) {
+      const t = getExportErrorToast(error);
+      toast({ title: t.title, description: t.description, variant: t.variant });
       setIsExporting(false);
       setExportProgress(null);
     }

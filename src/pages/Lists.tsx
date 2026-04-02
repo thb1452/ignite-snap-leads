@@ -25,7 +25,7 @@ import { Plus, Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useUserLists, useCreateList } from "@/hooks/useLists";
 import { supabase } from "@/integrations/supabase/externalClient";
-import { exportFilteredCsv } from "@/services/export";
+import { exportFilteredCsv, getExportErrorToast, EXPORT_LIMIT_EXCEEDED } from "@/services/export";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradePrompt, type ExportContext } from "@/components/subscription/UpgradePrompt";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
@@ -244,18 +244,21 @@ export function Lists() {
         title: "Export Complete",
         description: `Exported ${propertyIds.length.toLocaleString()} properties from "${listName}"`,
       });
-    } catch (error: any) {
-      if (error.message === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "";
+      if (msg === "TRIAL_EXPORT_LIMIT_EXCEEDED") {
         setTrialGateType('exhausted');
         setTrialGateOpen(true);
         return;
       }
-      if (error.message === "TRIAL_EXPIRED") {
+      if (msg === "TRIAL_EXPIRED") {
         setTrialGateType('expired');
         setTrialGateOpen(true);
         return;
       }
-      if (error.message === "EXPORT_LIMIT_EXCEEDED") {
+      if (msg === EXPORT_LIMIT_EXCEEDED) {
+        const t = getExportErrorToast(error);
+        toast({ title: t.title, description: t.description, variant: t.variant });
         const usedCount = usage?.exports_count ?? 0;
         const remaining = getRemainingCount('exports') ?? 0;
         setExportContext({
@@ -268,11 +271,8 @@ export function Lists() {
         setShowUpgradePrompt(true);
         return;
       }
-      toast({
-        title: "Export Failed",
-        description: error.message || "Failed to export",
-        variant: "destructive",
-      });
+      const t = getExportErrorToast(error);
+      toast({ title: t.title, description: t.description, variant: t.variant });
     } finally {
       setIsExporting(null);
       if (isOnTrial) refetchTrial();

@@ -3226,19 +3226,10 @@ export type Database = {
         Args: { p_address_count: number; p_user_id: string }
         Returns: Json
       }
-      fn_check_subscription_limit:
-        | {
-            Args: {
-              p_amount?: number
-              p_usage_type: string
-              p_user_id?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: { p_amount?: number; p_usage_type: string; p_user_id: string }
-            Returns: Json
-          }
+      fn_check_subscription_limit: {
+        Args: { p_amount?: number; p_usage_type: string; p_user_id: string }
+        Returns: Json
+      }
       fn_check_unlocked_batch: {
         Args: { p_property_ids: string[]; p_user_id: string }
         Returns: {
@@ -3351,19 +3342,10 @@ export type Database = {
         Args: { p_count?: number; p_user_id: string }
         Returns: Json
       }
-      fn_increment_usage:
-        | {
-            Args: {
-              p_amount?: number
-              p_usage_type: string
-              p_user_id?: string
-            }
-            Returns: boolean
-          }
-        | {
-            Args: { p_amount?: number; p_usage_type: string; p_user_id: string }
-            Returns: boolean
-          }
+      fn_increment_usage: {
+        Args: { p_amount?: number; p_usage_type: string; p_user_id?: string }
+        Returns: boolean
+      }
       fn_job_status: { Args: { p_job_id: string }; Returns: Json }
       fn_jurisdiction_intelligence: {
         Args: never

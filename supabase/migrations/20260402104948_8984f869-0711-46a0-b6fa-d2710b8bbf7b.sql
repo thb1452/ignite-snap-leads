@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.fn_check_subscription_limit(text, integer, uuid);

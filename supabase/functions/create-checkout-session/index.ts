@@ -232,42 +232,84 @@ async function handleSubscription(
     existingSubscription.plan_id !== plan.id &&
     ["active", "trialing", "trial", "past_due"].includes(String(existingSubscription.status))
   ) {
+    let stripeSub: Stripe.Subscription;
     try {
-      const stripeSub = await stripe.subscriptions.retrieve(existingSubscription.stripe_subscription_id);
-      if (!["canceled", "incomplete_expired"].includes(stripeSub.status)) {
-        const itemId = stripeSub.items.data[0]?.id;
-        if (itemId) {
-          const updated = await stripe.subscriptions.update(existingSubscription.stripe_subscription_id, {
-            items: [{ id: itemId, price: priceId }],
-            proration_behavior: "always_invoice",
-            payment_behavior: "pending_if_incomplete",
-            metadata: {
-              user_id: user.id,
-              plan_id: plan.id,
-              billing_cycle,
-              is_trial: trial ? "true" : "false",
-            },
-          });
-          // Do not update user_subscriptions here — webhooks apply plan/credits only after payment succeeds.
-          const body = await subscriptionChangePaymentResponse(updated, stripe, appUrl, {
-            upgraded: true,
-            message: "Subscription plan updated",
-          });
-          if (typeof body.error === "string") {
-            return new Response(JSON.stringify(body), { status: 400, headers });
-          }
-          return new Response(JSON.stringify(body), { headers });
-        }
-      }
+      stripeSub = await stripe.subscriptions.retrieve(existingSubscription.stripe_subscription_id);
+    } catch (retrieveErr: unknown) {
+      const rmsg = retrieveErr instanceof Error ? retrieveErr.message : String(retrieveErr);
+      console.error("[checkout] Failed to load Stripe subscription:", rmsg);
+      return new Response(
+        JSON.stringify({
+          error: "Could not load your subscription. Try again or use Manage subscription in Settings.",
+        }),
+        { status: 400, headers },
+      );
+    }
+    if (["canceled", "incomplete_expired"].includes(stripeSub.status)) {
       return new Response(
         JSON.stringify({
           error: "Unable to change plan for this subscription. Use billing settings or contact support.",
         }),
         { status: 400, headers },
       );
+    }
+    const itemId = stripeSub.items.data[0]?.id;
+    if (!itemId) {
+      return new Response(
+        JSON.stringify({
+          error: "Unable to change plan for this subscription. Use billing settings or contact support.",
+        }),
+        { status: 400, headers },
+      );
+    }
+
+    const customerIdForPortal = typeof stripeSub.customer === "string" ? stripeSub.customer : stripeSub.customer?.id;
+
+    // pending_if_incomplete only allows a fixed set of params — NOT metadata (Stripe rejects the request if you mix them).
+    // Webhooks resolve plan from stripe_price_id; user from stripe_subscription_id / customer metadata.
+    try {
+      const updated = await stripe.subscriptions.update(existingSubscription.stripe_subscription_id, {
+        items: [{ id: itemId, price: priceId }],
+        proration_behavior: "always_invoice",
+        payment_behavior: "pending_if_incomplete",
+      });
+      const body = await subscriptionChangePaymentResponse(updated, stripe, appUrl, {
+        upgraded: true,
+        message: "Subscription plan updated",
+      });
+      if (typeof body.error === "string") {
+        return new Response(JSON.stringify(body), { status: 400, headers });
+      }
+      return new Response(JSON.stringify(body), { headers });
     } catch (stripeErr: unknown) {
       const msg = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
       console.error("[checkout] Subscription plan change failed:", msg);
+
+      if (customerIdForPortal) {
+        try {
+          const portalSession = await stripe.billingPortal.sessions.create({
+            customer: customerIdForPortal,
+            return_url: `${appUrl}/settings?tab=subscription`,
+            flow_data: {
+              type: "subscription_update_confirm",
+              subscription_update_confirm: {
+                subscription: existingSubscription.stripe_subscription_id,
+                items: [{ id: itemId, price: priceId, quantity: 1 }],
+              },
+            },
+          });
+          if (portalSession.url) {
+            console.log("[checkout] Using billing portal for plan change after API error");
+            return new Response(JSON.stringify({ url: portalSession.url, checkout_url: portalSession.url }), {
+              headers,
+            });
+          }
+        } catch (portalErr: unknown) {
+          const pmsg = portalErr instanceof Error ? portalErr.message : String(portalErr);
+          console.error("[checkout] Billing portal plan change fallback failed:", pmsg);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           error:

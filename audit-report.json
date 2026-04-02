@@ -1,0 +1,102 @@
+[
+  {
+    "section": "Homepage",
+    "status": "INFO",
+    "detail": "Load time: 1981ms"
+  },
+  {
+    "section": "Homepage",
+    "status": "PASS",
+    "detail": "Title: \"Snap Ignite | Find Motivated Sellers Before the MLS\""
+  },
+  {
+    "section": "Homepage CTA",
+    "status": "PASS",
+    "detail": "Found 14 CTA(s): \"Get Started Free\", \"Get Started Free\", \"Get Started Free\", \"Get Started Free\", \"Start Free\", \"Start Free\", \"Get Starter\", \"Get Starter\", \"Get Started Free\", \"Get Started Free\", \"Get Started Free\", \"Get Started Free\", \"Get Started Free\", \"Get Started Free\""
+  },
+  {
+    "section": "Navigation",
+    "status": "PASS",
+    "detail": "Nav links: Sign In, Get Started Free"
+  },
+  {
+    "section": "Pricing",
+    "status": "INFO",
+    "detail": "Load time: 1289ms"
+  },
+  {
+    "section": "Pricing",
+    "status": "PASS",
+    "detail": "Pricing content visible"
+  },
+  {
+    "section": "Pricing Values",
+    "status": "INFO",
+    "detail": "Prices found: $0, $0.67, $49, $0.07, $99, $553, $199, $1, $750, $0.15, $0.13, $2, $0.11"
+  },
+  {
+    "section": "Pricing CTA",
+    "status": "PASS",
+    "detail": "Pricing CTAs: Start Free — No Credit Card Required, Buy Credits, Get Starter, Buy Now, Buy Now, Buy Now"
+  },
+  {
+    "section": "Auth Page",
+    "status": "INFO",
+    "detail": "Load time: 960ms"
+  },
+  {
+    "section": "Signup Form",
+    "status": "PASS",
+    "detail": "Email field found"
+  },
+  {
+    "section": "Signup Form",
+    "status": "PASS",
+    "detail": "Password field found"
+  },
+  {
+    "section": "Signup Form",
+    "status": "PASS",
+    "detail": "Submit button found"
+  },
+  {
+    "section": "Social Auth",
+    "status": "INFO",
+    "detail": "Social login: Continue with Google"
+  },
+  {
+    "section": "Sign In Page",
+    "status": "INFO",
+    "detail": "Load time: 854ms"
+  },
+  {
+    "section": "Sign In",
+    "status": "PASS",
+    "detail": "Forgot password link present"
+  },
+  {
+    "section": "Homepage Search",
+    "status": "INFO",
+    "detail": "Load time: 725ms"
+  },
+  {
+    "section": "Search",
+    "status": "WARN",
+    "detail": "No address search field on homepage — high friction for new users"
+  },
+  {
+    "section": "Mobile Layout",
+    "status": "PASS",
+    "detail": "No horizontal overflow"
+  },
+  {
+    "section": "Performance",
+    "status": "PASS",
+    "detail": "DOM ready: 381ms | Full load: 384ms"
+  },
+  {
+    "section": "JS Errors",
+    "status": "PASS",
+    "detail": "No JavaScript console errors"
+  }
+]

@@ -1,0 +1,272 @@
+[
+  {
+    "plan": "Free",
+    "section": "Signup",
+    "status": "INFO",
+    "detail": "Landed at: https://snapignite.com/auth?mode=signup"
+  },
+  {
+    "plan": "Free",
+    "section": "Dashboard",
+    "status": "WARN",
+    "detail": "No search field on dashboard"
+  },
+  {
+    "plan": "Free",
+    "section": "Credits",
+    "status": "WARN",
+    "detail": "No credit balance shown — user may not know their limits"
+  },
+  {
+    "plan": "Free",
+    "section": "Plan Badge",
+    "status": "INFO",
+    "detail": "Plan name not visible on screen"
+  },
+  {
+    "plan": "Free",
+    "section": "Upgrade CTA",
+    "status": "INFO",
+    "detail": "No upgrade prompt shown"
+  },
+  {
+    "plan": "Free",
+    "section": "Search",
+    "status": "WARN",
+    "detail": "No search input found after login"
+  },
+  {
+    "plan": "Free",
+    "section": "Navigation",
+    "status": "WARN",
+    "detail": "No nav items found"
+  },
+  {
+    "plan": "Free",
+    "section": "Settings",
+    "status": "PASS",
+    "detail": "Settings/account page accessible"
+  },
+  {
+    "plan": "Free",
+    "section": "JS Errors",
+    "status": "PASS",
+    "detail": "No console errors"
+  },
+  {
+    "plan": "PAYG",
+    "section": "Signup",
+    "status": "INFO",
+    "detail": "Landed at: https://snapignite.com/auth?mode=signup"
+  },
+  {
+    "plan": "PAYG",
+    "section": "Dashboard",
+    "status": "WARN",
+    "detail": "No search field on dashboard"
+  },
+  {
+    "plan": "PAYG",
+    "section": "Credits",
+    "status": "WARN",
+    "detail": "No credit balance shown — user may not know their limits"
+  },
+  {
+    "plan": "PAYG",
+    "section": "Plan Badge",
+    "status": "INFO",
+    "detail": "Plan name not visible on screen"
+  },
+  {
+    "plan": "PAYG",
+    "section": "Upgrade CTA",
+    "status": "INFO",
+    "detail": "No upgrade prompt shown"
+  },
+  {
+    "plan": "PAYG",
+    "section": "Search",
+    "status": "WARN",
+    "detail": "No search input found after login"
+  },
+  {
+    "plan": "PAYG",
+    "section": "Navigation",
+    "status": "WARN",
+    "detail": "No nav items found"
+  },
+  {
+    "plan": "PAYG",
+    "section": "Settings",
+    "status": "PASS",
+    "detail": "Settings/account page accessible"
+  },
+  {
+    "plan": "PAYG",
+    "section": "JS Errors",
+    "status": "PASS",
+    "detail": "No console errors"
+  },
+  {
+    "plan": "Starter",
+    "section": "Signup",
+    "status": "INFO",
+    "detail": "Landed at: https://snapignite.com/auth?mode=signup"
+  },
+  {
+    "plan": "Starter",
+    "section": "Dashboard",
+    "status": "WARN",
+    "detail": "No search field on dashboard"
+  },
+  {
+    "plan": "Starter",
+    "section": "Credits",
+    "status": "WARN",
+    "detail": "No credit balance shown — user may not know their limits"
+  },
+  {
+    "plan": "Starter",
+    "section": "Plan Badge",
+    "status": "INFO",
+    "detail": "Plan name not visible on screen"
+  },
+  {
+    "plan": "Starter",
+    "section": "Upgrade CTA",
+    "status": "INFO",
+    "detail": "No upgrade prompt shown"
+  },
+  {
+    "plan": "Starter",
+    "section": "Search",
+    "status": "WARN",
+    "detail": "No search input found after login"
+  },
+  {
+    "plan": "Starter",
+    "section": "Navigation",
+    "status": "WARN",
+    "detail": "No nav items found"
+  },
+  {
+    "plan": "Starter",
+    "section": "Settings",
+    "status": "PASS",
+    "detail": "Settings/account page accessible"
+  },
+  {
+    "plan": "Starter",
+    "section": "JS Errors",
+    "status": "PASS",
+    "detail": "No console errors"
+  },
+  {
+    "plan": "Pro",
+    "section": "Signup",
+    "status": "INFO",
+    "detail": "Landed at: https://snapignite.com/auth?mode=signup"
+  },
+  {
+    "plan": "Pro",
+    "section": "Dashboard",
+    "status": "WARN",
+    "detail": "No search field on dashboard"
+  },
+  {
+    "plan": "Pro",
+    "section": "Credits",
+    "status": "WARN",
+    "detail": "No credit balance shown — user may not know their limits"
+  },
+  {
+    "plan": "Pro",
+    "section": "Plan Badge",
+    "status": "PASS",
+    "detail": "Plan name \"Pro\" visible"
+  },
+  {
+    "plan": "Pro",
+    "section": "Upgrade CTA",
+    "status": "INFO",
+    "detail": "No upgrade prompt shown"
+  },
+  {
+    "plan": "Pro",
+    "section": "Search",
+    "status": "WARN",
+    "detail": "No search input found after login"
+  },
+  {
+    "plan": "Pro",
+    "section": "Navigation",
+    "status": "WARN",
+    "detail": "No nav items found"
+  },
+  {
+    "plan": "Pro",
+    "section": "Settings",
+    "status": "PASS",
+    "detail": "Settings/account page accessible"
+  },
+  {
+    "plan": "Pro",
+    "section": "JS Errors",
+    "status": "PASS",
+    "detail": "No console errors"
+  },
+  {
+    "plan": "Elite",
+    "section": "Signup",
+    "status": "INFO",
+    "detail": "Landed at: https://snapignite.com/auth?mode=signup"
+  },
+  {
+    "plan": "Elite",
+    "section": "Dashboard",
+    "status": "WARN",
+    "detail": "No search field on dashboard"
+  },
+  {
+    "plan": "Elite",
+    "section": "Credits",
+    "status": "WARN",
+    "detail": "No credit balance shown — user may not know their limits"
+  },
+  {
+    "plan": "Elite",
+    "section": "Plan Badge",
+    "status": "INFO",
+    "detail": "Plan name not visible on screen"
+  },
+  {
+    "plan": "Elite",
+    "section": "Upgrade CTA",
+    "status": "INFO",
+    "detail": "No upgrade prompt shown"
+  },
+  {
+    "plan": "Elite",
+    "section": "Search",
+    "status": "WARN",
+    "detail": "No search input found after login"
+  },
+  {
+    "plan": "Elite",
+    "section": "Navigation",
+    "status": "WARN",
+    "detail": "No nav items found"
+  },
+  {
+    "plan": "Elite",
+    "section": "Settings",
+    "status": "PASS",
+    "detail": "Settings/account page accessible"
+  },
+  {
+    "plan": "Elite",
+    "section": "JS Errors",
+    "status": "PASS",
+    "detail": "No console errors"
+  }
+]

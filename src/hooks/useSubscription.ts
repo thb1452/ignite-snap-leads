@@ -65,12 +65,14 @@ async function fetchUsage(userId: string): Promise<UsageTracking | null> {
   return null;
 }
 
-// Check subscription limit
+// Check subscription limit (p_user_id disambiguates RPC if duplicate overloads ever return)
 async function checkLimit(
+  userId: string,
   usageType: UsageType,
   amount: number = 1
 ): Promise<LimitCheckResult> {
   const { data, error } = await supabase.rpc('fn_check_subscription_limit', {
+    p_user_id: userId,
     p_usage_type: usageType,
     p_amount: amount,
     p_user_id: (await supabase.auth.getUser()).data.user?.id ?? '',
@@ -84,16 +86,18 @@ async function checkLimit(
       message: 'Failed to check subscription limit'
     };
   }
-  
+
   return data as unknown as LimitCheckResult;
 }
 
-// Increment usage counter
+// Increment usage counter (pass p_user_id so PostgREST targets a single RPC signature)
 async function incrementUsage(
+  userId: string,
   usageType: UsageType,
   amount: number = 1
 ): Promise<boolean> {
   const { data, error } = await supabase.rpc('fn_increment_usage', {
+    p_user_id: userId,
     p_usage_type: usageType,
     p_amount: amount,
   } as any);
@@ -102,7 +106,7 @@ async function incrementUsage(
     console.error('Error incrementing usage:', error);
     return false;
   }
-  
+
   return data === true;
 }
 
@@ -170,7 +174,7 @@ export function useSubscription() {
         message: 'Please log in to continue'
       };
     }
-    return checkLimit(usageType, amount);
+    return checkLimit(user.id, usageType, amount);
   }, [user?.id]);
 
   // Increment usage and invalidate cache
@@ -178,7 +182,8 @@ export function useSubscription() {
     usageType: UsageType,
     amount: number = 1
   ): Promise<boolean> => {
-    const success = await incrementUsage(usageType, amount);
+    if (!user?.id) return false;
+    const success = await incrementUsage(user.id, usageType, amount);
     if (success) {
       queryClient.invalidateQueries({ queryKey: ['subscription-usage', user?.id] });
     }

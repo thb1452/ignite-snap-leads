@@ -95,8 +95,8 @@ async function incrementUsage(
 ): Promise<boolean> {
   const { data, error } = await supabase.rpc('fn_increment_usage', {
     p_usage_type: usageType,
-    p_amount: amount
-  });
+    p_amount: amount,
+  } as any);
   
   if (error) {
     console.error('Error incrementing usage:', error);

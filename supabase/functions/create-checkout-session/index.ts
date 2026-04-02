@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { STRIPE_SUBSCRIPTION_PRICE_IDS_BY_PLAN } from "../_shared/stripeSubscriptionPlan.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -127,15 +128,8 @@ async function handleSubscription(
   const TIER_ALIAS: Record<string, string> = { elite: "enterprise" };
   const dbTierName = TIER_ALIAS[tier_name.toLowerCase()] || tier_name.toLowerCase();
 
-  // Stripe Price IDs (monthly subscriptions)
-  const STRIPE_PRICE_IDS: Record<string, string> = {
-    starter: "price_1TGlbmPfDZrVNjz5doWbUyvN",
-    professional: "price_1TGlb4PfDZrVNjz5WqCEG1D9",
-    enterprise: "price_1TGlcePfDZrVNjz5VLCsLkBQ",
-  };
-
   // Use the aliased name so "elite" resolves to the enterprise price
-  const priceId = STRIPE_PRICE_IDS[dbTierName];
+  const priceId = STRIPE_SUBSCRIPTION_PRICE_IDS_BY_PLAN[dbTierName];
   if (!priceId) {
     return new Response(JSON.stringify({ error: `Unknown plan: ${tier_name}` }), { status: 400, headers });
   }
@@ -150,7 +144,7 @@ async function handleSubscription(
     .from("user_subscriptions")
     .select("id, stripe_customer_id, stripe_subscription_id, status, plan_id")
     .eq("user_id", user.id)
-    .in("status", ["active", "trialing", "trial"])
+    .in("status", ["active", "trialing", "trial", "past_due"])
     .maybeSingle();
 
   let customerId = existingSubscription?.stripe_customer_id;
@@ -186,6 +180,59 @@ async function handleSubscription(
       );
     } catch (stripeErr: any) {
       console.error("[checkout] Failed to end trial:", stripeErr.message);
+    }
+  }
+
+  if (
+    existingSubscription?.stripe_subscription_id &&
+    plan?.id &&
+    existingSubscription.plan_id !== plan.id &&
+    ["active", "trialing", "trial", "past_due"].includes(String(existingSubscription.status))
+  ) {
+    try {
+      const stripeSub = await stripe.subscriptions.retrieve(existingSubscription.stripe_subscription_id);
+      if (!["canceled", "incomplete_expired"].includes(stripeSub.status)) {
+        const itemId = stripeSub.items.data[0]?.id;
+        if (itemId) {
+          const updated = await stripe.subscriptions.update(existingSubscription.stripe_subscription_id, {
+            items: [{ id: itemId, price: priceId }],
+            proration_behavior: "create_prorations",
+            metadata: {
+              user_id: user.id,
+              plan_id: plan.id,
+              billing_cycle,
+              is_trial: trial ? "true" : "false",
+            },
+          });
+          const newStatus =
+            updated.status === "trialing"
+              ? "trialing"
+              : updated.status === "past_due"
+                ? "past_due"
+                : "active";
+          await supabase
+            .from("user_subscriptions")
+            .update({
+              plan_id: plan.id,
+              status: newStatus,
+              current_period_start: new Date(updated.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(updated.current_period_end * 1000).toISOString(),
+            })
+            .eq("stripe_subscription_id", existingSubscription.stripe_subscription_id);
+
+          return new Response(
+            JSON.stringify({
+              upgraded: true,
+              message: "Subscription plan updated",
+              redirect_url: `${appUrl}/checkout/success`,
+            }),
+            { headers },
+          );
+        }
+      }
+    } catch (stripeErr: unknown) {
+      const msg = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
+      console.error("[checkout] Subscription update failed, falling back to Checkout session:", msg);
     }
   }
 

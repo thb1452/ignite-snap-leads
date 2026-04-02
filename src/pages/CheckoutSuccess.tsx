@@ -47,7 +47,10 @@ export default function CheckoutSuccess() {
       }).then(({ data, error }) => {
         console.log('[CheckoutSuccess] verify-subscription result:', data, error);
         setVerifyAttempted(true);
-        // Refetch subscription after verify attempt
+        queryClient.invalidateQueries({ queryKey: ['subscription'] });
+        queryClient.invalidateQueries({ queryKey: ['subscription-usage'] });
+        queryClient.invalidateQueries({ queryKey: ['trial-status'] });
+        queryClient.invalidateQueries({ queryKey: ['credits'] });
         refetch();
       }).catch((err) => {
         console.error('[CheckoutSuccess] verify-subscription error:', err);

@@ -5,6 +5,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { resolvePlanFromStripeSubscription } from "../_shared/stripeSubscriptionPlan.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,161 +58,141 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const userId = user.id;
     const userEmail = user.email;
 
-    console.log("[verify-subscription] Checking for user:", userId, userEmail);
+    console.log("[verify-subscription] Reconciling from Stripe for user:", userId, userEmail);
 
-    // 1. Check if user already has an active subscription in DB
-    const { data: existingSub } = await supabase
-      .from("user_subscriptions")
-      .select("id, status, stripe_subscription_id")
-      .eq("user_id", userId)
-      .in("status", ["active", "trialing", "trial"])
-      .maybeSingle();
-
-    if (existingSub?.stripe_subscription_id) {
-      console.log("[verify-subscription] User already has active subscription:", existingSub.id);
-      return new Response(
-        JSON.stringify({ synced: false, reason: "already_exists", subscription_id: existingSub.id }),
-        { headers }
-      );
+    if (!userEmail) {
+      return new Response(JSON.stringify({ synced: false, reason: "no_email" }), { headers });
     }
 
-    // 2. Find the user's Stripe customer by email
-    const customers = await stripe.customers.list({ email: userEmail, limit: 5 });
-
+    const customers = await stripe.customers.list({ email: userEmail, limit: 10 });
     if (!customers.data.length) {
       console.log("[verify-subscription] No Stripe customer found for:", userEmail);
-      return new Response(
-        JSON.stringify({ synced: false, reason: "no_stripe_customer" }),
-        { headers }
-      );
+      return new Response(JSON.stringify({ synced: false, reason: "no_stripe_customer" }), { headers });
     }
 
-    // 3. Check each customer for active subscriptions
+    let bestSub: Stripe.Subscription | null = null;
+    let bestCreated = -1;
+
     for (const customer of customers.data) {
       const subscriptions = await stripe.subscriptions.list({
         customer: customer.id,
         status: "all",
-        limit: 5,
+        limit: 40,
       });
 
       for (const sub of subscriptions.data) {
-        if (!["active", "trialing"].includes(sub.status)) continue;
-
-        console.log("[verify-subscription] Found Stripe subscription:", sub.id, "status:", sub.status);
-
-        // 4. Look up the plan from metadata or price
-        const planId = sub.metadata?.plan_id;
-        let dbPlanId = planId;
-        let planName: string | null = null;
-
-        if (planId) {
-          // Check if planId is a UUID or a tier name
-          const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-          if (UUID_RE.test(planId)) {
-            const { data: planData } = await supabase
-              .from("subscription_plans")
-              .select("id, name")
-              .eq("id", planId)
-              .maybeSingle();
-            if (planData) {
-              dbPlanId = planData.id;
-              planName = planData.name;
-            }
-          } else {
-            // planId is a tier name like "elite" — resolve it
-            const TIER_ALIAS: Record<string, string> = { elite: "enterprise" };
-            const lookupName = TIER_ALIAS[planId.toLowerCase()] || planId.toLowerCase();
-            const { data: planData } = await supabase
-              .from("subscription_plans")
-              .select("id, name")
-              .eq("name", lookupName)
-              .maybeSingle();
-            if (planData) {
-              dbPlanId = planData.id;
-              planName = planData.name;
-              console.log("[verify-subscription] Resolved plan from name:", planId, "→", planData.id);
-            }
-          }
+        if (!["active", "trialing", "past_due"].includes(sub.status)) continue;
+        if (sub.created > bestCreated) {
+          bestCreated = sub.created;
+          bestSub = sub;
         }
+      }
+    }
 
-        // If no plan_id in metadata, try to match by price
-        if (!dbPlanId) {
-          const priceId = sub.items.data[0]?.price?.id;
-          const PRICE_TO_PLAN: Record<string, string> = {
-            "price_1TGlbmPfDZrVNjz5doWbUyvN": "starter",
-            "price_1TGlb4PfDZrVNjz5WqCEG1D9": "professional",
-            "price_1TGlcePfDZrVNjz5VLCsLkBQ": "enterprise",
-          };
-          const matchedPlanName = priceId ? PRICE_TO_PLAN[priceId] : null;
-          if (matchedPlanName) {
-            const { data: planData } = await supabase
-              .from("subscription_plans")
-              .select("id, name")
-              .eq("name", matchedPlanName)
-              .maybeSingle();
-            if (planData) {
-              dbPlanId = planData.id;
-              planName = planData.name;
-            }
-          }
-        }
+    if (!bestSub) {
+      console.log("[verify-subscription] No billable Stripe subscription for:", userEmail);
+      return new Response(JSON.stringify({ synced: false, reason: "no_active_subscription" }), { headers });
+    }
 
-        if (!dbPlanId) {
-          console.error("[verify-subscription] Could not resolve plan for subscription:", sub.id);
-          continue;
-        }
+    console.log("[verify-subscription] Canonical Stripe subscription:", bestSub.id, "status:", bestSub.status);
 
-        // 5. Cancel any old subscriptions in DB for this user
+    const resolved = await resolvePlanFromStripeSubscription(supabase, bestSub);
+    if (!resolved) {
+      console.error("[verify-subscription] Could not map Stripe prices to a plan:", bestSub.id);
+      return new Response(JSON.stringify({ synced: false, reason: "unknown_stripe_price" }), { status: 500, headers });
+    }
+
+    const dbPlanId = resolved.planId;
+    const planName = resolved.planName;
+    console.log(
+      "[verify-subscription] Stripe price → plan",
+      JSON.stringify({
+        price_id: resolved.priceId,
+        plan_id: dbPlanId,
+        plan_name: planName,
+        source: resolved.source,
+      }),
+    );
+
+    const customerId = typeof bestSub.customer === "string" ? bestSub.customer : bestSub.customer?.id ?? "";
+    const isTrialing = bestSub.status === "trialing";
+    const dbStatus = isTrialing ? "trialing" : bestSub.status === "past_due" ? "past_due" : "active";
+
+    const periodStart = new Date(bestSub.current_period_start * 1000).toISOString();
+    const periodEnd = new Date(bestSub.current_period_end * 1000).toISOString();
+
+    const { data: matchRows } = await supabase
+      .from("user_subscriptions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("stripe_subscription_id", bestSub.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    const matchId = matchRows?.[0]?.id;
+
+    const { data: otherRows } = await supabase
+      .from("user_subscriptions")
+      .select("id, stripe_subscription_id")
+      .eq("user_id", userId)
+      .neq("status", "cancelled");
+
+    for (const row of otherRows ?? []) {
+      if (row.stripe_subscription_id !== bestSub.id) {
         await supabase
           .from("user_subscriptions")
           .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
-          .eq("user_id", userId)
-          .in("status", ["active", "trial", "trialing"]);
+          .eq("id", row.id);
+      }
+    }
 
-        // 6. Build and insert the subscription record
-        const isTrialing = sub.status === "trialing";
-        const record: Record<string, any> = {
-          user_id: userId,
-          plan_id: dbPlanId,
-          status: isTrialing ? "trialing" : "active",
-          stripe_customer_id: customer.id,
-          stripe_subscription_id: sub.id,
-          current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
-        };
+    const baseUpdate: Record<string, unknown> = {
+      plan_id: dbPlanId,
+      status: dbStatus,
+      stripe_customer_id: customerId,
+      stripe_subscription_id: bestSub.id,
+      current_period_start: periodStart,
+      current_period_end: periodEnd,
+      cancelled_at: null,
+    };
 
-        if (isTrialing && sub.trial_end) {
-          record.trial_started_at = new Date().toISOString();
-          record.trial_ends_at = new Date(sub.trial_end * 1000).toISOString();
-          record.trial_tier = planName;
-          record.trial_exports_used = 0;
-          record.trial_exports_limit = 500;
-        }
+    if (isTrialing && bestSub.trial_end) {
+      baseUpdate.trial_started_at = new Date().toISOString();
+      baseUpdate.trial_ends_at = new Date(bestSub.trial_end * 1000).toISOString();
+      baseUpdate.trial_tier = planName;
+      baseUpdate.trial_exports_used = 0;
+      baseUpdate.trial_exports_limit = 500;
+    }
 
-        const { error: insertErr } = await supabase
-          .from("user_subscriptions")
-          .insert(record);
-
-        if (insertErr) {
-          console.error("[verify-subscription] Failed to insert subscription:", insertErr);
-          return new Response(
-            JSON.stringify({ synced: false, reason: "insert_failed", error: insertErr.message }),
-            { status: 500, headers }
-          );
-        }
-
-        console.log("[verify-subscription] Synced subscription for user:", userId, "plan:", planName);
+    if (matchId) {
+      const { error: upErr } = await supabase.from("user_subscriptions").update(baseUpdate).eq("id", matchId);
+      if (upErr) {
+        console.error("[verify-subscription] Update failed:", upErr);
         return new Response(
-          JSON.stringify({ synced: true, plan: planName, status: record.status }),
-          { headers }
+          JSON.stringify({ synced: false, reason: "update_failed", error: upErr.message }),
+          { status: 500, headers },
+        );
+      }
+    } else {
+      const insertRow: Record<string, unknown> = {
+        user_id: userId,
+        ...baseUpdate,
+      };
+
+      const { error: insertErr } = await supabase.from("user_subscriptions").insert(insertRow);
+      if (insertErr) {
+        console.error("[verify-subscription] Insert failed:", insertErr);
+        return new Response(
+          JSON.stringify({ synced: false, reason: "insert_failed", error: insertErr.message }),
+          { status: 500, headers },
         );
       }
     }
 
-    console.log("[verify-subscription] No active Stripe subscription found for:", userEmail);
+    console.log("[verify-subscription] Synced user:", userId, "plan:", planName, "sub:", bestSub.id);
     return new Response(
-      JSON.stringify({ synced: false, reason: "no_active_subscription" }),
-      { headers }
+      JSON.stringify({ synced: true, plan: planName, status: dbStatus, stripe_subscription_id: bestSub.id }),
+      { headers },
     );
   } catch (e: any) {
     console.error("[verify-subscription] Error:", e?.message ?? e);

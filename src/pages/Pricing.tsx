@@ -237,8 +237,8 @@ export default function Pricing() {
       if (error) throw error;
 
       if (data?.upgraded) {
-        toast({ title: 'Subscription activated!', description: 'Your plan is now active.' });
-        navigate('/properties?checkout=success', { replace: true });
+        toast({ title: 'Plan updated', description: data.message || 'Your subscription is updated.' });
+        window.location.href = data.redirect_url || `${window.location.origin}/checkout/success`;
         return;
       }
 

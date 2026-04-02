@@ -265,12 +265,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
             }
 
             source = "subscription_allowance";
+            // Re-query the actual remaining AFTER the increment so we return fresh data
+            const { data: postIncrementData } = await supabase.rpc("fn_check_subscription_limit", {
+              p_user_id: user.id,
+              p_usage_type: "exports",
+              p_amount: 0, // just a read, no additional amount
+            });
+            const postResult = (postIncrementData ?? null) as { remaining?: number | null } | null;
             subscription_remaining =
-              limitResult.remaining === null
+              postResult?.remaining === null
                 ? null
-                : typeof limitResult.remaining === "number"
-                  ? Math.max(0, limitResult.remaining)
-                  : null;
+                : typeof postResult?.remaining === "number"
+                  ? Math.max(0, postResult.remaining)
+                  : (limitResult.remaining === null
+                      ? null
+                      : typeof limitResult.remaining === "number"
+                        ? Math.max(0, limitResult.remaining - 1)
+                        : null);
           } else {
             console.info("[handle-unlock] fn_unlock_property declined:", result.error);
             return new Response(

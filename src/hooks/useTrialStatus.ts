@@ -90,10 +90,10 @@ export function useTrialStatus() {
     queryKey: ['trial-status', user?.id],
     queryFn: () => fetchTrialStatus(user!.id),
     enabled: !!user?.id,
-    staleTime: 30 * 1000, // 30 seconds - balance between freshness and performance
-    refetchOnMount: false, // Use stale data if available
-    refetchOnWindowFocus: false, // Only refetch when explicitly requested
-    refetchInterval: 2 * 60 * 1000, // refetch every 2 minutes instead of every minute
+    staleTime: 10 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: 30 * 1000,
   });
 
   interface StartTrialResult {

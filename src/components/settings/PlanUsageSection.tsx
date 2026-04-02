@@ -1,22 +1,65 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
+import { useUserCredits } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
-import { ExternalLink, Loader2, Crown, Zap, Sparkles, TrendingUp, List, Building2, Mail } from "lucide-react";
+import { ExternalLink, Loader2, Crown, Zap, Sparkles, TrendingUp, List, Mail, Coins } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import type { PlanTierName } from "@/types/subscription";
+
+type MarketTier = "starter" | "professional" | "enterprise";
 
 const PLAN_CONFIGS = {
   free_trial: { icon: Zap, color: "text-blue-500" },
   starter: { icon: TrendingUp, color: "text-green-500" },
-  professional: { icon: Sparkles, color: "text-purple-500" }, // Pro
-  enterprise: { icon: Crown, color: "text-amber-500" }, // Elite
+  professional: { icon: Sparkles, color: "text-purple-500" },
+  enterprise: { icon: Crown, color: "text-amber-500" },
+  enterprise_admin: { icon: Crown, color: "text-amber-500" },
 };
+
+function planNameToMarketTier(name: PlanTierName | string | undefined): MarketTier | null {
+  if (!name) return null;
+  if (name === "starter") return "starter";
+  if (name === "professional") return "professional";
+  if (name === "enterprise" || name === "enterprise_admin") return "enterprise";
+  return null;
+}
+
+function PlanTierStrip({ selected }: { selected: MarketTier }) {
+  const tiers: { id: MarketTier; label: string; price: string }[] = [
+    { id: "starter", label: "Starter", price: "$49/mo" },
+    { id: "professional", label: "Pro", price: "$99/mo" },
+    { id: "enterprise", label: "Elite", price: "$199/mo" },
+  ];
+  return (
+    <div>
+      <h4 className="font-medium text-sm text-muted-foreground mb-2">Your tier</h4>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {tiers.map((t) => (
+          <div
+            key={t.id}
+            className={cn(
+              "rounded-lg border px-3 py-2.5 text-center text-sm transition-colors",
+              selected === t.id
+                ? "border-primary bg-primary/5 font-semibold text-foreground ring-1 ring-primary/20"
+                : "border-muted bg-background text-muted-foreground"
+            )}
+          >
+            <div>{t.label}</div>
+            <div className="text-xs font-normal opacity-80">{t.price}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface PlanUsageSectionProps {
   listsCount?: number;
@@ -24,8 +67,10 @@ interface PlanUsageSectionProps {
 }
 
 export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUsageSectionProps) {
-  const { subscription, plan, usage, loading, refetch } = useSubscription();
-  const { isOnTrial, trialExportsUsed, trialExportsLimit, trialExportsRemaining } = useTrialStatus();
+  const { subscription, plan, usage, loading: subscriptionLoading } = useSubscription();
+  const { data: creditBalance = 0, isLoading: creditsLoading } = useUserCredits();
+  const { isOnTrial, trialExportsUsed, trialExportsLimit } = useTrialStatus();
+  const loading = subscriptionLoading || creditsLoading;
   const { toast } = useToast();
   const navigate = useNavigate();
   const [portalLoading, setPortalLoading] = useState(false);
@@ -77,6 +122,11 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
 
       if (fnError) throw new Error(fnError.message || "Failed to create checkout session");
 
+      if (data?.upgraded) {
+        window.location.href = data.redirect_url || `${window.location.origin}/checkout/success`;
+        return;
+      }
+
       const checkoutUrl = data?.url || data?.checkout_url;
       if (!checkoutUrl) throw new Error("No checkout URL returned. Please try again.");
 
@@ -106,8 +156,12 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
     );
   }
 
-  const planConfig = plan ? PLAN_CONFIGS[plan.name as keyof typeof PLAN_CONFIGS] : null;
-  const PlanIcon = planConfig?.icon || Zap;
+  const hasSubscriptionPlan = Boolean(subscription && plan);
+  const selectedMarketTier = hasSubscriptionPlan ? planNameToMarketTier(plan!.name) : null;
+
+  const planConfig =
+    plan && PLAN_CONFIGS[plan.name as keyof typeof PLAN_CONFIGS] ? PLAN_CONFIGS[plan.name as keyof typeof PLAN_CONFIGS] : null;
+  const PlanIcon = planConfig?.icon ?? Zap;
 
   // Only show trial export counts if user is on trial AND doesn't have a paid plan
   const isPaidPlan = subscription && !['trial', 'trialing'].includes(subscription.status);
@@ -124,8 +178,9 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
     periodEnd.getDate()
   ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 
-  // No subscription
-  if (!subscription || !plan) {
+  // No subscription from backend: bulk credits only or free — never infer a tier
+  if (!hasSubscriptionPlan) {
+    const usingBulkCredits = creditBalance > 0;
     return (
       <Card>
         <CardHeader>
@@ -134,38 +189,67 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
             Your Plan & Usage
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-center py-8">
-          <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
-            <Zap className="h-8 w-8 text-muted-foreground" />
+        <CardContent className="space-y-6 py-2">
+          <div className="text-center sm:text-left space-y-2">
+            {usingBulkCredits ? (
+              <>
+                <div className="flex justify-center sm:justify-start">
+                  <div className="w-14 h-14 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center">
+                    <Coins className="h-7 w-7 text-amber-700" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-semibold">Using Bulk Credits</h3>
+                <p className="text-muted-foreground">
+                  {creditBalance.toLocaleString()} remaining — each credit unlocks one property. Subscribe for monthly
+                  credits and advanced features.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-center sm:justify-start">
+                  <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
+                    <Zap className="h-7 w-7 text-muted-foreground" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-semibold">Free Plan</h3>
+                <p className="text-muted-foreground">
+                  Browse and explore at no cost. Subscribe or buy credits when you are ready to unlock addresses.
+                </p>
+              </>
+            )}
           </div>
-          <h3 className="text-lg font-semibold mb-2">No Active Subscription</h3>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            Choose a plan to unlock enforcement intelligence.
-          </p>
-          <div className="flex gap-3 justify-center flex-wrap">
-            <Button
-              onClick={() => handleUpgrade('starter')}
-              variant="outline"
-              disabled={!!checkoutLoading}
-            >
-              {checkoutLoading === 'starter' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Starter - $49/mo
-            </Button>
-            <Button
-              onClick={() => handleUpgrade('professional')}
-              disabled={!!checkoutLoading}
-            >
-              {checkoutLoading === 'professional' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Pro - $99/mo
-            </Button>
-            <Button
-              onClick={() => handleUpgrade('enterprise')}
-              variant="outline"
-              disabled={!!checkoutLoading}
-            >
-              {checkoutLoading === 'enterprise' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Elite - $199/mo
-            </Button>
+
+          <div>
+            <p className="text-sm font-medium text-foreground mb-3 text-center sm:text-left">Subscribe (monthly)</p>
+            <div className="flex gap-3 justify-center sm:justify-start flex-wrap">
+              <Button
+                onClick={() => handleUpgrade('starter')}
+                variant="outline"
+                disabled={!!checkoutLoading}
+                className="min-w-[9rem]"
+              >
+                {checkoutLoading === 'starter' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Starter — $49/mo
+              </Button>
+              <Button
+                onClick={() => handleUpgrade('professional')}
+                variant="outline"
+                disabled={!!checkoutLoading}
+                className="min-w-[9rem]"
+              >
+                {checkoutLoading === 'professional' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Pro — $99/mo
+              </Button>
+              <Button
+                onClick={() => handleUpgrade('enterprise')}
+                variant="outline"
+                disabled={!!checkoutLoading}
+                className="min-w-[9rem]"
+              >
+                {checkoutLoading === 'enterprise' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Elite — $199/mo
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -181,11 +265,11 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Plan Info Row */}
+        {/* Plan Info Row — display_name comes from backend subscription */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-muted/50 rounded-lg">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-background shadow-sm flex items-center justify-center flex-shrink-0">
-              <PlanIcon className={`h-6 w-6 ${planConfig?.color || 'text-brand'}`} />
+              <PlanIcon className={cn("h-6 w-6", planConfig?.color ?? "text-brand")} />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -194,15 +278,27 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
                   <span className="text-muted-foreground">· ${(plan.price_monthly_cents / 100).toFixed(0)}/month</span>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {subscription?.status === 'active' && (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Active</Badge>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                {subscription?.status === "active" && (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    Active
+                  </Badge>
+                )}
+                {subscription?.status === "past_due" && (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200">
+                    Past due
+                  </Badge>
+                )}
+                {(subscription?.status === "trial" || subscription?.status === "trialing") && (
+                  <Badge variant="outline" className="bg-cyan-50 text-cyan-800 border-cyan-200">
+                    Trial
+                  </Badge>
                 )}
                 {formattedRenewal && <span>Renews {formattedRenewal}</span>}
               </div>
             </div>
           </div>
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 flex-shrink-0 flex-wrap">
             {subscription?.stripe_subscription_id && (
               portalUnavailable ? (
                 <Button
@@ -229,10 +325,11 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
                 </Button>
               )
             )}
-            {plan.name !== 'enterprise' && (
+            {plan.name !== "enterprise" && plan.name !== "enterprise_admin" && (
               <Button
                 size="sm"
-                onClick={() => handleUpgrade(plan.name === 'starter' ? 'professional' : 'enterprise')}
+                variant="secondary"
+                onClick={() => handleUpgrade(plan.name === "starter" ? "professional" : "enterprise")}
                 disabled={!!checkoutLoading}
               >
                 {checkoutLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
@@ -241,6 +338,8 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
             )}
           </div>
         </div>
+
+        {selectedMarketTier && <PlanTierStrip selected={selectedMarketTier} />}
 
         {/* Monthly Usage */}
         <div>

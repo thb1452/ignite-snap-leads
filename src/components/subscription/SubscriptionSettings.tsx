@@ -79,6 +79,11 @@ export function SubscriptionSettings() {
 
       if (fnError) throw new Error(fnError.message || "Failed to create checkout session");
 
+      if (data?.upgraded) {
+        window.location.href = data.redirect_url || `${window.location.origin}/checkout/success`;
+        return;
+      }
+
       const checkoutUrl = data?.url || data?.checkout_url;
       if (!checkoutUrl) throw new Error("No checkout URL returned. Please try again.");
 

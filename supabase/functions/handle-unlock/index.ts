@@ -61,6 +61,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let source: string;
     let free_remaining: number | undefined;
     let credits_remaining: number | undefined;
+    let subscription_remaining: number | null | undefined;
 
     if (stripe_session_id) {
       const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
@@ -193,12 +194,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       if (!result.success) {
         console.info("[handle-unlock] fn_unlock_property declined:", result.error);
+        const msg =
+          typeof result.message === "string" && result.message.length > 0
+            ? result.message
+            : "No free unlocks or credits remaining. Purchase credits or subscribe to unlock.";
         return new Response(
           JSON.stringify({
             error: result.error,
             free_remaining: result.free_remaining ?? 0,
             credits: result.credits ?? 0,
-            message: "No free unlocks or credits remaining. Purchase credits or subscribe to unlock.",
+            subscription_remaining: result.subscription_remaining ?? 0,
+            message: msg,
           }),
           { status: 402, headers },
         );
@@ -207,6 +213,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       source = String(result.source ?? "unknown");
       free_remaining = result.free_remaining as number | undefined;
       credits_remaining = result.credits_remaining as number | undefined;
+      subscription_remaining = result.subscription_remaining as number | null | undefined;
     } else {
       console.warn("[handle-unlock] body missing property_id and stripe_session_id");
       return new Response(JSON.stringify({ error: "property_id or stripe_session_id required" }), {
@@ -261,19 +268,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
             const batchData = await batchRes.json();
             const persons = batchData?.results?.persons || batchData?.results?.[0]?.persons || [];
 
-              if (persons.length > 0) {
+            if (persons.length > 0) {
               const contacts = persons.slice(0, 3).map((person: Record<string, unknown>) => {
                 const mailingAddr = (person.addresses as Record<string, unknown>[] | undefined)?.[0] as
                   | Record<string, string>
                   | undefined;
                 // BatchData returns name as { first, last } object or flat firstName/lastName
                 const nameObj = person.name as Record<string, string> | string | undefined;
-                const firstName = person.firstName as string | undefined
-                  || (typeof nameObj === "object" && nameObj !== null ? nameObj.first : undefined);
-                const lastName = person.lastName as string | undefined
-                  || (typeof nameObj === "object" && nameObj !== null ? nameObj.last : undefined);
-                const fullName = [firstName, lastName].filter(Boolean).join(" ")
-                  || (typeof nameObj === "string" ? nameObj : null);
+                const firstName =
+                  (person.firstName as string | undefined) ||
+                  (typeof nameObj === "object" && nameObj !== null ? nameObj.first : undefined);
+                const lastName =
+                  (person.lastName as string | undefined) ||
+                  (typeof nameObj === "object" && nameObj !== null ? nameObj.last : undefined);
+                const fullName =
+                  [firstName, lastName].filter(Boolean).join(" ") || (typeof nameObj === "string" ? nameObj : null);
                 return {
                   property_id,
                   created_by: user.id,
@@ -331,6 +340,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         source,
         free_remaining,
         credits_remaining,
+        subscription_remaining,
         property: property ?? null,
         contacts: contacts ?? [],
       }),

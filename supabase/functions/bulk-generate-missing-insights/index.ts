@@ -492,7 +492,9 @@ serve(async (req) => {
 
     if (fetchError) throw fetchError;
 
-    if (!properties || properties.length === 0) {
+    const typedProperties = ((properties ?? []) as Array<{ id: string; snap_score: number | null }>);
+
+    if (typedProperties.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
@@ -505,7 +507,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[bulk-insights-v9] Processing ${properties.length} properties (offset ${offset})`);
+    console.log(`[bulk-insights-v9] Processing ${typedProperties.length} properties (offset ${offset})`);
 
     // Process each property — AI for score >= 50, rule-based for < 50
     let totalProcessed = 0;
@@ -516,10 +518,10 @@ serve(async (req) => {
     const errors: string[] = [];
 
     if (!dryRun) {
-      for (let i = 0; i < properties.length; i += CONCURRENCY) {
+      for (let i = 0; i < typedProperties.length; i += CONCURRENCY) {
         if (creditsExhausted && (aiOnly || forceRefresh)) break;
 
-        const wave = properties.slice(i, i + CONCURRENCY);
+        const wave = typedProperties.slice(i, i + CONCURRENCY);
         const waveResults = await Promise.allSettled(
           wave.map(prop => generateInsightForProperty(supabase, prop.id, DEEPSEEK_API_KEY, true, aiOnly, forceRefresh && creditsExhausted))
         );
@@ -548,7 +550,7 @@ serve(async (req) => {
           }
         }
 
-        if (i + CONCURRENCY < properties.length) {
+        if (i + CONCURRENCY < typedProperties.length) {
           await delay(creditsExhausted ? 100 : DELAY_BETWEEN_WAVES_MS);
         }
       }
@@ -670,7 +672,7 @@ function isDeterministicInsight(text: string | null | undefined): boolean {
 
 // ── Generate insight for a single property — AI for high score, rule-based for low ──
 async function generateInsightForProperty(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   propertyId: string,
   apiKey: string,
   writeToDb: boolean,
@@ -678,7 +680,7 @@ async function generateInsightForProperty(
   skipOverwrite = false
 ): Promise<{ status: string; property_id: string; snap_insight?: string; error?: string; method?: string }> {
   try {
-    const { data: property, error: propError } = await supabase
+    const { data: propertyData, error: propError } = await supabase
       .from("properties")
       .select(`
         id, address, city, state, zip, county,
@@ -690,6 +692,8 @@ async function generateInsightForProperty(
       `)
       .eq("id", propertyId)
       .maybeSingle();
+
+    const property = propertyData as Record<string, any> | null;
 
     if (propError || !property) {
       return { status: 'error', property_id: propertyId, error: propError?.message || 'not_found' };

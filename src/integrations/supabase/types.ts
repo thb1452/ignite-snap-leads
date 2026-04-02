@@ -1889,6 +1889,7 @@ export type Database = {
           price_annual_cents: number
           price_monthly_cents: number
           sort_order: number
+          stripe_price_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1914,6 +1915,7 @@ export type Database = {
           price_annual_cents?: number
           price_monthly_cents?: number
           sort_order?: number
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1939,6 +1941,7 @@ export type Database = {
           price_annual_cents?: number
           price_monthly_cents?: number
           sort_order?: number
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -3223,19 +3226,10 @@ export type Database = {
         Args: { p_address_count: number; p_user_id: string }
         Returns: Json
       }
-      fn_check_subscription_limit:
-        | {
-            Args: {
-              p_amount?: number
-              p_usage_type: string
-              p_user_id?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: { p_amount?: number; p_usage_type: string; p_user_id: string }
-            Returns: Json
-          }
+      fn_check_subscription_limit: {
+        Args: { p_amount?: number; p_usage_type: string; p_user_id?: string }
+        Returns: Json
+      }
       fn_check_unlocked_batch: {
         Args: { p_property_ids: string[]; p_user_id: string }
         Returns: {
@@ -3349,11 +3343,7 @@ export type Database = {
         Returns: Json
       }
       fn_increment_usage: {
-        Args: {
-          p_amount?: number
-          p_usage_type: string
-          p_user_id?: string
-        }
+        Args: { p_amount?: number; p_usage_type: string; p_user_id?: string }
         Returns: boolean
       }
       fn_job_status: { Args: { p_job_id: string }; Returns: Json }

@@ -5,12 +5,14 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { analytics } from "@/lib/analytics";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function CheckoutSuccess() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { plan, refetch, hasActiveSubscription } = useSubscription();
+  const queryClient = useQueryClient();
   const [pollingCount, setPollingCount] = useState(0);
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const [verifyAttempted, setVerifyAttempted] = useState(false);
@@ -26,14 +28,18 @@ export default function CheckoutSuccess() {
     if (hasActiveSubscription && plan?.name) {
       console.log('[CheckoutSuccess] Subscription confirmed:', plan.name);
       analytics.paymentSuccess(plan.name);
+      queryClient.invalidateQueries({ queryKey: ['subscription'] });
+      queryClient.invalidateQueries({ queryKey: ['subscription-usage'] });
+      queryClient.invalidateQueries({ queryKey: ['trial-status'] });
+      queryClient.invalidateQueries({ queryKey: ['credits'] });
       setShouldRedirect(true);
       return;
     }
 
-    // After 5 polls without finding a subscription, call verify-subscription as fallback
-    if (pollingCount === 5 && !verifyCalledRef.current) {
+    // Verify immediately so the app unlocks right after checkout instead of waiting on stale cache/webhooks
+    if (!verifyCalledRef.current) {
       verifyCalledRef.current = true;
-      console.log('[CheckoutSuccess] Webhook may have failed, calling verify-subscription fallback');
+      console.log('[CheckoutSuccess] Calling verify-subscription fallback');
       
       supabase.functions.invoke('verify-subscription', {
         method: 'POST',
@@ -41,7 +47,10 @@ export default function CheckoutSuccess() {
       }).then(({ data, error }) => {
         console.log('[CheckoutSuccess] verify-subscription result:', data, error);
         setVerifyAttempted(true);
-        // Refetch subscription after verify attempt
+        queryClient.invalidateQueries({ queryKey: ['subscription'] });
+        queryClient.invalidateQueries({ queryKey: ['subscription-usage'] });
+        queryClient.invalidateQueries({ queryKey: ['trial-status'] });
+        queryClient.invalidateQueries({ queryKey: ['credits'] });
         refetch();
       }).catch((err) => {
         console.error('[CheckoutSuccess] verify-subscription error:', err);
@@ -49,20 +58,20 @@ export default function CheckoutSuccess() {
       });
     }
 
-    // Poll up to 20 times (20 seconds) waiting for webhook or verify result
-    if (pollingCount < 20) {
+    // Poll briefly after checkout for a fast handoff back into the app
+    if (pollingCount < 12) {
       const timer = setTimeout(() => {
         console.log('[CheckoutSuccess] Polling for subscription...', pollingCount + 1);
         refetch();
         setPollingCount(prev => prev + 1);
-      }, 1000);
+      }, 750);
       return () => clearTimeout(timer);
     }
 
-    // After 20 seconds, redirect anyway
+    // After a short grace period, redirect anyway and let the refreshed queries settle on the app page
     console.log('[CheckoutSuccess] Max polls reached, redirecting anyway');
     setShouldRedirect(true);
-  }, [user, authLoading, plan, pollingCount, refetch, hasActiveSubscription]);
+  }, [user, authLoading, plan, pollingCount, refetch, hasActiveSubscription, queryClient]);
 
   // Handle redirect separately to avoid multiple navigation calls
   useEffect(() => {

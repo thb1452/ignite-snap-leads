@@ -792,6 +792,7 @@ export type Database = {
           data_format: string | null
           data_quality_score: number | null
           data_years_requested: string | null
+          email_used: string | null
           estimated_row_count: number | null
           fee_amount: number | null
           fulfillment_file_url: string | null
@@ -809,10 +810,12 @@ export type Database = {
           requested_by: string
           response_date: string | null
           response_received_at: string | null
+          response_type: string | null
           sent_at: string | null
           status: string | null
           target_id: string | null
           updated_at: string
+          upload_job_id: string | null
           va_id: string | null
         }
         Insert: {
@@ -821,6 +824,7 @@ export type Database = {
           data_format?: string | null
           data_quality_score?: number | null
           data_years_requested?: string | null
+          email_used?: string | null
           estimated_row_count?: number | null
           fee_amount?: number | null
           fulfillment_file_url?: string | null
@@ -838,10 +842,12 @@ export type Database = {
           requested_by: string
           response_date?: string | null
           response_received_at?: string | null
+          response_type?: string | null
           sent_at?: string | null
           status?: string | null
           target_id?: string | null
           updated_at?: string
+          upload_job_id?: string | null
           va_id?: string | null
         }
         Update: {
@@ -850,6 +856,7 @@ export type Database = {
           data_format?: string | null
           data_quality_score?: number | null
           data_years_requested?: string | null
+          email_used?: string | null
           estimated_row_count?: number | null
           fee_amount?: number | null
           fulfillment_file_url?: string | null
@@ -867,10 +874,12 @@ export type Database = {
           requested_by?: string
           response_date?: string | null
           response_received_at?: string | null
+          response_type?: string | null
           sent_at?: string | null
           status?: string | null
           target_id?: string | null
           updated_at?: string
+          upload_job_id?: string | null
           va_id?: string | null
         }
         Relationships: [
@@ -2015,8 +2024,10 @@ export type Database = {
       targets: {
         Row: {
           contact_email: string | null
+          contact_value: string | null
           county: string | null
           created_at: string
+          credential_to_use: string | null
           foia_url: string | null
           id: string
           is_duplicate: boolean
@@ -2032,8 +2043,10 @@ export type Database = {
         }
         Insert: {
           contact_email?: string | null
+          contact_value?: string | null
           county?: string | null
           created_at?: string
+          credential_to_use?: string | null
           foia_url?: string | null
           id?: string
           is_duplicate?: boolean
@@ -2049,8 +2062,10 @@ export type Database = {
         }
         Update: {
           contact_email?: string | null
+          contact_value?: string | null
           county?: string | null
           created_at?: string
+          credential_to_use?: string | null
           foia_url?: string | null
           id?: string
           is_duplicate?: boolean

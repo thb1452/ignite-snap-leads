@@ -44,7 +44,7 @@ export async function resolvePlanFromStripeSubscription(
   subscription: Stripe.Subscription,
 ): Promise<ResolvedPlanFromStripe | null> {
   const items = subscription.items?.data ?? [];
-  const recurring = items.filter((i) => i.price && typeof i.price === "object" && i.price.recurring);
+  const recurring = items.filter((i: any) => i.price && typeof i.price === "object" && i.price.recurring);
   const ordered = recurring.length > 0 ? recurring : items;
 
   const seenPriceIds: string[] = [];

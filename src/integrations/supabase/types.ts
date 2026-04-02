@@ -1889,6 +1889,7 @@ export type Database = {
           price_annual_cents: number
           price_monthly_cents: number
           sort_order: number
+          stripe_price_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1914,6 +1915,7 @@ export type Database = {
           price_annual_cents?: number
           price_monthly_cents?: number
           sort_order?: number
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1939,6 +1941,7 @@ export type Database = {
           price_annual_cents?: number
           price_monthly_cents?: number
           sort_order?: number
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Relationships: []

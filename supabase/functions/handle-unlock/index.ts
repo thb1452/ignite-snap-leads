@@ -217,11 +217,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
           free_remaining = result.free_remaining as number | undefined;
           credits_remaining = result.credits_remaining as number | undefined;
         } else {
-          const { data: limitData, error: limitError } = await userClient.rpc("fn_check_subscription_limit", {
+          const { data: limitData, error: limitError } = await supabase.rpc("fn_check_subscription_limit", {
             p_user_id: user.id,
             p_usage_type: "exports",
             p_amount: 1,
           });
+
+          console.info("[handle-unlock] subscription check:", JSON.stringify({ limitData, limitError }));
 
           const limitResult = (limitData ?? null) as { allowed?: boolean; remaining?: number | null } | null;
 
@@ -241,7 +243,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
               });
             }
 
-            const { data: incremented, error: incrementError } = await userClient.rpc("fn_increment_usage", {
+            const { data: incremented, error: incrementError } = await supabase.rpc("fn_increment_usage", {
               p_user_id: user.id,
               p_usage_type: "exports",
               p_amount: 1,

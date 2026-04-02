@@ -121,13 +121,16 @@ export function UnlockModal({
         return next;
       });
 
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
-      queryClient.invalidateQueries({ queryKey: ["credits"] });
-      queryClient.invalidateQueries({ queryKey: ["user", "credits"] });
-       queryClient.invalidateQueries({ queryKey: ["subscription"] });
-       queryClient.invalidateQueries({ queryKey: ["subscription-usage"] });
-       queryClient.invalidateQueries({ queryKey: ["trial-status"] });
+      // Force immediate refetch (not just invalidate) so header chip updates
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["unlocked-properties"] }),
+        queryClient.refetchQueries({ queryKey: ["credits"] }),
+        queryClient.refetchQueries({ queryKey: ["user", "credits"] }),
+        queryClient.refetchQueries({ queryKey: ["subscription"] }),
+        queryClient.refetchQueries({ queryKey: ["subscription-usage"] }),
+        queryClient.refetchQueries({ queryKey: ["trial-status"] }),
+        queryClient.refetchQueries({ queryKey: ["free-unlocks"] }),
+      ]);
       queryClient.invalidateQueries({ queryKey: ["property-contacts", property.id] });
 
       onUnlocked?.();

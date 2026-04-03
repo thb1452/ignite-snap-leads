@@ -2,13 +2,17 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, ListChecks, Zap, TrendingUp, Users, Lock, Heart } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Phone, Mail, ListChecks, Zap, TrendingUp, Users, Lock, Heart, CreditCard, Sparkles, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { IntelligenceDashboard } from "@/components/intelligence/IntelligenceDashboard";
 import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
 import { useDashboardStats } from "@/hooks/useIntelligenceDashboard";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useSavedProperties } from "@/hooks/useSavedProperties";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
+import { useCreditBalance } from "@/hooks/useCredits";
 
 export default function Index() {
   const navigate = useNavigate();

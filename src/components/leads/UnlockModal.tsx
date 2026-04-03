@@ -326,7 +326,7 @@ export function UnlockModal({
                       key={tier.name}
                       variant="outline"
                       onClick={() =>
-                        handleStripeCheckout(undefined as any, {
+                        handleStripeCheckout("subscription", {
                           tier_name: tier.name,
                           billing_cycle: "monthly",
                         })

@@ -120,6 +120,7 @@ import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import {
   clearPendingStripeUnlockCheckout,
   getPendingStripeUnlockSessionId,
+  getPendingStripeUnlock,
 } from "@/utils/pendingStripeUnlock";
 
 const PAGE_SIZE = 50;
@@ -562,6 +563,53 @@ function Leads() {
     newParams.delete("propertyId");
     setSearchParams(newParams, { replace: true });
   }, [searchParams, isLoading, setSearchParams, toast, user?.id, queryClient]);
+
+  // When tab regains focus, check if a Stripe single-unlock checkout completed in another tab
+  useEffect(() => {
+    const handleFocus = async () => {
+      if (!user?.id) return;
+      const pending = getPendingStripeUnlock();
+      if (!pending) return;
+
+      try {
+        const { data: unlockData, error: unlockErr } = await supabase.functions.invoke<{
+          success?: boolean;
+          property_id?: string;
+        }>("handle-unlock", {
+          body: { stripe_session_id: pending.sessionId },
+        });
+
+        if (!unlockErr && unlockData?.success) {
+          clearPendingStripeUnlockCheckout();
+          queryClient.setQueryData(["optimistic-unlocked", user.id], (old: unknown) => {
+            const next = old instanceof Set ? new Set(old) : new Set<string>();
+            next.add(pending.propertyId);
+            return next;
+          });
+          queryClient.setQueryData(["confirmed-unlocked-local", user.id], (old: unknown) => {
+            const next = old instanceof Set ? new Set(old) : new Set<string>();
+            next.add(pending.propertyId);
+            return next;
+          });
+          queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
+          queryClient.invalidateQueries({ queryKey: ["free-unlocks"] });
+          queryClient.invalidateQueries({ queryKey: ["credits"] });
+          setSelectedPropertyId(pending.propertyId);
+          toast({
+            title: "Property unlocked! 🔓",
+            description: "Full addresses and contacts are now available.",
+          });
+        }
+      } catch (e) {
+        console.error("[Leads] focus-based unlock check failed:", e);
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    // Also check immediately on mount in case user already returned
+    handleFocus();
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [user?.id, queryClient, toast]);
 
   // Map now uses viewport-based loading - no pre-fetching needed
 

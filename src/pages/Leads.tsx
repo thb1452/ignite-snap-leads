@@ -120,6 +120,7 @@ import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import {
   clearPendingStripeUnlockCheckout,
   getPendingStripeUnlockSessionId,
+  getPendingStripeUnlock,
 } from "@/utils/pendingStripeUnlock";
 
 const PAGE_SIZE = 50;

@@ -1515,16 +1515,16 @@ function Leads() {
                           <Button
                             variant="default"
                             size="sm"
-                            onClick={handleExportCSV}
+                            onClick={hasNoCredits ? () => { setTrialGateType("exhausted"); setTrialGateOpen(true); } : handleExportCSV}
                             disabled={isExporting}
-                            className="h-8 text-xs gap-1"
+                            className={`h-8 text-xs gap-1 ${hasNoCredits ? "opacity-60" : ""}`}
                           >
                             {isExporting ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
                               <Download className="h-3 w-3" />
                             )}
-                            Export ({selectedIds.length.toLocaleString()})
+                            {hasNoCredits ? "Get Credits" : `Export (${selectedIds.length.toLocaleString()})`}
                           </Button>
                           <Button
                             variant="ghost"

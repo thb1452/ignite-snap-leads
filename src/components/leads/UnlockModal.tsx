@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Unlock, CreditCard, Coins, Sparkles, Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Lock, CreditCard, Coins, Sparkles, Loader2, Zap, TrendingUp, Building2, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -32,6 +33,18 @@ interface UnlockModalProps {
   onUnlocked?: () => void;
 }
 
+const SUBSCRIPTION_TIERS = [
+  { name: "starter", label: "Starter", price: "$49/mo", credits: "750 credits/mo", icon: Zap },
+  { name: "professional", label: "Pro", price: "$99/mo", credits: "1,500 credits/mo", icon: TrendingUp },
+  { name: "enterprise", label: "Elite", price: "$199/mo", credits: "3,000 credits/mo", icon: Building2 },
+];
+
+const BULK_PACKS = [
+  { count: 5000, label: "5,000", price: "$750", per: "$0.15/ea" },
+  { count: 10000, label: "10,000", price: "$1,300", per: "$0.13/ea" },
+  { count: 20000, label: "20,000", price: "$2,200", per: "$0.11/ea" },
+];
+
 export function UnlockModal({
   open,
   onOpenChange,
@@ -41,10 +54,11 @@ export function UnlockModal({
 }: UnlockModalProps) {
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutTarget, setCheckoutTarget] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { hasActiveSubscription, getRemainingCount } = useSubscription();
+  const { hasActiveSubscription, getRemainingCount, subscription } = useSubscription();
   const { data: bulkCreditBalance = 0 } = useUserCredits();
 
   if (!property) return null;
@@ -52,8 +66,11 @@ export function UnlockModal({
   const monthlyUnlocksRemaining = hasActiveSubscription ? getRemainingCount("exports") : 0;
   const canUseSubscriptionUnlock =
     hasActiveSubscription && (monthlyUnlocksRemaining === null || monthlyUnlocksRemaining > 0);
-  const canUseFreeUnlock = !canUseSubscriptionUnlock && freeUnlocksRemaining > 0;
-  const canUseCredit = !canUseSubscriptionUnlock && !canUseFreeUnlock && bulkCreditBalance >= 1;
+  const canUseFreeUnlock = freeUnlocksRemaining > 0;
+  const canUseBulkCredit = bulkCreditBalance >= 1;
+
+  // Determine which instant-unlock option to show (priority order)
+  const hasInstantOption = canUseSubscriptionUnlock || canUseFreeUnlock || canUseBulkCredit;
 
   const formatRemaining = (value: number | null | undefined) =>
     value === null ? "∞" : Math.max(0, value ?? 0).toLocaleString();
@@ -86,7 +103,7 @@ export function UnlockModal({
           toast({
             variant: "destructive",
             title: "Insufficient balance",
-             description: data.message || "Purchase credits or subscribe to unlock properties.",
+            description: data.message || "Purchase credits or subscribe to unlock properties.",
           });
         } else {
           throw new Error(data.error || "Unlock failed");
@@ -94,41 +111,37 @@ export function UnlockModal({
         return;
       }
 
-       const unlockDescription =
-         data.source === "subscription_allowance"
-           ? `Monthly unlock used. ${formatRemaining(data.subscription_remaining)} remaining.`
-           : data.source === "free_credit"
-             ? `Free unlock used. ${formatRemaining(data.free_remaining)} remaining.`
-             : data.source === "credit_pack"
-               ? `1 credit used. ${formatRemaining(data.credits_remaining)} credits remaining.`
-               : "Full addresses and contacts are now available.";
+      const unlockDescription =
+        data.source === "subscription_allowance"
+          ? `Monthly credit used. ${formatRemaining(data.subscription_remaining)} remaining.`
+          : data.source === "free_credit"
+            ? `Free unlock used. ${formatRemaining(data.free_remaining)} remaining.`
+            : data.source === "credit_pack"
+              ? `1 credit used. ${formatRemaining(data.credits_remaining)} credits remaining.`
+              : "Full addresses and contacts are now available.";
 
       toast({
         title: "Property unlocked! 🔓",
-         description: unlockDescription,
+        description: unlockDescription,
       });
 
-      // Optimistically mark unlocked immediately (works even before unlock queries exist).
       queryClient.setQueryData(["optimistic-unlocked", user.id], (old: unknown) => {
         const next = old instanceof Set ? new Set(old) : new Set<string>();
         next.add(property.id);
         return next;
       });
-      // Mark confirmed locally too (this path only returns success after DB write).
       queryClient.setQueryData(["confirmed-unlocked-local", user.id], (old: unknown) => {
         const next = old instanceof Set ? new Set(old) : new Set<string>();
         next.add(property.id);
         return next;
       });
 
-      // Force immediate refetch (not just invalidate) so header chip updates
       await Promise.all([
         queryClient.refetchQueries({ queryKey: ["unlocked-properties"] }),
         queryClient.refetchQueries({ queryKey: ["credits"] }),
         queryClient.refetchQueries({ queryKey: ["user", "credits"] }),
         queryClient.refetchQueries({ queryKey: ["subscription"] }),
         queryClient.refetchQueries({ queryKey: ["subscription-usage"] }),
-        queryClient.refetchQueries({ queryKey: ["trial-status"] }),
         queryClient.refetchQueries({ queryKey: ["free-unlocks"] }),
       ]);
       queryClient.invalidateQueries({ queryKey: ["property-contacts", property.id] });
@@ -146,9 +159,11 @@ export function UnlockModal({
     }
   };
 
-  const handleBuyUnlock = async () => {
+  const handleStripeCheckout = async (checkoutType: string, extraBody: Record<string, unknown> = {}) => {
     if (!user) return;
+    const target = `${checkoutType}-${JSON.stringify(extraBody)}`;
     setIsCheckingOut(true);
+    setCheckoutTarget(target);
 
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -164,8 +179,9 @@ export function UnlockModal({
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            checkout_type: "single_unlock",
-            property_id: property.id,
+            checkout_type: checkoutType,
+            property_id: checkoutType === "single_unlock" ? property.id : undefined,
+            ...extraBody,
           }),
         }
       );
@@ -173,8 +189,9 @@ export function UnlockModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Checkout failed");
 
-      if (data.url) {
-        window.location.href = data.url;
+      const url = data.url || data.checkout_url;
+      if (url) {
+        window.location.href = url;
       }
     } catch (err: any) {
       toast({
@@ -182,8 +199,8 @@ export function UnlockModal({
         title: "Checkout failed",
         description: err.message,
       });
-    } finally {
       setIsCheckingOut(false);
+      setCheckoutTarget(null);
     }
   };
 
@@ -195,9 +212,11 @@ export function UnlockModal({
     return "bg-blue-500";
   };
 
+  const isTargetLoading = (target: string) => isCheckingOut && checkoutTarget === target;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5 text-primary" />
@@ -227,81 +246,148 @@ export function UnlockModal({
           )}
         </div>
 
-        {/* Unlock Options */}
-        <div className="space-y-3">
-          {canUseSubscriptionUnlock && (
-            <Button
-              onClick={handleUnlockWithCredits}
-              disabled={isUnlocking}
-              className="w-full gap-2"
-              size="lg"
-            >
-              {isUnlocking ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              Use Monthly Unlock ({formatRemaining(monthlyUnlocksRemaining)} remaining)
-            </Button>
-          )}
+        {/* === SECTION 1: Instant Unlock (if user has balance) === */}
+        {hasInstantOption && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unlock Now</p>
 
-          {canUseFreeUnlock && (
-            <Button
-              onClick={handleUnlockWithCredits}
-              disabled={isUnlocking}
-              className="w-full gap-2"
-              size="lg"
-            >
-              {isUnlocking ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              Use Free Unlock ({freeUnlocksRemaining} left)
-            </Button>
-          )}
+            {canUseSubscriptionUnlock && (
+              <Button
+                onClick={handleUnlockWithCredits}
+                disabled={isUnlocking}
+                className="w-full gap-2"
+                size="lg"
+              >
+                {isUnlocking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Use Monthly Credit ({formatRemaining(monthlyUnlocksRemaining)} left)
+              </Button>
+            )}
 
-          {canUseCredit && (
-            <Button
-              onClick={handleUnlockWithCredits}
-              disabled={isUnlocking}
-              className="w-full gap-2"
-              size="lg"
-            >
-              {isUnlocking ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Coins className="h-4 w-4" />
-              )}
-              Use 1 Credit ({bulkCreditBalance} available)
-            </Button>
-          )}
+            {!canUseSubscriptionUnlock && canUseFreeUnlock && (
+              <Button
+                onClick={handleUnlockWithCredits}
+                disabled={isUnlocking}
+                className="w-full gap-2"
+                size="lg"
+              >
+                {isUnlocking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Use Free Unlock ({freeUnlocksRemaining} left)
+              </Button>
+            )}
 
-          {/* Buy single unlock */}
+            {!canUseSubscriptionUnlock && !canUseFreeUnlock && canUseBulkCredit && (
+              <Button
+                onClick={handleUnlockWithCredits}
+                disabled={isUnlocking}
+                className="w-full gap-2"
+                size="lg"
+              >
+                {isUnlocking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />}
+                Use 1 Credit ({bulkCreditBalance.toLocaleString()} available)
+              </Button>
+            )}
+          </div>
+        )}
+
+        <Separator />
+
+        {/* === SECTION 2: Pay $0.67 for this property === */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pay Per Property</p>
           <Button
-            variant={canUseFreeUnlock || canUseCredit ? "outline" : "default"}
-            onClick={handleBuyUnlock}
+            variant={hasInstantOption ? "outline" : "default"}
+            onClick={() => handleStripeCheckout("single_unlock")}
             disabled={isCheckingOut}
             className="w-full gap-2"
             size="lg"
           >
-            {isCheckingOut ? (
+            {isTargetLoading(`single_unlock-{}`) ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <CreditCard className="h-4 w-4" />
             )}
-            Buy Unlock — {PAYG_PRICE_DISPLAY}
+            Pay {PAYG_PRICE_DISPLAY} for This Property
           </Button>
+        </div>
 
-          {/* Subscribe CTA */}
-          {!canUseFreeUnlock && !canUseCredit && (
-            <p className="text-xs text-center text-muted-foreground">
-              Or{" "}
-              <a href="/pricing" className="text-primary hover:underline font-medium">
-                subscribe for monthly unlocks
-              </a>
-            </p>
-          )}
+        <Separator />
+
+        {/* === SECTION 3: Subscribe for monthly credits === */}
+        {!hasActiveSubscription && (
+          <>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Subscribe & Save</p>
+              <div className="grid gap-2">
+                {SUBSCRIPTION_TIERS.map((tier) => {
+                  const Icon = tier.icon;
+                  const targetKey = `undefined-${JSON.stringify({ tier_name: tier.name, billing_cycle: "monthly" })}`;
+                  return (
+                    <Button
+                      key={tier.name}
+                      variant="outline"
+                      onClick={() =>
+                        handleStripeCheckout(undefined as any, {
+                          tier_name: tier.name,
+                          billing_cycle: "monthly",
+                        })
+                      }
+                      disabled={isCheckingOut}
+                      className="w-full justify-between gap-2 h-auto py-2.5 px-4"
+                    >
+                      <span className="flex items-center gap-2">
+                        {isTargetLoading(targetKey) ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Icon className="h-4 w-4" />
+                        )}
+                        <span className="font-medium">{tier.label}</span>
+                        <span className="text-muted-foreground text-xs">{tier.credits}</span>
+                      </span>
+                      <span className="font-semibold text-sm">{tier.price}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Separator />
+          </>
+        )}
+
+        {/* === SECTION 4: Buy Bulk Credits === */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <Package className="h-3.5 w-3.5 inline mr-1" />
+            Bulk Credit Packs
+          </p>
+          <div className="grid gap-2">
+            {BULK_PACKS.map((pack) => {
+              const targetKey = `bulk_credits-${JSON.stringify({ credit_count: pack.count })}`;
+              return (
+                <Button
+                  key={pack.count}
+                  variant="outline"
+                  onClick={() =>
+                    handleStripeCheckout("bulk_credits", { credit_count: pack.count })
+                  }
+                  disabled={isCheckingOut}
+                  className="w-full justify-between gap-2 h-auto py-2 px-4"
+                  size="sm"
+                >
+                  <span className="flex items-center gap-2">
+                    {isTargetLoading(targetKey) ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Coins className="h-3.5 w-3.5" />
+                    )}
+                    <span className="font-medium">{pack.label} credits</span>
+                    <span className="text-muted-foreground text-xs">{pack.per}</span>
+                  </span>
+                  <span className="font-semibold text-sm">{pack.price}</span>
+                </Button>
+              );
+            })}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

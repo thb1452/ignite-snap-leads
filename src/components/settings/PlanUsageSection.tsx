@@ -123,7 +123,8 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
       if (fnError) throw new Error(fnError.message || "Failed to create checkout session");
 
       if (data?.upgraded) {
-        window.location.href = data.redirect_url || `${window.location.origin}/checkout/success`;
+        const rUrl = data.redirect_url || `${window.location.origin}/checkout/success`;
+        const w = window.open(rUrl, '_blank'); if (!w) window.location.href = rUrl;
         return;
       }
 

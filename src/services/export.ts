@@ -196,6 +196,8 @@ export async function exportFilteredCsv(params: ExportParams) {
   void queryClient.invalidateQueries({ queryKey: ["subscription-usage"] });
   void queryClient.invalidateQueries({ queryKey: ["trial-status"] });
   void queryClient.invalidateQueries({ queryKey: ["credits"] });
+  void queryClient.invalidateQueries({ queryKey: ["free-unlocks"] });
+  void queryClient.invalidateQueries({ queryKey: ["user", "credits"] });
 
   // Trigger browser download
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });

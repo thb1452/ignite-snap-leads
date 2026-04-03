@@ -32,7 +32,7 @@ export default function SavedProperties() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { savedIds, isLoading: savedLoading, toggleSaved } = useSavedProperties();
-  const { plan, usage, getRemainingCount, refetch: refetchSubscription } = useSubscription();
+  const { plan, usage, getRemainingCount, refetch: refetchSubscription, hasActiveSubscription } = useSubscription();
   const {
     isOnTrial,
     hasTrialExpired,

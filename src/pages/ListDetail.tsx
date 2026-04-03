@@ -41,7 +41,7 @@ export function ListDetail() {
   const { listId } = useParams<{ listId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { checkLimit, refetch: refetchSubscription, plan, usage, getRemainingCount } = useSubscription();
+  const { checkLimit, refetch: refetchSubscription, plan, usage, getRemainingCount, hasActiveSubscription } = useSubscription();
   const {
     isOnTrial,
     hasTrialExpired,

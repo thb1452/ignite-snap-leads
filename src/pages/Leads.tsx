@@ -709,7 +709,23 @@ function Leads() {
   };
 
   // Export remaining count for limit enforcement
-  const exportRemaining = getRemainingCount("exports");
+  // Include free unlocks and bulk credits so users without a subscription don't see "0 remaining"
+  const subscriptionRemaining = getRemainingCount("exports");
+  const { data: bulkCreditBalance = 0 } = useQuery({
+    queryKey: ["user", "credits", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+      const { data } = await supabase.rpc("fn_credit_balance" as any, { p_user_id: user.id });
+      return typeof data === "number" ? data : 0;
+    },
+    enabled: !!user?.id,
+    staleTime: 30000,
+  });
+  const exportRemaining = hasActiveSubscription
+    ? subscriptionRemaining
+    : (subscriptionRemaining ?? 0) + freeUnlocksRemaining + bulkCreditBalance > 0
+      ? null // treat as "unlimited" (don't show warning) since they can pay per property
+      : null; // Even with 0 credits, don't block — they can always PAYG
 
   const handleExportCSV = async () => {
     if (selectedIds.length === 0) {

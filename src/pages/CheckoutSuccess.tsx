@@ -107,12 +107,10 @@ export default function CheckoutSuccess() {
           <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
         </div>
         <h1 className="text-2xl font-bold text-foreground">
-          {isTrial ? "Trial Started!" : "Payment Successful!"}
+          Payment Successful!
         </h1>
         <p className="text-muted-foreground">
-          {isTrial
-            ? "Your 3-day free trial is now active. You have 500 property exports to get started."
-            : "Activating your subscription..."}
+          Activating your subscription...
         </p>
         <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
         <p className="text-xs text-muted-foreground">

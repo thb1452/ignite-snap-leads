@@ -113,6 +113,7 @@ import { buildFiltersFromState, countActiveFilters, logFilters } from "@/utils/f
 import { useUnlockedProperties } from "@/hooks/useUnlockedProperties";
 import { useViewLimit } from "@/hooks/useViewLimit";
 import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
+import { useCreditBalance } from "@/hooks/useCredits";
 import { UnlockModal } from "@/components/leads/UnlockModal";
 import { ViewLimitModal } from "@/components/leads/ViewLimitModal";
 import { BulkUnlockBar } from "@/components/leads/BulkUnlockBar";

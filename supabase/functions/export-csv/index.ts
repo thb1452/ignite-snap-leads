@@ -397,7 +397,34 @@ serve(async (req) => {
     console.log(`[export-csv] Built CSV for ${exportCount} properties for user ${user.id}`);
 
     if (isPaygUser) {
-      console.log("[export-csv] PAYG user — skipping quota check, exporting", exportCount, "properties");
+      // Deduct credits for any properties not yet unlocked
+      if (propertyIdsNeedingUnlock.length > 0) {
+        console.log(
+          `[export-csv] PAYG user — unlocking ${propertyIdsNeedingUnlock.length} properties via fn_unlock_property`,
+        );
+        let unlockErrors = 0;
+        for (const propId of propertyIdsNeedingUnlock) {
+          const { data: unlockResult, error: unlockErr } = await supabase.rpc("fn_unlock_property", {
+            p_user_id: user.id,
+            p_property_id: propId,
+          });
+          if (unlockErr) {
+            console.error(`[export-csv] fn_unlock_property error for ${propId}:`, unlockErr.message);
+            unlockErrors++;
+            continue;
+          }
+          const result = unlockResult as { success?: boolean; error?: string };
+          if (result && !result.success) {
+            console.warn(`[export-csv] fn_unlock_property denied for ${propId}:`, result.error);
+            unlockErrors++;
+          }
+        }
+        console.log(
+          `[export-csv] PAYG unlock complete: ${propertyIdsNeedingUnlock.length - unlockErrors} succeeded, ${unlockErrors} failed`,
+        );
+      } else {
+        console.log("[export-csv] PAYG user — all properties already unlocked, no credits deducted");
+      }
     } else if (isTrialUser) {
       const trialUsed = subData?.trial_exports_used || 0;
       const trialLimit = subData?.trial_exports_limit || 500;

@@ -174,7 +174,7 @@ function BulkCreditCards({ user, navigate, toast }: { user: any; navigate: any; 
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       const url = res.data?.url || res.data?.checkout_url;
-      if (url) window.location.href = url;
+      if (url) { const w = window.open(url, '_blank'); if (!w) window.location.href = url; }
       else throw new Error(res.data?.error || "Failed to create checkout");
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });

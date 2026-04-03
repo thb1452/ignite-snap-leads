@@ -709,7 +709,8 @@ function Leads() {
   };
 
   // Export remaining count for limit enforcement
-  const exportRemaining = getRemainingCount("exports");
+  // Only show limit warnings for subscription users; non-subscribers can always PAYG or use free unlocks
+  const exportRemaining = hasActiveSubscription ? getRemainingCount("exports") : null;
 
   const handleExportCSV = async () => {
     if (selectedIds.length === 0) {

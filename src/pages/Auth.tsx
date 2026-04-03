@@ -138,7 +138,7 @@ export default function Auth() {
       const checkoutUrl = data?.checkout_url || data?.url;
       if (checkoutUrl) {
         console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
-        window.location.href = checkoutUrl;
+        const w = window.open(checkoutUrl, '_blank'); if (!w) window.location.href = checkoutUrl;
       } else {
         console.error('[Auth] No checkout URL returned:', data);
         setCheckoutError('Checkout unavailable. Please try again from the pricing page.');
@@ -185,7 +185,7 @@ export default function Auth() {
       const checkoutUrl = data?.checkout_url || data?.url;
       if (checkoutUrl) {
         console.log('[Auth] Redirecting to Stripe checkout:', checkoutUrl);
-        window.location.href = checkoutUrl;
+        const w = window.open(checkoutUrl, '_blank'); if (!w) window.location.href = checkoutUrl;
       } else {
         console.error('[Auth] No checkout URL returned:', data);
         setCheckoutError('Checkout unavailable. Please try again from the pricing page.');

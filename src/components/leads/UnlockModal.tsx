@@ -191,7 +191,11 @@ export function UnlockModal({
 
       const url = data.url || data.checkout_url;
       if (url) {
-        window.location.href = url;
+        // Use window.open to handle iframe/preview environments; falls back to same-tab navigation
+        const opened = window.open(url, '_blank');
+        if (!opened) {
+          window.location.href = url;
+        }
       }
     } catch (err: any) {
       toast({

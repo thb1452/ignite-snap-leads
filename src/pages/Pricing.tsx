@@ -174,7 +174,7 @@ function BulkCreditCards({ user, navigate, toast }: { user: any; navigate: any; 
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       const url = res.data?.url || res.data?.checkout_url;
-      if (url) window.location.href = url;
+      if (url) { const w = window.open(url, '_blank'); if (!w) window.location.href = url; }
       else throw new Error(res.data?.error || "Failed to create checkout");
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -238,7 +238,8 @@ export default function Pricing() {
 
       if (data?.upgraded) {
         toast({ title: 'Plan updated', description: data.message || 'Your subscription is updated.' });
-        window.location.href = data.redirect_url || `${window.location.origin}/checkout/success`;
+        const rUrl = data.redirect_url || `${window.location.origin}/checkout/success`;
+        const w = window.open(rUrl, '_blank'); if (!w) window.location.href = rUrl;
         return;
       }
 
@@ -246,7 +247,7 @@ export default function Pricing() {
       if (!checkoutUrl) throw new Error('No checkout URL returned');
 
       setCheckoutFallbackUrl(checkoutUrl);
-      window.location.assign(checkoutUrl);
+      const w = window.open(checkoutUrl, '_blank'); if (!w) window.location.assign(checkoutUrl);
 
       setTimeout(() => {
         if (document.visibilityState === 'visible') {

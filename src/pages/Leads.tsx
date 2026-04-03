@@ -801,44 +801,48 @@ function Leads() {
     }
 
     // === PAID SUBSCRIPTION EXPORT FLOW ===
-    const remaining = getRemainingCount("exports");
-    const used = usage?.exports_count ?? 0;
-    const max = plan?.max_monthly_exports ?? 0;
+    // Only enforce client-side export limits for active subscribers.
+    // Non-subscribers (free unlock / PAYG / bulk) are gated server-side.
+    if (hasActiveSubscription) {
+      const remaining = getRemainingCount("exports");
+      const used = usage?.exports_count ?? 0;
+      const max = plan?.max_monthly_exports ?? 0;
 
-    // For unlimited plans (remaining === null), skip the client-side check
-    if (remaining !== null && propertyCount > remaining) {
-      // Show partial export option instead of just blocking
-      setUpgradeLimitType("exports");
-      setExportContextData({
-        requestedCount: propertyCount,
-        remainingCount: remaining,
-        usedCount: used,
-        maxCount: max,
-        onPartialExport: async (count: number) => {
-          const partialIds = selectedIds.slice(0, count);
-          setIsExporting(true);
-          try {
-            await exportFilteredCsv({
-              propertyIds: partialIds,
-              expectedPropertyCount: partialIds.length,
-            });
-            await new Promise((resolve) => setTimeout(resolve, 500));
-            await refetchSubscription();
-            toast({
-              title: "Export Complete",
-              description: `Exported ${partialIds.length.toLocaleString()} properties`,
-            });
-            setSelectedIds([]);
-          } catch (err: unknown) {
-            const t = getExportErrorToast(err);
-            toast({ title: t.title, description: t.description, variant: t.variant });
-          } finally {
-            setIsExporting(false);
-          }
-        },
-      });
-      setShowUpgradePrompt(true);
-      return;
+      // For unlimited plans (remaining === null), skip the client-side check
+      if (remaining !== null && propertyCount > remaining) {
+        // Show partial export option instead of just blocking
+        setUpgradeLimitType("exports");
+        setExportContextData({
+          requestedCount: propertyCount,
+          remainingCount: remaining,
+          usedCount: used,
+          maxCount: max,
+          onPartialExport: async (count: number) => {
+            const partialIds = selectedIds.slice(0, count);
+            setIsExporting(true);
+            try {
+              await exportFilteredCsv({
+                propertyIds: partialIds,
+                expectedPropertyCount: partialIds.length,
+              });
+              await new Promise((resolve) => setTimeout(resolve, 500));
+              await refetchSubscription();
+              toast({
+                title: "Export Complete",
+                description: `Exported ${partialIds.length.toLocaleString()} properties`,
+              });
+              setSelectedIds([]);
+            } catch (err: unknown) {
+              const t = getExportErrorToast(err);
+              toast({ title: t.title, description: t.description, variant: t.variant });
+            } finally {
+              setIsExporting(false);
+            }
+          },
+        });
+        setShowUpgradePrompt(true);
+        return;
+      }
     }
 
     setIsExporting(true);

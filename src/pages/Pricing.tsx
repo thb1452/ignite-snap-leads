@@ -238,7 +238,8 @@ export default function Pricing() {
 
       if (data?.upgraded) {
         toast({ title: 'Plan updated', description: data.message || 'Your subscription is updated.' });
-        window.location.href = data.redirect_url || `${window.location.origin}/checkout/success`;
+        const rUrl = data.redirect_url || `${window.location.origin}/checkout/success`;
+        const w = window.open(rUrl, '_blank'); if (!w) window.location.href = rUrl;
         return;
       }
 

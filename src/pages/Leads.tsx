@@ -603,14 +603,8 @@ function Leads() {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const handlePropertyClick = useCallback((id: string) => {
-    // Elite users bypass view limits entirely
-    if (!isElitePlan && limitReached && !hasActiveSubscription) {
-      setViewLimitModalOpen(true);
-      return;
-    }
-    if (!isElitePlan) recordView();
     setSelectedPropertyId(id);
-  }, [isElitePlan, limitReached, hasActiveSubscription, recordView]);
+  }, []);
 
   const handleClearFilters = useCallback(() => {
     setSearchInput("");

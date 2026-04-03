@@ -150,6 +150,7 @@ function Leads() {
   const { showExportNotification } = useTrialExportNotifications();
   const { savedSet, toggleSaved, isSaved } = useSavedProperties();
   const { freeUnlocksRemaining } = useFreeUnlocks();
+  const { data: bulkCreditBalance = 0 } = useCreditBalance();
   const { viewCount, viewLimit, limitReached, recordView } = useViewLimit();
   const { isElitePlan, hasFeature } = useFeatureAccess();
   const canUsePressureLevelFilters = hasFeature('advanced_filters') || isElitePlan;

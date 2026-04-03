@@ -756,6 +756,14 @@ function Leads() {
   // Only show limit warnings for subscription users; non-subscribers can always PAYG or use free unlocks
   const exportRemaining = hasActiveSubscription ? getRemainingCount("exports") : null;
 
+  // Total available credits across all sources
+  const totalAvailableCredits = isElitePlan
+    ? Number.POSITIVE_INFINITY
+    : (hasActiveSubscription ? (getRemainingCount("exports") ?? 0) : 0)
+      + freeUnlocksRemaining
+      + bulkCreditBalance;
+  const hasNoCredits = !isElitePlan && totalAvailableCredits <= 0;
+
   const handleExportCSV = async () => {
     if (selectedIds.length === 0) {
       toast({
@@ -763,6 +771,14 @@ function Leads() {
         description: "Please select properties to export",
         variant: "destructive",
       });
+      return;
+    }
+
+    // === CREDIT PRE-CHECK ===
+    // Block export immediately if user has zero credits of any kind
+    if (hasNoCredits) {
+      setTrialGateType("exhausted");
+      setTrialGateOpen(true);
       return;
     }
 

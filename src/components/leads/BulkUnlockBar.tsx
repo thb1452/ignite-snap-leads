@@ -113,20 +113,34 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked }: BulkUnlo
         {unlockedCount > 0 && (
           <p className="text-xs text-muted-foreground">{unlockedCount} already unlocked</p>
         )}
+        {!canUnlockWithBalance && (
+          <p className="text-xs text-orange-600">Not enough credits — purchase more to unlock</p>
+        )}
       </div>
 
       <Button
-        onClick={handleUnlockAll}
-        disabled={isUnlocking || !canUnlockWithBalance}
+        onClick={canUnlockWithBalance ? handleUnlockAll : undefined}
+        disabled={isUnlocking}
         size="sm"
         className="gap-2 shrink-0"
+        {...(!canUnlockWithBalance ? {
+          onClick: () => {
+            toast({
+              variant: "destructive",
+              title: "Insufficient Credits",
+              description: `You need ${lockedIds.length} credits but have ${freeUnlocksRemaining + creditBalance}. Purchase credits or subscribe to a plan.`,
+            });
+          }
+        } : { onClick: handleUnlockAll })}
       >
         {isUnlocking ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <Unlock className="h-4 w-4" />
         )}
-        Unlock {lockedIds.length} leads
+        {canUnlockWithBalance
+          ? `Unlock ${lockedIds.length} leads`
+          : `Get credits to unlock ${lockedIds.length}`}
       </Button>
     </div>
   );

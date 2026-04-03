@@ -113,6 +113,7 @@ import { buildFiltersFromState, countActiveFilters, logFilters } from "@/utils/f
 import { useUnlockedProperties } from "@/hooks/useUnlockedProperties";
 import { useViewLimit } from "@/hooks/useViewLimit";
 import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
+import { useCreditBalance } from "@/hooks/useCredits";
 import { UnlockModal } from "@/components/leads/UnlockModal";
 import { ViewLimitModal } from "@/components/leads/ViewLimitModal";
 import { BulkUnlockBar } from "@/components/leads/BulkUnlockBar";
@@ -149,6 +150,7 @@ function Leads() {
   const { showExportNotification } = useTrialExportNotifications();
   const { savedSet, toggleSaved, isSaved } = useSavedProperties();
   const { freeUnlocksRemaining } = useFreeUnlocks();
+  const { data: bulkCreditBalance = 0 } = useCreditBalance();
   const { viewCount, viewLimit, limitReached, recordView } = useViewLimit();
   const { isElitePlan, hasFeature } = useFeatureAccess();
   const canUsePressureLevelFilters = hasFeature('advanced_filters') || isElitePlan;
@@ -754,6 +756,14 @@ function Leads() {
   // Only show limit warnings for subscription users; non-subscribers can always PAYG or use free unlocks
   const exportRemaining = hasActiveSubscription ? getRemainingCount("exports") : null;
 
+  // Total available credits across all sources
+  const totalAvailableCredits = isElitePlan
+    ? Number.POSITIVE_INFINITY
+    : (hasActiveSubscription ? (getRemainingCount("exports") ?? 0) : 0)
+      + freeUnlocksRemaining
+      + bulkCreditBalance;
+  const hasNoCredits = !isElitePlan && totalAvailableCredits <= 0;
+
   const handleExportCSV = async () => {
     if (selectedIds.length === 0) {
       toast({
@@ -761,6 +771,14 @@ function Leads() {
         description: "Please select properties to export",
         variant: "destructive",
       });
+      return;
+    }
+
+    // === CREDIT PRE-CHECK ===
+    // Block export immediately if user has zero credits of any kind
+    if (hasNoCredits) {
+      setTrialGateType("exhausted");
+      setTrialGateOpen(true);
       return;
     }
 
@@ -1373,22 +1391,15 @@ function Leads() {
                   />
                 </div>
                 <Button
-                  onClick={handleExportCSV}
-                  disabled={selectedIds.length === 0 || isFullyGated || (hasTrialExpired && !trialCanExport)}
+                  onClick={hasNoCredits ? () => { setTrialGateType("exhausted"); setTrialGateOpen(true); } : handleExportCSV}
+                  disabled={selectedIds.length === 0 || isExporting}
                   variant="ghost"
                   size="sm"
-                  className={`h-7 px-2 text-xs ${isFullyGated || hasTrialExpired ? "opacity-50" : ""}`}
-                  title={
-                    isFullyGated
-                      ? "Subscribe to unlock exports"
-                      : hasTrialExpired
-                        ? "Trial expired — upgrade to export"
-                        : undefined
-                  }
-                  data-blur-gated={isFullyGated ? "export" : undefined}
+                  className={`h-7 px-2 text-xs ${hasNoCredits ? "opacity-50" : ""}`}
+                  title={hasNoCredits ? "Get credits to export" : undefined}
                 >
                   <Download className="h-3.5 w-3.5 mr-1" />
-                  Export
+                  {hasNoCredits ? "Get Credits" : "Export"}
                 </Button>
               </div>
             )}
@@ -1504,16 +1515,16 @@ function Leads() {
                           <Button
                             variant="default"
                             size="sm"
-                            onClick={handleExportCSV}
+                            onClick={hasNoCredits ? () => { setTrialGateType("exhausted"); setTrialGateOpen(true); } : handleExportCSV}
                             disabled={isExporting}
-                            className="h-8 text-xs gap-1"
+                            className={`h-8 text-xs gap-1 ${hasNoCredits ? "opacity-60" : ""}`}
                           >
                             {isExporting ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
                               <Download className="h-3 w-3" />
                             )}
-                            Export ({selectedIds.length.toLocaleString()})
+                            {hasNoCredits ? "Get Credits" : `Export (${selectedIds.length.toLocaleString()})`}
                           </Button>
                           <Button
                             variant="ghost"

@@ -44,9 +44,11 @@ export default function CheckoutSuccess() {
       supabase.functions.invoke('verify-subscription', {
         method: 'POST',
         body: {},
-      }).then(({ data, error }) => {
+      }).then(async ({ data, error }) => {
         console.log('[CheckoutSuccess] verify-subscription result:', data, error);
         setVerifyAttempted(true);
+        // Small delay to let webhook finish if it's running concurrently
+        await new Promise(r => setTimeout(r, 500));
         queryClient.invalidateQueries({ queryKey: ['subscription'] });
         queryClient.invalidateQueries({ queryKey: ['subscription-usage'] });
         queryClient.invalidateQueries({ queryKey: ['trial-status'] });

@@ -53,11 +53,14 @@ export function SubscriptionSettings() {
 
   useState(() => {
     if (sessionId) {
-      toast({
-        title: "Subscription Activated!",
-        description: "Your new plan is now active. Welcome aboard!",
+      // Verify the session actually resulted in a paid subscription before showing success
+      supabase.functions.invoke('verify-subscription', { body: {} }).then(() => {
+        refetch();
       });
-      refetch();
+      toast({
+        title: "Payment received!",
+        description: "Verifying your subscription...",
+      });
       navigate('/settings?tab=subscription', { replace: true });
     } else if (canceled) {
       toast({

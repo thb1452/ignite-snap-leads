@@ -192,6 +192,10 @@ export function UnlockModal({
 
       const url = data.url || data.checkout_url;
       if (url) {
+        // Save pending unlock in localStorage so the original tab can detect it on focus
+        if (checkoutType === "single_unlock" && property && data.sessionId) {
+          setPendingStripeUnlockCheckout(data.sessionId, property.id);
+        }
         // Use window.open to handle iframe/preview environments; falls back to same-tab navigation
         const opened = window.open(url, '_blank');
         if (!opened) {

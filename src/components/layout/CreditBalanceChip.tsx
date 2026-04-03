@@ -4,22 +4,31 @@ import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useQuery } from "@tanstack/react-query";
+import { getCreditBalance } from "@/services/credits";
 
 const FREE_UNLOCK_TOTAL = 3;
 
 export function CreditBalanceChip() {
-  const { data: balance, isLoading: balanceLoading } = useCreditBalance();
+  const { data: creditBalance, isLoading: balanceLoading } = useCreditBalance();
   const { freeUnlocksRemaining, isLoading: freeLoading } = useFreeUnlocks();
   const { hasActiveSubscription, plan, usage } = useSubscription();
 
-  if ((balanceLoading && freeLoading) || balance === undefined) return null;
+  // Bulk credits from credit_ledger (always fetch so we can show for non-subscribers)
+  const { data: ledgerBalance = 0 } = useQuery({
+    queryKey: ["credits", "balance"],
+    queryFn: getCreditBalance,
+    retry: 1,
+    staleTime: 30000,
+  });
 
-  // Determine display based on user type
+  if (balanceLoading && freeLoading) return null;
+
   let display: string;
   let tooltipText: string;
 
   if (hasActiveSubscription && plan && usage) {
-    // Subscriber: show used / limit
+    // Subscriber: show remaining / limit
     const limit = plan.max_monthly_exports;
     const used = usage.exports_count ?? 0;
     if (limit === -1) {
@@ -28,10 +37,21 @@ export function CreditBalanceChip() {
     } else {
       const remaining = Math.max(0, limit - used);
       display = `${remaining}/${limit}`;
-      tooltipText = `${remaining} of ${limit} credits remaining this month`;
+      tooltipText = `${remaining} of ${limit} monthly credits remaining`;
+      // If they also have bulk credits on top, mention it
+      if (ledgerBalance > 0) {
+        tooltipText += ` + ${ledgerBalance.toLocaleString()} bulk credits`;
+      }
+    }
+  } else if (ledgerBalance > 0) {
+    // Non-subscriber with bulk credits purchased
+    display = ledgerBalance.toLocaleString();
+    tooltipText = `${ledgerBalance.toLocaleString()} bulk credits remaining`;
+    if (freeUnlocksRemaining > 0) {
+      tooltipText += ` + ${freeUnlocksRemaining} free unlocks`;
     }
   } else {
-    // Non-subscriber: show free unlocks used/total
+    // Non-subscriber, no bulk credits — show free unlocks
     const used = FREE_UNLOCK_TOTAL - freeUnlocksRemaining;
     display = `${freeUnlocksRemaining}/${FREE_UNLOCK_TOTAL}`;
     tooltipText = `${freeUnlocksRemaining} of ${FREE_UNLOCK_TOTAL} free unlocks remaining`;

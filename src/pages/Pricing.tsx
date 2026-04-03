@@ -247,7 +247,7 @@ export default function Pricing() {
       if (!checkoutUrl) throw new Error('No checkout URL returned');
 
       setCheckoutFallbackUrl(checkoutUrl);
-      window.location.assign(checkoutUrl);
+      const w = window.open(checkoutUrl, '_blank'); if (!w) window.location.assign(checkoutUrl);
 
       setTimeout(() => {
         if (document.visibilityState === 'visible') {

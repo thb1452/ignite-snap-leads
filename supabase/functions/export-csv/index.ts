@@ -171,9 +171,13 @@ serve(async (req) => {
       .maybeSingle();
 
     let isPaygUser = false;
+    // Track which properties still need unlocking (for credit deduction during export)
+    let propertyIdsNeedingUnlock: string[] = [];
+
     if (!subData) {
       if (propertyIds && propertyIds.length > 0) {
-        let allUnlocked = true;
+        // Check which properties are already unlocked
+        const alreadyUnlockedIds = new Set<string>();
         for (let i = 0; i < propertyIds.length; i += UNLOCK_CHECK_BATCH) {
           const slice = propertyIds.slice(i, i + UNLOCK_CHECK_BATCH);
           const { data: unlockedRows, error: unlockedErr } = await supabase.rpc("fn_check_unlocked_batch", {
@@ -183,46 +187,60 @@ serve(async (req) => {
 
           if (unlockedErr) {
             console.error("[export-csv] Unlock entitlement check failed:", unlockedErr.message);
-            allUnlocked = false;
             break;
           }
-          const unlockedSet = new Set(
-            (unlockedRows as { property_id: string }[] | null)?.map((r) => r.property_id) || [],
-          );
-          if (!slice.every((id) => unlockedSet.has(id))) {
-            allUnlocked = false;
-            break;
+          for (const r of (unlockedRows as { property_id: string }[] | null) || []) {
+            alreadyUnlockedIds.add(r.property_id);
           }
         }
 
-        if (allUnlocked) {
+        // Find properties that still need unlocking
+        propertyIdsNeedingUnlock = propertyIds.filter((id) => !alreadyUnlockedIds.has(id));
+
+        if (propertyIdsNeedingUnlock.length === 0) {
+          // All already unlocked — no credits needed
           isPaygUser = true;
-          console.log("[export-csv] No subscription, but properties are unlocked — allowing export");
+          console.log("[export-csv] No subscription, all properties already unlocked — allowing export");
+        } else {
+          // Some need unlocking — check if user has enough credits/free unlocks
+          const { data: profileRow } = await supabase
+            .from("profiles")
+            .select("free_unlocks_remaining")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          const freeRemaining = (profileRow as { free_unlocks_remaining?: number })?.free_unlocks_remaining ?? 0;
+
+          const { data: creditsRow } = await supabase
+            .from("v_user_credits")
+            .select("balance")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          const creditBalance = (creditsRow as { balance?: number })?.balance ?? 0;
+          const totalAvailable = freeRemaining + creditBalance;
+
+          if (totalAvailable < propertyIdsNeedingUnlock.length) {
+            return new Response(
+              JSON.stringify({
+                error: `Not enough credits. Need ${propertyIdsNeedingUnlock.length}, have ${totalAvailable}.`,
+                code: "NO_SUBSCRIPTION",
+              }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+
+          isPaygUser = true;
+          console.log(
+            `[export-csv] PAYG user — ${propertyIdsNeedingUnlock.length} properties need unlock, free=${freeRemaining}, credits=${creditBalance}`,
+          );
         }
-      }
-
-      if (!isPaygUser) {
-        const { data: creditsRow, error: creditsErr } = await supabase
-          .from("v_user_credits")
-          .select("balance")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (creditsErr) {
-          console.error("[export-csv] Credit balance lookup failed:", creditsErr.message);
-        }
-
-        const balance = (creditsRow as { balance?: number })?.balance ?? 0;
-
-        if (balance <= 0) {
-          return new Response(JSON.stringify({ error: "No active subscription", code: "NO_SUBSCRIPTION" }), {
-            status: 403,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        isPaygUser = true;
-        console.log("[export-csv] PAYG user with credit balance", balance, "— allowing export");
+      } else {
+        // No propertyIds provided and no subscription
+        return new Response(JSON.stringify({ error: "No active subscription", code: "NO_SUBSCRIPTION" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     }
 
@@ -379,7 +397,34 @@ serve(async (req) => {
     console.log(`[export-csv] Built CSV for ${exportCount} properties for user ${user.id}`);
 
     if (isPaygUser) {
-      console.log("[export-csv] PAYG user — skipping quota check, exporting", exportCount, "properties");
+      // Deduct credits for any properties not yet unlocked
+      if (propertyIdsNeedingUnlock.length > 0) {
+        console.log(
+          `[export-csv] PAYG user — unlocking ${propertyIdsNeedingUnlock.length} properties via fn_unlock_property`,
+        );
+        let unlockErrors = 0;
+        for (const propId of propertyIdsNeedingUnlock) {
+          const { data: unlockResult, error: unlockErr } = await supabase.rpc("fn_unlock_property", {
+            p_user_id: user.id,
+            p_property_id: propId,
+          });
+          if (unlockErr) {
+            console.error(`[export-csv] fn_unlock_property error for ${propId}:`, unlockErr.message);
+            unlockErrors++;
+            continue;
+          }
+          const result = unlockResult as { success?: boolean; error?: string };
+          if (result && !result.success) {
+            console.warn(`[export-csv] fn_unlock_property denied for ${propId}:`, result.error);
+            unlockErrors++;
+          }
+        }
+        console.log(
+          `[export-csv] PAYG unlock complete: ${propertyIdsNeedingUnlock.length - unlockErrors} succeeded, ${unlockErrors} failed`,
+        );
+      } else {
+        console.log("[export-csv] PAYG user — all properties already unlocked, no credits deducted");
+      }
     } else if (isTrialUser) {
       const trialUsed = subData?.trial_exports_used || 0;
       const trialLimit = subData?.trial_exports_limit || 500;

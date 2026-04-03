@@ -206,6 +206,65 @@ export default function Index() {
         </Card>
       </div>
 
+      {/* Your Plan Card */}
+      <div className="mb-8">
+        <Card className="border-brand/30 bg-gradient-to-br from-brand/5 to-white dark:to-background">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center">
+                  <CreditCard className="h-6 w-6 text-brand" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {hasActiveSubscription
+                        ? `${plan?.display_name || plan?.name || 'Active'} Plan`
+                        : 'No Active Plan'}
+                    </h3>
+                    {hasActiveSubscription && (
+                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                        Active
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {hasActiveSubscription
+                      ? `${typeof creditBalance === 'number' && creditBalance !== Infinity
+                          ? `${creditBalance.toLocaleString()} credits remaining`
+                          : 'Unlimited credits'
+                        } this month`
+                      : freeUnlocksRemaining > 0
+                        ? `${freeUnlocksRemaining} free unlocks remaining`
+                        : 'Choose a plan to start unlocking properties'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 w-full sm:w-auto">
+                {hasActiveSubscription ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate("/settings?tab=subscription")}
+                    className="gap-2 flex-1 sm:flex-initial"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Manage Plan
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => navigate("/pricing")}
+                    className="gap-2 flex-1 sm:flex-initial bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700"
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                    Choose a Plan
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Intelligence Dashboard */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">

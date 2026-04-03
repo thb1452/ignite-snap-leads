@@ -131,7 +131,7 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
       const checkoutUrl = data?.url || data?.checkout_url;
       if (!checkoutUrl) throw new Error("No checkout URL returned. Please try again.");
 
-      window.location.href = checkoutUrl;
+      const w = window.open(checkoutUrl, '_blank'); if (!w) window.location.href = checkoutUrl;
     } catch (error: any) {
       toast({
         title: "Checkout Failed",

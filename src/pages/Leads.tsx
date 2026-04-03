@@ -1391,22 +1391,15 @@ function Leads() {
                   />
                 </div>
                 <Button
-                  onClick={handleExportCSV}
-                  disabled={selectedIds.length === 0 || isFullyGated || (hasTrialExpired && !trialCanExport)}
+                  onClick={hasNoCredits ? () => { setTrialGateType("exhausted"); setTrialGateOpen(true); } : handleExportCSV}
+                  disabled={selectedIds.length === 0 || isExporting}
                   variant="ghost"
                   size="sm"
-                  className={`h-7 px-2 text-xs ${isFullyGated || hasTrialExpired ? "opacity-50" : ""}`}
-                  title={
-                    isFullyGated
-                      ? "Subscribe to unlock exports"
-                      : hasTrialExpired
-                        ? "Trial expired — upgrade to export"
-                        : undefined
-                  }
-                  data-blur-gated={isFullyGated ? "export" : undefined}
+                  className={`h-7 px-2 text-xs ${hasNoCredits ? "opacity-50" : ""}`}
+                  title={hasNoCredits ? "Get credits to export" : undefined}
                 >
                   <Download className="h-3.5 w-3.5 mr-1" />
-                  Export
+                  {hasNoCredits ? "Get Credits" : "Export"}
                 </Button>
               </div>
             )}

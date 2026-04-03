@@ -20,6 +20,9 @@ export default function Index() {
   const { hasFeature } = useFeatureAccess();
   const hasRollingIntelligence = hasFeature('rolling_intelligence');
   const { savedCount, isLoading: savedLoading } = useSavedProperties();
+  const { subscription, hasActiveSubscription, plan, usage, loading: subLoading } = useSubscription();
+  const { freeUnlocksRemaining } = useFreeUnlocks();
+  const { data: creditBalance = 0 } = useCreditBalance();
   
   const [extraStats, setExtraStats] = useState({
     tracedLeads: 0,

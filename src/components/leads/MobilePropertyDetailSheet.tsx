@@ -405,7 +405,7 @@ export function MobilePropertyDetailSheet({
                 onClick={() => onUnlock?.(property.id)}
               >
                 <Lock className="h-4 w-4" />
-                Unlock for $0.67
+                Unlock Property
               </Button>
             )}
           </div>

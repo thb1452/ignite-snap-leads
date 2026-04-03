@@ -101,7 +101,7 @@ export function ListDetail() {
   const removeFromListMutation = useRemoveFromList();
 
   const allSelected = properties.length > 0 && selectedIds.length === properties.length;
-  const exportRemaining = getRemainingCount("exports");
+  const exportRemaining = hasActiveSubscription ? getRemainingCount("exports") : null;
   const isOverExportLimit = exportRemaining !== null && selectedIds.length > 0 && selectedIds.length > exportRemaining;
 
   const handleToggleSelect = (id: string) => {

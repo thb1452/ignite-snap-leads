@@ -100,7 +100,7 @@ export default function SavedProperties() {
   });
 
   const isLoading = savedLoading || propertiesLoading;
-  const exportRemaining = getRemainingCount("exports");
+  const exportRemaining = hasActiveSubscription ? getRemainingCount("exports") : null;
   const isOverExportLimit = exportRemaining !== null && selectedIds.length > exportRemaining;
 
   const handleToggleSelect = (id: string) => {

@@ -10,10 +10,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GEMINI_MODEL = "gemini-2.0-flash";
-const BATCH_SIZE = 12;
+const GEMINI_MODEL = "gemini-2.5-flash";
+const BATCH_SIZE = 50;
 const MAX_RETRIES = 2;
-const REGEN_VERSION = "v6-gemini-direct";
+const REGEN_VERSION = "v7-gemini-paid";
+const CONCURRENCY = 10;
 const CUTOFF_TIMESTAMP = "2026-04-04T08:00:00Z";
 
 const SYSTEM_PROMPT = `CRITICAL BUSINESS CONTEXT:
@@ -174,39 +175,26 @@ serve(async (req) => {
     let batchSuccess = 0;
     let batchFailed = 0;
 
-    // Process SEQUENTIALLY with delay to respect Gemini free tier (15 RPM)
-    for (const prop of properties) {
-      const result = await generateBrief(prop, GEMINI_API_KEY);
+    // Process in parallel chunks (paid tier: 2000 RPM)
+    for (let i = 0; i < properties.length; i += CONCURRENCY) {
+      const chunk = properties.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(chunk.map(p => generateBrief(p, GEMINI_API_KEY)));
 
-      if (!result.brief) {
-        batchFailed++;
-        continue;
+      for (const res of results) {
+        if (res.status === "rejected" || !res.value.brief) { batchFailed++; continue; }
+        const { id, brief } = res.value;
+        const briefJson = {
+          brief_text: brief,
+          generated_at: new Date().toISOString(),
+          model: GEMINI_MODEL,
+          version: REGEN_VERSION,
+        };
+        const { error: updateErr } = await supabase
+          .from("properties")
+          .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
+          .eq("id", id);
+        if (updateErr) { batchFailed++; } else { batchSuccess++; }
       }
-
-      const briefJson = {
-        brief_text: result.brief,
-        generated_at: new Date().toISOString(),
-        model: GEMINI_MODEL,
-        version: REGEN_VERSION,
-      };
-
-      const { error: updateErr } = await supabase
-        .from("properties")
-        .update({
-          snap_insight: result.brief,
-          investor_insight_brief: briefJson,
-          last_analyzed_at: new Date().toISOString(),
-        })
-        .eq("id", result.id);
-
-      if (updateErr) {
-        batchFailed++;
-      } else {
-        batchSuccess++;
-      }
-
-      // 4.5s between calls = ~13 per minute (under 15 RPM limit)
-      await new Promise(r => setTimeout(r, 4500));
     }
 
     const newTotal = totalProcessed + batchSuccess;

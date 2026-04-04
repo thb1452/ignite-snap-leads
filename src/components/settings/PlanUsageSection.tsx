@@ -8,6 +8,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useFreeUnlocks } from "@/hooks/useFreeUnlocks";
 import { useCreditBalance } from "@/hooks/useCredits";
 import { supabase } from "@/integrations/supabase/externalClient";
+import { setPendingStripeCheckout } from "@/utils/pendingStripeCheckout";
 import { useToast } from "@/hooks/use-toast";
 import { ExternalLink, Loader2, Crown, Zap, Sparkles, TrendingUp, Mail, Coins, Package, Gift } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";

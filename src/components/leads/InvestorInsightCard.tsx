@@ -44,8 +44,9 @@ function getActionLabel(text: string): { label: string; colorClass: string } | n
 
 function stripActionLabel(text: string): string {
   return text
-    .replace(/\*?\*?(CALL NOW|WORTH A CALL|WATCH|HIGH OPPORTUNITY|GOOD OPPORTUNITY|MONITOR|LOW PRIORITY|WATCH\/PASS)\*?\*?\.?/gi, "")
+    .replace(/\*?\*?(CALL NOW|WORTH A CALL|HIGH OPPORTUNITY|GOOD OPPORTUNITY|WATCH|MONITOR|LOW PRIORITY|WATCH\/PASS|PASS)\*?\*?\.?/gi, "")
     .replace(/\*\*/g, "")
+    .replace(/\s*[—–-]\s*$/, "")
     .trim();
 }
 

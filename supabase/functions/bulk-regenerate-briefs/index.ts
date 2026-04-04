@@ -12,7 +12,7 @@ const corsHeaders = {
 
 const AI_MODEL = "google/gemini-2.5-flash";
 const BATCH_SIZE = 20;
-const REGEN_VERSION = "v16-lovable";
+const REGEN_VERSION = "v17-paused";
 const CONCURRENCY = 3;
 const CUTOFF_TIMESTAMP = "2026-04-04T08:00:00Z";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";

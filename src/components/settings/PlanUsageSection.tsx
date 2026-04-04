@@ -138,6 +138,9 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
       if (fnError) throw new Error(fnError.message || "Failed to create checkout session");
 
       if (data?.upgraded) {
+        if (checkoutType === "subscription") {
+          setPendingStripeCheckout("subscription");
+        }
         const rUrl = data.redirect_url || `${window.location.origin}/checkout/success`;
         const w = window.open(rUrl, '_blank');
         if (!w) window.location.href = rUrl;
@@ -284,6 +287,35 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
               )}
             </div>
           </div>
+
+          {plan!.name !== "enterprise" && plan!.name !== "enterprise_admin" && (
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Change Plan</p>
+              <div className="grid gap-2">
+                {SUBSCRIPTION_TIERS.map((tier) => {
+                  const Icon = tier.icon;
+                  const isCurrentPlan = plan!.name === tier.name;
+                  const key = `subscription-${JSON.stringify({ tier_name: tier.name, billing_cycle: "monthly" })}`;
+                  return (
+                    <Button
+                      key={tier.name}
+                      variant="outline"
+                      onClick={() => handleCheckout("subscription", { tier_name: tier.name, billing_cycle: "monthly" })}
+                      disabled={!!checkoutLoading || isCurrentPlan}
+                      className="w-full justify-between gap-2 h-auto py-2.5 px-4"
+                    >
+                      <span className="flex items-center gap-2">
+                        {isTargetLoading(key) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
+                        <span className="font-medium">{tier.label}</span>
+                        <span className="text-muted-foreground text-xs">{tier.credits}</span>
+                      </span>
+                      <span className="font-semibold text-sm">{isCurrentPlan ? "Current" : tier.price}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Bulk Credits Balance */}
           {ledgerBalance > 0 && (

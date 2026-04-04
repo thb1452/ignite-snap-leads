@@ -123,7 +123,7 @@ import {
   getPendingStripeUnlockSessionId,
   getPendingStripeUnlock,
 } from "@/utils/pendingStripeUnlock";
-import { consumePendingStripeCheckout } from "@/utils/pendingStripeCheckout";
+import { clearPendingStripeCheckout, getPendingStripeCheckout } from "@/utils/pendingStripeCheckout";
 
 const PAGE_SIZE = 50;
 
@@ -296,6 +296,14 @@ function Leads() {
     }
 
     if (creditsAdded) {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["credits"] }),
+        queryClient.invalidateQueries({ queryKey: ["user", "credits"] }),
+        queryClient.invalidateQueries({ queryKey: ["subscription"] }),
+        queryClient.invalidateQueries({ queryKey: ["subscription-usage"] }),
+        queryClient.invalidateQueries({ queryKey: ["free-unlocks"] }),
+      ]);
+      clearPendingStripeCheckout();
       toast({
         title: `${creditsAdded} unlocks added! 🎉`,
         description: "Credits have been added to your account.",
@@ -618,15 +626,18 @@ function Leads() {
   useEffect(() => {
     const handleFocusCheckout = async () => {
       if (!user?.id) return;
-      const pending = consumePendingStripeCheckout();
+      const pending = getPendingStripeCheckout();
       if (!pending) return;
 
       console.log("[Leads] Detected pending Stripe checkout return:", pending.type);
 
+      let synced = pending.type === "bulk_credits";
+
       if (pending.type === "subscription") {
         // Call verify-subscription to ensure backend is synced
         try {
-          await supabase.functions.invoke("verify-subscription", { method: "POST", body: {} });
+          const { data } = await supabase.functions.invoke("verify-subscription", { method: "POST", body: {} });
+          synced = !!data?.synced;
         } catch (e) {
           console.error("[Leads] verify-subscription error:", e);
         }
@@ -641,6 +652,10 @@ function Leads() {
         queryClient.invalidateQueries({ queryKey: ["free-unlocks"] }),
         queryClient.invalidateQueries({ queryKey: ["trial-status"] }),
       ]);
+
+      if (!synced) return;
+
+      clearPendingStripeCheckout();
 
       toast({
         title: pending.type === "subscription" ? "Subscription activated! 🎉" : "Credits added! 💰",
@@ -1736,6 +1751,11 @@ function Leads() {
           selectedIds={selectedIds}
           unlockedSet={unlockedSet}
           onUnlocked={invalidateUnlocks}
+          onGetCredits={() => {
+            const firstLockedId = selectedIds.find((id) => !unlockedSet.has(id));
+            const prop = mappedProperties.find((item) => item.id === firstLockedId);
+            if (prop) setUnlockModalProperty(prop);
+          }}
         />
 
         {/* Page Change Warning Dialog */}

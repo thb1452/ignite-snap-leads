@@ -60,12 +60,13 @@ export function UnlockModal({
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { hasActiveSubscription, getRemainingCount, subscription } = useSubscription();
+  const { hasActiveSubscription, getRemainingCount, subscription, plan } = useSubscription();
   const { data: bulkCreditBalance = 0 } = useUserCredits();
 
   if (!property) return null;
 
   const monthlyUnlocksRemaining = hasActiveSubscription ? getRemainingCount("exports") : 0;
+  const currentPlanName = subscription?.plan_name ?? plan?.name ?? null;
   const canUseSubscriptionUnlock =
     hasActiveSubscription && (monthlyUnlocksRemaining === null || monthlyUnlocksRemaining > 0);
   const canUseFreeUnlock = freeUnlocksRemaining > 0;
@@ -201,8 +202,12 @@ export function UnlockModal({
         } else if (checkoutType === "bulk_credits") {
           setPendingStripeCheckout("bulk_credits");
         }
-        // Use window.open to handle iframe/preview environments; falls back to same-tab navigation
-        const opened = window.open(url, '_blank');
+        const opened = window.open(url, '_blank', 'noopener,noreferrer');
+        toast({
+          title: "Checkout opened",
+          description: "Complete payment in the new tab, then come back here.",
+        });
+        onOpenChange(false);
         if (!opened) {
           window.location.href = url;
         }
@@ -213,6 +218,7 @@ export function UnlockModal({
         title: "Checkout failed",
         description: err.message,
       });
+    } finally {
       setIsCheckingOut(false);
       setCheckoutTarget(null);
     }
@@ -300,6 +306,12 @@ export function UnlockModal({
                 Use 1 Credit ({bulkCreditBalance.toLocaleString()} available)
               </Button>
             )}
+
+            {isUnlocking && (
+              <p className="text-xs text-muted-foreground">
+                Unlocking this property now. Owner contact data may continue loading for a moment after access opens.
+              </p>
+            )}
           </div>
         )}
 
@@ -327,46 +339,47 @@ export function UnlockModal({
         <Separator />
 
         {/* === SECTION 3: Subscribe for monthly credits === */}
-        {!hasActiveSubscription && (
-          <>
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Subscribe & Save</p>
-              <div className="grid gap-2">
-                {SUBSCRIPTION_TIERS.map((tier) => {
-                  const Icon = tier.icon;
-                  const targetKey = `undefined-${JSON.stringify({ tier_name: tier.name, billing_cycle: "monthly" })}`;
-                  return (
-                    <Button
-                      key={tier.name}
-                      variant="outline"
-                      onClick={() =>
-                        handleStripeCheckout("subscription", {
-                          tier_name: tier.name,
-                          billing_cycle: "monthly",
-                        })
-                      }
-                      disabled={isCheckingOut}
-                      className="w-full justify-between gap-2 h-auto py-2.5 px-4"
-                    >
-                      <span className="flex items-center gap-2">
-                        {isTargetLoading(targetKey) ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Icon className="h-4 w-4" />
-                        )}
-                        <span className="font-medium">{tier.label}</span>
-                        <span className="text-muted-foreground text-xs">{tier.credits}</span>
-                      </span>
-                      <span className="font-semibold text-sm">{tier.price}</span>
-                    </Button>
-                  );
-                })}
-              </div>
+        <>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              {hasActiveSubscription ? "Change Plan" : "Subscribe & Save"}
+            </p>
+            <div className="grid gap-2">
+              {SUBSCRIPTION_TIERS.map((tier) => {
+                const Icon = tier.icon;
+                const isCurrentPlan = currentPlanName === tier.name;
+                const targetKey = `subscription-${JSON.stringify({ tier_name: tier.name, billing_cycle: "monthly" })}`;
+                return (
+                  <Button
+                    key={tier.name}
+                    variant="outline"
+                    onClick={() =>
+                      handleStripeCheckout("subscription", {
+                        tier_name: tier.name,
+                        billing_cycle: "monthly",
+                      })
+                    }
+                    disabled={isCheckingOut || isCurrentPlan}
+                    className="w-full justify-between gap-2 h-auto py-2.5 px-4"
+                  >
+                    <span className="flex items-center gap-2">
+                      {isTargetLoading(targetKey) ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Icon className="h-4 w-4" />
+                      )}
+                      <span className="font-medium">{tier.label}</span>
+                      <span className="text-muted-foreground text-xs">{tier.credits}</span>
+                    </span>
+                    <span className="font-semibold text-sm">{isCurrentPlan ? "Current" : tier.price}</span>
+                  </Button>
+                );
+              })}
             </div>
+          </div>
 
-            <Separator />
-          </>
-        )}
+          <Separator />
+        </>
 
         {/* === SECTION 4: Buy Bulk Credits === */}
         <div className="space-y-2">

@@ -13,9 +13,10 @@ interface BulkUnlockBarProps {
   selectedIds: string[];
   unlockedSet: Set<string>;
   onUnlocked: () => void;
+  onGetCredits?: (lockedCount: number) => void;
 }
 
-export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked }: BulkUnlockBarProps) {
+export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked, onGetCredits }: BulkUnlockBarProps) {
   const [isUnlocking, setIsUnlocking] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -119,19 +120,10 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked }: BulkUnlo
       </div>
 
       <Button
-        onClick={canUnlockWithBalance ? handleUnlockAll : undefined}
         disabled={isUnlocking}
         size="sm"
         className="gap-2 shrink-0"
-        {...(!canUnlockWithBalance ? {
-          onClick: () => {
-            toast({
-              variant: "destructive",
-              title: "Insufficient Credits",
-              description: `You need ${lockedIds.length} credits but have ${freeUnlocksRemaining + creditBalance}. Purchase credits or subscribe to a plan.`,
-            });
-          }
-        } : { onClick: handleUnlockAll })}
+        onClick={canUnlockWithBalance ? handleUnlockAll : () => onGetCredits?.(lockedIds.length)}
       >
         {isUnlocking ? (
           <Loader2 className="h-4 w-4 animate-spin" />

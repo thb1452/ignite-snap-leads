@@ -9,7 +9,7 @@ import { NotificationsSection } from '@/components/settings/NotificationsSection
 import { AccountDetailsSection } from '@/components/settings/AccountDetailsSection';
 import { PrivacySection } from '@/components/settings/PrivacySection';
 import { HelpSection } from '@/components/settings/HelpSection';
-import { consumePendingStripeCheckout } from '@/utils/pendingStripeCheckout';
+import { clearPendingStripeCheckout, getPendingStripeCheckout } from '@/utils/pendingStripeCheckout';
 
 export function Settings() {
   const { user } = useAuth();
@@ -22,12 +22,15 @@ export function Settings() {
   useEffect(() => {
     const handleFocus = async () => {
       if (!user?.id) return;
-      const pending = consumePendingStripeCheckout();
+      const pending = getPendingStripeCheckout();
       if (!pending) return;
+
+      let synced = pending.type === "bulk_credits";
 
       if (pending.type === "subscription") {
         try {
-          await supabase.functions.invoke("verify-subscription", { method: "POST", body: {} });
+          const { data } = await supabase.functions.invoke("verify-subscription", { method: "POST", body: {} });
+          synced = !!data?.synced;
         } catch (e) {
           console.error("[Settings] verify-subscription error:", e);
         }
@@ -40,6 +43,10 @@ export function Settings() {
         queryClient.invalidateQueries({ queryKey: ["user", "credits"] }),
         queryClient.invalidateQueries({ queryKey: ["free-unlocks"] }),
       ]);
+
+      if (!synced) return;
+
+      clearPendingStripeCheckout();
 
       toast({
         title: pending.type === "subscription" ? "Subscription activated! 🎉" : "Credits added! 💰",

@@ -614,6 +614,47 @@ function Leads() {
     return () => window.removeEventListener("focus", handleFocus);
   }, [user?.id, queryClient, toast]);
 
+  // When tab regains focus, check if a Stripe subscription/bulk checkout completed in another tab
+  useEffect(() => {
+    const handleFocusCheckout = async () => {
+      if (!user?.id) return;
+      const pending = consumePendingStripeCheckout();
+      if (!pending) return;
+
+      console.log("[Leads] Detected pending Stripe checkout return:", pending.type);
+
+      if (pending.type === "subscription") {
+        // Call verify-subscription to ensure backend is synced
+        try {
+          await supabase.functions.invoke("verify-subscription", { method: "POST", body: {} });
+        } catch (e) {
+          console.error("[Leads] verify-subscription error:", e);
+        }
+      }
+
+      // Invalidate all relevant queries so the UI refreshes
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["subscription"] }),
+        queryClient.invalidateQueries({ queryKey: ["subscription-usage"] }),
+        queryClient.invalidateQueries({ queryKey: ["credits"] }),
+        queryClient.invalidateQueries({ queryKey: ["user", "credits"] }),
+        queryClient.invalidateQueries({ queryKey: ["free-unlocks"] }),
+        queryClient.invalidateQueries({ queryKey: ["trial-status"] }),
+      ]);
+
+      toast({
+        title: pending.type === "subscription" ? "Subscription activated! 🎉" : "Credits added! 💰",
+        description: pending.type === "subscription"
+          ? "Your plan is now active. Enjoy your monthly credits!"
+          : "Your bulk credits are now available.",
+      });
+    };
+
+    window.addEventListener("focus", handleFocusCheckout);
+    handleFocusCheckout();
+    return () => window.removeEventListener("focus", handleFocusCheckout);
+  }, [user?.id, queryClient, toast]);
+
   // Map now uses viewport-based loading - no pre-fetching needed
 
   // Show toast notifications for errors

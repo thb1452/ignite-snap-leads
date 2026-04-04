@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import { ExternalLink, Loader2, Crown, Zap, Sparkles, TrendingUp, Mail, Coins, P
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { PlanTierName } from "@/types/subscription";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { getCreditBalance } from "@/services/credits";
 
 type MarketTier = "starter" | "professional" | "enterprise";
@@ -84,7 +84,6 @@ interface PlanUsageSectionProps {
 export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUsageSectionProps) {
   const { subscription, plan, usage, loading: subscriptionLoading } = useSubscription();
   const { freeUnlocksRemaining, isLoading: freeLoading } = useFreeUnlocks();
-  const queryClient = useQueryClient();
   const { data: ledgerBalance = 0 } = useQuery({
     queryKey: ["credits", "balance"],
     queryFn: getCreditBalance,
@@ -96,13 +95,6 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalUnavailable, setPortalUnavailable] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
-
-  const nextSubscriptionTier = useMemo(() => {
-    if (!plan?.name) return undefined;
-    if (plan.name === "starter") return "professional" as const;
-    if (plan.name === "professional") return "enterprise" as const;
-    return undefined;
-  }, [plan?.name]);
 
   const handleManageSubscription = async () => {
     try {
@@ -140,7 +132,7 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
     try {
       setCheckoutLoading(key);
       const { data, error: fnError } = await supabase.functions.invoke('create-checkout-session', {
-        body: { checkout_type: checkoutType, ...extraBody },
+        body: { checkout_type: checkoutType, return_path: "/settings?tab=subscription", ...extraBody },
       });
 
       if (fnError) throw new Error(fnError.message || "Failed to create checkout session");
@@ -402,10 +394,12 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
               <Zap className="h-7 w-7 text-muted-foreground" />
             </div>
           </div>
-          <h3 className="text-lg font-semibold">Free Plan</h3>
+          <h3 className="text-lg font-semibold">{ledgerBalance > 0 ? "Bulk Credits Active" : "Free Plan"}</h3>
           <p className="text-muted-foreground text-sm">
-            You're on the Free Plan — you have {freeUnlocksRemaining} free unlock{freeUnlocksRemaining !== 1 ? 's' : ''} to try. 
-            When you're ready to unlock more properties, pick a plan below or buy a one-time credit pack. No commitment required.
+            {ledgerBalance > 0
+              ? `You have ${ledgerBalance.toLocaleString()} bulk credits ready to use${freeUnlocksRemaining > 0 ? ` plus ${freeUnlocksRemaining} free unlock${freeUnlocksRemaining !== 1 ? 's' : ''}` : ''}.`
+              : `You're on the Free Plan — you have ${freeUnlocksRemaining} free unlock${freeUnlocksRemaining !== 1 ? 's' : ''} to try.`}
+            {" "}When you're ready to unlock more properties, pick a plan below or buy a one-time credit pack. No commitment required.
           </p>
         </div>
 

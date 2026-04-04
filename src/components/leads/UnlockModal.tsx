@@ -188,6 +188,7 @@ export function UnlockModal({
           },
           body: JSON.stringify({
             checkout_type: checkoutType,
+            return_path: "/properties",
             property_id: checkoutType === "single_unlock" ? property.id : undefined,
             ...extraBody,
           }),
@@ -318,6 +319,12 @@ export function UnlockModal({
                 {isUnlocking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />}
                 Use 1 Credit ({bulkCreditBalance.toLocaleString()} available)
               </Button>
+            )}
+
+            {!canUseSubscriptionUnlock && canUseFreeUnlock && canUseBulkCredit && (
+              <p className="text-xs text-muted-foreground">
+                Bulk credits are active too — free unlocks will be used first, then your {bulkCreditBalance.toLocaleString()} bulk credits.
+              </p>
             )}
 
             {isUnlocking && (

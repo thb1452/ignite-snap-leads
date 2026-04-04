@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUserCredits } from "@/hooks/useUserProfile";
 import { setPendingStripeUnlockCheckout } from "@/utils/pendingStripeUnlock";
+import { setPendingStripeCheckout } from "@/utils/pendingStripeCheckout";
 
 interface UnlockModalProps {
   open: boolean;

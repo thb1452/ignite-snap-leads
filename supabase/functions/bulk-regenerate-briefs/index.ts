@@ -120,7 +120,8 @@ async function generateBrief(prop: Record<string, any>, apiKey: string): Promise
     });
 
     if (res.status === 429) {
-      console.warn(`[bulk-regen] Rate limited (429), skipping ${prop.id}`);
+      const body429 = await res.text();
+      console.warn(`[bulk-regen] 429 body: ${body429.slice(0, 500)}`);
       return { id: prop.id, brief: null };
     }
 

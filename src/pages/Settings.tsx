@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/externalClient';
 import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 import { PlanUsageSection } from '@/components/settings/PlanUsageSection';
 import { NotificationsSection } from '@/components/settings/NotificationsSection';
 import { AccountDetailsSection } from '@/components/settings/AccountDetailsSection';
 import { PrivacySection } from '@/components/settings/PrivacySection';
 import { HelpSection } from '@/components/settings/HelpSection';
+import { consumePendingStripeCheckout } from '@/utils/pendingStripeCheckout';
 
 export function Settings() {
   const { user } = useAuth();

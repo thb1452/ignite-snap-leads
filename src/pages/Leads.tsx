@@ -662,7 +662,12 @@ function Leads() {
         }
       } else {
         const currentBalance = Number(queryClient.getQueryData<number>(["credits", "balance"]) ?? 0);
-        synced = currentBalance > 0;
+        // If we know the expected credit count (e.g. bought 5k pack), confirm the balance
+        // actually reached that amount — prevents clearing the pending state prematurely
+        // when the user already had some credits before purchasing.
+        synced = pending.expectedBalance
+          ? currentBalance >= pending.expectedBalance
+          : currentBalance > 0;
       }
 
       if (!synced) return;
@@ -900,7 +905,10 @@ function Leads() {
         // Server-side trial export tracking is now handled by the export-csv edge function.
         // Small delay then refresh local trial status to reflect updated count from DB.
         await new Promise((resolve) => setTimeout(resolve, 800));
-        await refetchTrial();
+        await Promise.all([
+          refetchTrial(),
+          queryClient.refetchQueries({ queryKey: ["unlocked-properties"] }),
+        ]);
 
         const newRemaining = Math.max(0, trialExportsRemaining - propertyCount);
         toast({
@@ -955,7 +963,10 @@ function Leads() {
                 expectedPropertyCount: partialIds.length,
               });
               await new Promise((resolve) => setTimeout(resolve, 500));
-              await refetchSubscription();
+              await Promise.all([
+                refetchSubscription(),
+                queryClient.refetchQueries({ queryKey: ["unlocked-properties"] }),
+              ]);
               toast({
                 title: "Export Complete",
                 description: `Exported ${partialIds.length.toLocaleString()} properties`,
@@ -994,7 +1005,10 @@ function Leads() {
       });
 
       await new Promise((resolve) => setTimeout(resolve, 500));
-      await refetchSubscription();
+      await Promise.all([
+        refetchSubscription(),
+        queryClient.refetchQueries({ queryKey: ["unlocked-properties"] }),
+      ]);
 
       toast({
         title: "Export Complete",
@@ -1039,7 +1053,10 @@ function Leads() {
                 filters: filters as Record<string, unknown>,
               });
               await new Promise((resolve) => setTimeout(resolve, 500));
-              await refetchSubscription();
+              await Promise.all([
+                refetchSubscription(),
+                queryClient.refetchQueries({ queryKey: ["unlocked-properties"] }),
+              ]);
               toast({
                 title: "Export Complete",
                 description: `Exported ${partialIds.length.toLocaleString()} properties`,

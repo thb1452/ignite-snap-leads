@@ -60,7 +60,7 @@ export function UnlockModal({
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { hasActiveSubscription, getRemainingCount, subscription } = useSubscription();
+  const { hasActiveSubscription, getRemainingCount, subscription, plan } = useSubscription();
   const { data: bulkCreditBalance = 0 } = useUserCredits();
 
   if (!property) return null;

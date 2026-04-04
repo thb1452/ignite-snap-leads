@@ -131,7 +131,12 @@ async function generateBrief(prop: Record<string, any>, apiKey: string): Promise
         let text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
         if (text) {
           // Strip any remaining dashes
-          text = text.replace(/\s*[—–]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
+          text = text.replace(/\s*[—–-]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
+          // Validate output quality
+          if (!isCleanBrief(text, prop)) {
+            console.warn(`[bulk-regen] Rejected dirty brief for ${prop.id}: ${text.slice(0, 80)}`);
+            return { id: prop.id, brief: null };
+          }
         }
         return { id: prop.id, brief: text };
       }

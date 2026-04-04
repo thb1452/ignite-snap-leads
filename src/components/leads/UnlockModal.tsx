@@ -69,9 +69,7 @@ export function UnlockModal({
 
   const monthlyUnlocksRemaining = hasActiveSubscription ? getRemainingCount("exports") : 0;
   const currentPlanName = subscription?.plan_name ?? plan?.name ?? null;
-  const bulkCreditBalance = Number.isFinite(rawBulkCreditBalance) && rawBulkCreditBalance > 0
-    ? rawBulkCreditBalance
-    : Number.isFinite(effectiveCreditBalance) ? effectiveCreditBalance : 0;
+  const bulkCreditBalance = Number.isFinite(rawBulkCreditBalance) ? Math.max(0, rawBulkCreditBalance) : 0;
   const canUseSubscriptionUnlock =
     hasActiveSubscription && (monthlyUnlocksRemaining === null || monthlyUnlocksRemaining > 0);
   const canUseFreeUnlock = freeUnlocksRemaining > 0;

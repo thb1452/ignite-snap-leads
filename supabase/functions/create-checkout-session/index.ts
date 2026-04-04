@@ -29,6 +29,17 @@ async function resolveLatestInvoice(stripe: Stripe, subscription: Stripe.Subscri
   return li as Stripe.Invoice;
 }
 
+function normalizeReturnPath(rawPath: unknown, fallback: string): string {
+  if (typeof rawPath !== "string") return fallback;
+  if (!rawPath.startsWith("/")) return fallback;
+  return rawPath;
+}
+
+function appendQueryParam(path: string, key: string, value: string): string {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+}
+
 /** After subscriptions.update with pending_if_incomplete: send user to pay the invoice, or success if already paid. Never implies DB changes — webhooks sync plan/credits. */
 async function subscriptionChangePaymentResponse(
   updated: Stripe.Subscription,
@@ -165,6 +176,7 @@ async function handleSubscription(
   headers: Record<string, string>,
 ) {
   const { tier_name, billing_cycle = "monthly", trial = false } = body;
+  const returnPath = normalizeReturnPath(body.return_path, "/settings?tab=subscription");
 
   if (!tier_name) {
     return new Response(JSON.stringify({ error: "tier_name required" }), { status: 400, headers });
@@ -349,8 +361,8 @@ async function handleSubscription(
     payment_method_types: ["card"],
     line_items: [{ price: priceId, quantity: 1 }],
     mode: "subscription",
-    success_url: trial ? `${appUrl}/checkout/success?trial=true` : `${appUrl}/checkout/success`,
-    cancel_url: `${appUrl}/pricing?canceled=true`,
+    success_url: `${appUrl}${returnPath}`,
+    cancel_url: `${appUrl}${returnPath}`,
     metadata: { user_id: user.id, plan_id: plan?.id ?? tier_name, billing_cycle, is_trial: trial ? "true" : "false" },
     subscription_data: subscriptionData,
     allow_promotion_codes: true,
@@ -393,6 +405,7 @@ async function handleBulkCredits(
   headers: Record<string, string>,
 ) {
   const { credit_count } = body;
+  const returnPath = normalizeReturnPath(body.return_path, "/settings?tab=subscription");
   const key = String(credit_count);
   const pack = BULK_PRICE_IDS[key];
 
@@ -410,8 +423,8 @@ async function handleBulkCredits(
     payment_method_types: ["card"],
     line_items: [{ price: pack.priceId, quantity: 1 }],
     mode: "payment",
-    success_url: `${appUrl}/properties?credits_added=${pack.credits}`,
-    cancel_url: `${appUrl}/pricing?canceled=true`,
+    success_url: `${appUrl}${appendQueryParam(returnPath, "credits_added", String(pack.credits))}`,
+    cancel_url: `${appUrl}${returnPath}`,
     metadata: {
       user_id: user.id,
       checkout_type: "bulk_credits",

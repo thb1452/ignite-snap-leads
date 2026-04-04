@@ -23,7 +23,7 @@ export function TrialExportGate({ open, onOpenChange, type }: TrialExportGatePro
 
   const handleGoToPricing = () => {
     onOpenChange(false);
-    navigate("/pricing");
+    navigate("/settings?tab=subscription");
   };
 
   return (

@@ -219,7 +219,7 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                 <Button
                   className="w-full gap-2"
                   variant="outline"
-                  onClick={() => { onOpenChange(false); navigate('/pricing'); }}
+                  onClick={() => { onOpenChange(false); navigate('/settings?tab=subscription'); }}
                 >
                   <DollarSign className="h-4 w-4" />
                   Pay-as-you-go — ${(requestedCount * 0.67).toFixed(2)} ($0.67 each)
@@ -250,10 +250,10 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
 
     // Case 2: Quota exhausted (exports remaining === 0 only) — minimal upsell
     if (remainingCount === 0) {
-      const handleUpgradeNow = () => {
-        onOpenChange(false);
-        navigate("/pricing");
-      };
+        const handleUpgradeNow = () => {
+          onOpenChange(false);
+          navigate("/settings?tab=subscription");
+        };
 
       return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -316,7 +316,7 @@ export function UpgradePrompt({ open, onOpenChange, limitType, currentPlan = 'st
                 <Button
                   className="w-full gap-2"
                   variant="outline"
-                  onClick={() => { onOpenChange(false); navigate('/pricing'); }}
+                  onClick={() => { onOpenChange(false); navigate('/settings?tab=subscription'); }}
                 >
                   <DollarSign className="h-4 w-4" />
                   Pay-as-you-go — ${(requestedCount * 0.67).toFixed(2)} ($0.67 each)

@@ -124,7 +124,14 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "GROQ_API_KEY not configured" }), { status: 500, headers });
     }
 
-    const { autoResume = true, totalProcessed = 0 } = await req.json().catch(() => ({}));
+    const { autoResume = true, totalProcessed = 0, version = "" } = await req.json().catch(() => ({}));
+    
+    // Kill old chains — only process if version matches current
+    if (version && version !== REGEN_VERSION) {
+      console.log(`[bulk-regen] Stopping old chain (version: ${version}, current: ${REGEN_VERSION})`);
+      return new Response(JSON.stringify({ stopped: true, reason: "version_mismatch" }), { headers });
+    }
+    
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Query ALL properties not yet updated with new prompt (cutoff: 2026-04-04T07:45:00Z)

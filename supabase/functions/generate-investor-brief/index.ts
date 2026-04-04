@@ -502,15 +502,15 @@ serve(async (req) => {
     // Format the property data block
     const userMessage = formatPropertyData(property, violationRecords, contactRecords);
 
-    console.log("[generate-investor-brief] Calling Lovable AI Gateway...");
+    console.log("[generate-investor-brief] Calling Groq API...");
     const apiStartTime = Date.now();
 
-    // Call Lovable AI Gateway (OpenAI-compatible)
+    // Call Groq API (OpenAI-compatible)
     const aiResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
         model: AI_MODEL,

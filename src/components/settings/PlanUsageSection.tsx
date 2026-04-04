@@ -132,14 +132,28 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
     try {
       setCheckoutLoading(key);
       const { data, error: fnError } = await supabase.functions.invoke('create-checkout-session', {
-        body: { checkout_type: checkoutType, ...extraBody },
+        body: { checkout_type: checkoutType, return_path: "/settings?tab=subscription", ...extraBody },
       });
 
       if (fnError) throw new Error(fnError.message || "Failed to create checkout session");
 
+      const pendingPayload = checkoutType === "subscription"
+        ? {
+            type: "subscription" as const,
+            expectedTier: extraBody.tier_name as "starter" | "professional" | "enterprise" | undefined,
+            returnPath: "/settings?tab=subscription",
+          }
+        : checkoutType === "bulk_credits"
+          ? {
+              type: "bulk_credits" as const,
+              expectedBalance: Number(extraBody.credit_count ?? 0) || undefined,
+              returnPath: "/settings?tab=subscription",
+            }
+          : null;
+
       if (data?.upgraded) {
-        if (checkoutType === "subscription") {
-          setPendingStripeCheckout("subscription");
+        if (pendingPayload) {
+          setPendingStripeCheckout(pendingPayload);
         }
         const rUrl = data.redirect_url || `${window.location.origin}/checkout/success`;
         const w = window.open(rUrl, '_blank');
@@ -150,10 +164,8 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
       const checkoutUrl = data?.url || data?.checkout_url;
       if (!checkoutUrl) throw new Error("No checkout URL returned. Please try again.");
       // Store pending checkout type so the app refreshes on return
-      if (checkoutType === "subscription") {
-        setPendingStripeCheckout("subscription");
-      } else if (checkoutType === "bulk_credits") {
-        setPendingStripeCheckout("bulk_credits");
+      if (pendingPayload) {
+        setPendingStripeCheckout(pendingPayload);
       }
       const w = window.open(checkoutUrl, '_blank');
       if (!w) window.location.href = checkoutUrl;
@@ -327,6 +339,39 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
               </div>
             </div>
           )}
+
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide flex items-center gap-1.5">
+              <Package className="h-3.5 w-3.5" />
+              Bulk Credit Packs
+            </p>
+            <div className="grid gap-2">
+              {BULK_PACKS.map((pack) => {
+                const key = `bulk_credits-${JSON.stringify({ credit_count: pack.count })}`;
+                return (
+                  <Button
+                    key={pack.count}
+                    variant="outline"
+                    onClick={() => handleCheckout("bulk_credits", { credit_count: pack.count })}
+                    disabled={!!checkoutLoading}
+                    className="w-full justify-between gap-2 h-auto py-2 px-4"
+                    size="sm"
+                  >
+                    <span className="flex items-center gap-2">
+                      {isTargetLoading(key) ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Coins className="h-3.5 w-3.5" />
+                      )}
+                      <span className="font-medium">{pack.label}</span>
+                      <span className="text-muted-foreground text-xs">{pack.per}</span>
+                    </span>
+                    <span className="font-semibold text-sm">{pack.price}</span>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
         </CardContent>
       </Card>
     );
@@ -349,10 +394,12 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
               <Zap className="h-7 w-7 text-muted-foreground" />
             </div>
           </div>
-          <h3 className="text-lg font-semibold">Free Plan</h3>
+          <h3 className="text-lg font-semibold">{ledgerBalance > 0 ? "Bulk Credits Active" : "Free Plan"}</h3>
           <p className="text-muted-foreground text-sm">
-            You're on the Free Plan — you have {freeUnlocksRemaining} free unlock{freeUnlocksRemaining !== 1 ? 's' : ''} to try. 
-            When you're ready to unlock more properties, pick a plan below or buy a one-time credit pack. No commitment required.
+            {ledgerBalance > 0
+              ? `You have ${ledgerBalance.toLocaleString()} bulk credits ready to use${freeUnlocksRemaining > 0 ? ` plus ${freeUnlocksRemaining} free unlock${freeUnlocksRemaining !== 1 ? 's' : ''}` : ''}.`
+              : `You're on the Free Plan — you have ${freeUnlocksRemaining} free unlock${freeUnlocksRemaining !== 1 ? 's' : ''} to try.`}
+            {" "}When you're ready to unlock more properties, pick a plan below or buy a one-time credit pack. No commitment required.
           </p>
         </div>
 

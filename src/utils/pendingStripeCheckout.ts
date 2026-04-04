@@ -1,18 +1,27 @@
 const STORAGE_KEY = "snap_pending_checkout";
 const TTL_MS = 60 * 60 * 1000;
 
-type PendingCheckout = {
+export type PendingCheckout = {
   type: "subscription" | "bulk_credits";
   at: number;
+  expectedTier?: "starter" | "professional" | "enterprise";
+  expectedBalance?: number;
+  returnPath?: string;
 };
 
+type PendingCheckoutInput =
+  | PendingCheckout["type"]
+  | Omit<PendingCheckout, "at">;
+
 /** Call right before redirecting to Stripe for subscription or bulk credit purchase. */
-export function setPendingStripeCheckout(type: PendingCheckout["type"]): void {
+export function setPendingStripeCheckout(input: PendingCheckoutInput): void {
   try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ type, at: Date.now() } satisfies PendingCheckout),
-    );
+    const pending =
+      typeof input === "string"
+        ? ({ type: input, at: Date.now() } satisfies PendingCheckout)
+        : ({ ...input, at: Date.now() } satisfies PendingCheckout);
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(pending));
   } catch {
     /* ignore */
   }

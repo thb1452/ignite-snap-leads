@@ -21,8 +21,8 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const AI_GATEWAY_URL = "https://api.deepseek.com/v1/chat/completions";
-const AI_MODEL = "deepseek-chat";
+const AI_GATEWAY_URL = "https://api.groq.com/openai/v1/chat/completions";
+const AI_MODEL = "llama-3.3-70b-versatile";
 const AI_MAX_TOKENS = 1500;
 const DAILY_REGEN_LIMIT = 10;
 
@@ -373,14 +373,14 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Missing required Supabase environment variables");
     }
 
-    if (!DEEPSEEK_API_KEY) {
-      console.error("[generate-investor-brief] DEEPSEEK_API_KEY not set");
+    if (!GROQ_API_KEY) {
+      console.error("[generate-investor-brief] GROQ_API_KEY not set");
       logMonitoring({ status: "error", error: "missing_api_key", latency_ms: Date.now() - startTime });
       return new Response(
         JSON.stringify({ error: "brief_unavailable" }),
@@ -502,15 +502,15 @@ serve(async (req) => {
     // Format the property data block
     const userMessage = formatPropertyData(property, violationRecords, contactRecords);
 
-    console.log("[generate-investor-brief] Calling Lovable AI Gateway...");
+    console.log("[generate-investor-brief] Calling Groq API...");
     const apiStartTime = Date.now();
 
-    // Call Lovable AI Gateway (OpenAI-compatible)
+    // Call Groq API (OpenAI-compatible)
     const aiResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
         model: AI_MODEL,

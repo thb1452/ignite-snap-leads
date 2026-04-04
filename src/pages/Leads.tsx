@@ -298,15 +298,15 @@ function Leads() {
     if (creditsAdded) {
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ["credits"] }),
+        queryClient.invalidateQueries({ queryKey: ["credits", "balance"] }),
         queryClient.invalidateQueries({ queryKey: ["user", "credits"] }),
         queryClient.invalidateQueries({ queryKey: ["subscription"] }),
         queryClient.invalidateQueries({ queryKey: ["subscription-usage"] }),
         queryClient.invalidateQueries({ queryKey: ["free-unlocks"] }),
       ]);
-      clearPendingStripeCheckout();
       toast({
-        title: `${creditsAdded} unlocks added! 🎉`,
-        description: "Credits have been added to your account.",
+        title: "Payment received",
+        description: `Finalizing your ${Number(creditsAdded).toLocaleString()} bulk credits now.`,
       });
       const newParams = new URLSearchParams(searchParams);
       newParams.delete("credits_added");

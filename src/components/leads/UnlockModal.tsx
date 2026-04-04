@@ -17,6 +17,7 @@ import { PAYG_PRICE_DISPLAY } from "@/lib/pricing";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUserCredits } from "@/hooks/useUserProfile";
+import { useCreditBalance } from "@/hooks/useCredits";
 import { setPendingStripeUnlockCheckout } from "@/utils/pendingStripeUnlock";
 import { setPendingStripeCheckout } from "@/utils/pendingStripeCheckout";
 
@@ -61,12 +62,16 @@ export function UnlockModal({
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { hasActiveSubscription, getRemainingCount, subscription, plan } = useSubscription();
-  const { data: bulkCreditBalance = 0 } = useUserCredits();
+  const { data: rawBulkCreditBalance = 0 } = useUserCredits();
+  const { data: effectiveCreditBalance = 0 } = useCreditBalance();
 
   if (!property) return null;
 
   const monthlyUnlocksRemaining = hasActiveSubscription ? getRemainingCount("exports") : 0;
   const currentPlanName = subscription?.plan_name ?? plan?.name ?? null;
+  const bulkCreditBalance = Number.isFinite(rawBulkCreditBalance) && rawBulkCreditBalance > 0
+    ? rawBulkCreditBalance
+    : Number.isFinite(effectiveCreditBalance) ? effectiveCreditBalance : 0;
   const canUseSubscriptionUnlock =
     hasActiveSubscription && (monthlyUnlocksRemaining === null || monthlyUnlocksRemaining > 0);
   const canUseFreeUnlock = freeUnlocksRemaining > 0;
@@ -198,9 +203,17 @@ export function UnlockModal({
         if (checkoutType === "single_unlock" && property && data.sessionId) {
           setPendingStripeUnlockCheckout(data.sessionId, property.id);
         } else if (checkoutType === "subscription") {
-          setPendingStripeCheckout("subscription");
+          setPendingStripeCheckout({
+            type: "subscription",
+            expectedTier: extraBody.tier_name as "starter" | "professional" | "enterprise" | undefined,
+            returnPath: "/properties",
+          });
         } else if (checkoutType === "bulk_credits") {
-          setPendingStripeCheckout("bulk_credits");
+          setPendingStripeCheckout({
+            type: "bulk_credits",
+            expectedBalance: Number(extraBody.credit_count ?? 0) || undefined,
+            returnPath: "/properties",
+          });
         }
         const opened = window.open(url, '_blank', 'noopener,noreferrer');
         toast({

@@ -27,12 +27,18 @@ interface InvestorInsightCardProps {
 // ── Action label utilities (shared with PropertyCard etc.) ──
 
 function getActionLabel(text: string): { label: string; colorClass: string } | null {
-  if (/CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY/i.test(text))
+  if (/CALL NOW/i.test(text))
     return { label: "CALL NOW", colorClass: "text-red-500 font-bold" };
+  if (/HIGH OPPORTUNITY/i.test(text))
+    return { label: "HIGH OPPORTUNITY", colorClass: "text-red-500 font-bold" };
+  if (/GOOD OPPORTUNITY/i.test(text))
+    return { label: "GOOD OPPORTUNITY", colorClass: "text-orange-400 font-bold" };
   if (/WORTH A CALL|MONITOR/i.test(text))
     return { label: "WORTH A CALL", colorClass: "text-orange-400 font-bold" };
   if (/WATCH|LOW PRIORITY|WATCH\/PASS/i.test(text))
     return { label: "WATCH", colorClass: "text-gray-400 font-bold" };
+  if (/PASS/i.test(text))
+    return { label: "PASS", colorClass: "text-gray-500 font-bold" };
   return null;
 }
 

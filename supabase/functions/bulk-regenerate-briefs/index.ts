@@ -1,6 +1,6 @@
 /**
- * BULK REGENERATE INVESTOR BRIEFS via Lovable AI Gateway
- * v5 - Parallel processing, no dashes, faster execution
+ * BULK REGENERATE INVESTOR BRIEFS — Direct Gemini API (FREE)
+ * v6 — Uses Google Gemini API directly, no Lovable AI credits needed
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -10,12 +10,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const AI_MODEL = "google/gemini-2.5-flash";
-const BATCH_SIZE = 10;
-const CONCURRENCY = 5; // Process 5 AI calls at once
+const GEMINI_MODEL = "gemini-2.0-flash";
+const BATCH_SIZE = 12;
 const MAX_RETRIES = 2;
-const REGEN_VERSION = "v5-no-dash";
+const REGEN_VERSION = "v6-gemini-direct";
 const CUTOFF_TIMESTAMP = "2026-04-04T08:00:00Z";
 
 const SYSTEM_PROMPT = `CRITICAL BUSINESS CONTEXT:
@@ -82,52 +80,51 @@ Newest: ${prop.newest_violation_date || "unknown"} | Oldest: ${prop.oldest_viola
 
 async function generateBrief(prop: Record<string, any>, apiKey: string): Promise<{ id: string; brief: string | null }> {
   const userMessage = formatPropertyData(prop);
-  
+
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const aiRes = await fetch(AI_GATEWAY_URL, {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+      
+      const res = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: AI_MODEL,
-          max_tokens: 400,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: userMessage },
+          contents: [
+            { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n${userMessage}` }] }
           ],
-          temperature: 0.4,
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 400,
+          },
         }),
       });
 
-      if (aiRes.ok) {
-        const result = await aiRes.json();
-        let text = result?.choices?.[0]?.message?.content?.trim() || null;
-        // Strip any remaining dashes the AI might have used
+      if (res.ok) {
+        const result = await res.json();
+        let text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
         if (text) {
-          text = text.replace(/\s*[—–-]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
+          // Strip any remaining dashes
+          text = text.replace(/\s*[—–]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
         }
         return { id: prop.id, brief: text };
       }
 
-      if (aiRes.status === 429) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 3000));
+      if (res.status === 429) {
+        const wait = (attempt + 1) * 5000;
+        console.warn(`[bulk-regen] Rate limited, waiting ${wait}ms`);
+        await new Promise(r => setTimeout(r, wait));
         continue;
       }
 
-      if (aiRes.status === 402) {
-        throw new Error("CREDITS_EXHAUSTED");
-      }
-
+      const errText = await res.text();
+      console.error(`[bulk-regen] Gemini error ${res.status}: ${errText.slice(0, 200)}`);
       break;
     } catch (err) {
-      if (err instanceof Error && err.message === "CREDITS_EXHAUSTED") throw err;
+      console.error(`[bulk-regen] Network error attempt ${attempt + 1}:`, err);
       await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
     }
   }
-  
+
   return { id: prop.id, brief: null };
 }
 
@@ -141,16 +138,17 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), { status: 500, headers });
+    if (!GEMINI_API_KEY) {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), { status: 500, headers });
     }
 
     const { autoResume = true, totalProcessed = 0, version = "" } = await req.json().catch(() => ({}));
 
+    // Stop old version chains
     if (version && version !== REGEN_VERSION) {
-      console.log(`[bulk-regen] Stopping old chain (version: ${version}, current: ${REGEN_VERSION})`);
+      console.log(`[bulk-regen] Stopping old chain (version: ${version})`);
       return new Response(JSON.stringify({ stopped: true, reason: "version_mismatch" }), { headers });
     }
 
@@ -166,71 +164,58 @@ serve(async (req) => {
     if (fetchErr) throw new Error(`Fetch error: ${fetchErr.message}`);
     if (!properties || properties.length === 0) {
       console.log(`[bulk-regen] ✅ ALL DONE! Total processed: ${totalProcessed}`);
-      return new Response(JSON.stringify({ 
-        success: true, done: true, totalProcessed, message: "All briefs regenerated!" 
+      return new Response(JSON.stringify({
+        success: true, done: true, totalProcessed, message: "All briefs regenerated!"
       }), { headers });
     }
 
-    console.log(`[bulk-regen] Processing ${properties.length} properties (total so far: ${totalProcessed})`);
+    console.log(`[bulk-regen] Processing ${properties.length} (total so far: ${totalProcessed})`);
 
     let batchSuccess = 0;
     let batchFailed = 0;
 
-    // Process in parallel chunks of CONCURRENCY
-    for (let i = 0; i < properties.length; i += CONCURRENCY) {
-      const chunk = properties.slice(i, i + CONCURRENCY);
-      
-      try {
-        const results = await Promise.all(
-          chunk.map(prop => generateBrief(prop, LOVABLE_API_KEY))
-        );
+    // Process SEQUENTIALLY with delay to respect Gemini free tier (15 RPM)
+    for (const prop of properties) {
+      const result = await generateBrief(prop, GEMINI_API_KEY);
 
-        for (const result of results) {
-          if (!result.brief) {
-            batchFailed++;
-            continue;
-          }
-
-          const briefJson = {
-            brief_text: result.brief,
-            generated_at: new Date().toISOString(),
-            model: AI_MODEL,
-            version: REGEN_VERSION,
-          };
-
-          const { error: updateErr } = await supabase
-            .from("properties")
-            .update({
-              snap_insight: result.brief,
-              investor_insight_brief: briefJson,
-              last_analyzed_at: new Date().toISOString(),
-            })
-            .eq("id", result.id);
-
-          if (updateErr) {
-            batchFailed++;
-          } else {
-            batchSuccess++;
-          }
-        }
-      } catch (err) {
-        if (err instanceof Error && err.message === "CREDITS_EXHAUSTED") {
-          console.error("[bulk-regen] Credits exhausted, stopping");
-          return new Response(JSON.stringify({
-            success: false, error: "credits_exhausted", totalProcessed: totalProcessed + batchSuccess
-          }), { status: 402, headers });
-        }
-        batchFailed += chunk.length;
+      if (!result.brief) {
+        batchFailed++;
+        continue;
       }
+
+      const briefJson = {
+        brief_text: result.brief,
+        generated_at: new Date().toISOString(),
+        model: GEMINI_MODEL,
+        version: REGEN_VERSION,
+      };
+
+      const { error: updateErr } = await supabase
+        .from("properties")
+        .update({
+          snap_insight: result.brief,
+          investor_insight_brief: briefJson,
+          last_analyzed_at: new Date().toISOString(),
+        })
+        .eq("id", result.id);
+
+      if (updateErr) {
+        batchFailed++;
+      } else {
+        batchSuccess++;
+      }
+
+      // 4.5s between calls = ~13 per minute (under 15 RPM limit)
+      await new Promise(r => setTimeout(r, 4500));
     }
 
     const newTotal = totalProcessed + batchSuccess;
     console.log(`[bulk-regen] Batch: ${batchSuccess} ok, ${batchFailed} failed. Total: ${newTotal}`);
 
-    // Self-chain immediately
+    // Self-chain
     if (autoResume) {
       const continueTask = async () => {
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 1000));
         try {
           await fetch(`${SUPABASE_URL}/functions/v1/bulk-regenerate-briefs`, {
             method: "POST",

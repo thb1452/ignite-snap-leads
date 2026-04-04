@@ -44,22 +44,7 @@ interface MobilePropertyCardProps {
   onUnlock?: (propertyId: string) => void;
 }
 
-function getActionLabel(text: string): { label: string; colorClass: string } | null {
-  if (/CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY/i.test(text))
-    return { label: "CALL NOW", colorClass: "text-red-500 font-bold" };
-  if (/WORTH A CALL|MONITOR/i.test(text))
-    return { label: "WORTH A CALL", colorClass: "text-orange-400 font-bold" };
-  if (/WATCH|LOW PRIORITY|WATCH\/PASS/i.test(text))
-    return { label: "WATCH", colorClass: "text-gray-400 font-bold" };
-  return null;
-}
-
-function stripActionLabel(text: string): string {
-  return text
-    .replace(/\*?\*?(CALL NOW|WORTH A CALL|WATCH|HIGH OPPORTUNITY|GOOD OPPORTUNITY|MONITOR|LOW PRIORITY|WATCH\/PASS)\*?\*?\.?/gi, "")
-    .replace(/\*\*/g, "")
-    .trim();
-}
+import { getActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
 
 export const MobilePropertyCard = memo(function MobilePropertyCard({
   property,

@@ -2941,6 +2941,30 @@ export type Database = {
         }
         Relationships: []
       }
+      v_customer_overview: {
+        Row: {
+          current_period_end: string | null
+          current_period_start: string | null
+          email: string | null
+          free_unlocks_remaining: number | null
+          full_name: string | null
+          is_beta_user: boolean | null
+          last_transaction_at: string | null
+          plan_name: string | null
+          price_monthly_cents: number | null
+          signup_date: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string | null
+          total_revenue_cents: number | null
+          transaction_count: number | null
+          trial_ends_at: string | null
+          trial_started_at: string | null
+          trial_tier: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       v_hot_properties: {
         Row: {
           address: string | null

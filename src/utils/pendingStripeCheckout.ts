@@ -18,8 +18,8 @@ export function setPendingStripeCheckout(type: PendingCheckout["type"]): void {
   }
 }
 
-/** Returns pending checkout info if fresh, then clears it. */
-export function consumePendingStripeCheckout(): PendingCheckout | null {
+/** Returns pending checkout info if fresh, without clearing it. */
+export function getPendingStripeCheckout(): PendingCheckout | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -29,9 +29,23 @@ export function consumePendingStripeCheckout(): PendingCheckout | null {
       localStorage.removeItem(STORAGE_KEY);
       return null;
     }
-    localStorage.removeItem(STORAGE_KEY);
     return p;
   } catch {
     return null;
   }
+}
+
+export function clearPendingStripeCheckout(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Returns pending checkout info if fresh, then clears it. */
+export function consumePendingStripeCheckout(): PendingCheckout | null {
+  const pending = getPendingStripeCheckout();
+  if (pending) clearPendingStripeCheckout();
+  return pending;
 }

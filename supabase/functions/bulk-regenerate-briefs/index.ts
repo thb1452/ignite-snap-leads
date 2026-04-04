@@ -54,7 +54,10 @@ Examples of correct voice:
 OUTPUT FORMAT:
 Sentence 1: What is actively happening. Violation count, types, how long open. Use real numbers.
 Sentence 2: Why it signals opportunity. Top distress signal in plain English.
-Final: Bold action label followed by a period and one line reason. NO DASHES before or after the label.
+Final: Action label followed by a period and one line reason. NO DASHES before or after the label.
+
+CRITICAL PLACEMENT RULE:
+The action label (CALL NOW, HIGH OPPORTUNITY, GOOD OPPORTUNITY, WORTH A CALL, WATCH, PASS) MUST be the absolute last thing in the brief. Always end your analysis sentences first, then place the action label as the final element. Never place the action label in the middle of the brief. The label is always the closing statement.
 
 ACTION LABELS:
 Score 70 to 100: CALL NOW or HIGH OPPORTUNITY only.

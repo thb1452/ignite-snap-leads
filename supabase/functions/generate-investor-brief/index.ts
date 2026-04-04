@@ -63,6 +63,9 @@ Sentence 2: Why it signals opportunity — top distress signal in plain English.
 Sentence 3 (only if escalated or water shutoff): Urgency detail.
 Final: Bold action label + one-line reason.
 
+CRITICAL PLACEMENT RULE:
+The action label (CALL NOW, HIGH OPPORTUNITY, GOOD OPPORTUNITY, WORTH A CALL, WATCH, PASS) MUST be the absolute last thing in the brief. Always end your analysis sentences first, then place the action label as the final element. Never place the action label in the middle of the brief. The label is always the closing statement.
+
 ACTION LABELS — HARD RULE, NON-NEGOTIABLE:
 The action label MUST match the snap_score tier. Never contradict the score.
 

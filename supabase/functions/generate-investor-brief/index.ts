@@ -373,14 +373,14 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Missing required Supabase environment variables");
     }
 
-    if (!DEEPSEEK_API_KEY) {
-      console.error("[generate-investor-brief] DEEPSEEK_API_KEY not set");
+    if (!GROQ_API_KEY) {
+      console.error("[generate-investor-brief] GROQ_API_KEY not set");
       logMonitoring({ status: "error", error: "missing_api_key", latency_ms: Date.now() - startTime });
       return new Response(
         JSON.stringify({ error: "brief_unavailable" }),

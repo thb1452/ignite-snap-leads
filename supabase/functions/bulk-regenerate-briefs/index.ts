@@ -11,10 +11,10 @@ const corsHeaders = {
 };
 
 const GEMINI_MODEL = "gemini-2.5-flash";
-const BATCH_SIZE = 50;
-const MAX_RETRIES = 2;
-const REGEN_VERSION = "v7-gemini-paid";
-const CONCURRENCY = 10;
+const BATCH_SIZE = 10;
+const MAX_RETRIES = 3;
+const REGEN_VERSION = "v12-fresh";
+const CONCURRENCY = 1;
 const CUTOFF_TIMESTAMP = "2026-04-04T08:00:00Z";
 
 const SYSTEM_PROMPT = `CRITICAL BUSINESS CONTEXT:
@@ -145,8 +145,8 @@ async function generateBrief(prop: Record<string, any>, apiKey: string): Promise
       }
 
       if (res.status === 429) {
-        const wait = (attempt + 1) * 5000;
-        console.warn(`[bulk-regen] Rate limited, waiting ${wait}ms`);
+        const wait = 60000; // wait 60s on rate limit
+        console.warn(`[bulk-regen] Rate limited, waiting 60s`);
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
@@ -209,26 +209,24 @@ serve(async (req) => {
     let batchSuccess = 0;
     let batchFailed = 0;
 
-    // Process in parallel chunks (paid tier: 2000 RPM)
-    for (let i = 0; i < properties.length; i += CONCURRENCY) {
-      const chunk = properties.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(chunk.map(p => generateBrief(p, GEMINI_API_KEY)));
-
-      for (const res of results) {
-        if (res.status === "rejected" || !res.value.brief) { batchFailed++; continue; }
-        const { id, brief } = res.value;
-        const briefJson = {
-          brief_text: brief,
-          generated_at: new Date().toISOString(),
-          model: GEMINI_MODEL,
-          version: REGEN_VERSION,
-        };
-        const { error: updateErr } = await supabase
-          .from("properties")
-          .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
-          .eq("id", id);
-        if (updateErr) { batchFailed++; } else { batchSuccess++; }
-      }
+    // Process sequentially with delay to avoid rate limits
+    for (let i = 0; i < properties.length; i++) {
+      const result = await generateBrief(properties[i], GEMINI_API_KEY);
+      if (!result.brief) { batchFailed++; continue; }
+      const { id, brief } = result;
+      const briefJson = {
+        brief_text: brief,
+        generated_at: new Date().toISOString(),
+        model: GEMINI_MODEL,
+        version: REGEN_VERSION,
+      };
+      const { error: updateErr } = await supabase
+        .from("properties")
+        .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
+        .eq("id", id);
+      if (updateErr) { batchFailed++; } else { batchSuccess++; }
+      // 2s delay between requests to stay under rate limit
+      if (i < properties.length - 1) await new Promise(r => setTimeout(r, 4000));
     }
 
     const newTotal = totalProcessed + batchSuccess;

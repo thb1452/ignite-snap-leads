@@ -1151,6 +1151,75 @@ export type Database = {
           },
         ]
       }
+      marketing_leads: {
+        Row: {
+          campaign_id: string | null
+          company: string | null
+          contacted_at: string | null
+          converted_at: string | null
+          created_at: string | null
+          custom_fields: Json | null
+          email: string | null
+          engagement_score: number | null
+          id: string
+          last_engagement: string | null
+          market: string | null
+          name: string | null
+          next_follow_up: string | null
+          notes: string | null
+          persona: string | null
+          phone: string | null
+          revenue: number | null
+          source: string | null
+          status: string | null
+          tags: string[] | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          company?: string | null
+          contacted_at?: string | null
+          converted_at?: string | null
+          created_at?: string | null
+          custom_fields?: Json | null
+          email?: string | null
+          engagement_score?: number | null
+          id?: string
+          last_engagement?: string | null
+          market?: string | null
+          name?: string | null
+          next_follow_up?: string | null
+          notes?: string | null
+          persona?: string | null
+          phone?: string | null
+          revenue?: number | null
+          source?: string | null
+          status?: string | null
+          tags?: string[] | null
+        }
+        Update: {
+          campaign_id?: string | null
+          company?: string | null
+          contacted_at?: string | null
+          converted_at?: string | null
+          created_at?: string | null
+          custom_fields?: Json | null
+          email?: string | null
+          engagement_score?: number | null
+          id?: string
+          last_engagement?: string | null
+          market?: string | null
+          name?: string | null
+          next_follow_up?: string | null
+          notes?: string | null
+          persona?: string | null
+          phone?: string | null
+          revenue?: number | null
+          source?: string | null
+          status?: string | null
+          tags?: string[] | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null

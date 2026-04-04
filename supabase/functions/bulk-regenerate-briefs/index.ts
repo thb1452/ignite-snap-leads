@@ -34,6 +34,14 @@ Instead of "CALL NOW — owner needs out" write "CALL NOW. Owner needs out."
 Instead of "multi-department" write "multiple departments"
 Use periods to separate thoughts, never dashes.
 
+ABSOLUTELY FORBIDDEN — NEVER INCLUDE:
+1. Property addresses, street names, or any location identifiers in your output
+2. Raw violation codes, case numbers, or system codes (e.g. "ACC DF DS Harb IA IF HGW", "IPMC 305.4", "OSP Case create")
+3. Owner names, phone numbers, emails, or any personal information
+4. Raw database field values or system identifiers
+5. Quoted raw text from violation descriptions — always paraphrase in plain English
+If the input data contains garbled codes or abbreviations, interpret them as violation categories (structural, exterior, safety, zoning, etc.) and describe in plain language.
+
 WRITING STYLE:
 Write like a sharp investor talking to another investor. Short, punchy sentences. Active voice.
 
@@ -67,7 +75,7 @@ Score 44: "3 open violations, 4 months unresolved. City filed, owner slow to res
 Score 18: "One exterior violation, appears partially resolved. Minimal enforcement activity. PASS. Nothing urgent here."
 
 BANNED PHRASES:
-"significant enforcement activity", "pattern of non-compliance", "owner attention issues", "property maintenance deficiencies", "enforcement actions have been documented", "violations suggest deferred maintenance", "worth investigating further", "municipal pressure is present", "enforcement signals indicate"`;
+"significant enforcement activity", "pattern of non-compliance", "owner attention issues", "property maintenance deficiencies", "enforcement actions have been documented", "violations suggest deferred maintenance", "worth investigating further", "municipal pressure is present", "enforcement signals indicate", "Noted:"`;
 
 function formatPropertyData(prop: Record<string, any>): string {
   return `PROPERTY: ${prop.address}, ${prop.city || ""}, ${prop.state || ""} ${prop.zip || ""}

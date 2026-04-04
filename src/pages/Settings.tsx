@@ -25,7 +25,7 @@ export function Settings() {
       const pending = getPendingStripeCheckout();
       if (!pending) return;
 
-      let synced = pending.type === "bulk_credits";
+      let synced = false;
 
       if (pending.type === "subscription") {
         try {
@@ -37,12 +37,24 @@ export function Settings() {
       }
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["subscription"] }),
-        queryClient.invalidateQueries({ queryKey: ["subscription-usage"] }),
-        queryClient.invalidateQueries({ queryKey: ["credits"] }),
-        queryClient.invalidateQueries({ queryKey: ["user", "credits"] }),
-        queryClient.invalidateQueries({ queryKey: ["free-unlocks"] }),
+        queryClient.refetchQueries({ queryKey: ["subscription", user.id] }),
+        queryClient.refetchQueries({ queryKey: ["subscription-usage", user.id] }),
+        queryClient.refetchQueries({ queryKey: ["credits", "balance"] }),
+        queryClient.refetchQueries({ queryKey: ["user", "credits"] }),
+        queryClient.refetchQueries({ queryKey: ["free-unlocks"] }),
       ]);
+
+      if (pending.type === "subscription") {
+        const currentSubscription = queryClient.getQueryData<{ plan_name?: string }>(["subscription", user.id]);
+        if (pending.expectedTier) {
+          synced = currentSubscription?.plan_name === pending.expectedTier;
+        } else {
+          synced = synced || !!currentSubscription?.plan_name;
+        }
+      } else {
+        const currentBalance = Number(queryClient.getQueryData<number>(["credits", "balance"]) ?? 0);
+        synced = currentBalance > 0;
+      }
 
       if (!synced) return;
 

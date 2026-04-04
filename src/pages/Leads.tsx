@@ -631,7 +631,7 @@ function Leads() {
 
       console.log("[Leads] Detected pending Stripe checkout return:", pending.type);
 
-      let synced = pending.type === "bulk_credits";
+      let synced = false;
 
       if (pending.type === "subscription") {
         // Call verify-subscription to ensure backend is synced
@@ -645,13 +645,25 @@ function Leads() {
 
       // Invalidate all relevant queries so the UI refreshes
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["subscription"] }),
-        queryClient.invalidateQueries({ queryKey: ["subscription-usage"] }),
-        queryClient.invalidateQueries({ queryKey: ["credits"] }),
-        queryClient.invalidateQueries({ queryKey: ["user", "credits"] }),
-        queryClient.invalidateQueries({ queryKey: ["free-unlocks"] }),
-        queryClient.invalidateQueries({ queryKey: ["trial-status"] }),
+        queryClient.refetchQueries({ queryKey: ["subscription", user.id] }),
+        queryClient.refetchQueries({ queryKey: ["subscription-usage", user.id] }),
+        queryClient.refetchQueries({ queryKey: ["credits", "balance"] }),
+        queryClient.refetchQueries({ queryKey: ["user", "credits"] }),
+        queryClient.refetchQueries({ queryKey: ["free-unlocks"] }),
+        queryClient.refetchQueries({ queryKey: ["trial-status"] }),
       ]);
+
+      if (pending.type === "subscription") {
+        const currentSubscription = queryClient.getQueryData<{ plan_name?: string }>(["subscription", user.id]);
+        if (pending.expectedTier) {
+          synced = currentSubscription?.plan_name === pending.expectedTier;
+        } else {
+          synced = synced || !!currentSubscription?.plan_name;
+        }
+      } else {
+        const currentBalance = Number(queryClient.getQueryData<number>(["credits", "balance"]) ?? 0);
+        synced = currentBalance > 0;
+      }
 
       if (!synced) return;
 

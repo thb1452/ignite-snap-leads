@@ -146,6 +146,12 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
 
       const checkoutUrl = data?.url || data?.checkout_url;
       if (!checkoutUrl) throw new Error("No checkout URL returned. Please try again.");
+      // Store pending checkout type so the app refreshes on return
+      if (checkoutType === "subscription") {
+        setPendingStripeCheckout("subscription");
+      } else if (checkoutType === "bulk_credits") {
+        setPendingStripeCheckout("bulk_credits");
+      }
       const w = window.open(checkoutUrl, '_blank');
       if (!w) window.location.href = checkoutUrl;
     } catch (error: any) {

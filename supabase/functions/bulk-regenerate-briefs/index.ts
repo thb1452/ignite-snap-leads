@@ -129,8 +129,8 @@ async function generateBrief(prop: Record<string, any>, apiKey: string): Promise
     }
 
     if (res.status === 402) {
-      console.error(`[bulk-regen] Payment required (402) — stopping`);
-      return { id: prop.id, brief: null };
+      console.error(`[bulk-regen] Payment required (402) — stopping. Top up Lovable AI balance.`);
+      throw new Error("PAYWALL_HIT");
     }
 
     if (!res.ok) {

@@ -13,7 +13,7 @@ const corsHeaders = {
 const GEMINI_MODEL = "gemini-2.5-flash";
 const BATCH_SIZE = 50;
 const MAX_RETRIES = 2;
-const REGEN_VERSION = "v7-gemini-paid";
+const REGEN_VERSION = "v8-gemini-throttled";
 const CONCURRENCY = 4;
 const CUTOFF_TIMESTAMP = "2026-04-04T08:00:00Z";
 

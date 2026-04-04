@@ -209,24 +209,27 @@ serve(async (req) => {
     let batchSuccess = 0;
     let batchFailed = 0;
 
-    // Process sequentially with delay to avoid rate limits
-    for (let i = 0; i < properties.length; i++) {
-      const result = await generateBrief(properties[i], GEMINI_API_KEY);
-      if (!result.brief) { batchFailed++; continue; }
-      const { id, brief } = result;
-      const briefJson = {
-        brief_text: brief,
-        generated_at: new Date().toISOString(),
-        model: GEMINI_MODEL,
-        version: REGEN_VERSION,
-      };
-      const { error: updateErr } = await supabase
-        .from("properties")
-        .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
-        .eq("id", id);
-      if (updateErr) { batchFailed++; } else { batchSuccess++; }
-      // 2s delay between requests to stay under rate limit
-      if (i < properties.length - 1) await new Promise(r => setTimeout(r, 4000));
+    // Process in parallel chunks of CONCURRENCY
+    for (let i = 0; i < properties.length; i += CONCURRENCY) {
+      const chunk = properties.slice(i, i + CONCURRENCY);
+      const results = await Promise.all(chunk.map(p => generateBrief(p, GEMINI_API_KEY)));
+      for (const result of results) {
+        if (!result.brief) { batchFailed++; continue; }
+        const { id, brief } = result;
+        const briefJson = {
+          brief_text: brief,
+          generated_at: new Date().toISOString(),
+          model: GEMINI_MODEL,
+          version: REGEN_VERSION,
+        };
+        const { error: updateErr } = await supabase
+          .from("properties")
+          .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
+          .eq("id", id);
+        if (updateErr) { batchFailed++; } else { batchSuccess++; }
+      }
+      // 1s delay between chunks to stay well under 1000 RPM
+      if (i + CONCURRENCY < properties.length) await new Promise(r => setTimeout(r, 1000));
     }
 
     const newTotal = totalProcessed + batchSuccess;

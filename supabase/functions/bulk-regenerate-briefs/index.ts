@@ -236,7 +236,7 @@ serve(async (req) => {
     // Self-chain
     if (autoResume) {
       const continueTask = async () => {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 5000));
         try {
           await fetch(`${SUPABASE_URL}/functions/v1/bulk-regenerate-briefs`, {
             method: "POST",

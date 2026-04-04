@@ -35,6 +35,11 @@ function normalizeReturnPath(rawPath: unknown, fallback: string): string {
   return rawPath;
 }
 
+function appendQueryParam(path: string, key: string, value: string): string {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+}
+
 /** After subscriptions.update with pending_if_incomplete: send user to pay the invoice, or success if already paid. Never implies DB changes — webhooks sync plan/credits. */
 async function subscriptionChangePaymentResponse(
   updated: Stripe.Subscription,
@@ -418,7 +423,7 @@ async function handleBulkCredits(
     payment_method_types: ["card"],
     line_items: [{ price: pack.priceId, quantity: 1 }],
     mode: "payment",
-    success_url: `${appUrl}${returnPath}?credits_added=${pack.credits}`,
+    success_url: `${appUrl}${appendQueryParam(returnPath, "credits_added", String(pack.credits))}`,
     cancel_url: `${appUrl}${returnPath}`,
     metadata: {
       user_id: user.id,

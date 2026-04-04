@@ -1,6 +1,6 @@
 /**
- * BULK REGENERATE INVESTOR BRIEFS — Lovable AI Gateway
- * v16-lovable — Uses Lovable AI gateway (google/gemini-2.5-flash) to bypass direct Gemini rate limits
+ * BULK REGENERATE INVESTOR BRIEFS — Direct Gemini API (Paid Tier 1)
+ * v18-gemini-paid — Uses paid Gemini API key for 1,000+ RPM
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -10,12 +10,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const AI_MODEL = "google/gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 const BATCH_SIZE = 20;
 const REGEN_VERSION = "v18-gemini-paid";
 const CONCURRENCY = 3;
 const CUTOFF_TIMESTAMP = "2026-04-04T08:00:00Z";
-const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 const SYSTEM_PROMPT = `CRITICAL BUSINESS CONTEXT:
 
@@ -81,7 +80,6 @@ BANNED PHRASES:
 "significant enforcement activity", "pattern of non-compliance", "owner attention issues", "property maintenance deficiencies", "enforcement actions have been documented", "violations suggest deferred maintenance", "worth investigating further", "municipal pressure is present", "enforcement signals indicate", "Noted:"`;
 
 function formatPropertyData(prop: Record<string, any>): string {
-  // DO NOT send address to AI — it leaks into output
   return `PROPERTY PROFILE:
 Score: ${prop.snap_score ?? "unscored"} | Open: ${prop.open_violations ?? 0} | Total: ${prop.total_violations ?? 0}
 Signals: ${(prop.distress_signals || []).join(", ") || "none"}
@@ -91,7 +89,6 @@ Multiple Departments: ${prop.multi_department ?? false} | Avg Days Open: ${prop.
 Newest: ${prop.newest_violation_date || "unknown"} | Oldest: ${prop.oldest_violation_date || "unknown"}`;
 }
 
-// Post-processing: reject briefs that contain garbage
 function isCleanBrief(text: string, prop: Record<string, any>): boolean {
   if (prop.address && text.toLowerCase().includes(prop.address.toLowerCase().slice(0, 10))) return false;
   if (/[A-Z]{2,}\s+[A-Z]{2,}\s+[A-Z]{2,}\s+[A-Z]{2,}/.test(text)) return false;
@@ -106,46 +103,38 @@ async function generateBrief(prop: Record<string, any>, apiKey: string): Promise
   const userMessage = formatPropertyData(prop);
 
   try {
-    const res = await fetch(LOVABLE_AI_URL, {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+
+    const res = await fetch(url, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: AI_MODEL,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userMessage },
+        contents: [
+          { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n${userMessage}` }] }
         ],
-        temperature: 0.4,
-        max_tokens: 400,
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 400,
+        },
       }),
     });
 
     if (res.status === 429) {
-      console.warn(`[bulk-regen] Rate limited (429), skipping property ${prop.id}`);
+      console.warn(`[bulk-regen] Rate limited (429), skipping ${prop.id}`);
       return { id: prop.id, brief: null };
-    }
-
-    if (res.status === 402) {
-      console.error(`[bulk-regen] Payment required (402) — stopping. Top up Lovable AI balance.`);
-      throw new Error("PAYWALL_HIT");
     }
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[bulk-regen] AI gateway error ${res.status}: ${errText.slice(0, 200)}`);
+      console.error(`[bulk-regen] Gemini ${res.status}: ${errText.slice(0, 300)}`);
       return { id: prop.id, brief: null };
     }
 
     const result = await res.json();
-    let text = result?.choices?.[0]?.message?.content?.trim() || null;
+    let text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
 
     if (text) {
-      // Strip any remaining dashes
       text = text.replace(/\s*[—–-]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
-      // Validate output quality
       if (!isCleanBrief(text, prop)) {
         console.warn(`[bulk-regen] Rejected dirty brief for ${prop.id}: ${text.slice(0, 80)}`);
         return { id: prop.id, brief: null };
@@ -169,15 +158,14 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), { status: 500, headers });
+    if (!GEMINI_API_KEY) {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), { status: 500, headers });
     }
 
     const { autoResume = true, totalProcessed = 0, version = "" } = await req.json().catch(() => ({}));
 
-    // Stop old version chains
     if (version && version !== REGEN_VERSION) {
       console.log(`[bulk-regen] Stopping old chain (version: ${version})`);
       return new Response(JSON.stringify({ stopped: true, reason: "version_mismatch" }), { headers });
@@ -204,19 +192,17 @@ serve(async (req) => {
 
     let batchSuccess = 0;
     let batchFailed = 0;
-    let hitPaywall = false;
 
-    // Process in parallel chunks of CONCURRENCY
     for (let i = 0; i < properties.length; i += CONCURRENCY) {
       const chunk = properties.slice(i, i + CONCURRENCY);
-      const results = await Promise.all(chunk.map(p => generateBrief(p, LOVABLE_API_KEY)));
+      const results = await Promise.all(chunk.map(p => generateBrief(p, GEMINI_API_KEY)));
       for (const result of results) {
         if (!result.brief) { batchFailed++; continue; }
         const { id, brief } = result;
         const briefJson = {
           brief_text: brief,
           generated_at: new Date().toISOString(),
-          model: AI_MODEL,
+          model: GEMINI_MODEL,
           version: REGEN_VERSION,
         };
         const { error: updateErr } = await supabase
@@ -225,18 +211,16 @@ serve(async (req) => {
           .eq("id", id);
         if (updateErr) { batchFailed++; } else { batchSuccess++; }
       }
-      // 1.5s delay between chunks
-      if (i + CONCURRENCY < properties.length) await new Promise(r => setTimeout(r, 1500));
+      if (i + CONCURRENCY < properties.length) await new Promise(r => setTimeout(r, 1000));
     }
 
     const newTotal = totalProcessed + batchSuccess;
     console.log(`[bulk-regen] Batch: ${batchSuccess} ok, ${batchFailed} failed. Total: ${newTotal}`);
 
-    // If entire batch failed, wait longer before retrying
+    // If entire batch failed, back off 30s; otherwise 5s
     const resumeDelay = batchSuccess === 0 ? 30000 : 5000;
 
-    // Self-chain
-    if (autoResume && !hitPaywall) {
+    if (autoResume) {
       const continueTask = async () => {
         await new Promise(r => setTimeout(r, resumeDelay));
         try {

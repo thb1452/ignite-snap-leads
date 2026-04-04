@@ -1,10 +1,9 @@
 /**
  * BULK REGENERATE INVESTOR BRIEFS via Groq API
  * 
- * Queries properties where investor_insight_brief is null, contains "fallback",
- * or is outdated. Regenerates using Groq's llama-3.3-70b-versatile model.
- * Processes in batches of 50 with 2s delay between batches.
- * Auto-continues via self-invocation.
+ * Regenerates ALL properties with the new sales-focused investor prompt.
+ * Processes in batches of 10 with 3s delay between calls and exponential backoff on 429s.
+ * Auto-continues via self-invocation until every property is updated.
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -16,8 +15,11 @@ const corsHeaders = {
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.3-70b-versatile";
-const BATCH_SIZE = 50;
-const DELAY_MS = 1000;
+const BATCH_SIZE = 10;
+const DELAY_BETWEEN_CALLS_MS = 3000;
+const DELAY_BETWEEN_BATCHES_MS = 5000;
+const MAX_RETRIES = 3;
+const REGEN_VERSION = "v3-sales-prompt";
 
 const SYSTEM_PROMPT = `CRITICAL BUSINESS CONTEXT — READ THIS FIRST:
 
@@ -122,20 +124,27 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "GROQ_API_KEY not configured" }), { status: 500, headers });
     }
 
-    const { offset = 0, autoResume = true, totalProcessed = 0 } = await req.json().catch(() => ({}));
+    const { autoResume = true, totalProcessed = 0, version = "" } = await req.json().catch(() => ({}));
+    
+    // Kill old chains — only process if version matches current
+    if (version && version !== REGEN_VERSION) {
+      console.log(`[bulk-regen] Stopping old chain (version: ${version}, current: ${REGEN_VERSION})`);
+      return new Response(JSON.stringify({ stopped: true, reason: "version_mismatch" }), { headers });
+    }
+    
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Query properties needing brief regeneration
+    // Query ALL properties not yet updated with new prompt (cutoff: 2026-04-04T07:45:00Z)
     const { data: properties, error: fetchErr } = await supabase
       .from("properties")
       .select("id, address, city, state, zip, county, snap_score, snap_insight, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class, investor_insight_brief")
-      .or("investor_insight_brief.is.null,snap_insight.is.null,snap_insight.ilike.%fallback%")
+      .or("last_analyzed_at.is.null,last_analyzed_at.lt.2026-04-04T07:45:00Z")
       .order("snap_score", { ascending: false, nullsFirst: false })
       .range(0, BATCH_SIZE - 1);
 
     if (fetchErr) throw new Error(`Fetch error: ${fetchErr.message}`);
     if (!properties || properties.length === 0) {
-      console.log(`[bulk-regen] Complete! Total processed: ${totalProcessed}`);
+      console.log(`[bulk-regen] ✅ COMPLETE! Total processed: ${totalProcessed}`);
       return new Response(JSON.stringify({ 
         success: true, done: true, totalProcessed, message: "All briefs regenerated" 
       }), { headers });
@@ -149,45 +158,53 @@ serve(async (req) => {
     for (const prop of properties) {
       try {
         const userMessage = formatPropertyData(prop);
+        let briefText: string | null = null;
 
-        const aiRes = await fetch(GROQ_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${GROQ_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: GROQ_MODEL,
-            max_tokens: 500,
-            messages: [
-              { role: "system", content: SYSTEM_PROMPT },
-              { role: "user", content: userMessage },
-            ],
-            temperature: 0.4,
-          }),
-        });
+        // Retry loop with exponential backoff for rate limits
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          const aiRes = await fetch(GROQ_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${GROQ_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: GROQ_MODEL,
+              max_tokens: 500,
+              messages: [
+                { role: "system", content: SYSTEM_PROMPT },
+                { role: "user", content: userMessage },
+              ],
+              temperature: 0.4,
+            }),
+          });
 
-        if (!aiRes.ok) {
-          const errText = await aiRes.text();
-          console.error(`[bulk-regen] Groq error for ${prop.id}: ${aiRes.status} ${errText}`);
-          if (aiRes.status === 429) {
-            // Rate limited — wait and retry will happen on next batch
-            console.warn("[bulk-regen] Rate limited, stopping batch early");
+          if (aiRes.ok) {
+            const result = await aiRes.json();
+            briefText = result?.choices?.[0]?.message?.content?.trim() || null;
             break;
           }
-          batchFailed++;
-          continue;
-        }
 
-        const result = await aiRes.json();
-        const briefText = result?.choices?.[0]?.message?.content?.trim();
+          if (aiRes.status === 429) {
+            const retryAfter = parseInt(aiRes.headers.get("retry-after") || "0") || 0;
+            const backoffMs = Math.max(retryAfter * 1000, (attempt + 1) * 10000);
+            console.warn(`[bulk-regen] Rate limited on ${prop.id}, waiting ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+            await new Promise(r => setTimeout(r, backoffMs));
+            continue;
+          }
+
+          // Non-retryable error
+          const errText = await aiRes.text();
+          console.error(`[bulk-regen] Groq error for ${prop.id}: ${aiRes.status} ${errText}`);
+          break;
+        }
 
         if (!briefText) {
           batchFailed++;
+          await new Promise(r => setTimeout(r, DELAY_BETWEEN_CALLS_MS));
           continue;
         }
 
-        // Update both snap_insight and investor_insight_brief
         const briefJson = {
           brief_text: briefText,
           generated_at: new Date().toISOString(),
@@ -211,8 +228,8 @@ serve(async (req) => {
           batchSuccess++;
         }
 
-        // Small delay between individual calls to respect rate limits
-        await new Promise(r => setTimeout(r, 200));
+        // Delay between individual calls to respect rate limits
+        await new Promise(r => setTimeout(r, DELAY_BETWEEN_CALLS_MS));
 
       } catch (err) {
         console.error(`[bulk-regen] Error processing ${prop.id}:`, err);
@@ -221,12 +238,16 @@ serve(async (req) => {
     }
 
     const newTotal = totalProcessed + batchSuccess;
-    console.log(`[bulk-regen] Batch done: ${batchSuccess} success, ${batchFailed} failed. Processed ${newTotal} of ~468000 properties`);
+    
+    if (newTotal % 1000 < BATCH_SIZE) {
+      console.log(`[bulk-regen] 📊 MILESTONE: Regenerated ${newTotal} of 457,423 properties`);
+    }
+    console.log(`[bulk-regen] Batch done: ${batchSuccess} success, ${batchFailed} failed. Total: ${newTotal}`);
 
-    // Auto-continue
-    if (autoResume && properties.length === BATCH_SIZE) {
+    // Auto-continue — always resume if there are more properties
+    if (autoResume && properties.length > 0) {
       const continueTask = async () => {
-        await new Promise(r => setTimeout(r, DELAY_MS));
+        await new Promise(r => setTimeout(r, DELAY_BETWEEN_BATCHES_MS));
         try {
           await fetch(`${SUPABASE_URL}/functions/v1/bulk-regenerate-briefs`, {
             method: "POST",
@@ -234,7 +255,7 @@ serve(async (req) => {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
             },
-            body: JSON.stringify({ offset: 0, autoResume: true, totalProcessed: newTotal }),
+            body: JSON.stringify({ autoResume: true, totalProcessed: newTotal, version: REGEN_VERSION }),
           });
         } catch (err) {
           console.error("[bulk-regen] Auto-resume failed:", err);
@@ -255,7 +276,7 @@ serve(async (req) => {
       batchFailed,
       totalProcessed: newTotal,
       hasMore: properties.length === BATCH_SIZE,
-      autoResuming: autoResume && properties.length === BATCH_SIZE,
+      autoResuming: autoResume && properties.length > 0,
     }), { headers });
 
   } catch (error) {

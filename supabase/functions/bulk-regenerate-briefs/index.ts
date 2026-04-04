@@ -129,7 +129,7 @@ serve(async (req) => {
     const { data: properties, error: fetchErr } = await supabase
       .from("properties")
       .select("id, address, city, state, zip, county, snap_score, snap_insight, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class, investor_insight_brief")
-      .or("investor_insight_brief.is.null,snap_insight.is.null,snap_insight.ilike.%fallback%")
+      .or("last_analyzed_at.is.null,last_analyzed_at.lt.2026-04-04T07:45:00Z")
       .order("snap_score", { ascending: false, nullsFirst: false })
       .range(0, BATCH_SIZE - 1);
 

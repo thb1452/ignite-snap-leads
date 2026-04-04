@@ -29,6 +29,20 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked, onGetCredi
   const queryClient = useQueryClient();
   const { isElitePlan } = useFeatureAccess();
 
+  const addToOptimisticSet = (ids: string[]) => {
+    if (!user?.id || ids.length === 0) return;
+    queryClient.setQueryData(["optimistic-unlocked", user.id], (old: unknown) => {
+      const next = old instanceof Set ? new Set(old) : new Set<string>();
+      for (const id of ids) next.add(id);
+      return next;
+    });
+    queryClient.setQueryData(["confirmed-unlocked-local", user.id], (old: unknown) => {
+      const next = old instanceof Set ? new Set(old) : new Set<string>();
+      for (const id of ids) next.add(id);
+      return next;
+    });
+  };
+
   // For large selections where unlockedSet only has partial data,
   // only count known unlocks — assume the rest are locked
   const knownUnlocked = selectedIds.filter((id) => unlockedSet.has(id)).length;
@@ -54,6 +68,7 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked, onGetCredi
       let successCount = 0;
       let failCount = 0;
       let hitPaywall = false;
+      const successfulIds: string[] = [];
 
       // Process in concurrent batches for speed
       for (let i = 0; i < lockedIds.length; i += CONCURRENCY) {
@@ -74,15 +89,16 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked, onGetCredi
               }
             );
             const data = await res.json();
-            return { ok: res.ok, status: res.status, data };
+            return { ok: res.ok, status: res.status, data, propertyId };
           })
         );
 
         for (const result of results) {
           if (result.status === "fulfilled") {
-            const { ok, status, data } = result.value;
+            const { ok, status, data, propertyId } = result.value;
             if (ok && data.success) {
               successCount++;
+              successfulIds.push(propertyId);
             } else if (status === 402) {
               hitPaywall = true;
             } else {
@@ -91,6 +107,11 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked, onGetCredi
           } else {
             failCount++;
           }
+        }
+
+        // Optimistically unblur each batch as it finishes so the user sees instant feedback
+        if (successfulIds.length > 0) {
+          addToOptimisticSet(successfulIds.slice(i, i + CONCURRENCY));
         }
 
         setProgress({ done: Math.min(i + CONCURRENCY, lockedIds.length), total: lockedIds.length });
@@ -105,6 +126,9 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked, onGetCredi
       }
 
       if (successCount > 0) {
+        // Update optimistic set with all successful IDs immediately so blur clears without waiting for refetch
+        addToOptimisticSet(successfulIds);
+
         toast({
           title: `${successCount} properties unlocked! 🔓`,
           description: failCount > 0
@@ -112,7 +136,7 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked, onGetCredi
             : "Full addresses and contacts are now available.",
         });
 
-        queryClient.invalidateQueries({ queryKey: ["unlocked-properties"] });
+        queryClient.refetchQueries({ queryKey: ["unlocked-properties"] });
         queryClient.invalidateQueries({ queryKey: ["credits"] });
         queryClient.invalidateQueries({ queryKey: ["subscription-usage"] });
         queryClient.invalidateQueries({ queryKey: ["free-unlocks"] });

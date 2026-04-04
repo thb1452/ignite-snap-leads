@@ -34,6 +34,14 @@ Instead of "CALL NOW — owner needs out" write "CALL NOW. Owner needs out."
 Instead of "multi-department" write "multiple departments"
 Use periods to separate thoughts, never dashes.
 
+ABSOLUTELY FORBIDDEN — NEVER INCLUDE:
+1. Property addresses, street names, or any location identifiers in your output
+2. Raw violation codes, case numbers, or system codes (e.g. "ACC DF DS Harb IA IF HGW", "IPMC 305.4", "OSP Case create")
+3. Owner names, phone numbers, emails, or any personal information
+4. Raw database field values or system identifiers
+5. Quoted raw text from violation descriptions — always paraphrase in plain English
+If the input data contains garbled codes or abbreviations, interpret them as violation categories (structural, exterior, safety, zoning, etc.) and describe in plain language.
+
 WRITING STYLE:
 Write like a sharp investor talking to another investor. Short, punchy sentences. Active voice.
 
@@ -67,16 +75,34 @@ Score 44: "3 open violations, 4 months unresolved. City filed, owner slow to res
 Score 18: "One exterior violation, appears partially resolved. Minimal enforcement activity. PASS. Nothing urgent here."
 
 BANNED PHRASES:
-"significant enforcement activity", "pattern of non-compliance", "owner attention issues", "property maintenance deficiencies", "enforcement actions have been documented", "violations suggest deferred maintenance", "worth investigating further", "municipal pressure is present", "enforcement signals indicate"`;
+"significant enforcement activity", "pattern of non-compliance", "owner attention issues", "property maintenance deficiencies", "enforcement actions have been documented", "violations suggest deferred maintenance", "worth investigating further", "municipal pressure is present", "enforcement signals indicate", "Noted:"`;
 
 function formatPropertyData(prop: Record<string, any>): string {
-  return `PROPERTY: ${prop.address}, ${prop.city || ""}, ${prop.state || ""} ${prop.zip || ""}
+  // DO NOT send address to AI — it leaks into output
+  return `PROPERTY PROFILE:
 Score: ${prop.snap_score ?? "unscored"} | Open: ${prop.open_violations ?? 0} | Total: ${prop.total_violations ?? 0}
 Signals: ${(prop.distress_signals || []).join(", ") || "none"}
 Types: ${(prop.violation_types || []).join(", ") || "none"}
 Enforcement: ${prop.enforcement_type} | Escalated: ${prop.escalated ?? false} | Repeat: ${prop.repeat_offender ?? false}
 Multiple Departments: ${prop.multi_department ?? false} | Avg Days Open: ${prop.avg_days_open ?? 0}
 Newest: ${prop.newest_violation_date || "unknown"} | Oldest: ${prop.oldest_violation_date || "unknown"}`;
+}
+
+// Post-processing: reject briefs that contain garbage
+function isCleanBrief(text: string, prop: Record<string, any>): boolean {
+  // Reject if it contains the property address
+  if (prop.address && text.toLowerCase().includes(prop.address.toLowerCase().slice(0, 10))) return false;
+  // Reject if it contains raw codes (sequences of uppercase abbreviations)
+  if (/[A-Z]{2,}\s+[A-Z]{2,}\s+[A-Z]{2,}\s+[A-Z]{2,}/.test(text)) return false;
+  // Reject if it contains "Noted:" or case numbers
+  if (/Noted:|Case\s+(create|number|#)/i.test(text)) return false;
+  // Reject if it contains IPMC codes
+  if (/IPMC\s+\d/i.test(text)) return false;
+  // Reject if it contains phone numbers or emails
+  if (/\(\d{3}\)\s?\d{3}|\d{3}[\-\.]\d{3}[\-\.]\d{4}|@\w+\.\w+/.test(text)) return false;
+  // Reject if too short (likely garbage)
+  if (text.length < 40) return false;
+  return true;
 }
 
 async function generateBrief(prop: Record<string, any>, apiKey: string): Promise<{ id: string; brief: string | null }> {
@@ -105,7 +131,12 @@ async function generateBrief(prop: Record<string, any>, apiKey: string): Promise
         let text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
         if (text) {
           // Strip any remaining dashes
-          text = text.replace(/\s*[—–]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
+          text = text.replace(/\s*[—–-]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
+          // Validate output quality
+          if (!isCleanBrief(text, prop)) {
+            console.warn(`[bulk-regen] Rejected dirty brief for ${prop.id}: ${text.slice(0, 80)}`);
+            return { id: prop.id, brief: null };
+          }
         }
         return { id: prop.id, brief: text };
       }

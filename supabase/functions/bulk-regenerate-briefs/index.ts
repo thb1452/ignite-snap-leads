@@ -226,7 +226,7 @@ serve(async (req) => {
         .eq("id", id);
       if (updateErr) { batchFailed++; } else { batchSuccess++; }
       // 2s delay between requests to stay under rate limit
-      if (i < properties.length - 1) await new Promise(r => setTimeout(r, 2000));
+      if (i < properties.length - 1) await new Promise(r => setTimeout(r, 4000));
     }
 
     const newTotal = totalProcessed + batchSuccess;

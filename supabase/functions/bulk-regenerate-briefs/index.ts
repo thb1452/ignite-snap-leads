@@ -1,6 +1,6 @@
 /**
- * BULK REGENERATE INVESTOR BRIEFS — Direct Gemini API (FREE)
- * v6 — Uses Google Gemini API directly, no Lovable AI credits needed
+ * BULK REGENERATE INVESTOR BRIEFS — Lovable AI Gateway
+ * v16-lovable — Uses Lovable AI gateway (google/gemini-2.5-flash) to bypass direct Gemini rate limits
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -10,12 +10,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const AI_MODEL = "google/gemini-2.5-flash";
 const BATCH_SIZE = 20;
-const MAX_RETRIES = 2;
-const REGEN_VERSION = "v15-clean";
+const REGEN_VERSION = "v17-paused";
 const CONCURRENCY = 3;
 const CUTOFF_TIMESTAMP = "2026-04-04T08:00:00Z";
+const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 const SYSTEM_PROMPT = `CRITICAL BUSINESS CONTEXT:
 
@@ -93,17 +93,11 @@ Newest: ${prop.newest_violation_date || "unknown"} | Oldest: ${prop.oldest_viola
 
 // Post-processing: reject briefs that contain garbage
 function isCleanBrief(text: string, prop: Record<string, any>): boolean {
-  // Reject if it contains the property address
   if (prop.address && text.toLowerCase().includes(prop.address.toLowerCase().slice(0, 10))) return false;
-  // Reject if it contains raw codes (sequences of uppercase abbreviations)
   if (/[A-Z]{2,}\s+[A-Z]{2,}\s+[A-Z]{2,}\s+[A-Z]{2,}/.test(text)) return false;
-  // Reject if it contains "Noted:" or case numbers
   if (/Noted:|Case\s+(create|number|#)/i.test(text)) return false;
-  // Reject if it contains IPMC codes
   if (/IPMC\s+\d/i.test(text)) return false;
-  // Reject if it contains phone numbers or emails
   if (/\(\d{3}\)\s?\d{3}|\d{3}[\-\.]\d{3}[\-\.]\d{4}|@\w+\.\w+/.test(text)) return false;
-  // Reject if too short (likely garbage)
   if (text.length < 40) return false;
   return true;
 }
@@ -111,54 +105,58 @@ function isCleanBrief(text: string, prop: Record<string, any>): boolean {
 async function generateBrief(prop: Record<string, any>, apiKey: string): Promise<{ id: string; brief: string | null }> {
   const userMessage = formatPropertyData(prop);
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-      
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n${userMessage}` }] }
-          ],
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 400,
-          },
-        }),
-      });
+  try {
+    const res = await fetch(LOVABLE_AI_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: AI_MODEL,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
+        temperature: 0.4,
+        max_tokens: 400,
+      }),
+    });
 
-      if (res.ok) {
-        const result = await res.json();
-        let text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
-        if (text) {
-          // Strip any remaining dashes
-          text = text.replace(/\s*[—–-]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
-          // Validate output quality
-          if (!isCleanBrief(text, prop)) {
-            console.warn(`[bulk-regen] Rejected dirty brief for ${prop.id}: ${text.slice(0, 80)}`);
-            return { id: prop.id, brief: null };
-          }
-        }
-        return { id: prop.id, brief: text };
-      }
+    if (res.status === 429) {
+      console.warn(`[bulk-regen] Rate limited (429), skipping property ${prop.id}`);
+      return { id: prop.id, brief: null };
+    }
 
-      if (res.status === 429) {
-        console.warn(`[bulk-regen] Rate limited, skipping property ${prop.id}`);
+    if (res.status === 402) {
+      console.error(`[bulk-regen] Payment required (402) — stopping. Top up Lovable AI balance.`);
+      throw new Error("PAYWALL_HIT");
+    }
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[bulk-regen] AI gateway error ${res.status}: ${errText.slice(0, 200)}`);
+      return { id: prop.id, brief: null };
+    }
+
+    const result = await res.json();
+    let text = result?.choices?.[0]?.message?.content?.trim() || null;
+
+    if (text) {
+      // Strip any remaining dashes
+      text = text.replace(/\s*[—–-]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
+      // Validate output quality
+      if (!isCleanBrief(text, prop)) {
+        console.warn(`[bulk-regen] Rejected dirty brief for ${prop.id}: ${text.slice(0, 80)}`);
         return { id: prop.id, brief: null };
       }
-
-      const errText = await res.text();
-      console.error(`[bulk-regen] Gemini error ${res.status}: ${errText.slice(0, 200)}`);
-      break;
-    } catch (err) {
-      console.error(`[bulk-regen] Network error attempt ${attempt + 1}:`, err);
-      await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
     }
-  }
 
-  return { id: prop.id, brief: null };
+    return { id: prop.id, brief: text };
+  } catch (err) {
+    console.error(`[bulk-regen] Network error for ${prop.id}:`, err);
+    return { id: prop.id, brief: null };
+  }
 }
 
 serve(async (req) => {
@@ -171,10 +169,10 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-    if (!GEMINI_API_KEY) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), { status: 500, headers });
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), { status: 500, headers });
     }
 
     const { autoResume = true, totalProcessed = 0, version = "" } = await req.json().catch(() => ({}));
@@ -206,18 +204,19 @@ serve(async (req) => {
 
     let batchSuccess = 0;
     let batchFailed = 0;
+    let hitPaywall = false;
 
     // Process in parallel chunks of CONCURRENCY
     for (let i = 0; i < properties.length; i += CONCURRENCY) {
       const chunk = properties.slice(i, i + CONCURRENCY);
-      const results = await Promise.all(chunk.map(p => generateBrief(p, GEMINI_API_KEY)));
+      const results = await Promise.all(chunk.map(p => generateBrief(p, LOVABLE_API_KEY)));
       for (const result of results) {
         if (!result.brief) { batchFailed++; continue; }
         const { id, brief } = result;
         const briefJson = {
           brief_text: brief,
           generated_at: new Date().toISOString(),
-          model: GEMINI_MODEL,
+          model: AI_MODEL,
           version: REGEN_VERSION,
         };
         const { error: updateErr } = await supabase
@@ -226,17 +225,20 @@ serve(async (req) => {
           .eq("id", id);
         if (updateErr) { batchFailed++; } else { batchSuccess++; }
       }
-      // 1s delay between chunks to stay well under 1000 RPM
-      if (i + CONCURRENCY < properties.length) await new Promise(r => setTimeout(r, 1000));
+      // 1.5s delay between chunks
+      if (i + CONCURRENCY < properties.length) await new Promise(r => setTimeout(r, 1500));
     }
 
     const newTotal = totalProcessed + batchSuccess;
     console.log(`[bulk-regen] Batch: ${batchSuccess} ok, ${batchFailed} failed. Total: ${newTotal}`);
 
+    // If entire batch failed, wait longer before retrying
+    const resumeDelay = batchSuccess === 0 ? 30000 : 5000;
+
     // Self-chain
-    if (autoResume) {
+    if (autoResume && !hitPaywall) {
       const continueTask = async () => {
-        await new Promise(r => setTimeout(r, 5000));
+        await new Promise(r => setTimeout(r, resumeDelay));
         try {
           await fetch(`${SUPABASE_URL}/functions/v1/bulk-regenerate-briefs`, {
             method: "POST",

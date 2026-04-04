@@ -145,10 +145,8 @@ async function generateBrief(prop: Record<string, any>, apiKey: string): Promise
       }
 
       if (res.status === 429) {
-        const wait = 60000; // wait 60s on rate limit
-        console.warn(`[bulk-regen] Rate limited, waiting 60s`);
-        await new Promise(r => setTimeout(r, wait));
-        continue;
+        console.warn(`[bulk-regen] Rate limited, skipping property ${prop.id}`);
+        return { id: prop.id, brief: null };
       }
 
       const errText = await res.text();

@@ -145,7 +145,7 @@ async function generateBrief(prop: Record<string, any>, apiKey: string): Promise
       }
 
       if (res.status === 429) {
-        const wait = (attempt + 1) * 5000;
+        const wait = (attempt + 1) * 15000;
         console.warn(`[bulk-regen] Rate limited, waiting ${wait}ms`);
         await new Promise(r => setTimeout(r, wait));
         continue;

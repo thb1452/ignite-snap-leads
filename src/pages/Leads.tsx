@@ -123,6 +123,7 @@ import {
   getPendingStripeUnlockSessionId,
   getPendingStripeUnlock,
 } from "@/utils/pendingStripeUnlock";
+import { consumePendingStripeCheckout } from "@/utils/pendingStripeCheckout";
 
 const PAGE_SIZE = 50;
 

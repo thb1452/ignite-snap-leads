@@ -1,18 +1,58 @@
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/externalClient';
 import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 import { PlanUsageSection } from '@/components/settings/PlanUsageSection';
 import { NotificationsSection } from '@/components/settings/NotificationsSection';
 import { AccountDetailsSection } from '@/components/settings/AccountDetailsSection';
 import { PrivacySection } from '@/components/settings/PrivacySection';
 import { HelpSection } from '@/components/settings/HelpSection';
+import { consumePendingStripeCheckout } from '@/utils/pendingStripeCheckout';
 
 export function Settings() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const planSectionRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Sync subscription/bulk credit state when returning from Stripe checkout
+  useEffect(() => {
+    const handleFocus = async () => {
+      if (!user?.id) return;
+      const pending = consumePendingStripeCheckout();
+      if (!pending) return;
+
+      if (pending.type === "subscription") {
+        try {
+          await supabase.functions.invoke("verify-subscription", { method: "POST", body: {} });
+        } catch (e) {
+          console.error("[Settings] verify-subscription error:", e);
+        }
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["subscription"] }),
+        queryClient.invalidateQueries({ queryKey: ["subscription-usage"] }),
+        queryClient.invalidateQueries({ queryKey: ["credits"] }),
+        queryClient.invalidateQueries({ queryKey: ["user", "credits"] }),
+        queryClient.invalidateQueries({ queryKey: ["free-unlocks"] }),
+      ]);
+
+      toast({
+        title: pending.type === "subscription" ? "Subscription activated! 🎉" : "Credits added! 💰",
+        description: pending.type === "subscription"
+          ? "Your plan is now active."
+          : "Your bulk credits are now available.",
+      });
+    };
+
+    window.addEventListener("focus", handleFocus);
+    handleFocus();
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [user?.id, queryClient, toast]);
 
   useEffect(() => {
     if (searchParams.get('tab') === 'subscription' && planSectionRef.current) {

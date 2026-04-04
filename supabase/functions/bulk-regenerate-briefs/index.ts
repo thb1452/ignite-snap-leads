@@ -255,7 +255,7 @@ serve(async (req) => {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
             },
-            body: JSON.stringify({ autoResume: true, totalProcessed: newTotal }),
+            body: JSON.stringify({ autoResume: true, totalProcessed: newTotal, version: REGEN_VERSION }),
           });
         } catch (err) {
           console.error("[bulk-regen] Auto-resume failed:", err);

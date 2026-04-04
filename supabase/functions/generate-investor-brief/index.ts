@@ -21,8 +21,8 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const AI_GATEWAY_URL = "https://api.deepseek.com/v1/chat/completions";
-const AI_MODEL = "deepseek-chat";
+const AI_GATEWAY_URL = "https://api.groq.com/openai/v1/chat/completions";
+const AI_MODEL = "llama-3.3-70b-versatile";
 const AI_MAX_TOKENS = 1500;
 const DAILY_REGEN_LIMIT = 10;
 

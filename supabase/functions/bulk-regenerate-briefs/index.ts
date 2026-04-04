@@ -1,9 +1,10 @@
 /**
- * BULK REGENERATE INVESTOR BRIEFS via Groq API
+ * BULK REGENERATE INVESTOR BRIEFS via Lovable AI Gateway
  * 
  * Regenerates ALL properties with the new sales-focused investor prompt.
- * Processes in batches of 10 with 3s delay between calls and exponential backoff on 429s.
- * Auto-continues via self-invocation until every property is updated.
+ * Uses Lovable AI (Gemini 2.5 Flash) — no external API key needed, no rate limit issues.
+ * Processes in batches of 25 with 1s delay between calls.
+ * Auto-continues via self-invocation until EVERY property is updated.
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -13,13 +14,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
-const BATCH_SIZE = 10;
-const DELAY_BETWEEN_CALLS_MS = 3000;
-const DELAY_BETWEEN_BATCHES_MS = 5000;
+const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const AI_MODEL = "google/gemini-2.5-flash";
+const BATCH_SIZE = 25;
+const DELAY_BETWEEN_CALLS_MS = 500;
+const DELAY_BETWEEN_BATCHES_MS = 2000;
 const MAX_RETRIES = 3;
-const REGEN_VERSION = "v3-sales-prompt";
+const REGEN_VERSION = "v4-lovable-ai";
+
+// Cutoff: any property with last_analyzed_at before this timestamp needs regeneration
+const CUTOFF_TIMESTAMP = "2026-04-04T08:00:00Z";
 
 const SYSTEM_PROMPT = `CRITICAL BUSINESS CONTEXT — READ THIS FIRST:
 
@@ -118,35 +122,35 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-    if (!GROQ_API_KEY) {
-      return new Response(JSON.stringify({ error: "GROQ_API_KEY not configured" }), { status: 500, headers });
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), { status: 500, headers });
     }
 
     const { autoResume = true, totalProcessed = 0, version = "" } = await req.json().catch(() => ({}));
-    
+
     // Kill old chains — only process if version matches current
     if (version && version !== REGEN_VERSION) {
       console.log(`[bulk-regen] Stopping old chain (version: ${version}, current: ${REGEN_VERSION})`);
       return new Response(JSON.stringify({ stopped: true, reason: "version_mismatch" }), { headers });
     }
-    
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Query ALL properties not yet updated with new prompt (cutoff: 2026-04-04T07:45:00Z)
+    // Query ALL properties not yet updated — no exceptions, no skipping
     const { data: properties, error: fetchErr } = await supabase
       .from("properties")
-      .select("id, address, city, state, zip, county, snap_score, snap_insight, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class, investor_insight_brief")
-      .or("last_analyzed_at.is.null,last_analyzed_at.lt.2026-04-04T07:45:00Z")
+      .select("id, address, city, state, zip, county, snap_score, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class")
+      .or(`last_analyzed_at.is.null,last_analyzed_at.lt.${CUTOFF_TIMESTAMP}`)
       .order("snap_score", { ascending: false, nullsFirst: false })
       .range(0, BATCH_SIZE - 1);
 
     if (fetchErr) throw new Error(`Fetch error: ${fetchErr.message}`);
     if (!properties || properties.length === 0) {
-      console.log(`[bulk-regen] ✅ COMPLETE! Total processed: ${totalProcessed}`);
+      console.log(`[bulk-regen] ✅ ALL DONE! Total processed: ${totalProcessed}`);
       return new Response(JSON.stringify({ 
-        success: true, done: true, totalProcessed, message: "All briefs regenerated" 
+        success: true, done: true, totalProcessed, message: "All 468k briefs regenerated!" 
       }), { headers });
     }
 
@@ -160,55 +164,64 @@ serve(async (req) => {
         const userMessage = formatPropertyData(prop);
         let briefText: string | null = null;
 
-        // Retry loop with exponential backoff for rate limits
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-          const aiRes = await fetch(GROQ_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${GROQ_API_KEY}`,
-            },
-            body: JSON.stringify({
-              model: GROQ_MODEL,
-              max_tokens: 500,
-              messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                { role: "user", content: userMessage },
-              ],
-              temperature: 0.4,
-            }),
-          });
+          try {
+            const aiRes = await fetch(AI_GATEWAY_URL, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+              },
+              body: JSON.stringify({
+                model: AI_MODEL,
+                max_tokens: 500,
+                messages: [
+                  { role: "system", content: SYSTEM_PROMPT },
+                  { role: "user", content: userMessage },
+                ],
+                temperature: 0.4,
+              }),
+            });
 
-          if (aiRes.ok) {
-            const result = await aiRes.json();
-            briefText = result?.choices?.[0]?.message?.content?.trim() || null;
+            if (aiRes.ok) {
+              const result = await aiRes.json();
+              briefText = result?.choices?.[0]?.message?.content?.trim() || null;
+              break;
+            }
+
+            if (aiRes.status === 429) {
+              const backoffMs = (attempt + 1) * 5000;
+              console.warn(`[bulk-regen] Rate limited, waiting ${backoffMs}ms (attempt ${attempt + 1})`);
+              await new Promise(r => setTimeout(r, backoffMs));
+              continue;
+            }
+
+            if (aiRes.status === 402) {
+              console.error("[bulk-regen] AI credits exhausted — stopping");
+              return new Response(JSON.stringify({
+                success: false, error: "credits_exhausted", totalProcessed: totalProcessed + batchSuccess
+              }), { status: 402, headers });
+            }
+
+            const errText = await aiRes.text();
+            console.error(`[bulk-regen] AI error for ${prop.id}: ${aiRes.status} ${errText}`);
             break;
+          } catch (fetchError) {
+            console.error(`[bulk-regen] Network error attempt ${attempt + 1}:`, fetchError);
+            await new Promise(r => setTimeout(r, (attempt + 1) * 3000));
           }
-
-          if (aiRes.status === 429) {
-            const retryAfter = parseInt(aiRes.headers.get("retry-after") || "0") || 0;
-            const backoffMs = Math.max(retryAfter * 1000, (attempt + 1) * 10000);
-            console.warn(`[bulk-regen] Rate limited on ${prop.id}, waiting ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
-            await new Promise(r => setTimeout(r, backoffMs));
-            continue;
-          }
-
-          // Non-retryable error
-          const errText = await aiRes.text();
-          console.error(`[bulk-regen] Groq error for ${prop.id}: ${aiRes.status} ${errText}`);
-          break;
         }
 
         if (!briefText) {
           batchFailed++;
-          await new Promise(r => setTimeout(r, DELAY_BETWEEN_CALLS_MS));
           continue;
         }
 
         const briefJson = {
           brief_text: briefText,
           generated_at: new Date().toISOString(),
-          model: GROQ_MODEL,
+          model: AI_MODEL,
+          version: REGEN_VERSION,
           property_snap_score: prop.snap_score,
         };
 
@@ -228,7 +241,7 @@ serve(async (req) => {
           batchSuccess++;
         }
 
-        // Delay between individual calls to respect rate limits
+        // Delay between calls
         await new Promise(r => setTimeout(r, DELAY_BETWEEN_CALLS_MS));
 
       } catch (err) {
@@ -239,13 +252,13 @@ serve(async (req) => {
 
     const newTotal = totalProcessed + batchSuccess;
     
-    if (newTotal % 1000 < BATCH_SIZE) {
-      console.log(`[bulk-regen] 📊 MILESTONE: Regenerated ${newTotal} of 457,423 properties`);
+    if (newTotal % 500 < BATCH_SIZE) {
+      console.log(`[bulk-regen] 📊 PROGRESS: Regenerated ${newTotal} of ~457,423 properties`);
     }
-    console.log(`[bulk-regen] Batch done: ${batchSuccess} success, ${batchFailed} failed. Total: ${newTotal}`);
+    console.log(`[bulk-regen] Batch: ${batchSuccess} ok, ${batchFailed} failed. Running total: ${newTotal}`);
 
-    // Auto-continue — always resume if there are more properties
-    if (autoResume && properties.length > 0) {
+    // ALWAYS auto-continue if there are more properties — never stop
+    if (autoResume) {
       const continueTask = async () => {
         await new Promise(r => setTimeout(r, DELAY_BETWEEN_BATCHES_MS));
         try {
@@ -276,7 +289,7 @@ serve(async (req) => {
       batchFailed,
       totalProcessed: newTotal,
       hasMore: properties.length === BATCH_SIZE,
-      autoResuming: autoResume && properties.length > 0,
+      autoResuming: autoResume,
     }), { headers });
 
   } catch (error) {

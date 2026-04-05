@@ -162,21 +162,17 @@ async function generateBrief(
   prop: Record<string, any>,
   lovableKey: string,
   geminiKey: string,
-  lovableThrottled: { value: boolean },
-  geminiThrottled: { value: boolean },
 ): Promise<{ id: string; brief: string | null }> {
   let text: string | null = null;
 
-  // Try Lovable first (unless throttled)
-  if (!lovableThrottled.value) {
+  // Try Lovable first
+  if (lovableKey) {
     text = await generateViaLovable(prop, lovableKey);
-    if (text === null) lovableThrottled.value = true;
   }
 
   // Fallback to Gemini
-  if (!text && !geminiThrottled.value) {
+  if (!text && geminiKey) {
     text = await generateViaGemini(prop, geminiKey);
-    if (text === null) geminiThrottled.value = true;
   }
 
   if (text) {

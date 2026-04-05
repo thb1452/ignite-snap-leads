@@ -241,7 +241,7 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
 
-    const { autoResume = true, totalProcessed = 0, version = "" } = await req.json().catch(() => ({}));
+    const { autoResume = true, totalProcessed = 0, version = "", mode = "rule" } = await req.json().catch(() => ({}));
 
     if (version && version !== REGEN_VERSION) {
       console.log(`[bulk-regen] Stopping old chain (version: ${version})`);
@@ -250,22 +250,58 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { data: properties, error: fetchErr } = await supabase
+    // MODE: "rule" = only fetch rule-based eligible properties (score ≤ 40 AND closed)
+    // MODE: "ai" = only fetch AI-eligible properties (score > 40 OR open violations > 0)
+    let query = supabase
       .from("properties")
       .select("id, address, city, state, zip, county, snap_score, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class")
-      .or(`last_analyzed_at.is.null,last_analyzed_at.lt.${CUTOFF_TIMESTAMP}`)
-      .order("snap_score", { ascending: false, nullsFirst: false })
+      .or(`last_analyzed_at.is.null,last_analyzed_at.lt.${CUTOFF_TIMESTAMP}`);
+
+    if (mode === "rule") {
+      // Score ≤ 40 (or null) AND closed (0 open violations or null)
+      query = query.or("snap_score.is.null,snap_score.lte.40")
+        .or("open_violations.is.null,open_violations.eq.0");
+    } else {
+      // AI mode: score > 40 OR open violations > 0
+      // We fetch all remaining unprocessed and filter in code
+    }
+
+    const { data: properties, error: fetchErr } = await query
+      .order("snap_score", { ascending: mode === "rule", nullsFirst: true })
       .range(0, BATCH_SIZE - 1);
 
     if (fetchErr) throw new Error(`Fetch error: ${fetchErr.message}`);
     if (!properties || properties.length === 0) {
+      if (mode === "rule") {
+        // Rule-based done, switch to AI mode
+        console.log(`[bulk-regen] ✅ Rule-based done! Total: ${totalProcessed}. Switching to AI mode...`);
+        if (autoResume) {
+          const continueTask = async () => {
+            await new Promise(r => setTimeout(r, 500));
+            try {
+              await fetch(`${SUPABASE_URL}/functions/v1/bulk-regenerate-briefs`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+                body: JSON.stringify({ autoResume: true, totalProcessed, version: REGEN_VERSION, mode: "ai" }),
+              });
+            } catch (err) { console.error("[bulk-regen] Mode switch failed:", err); }
+          };
+          const runtime = (globalThis as any).EdgeRuntime;
+          if (runtime?.waitUntil) { runtime.waitUntil(continueTask()); } else { continueTask().catch(console.error); }
+        }
+        return new Response(JSON.stringify({ success: true, ruleDone: true, totalProcessed, switchingToAI: true }), { headers });
+      }
       console.log(`[bulk-regen] ✅ ALL DONE! Total processed: ${totalProcessed}`);
       return new Response(JSON.stringify({ success: true, done: true, totalProcessed, message: "All briefs regenerated!" }), { headers });
     }
 
-    // Split: rule-based = score ≤ 40 AND no open violations (closed); AI = everything else
-    const ruleProps = properties.filter(p => (p.snap_score ?? 0) <= RULE_SCORE_THRESHOLD && (p.open_violations ?? 0) === 0);
-    const aiProps = properties.filter(p => !((p.snap_score ?? 0) <= RULE_SCORE_THRESHOLD && (p.open_violations ?? 0) === 0));
+    // In rule mode, all fetched are rule-based. In AI mode, filter out any rule-eligible that slipped through.
+    const ruleProps = mode === "rule" 
+      ? properties.filter(p => (p.snap_score ?? 0) <= RULE_SCORE_THRESHOLD && (p.open_violations ?? 0) === 0)
+      : [];
+    const aiProps = mode === "ai" 
+      ? properties.filter(p => !((p.snap_score ?? 0) <= RULE_SCORE_THRESHOLD && (p.open_violations ?? 0) === 0))
+      : [];
 
     let batchSuccess = 0;
     let batchFailed = 0;
@@ -350,7 +386,7 @@ serve(async (req) => {
           await fetch(`${SUPABASE_URL}/functions/v1/bulk-regenerate-briefs`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
-            body: JSON.stringify({ autoResume: true, totalProcessed: newTotal, version: REGEN_VERSION }),
+            body: JSON.stringify({ autoResume: true, totalProcessed: newTotal, version: REGEN_VERSION, mode }),
           });
         } catch (err) { console.error("[bulk-regen] Auto-resume failed:", err); }
       };

@@ -289,7 +289,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true, batchSuccess, batchFailed, totalProcessed: newTotal,
       hasMore: properties.length === BATCH_SIZE, autoResuming: autoResume,
-      providers: { lovableThrottled: lovableThrottled.value, geminiThrottled: geminiThrottled.value },
     }), { headers });
 
   } catch (error) {

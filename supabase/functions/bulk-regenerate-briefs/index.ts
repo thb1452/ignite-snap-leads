@@ -101,22 +101,23 @@ function isCleanBrief(text: string, prop: Record<string, any>): boolean {
 // Provider 1: Lovable AI Gateway
 async function generateViaLovable(prop: Record<string, any>, apiKey: string): Promise<string | null> {
   const userMessage = formatPropertyData(prop);
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash-lite",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userMessage },
-      ],
-      max_tokens: 400,
-      temperature: 0.4,
-    }),
-  });
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
+        max_tokens: 400,
+        temperature: 0.4,
+      }),
+    });
 
   if (res.status === 429 || res.status === 402) {
     await res.text();

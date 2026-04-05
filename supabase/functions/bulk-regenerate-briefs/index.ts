@@ -212,7 +212,7 @@ serve(async (req) => {
           .eq("id", id);
         if (updateErr) { batchFailed++; } else { batchSuccess++; }
       }
-      if (i + CONCURRENCY < properties.length) await new Promise(r => setTimeout(r, 1000));
+      if (i + CONCURRENCY < properties.length) await new Promise(r => setTimeout(r, 300));
     }
 
     const newTotal = totalProcessed + batchSuccess;

@@ -33,6 +33,8 @@ interface VirtualizedPropertyListProps {
   onToggleSaved?: (id: string) => void;
   unlockedSet?: Set<string>;
   onUnlock?: (propertyId: string) => void;
+  /** Compact single-row mode for List view */
+  compact?: boolean;
 }
 
 const VirtualizedPropertyListInner = ({
@@ -44,15 +46,16 @@ const VirtualizedPropertyListInner = ({
   onToggleSaved,
   unlockedSet,
   onUnlock,
+  compact = false,
 }: VirtualizedPropertyListProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 300,
+    estimateSize: () => compact ? 56 : 300,
     measureElement: (el) => el.getBoundingClientRect().height,
-    overscan: 5,
+    overscan: compact ? 10 : 5,
   });
 
   return (
@@ -90,6 +93,7 @@ const VirtualizedPropertyListInner = ({
                 onToggleSaved={onToggleSaved}
                 isUnlocked={unlockedSet?.has(property.id) ?? false}
                 onUnlock={onUnlock}
+                compact={compact}
               />
             </div>
           );

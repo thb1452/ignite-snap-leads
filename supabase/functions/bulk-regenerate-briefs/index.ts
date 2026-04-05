@@ -1,6 +1,6 @@
 /**
- * BULK REGENERATE INVESTOR BRIEFS — Direct Gemini API (Paid Tier 1)
- * v18-gemini-paid — Uses paid Gemini API key for 1,000+ RPM
+ * BULK REGENERATE INVESTOR BRIEFS — Dual Provider (Lovable AI + Gemini)
+ * v22-dual — Uses both providers for maximum throughput
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -10,10 +10,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GEMINI_MODEL = "gemini-2.5-flash";
-const BATCH_SIZE = 80;
-const REGEN_VERSION = "v21-turbo";
-const CONCURRENCY = 15;
+const BATCH_SIZE = 100;
+const REGEN_VERSION = "v22-dual";
+const CONCURRENCY = 20;
 const CUTOFF_TIMESTAMP = "2026-04-04T08:00:00Z";
 
 const SYSTEM_PROMPT = `CRITICAL BUSINESS CONTEXT:
@@ -99,54 +98,92 @@ function isCleanBrief(text: string, prop: Record<string, any>): boolean {
   return true;
 }
 
-async function generateBrief(prop: Record<string, any>, apiKey: string): Promise<{ id: string; brief: string | null }> {
+// Provider 1: Lovable AI Gateway
+async function generateViaLovable(prop: Record<string, any>, apiKey: string): Promise<string | null> {
   const userMessage = formatPropertyData(prop);
-
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-
-    const res = await fetch(url, {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        contents: [
-          { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n${userMessage}` }] }
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
         ],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 400,
-        },
+        max_tokens: 400,
+        temperature: 0.4,
       }),
     });
 
-    if (res.status === 429) {
-      const body429 = await res.text();
-      console.warn(`[bulk-regen] 429 body: ${body429.slice(0, 500)}`);
-      return { id: prop.id, brief: null };
+    if (res.status === 429 || res.status === 402) {
+      const t = await res.text();
+      console.warn(`[bulk-regen] Lovable ${res.status}: ${t.slice(0, 200)}`);
+      return null;
     }
-
     if (!res.ok) {
-      const errText = await res.text();
-      console.error(`[bulk-regen] Gemini ${res.status}: ${errText.slice(0, 300)}`);
-      return { id: prop.id, brief: null };
+      const t = await res.text();
+      console.error(`[bulk-regen] Lovable ${res.status}: ${t.slice(0, 200)}`);
+      return null;
     }
 
     const result = await res.json();
-    let text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
-
-    if (text) {
-      text = text.replace(/\s*[—–-]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
-      if (!isCleanBrief(text, prop)) {
-        console.warn(`[bulk-regen] Rejected dirty brief for ${prop.id}: ${text.slice(0, 80)}`);
-        return { id: prop.id, brief: null };
-      }
-    }
-
-    return { id: prop.id, brief: text };
+    return result?.choices?.[0]?.message?.content?.trim() || null;
   } catch (err) {
-    console.error(`[bulk-regen] Network error for ${prop.id}:`, err);
-    return { id: prop.id, brief: null };
+    console.error(`[bulk-regen] Lovable network error:`, err);
+    return null;
   }
+}
+
+// Provider 2: Gemini Direct
+async function generateViaGemini(prop: Record<string, any>, apiKey: string): Promise<string | null> {
+  const userMessage = formatPropertyData(prop);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n${userMessage}` }] }],
+      generationConfig: { temperature: 0.4, maxOutputTokens: 400 },
+    }),
+  });
+
+  if (res.status === 429) { await res.text(); return null; }
+  if (!res.ok) { const t = await res.text(); console.error(`[bulk-regen] Gemini ${res.status}: ${t.slice(0, 200)}`); return null; }
+
+  const result = await res.json();
+  return result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+}
+
+async function generateBrief(
+  prop: Record<string, any>,
+  lovableKey: string,
+  geminiKey: string,
+): Promise<{ id: string; brief: string | null }> {
+  let text: string | null = null;
+
+  // Try Lovable first
+  if (lovableKey) {
+    text = await generateViaLovable(prop, lovableKey);
+  }
+
+  // Fallback to Gemini
+  if (!text && geminiKey) {
+    text = await generateViaGemini(prop, geminiKey);
+  }
+
+  if (text) {
+    text = text.replace(/\s*[—–-]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
+    if (!isCleanBrief(text, prop)) {
+      console.warn(`[bulk-regen] Rejected dirty brief for ${prop.id}`);
+      return { id: prop.id, brief: null };
+    }
+  }
+
+  return { id: prop.id, brief: text };
 }
 
 serve(async (req) => {
@@ -159,10 +196,11 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
 
-    if (!GEMINI_API_KEY) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), { status: 500, headers });
+    if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "No AI provider keys configured" }), { status: 500, headers });
     }
 
     const { autoResume = true, totalProcessed = 0, version = "" } = await req.json().catch(() => ({}));
@@ -196,30 +234,32 @@ serve(async (req) => {
 
     for (let i = 0; i < properties.length; i += CONCURRENCY) {
       const chunk = properties.slice(i, i + CONCURRENCY);
-      const results = await Promise.all(chunk.map(p => generateBrief(p, GEMINI_API_KEY)));
+      const results = await Promise.all(
+        chunk.map(p => generateBrief(p, LOVABLE_API_KEY, GEMINI_API_KEY))
+      );
+
       for (const result of results) {
         if (!result.brief) { batchFailed++; continue; }
-        const { id, brief } = result;
         const briefJson = {
-          brief_text: brief,
+          brief_text: result.brief,
           generated_at: new Date().toISOString(),
-          model: GEMINI_MODEL,
+          model: "dual-provider",
           version: REGEN_VERSION,
         };
         const { error: updateErr } = await supabase
           .from("properties")
-          .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
-          .eq("id", id);
+          .update({ snap_insight: result.brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
+          .eq("id", result.id);
         if (updateErr) { batchFailed++; } else { batchSuccess++; }
       }
-      if (i + CONCURRENCY < properties.length) await new Promise(r => setTimeout(r, 300));
+
+      if (i + CONCURRENCY < properties.length) await new Promise(r => setTimeout(r, 200));
     }
 
     const newTotal = totalProcessed + batchSuccess;
     console.log(`[bulk-regen] Batch: ${batchSuccess} ok, ${batchFailed} failed. Total: ${newTotal}`);
 
-    // If entire batch failed, back off 30s; otherwise 5s
-    const resumeDelay = batchSuccess === 0 ? 30000 : 2000;
+    const resumeDelay = batchSuccess === 0 ? 30000 : 1000;
 
     if (autoResume) {
       const continueTask = async () => {

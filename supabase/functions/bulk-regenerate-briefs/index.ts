@@ -386,7 +386,7 @@ serve(async (req) => {
           await fetch(`${SUPABASE_URL}/functions/v1/bulk-regenerate-briefs`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
-            body: JSON.stringify({ autoResume: true, totalProcessed: newTotal, version: REGEN_VERSION }),
+            body: JSON.stringify({ autoResume: true, totalProcessed: newTotal, version: REGEN_VERSION, mode }),
           });
         } catch (err) { console.error("[bulk-regen] Auto-resume failed:", err); }
       };

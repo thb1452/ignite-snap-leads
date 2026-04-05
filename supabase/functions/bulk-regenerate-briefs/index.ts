@@ -119,18 +119,23 @@ async function generateViaLovable(prop: Record<string, any>, apiKey: string): Pr
       }),
     });
 
-  if (res.status === 429 || res.status === 402) {
-    await res.text();
-    return null;
-  }
-  if (!res.ok) {
-    const t = await res.text();
-    console.error(`[bulk-regen] Lovable ${res.status}: ${t.slice(0, 200)}`);
-    return null;
-  }
+    if (res.status === 429 || res.status === 402) {
+      const t = await res.text();
+      console.warn(`[bulk-regen] Lovable ${res.status}: ${t.slice(0, 200)}`);
+      return null;
+    }
+    if (!res.ok) {
+      const t = await res.text();
+      console.error(`[bulk-regen] Lovable ${res.status}: ${t.slice(0, 200)}`);
+      return null;
+    }
 
-  const result = await res.json();
-  return result?.choices?.[0]?.message?.content?.trim() || null;
+    const result = await res.json();
+    return result?.choices?.[0]?.message?.content?.trim() || null;
+  } catch (err) {
+    console.error(`[bulk-regen] Lovable network error:`, err);
+    return null;
+  }
 }
 
 // Provider 2: Gemini Direct

@@ -11,9 +11,9 @@ const corsHeaders = {
 };
 
 const GEMINI_MODEL = "gemini-2.5-flash";
-const BATCH_SIZE = 20;
-const REGEN_VERSION = "v20-keyfix";
-const CONCURRENCY = 3;
+const BATCH_SIZE = 80;
+const REGEN_VERSION = "v21-turbo";
+const CONCURRENCY = 15;
 const CUTOFF_TIMESTAMP = "2026-04-04T08:00:00Z";
 
 const SYSTEM_PROMPT = `CRITICAL BUSINESS CONTEXT:

@@ -219,7 +219,7 @@ serve(async (req) => {
     console.log(`[bulk-regen] Batch: ${batchSuccess} ok, ${batchFailed} failed. Total: ${newTotal}`);
 
     // If entire batch failed, back off 30s; otherwise 5s
-    const resumeDelay = batchSuccess === 0 ? 30000 : 5000;
+    const resumeDelay = batchSuccess === 0 ? 30000 : 2000;
 
     if (autoResume) {
       const continueTask = async () => {

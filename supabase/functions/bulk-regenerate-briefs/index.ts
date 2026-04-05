@@ -263,9 +263,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, done: true, totalProcessed, message: "All briefs regenerated!" }), { headers });
     }
 
-    // Split into AI vs rule-based
-    const aiProps = properties.filter(p => (p.snap_score ?? 0) > AI_SCORE_THRESHOLD);
-    const ruleProps = properties.filter(p => (p.snap_score ?? 0) <= AI_SCORE_THRESHOLD);
+    // Split: rule-based = score ≤ 40 AND no open violations (closed); AI = everything else
+    const ruleProps = properties.filter(p => (p.snap_score ?? 0) <= RULE_SCORE_THRESHOLD && (p.open_violations ?? 0) === 0);
+    const aiProps = properties.filter(p => !((p.snap_score ?? 0) <= RULE_SCORE_THRESHOLD && (p.open_violations ?? 0) === 0));
 
     let batchSuccess = 0;
     let batchFailed = 0;
@@ -283,41 +283,58 @@ serve(async (req) => {
       if (error) { batchFailed++; } else { batchSuccess++; ruleCount++; }
     }
 
-    // Process AI properties (concurrent API calls)
-    if (aiProps.length > 0 && (LOVABLE_API_KEY || GEMINI_API_KEY)) {
+    // Process AI properties — NO fallback to rule-based. If credits are out, STOP.
+    if (aiProps.length > 0) {
+      if (!LOVABLE_API_KEY && !GEMINI_API_KEY) {
+        console.error("[bulk-regen] ❌ AI properties found but NO API keys configured. Stopping.");
+        return new Response(JSON.stringify({ 
+          error: "No AI API keys configured. Cannot process score>40 or open properties.", 
+          ruleProcessed: ruleCount, batchFailed 
+        }), { status: 500, headers });
+      }
+
       for (let i = 0; i < aiProps.length; i += AI_CONCURRENCY) {
         const chunk = aiProps.slice(i, i + AI_CONCURRENCY);
         const results = await Promise.all(
           chunk.map(async p => {
             const brief = await generateAIBrief(p, LOVABLE_API_KEY, GEMINI_API_KEY);
-            return { id: p.id, brief: brief || generateRuleBrief(p), isAI: !!brief };
+            return { id: p.id, brief, prop: p };
           })
         );
+
+        // Check if ALL AI calls in this chunk failed (credits exhausted)
+        const allFailed = results.every(r => r.brief === null);
+        if (allFailed && chunk.length > 0) {
+          console.error("[bulk-regen] ❌ ALL AI calls failed — credits likely exhausted. STOPPING. Do NOT fallback.");
+          return new Response(JSON.stringify({ 
+            error: "AI credits exhausted. Stopping — will NOT fallback to rule-based for AI properties.",
+            totalProcessed: totalProcessed + batchSuccess,
+            ruleProcessed: ruleCount,
+            aiAttempted: aiProps.length,
+            batchFailed
+          }), { status: 402, headers });
+        }
+
         for (const r of results) {
+          if (!r.brief) {
+            // Skip this property — do NOT fallback to rule-based
+            batchFailed++;
+            console.warn(`[bulk-regen] Skipped property ${r.id} — AI failed, no fallback.`);
+            continue;
+          }
           const briefJson = {
             brief_text: r.brief,
             generated_at: new Date().toISOString(),
-            model: r.isAI ? "dual-provider-ai" : "deterministic-v5-fallback",
+            model: "ai-provider",
             version: REGEN_VERSION,
           };
           const { error } = await supabase
             .from("properties")
             .update({ snap_insight: r.brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
             .eq("id", r.id);
-          if (error) { batchFailed++; } else { batchSuccess++; if (r.isAI) aiCount++; else ruleCount++; }
+          if (error) { batchFailed++; } else { batchSuccess++; aiCount++; }
         }
         if (i + AI_CONCURRENCY < aiProps.length) await new Promise(r => setTimeout(r, 200));
-      }
-    } else if (aiProps.length > 0) {
-      // No AI keys — fallback all to rule-based
-      for (const prop of aiProps) {
-        const brief = generateRuleBrief(prop);
-        const briefJson = { brief_text: brief, generated_at: new Date().toISOString(), model: "deterministic-v5-nokey", version: REGEN_VERSION };
-        const { error } = await supabase
-          .from("properties")
-          .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
-          .eq("id", prop.id);
-        if (error) { batchFailed++; } else { batchSuccess++; ruleCount++; }
       }
     }
 

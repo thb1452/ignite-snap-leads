@@ -1539,6 +1539,7 @@ function Leads() {
                     const prop = mappedProperties.find(p => p.id === id);
                     if (prop) setUnlockModalProperty(prop);
                   }}
+                  compact={desktopView === "list"}
                 />
               )}
             </div>

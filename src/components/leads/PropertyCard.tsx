@@ -42,6 +42,8 @@ interface PropertyCardProps {
   onToggleSaved?: (id: string) => void;
   isUnlocked?: boolean;
   onUnlock?: (propertyId: string) => void;
+  /** When true, renders a compact single-row layout (List view). */
+  compact?: boolean;
 }
 
 import { getActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
@@ -55,6 +57,7 @@ export const PropertyCard = memo(function PropertyCard({
   onToggleSaved,
   isUnlocked = true,
   onUnlock,
+  compact = false,
 }: PropertyCardProps) {
   const { data: contacts } = usePropertyContacts(isUnlocked ? property.id : "");
   const [isExporting, setIsExporting] = useState(false);
@@ -73,6 +76,110 @@ export const PropertyCard = memo(function PropertyCard({
   const briefBody = stripActionLabel(insightText);
   const ownerContact = contacts?.find(c => c.name);
 
+  // ── COMPACT ROW LAYOUT (List view) ────────────────────────────────────────
+  if (compact) {
+    return (
+      <div
+        className={`flex items-center gap-2 px-3 h-14 border-b border-slate-800 bg-slate-950 hover:bg-slate-900/80 cursor-pointer transition-colors ${isSelected ? "bg-slate-900 ring-1 ring-inset ring-teal-500" : ""}`}
+        onClick={onClick}
+      >
+        {/* Checkbox */}
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={() => onToggleSelect(property.id)}
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0"
+        />
+
+        {/* Lock / Unlock icon */}
+        {isUnlocked
+          ? <Unlock className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+          : <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+        }
+
+        {/* Address + city — flex-1, truncated */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-slate-100 truncate leading-tight">
+            {isUnlocked ? formatAddress(property.address) : (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="blur-[4px] select-none pointer-events-none text-xs">####</span>
+                <span>{property.address?.replace(/^\d+\s*/, "")}</span>
+              </span>
+            )}
+          </p>
+          <p className="text-xs text-slate-400 truncate leading-tight">
+            {formatCity(property.city)}, {property.state} {property.zip}
+          </p>
+        </div>
+
+        {/* Violation tags — hidden on narrow screens, max 2 */}
+        {property.violation_types && property.violation_types.length > 0 && (
+          <div className="hidden xl:flex items-center gap-1 shrink-0">
+            {property.violation_types.slice(0, 2).map((vt) => (
+              <span
+                key={vt}
+                className="text-[10px] font-medium px-1.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 leading-4 whitespace-nowrap"
+              >
+                {vt}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Action label — always visible */}
+        {actionLabel && (
+          <span className={`text-[11px] font-bold shrink-0 whitespace-nowrap ${actionLabel.colorClass}`}>
+            {actionLabel.label}
+          </span>
+        )}
+
+        {/* SnapScore */}
+        <div className="flex items-center gap-1 shrink-0">
+          <div className={`w-2 h-2 rounded-full ${getScoreDot(property.snap_score)}`} />
+          <span className="text-xs font-bold text-teal-400 whitespace-nowrap">
+            {property.snap_score || 0}
+          </span>
+        </div>
+
+        {/* Action button */}
+        {isUnlocked ? (
+          <Button
+            size="sm"
+            className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold text-xs h-7 px-2 shrink-0"
+            disabled={isExporting}
+            onClick={async (e) => {
+              e.stopPropagation();
+              setIsExporting(true);
+              try {
+                await exportFilteredCsv({ propertyIds: [property.id], expectedPropertyCount: 1 });
+                toast({ title: "Export Complete", description: "Property exported successfully." });
+              } catch (err: unknown) {
+                const t = getExportErrorToast(err);
+                toast({ title: t.title, description: t.description, variant: t.variant });
+              } finally {
+                setIsExporting(false);
+              }
+            }}
+          >
+            {isExporting
+              ? <Loader2 className="h-3 w-3 animate-spin" />
+              : <><Download className="h-3 w-3 mr-1" />Export</>
+            }
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold text-xs h-7 px-2 shrink-0"
+            onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
+          >
+            <Lock className="w-3 h-3 mr-1" />Unlock
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // ── CARD LAYOUT (Map view, default) ───────────────────────────────────────
   return (
     <div className="p-1.5 border-b border-slate-800 bg-slate-950" onClick={onClick}>
       <div className={`bg-slate-800 border border-slate-700 rounded-xl p-2 shadow-xl cursor-pointer transition-all ${isSelected ? "ring-2 ring-teal-500" : ""}`}>

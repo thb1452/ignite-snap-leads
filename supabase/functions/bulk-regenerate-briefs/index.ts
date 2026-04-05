@@ -231,19 +231,11 @@ serve(async (req) => {
 
     let batchSuccess = 0;
     let batchFailed = 0;
-    const lovableThrottled = { value: !LOVABLE_API_KEY };
-    const geminiThrottled = { value: !GEMINI_API_KEY };
 
     for (let i = 0; i < properties.length; i += CONCURRENCY) {
-      // Reset throttle flags each chunk so we retry
-      if (i > 0) {
-        lovableThrottled.value = !LOVABLE_API_KEY;
-        geminiThrottled.value = !GEMINI_API_KEY;
-      }
-
       const chunk = properties.slice(i, i + CONCURRENCY);
       const results = await Promise.all(
-        chunk.map(p => generateBrief(p, LOVABLE_API_KEY, GEMINI_API_KEY, lovableThrottled, geminiThrottled))
+        chunk.map(p => generateBrief(p, LOVABLE_API_KEY, GEMINI_API_KEY))
       );
 
       for (const result of results) {
@@ -267,8 +259,7 @@ serve(async (req) => {
     const newTotal = totalProcessed + batchSuccess;
     console.log(`[bulk-regen] Batch: ${batchSuccess} ok, ${batchFailed} failed. Total: ${newTotal}`);
 
-    const bothThrottled = lovableThrottled.value && geminiThrottled.value;
-    const resumeDelay = bothThrottled ? 60000 : batchSuccess === 0 ? 30000 : 1000;
+    const resumeDelay = batchSuccess === 0 ? 30000 : 1000;
 
     if (autoResume) {
       const continueTask = async () => {

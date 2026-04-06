@@ -191,6 +191,17 @@ function Leads() {
   // Mobile view state
   const [mobileView, setMobileView] = useState<"list" | "map">("list");
   const [desktopView, setDesktopView] = useState<"map" | "list">("map");
+  const [filtersExpanded, setFiltersExpanded] = useState<boolean>(() => {
+    try { return localStorage.getItem("snap-filters-expanded") !== "false"; } catch { return true; }
+  });
+
+  const toggleFilters = useCallback(() => {
+    setFiltersExpanded(prev => {
+      const next = !prev;
+      try { localStorage.setItem("snap-filters-expanded", String(next)); } catch {}
+      return next;
+    });
+  }, []);
 
   // Upgrade prompt state for export limits only
   const [upgradePromptType, setUpgradePromptType] = useState<"exports" | null>(null);

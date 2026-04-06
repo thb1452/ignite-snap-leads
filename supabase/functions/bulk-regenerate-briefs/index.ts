@@ -13,7 +13,7 @@ const corsHeaders = {
 };
 
 const BATCH_SIZE = 200;
-const REGEN_VERSION = "v23-hybrid";
+const REGEN_VERSION = "v24-stopped";
 const AI_CONCURRENCY = 15;
 const RULE_SCORE_THRESHOLD = 40;
 const CUTOFF_TIMESTAMP = "2026-04-04T08:00:00Z";

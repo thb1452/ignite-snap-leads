@@ -203,106 +203,80 @@ export const PropertyCard = memo(function PropertyCard({
     );
   }
 
-  // ── CARD LAYOUT (Map view, default) ───────────────────────────────────────
+  // ── CARD LAYOUT (Map & List view) — ultra-compact to fit 6+ visible ─────
   return (
-    <div className="p-1.5 border-b border-slate-800 bg-slate-950" onClick={onClick}>
-      <div className={`bg-slate-800 border border-slate-700 rounded-xl p-2 shadow-xl cursor-pointer transition-all ${isSelected ? "ring-2 ring-teal-500" : ""}`}>
+    <div className="px-1.5 py-1 border-b border-slate-800 bg-slate-950" onClick={onClick}>
+      <div className={`bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 cursor-pointer transition-all ${isSelected ? "ring-1 ring-teal-500" : ""}`}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              checked={isSelected}
-              onCheckedChange={() => onToggleSelect(property.id)}
-              onClick={(e) => e.stopPropagation()}
-              className="shrink-0"
-            />
-            {isUnlocked ? (
-              <Unlock className="w-3.5 h-3.5 text-teal-400" />
-            ) : (
-              <Lock className="w-3.5 h-3.5 text-slate-400" />
-            )}
-            <span className={`text-xs font-semibold uppercase tracking-wider ${isUnlocked ? "text-teal-400" : "text-slate-400"}`}>
-              {isUnlocked ? "Unlocked" : "Locked"}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className={`w-2 h-2 rounded-full ${getScoreDot(property.snap_score)}`} />
-            <span className="text-xs font-bold text-teal-400">SnapScore {property.snap_score || 0}</span>
+        {/* Row 1: Lock status + Address + Score */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelect(property.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0 h-3.5 w-3.5"
+          />
+          {isUnlocked ? (
+            <Unlock className="w-3 h-3 text-teal-400 shrink-0" />
+          ) : (
+            <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+          )}
+          <span className={`text-[9px] font-semibold uppercase tracking-wider shrink-0 ${isUnlocked ? "text-teal-400" : "text-slate-400"}`}>
+            {isUnlocked ? "UNLOCKED" : "LOCKED"}
+          </span>
+
+          <p
+            className="text-xs font-bold text-slate-100 leading-tight truncate flex-1 min-w-0"
+            style={!isUnlocked ? { filter: "blur(4px)", userSelect: "none", pointerEvents: "none" } : undefined}
+          >
+            {formatAddress(property.address)}
+          </p>
+
+          <div className="flex items-center gap-1 shrink-0">
+            <div className={`w-1.5 h-1.5 rounded-full ${getScoreDot(property.snap_score)}`} />
+            <span className="text-[10px] font-bold text-teal-400">SnapScore {property.snap_score || 0}</span>
           </div>
         </div>
 
-        {/* Address */}
-        <p className="property-address text-sm font-bold mb-0.5 text-slate-100 leading-tight truncate">
-          {isUnlocked ? formatAddress(property.address) : (
-            <span className="inline-flex items-center gap-2">
-              <span className="blur-[4px] select-none pointer-events-none">####</span>
-              <span>{property.address?.replace(/^\d+\s*/, "")}</span>
-            </span>
+        {/* Row 2: City + Violation tags */}
+        <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pl-[4.5rem]">
+          <span className="text-[10px] text-slate-400 shrink-0">
+            {formatCity(property.city)}, {property.state} {property.zip}
+          </span>
+          {property.violation_types && property.violation_types.length > 0 && (
+            <div className="flex items-center gap-1 shrink-0">
+              {property.violation_types.slice(0, 2).map((vt) => (
+                <span key={vt} className="text-[9px] font-medium px-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 leading-3.5 whitespace-nowrap">
+                  🔥 {vt}
+                </span>
+              ))}
+            </div>
           )}
-        </p>
-        <p className="text-xs text-slate-400 mb-1">
-          {formatCity(property.city)}, {property.state} {property.zip}
-        </p>
+        </div>
 
-        {/* Violation Tags */}
-        {property.violation_types && property.violation_types.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-1.5">
-            {property.violation_types.slice(0, 3).map((vt) => (
-              <span key={vt} className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 leading-4">
-                🔥 {vt}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* AI Insight */}
-        {insightText && (
-          <div className="bg-slate-900 rounded-lg px-2 py-1.5 mb-1.5 border border-teal-500/20">
-            {/* Header row: icon + label + action label always pinned right */}
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <Sparkles className="w-3 h-3 text-teal-400 shrink-0" />
-              <span className="text-[11px] font-semibold text-teal-400">AI Investor Brief</span>
+        {/* Row 3: AI Brief (1 line) + Action button */}
+        <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+          {insightText ? (
+            <div className="flex-1 min-w-0 flex items-center gap-1 bg-slate-900 rounded px-1.5 py-0.5 border border-teal-500/20">
+              <Sparkles className="w-2.5 h-2.5 text-teal-400 shrink-0" />
               {actionLabel && (
-                <span className={`ml-auto text-[11px] font-bold shrink-0 ${actionLabel.colorClass}`}>
+                <span className={`text-[10px] shrink-0 ${actionLabel.colorClass}`}>
                   {actionLabel.label}
                 </span>
               )}
+              {actionLabel && briefBody && <span className="text-slate-600 text-[10px]">·</span>}
+              <span className="text-[10px] text-slate-400 truncate">{briefBody}</span>
             </div>
-            {/* Strictly 1 line, no expand */}
-            <p className="snap-insight-text text-[11px] text-slate-400 leading-snug overflow-hidden line-clamp-1">
-              {briefBody}
-            </p>
-          </div>
-        )}
+          ) : (
+            <div className="flex-1" />
+          )}
 
-        {/* Contact / CTA */}
-        {isUnlocked ? (
-          <div className="space-y-1">
-            {ownerContact && (
-              <>
-                <div className="flex items-center gap-1.5 text-xs">
-                  <Users className="w-3 h-3 text-slate-400 shrink-0" />
-                  <span className="text-slate-100 truncate">{formatOwnerName(ownerContact.name)} (Owner)</span>
-                </div>
-                {ownerContact.phone && (
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <Phone className="w-3 h-3 text-slate-400 shrink-0" />
-                    <a
-                      href={`tel:${ownerContact.phone}`}
-                      className="text-slate-100 hover:text-teal-400"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {ownerContact.phone}
-                    </a>
-                  </div>
-                )}
-              </>
-            )}
-            <div className="flex gap-1.5 pt-0.5">
+          {/* CTA button */}
+          {isUnlocked ? (
+            <div className="flex items-center gap-1 shrink-0">
               <Button
                 size="sm"
-                className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold text-xs flex-1 h-7 px-2"
+                className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold text-[10px] h-6 px-2"
                 disabled={isExporting}
                 onClick={async (e) => {
                   e.stopPropagation();
@@ -310,10 +284,7 @@ export const PropertyCard = memo(function PropertyCard({
                   setIsExporting(true);
                   try {
                     await exportFilteredCsv({ propertyIds: [property.id], expectedPropertyCount: 1 });
-                    toast({
-                      title: "Export Complete",
-                      description: "Property exported successfully.",
-                    });
+                    toast({ title: "Export Complete", description: "Property exported successfully." });
                   } catch (err: unknown) {
                     const t = getExportErrorToast(err);
                     toast({ title: t.title, description: t.description, variant: t.variant });
@@ -322,41 +293,26 @@ export const PropertyCard = memo(function PropertyCard({
                   }
                 }}
               >
-                {isExporting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Download className="h-3.5 w-3.5 mr-1" />
-                )}
-                Export Lead
+                {isExporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Download className="h-3 w-3 mr-0.5" />Export</>}
               </Button>
               <button
                 onClick={(e) => { e.stopPropagation(); onToggleSaved?.(property.id); }}
-                className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors px-2"
+                className="flex items-center justify-center h-6 w-6 rounded border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors"
               >
-                <Heart
-                  className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"}
-                  size={12}
-                />
-                <span className="text-xs font-medium text-slate-200">
-                  {isSaved ? "Saved" : "Save"}
-                </span>
+                <Heart className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"} size={10} />
               </button>
             </div>
-          </div>
-        ) : (
-          /* Locked state: compact inline button row, same height as Export/Save */
-          <div className="flex gap-1.5 items-center pt-0.5">
+          ) : (
             <Button
               size="sm"
-              className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold h-7 text-xs px-3"
+              className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold h-6 text-[10px] px-2 shrink-0"
               onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
             >
-              <Lock className="w-3 h-3 mr-1" />
-              Unlock Property
+              <Lock className="w-3 h-3 mr-0.5" />
+              Unlock
             </Button>
-            <ScarcityBadge propertyId={property.id} />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

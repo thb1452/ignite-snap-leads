@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2, Lock, SlidersHorizontal } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
@@ -191,6 +191,17 @@ function Leads() {
   // Mobile view state
   const [mobileView, setMobileView] = useState<"list" | "map">("list");
   const [desktopView, setDesktopView] = useState<"map" | "list">("map");
+  const [filtersExpanded, setFiltersExpanded] = useState<boolean>(() => {
+    try { return localStorage.getItem("snap-filters-expanded") !== "false"; } catch { return true; }
+  });
+
+  const toggleFilters = useCallback(() => {
+    setFiltersExpanded(prev => {
+      const next = !prev;
+      try { localStorage.setItem("snap-filters-expanded", String(next)); } catch {}
+      return next;
+    });
+  }, []);
 
   // Upgrade prompt state for export limits only
   const [upgradePromptType, setUpgradePromptType] = useState<"exports" | null>(null);
@@ -1223,125 +1234,130 @@ function Leads() {
           exportContext={exportContextData}
         />
 
-        {/* DESKTOP: Ultra-compact single-row filter bar */}
-        <div className="hidden md:flex items-center gap-2 px-4 py-2 border-b bg-background flex-wrap min-w-0 overflow-hidden">
-          {/* Search */}
-          <div className="relative w-48">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-8 h-7 text-xs"
-            />
+        {/* DESKTOP: Collapsible filter bar */}
+        <div className="hidden md:block border-b bg-background">
+          {/* Always-visible row: Search + Filters toggle + Map/List + actions */}
+          <div className="flex items-center gap-2 px-4 py-1.5 min-w-0">
+            {/* Search */}
+            <div className="relative w-44">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-8 h-7 text-xs"
+              />
+            </div>
+
+            {/* Filters toggle button */}
+            <Button
+              variant={filtersExpanded ? "secondary" : "outline"}
+              size="sm"
+              onClick={toggleFilters}
+              className="h-7 px-2.5 text-xs gap-1.5 shrink-0"
+            >
+              <SlidersHorizontal className="h-3 w-3" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 bg-[#0d9e75] text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearFilters}
+                className="h-7 px-2 text-xs gap-1"
+              >
+                <X className="h-3 w-3" /> Clear
+              </Button>
+            )}
+
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            <PersonalStatsBar />
+            <FreshnessIndicator />
+
+            {/* Map / List view toggle */}
+            <div className="flex items-center rounded-md border border-border overflow-hidden shrink-0">
+              <button
+                onClick={() => setDesktopView("map")}
+                className={`flex items-center gap-1 px-2 h-7 text-xs font-medium transition-colors ${
+                  desktopView === "map"
+                    ? "bg-[#0d9e75] text-white"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+                title="Map view"
+              >
+                <MapIcon className="h-3.5 w-3.5" />
+                Map
+              </button>
+              <button
+                onClick={() => setDesktopView("list")}
+                className={`flex items-center gap-1 px-2 h-7 text-xs font-medium transition-colors ${
+                  desktopView === "list"
+                    ? "bg-[#0d9e75] text-white"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+                title="List view"
+              >
+                <List className="h-3.5 w-3.5" />
+                List
+              </button>
+            </div>
           </div>
 
-          {/* State/City */}
-          <EnforcementAreaFilter
-            selectedCity={selectedCity}
-            selectedState={selectedState}
-            onCityChange={(c) => {
-              setSelectedCity(c);
-              setPage(1);
-            }}
-            onStateChange={(s) => {
-              setSelectedState(s);
-              setPage(1);
-            }}
-          />
+          {/* Expandable filter controls row */}
+          {filtersExpanded && (
+            <div className="flex items-center gap-2 px-4 py-1.5 border-t border-border/50 flex-wrap min-w-0 overflow-hidden">
+              {/* State/City */}
+              <EnforcementAreaFilter
+                selectedCity={selectedCity}
+                selectedState={selectedState}
+                onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
+                onStateChange={(s) => { setSelectedState(s); setPage(1); }}
+              />
 
-          {/* Time */}
-          <TimeFilter
-            lastSeenDays={lastSeenDays}
-            onLastSeenChange={(v) => {
-              setLastSeenDays(v);
-              setPage(1);
-            }}
-          />
+              {/* Time */}
+              <TimeFilter
+                lastSeenDays={lastSeenDays}
+                onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
+              />
 
-          {/* Issue Type */}
-          <EnforcementSignalsFilter
-            selectedSignal={selectedSignal}
-            onSignalChange={(v) => {
-              setSelectedSignal(v);
-              setPage(1);
-              if (v) setSearchInput("");
-            }}
-            selectedState={selectedState}
-            selectedCity={selectedCity}
-          />
+              {/* Issue Type */}
+              <EnforcementSignalsFilter
+                selectedSignal={selectedSignal}
+                onSignalChange={(v) => { setSelectedSignal(v); setPage(1); if (v) setSearchInput(""); }}
+                selectedState={selectedState}
+                selectedCity={selectedCity}
+              />
 
-          {/* Pressure Level — Pro/Elite only */}
-          {canUsePressureLevelFilters ? (
-            <PressureLevelFilter
-              openViolationsOnly={openViolationsOnly}
-              onOpenViolationsChange={(v) => {
-                setOpenViolationsOnly(v);
-                setPage(1);
-              }}
-              multipleViolationsOnly={multipleViolationsOnly}
-              onMultipleViolationsChange={(v) => {
-                setMultipleViolationsOnly(v);
-                setPage(1);
-              }}
-              repeatOffenderOnly={repeatOffenderOnly}
-              onRepeatOffenderChange={(v) => {
-                setRepeatOffenderOnly(v);
-                setPage(1);
-              }}
-            />
-          ) : (
-            <a
-              href="/pricing"
-              className="flex items-center gap-1.5 px-2 py-1 rounded border border-dashed border-muted-foreground/40 text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-              title="Pressure Level™ filters — Pro/Elite only"
-            >
-              <Lock className="h-3 w-3" />
-              Pressure Level™
-            </a>
+              {/* Pressure Level — Pro/Elite only */}
+              {canUsePressureLevelFilters ? (
+                <PressureLevelFilter
+                  openViolationsOnly={openViolationsOnly}
+                  onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
+                  multipleViolationsOnly={multipleViolationsOnly}
+                  onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
+                  repeatOffenderOnly={repeatOffenderOnly}
+                  onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
+                />
+              ) : (
+                <a
+                  href="/pricing"
+                  className="flex items-center gap-1.5 px-2 py-1 rounded border border-dashed border-muted-foreground/40 text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                  title="Pressure Level™ filters — Pro/Elite only"
+                >
+                  <Lock className="h-3 w-3" />
+                  Pressure Level™
+                </a>
+              )}
+            </div>
           )}
-
-          {/* Spacer + Actions */}
-          <div className="flex-1" />
-          <PersonalStatsBar />
-          <FreshnessIndicator />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClearFilters}
-            disabled={!activeFilterCount}
-            className="h-7 px-2 text-xs gap-1"
-          >
-            <X className="h-3 w-3" /> Clear
-          </Button>
-
-          {/* Map / List view toggle — desktop only */}
-          <div className="hidden md:flex items-center rounded-md border border-border overflow-hidden shrink-0">
-            <button
-              onClick={() => setDesktopView("map")}
-              className={`flex items-center gap-1 px-2 h-7 text-xs font-medium transition-colors ${
-                desktopView === "map"
-                  ? "bg-[#0d9e75] text-white"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-              title="Map view"
-            >
-              <MapIcon className="h-3.5 w-3.5" />
-              Map
-            </button>
-            <button
-              onClick={() => setDesktopView("list")}
-              className={`flex items-center gap-1 px-2 h-7 text-xs font-medium transition-colors ${
-                desktopView === "list"
-                  ? "bg-[#0d9e75] text-white"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-              title="List view"
-            >
-              <List className="h-3.5 w-3.5" />
-              List
-            </button>
-          </div>
         </div>
 
         {/* MOBILE: Compact Header with Search + Filters */}
@@ -1470,7 +1486,7 @@ function Leads() {
         <div className="hidden md:flex flex-1 min-h-0 overflow-hidden">
           {/* Map - Left Side (hidden in list view) */}
           {desktopView === "map" && (
-            <div className="w-[60%] border-r relative">
+            <div className="w-[45%] border-r relative">
               <LeadsMap
                 filters={filters as LeadFilters}
                 onPropertyClick={handlePropertyClick}
@@ -1481,7 +1497,7 @@ function Leads() {
           )}
 
           {/* Property List — full width in list view, 40% in map view */}
-          <div className={`${desktopView === "list" ? "w-full" : "w-[40%]"} flex flex-col relative min-h-0 h-full`}>
+          <div className={`${desktopView === "list" ? "w-full" : "w-[55%]"} flex flex-col relative min-h-0 h-full`}>
             {/* Filter Results Count - Desktop */}
             {(activeFilterCount > 0 || searchQuery?.trim()) && (
               <div className="px-3 py-2 text-sm text-muted-foreground border-b bg-muted/30">
@@ -1539,7 +1555,7 @@ function Leads() {
                     const prop = mappedProperties.find(p => p.id === id);
                     if (prop) setUnlockModalProperty(prop);
                   }}
-                  compact={false}
+                  compact={desktopView === "list"}
                 />
               )}
             </div>

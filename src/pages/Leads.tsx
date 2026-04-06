@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2, Lock, SlidersHorizontal } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
 import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";

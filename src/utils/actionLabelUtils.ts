@@ -24,11 +24,11 @@ export function getActionLabel(text: string): ActionLabel | null {
   if (/MONITOR/i.test(text))
     return { label: "MONITOR", colorClass: "text-orange-400 font-bold" };
   if (/WATCH\/PASS/i.test(text))
-    return { label: "WATCH", colorClass: "text-gray-400 font-bold" };
+    return { label: "WATCH", colorClass: "text-green-400 font-bold" };
   if (/PASS/i.test(text))
-    return { label: "PASS", colorClass: "text-gray-400 font-bold" };
+    return { label: "PASS", colorClass: "text-green-400 font-bold" };
   if (/WATCH/i.test(text))
-    return { label: "WATCH", colorClass: "text-gray-400 font-bold" };
+    return { label: "WATCH", colorClass: "text-green-400 font-bold" };
   return null;
 }
 

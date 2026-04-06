@@ -80,7 +80,7 @@ export const PropertyCard = memo(function PropertyCard({
   if (compact) {
     return (
       <div
-        className={`px-3 py-2 border-b border-[#1f2937] cursor-pointer transition-colors ${
+        className={`flex flex-col justify-center px-3 border-b border-[#1f2937] cursor-pointer transition-colors h-[52px] ${
           isSelected
             ? "bg-[#161d2d] ring-1 ring-inset ring-[#0d9e75]"
             : "bg-[#111827] hover:bg-[#161d2d]"
@@ -110,15 +110,11 @@ export const PropertyCard = memo(function PropertyCard({
           </span>
 
           {/* Address */}
-          <span className="text-sm font-bold text-slate-100 truncate shrink-0 max-w-[200px]">
-            {isUnlocked
-              ? formatAddress(property.address)
-              : (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="blur-sm select-none pointer-events-none">████████</span>
-                </span>
-              )
-            }
+          <span
+            className="text-sm font-bold text-slate-100 truncate shrink-0 max-w-[200px]"
+            style={!isUnlocked ? { filter: "blur(4px)", userSelect: "none", pointerEvents: "none" } : undefined}
+          >
+            {formatAddress(property.address)}
           </span>
 
           {/* City, State */}
@@ -156,7 +152,7 @@ export const PropertyCard = memo(function PropertyCard({
             <Button
               size="sm"
               style={{ backgroundColor: "#0d9e75" }}
-              className="hover:opacity-90 text-slate-900 font-semibold text-xs h-7 px-2.5 shrink-0"
+              className="hover:opacity-90 text-white font-semibold text-xs h-7 px-2.5 shrink-0 rounded-md"
               disabled={isExporting}
               onClick={async (e) => {
                 e.stopPropagation();
@@ -181,30 +177,28 @@ export const PropertyCard = memo(function PropertyCard({
             <Button
               size="sm"
               style={{ backgroundColor: "#1a2035", borderColor: "#374151" }}
-              className="border text-slate-200 font-semibold text-xs h-7 px-2.5 shrink-0 hover:bg-slate-700"
+              className="border text-slate-300 font-semibold text-xs h-7 px-2.5 shrink-0 hover:bg-slate-700 rounded-md"
               onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
             >
-              <Lock className="w-3 h-3 mr-1" />Unlock
+              🔒 Unlock
             </Button>
           )}
         </div>
 
         {/* ── LINE 2: action label · brief text ── */}
-        {(actionLabel || briefBody) && (
-          <div className="flex items-center gap-1.5 mt-0.5 pl-[4.5rem] min-w-0 overflow-hidden">
-            {actionLabel && (
-              <span className={`text-[11px] shrink-0 ${actionLabel.colorClass}`}>
-                {actionLabel.label}
-              </span>
-            )}
-            {actionLabel && briefBody && (
-              <span className="text-slate-500 text-xs shrink-0">·</span>
-            )}
-            {briefBody && (
-              <span className="text-xs text-slate-400 truncate">{briefBody}</span>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-1.5 pl-[4.5rem] min-w-0 overflow-hidden h-[18px]">
+          {actionLabel && (
+            <span className={`text-[11px] shrink-0 ${actionLabel.colorClass}`}>
+              {actionLabel.label}
+            </span>
+          )}
+          {actionLabel && briefBody && (
+            <span className="text-slate-500 text-xs shrink-0">·</span>
+          )}
+          {briefBody && (
+            <span className="text-xs text-slate-400 truncate">{briefBody}</span>
+          )}
+        </div>
       </div>
     );
   }

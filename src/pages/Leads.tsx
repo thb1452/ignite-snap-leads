@@ -1224,7 +1224,7 @@ function Leads() {
         />
 
         {/* DESKTOP: Ultra-compact single-row filter bar */}
-        <div className="hidden md:flex items-center gap-4 px-4 py-2 border-b bg-background flex-wrap">
+        <div className="hidden md:flex items-center gap-2 px-4 py-2 border-b bg-background flex-wrap min-w-0 overflow-hidden">
           {/* Search */}
           <div className="relative w-48">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -1316,12 +1316,12 @@ function Leads() {
           </Button>
 
           {/* Map / List view toggle — desktop only */}
-          <div className="hidden md:flex items-center rounded-md border border-border overflow-hidden">
+          <div className="hidden md:flex items-center rounded-md border border-border overflow-hidden shrink-0">
             <button
               onClick={() => setDesktopView("map")}
-              className={`flex items-center gap-1 px-2 h-7 text-xs transition-colors ${
+              className={`flex items-center gap-1 px-2 h-7 text-xs font-medium transition-colors ${
                 desktopView === "map"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-[#0d9e75] text-white"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
               title="Map view"
@@ -1331,9 +1331,9 @@ function Leads() {
             </button>
             <button
               onClick={() => setDesktopView("list")}
-              className={`flex items-center gap-1 px-2 h-7 text-xs transition-colors ${
+              className={`flex items-center gap-1 px-2 h-7 text-xs font-medium transition-colors ${
                 desktopView === "list"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-[#0d9e75] text-white"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
               title="List view"
@@ -1467,7 +1467,7 @@ function Leads() {
         </div>
 
         {/* DESKTOP: Side-by-side layout */}
-        <div className="hidden md:flex flex-1 overflow-hidden">
+        <div className="hidden md:flex flex-1 min-h-0 overflow-hidden">
           {/* Map - Left Side (hidden in list view) */}
           {desktopView === "map" && (
             <div className="w-[60%] border-r relative">
@@ -1481,7 +1481,7 @@ function Leads() {
           )}
 
           {/* Property List — full width in list view, 40% in map view */}
-          <div className={`${desktopView === "list" ? "w-full" : "w-[40%]"} flex flex-col relative`}>
+          <div className={`${desktopView === "list" ? "w-full" : "w-[40%]"} flex flex-col relative min-h-0 h-full`}>
             {/* Filter Results Count - Desktop */}
             {(activeFilterCount > 0 || searchQuery?.trim()) && (
               <div className="px-3 py-2 text-sm text-muted-foreground border-b bg-muted/30">

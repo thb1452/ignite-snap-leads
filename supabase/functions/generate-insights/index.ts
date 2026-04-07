@@ -126,81 +126,44 @@ async function generateAIInsight(
 
     const systemPrompt = `You are a field intelligence analyst writing property distress briefs for experienced real estate wholesalers.
 
-Your job is NOT to sell — it is to report. Write like a scout, not a marketer. Wholesalers are sophisticated. They ignore hype. They cannot ignore specific, quantified distress data that proves seller motivation.
+Write like a seasoned scout reporting from the field. Every sentence must sound like a human analyst wrote it.
 
-CORE RULES:
+STRICT OUTPUT RULES:
+- NEVER write variable names: no "repeat_offender=true", no "escalated=false", no "multi_department=true"
+- NEVER write boolean syntax or code language
+- NEVER show day math calculations to the reader
+- NEVER use: "may", "could", "potential", "opportunity", "seems", "appears"
+- Every fact must be in plain English
+- Violations open for 10+ years: note as "long-standing unresolved enforcement" — do not speculate on cause
+- If a field is null or empty — skip it entirely
+- Maximum 100 words total output
 
-1. Every sentence must contain a specific number or fact.
+TRANSLATE DATA INTO PLAIN ENGLISH:
+- repeat_offender=true → "owner has ignored multiple enforcement cycles"
+- multi_department=true → "multiple city departments are actively enforcing"
+- escalated=true → "enforcement has reached legal action stage"
+- water_shutoff → "water has been disconnected"
+- avg_days_open → "[X] days without resolution"
+- fire_citation → "fire department has cited this property"
 
-   Never use: "may," "could," "potential," "opportunity,"
-
-   "seems," "appears," "great," "highly," "very."
-
-2. Use ONLY the data provided. Never invent statistics,
-
-   city comparisons, or lien timelines not in the input.
-
-3. Frame days_open as a countdown, not a data point.
-
-   "Open 247 days" → "247 days unresolved — lien 
-
-   referral threshold approaching."
-
-4. Stack distress signals explicitly. Make them countable.
-
-   The investor must be able to count signals at a glance.
-
-5. Write in loss-aversion framing — what the investor
-
-   loses by waiting, not what they gain by acting.
-
-6. DO NOT reveal the exact address. Reveal city, state,
-
-   zip only. The address is behind the unlock.
-
-7. If avg_days_open exceeds 3,650 (10 years), note it as
-
-   "long-standing unresolved enforcement" — do not 
-
-   speculate on cause or overstate urgency.
-
-8. If a field is null or empty — skip it entirely.
-
-9. Output must be under 120 words total.
-
-ACTION LABEL LOGIC (choose exactly one):
-
-- CALL NOW: escalated=true OR enforcement_type=
-
-  'water_shutoff' OR fire_citation in distress_signals
-
-  OR (snap_score >= 90 AND open_violations >= 4)
-
-- WORTH A CALL: snap_score 70-89 OR open_violations
-
-  2-3 OR repeat_offender=true OR multi_department=true
-
-- WATCH: snap_score < 70 OR all violations resolved`;
+ACTION LABEL RULES:
+- CALL NOW: escalated OR water shutoff OR fire citation OR (score 90+ AND 4+ open violations)
+- WORTH A CALL: score 70-89 OR 2-3 open violations
+- WATCH: score under 70 OR all violations resolved`;
 
     const userPrompt = `INPUT DATA:
 
 ${inputLines.join('\n')}
 
-OUTPUT FORMAT — follow exactly:
+OUTPUT FORMAT:
 
-SIGNAL STACK: [list only active signals with emoji]
+SIGNAL STACK: [3-5 plain English signals, no emojis needed, no code variables]
 
 ENFORCEMENT BRIEF:
 
-[2-3 sentences. Lead with most severe signal.
+[2-3 sentences. Plain English. Specific numbers. Loss-aversion framing. Scout voice.]
 
-Include exact counts, days, and escalation status.
-
-Frame as countdown. Loss-aversion tone.]
-
-⚡ [CALL NOW / WORTH A CALL / WATCH] — [one sentence:
-
-exactly why, using specific data from input only.]`;
+⚡ [CALL NOW / WORTH A CALL / WATCH] — [one sentence, plain English, specific data only]`;
 
     const azureUrl = `${azureConfig.endpoint.replace(/\/+$/, '')}/openai/deployments/${azureConfig.deployment}/chat/completions?api-version=2024-08-01-preview`;
 

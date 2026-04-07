@@ -256,9 +256,9 @@ serve(async (req) => {
 
     if (fetchErr) throw new Error(`Fetch error: ${fetchErr.message}`);
     if (!properties || properties.length === 0) {
-      if (mode === "rule") {
-        // Rule-based done, switch to AI mode
-        console.log(`[bulk-regen] ✅ Rule-based done! Total: ${totalProcessed}. Switching to AI mode...`);
+      if (mode === "ai") {
+        // AI done, switch to rule-based mode
+        console.log(`[bulk-regen] ✅ AI phase done! Total: ${totalProcessed}. Switching to rule-based mode...`);
         if (autoResume) {
           const continueTask = async () => {
             await new Promise(r => setTimeout(r, 500));
@@ -266,14 +266,14 @@ serve(async (req) => {
               await fetch(`${SUPABASE_URL}/functions/v1/bulk-regenerate-briefs`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
-                body: JSON.stringify({ autoResume: true, totalProcessed, version: REGEN_VERSION, mode: "ai" }),
+                body: JSON.stringify({ autoResume: true, totalProcessed, version: REGEN_VERSION, mode: "rule" }),
               });
             } catch (err) { console.error("[bulk-regen] Mode switch failed:", err); }
           };
           const runtime = (globalThis as any).EdgeRuntime;
           if (runtime?.waitUntil) { runtime.waitUntil(continueTask()); } else { continueTask().catch(console.error); }
         }
-        return new Response(JSON.stringify({ success: true, ruleDone: true, totalProcessed, switchingToAI: true }), { headers });
+        return new Response(JSON.stringify({ success: true, aiDone: true, totalProcessed, switchingToRule: true }), { headers });
       }
       console.log(`[bulk-regen] ✅ ALL DONE! Total processed: ${totalProcessed}`);
       return new Response(JSON.stringify({ success: true, done: true, totalProcessed, message: "All briefs regenerated!" }), { headers });

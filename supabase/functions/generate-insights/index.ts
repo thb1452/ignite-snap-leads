@@ -239,6 +239,8 @@ serve(async (req) => {
           id,
           address,
           city,
+          state,
+          zip,
           snap_score,
           jurisdiction_id,
           enforcement_type,

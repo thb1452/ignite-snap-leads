@@ -82,6 +82,7 @@ export function ExportQuotaDisplay() {
     return null;
   }
 
+  const isUnlimited = plan.max_monthly_exports === -1;
   const subRemaining = isUnlimited
     ? null
     : Math.max(0, plan.max_monthly_exports - usage.exports_count);

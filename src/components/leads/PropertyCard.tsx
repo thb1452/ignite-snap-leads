@@ -199,7 +199,6 @@ export const PropertyCard = memo(function PropertyCard({
           <p className={`text-xs font-bold text-slate-100 leading-tight truncate flex-1 min-w-0${!isUnlocked ? " [filter:blur(4px)] select-none" : ""}`}>
             {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
           </p>
-          </p>
 
           <div className="flex items-center gap-1 shrink-0">
             <div className={`w-1.5 h-1.5 rounded-full ${getScoreDot(property.snap_score)}`} />

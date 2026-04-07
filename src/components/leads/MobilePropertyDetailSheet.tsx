@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/externalClient";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
 import { formatViolationType } from "@/utils/formatViolationType";
-import { getActionLabel, getFallbackActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
+import { getCompleteBriefText, getDisplayActionLabel } from "@/utils/actionLabelUtils";
 import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
 import { GroupedViolationsList } from "./GroupedViolationsList";
 import { OwnerContactSection } from "./OwnerContactSection";
@@ -127,12 +127,13 @@ export function MobilePropertyDetailSheet({
   };
 
   const insightText = property.snap_insight || "";
-  const actionLabel = getActionLabel(insightText) ?? getFallbackActionLabel({
+  const actionLabel = getDisplayActionLabel(insightText, {
     snapScore: property.snap_score,
+    openViolations: property.violations?.filter((violation) => violation.status?.toLowerCase().includes('open') || violation.status?.toLowerCase() === 'active').length,
     enforcementType: property.enforcement_type,
     violationTypes: property.violation_types,
   });
-  const briefBody = stripActionLabel(insightText);
+  const briefBody = getCompleteBriefText(insightText);
 
   const googleMapsUrl = property.latitude && property.longitude
     ? `https://www.google.com/maps?q=${property.latitude},${property.longitude}`

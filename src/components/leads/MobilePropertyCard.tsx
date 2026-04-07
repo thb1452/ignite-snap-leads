@@ -8,7 +8,7 @@ import { formatOwnerName } from "@/utils/formatOwnerName";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";
-import { getActionLabel, getBriefPreview, getFallbackActionLabel } from "@/utils/actionLabelUtils";
+import { getBriefPreview, getDisplayActionLabel } from "@/utils/actionLabelUtils";
 
 interface Violation {
   id: string;
@@ -68,8 +68,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
 
   const insightText = property.snap_insight || "";
   const actionLabel = insightText
-    ? getActionLabel(insightText) ??
-      getFallbackActionLabel({
+    ? getDisplayActionLabel(insightText, {
         snapScore: property.snap_score,
         openViolations: property.open_violations,
         enforcementType: property.enforcement_type,

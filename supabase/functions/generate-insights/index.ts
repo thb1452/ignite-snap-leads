@@ -1,27 +1,24 @@
 /**
- * SNAP INSIGHT GENERATION v8.0 - HYBRID AI + INVESTOR VOICE DETERMINISTIC ENGINE
+ * SNAP INSIGHT GENERATION v9.0 - AZURE GPT-4o MINI + WHOLESALER FIELD INTELLIGENCE
  * 
- * Properties with snap_score >= 50: AI-generated investor brief insight
- *   - Uses Lovable AI (Gemini Flash) via gateway
- *   - Investor-voice framing with action labels
- *   - Falls back to deterministic engine if AI credits exhausted or error
+ * Properties with snap_score >= 20: AI-generated wholesaler distress brief
+ *   - Uses Azure OpenAI GPT-4o mini
+ *   - Field intelligence / scout voice with signal stacks
+ *   - Falls back to deterministic engine if Azure unavailable
  * 
- * Properties with snap_score < 50 (or AI unavailable): deterministic investor-voice engine v5.0
+ * Properties with snap_score < 20 (or AI unavailable): deterministic engine
  *   - Fact → Signal → Action Label format
- *   - Score-aligned labels: 70+ HIGH/GOOD, 40-69 GOOD/WATCH, 0-39 WATCH/PASS
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v8.0";
+const VERSION = "v9.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const AI_MODEL = "google/gemini-3-flash-preview";
 const SNAP_SCORE_AI_THRESHOLD = 20;
 
 interface Violation {

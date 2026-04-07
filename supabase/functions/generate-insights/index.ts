@@ -91,15 +91,7 @@ async function generateAIInsight(
     const hasFireCitation = scoreResult.signals.some(s => s.includes('fire'));
     const isEscalated = intelligence.escalated;
 
-    // Build signal stack emojis
-    const signalIcons: string[] = [];
-    if (isWaterShutoff) signalIcons.push('🔴 Water Shutoff');
-    if (hasFireCitation) signalIcons.push('🔥 Fire Citation');
-    if (isEscalated) signalIcons.push('⚠️ Escalated');
-    if (intelligence.repeat_offender) signalIcons.push('🔁 Repeat Offender');
-    if (intelligence.multi_department) signalIcons.push('🏛️ Multi-Department');
-    if (scoreResult.signals.includes('extended_enforcement')) signalIcons.push('📅 Extended Enforcement');
-    if (scoreResult.signals.includes('active_enforcement_load')) signalIcons.push('🚨 Active Load');
+    // Signal context (no emojis in prompt)
 
     // Determine action label
     let actionLabel = 'WATCH';
@@ -128,10 +120,10 @@ async function generateAIInsight(
 
     const systemPrompt = DEAL_STRATEGIST_PROMPT;
 
-    const userPrompt = `INPUT DATA:
+    const userPrompt = `PROPERTY DATA:
 ${inputLines.join('\n')}
 
-OUTPUT — exactly 3 sentences then the action label, nothing else:`;
+Write the investor insight now:`;
 
     const azureUrl = `${azureConfig.endpoint.replace(/\/+$/, '')}/openai/deployments/${azureConfig.deployment}/chat/completions?api-version=2024-08-01-preview`;
 

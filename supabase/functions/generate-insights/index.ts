@@ -11,6 +11,7 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { sanitizeInsightForStorage } from "../_shared/insightSanitizer.ts";
 
 const VERSION = "v9.4";
 
@@ -198,7 +199,7 @@ OUTPUT — exactly 3 sentences then the action label, nothing else:`;
 
     if (!text || text.length < 10) return null;
 
-    return text;
+    return sanitizeInsightForStorage(text, actionLabel);
   } catch (err) {
     console.error(`[generate-insights ${VERSION}] Azure AI error:`, err);
     return null;

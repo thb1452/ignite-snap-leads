@@ -228,8 +228,12 @@ serve(async (req) => {
       .or(`last_analyzed_at.is.null,last_analyzed_at.lt.${CUTOFF_TIMESTAMP}`);
 
     if (mode === "rule") {
+      // Rule mode: only closed/low-score properties
       query = query.or("snap_score.is.null,snap_score.lte.40")
         .or("open_violations.is.null,open_violations.eq.0");
+    } else {
+      // AI mode: only properties that actually need AI (score>40 OR open violations>0)
+      query = query.or("snap_score.gt.40,open_violations.gt.0");
     }
 
     const { data: properties, error: fetchErr } = await query
@@ -263,12 +267,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, done: true, totalProcessed, message: "All briefs regenerated!" }), { headers });
     }
 
-    const ruleProps = mode === "rule"
-      ? properties.filter((p) => (p.snap_score ?? 0) <= RULE_SCORE_THRESHOLD && (p.open_violations ?? 0) === 0)
-      : [];
-    const aiProps = mode === "ai"
-      ? properties.filter((p) => !((p.snap_score ?? 0) <= RULE_SCORE_THRESHOLD && (p.open_violations ?? 0) === 0))
-      : [];
+    // Query already filters by mode, so assign directly
+    const ruleProps = mode === "rule" ? properties : [];
+    const aiProps = mode === "ai" ? properties : [];
 
     let batchSuccess = 0;
     let batchFailed = 0;

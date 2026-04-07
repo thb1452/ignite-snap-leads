@@ -267,12 +267,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, done: true, totalProcessed, message: "All briefs regenerated!" }), { headers });
     }
 
-    const ruleProps = mode === "rule"
-      ? properties.filter((p) => (p.snap_score ?? 0) <= RULE_SCORE_THRESHOLD && (p.open_violations ?? 0) === 0)
-      : [];
-    const aiProps = mode === "ai"
-      ? properties.filter((p) => !((p.snap_score ?? 0) <= RULE_SCORE_THRESHOLD && (p.open_violations ?? 0) === 0))
-      : [];
+    // Query already filters by mode, so assign directly
+    const ruleProps = mode === "rule" ? properties : [];
+    const aiProps = mode === "ai" ? properties : [];
 
     let batchSuccess = 0;
     let batchFailed = 0;

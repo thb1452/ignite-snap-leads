@@ -1,8 +1,7 @@
 /**
- * BULK REGENERATE INVESTOR BRIEFS — v23-hybrid
- * Score > 50: AI (Lovable AI primary, Gemini fallback)
- * Score ≤ 50 or null: Deterministic rule-based investor voice (no API calls)
- * Processes 367k rule-based instantly, 56k via AI
+ * BULK REGENERATE INVESTOR BRIEFS — v25-deal-strategist
+ * Phase 1: AI — score > 40 OR open violations (high-value leads first)
+ * Phase 2: Rule-based — score ≤ 40 AND closed (deterministic, no API calls)
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -14,9 +13,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const BATCH_SIZE = 200;
-const REGEN_VERSION = "v25-deal-strategist";
-const AI_CONCURRENCY = 15;
+const BATCH_SIZE_RULE = 500;
+const BATCH_SIZE_AI = 400;
+const REGEN_VERSION = "v25-deal-strategist-p3";
+const AI_CONCURRENCY = 10;
 const RULE_SCORE_THRESHOLD = 40;
 const CUTOFF_TIMESTAMP = "2026-04-07T00:00:00Z";
 
@@ -225,7 +225,7 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
 
-    const { autoResume = true, totalProcessed = 0, version = "", mode = "rule" } = await req.json().catch(() => ({}));
+    const { autoResume = true, totalProcessed = 0, version = "", mode = "ai" } = await req.json().catch(() => ({}));
 
     if (version && version !== REGEN_VERSION) {
       console.log(`[bulk-regen] Stopping old chain (version: ${version})`);
@@ -236,29 +236,29 @@ serve(async (req) => {
 
     // MODE: "rule" = only fetch rule-based eligible properties (score ≤ 40 AND closed)
     // MODE: "ai" = only fetch AI-eligible properties (score > 40 OR open violations > 0)
+    const batchSize = mode === "ai" ? BATCH_SIZE_AI : BATCH_SIZE_RULE;
+
     let query = supabase
       .from("properties")
       .select("id, address, city, state, zip, county, snap_score, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class")
       .or(`last_analyzed_at.is.null,last_analyzed_at.lt.${CUTOFF_TIMESTAMP}`);
 
     if (mode === "rule") {
-      // Score ≤ 40 (or null) AND closed (0 open violations or null)
       query = query.or("snap_score.is.null,snap_score.lte.40")
         .or("open_violations.is.null,open_violations.eq.0");
     } else {
-      // AI mode: score > 40 OR open violations > 0
-      // We fetch all remaining unprocessed and filter in code
+      // AI mode: prioritize highest scores first
     }
 
     const { data: properties, error: fetchErr } = await query
-      .order("snap_score", { ascending: mode === "rule", nullsFirst: true })
-      .range(0, BATCH_SIZE - 1);
+      .order("snap_score", { ascending: mode === "rule", nullsFirst: mode === "rule" })
+      .range(0, batchSize - 1);
 
     if (fetchErr) throw new Error(`Fetch error: ${fetchErr.message}`);
     if (!properties || properties.length === 0) {
-      if (mode === "rule") {
-        // Rule-based done, switch to AI mode
-        console.log(`[bulk-regen] ✅ Rule-based done! Total: ${totalProcessed}. Switching to AI mode...`);
+      if (mode === "ai") {
+        // AI done, switch to rule-based mode
+        console.log(`[bulk-regen] ✅ AI phase done! Total: ${totalProcessed}. Switching to rule-based mode...`);
         if (autoResume) {
           const continueTask = async () => {
             await new Promise(r => setTimeout(r, 500));
@@ -266,14 +266,14 @@ serve(async (req) => {
               await fetch(`${SUPABASE_URL}/functions/v1/bulk-regenerate-briefs`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
-                body: JSON.stringify({ autoResume: true, totalProcessed, version: REGEN_VERSION, mode: "ai" }),
+                body: JSON.stringify({ autoResume: true, totalProcessed, version: REGEN_VERSION, mode: "rule" }),
               });
             } catch (err) { console.error("[bulk-regen] Mode switch failed:", err); }
           };
           const runtime = (globalThis as any).EdgeRuntime;
           if (runtime?.waitUntil) { runtime.waitUntil(continueTask()); } else { continueTask().catch(console.error); }
         }
-        return new Response(JSON.stringify({ success: true, ruleDone: true, totalProcessed, switchingToAI: true }), { headers });
+        return new Response(JSON.stringify({ success: true, aiDone: true, totalProcessed, switchingToRule: true }), { headers });
       }
       console.log(`[bulk-regen] ✅ ALL DONE! Total processed: ${totalProcessed}`);
       return new Response(JSON.stringify({ success: true, done: true, totalProcessed, message: "All briefs regenerated!" }), { headers });
@@ -322,41 +322,42 @@ serve(async (req) => {
           })
         );
 
-        // If ALL AI calls in this chunk failed, log it but fall back to
-        // rule-based briefs so properties never end up NULL.
+        // If ALL AI calls in this chunk failed, it's likely a rate limit — pause and retry later
         const allFailed = results.every(r => r.brief === null);
         if (allFailed && chunk.length > 0) {
-          console.warn("[bulk-regen] ⚠️ ALL AI calls failed in chunk — falling back to rule-based briefs.");
+          console.warn("[bulk-regen] ⚠️ ALL AI calls failed in chunk — pausing 60s before next batch.");
+          // Don't write anything for failed properties — leave them for next batch
+          break; // Exit the AI loop, let auto-resume retry after delay
         }
 
         for (const r of results) {
-          let briefText = r.brief;
-          let model = "ai-provider";
-          if (!briefText) {
-            briefText = generateRuleBrief(r.prop);
-            model = "deterministic-v5-fallback";
-            console.warn(`[bulk-regen] Property ${r.id} — AI failed, using rule-based fallback.`);
+          if (!r.brief) {
+            // Skip — leave property unprocessed so it gets picked up in next batch
+            console.warn(`[bulk-regen] Property ${r.id} — AI failed, skipping (will retry next batch).`);
+            batchFailed++;
+            continue;
           }
           const briefJson = {
-            brief_text: briefText,
+            brief_text: r.brief,
             generated_at: new Date().toISOString(),
-            model,
+            model: "ai-provider",
             version: REGEN_VERSION,
           };
           const { error } = await supabase
             .from("properties")
-            .update({ snap_insight: briefText, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
+            .update({ snap_insight: r.brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
             .eq("id", r.id);
           if (error) { batchFailed++; } else { batchSuccess++; aiCount++; }
         }
-        if (i + AI_CONCURRENCY < aiProps.length) await new Promise(r => setTimeout(r, 200));
+        // Pace between chunks to avoid rate limits
+        if (i + AI_CONCURRENCY < aiProps.length) await new Promise(r => setTimeout(r, 1000));
       }
     }
 
     const newTotal = totalProcessed + batchSuccess;
     console.log(`[bulk-regen] Batch: ${batchSuccess} ok (${ruleCount} rule, ${aiCount} AI), ${batchFailed} failed. Total: ${newTotal}`);
 
-    const resumeDelay = batchSuccess === 0 ? 30000 : 500;
+    const resumeDelay = batchFailed > batchSuccess ? 60000 : batchSuccess === 0 ? 30000 : 500;
 
     if (autoResume) {
       const continueTask = async () => {
@@ -375,7 +376,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true, batchSuccess, batchFailed, ruleCount, aiCount,
-      totalProcessed: newTotal, hasMore: properties.length === BATCH_SIZE, autoResuming: autoResume,
+      totalProcessed: newTotal, hasMore: properties.length === batchSize, autoResuming: autoResume,
     }), { headers });
 
   } catch (error) {

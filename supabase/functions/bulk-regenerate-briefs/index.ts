@@ -1,8 +1,7 @@
 /**
- * BULK REGENERATE INVESTOR BRIEFS — v23-hybrid
- * Score > 50: AI (Lovable AI primary, Gemini fallback)
- * Score ≤ 50 or null: Deterministic rule-based investor voice (no API calls)
- * Processes 367k rule-based instantly, 56k via AI
+ * BULK REGENERATE INVESTOR BRIEFS — v25-deal-strategist
+ * Phase 1: AI — score > 40 OR open violations (high-value leads first)
+ * Phase 2: Rule-based — score ≤ 40 AND closed (deterministic, no API calls)
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";

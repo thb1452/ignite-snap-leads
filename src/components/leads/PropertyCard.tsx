@@ -113,7 +113,8 @@ export const PropertyCard = memo(function PropertyCard({
               {property.violation_types.slice(0, 3).map((vt) => (
                 <span
                   key={vt}
-                  className="text-[10px] font-semibold px-1.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/25 leading-4 whitespace-nowrap"
+                  className="max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap text-[10px] font-semibold px-1.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/25 leading-4"
+                  title={vt}
                 >
                   🔥 {vt}
                 </span>
@@ -211,7 +212,7 @@ export const PropertyCard = memo(function PropertyCard({
           {property.violation_types && property.violation_types.length > 0 && (
             <div className="flex items-center gap-1 shrink-0">
               {property.violation_types.slice(0, 2).map((vt) => (
-                <span key={vt} className="text-[9px] font-medium px-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 leading-3.5 whitespace-nowrap">
+                <span key={vt} className="max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-medium px-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 leading-3.5" title={vt}>
                   🔥 {vt}
                 </span>
               ))}

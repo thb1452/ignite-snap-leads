@@ -32,16 +32,6 @@ function createActionLabel(label: "CALL NOW" | "WORTH A CALL" | "WATCH"): Action
   return { label, colorClass: RED_ACTION_LABEL };
 }
 
-function trimAtWordBoundary(text: string, maxChars: number): string {
-  if (text.length <= maxChars) return text;
-
-  const snippet = text.slice(0, maxChars + 1).trim();
-  const lastSpace = snippet.lastIndexOf(" ");
-  const cutoff = lastSpace > Math.floor(maxChars * 0.6) ? lastSpace : maxChars;
-
-  return `${snippet.slice(0, cutoff).replace(/[\s,;:—–-]+$/g, "").trim()}…`;
-}
-
 export function getActionLabel(text: string): ActionLabel | null {
   if (/\bCALL NOW\b/i.test(text) || /\bHIGH OPPORTUNITY\b/i.test(text)) {
     return createActionLabel("CALL NOW");
@@ -72,11 +62,11 @@ export function getFallbackActionLabel({
     Boolean(violationTypes?.some((type) => /fire/i.test(type))) ||
     distressSignals?.includes("fire_citation");
 
-  if (hasWaterShutoff || hasFireCitation || (score >= 90 && openCount >= 4)) {
+  if (hasWaterShutoff || hasFireCitation || score >= 90) {
     return createActionLabel("CALL NOW");
   }
 
-  if ((score >= 70 && score < 90) || (openCount >= 2 && openCount <= 3)) {
+  if (score >= 70 || openCount >= 2) {
     return createActionLabel("WORTH A CALL");
   }
 
@@ -117,7 +107,7 @@ export function getCompleteBriefText(text: string): string {
     return completeSentences.join(" ").trim();
   }
 
-  return cleaned;
+  return `${cleaned.replace(/[\s,;:—–-]+$/g, "").trim()}…`;
 }
 
 export function getBriefPreview(text: string, maxSentences = 2, maxChars = 140): string {
@@ -141,9 +131,5 @@ export function getBriefPreview(text: string, maxSentences = 2, maxChars = 140):
     if (totalLength >= maxChars) break;
   }
 
-  const preview = (selected.length > 0 ? selected.join(" ") : sentences[0] ?? cleaned).trim();
-
-  if (preview.length <= maxChars) return preview;
-
-  return trimAtWordBoundary(preview, maxChars);
+  return (selected.length > 0 ? selected.join(" ") : sentences[0] ?? cleaned).trim();
 }

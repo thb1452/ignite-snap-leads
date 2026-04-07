@@ -2,6 +2,7 @@ import { memo, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
 import { Lock, Unlock, Sparkles, Heart, Download, Loader2 } from "lucide-react";
 import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";

@@ -1,5 +1,5 @@
 /**
- * SNAP INSIGHT GENERATION v9.3 - AZURE GPT-4o MINI + COMPACT SCOUT BRIEF
+ * SNAP INSIGHT GENERATION v9.4 - AZURE GPT-4o MINI + PUNCHY SCOUT BRIEF
  * 
  * Properties with snap_score >= 20: AI-generated wholesaler distress brief
  *   - Uses Azure OpenAI GPT-4o mini
@@ -12,7 +12,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v9.3";
+const VERSION = "v9.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -124,31 +124,40 @@ async function generateAIInsight(
       scoreResult.signals.length ? `Distress Signals: ${scoreResult.signals.join(', ')}` : '',
     ].filter(Boolean);
 
-    const systemPrompt = `You are a field intelligence analyst writing 3-sentence property distress briefs for real estate wholesalers.
+    const systemPrompt = `You are a field intelligence analyst writing ultra-short property distress briefs for real estate wholesalers.
 
-Write like a seasoned scout. Every sentence must sound like a human analyst wrote it.
+STRICT FORMAT — no exceptions:
+- Exactly 3 SHORT sentences. Each sentence MUST be 15 words or fewer.
+- Then a blank line.
+- Then the action label alone on its own line: CALL NOW or WORTH A CALL or WATCH.
+- Nothing else. No headers, no bullet points, no signal lists.
 
-STRICT RULES:
-- Output is EXACTLY 3 sentences followed by an action label. Nothing else.
-- Sentence 1: Lead with the most severe distress signal and specific numbers.
-- Sentence 2: Stack additional context — violation types, days open, department activity.
-- Sentence 3: Loss-aversion framing — what gets worse by waiting.
-- Final line: CALL NOW or WORTH A CALL or WATCH (no extra sentence after it).
-- NEVER write variable names, boolean syntax, or code language.
+SENTENCE GUIDE:
+- Sentence 1: Lead distress signal with a specific number or fact.
+- Sentence 2: Stack one or two additional enforcement details.
+- Sentence 3: What gets worse if the buyer waits.
+
+STYLE:
+- Write like a scout reporting from the field. Punchy. Blunt. Factual.
+- NEVER use variable names, booleans, or code syntax.
 - NEVER use: "may", "could", "potential", "opportunity", "seems", "appears"
-- Translate all data into plain English:
-  repeat_offender → "owner has ignored multiple enforcement cycles"
-  multi_department → "multiple city departments are actively enforcing"
-  escalated → "enforcement has reached legal action stage"
-  water_shutoff → "water has been disconnected"
-  fire_citation → "fire department has cited this property"
-- If a field is null or empty, skip it.
-- Maximum 60 words before the action label.
+- Translate data to plain English:
+  repeat_offender → "owner non-responsive to city notices"
+  multi_department → "multiple departments enforcing"
+  escalated → "enforcement escalated to legal action"
+  water_shutoff → "water disconnected"
+  fire_citation → "fire department citation on file"
+- If a field is null or empty, skip it entirely.
 
-ACTION LABEL:
-- CALL NOW: escalated OR water shutoff OR fire citation OR (score 90+ AND 4+ open violations)
+ACTION LABEL RULES:
+- CALL NOW: escalated OR water shutoff OR fire citation OR (score 90+ AND 4+ open)
 - WORTH A CALL: score 70-89 OR 2-3 open violations
-- WATCH: score under 70 OR all violations resolved`;
+- WATCH: score under 70 OR all violations resolved
+
+EXAMPLE OUTPUT:
+Water disconnected since Feb 2026. 3 open violations including structural and exterior. Owner non-responsive to city notices.
+
+CALL NOW`;
 
     const userPrompt = `INPUT DATA:
 ${inputLines.join('\n')}

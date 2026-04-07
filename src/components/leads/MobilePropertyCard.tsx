@@ -44,7 +44,7 @@ interface MobilePropertyCardProps {
   onUnlock?: (propertyId: string) => void;
 }
 
-import { getActionLabel, getBriefPreview, stripActionLabel } from "@/utils/actionLabelUtils";
+import { getActionLabel, getBriefPreview, getFallbackActionLabel } from "@/utils/actionLabelUtils";
 
 export const MobilePropertyCard = memo(function MobilePropertyCard({
   property,
@@ -69,8 +69,12 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
   };
 
   const insightText = property.snap_insight || "";
-  const actionLabel = getActionLabel(insightText);
-  const briefBody = stripActionLabel(insightText);
+  const actionLabel = getActionLabel(insightText) ?? getFallbackActionLabel({
+    snapScore: property.snap_score,
+    openViolations: property.open_violations,
+    enforcementType: property.enforcement_type,
+    violationTypes: property.violation_types,
+  });
   const briefPreview = getBriefPreview(insightText, 2, 160);
   const ownerContact = contacts?.find(c => c.name);
 
@@ -137,9 +141,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
             {briefPreview && (
               <p className="snap-insight-text text-xs text-slate-400 leading-relaxed break-words">{briefPreview}</p>
             )}
-            {actionLabel && (
-              <p className={`mt-1 text-xs leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>
-            )}
+            <p className={`mt-1 text-xs leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>
           </div>
         )}
 

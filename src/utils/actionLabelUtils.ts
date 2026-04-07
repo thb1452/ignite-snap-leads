@@ -16,33 +16,67 @@ export interface ActionLabel {
   colorClass: string;
 }
 
+export interface ActionLabelFallbackInput {
+  snapScore?: number | null;
+  openViolations?: number | null;
+  enforcementType?: string | null;
+  violationTypes?: string[] | null;
+  distressSignals?: string[] | null;
+}
+
+const RED_ACTION_LABEL = "text-destructive font-bold";
+
 /** Detect the highest-priority action label in the text */
 export function getActionLabel(text: string): ActionLabel | null {
   if (/CALL NOW/i.test(text)) {
-    return { label: "CALL NOW", colorClass: "text-destructive font-bold" };
+    return { label: "CALL NOW", colorClass: RED_ACTION_LABEL };
   }
   if (/HIGH OPPORTUNITY/i.test(text)) {
-    return { label: "HIGH OPPORTUNITY", colorClass: "text-destructive font-bold" };
+    return { label: "HIGH OPPORTUNITY", colorClass: RED_ACTION_LABEL };
   }
   if (/GOOD OPPORTUNITY/i.test(text)) {
-    return { label: "GOOD OPPORTUNITY", colorClass: "text-destructive font-bold" };
+    return { label: "GOOD OPPORTUNITY", colorClass: RED_ACTION_LABEL };
   }
   if (/WORTH A CALL/i.test(text)) {
-    return { label: "WORTH A CALL", colorClass: "text-destructive font-bold" };
+    return { label: "WORTH A CALL", colorClass: RED_ACTION_LABEL };
   }
   if (/\bMONITOR\b/i.test(text)) {
-    return { label: "MONITOR", colorClass: "text-destructive font-bold" };
+    return { label: "MONITOR", colorClass: RED_ACTION_LABEL };
   }
   if (/WATCH\/PASS/i.test(text)) {
-    return { label: "WATCH", colorClass: "text-destructive font-bold" };
+    return { label: "WATCH", colorClass: RED_ACTION_LABEL };
   }
   if (/\bPASS\b/i.test(text)) {
-    return { label: "PASS", colorClass: "text-destructive font-bold" };
+    return { label: "PASS", colorClass: RED_ACTION_LABEL };
   }
   if (/\bWATCH\b/i.test(text)) {
-    return { label: "WATCH", colorClass: "text-destructive font-bold" };
+    return { label: "WATCH", colorClass: RED_ACTION_LABEL };
   }
   return null;
+}
+
+export function getFallbackActionLabel({
+  snapScore,
+  openViolations,
+  enforcementType,
+  violationTypes,
+  distressSignals,
+}: ActionLabelFallbackInput): ActionLabel {
+  const violations = openViolations ?? 0;
+  const hasWaterShutoff = enforcementType === "water_shutoff" || distressSignals?.includes("water_shutoff_enforcement");
+  const hasFireCitation =
+    violationTypes?.some((type) => /fire/i.test(type)) ||
+    distressSignals?.includes("fire_citation");
+
+  if (hasWaterShutoff || hasFireCitation || ((snapScore ?? 0) >= 90 && violations >= 4)) {
+    return { label: "CALL NOW", colorClass: RED_ACTION_LABEL };
+  }
+
+  if (((snapScore ?? 0) >= 70 && (snapScore ?? 0) < 90) || (violations >= 2 && violations <= 3)) {
+    return { label: "WORTH A CALL", colorClass: RED_ACTION_LABEL };
+  }
+
+  return { label: "WATCH", colorClass: RED_ACTION_LABEL };
 }
 
 /** Remove action labels from the body text. */

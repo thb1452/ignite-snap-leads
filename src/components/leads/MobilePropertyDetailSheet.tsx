@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/externalClient";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
 import { formatViolationType } from "@/utils/formatViolationType";
-import { getActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
+import { getActionLabel, getFallbackActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
 import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
 import { GroupedViolationsList } from "./GroupedViolationsList";
 import { OwnerContactSection } from "./OwnerContactSection";
@@ -127,7 +127,11 @@ export function MobilePropertyDetailSheet({
   };
 
   const insightText = property.snap_insight || "";
-  const actionLabel = getActionLabel(insightText);
+  const actionLabel = getActionLabel(insightText) ?? getFallbackActionLabel({
+    snapScore: property.snap_score,
+    enforcementType: property.enforcement_type,
+    violationTypes: property.violation_types,
+  });
   const briefBody = stripActionLabel(insightText);
 
   const googleMapsUrl = property.latitude && property.longitude
@@ -234,9 +238,7 @@ export function MobilePropertyDetailSheet({
                 {briefBody && (
                   <p className="text-sm text-slate-300 leading-relaxed break-words">{briefBody}</p>
                 )}
-                {actionLabel && (
-                  <p className={`mt-2 text-sm leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>
-                )}
+                <p className={`mt-2 text-sm leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>
               </div>
             )}
 

@@ -46,7 +46,7 @@ interface PropertyCardProps {
   compact?: boolean;
 }
 
-import { getActionLabel, getBriefPreview, stripActionLabel } from "@/utils/actionLabelUtils";
+import { getActionLabel, getBriefPreview, getFallbackActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
 
 export const PropertyCard = memo(function PropertyCard({
   property,
@@ -72,16 +72,20 @@ export const PropertyCard = memo(function PropertyCard({
   };
 
   const insightText = property.snap_insight || "";
-  const actionLabel = getActionLabel(insightText);
-  const briefBody = stripActionLabel(insightText);
-  const briefPreview = getBriefPreview(insightText, 1, compact ? 110 : 120);
+  const actionLabel = getActionLabel(insightText) ?? getFallbackActionLabel({
+    snapScore: property.snap_score,
+    openViolations: property.open_violations,
+    enforcementType: property.enforcement_type,
+    violationTypes: property.violation_types,
+  });
+  const briefPreview = getBriefPreview(insightText, 1, compact ? 88 : 120);
   const ownerContact = contacts?.find(c => c.name);
 
   // ── COMPACT TWO-LINE ROW LAYOUT (List view) ───────────────────────────────
   if (compact) {
     return (
       <div
-        className={`flex flex-col justify-center px-3 border-b border-[#1f2937] cursor-pointer transition-colors h-[52px] ${
+        className={`flex flex-col justify-center px-3 py-2 border-b border-[#1f2937] cursor-pointer transition-colors min-h-[68px] ${
           isSelected
             ? "bg-[#161d2d] ring-1 ring-inset ring-[#0d9e75]"
             : "bg-[#111827] hover:bg-[#161d2d]"
@@ -187,15 +191,13 @@ export const PropertyCard = memo(function PropertyCard({
         </div>
 
         {/* ── LINE 2: brief text + action label on its own line ── */}
-        <div className="flex flex-col pl-[4.5rem] min-w-0 overflow-hidden">
+        <div className="flex flex-col gap-0.5 pl-[4.5rem] min-w-0 overflow-hidden">
           {briefPreview && (
-            <span className="text-xs text-slate-400 truncate">{briefPreview}</span>
+            <p className="text-[11px] text-slate-400 leading-tight whitespace-normal break-words">{briefPreview}</p>
           )}
-          {actionLabel && (
-            <span className={`text-[11px] shrink-0 leading-tight ${actionLabel.colorClass}`}>
-              {actionLabel.label}
-            </span>
-          )}
+          <span className={`text-[11px] shrink-0 leading-tight ${actionLabel.colorClass}`}>
+            {actionLabel.label}
+          </span>
         </div>
       </div>
     );

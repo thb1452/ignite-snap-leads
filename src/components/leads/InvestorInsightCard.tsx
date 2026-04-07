@@ -26,7 +26,7 @@ interface InvestorInsightCardProps {
 
 // ── Action label utilities (shared with PropertyCard etc.) ──
 
-import { getActionLabel, getBriefPreview, stripActionLabel } from "@/utils/actionLabelUtils";
+import { getActionLabel, getBriefPreview, getFallbackActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
 
 // ── Rule-based distress summary (fallback when no AI brief exists) ──
 function buildRuleBasedSummary(
@@ -88,17 +88,18 @@ function buildRuleBasedSummary(
 }
 
 // ── Brief text renderer with action label colors ──
-function renderBriefText(text: string) {
+function renderBriefText(
+  text: string,
+  fallbackActionLabel: ReturnType<typeof getFallbackActionLabel>,
+) {
   const cleaned = stripActionLabel(text);
   const preview = getBriefPreview(text, 3, 220);
-  const actionLabel = getActionLabel(text);
+  const actionLabel = getActionLabel(text) ?? fallbackActionLabel;
 
   return (
     <div className="text-sm text-foreground leading-relaxed">
       <p>{preview || cleaned}</p>
-      {actionLabel && (
-        <p className={`mt-2 ${actionLabel.colorClass}`}>{actionLabel.label}</p>
-      )}
+      <p className={`mt-2 ${actionLabel.colorClass}`}>{actionLabel.label}</p>
     </div>
   );
 }
@@ -128,8 +129,12 @@ export function InvestorInsightCard({
   distressSignals,
   cachedBrief,
 }: InvestorInsightCardProps) {
+  const fallbackActionLabel = getFallbackActionLabel({
+    snapScore,
+    openViolations,
+    distressSignals,
+  });
 
-  // Determine which text to display
   let displayText: string | null = null;
 
   if (cachedBrief) {
@@ -140,7 +145,6 @@ export function InvestorInsightCard({
     displayText = buildRuleBasedSummary(distressSignals, openViolations, snapScore);
   }
 
-  // Nothing at all — show queued message
   if (!displayText) {
     return (
       <motion.div
@@ -165,14 +169,12 @@ export function InvestorInsightCard({
       animate={{ opacity: 1, y: 0 }}
       className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-2"
     >
-      {/* Header */}
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-teal-400" />
         <span className="text-sm font-semibold text-teal-400">AI Investor Brief</span>
       </div>
 
-      {/* Brief text */}
-      {renderBriefText(displayText)}
+      {renderBriefText(displayText, fallbackActionLabel)}
     </motion.div>
   );
 }

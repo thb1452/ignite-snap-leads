@@ -375,7 +375,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true, batchSuccess, batchFailed, ruleCount, aiCount,
-      totalProcessed: newTotal, hasMore: properties.length === BATCH_SIZE, autoResuming: autoResume,
+      totalProcessed: newTotal, hasMore: properties.length === batchSize, autoResuming: autoResume,
     }), { headers });
 
   } catch (error) {

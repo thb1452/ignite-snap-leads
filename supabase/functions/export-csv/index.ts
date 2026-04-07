@@ -352,11 +352,13 @@ serve(async (req) => {
       for (let i = 0; i < cappedIds.length; i += PROPERTY_FETCH_BATCH) {
         const batchIds = cappedIds.slice(i, i + PROPERTY_FETCH_BATCH);
 
-        const batchJson = await withRetries(`export batch ${Math.floor(i / PROPERTY_FETCH_BATCH) + 1}`, () =>
-          supabase.rpc("fn_export_properties_batch", {
+        const batchJson = await withRetries(`export batch ${Math.floor(i / PROPERTY_FETCH_BATCH) + 1}`, async () => {
+          const result = await supabase.rpc("fn_export_properties_batch", {
             p_property_ids: batchIds,
             p_enforce_code_violation_only: enforceCodeViolationOnly,
-          }));
+          });
+          return result;
+        });
 
         const rows = parseRpcJsonArray(batchJson);
         if (rows.length === 0 && batchIds.length > 0) {
@@ -377,8 +379,10 @@ serve(async (req) => {
       let offset = 0;
 
       while (rowsFetched < MAX_EXPORT_ROWS) {
-        const data = await withRetries(`filter page offset=${offset}`, () =>
-          buildFilterQuery().range(offset, offset + FILTER_PAGE - 1));
+        const data = await withRetries<any[]>(`filter page offset=${offset}`, async () => {
+          const result = await buildFilterQuery().range(offset, offset + FILTER_PAGE - 1);
+          return result;
+        });
 
         if (!data || data.length === 0) break;
 

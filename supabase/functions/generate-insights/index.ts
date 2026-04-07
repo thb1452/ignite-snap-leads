@@ -12,6 +12,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { sanitizeInsightForStorage } from "../_shared/insightSanitizer.ts";
+import { DEAL_STRATEGIST_PROMPT, formatPropertyForPrompt } from "../_shared/dealStrategistPrompt.ts";
 
 const VERSION = "v9.4";
 
@@ -125,40 +126,7 @@ async function generateAIInsight(
       scoreResult.signals.length ? `Distress Signals: ${scoreResult.signals.join(', ')}` : '',
     ].filter(Boolean);
 
-    const systemPrompt = `You are a field intelligence analyst writing ultra-short property distress briefs for real estate wholesalers.
-
-STRICT FORMAT — no exceptions:
-- Exactly 3 SHORT sentences. Each sentence MUST be 15 words or fewer.
-- Then a blank line.
-- Then the action label alone on its own line: CALL NOW or WORTH A CALL or WATCH.
-- Nothing else. No headers, no bullet points, no signal lists.
-
-SENTENCE GUIDE:
-- Sentence 1: Lead distress signal with a specific number or fact.
-- Sentence 2: Stack one or two additional enforcement details.
-- Sentence 3: What gets worse if the buyer waits.
-
-STYLE:
-- Write like a scout reporting from the field. Punchy. Blunt. Factual.
-- NEVER use variable names, booleans, or code syntax.
-- NEVER use: "may", "could", "potential", "opportunity", "seems", "appears"
-- Translate data to plain English:
-  repeat_offender → "owner non-responsive to city notices"
-  multi_department → "multiple departments enforcing"
-  escalated → "enforcement escalated to legal action"
-  water_shutoff → "water disconnected"
-  fire_citation → "fire department citation on file"
-- If a field is null or empty, skip it entirely.
-
-ACTION LABEL RULES:
-- CALL NOW: escalated OR water shutoff OR fire citation OR (score 90+ AND 4+ open)
-- WORTH A CALL: score 70-89 OR 2-3 open violations
-- WATCH: score under 70 OR all violations resolved
-
-EXAMPLE OUTPUT:
-Water disconnected since Feb 2026. 3 open violations including structural and exterior. Owner non-responsive to city notices.
-
-CALL NOW`;
+    const systemPrompt = DEAL_STRATEGIST_PROMPT;
 
     const userPrompt = `INPUT DATA:
 ${inputLines.join('\n')}

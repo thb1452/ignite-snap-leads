@@ -1,5 +1,5 @@
 /**
- * SNAP INSIGHT GENERATION v9.0 - AZURE GPT-4o MINI + WHOLESALER FIELD INTELLIGENCE
+ * SNAP INSIGHT GENERATION v9.1 - AZURE GPT-4o MINI + WHOLESALER FIELD INTELLIGENCE
  * 
  * Properties with snap_score >= 20: AI-generated wholesaler distress brief
  *   - Uses Azure OpenAI GPT-4o mini
@@ -12,7 +12,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v9.0";
+const VERSION = "v9.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -108,50 +108,101 @@ async function generateAIInsight(
     }
 
     const violationTypes = intelligence.violation_types.length > 0 ? intelligence.violation_types.join(', ') : '';
-    const opportunityClass = scoreResult.activityClass === 'critical' ? 'distressed' :
-                             scoreResult.activityClass === 'elevated' ? 'value_add' : 'watch';
+    const inputLines = [
+      `Location: ${property.city}${property.state ? `, ${property.state}` : ''}${property.zip ? ` ${property.zip}` : ''}`,
+      `SnapScore: ${scoreResult.score}/100`,
+      `Class: ${scoreResult.activityClass === 'critical' ? 'distressed' : scoreResult.activityClass === 'elevated' ? 'value_add' : 'watch'}`,
+      `Open/Total Violations: ${intelligence.open_violations}/${intelligence.total_violations}`,
+      violationTypes ? `Types: ${violationTypes}` : '',
+      intelligence.avg_days_open ? `Avg Days Open: ${intelligence.avg_days_open}` : '',
+      intelligence.oldest_violation_date ? `Oldest Violation: ${intelligence.oldest_violation_date}` : '',
+      intelligence.newest_violation_date ? `Newest Activity: ${intelligence.newest_violation_date}` : '',
+      `Escalated: ${intelligence.escalated}`,
+      `Repeat Offender: ${intelligence.repeat_offender}`,
+      `Multi-Department: ${intelligence.multi_department}`,
+      property.enforcement_type ? `Water Shutoff: ${property.enforcement_type}` : '',
+      scoreResult.signals.length ? `Distress Signals: ${scoreResult.signals.join(', ')}` : '',
+    ].filter(Boolean);
 
-    const systemPrompt = `You are a field intelligence analyst writing property distress briefs for experienced real estate wholesalers. Your job is NOT to sell — it is to report. Write like a scout, not a marketer. Wholesalers are sophisticated. They ignore hype. They cannot ignore specific, quantified distress data that proves seller motivation.
+    const systemPrompt = `You are a field intelligence analyst writing property distress briefs for experienced real estate wholesalers.
+
+Your job is NOT to sell — it is to report. Write like a scout, not a marketer. Wholesalers are sophisticated. They ignore hype. They cannot ignore specific, quantified distress data that proves seller motivation.
 
 CORE RULES:
-1. Every sentence must contain a specific number or fact. Never use: "may," "could," "potential," "opportunity," "seems," "appears," "great," "highly," "very."
-2. Use ONLY the data provided. Never invent statistics, city comparisons, or lien timelines not in the input.
-3. Frame days_open as a countdown, not a data point. "Open 247 days" → "247 days unresolved — lien referral threshold approaching."
-4. Stack distress signals explicitly. Make them countable. The investor must be able to count signals at a glance.
-5. Write in loss-aversion framing — what the investor loses by waiting, not what they gain by acting.
-6. DO NOT reveal the exact address. Reveal city, state, zip only. The address is behind the unlock.
-7. If avg_days_open exceeds 3,650 (10 years), note it as "long-standing unresolved enforcement" — do not speculate on cause or overstate urgency.
+
+1. Every sentence must contain a specific number or fact.
+
+   Never use: "may," "could," "potential," "opportunity,"
+
+   "seems," "appears," "great," "highly," "very."
+
+2. Use ONLY the data provided. Never invent statistics,
+
+   city comparisons, or lien timelines not in the input.
+
+3. Frame days_open as a countdown, not a data point.
+
+   "Open 247 days" → "247 days unresolved — lien 
+
+   referral threshold approaching."
+
+4. Stack distress signals explicitly. Make them countable.
+
+   The investor must be able to count signals at a glance.
+
+5. Write in loss-aversion framing — what the investor
+
+   loses by waiting, not what they gain by acting.
+
+6. DO NOT reveal the exact address. Reveal city, state,
+
+   zip only. The address is behind the unlock.
+
+7. If avg_days_open exceeds 3,650 (10 years), note it as
+
+   "long-standing unresolved enforcement" — do not 
+
+   speculate on cause or overstate urgency.
+
 8. If a field is null or empty — skip it entirely.
+
 9. Output must be under 120 words total.
-10. Do NOT use dashes, hyphens, or em-dashes. Use periods to separate segments.
-11. Do NOT include any preamble, explanation, or markdown formatting. Output ONLY the brief in the exact format specified.`;
+
+ACTION LABEL LOGIC (choose exactly one):
+
+- CALL NOW: escalated=true OR enforcement_type=
+
+  'water_shutoff' OR fire_citation in distress_signals
+
+  OR (snap_score >= 90 AND open_violations >= 4)
+
+- WORTH A CALL: snap_score 70-89 OR open_violations
+
+  2-3 OR repeat_offender=true OR multi_department=true
+
+- WATCH: snap_score < 70 OR all violations resolved`;
 
     const userPrompt = `INPUT DATA:
-Location: ${property.city}, ${property.state || ''} ${property.zip || ''}
-SnapScore: ${scoreResult.score}/100
-Class: ${opportunityClass}
-Open/Total Violations: ${intelligence.open_violations}/${intelligence.total_violations}
-${violationTypes ? `Types: ${violationTypes}` : ''}
-Avg Days Open: ${intelligence.avg_days_open}
-${intelligence.oldest_violation_date ? `Oldest Violation: ${intelligence.oldest_violation_date}` : ''}
-${intelligence.newest_violation_date ? `Newest Activity: ${intelligence.newest_violation_date}` : ''}
-Escalated: ${isEscalated ? 'true' : 'false'}
-Repeat Offender: ${intelligence.repeat_offender ? 'true' : 'false'}
-Multi-Department: ${intelligence.multi_department ? 'true' : 'false'}
-Water Shutoff: ${isWaterShutoff ? 'true' : 'false'}
-Distress Signals: ${scoreResult.signals.join(', ') || 'none'}
+
+${inputLines.join('\n')}
 
 OUTPUT FORMAT — follow exactly:
 
-SIGNAL STACK: ${signalIcons.length > 0 ? signalIcons.join(' | ') : '[list only active signals with emoji]'}
+SIGNAL STACK: [list only active signals with emoji]
 
 ENFORCEMENT BRIEF:
-[2-3 sentences. Lead with most severe signal. Include exact counts, days, and escalation status. Frame as countdown. Loss-aversion tone.]
 
-⚡ ${actionLabel} — [one sentence: exactly why, using specific data from input only.]`;
+[2-3 sentences. Lead with most severe signal.
 
-    // Azure OpenAI API call
-    const azureUrl = `${azureConfig.endpoint}/openai/deployments/${azureConfig.deployment}/chat/completions?api-version=2024-08-01-preview`;
+Include exact counts, days, and escalation status.
+
+Frame as countdown. Loss-aversion tone.]
+
+⚡ [CALL NOW / WORTH A CALL / WATCH] — [one sentence:
+
+exactly why, using specific data from input only.]`;
+
+    const azureUrl = `${azureConfig.endpoint.replace(/\/+$/, '')}/openai/deployments/${azureConfig.deployment}/chat/completions?api-version=2024-08-01-preview`;
 
     const response = await fetch(azureUrl, {
       method: 'POST',
@@ -164,7 +215,7 @@ ENFORCEMENT BRIEF:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        max_tokens: 400,
+        max_completion_tokens: 400,
         temperature: 0.4,
       }),
     });
@@ -185,10 +236,7 @@ ENFORCEMENT BRIEF:
 
     if (!text || text.length < 10) return null;
 
-    // Clean up: remove dashes/hyphens per brand rules
-    let cleaned = text.replace(/[—–-]/g, '. ').replace(/\.\s*\./g, '.').replace(/\s{2,}/g, ' ').trim();
-
-    return cleaned;
+    return text;
   } catch (err) {
     console.error(`[generate-insights ${VERSION}] Azure AI error:`, err);
     return null;

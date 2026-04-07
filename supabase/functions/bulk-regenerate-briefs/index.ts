@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const BATCH_SIZE_RULE = 500;
 const BATCH_SIZE_AI = 250;
-const REGEN_VERSION = "v26-phase1-hot-only";
+const REGEN_VERSION = "v27-phase1-label-fix";
 const AI_CONCURRENCY = 6;
 const RULE_SCORE_THRESHOLD = 70;
 const CUTOFF_TIMESTAMP = "2026-04-07T00:00:00Z";

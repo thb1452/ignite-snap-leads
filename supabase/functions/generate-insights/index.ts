@@ -1,5 +1,5 @@
 /**
- * SNAP INSIGHT GENERATION v9.0 - AZURE GPT-4o MINI + WHOLESALER FIELD INTELLIGENCE
+ * SNAP INSIGHT GENERATION v9.1 - AZURE GPT-4o MINI + WHOLESALER FIELD INTELLIGENCE
  * 
  * Properties with snap_score >= 20: AI-generated wholesaler distress brief
  *   - Uses Azure OpenAI GPT-4o mini
@@ -12,7 +12,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v9.0";
+const VERSION = "v9.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

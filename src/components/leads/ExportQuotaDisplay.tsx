@@ -3,6 +3,8 @@ import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Download, Infinity } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getCreditBalance } from "@/services/credits";
 
 export function ExportQuotaDisplay() {
   const { plan, usage, subscription, loading: subLoading } = useSubscription();

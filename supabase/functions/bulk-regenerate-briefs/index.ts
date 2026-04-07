@@ -7,6 +7,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { sanitizeInsightForStorage } from "../_shared/insightSanitizer.ts";
+import { DEAL_STRATEGIST_PROMPT, formatPropertyForPrompt } from "../_shared/dealStrategistPrompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -137,29 +138,10 @@ function generateRuleBrief(prop: Record<string, any>): string {
 // ============================================================================
 // AI BRIEF GENERATION (for score > 50)
 // ============================================================================
-const SYSTEM_PROMPT = `You are Investor Insight, an AI analyst for real estate investors. Write 2-3 sentences max, plain English, no headers, no bullets. Must fit ~300 characters.
-
-DO NOT use dashes or hyphens. Use periods to separate thoughts.
-NEVER include addresses, raw codes, owner names, phone numbers.
-
-Format: Fact sentence. Signal sentence. ACTION LABEL. Reason.
-
-ACTION LABELS by score:
-70-100: CALL NOW or HIGH OPPORTUNITY
-40-69: GOOD OPPORTUNITY or WATCH
-0-39: WATCH or PASS
-
-Write like a sharp investor. Short, punchy, active voice.
-"Owner hasn't resolved this" not "owner attention issues"
-"Water cut off" not "water service disconnected"`;
+const SYSTEM_PROMPT = DEAL_STRATEGIST_PROMPT;
 
 function formatPropertyData(prop: Record<string, any>): string {
-  return `Score: ${prop.snap_score ?? "unscored"} | Open: ${prop.open_violations ?? 0} | Total: ${prop.total_violations ?? 0}
-Signals: ${(prop.distress_signals || []).join(", ") || "none"}
-Types: ${(prop.violation_types || []).join(", ") || "none"}
-Enforcement: ${prop.enforcement_type} | Escalated: ${prop.escalated ?? false} | Repeat: ${prop.repeat_offender ?? false}
-Multi Dept: ${prop.multi_department ?? false} | Avg Days Open: ${prop.avg_days_open ?? 0}
-Newest: ${prop.newest_violation_date || "unknown"} | Oldest: ${prop.oldest_violation_date || "unknown"}`;
+  return formatPropertyForPrompt(prop);
 }
 
 function isCleanBrief(text: string, prop: Record<string, any>): boolean {

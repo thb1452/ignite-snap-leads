@@ -674,6 +674,18 @@ function getFallbackActionLabel(property: Record<string, any>): string {
   return "WATCH";
 }
 
+function isCleanBrief(text: string, prop: Record<string, any>): boolean {
+  if (!text) return false;
+  if (prop.address && text.toLowerCase().includes(String(prop.address).toLowerCase().slice(0, 10))) return false;
+  if (/[A-Z]{2,}\s+[A-Z]{2,}\s+[A-Z]{2,}\s+[A-Z]{2,}/.test(text)) return false;
+  if (/Noted:|Case\s+(create|number|#)/i.test(text)) return false;
+  if (/IPMC\s+\d/i.test(text)) return false;
+  if (/\(\d{3}\)\s?\d{3}|\d{3}[\-\.]\d{3}[\-\.]\d{4}|@\w+\.\w+/.test(text)) return false;
+  if (text.length < 40) return false;
+  if (!/\b(CALL NOW|WORTH A CALL|WATCH)\b/i.test(text)) return false;
+  return true;
+}
+
 function isAiGeneratedInsight(text: string | null | undefined, cachedBrief: unknown): boolean {
   if (cachedBrief && typeof cachedBrief === "object") return true;
   return /\b(CALL NOW|WORTH A CALL|WATCH)\b/i.test(normalizeInsightText(text));
@@ -731,7 +743,7 @@ async function generateInsightForProperty(
       if (writeToDb) {
         const { error: updateError } = await supabase
           .from("properties")
-          .update({ snap_insight: ruleInsight })
+          .update({ snap_insight: ruleInsight, snap_score: score, last_analyzed_at: new Date().toISOString() })
           .eq("id", propertyId);
         if (updateError) {
           return { status: 'error', property_id: propertyId, error: `db update failed: ${updateError.message}` };
@@ -789,10 +801,15 @@ async function generateInsightForProperty(
       return { status: 'error', property_id: propertyId, error: 'empty AI response' };
     }
 
+    if (!isCleanBrief(safeAiText, property)) {
+      console.warn(`[bulk-insights-v9] ⚠️ ${propertyId} failed isCleanBrief — skipping write`);
+      return { status: 'error', property_id: propertyId, error: 'failed isCleanBrief validation' };
+    }
+
     if (writeToDb) {
       const { error: updateError } = await supabase
         .from("properties")
-        .update({ snap_insight: safeAiText })
+        .update({ snap_insight: safeAiText, snap_score: score, last_analyzed_at: new Date().toISOString() })
         .eq("id", propertyId);
       if (updateError) {
         return { status: 'error', property_id: propertyId, snap_insight: safeAiText, error: `db update failed: ${updateError.message}` };

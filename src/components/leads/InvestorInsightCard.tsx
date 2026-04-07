@@ -6,6 +6,7 @@ import {
   getCompleteBriefText,
   getDisplayActionLabel,
   getFallbackActionLabel,
+  stripActionLabel,
   type ActionLabel,
 } from "@/utils/actionLabelUtils";
 

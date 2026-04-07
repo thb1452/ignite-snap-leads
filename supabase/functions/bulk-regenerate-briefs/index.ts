@@ -236,23 +236,23 @@ serve(async (req) => {
 
     // MODE: "rule" = only fetch rule-based eligible properties (score ≤ 40 AND closed)
     // MODE: "ai" = only fetch AI-eligible properties (score > 40 OR open violations > 0)
+    const batchSize = mode === "ai" ? BATCH_SIZE_AI : BATCH_SIZE_RULE;
+
     let query = supabase
       .from("properties")
       .select("id, address, city, state, zip, county, snap_score, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class")
       .or(`last_analyzed_at.is.null,last_analyzed_at.lt.${CUTOFF_TIMESTAMP}`);
 
     if (mode === "rule") {
-      // Score ≤ 40 (or null) AND closed (0 open violations or null)
       query = query.or("snap_score.is.null,snap_score.lte.40")
         .or("open_violations.is.null,open_violations.eq.0");
     } else {
-      // AI mode: score > 40 OR open violations > 0
-      // We fetch all remaining unprocessed and filter in code
+      // AI mode: prioritize highest scores first
     }
 
     const { data: properties, error: fetchErr } = await query
-      .order("snap_score", { ascending: mode === "rule", nullsFirst: true })
-      .range(0, BATCH_SIZE - 1);
+      .order("snap_score", { ascending: mode === "rule", nullsFirst: mode === "rule" })
+      .range(0, batchSize - 1);
 
     if (fetchErr) throw new Error(`Fetch error: ${fetchErr.message}`);
     if (!properties || properties.length === 0) {

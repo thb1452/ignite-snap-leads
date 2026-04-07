@@ -13,10 +13,32 @@ import { clearPendingStripeCheckout, getPendingStripeCheckout } from '@/utils/pe
 
 export function Settings() {
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const planSectionRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Handle ?credits_added=N param set by Stripe success_url redirect.
+  // Invalidate the credit cache immediately so the UI reflects the purchase
+  // without waiting for the staleTime to expire.
+  useEffect(() => {
+    const creditsAdded = searchParams.get('credits_added');
+    if (!creditsAdded) return;
+
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['credits'] }),
+      queryClient.invalidateQueries({ queryKey: ['credits', 'balance'] }),
+    ]);
+
+    toast({
+      title: 'Payment received',
+      description: `Finalizing your ${Number(creditsAdded).toLocaleString()} bulk credits — they'll appear here shortly.`,
+    });
+
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('credits_added');
+    setSearchParams(newParams, { replace: true });
+  }, [searchParams, setSearchParams, queryClient, toast]);
 
   // Sync subscription/bulk credit state when returning from Stripe checkout
   useEffect(() => {
@@ -52,8 +74,11 @@ export function Settings() {
           synced = synced || !!currentSubscription?.plan_name;
         }
       } else {
+        // For bulk credits, check that balance increased by at least the expected amount
         const currentBalance = Number(queryClient.getQueryData<number>(["credits", "balance"]) ?? 0);
-        synced = currentBalance > 0;
+        synced = pending.expectedBalance != null
+          ? currentBalance >= pending.expectedBalance
+          : currentBalance > 0;
       }
 
       if (!synced) return;
@@ -61,7 +86,7 @@ export function Settings() {
       clearPendingStripeCheckout();
 
       toast({
-        title: pending.type === "subscription" ? "Subscription activated! 🎉" : "Credits added! 💰",
+        title: pending.type === "subscription" ? "Subscription activated!" : "Credits added!",
         description: pending.type === "subscription"
           ? "Your plan is now active."
           : "Your bulk credits are now available.",

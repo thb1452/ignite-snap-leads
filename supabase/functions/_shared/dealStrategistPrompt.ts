@@ -44,7 +44,7 @@ STYLE
 - Vary sentence structure. No robotic repetition.
 - Keep it natural and human.
 
-LENGTH: 2–3 sentences MAX. No bullet points. No fluff. No headers. No sections.
+LENGTH: 3 sentences is the default. You may use 4 sentences ONLY when the property has truly complex stacked enforcement (e.g. water shutoff + fire citation + escalation + multi-department). Never exceed 4. No bullet points. No fluff. No headers. No sections.
 
 SITUATION CLASSIFICATION (internal, do not output):
 Before writing, classify the situation into one angle and subtly reflect it:

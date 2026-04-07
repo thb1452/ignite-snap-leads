@@ -167,32 +167,45 @@ OUTPUT — exactly 3 sentences then the action label, nothing else:`;
 
     const azureUrl = `${azureConfig.endpoint.replace(/\/+$/, '')}/openai/deployments/${azureConfig.deployment}/chat/completions?api-version=2024-08-01-preview`;
 
-    const response = await fetch(azureUrl, {
-      method: 'POST',
-      headers: {
-        'api-key': azureConfig.apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_completion_tokens: 400,
-        temperature: 0.4,
-      }),
-    });
+    // Retry with exponential backoff on 429 and 5xx (3 attempts: 1s, 2s, 4s)
+    const RETRY_DELAYS_MS = [1000, 2000, 4000];
+    let response: Response | null = null;
+    let lastErrBody = '';
+    for (let attempt = 0; attempt < RETRY_DELAYS_MS.length; attempt++) {
+      response = await fetch(azureUrl, {
+        method: 'POST',
+        headers: {
+          'api-key': azureConfig.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          max_completion_tokens: 400,
+          temperature: 0.4,
+        }),
+      });
 
-    if (response.status === 429) {
-      console.warn(`[generate-insights ${VERSION}] Azure rate limited (429), falling back to deterministic`);
-      return null;
+      if (response.ok) break;
+
+      const isRetryable = response.status === 429 || response.status >= 500;
+      if (!isRetryable) {
+        lastErrBody = await response.text().catch(() => '');
+        console.error(`[generate-insights ${VERSION}] Azure error ${response.status}: ${lastErrBody}`);
+        return null;
+      }
+
+      lastErrBody = await response.text().catch(() => '');
+      const delay = RETRY_DELAYS_MS[attempt];
+      const isLast = attempt === RETRY_DELAYS_MS.length - 1;
+      console.warn(`[generate-insights ${VERSION}] Azure ${response.status} (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length})${isLast ? ' — giving up' : ` — retrying in ${delay}ms`}`);
+      if (isLast) return null;
+      await new Promise((r) => setTimeout(r, delay));
     }
 
-    if (!response.ok) {
-      const errBody = await response.text().catch(() => '');
-      console.error(`[generate-insights ${VERSION}] Azure error ${response.status}: ${errBody}`);
-      return null;
-    }
+    if (!response || !response.ok) return null;
 
     const data = await response.json();
     const text = data?.choices?.[0]?.message?.content?.trim();

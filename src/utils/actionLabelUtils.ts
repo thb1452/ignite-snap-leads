@@ -115,21 +115,58 @@ export function getBriefPreview(text: string, maxSentences = 2, maxChars = 140):
 
   if (!cleaned) return "";
 
+  // Preserve the action label so it always appears at the end of the preview,
+  // even when the middle of the brief is truncated.
+  const detectedLabel = getActionLabel(text)?.label ?? null;
+  const labelSuffix = detectedLabel ? ` ${detectedLabel}` : "";
+  const reservedForLabel = labelSuffix.length + 1; // +1 for the ellipsis
+  const bodyMaxChars = Math.max(20, maxChars - reservedForLabel);
+
   const sentences = cleaned.match(SENTENCE_REGEX)?.map((sentence) => sentence.trim()) ?? [cleaned];
   const selected: string[] = [];
   let totalLength = 0;
+  let truncated = false;
 
-  for (const sentence of sentences) {
-    if (selected.length >= maxSentences) break;
+  for (let i = 0; i < sentences.length; i++) {
+    const sentence = sentences[i];
+
+    if (selected.length >= maxSentences) {
+      truncated = true;
+      break;
+    }
 
     const nextLength = totalLength + (selected.length > 0 ? 1 : 0) + sentence.length;
-    if (selected.length > 0 && nextLength > maxChars) break;
+    if (selected.length > 0 && nextLength > bodyMaxChars) {
+      truncated = true;
+      break;
+    }
 
     selected.push(sentence);
     totalLength = nextLength;
 
-    if (totalLength >= maxChars) break;
+    if (totalLength >= bodyMaxChars) {
+      if (i < sentences.length - 1) truncated = true;
+      break;
+    }
   }
 
-  return (selected.length > 0 ? selected.join(" ") : sentences[0] ?? cleaned).trim();
+  if (selected.length < sentences.length && selected.length < maxSentences) {
+    truncated = true;
+  }
+
+  let body = (selected.length > 0 ? selected.join(" ") : sentences[0] ?? cleaned).trim();
+
+  // If body still contains the action label (e.g., already in the original
+  // text), strip it so we don't show it twice.
+  if (detectedLabel) {
+    body = body.replace(ACTION_LABELS_REGEX, "").replace(/\s{2,}/g, " ").trim();
+    // Drop trailing punctuation/connector chars before appending the label.
+    body = body.replace(/[\s,;:—–\-]+$/g, "");
+  }
+
+  if (truncated) {
+    body = `${body.replace(/[.!?]+$/g, "").trim()}…`;
+  }
+
+  return `${body}${labelSuffix}`.trim();
 }

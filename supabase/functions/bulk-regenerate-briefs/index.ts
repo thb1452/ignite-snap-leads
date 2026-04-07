@@ -340,35 +340,30 @@ serve(async (req) => {
           })
         );
 
-        // Check if ALL AI calls in this chunk failed (credits exhausted)
+        // If ALL AI calls in this chunk failed, log it but fall back to
+        // rule-based briefs so properties never end up NULL.
         const allFailed = results.every(r => r.brief === null);
         if (allFailed && chunk.length > 0) {
-          console.error("[bulk-regen] ❌ ALL AI calls failed — credits likely exhausted. STOPPING. Do NOT fallback.");
-          return new Response(JSON.stringify({ 
-            error: "AI credits exhausted. Stopping — will NOT fallback to rule-based for AI properties.",
-            totalProcessed: totalProcessed + batchSuccess,
-            ruleProcessed: ruleCount,
-            aiAttempted: aiProps.length,
-            batchFailed
-          }), { status: 402, headers });
+          console.warn("[bulk-regen] ⚠️ ALL AI calls failed in chunk — falling back to rule-based briefs.");
         }
 
         for (const r of results) {
-          if (!r.brief) {
-            // Skip this property — do NOT fallback to rule-based
-            batchFailed++;
-            console.warn(`[bulk-regen] Skipped property ${r.id} — AI failed, no fallback.`);
-            continue;
+          let briefText = r.brief;
+          let model = "ai-provider";
+          if (!briefText) {
+            briefText = generateRuleBrief(r.prop);
+            model = "deterministic-v5-fallback";
+            console.warn(`[bulk-regen] Property ${r.id} — AI failed, using rule-based fallback.`);
           }
           const briefJson = {
-            brief_text: r.brief,
+            brief_text: briefText,
             generated_at: new Date().toISOString(),
-            model: "ai-provider",
+            model,
             version: REGEN_VERSION,
           };
           const { error } = await supabase
             .from("properties")
-            .update({ snap_insight: r.brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
+            .update({ snap_insight: briefText, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
             .eq("id", r.id);
           if (error) { batchFailed++; } else { batchSuccess++; aiCount++; }
         }

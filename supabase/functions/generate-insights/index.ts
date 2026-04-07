@@ -1,5 +1,5 @@
 /**
- * SNAP INSIGHT GENERATION v9.2 - AZURE GPT-4o MINI + PLAIN ENGLISH SCOUT VOICE
+ * SNAP INSIGHT GENERATION v9.3 - AZURE GPT-4o MINI + COMPACT SCOUT BRIEF
  * 
  * Properties with snap_score >= 20: AI-generated wholesaler distress brief
  *   - Uses Azure OpenAI GPT-4o mini
@@ -12,7 +12,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v9.2";
+const VERSION = "v9.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -124,46 +124,36 @@ async function generateAIInsight(
       scoreResult.signals.length ? `Distress Signals: ${scoreResult.signals.join(', ')}` : '',
     ].filter(Boolean);
 
-    const systemPrompt = `You are a field intelligence analyst writing property distress briefs for experienced real estate wholesalers.
+    const systemPrompt = `You are a field intelligence analyst writing 3-sentence property distress briefs for real estate wholesalers.
 
-Write like a seasoned scout reporting from the field. Every sentence must sound like a human analyst wrote it.
+Write like a seasoned scout. Every sentence must sound like a human analyst wrote it.
 
-STRICT OUTPUT RULES:
-- NEVER write variable names: no "repeat_offender=true", no "escalated=false", no "multi_department=true"
-- NEVER write boolean syntax or code language
-- NEVER show day math calculations to the reader
+STRICT RULES:
+- Output is EXACTLY 3 sentences followed by an action label. Nothing else.
+- Sentence 1: Lead with the most severe distress signal and specific numbers.
+- Sentence 2: Stack additional context — violation types, days open, department activity.
+- Sentence 3: Loss-aversion framing — what gets worse by waiting.
+- Final line: CALL NOW or WORTH A CALL or WATCH (no extra sentence after it).
+- NEVER write variable names, boolean syntax, or code language.
 - NEVER use: "may", "could", "potential", "opportunity", "seems", "appears"
-- Every fact must be in plain English
-- Violations open for 10+ years: note as "long-standing unresolved enforcement" — do not speculate on cause
-- If a field is null or empty — skip it entirely
-- Maximum 100 words total output
+- Translate all data into plain English:
+  repeat_offender → "owner has ignored multiple enforcement cycles"
+  multi_department → "multiple city departments are actively enforcing"
+  escalated → "enforcement has reached legal action stage"
+  water_shutoff → "water has been disconnected"
+  fire_citation → "fire department has cited this property"
+- If a field is null or empty, skip it.
+- Maximum 60 words before the action label.
 
-TRANSLATE DATA INTO PLAIN ENGLISH:
-- repeat_offender=true → "owner has ignored multiple enforcement cycles"
-- multi_department=true → "multiple city departments are actively enforcing"
-- escalated=true → "enforcement has reached legal action stage"
-- water_shutoff → "water has been disconnected"
-- avg_days_open → "[X] days without resolution"
-- fire_citation → "fire department has cited this property"
-
-ACTION LABEL RULES:
+ACTION LABEL:
 - CALL NOW: escalated OR water shutoff OR fire citation OR (score 90+ AND 4+ open violations)
 - WORTH A CALL: score 70-89 OR 2-3 open violations
 - WATCH: score under 70 OR all violations resolved`;
 
     const userPrompt = `INPUT DATA:
-
 ${inputLines.join('\n')}
 
-OUTPUT FORMAT:
-
-SIGNAL STACK: [3-5 plain English signals, no emojis needed, no code variables]
-
-ENFORCEMENT BRIEF:
-
-[2-3 sentences. Plain English. Specific numbers. Loss-aversion framing. Scout voice.]
-
-⚡ [CALL NOW / WORTH A CALL / WATCH] — [one sentence, plain English, specific data only]`;
+OUTPUT — exactly 3 sentences then the action label, nothing else:`;
 
     const azureUrl = `${azureConfig.endpoint.replace(/\/+$/, '')}/openai/deployments/${azureConfig.deployment}/chat/completions?api-version=2024-08-01-preview`;
 

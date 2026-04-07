@@ -357,7 +357,7 @@ serve(async (req) => {
     const newTotal = totalProcessed + batchSuccess;
     console.log(`[bulk-regen] Batch: ${batchSuccess} ok (${ruleCount} rule, ${aiCount} AI), ${batchFailed} failed. Total: ${newTotal}`);
 
-    const resumeDelay = batchSuccess === 0 ? 30000 : 500;
+    const resumeDelay = batchFailed > batchSuccess ? 60000 : batchSuccess === 0 ? 30000 : 500;
 
     if (autoResume) {
       const continueTask = async () => {

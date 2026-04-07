@@ -307,13 +307,13 @@ serve(async (req) => {
       let method: 'ai' | 'deterministic' = 'deterministic';
 
       const effectiveScore = Math.max(property.snap_score ?? 0, scoreResult.score);
-      const shouldUseAI = LOVABLE_API_KEY && !aiCreditsExhausted && effectiveScore >= SNAP_SCORE_AI_THRESHOLD;
+      const shouldUseAI = azureConfig && !aiCreditsExhausted && effectiveScore >= SNAP_SCORE_AI_THRESHOLD;
 
       if (shouldUseAI) {
         await throttleAI();
         const aiInsight = await generateAIInsight(
-          { address: property.address, city: property.city, enforcement_type: (property as any).enforcement_type },
-          violations, classifiedViolations, intelligence, scoreResult, LOVABLE_API_KEY!
+          { address: property.address, city: property.city, state: (property as any).state, zip: (property as any).zip, enforcement_type: (property as any).enforcement_type },
+          violations, classifiedViolations, intelligence, scoreResult, azureConfig
         );
 
         if (aiInsight === null) {

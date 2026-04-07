@@ -8,7 +8,7 @@ import { formatOwnerName } from "@/utils/formatOwnerName";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";
-import { getActionLabel, getBriefPreview, getFallbackActionLabel } from "@/utils/actionLabelUtils";
+import { getBriefPreview, getDisplayActionLabel } from "@/utils/actionLabelUtils";
 
 interface Violation {
   id: string;
@@ -68,8 +68,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
 
   const insightText = property.snap_insight || "";
   const actionLabel = insightText
-    ? getActionLabel(insightText) ??
-      getFallbackActionLabel({
+    ? getDisplayActionLabel(insightText, {
         snapScore: property.snap_score,
         openViolations: property.open_violations,
         enforcementType: property.enforcement_type,
@@ -115,7 +114,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
         {property.violation_types && property.violation_types.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3">
             {property.violation_types.slice(0, 4).map((vt) => (
-              <span key={vt} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">
+              <span key={vt} className="inline-flex max-w-full items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-medium px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20" title={vt}>
                 🔥 {vt}
               </span>
             ))}

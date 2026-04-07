@@ -5,6 +5,8 @@ const ACTION_LABELS_REGEX =
   /\*?\*?⚡?\s*(CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY|WORTH A CALL|WATCH|MONITOR|LOW PRIORITY|WATCH\/PASS|PASS)\*?\*?/gi;
 
 const SENTENCE_REGEX = /[^.!?]+[.!?]+|[^.!?]+$/g;
+const COMPLETE_SENTENCE_REGEX = /[^.!?]+[.!?]+/g;
+const SENTENCE_END_REGEX = /[.!?]["')\]]*\s*$/;
 
 export interface ActionLabel {
   label: string;
@@ -20,16 +22,26 @@ export interface ActionLabelFallbackInput {
 }
 
 const RED_ACTION_LABEL = "text-destructive font-bold";
+const ACTION_LABEL_PRIORITY = {
+  WATCH: 0,
+  "WORTH A CALL": 1,
+  "CALL NOW": 2,
+} as const;
+
+function createActionLabel(label: "CALL NOW" | "WORTH A CALL" | "WATCH"): ActionLabel {
+  return { label, colorClass: RED_ACTION_LABEL };
+}
 
 export function getActionLabel(text: string): ActionLabel | null {
-  if (/CALL NOW/i.test(text)) return { label: "CALL NOW", colorClass: RED_ACTION_LABEL };
-  if (/HIGH OPPORTUNITY/i.test(text)) return { label: "HIGH OPPORTUNITY", colorClass: RED_ACTION_LABEL };
-  if (/GOOD OPPORTUNITY/i.test(text)) return { label: "GOOD OPPORTUNITY", colorClass: RED_ACTION_LABEL };
-  if (/WORTH A CALL/i.test(text)) return { label: "WORTH A CALL", colorClass: RED_ACTION_LABEL };
-  if (/\bMONITOR\b/i.test(text)) return { label: "MONITOR", colorClass: RED_ACTION_LABEL };
-  if (/WATCH\/PASS/i.test(text)) return { label: "WATCH", colorClass: RED_ACTION_LABEL };
-  if (/\bPASS\b/i.test(text)) return { label: "PASS", colorClass: RED_ACTION_LABEL };
-  if (/\bWATCH\b/i.test(text)) return { label: "WATCH", colorClass: RED_ACTION_LABEL };
+  if (/\bCALL NOW\b/i.test(text) || /\bHIGH OPPORTUNITY\b/i.test(text)) {
+    return createActionLabel("CALL NOW");
+  }
+  if (/\bWORTH A CALL\b/i.test(text) || /\bGOOD OPPORTUNITY\b/i.test(text)) {
+    return createActionLabel("WORTH A CALL");
+  }
+  if (/\bMONITOR\b/i.test(text) || /WATCH\/PASS/i.test(text) || /\bLOW PRIORITY\b/i.test(text) || /\bPASS\b/i.test(text) || /\bWATCH\b/i.test(text)) {
+    return createActionLabel("WATCH");
+  }
   return null;
 }
 
@@ -50,15 +62,26 @@ export function getFallbackActionLabel({
     Boolean(violationTypes?.some((type) => /fire/i.test(type))) ||
     distressSignals?.includes("fire_citation");
 
-  if (hasWaterShutoff || hasFireCitation || (score >= 90 && openCount >= 4)) {
-    return { label: "CALL NOW", colorClass: RED_ACTION_LABEL };
+  if (hasWaterShutoff || hasFireCitation || score >= 90) {
+    return createActionLabel("CALL NOW");
   }
 
-  if ((score >= 70 && score < 90) || (openCount >= 2 && openCount <= 3)) {
-    return { label: "WORTH A CALL", colorClass: RED_ACTION_LABEL };
+  if (score >= 70 || openCount >= 2) {
+    return createActionLabel("WORTH A CALL");
   }
 
-  return { label: "WATCH", colorClass: RED_ACTION_LABEL };
+  return createActionLabel("WATCH");
+}
+
+export function getDisplayActionLabel(text: string, fallbackInput: ActionLabelFallbackInput): ActionLabel {
+  const detected = getActionLabel(text);
+  const fallback = getFallbackActionLabel(fallbackInput);
+
+  if (!detected) return fallback;
+
+  return ACTION_LABEL_PRIORITY[detected.label] >= ACTION_LABEL_PRIORITY[fallback.label]
+    ? detected
+    : fallback;
 }
 
 export function stripActionLabel(text: string): string {
@@ -72,8 +95,23 @@ export function stripActionLabel(text: string): string {
     .trim();
 }
 
-export function getBriefPreview(text: string, maxSentences = 2, maxChars = 140): string {
+export function getCompleteBriefText(text: string): string {
   const cleaned = stripActionLabel(text).replace(/\s+/g, " ").trim();
+
+  if (!cleaned) return "";
+  if (SENTENCE_END_REGEX.test(cleaned)) return cleaned;
+
+  const completeSentences = cleaned.match(COMPLETE_SENTENCE_REGEX)?.map((sentence) => sentence.trim()) ?? [];
+
+  if (completeSentences.length > 0) {
+    return completeSentences.join(" ").trim();
+  }
+
+  return `${cleaned.replace(/[\s,;:—–-]+$/g, "").trim()}…`;
+}
+
+export function getBriefPreview(text: string, maxSentences = 2, maxChars = 140): string {
+  const cleaned = getCompleteBriefText(text);
 
   if (!cleaned) return "";
 

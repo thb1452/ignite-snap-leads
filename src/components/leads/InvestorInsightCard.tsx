@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 
 import {
-  getActionLabel,
+  getCompleteBriefText,
+  getDisplayActionLabel,
   getFallbackActionLabel,
-  stripActionLabel,
   type ActionLabel,
 } from "@/utils/actionLabelUtils";
 
@@ -90,8 +90,10 @@ function buildRuleBasedSummary(
 }
 
 function renderBriefText(text: string, fallbackActionLabel: ActionLabel) {
-  const cleaned = stripActionLabel(text);
-  const actionLabel = getActionLabel(text) ?? fallbackActionLabel;
+  const cleaned = getCompleteBriefText(text);
+  const actionLabel = getDisplayActionLabel(text, {
+    snapScore: fallbackActionLabel.label === "CALL NOW" ? 90 : fallbackActionLabel.label === "WORTH A CALL" ? 70 : 0,
+  });
 
   return (
     <div className="text-sm text-foreground leading-relaxed">

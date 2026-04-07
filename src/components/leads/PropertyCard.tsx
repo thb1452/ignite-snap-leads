@@ -5,7 +5,7 @@ import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { Lock, Unlock, Sparkles, Heart, Download, Loader2 } from "lucide-react";
 import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";
-import { getActionLabel, getBriefPreview, getFallbackActionLabel } from "@/utils/actionLabelUtils";
+import { getBriefPreview, getDisplayActionLabel } from "@/utils/actionLabelUtils";
 
 interface Violation {
   id: string;
@@ -67,8 +67,7 @@ export const PropertyCard = memo(function PropertyCard({
 
   const insightText = property.snap_insight || "";
   const actionLabel = insightText
-    ? getActionLabel(insightText) ??
-      getFallbackActionLabel({
+    ? getDisplayActionLabel(insightText, {
         snapScore: property.snap_score,
         openViolations: property.open_violations,
         enforcementType: property.enforcement_type,
@@ -85,7 +84,7 @@ export const PropertyCard = memo(function PropertyCard({
         }`}
         onClick={onClick}
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-start gap-2 min-w-0">
           <Checkbox
             checked={isSelected}
             onCheckedChange={() => onToggleSelect(property.id)}
@@ -101,11 +100,11 @@ export const PropertyCard = memo(function PropertyCard({
             {isUnlocked ? <><Unlock className="w-2.5 h-2.5" />UNLOCKED</> : <><Lock className="w-2.5 h-2.5" />LOCKED</>}
           </span>
 
-          <span className="text-sm font-bold text-slate-100 truncate shrink-0 max-w-[200px]">
+          <span className="text-sm font-bold text-slate-100 shrink min-w-0 break-words max-w-[200px] leading-tight">
             {formatAddress(property.address)}
           </span>
 
-          <span className="text-xs text-slate-400 truncate shrink-0 max-w-[140px]">
+          <span className="text-xs text-slate-400 shrink min-w-0 break-words max-w-[140px] leading-tight">
             {formatCity(property.city)}, {property.state}
           </span>
 
@@ -114,7 +113,8 @@ export const PropertyCard = memo(function PropertyCard({
               {property.violation_types.slice(0, 3).map((vt) => (
                 <span
                   key={vt}
-                  className="text-[10px] font-semibold px-1.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/25 leading-4 whitespace-nowrap"
+                  className="max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap text-[10px] font-semibold px-1.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/25 leading-4"
+                  title={vt}
                 >
                   🔥 {vt}
                 </span>
@@ -167,7 +167,7 @@ export const PropertyCard = memo(function PropertyCard({
         </div>
 
         {(briefPreview || actionLabel) && (
-          <div className="flex flex-col gap-0.5 pl-[4.5rem] min-w-0 overflow-hidden mt-1">
+          <div className="flex flex-col gap-0.5 pl-[4.5rem] min-w-0 mt-1">
             {briefPreview && (
               <p className="text-[11px] text-slate-400 leading-tight whitespace-normal break-words">{briefPreview}</p>
             )}
@@ -212,7 +212,7 @@ export const PropertyCard = memo(function PropertyCard({
           {property.violation_types && property.violation_types.length > 0 && (
             <div className="flex items-center gap-1 shrink-0">
               {property.violation_types.slice(0, 2).map((vt) => (
-                <span key={vt} className="text-[9px] font-medium px-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 leading-3.5 whitespace-nowrap">
+                <span key={vt} className="max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-medium px-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 leading-3.5" title={vt}>
                   🔥 {vt}
                 </span>
               ))}

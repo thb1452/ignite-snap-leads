@@ -143,6 +143,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     } catch (handlerErr: any) {
       console.error("[webhook] Handler error for", event.type, handlerErr?.message);
       await logWebhookError(event.type, event.id, handlerErr?.message ?? String(handlerErr), event.data.object);
+      // Remove the idempotency record so Stripe can retry this event.
+      // Without this, a failure after recording would permanently skip the event on retry.
+      try {
+        await supabase.from("webhook_events").delete().eq("event_id", event.id);
+      } catch {
+        /* silent — idempotency cleanup is best-effort */
+      }
       throw handlerErr;
     }
 
@@ -222,7 +229,7 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
         description:
           checkoutType === "single_unlock"
             ? "Single Property Unlock"
-            : `Credit Pack: ${session.metadata?.credits ?? 0} credits`,
+            : `Credit Pack: ${session.metadata?.credit_count ?? 0} credits`,
         metadata: session.metadata,
         status: "succeeded",
       })

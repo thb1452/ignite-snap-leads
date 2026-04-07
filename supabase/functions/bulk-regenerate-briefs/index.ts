@@ -322,34 +322,35 @@ serve(async (req) => {
           })
         );
 
-        // If ALL AI calls in this chunk failed, log it but fall back to
-        // rule-based briefs so properties never end up NULL.
+        // If ALL AI calls in this chunk failed, it's likely a rate limit — pause and retry later
         const allFailed = results.every(r => r.brief === null);
         if (allFailed && chunk.length > 0) {
-          console.warn("[bulk-regen] ⚠️ ALL AI calls failed in chunk — falling back to rule-based briefs.");
+          console.warn("[bulk-regen] ⚠️ ALL AI calls failed in chunk — pausing 60s before next batch.");
+          // Don't write anything for failed properties — leave them for next batch
+          break; // Exit the AI loop, let auto-resume retry after delay
         }
 
         for (const r of results) {
-          let briefText = r.brief;
-          let model = "ai-provider";
-          if (!briefText) {
-            briefText = generateRuleBrief(r.prop);
-            model = "deterministic-v5-fallback";
-            console.warn(`[bulk-regen] Property ${r.id} — AI failed, using rule-based fallback.`);
+          if (!r.brief) {
+            // Skip — leave property unprocessed so it gets picked up in next batch
+            console.warn(`[bulk-regen] Property ${r.id} — AI failed, skipping (will retry next batch).`);
+            batchFailed++;
+            continue;
           }
           const briefJson = {
-            brief_text: briefText,
+            brief_text: r.brief,
             generated_at: new Date().toISOString(),
-            model,
+            model: "ai-provider",
             version: REGEN_VERSION,
           };
           const { error } = await supabase
             .from("properties")
-            .update({ snap_insight: briefText, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
+            .update({ snap_insight: r.brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
             .eq("id", r.id);
           if (error) { batchFailed++; } else { batchSuccess++; aiCount++; }
         }
-        if (i + AI_CONCURRENCY < aiProps.length) await new Promise(r => setTimeout(r, 200));
+        // Pace between chunks to avoid rate limits
+        if (i + AI_CONCURRENCY < aiProps.length) await new Promise(r => setTimeout(r, 1000));
       }
     }
 

@@ -66,12 +66,12 @@ function generateRuleBrief(prop: Record<string, any>): string {
   };
 
   const getLabel = (): string => {
-    if (hasWater || hasEscalation) return "HIGH OPPORTUNITY.";
-    if (score >= 70) return "HIGH OPPORTUNITY.";
-    if (score >= 40) return openCount >= 3 || isRepeat || isExtended ? "GOOD OPPORTUNITY." : "WATCH.";
-    if (openCount === 0) return "PASS.";
-    if (openCount >= 3 || isExtended || isRepeat) return "WATCH.";
-    return "PASS.";
+    if (hasWater || hasEscalation) return "CALL NOW";
+    if (score >= 70) return "CALL NOW";
+    if (score >= 40) return openCount >= 3 || isRepeat || isExtended ? "WORTH A CALL" : "WATCH";
+    if (openCount === 0) return "PASS";
+    if (openCount >= 3 || isExtended || isRepeat) return "WATCH";
+    return "PASS";
   };
 
   const parts: string[] = [];
@@ -121,9 +121,10 @@ function generateRuleBrief(prop: Record<string, any>): string {
     parts.push("Low enforcement pressure. Early stage monitoring.");
   }
 
-  parts.push(getLabel());
-  const result = parts.join(" ");
-  return sanitizeInsightForStorage(result, getLabel()) ?? result;
+  // Don't push label into parts — sanitizer handles label placement
+  const label = getLabel();
+  const bodyText = parts.join(" ");
+  return sanitizeInsightForStorage(bodyText, label) ?? bodyText;
 }
 
 function isCleanBrief(text: string, prop: Record<string, any>): boolean {

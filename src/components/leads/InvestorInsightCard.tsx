@@ -2,6 +2,13 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 
+import {
+  getActionLabel,
+  getFallbackActionLabel,
+  stripActionLabel,
+  type ActionLabel,
+} from "@/utils/actionLabelUtils";
+
 interface InvestorBrief {
   brief_text: string;
   enforcement_summary?: string;
@@ -24,11 +31,6 @@ interface InvestorInsightCardProps {
   onBriefGenerated?: (brief: InvestorBrief) => void;
 }
 
-// ── Action label utilities (shared with PropertyCard etc.) ──
-
-import { getActionLabel, getBriefPreview, getFallbackActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
-
-// ── Rule-based distress summary (fallback when no AI brief exists) ──
 function buildRuleBasedSummary(
   distressSignals: string[] | null | undefined,
   openViolations: number | null,
@@ -87,18 +89,13 @@ function buildRuleBasedSummary(
   return parts.join(" ");
 }
 
-// ── Brief text renderer with action label colors ──
-function renderBriefText(
-  text: string,
-  fallbackActionLabel: ReturnType<typeof getFallbackActionLabel>,
-) {
+function renderBriefText(text: string, fallbackActionLabel: ActionLabel) {
   const cleaned = stripActionLabel(text);
-  const preview = getBriefPreview(text, 3, 220);
   const actionLabel = getActionLabel(text) ?? fallbackActionLabel;
 
   return (
     <div className="text-sm text-foreground leading-relaxed">
-      <p>{preview || cleaned}</p>
+      <p>{cleaned}</p>
       <p className={`mt-2 ${actionLabel.colorClass}`}>{actionLabel.label}</p>
     </div>
   );
@@ -110,18 +107,6 @@ function getBriefDisplayText(b: InvestorBrief): string {
   return parts.join(" ");
 }
 
-/**
- * InvestorInsightCard — DISPLAY ONLY
- *
- * Shows the pre-generated AI investor brief from the database.
- * No on-demand AI calls. Briefs are populated via bulk backfill.
- *
- * Fallback chain:
- *   1. cachedBrief (investor_insight_brief JSONB column)
- *   2. snap_insight (text column)
- *   3. Rule-based summary from distress signals
- *   4. "Brief pending" message
- */
 export function InvestorInsightCard({
   snapScore,
   snapInsight,

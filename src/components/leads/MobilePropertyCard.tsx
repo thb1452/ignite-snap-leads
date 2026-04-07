@@ -2,13 +2,13 @@ import { memo, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Lock, Unlock, Sparkles, Heart, Users, Phone, Download, Loader2 } from "lucide-react";
-import { formatViolationType } from "@/utils/formatViolationType";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
 import { formatOwnerName } from "@/utils/formatOwnerName";
 import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";
+import { getActionLabel, getBriefPreview, getFallbackActionLabel } from "@/utils/actionLabelUtils";
 
 interface Violation {
   id: string;
@@ -44,8 +44,6 @@ interface MobilePropertyCardProps {
   onUnlock?: (propertyId: string) => void;
 }
 
-import { getActionLabel, getBriefPreview, getFallbackActionLabel } from "@/utils/actionLabelUtils";
-
 export const MobilePropertyCard = memo(function MobilePropertyCard({
   property,
   isSelected,
@@ -69,34 +67,27 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
   };
 
   const insightText = property.snap_insight || "";
-  const actionLabel = getActionLabel(insightText) ?? getFallbackActionLabel({
-    snapScore: property.snap_score,
-    openViolations: property.open_violations,
-    enforcementType: property.enforcement_type,
-    violationTypes: property.violation_types,
-  });
-  const briefPreview = getBriefPreview(insightText, 2, 160);
-  const ownerContact = contacts?.find(c => c.name);
+  const actionLabel = insightText
+    ? getActionLabel(insightText) ??
+      getFallbackActionLabel({
+        snapScore: property.snap_score,
+        openViolations: property.open_violations,
+        enforcementType: property.enforcement_type,
+        violationTypes: property.violation_types,
+      })
+    : null;
+  const briefPreview = insightText ? getBriefPreview(insightText, 2, 180) : "";
+  const ownerContact = contacts?.find((c) => c.name);
 
   return (
     <div className="p-3 border-b border-slate-800 bg-slate-950" onClick={onClick}>
       <div className={`bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-xl cursor-pointer transition-all ${isSelected ? "ring-2 ring-teal-500" : ""}`}>
-
-        {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div onClick={(e) => e.stopPropagation()}>
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={() => onToggleSelect(property.id)}
-                className="h-5 w-5"
-              />
+              <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect(property.id)} className="h-5 w-5" />
             </div>
-            {isUnlocked ? (
-              <Unlock className="w-4 h-4 text-teal-400" />
-            ) : (
-              <Lock className="w-4 h-4 text-slate-400" />
-            )}
+            {isUnlocked ? <Unlock className="w-4 h-4 text-teal-400" /> : <Lock className="w-4 h-4 text-slate-400" />}
             <span className={`text-xs font-semibold uppercase tracking-wider ${isUnlocked ? "text-teal-400" : "text-slate-400"}`}>
               {isUnlocked ? "Unlocked" : "Locked"}
             </span>
@@ -107,9 +98,10 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
           </div>
         </div>
 
-        {/* Address */}
         <p className="property-address text-lg font-bold mb-1 text-slate-100">
-          {isUnlocked ? formatAddress(property.address) : (
+          {isUnlocked ? (
+            formatAddress(property.address)
+          ) : (
             <span className="inline-flex items-center gap-2">
               <span className="blur-[4px] select-none pointer-events-none">1423</span>
               <span>{formatBlurredStreet(property, false)}</span>
@@ -120,7 +112,6 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
           {formatCity(property.city)}, {property.state} {property.zip}
         </p>
 
-        {/* Violation Tags */}
         {property.violation_types && property.violation_types.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3">
             {property.violation_types.slice(0, 4).map((vt) => (
@@ -131,21 +122,17 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
           </div>
         )}
 
-        {/* AI Insight */}
         {insightText && (
           <div className="bg-slate-900 rounded-lg p-3 mb-4 border border-teal-500/20">
             <div className="flex items-center gap-1.5 mb-1.5">
               <Sparkles className="w-3.5 h-3.5 text-teal-400" />
               <span className="text-xs font-semibold text-teal-400">AI Investor Brief</span>
             </div>
-            {briefPreview && (
-              <p className="snap-insight-text text-xs text-slate-400 leading-relaxed break-words">{briefPreview}</p>
-            )}
-            <p className={`mt-1 text-xs leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>
+            {briefPreview && <p className="snap-insight-text text-xs text-slate-400 leading-relaxed break-words">{briefPreview}</p>}
+            {actionLabel && <p className={`mt-1 text-xs leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>}
           </div>
         )}
 
-        {/* Contact / CTA */}
         {isUnlocked ? (
           <div className="space-y-2">
             {ownerContact && (
@@ -175,14 +162,10 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
                 disabled={isExporting}
                 onClick={async (e) => {
                   e.stopPropagation();
-                  if (!isUnlocked) return;
                   setIsExporting(true);
                   try {
                     await exportFilteredCsv({ propertyIds: [property.id], expectedPropertyCount: 1 });
-                    toast({
-                      title: "Export Complete",
-                      description: "Property exported successfully.",
-                    });
+                    toast({ title: "Export Complete", description: "Property exported successfully." });
                   } catch (err: unknown) {
                     const t = getExportErrorToast(err);
                     toast({ title: t.title, description: t.description, variant: t.variant });
@@ -191,31 +174,28 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
                   }
                 }}
               >
-                {isExporting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4 mr-2" />
-                )}
+                {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
                 Export Lead
               </Button>
               <button
-                onClick={(e) => { e.stopPropagation(); onToggleSaved?.(property.id); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSaved?.(property.id);
+                }}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors"
               >
-                <Heart
-                  className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"}
-                  size={18}
-                />
-                <span className="text-sm font-medium text-slate-200">
-                  {isSaved ? "Saved" : "Save"}
-                </span>
+                <Heart className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"} size={18} />
+                <span className="text-sm font-medium text-slate-200">{isSaved ? "Saved" : "Save"}</span>
               </button>
             </div>
           </div>
         ) : (
           <Button
             className="w-full bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold"
-            onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onUnlock?.(property.id);
+            }}
           >
             <Lock className="w-4 h-4 mr-2" />
             Unlock Property

@@ -53,7 +53,7 @@ export function VirtualizedMobilePropertyList({
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 300,
+    estimateSize: () => 340,
     measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 3,
   });

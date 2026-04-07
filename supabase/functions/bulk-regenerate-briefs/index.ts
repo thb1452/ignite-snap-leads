@@ -228,12 +228,11 @@ serve(async (req) => {
       .or(`last_analyzed_at.is.null,last_analyzed_at.lt.${CUTOFF_TIMESTAMP}`);
 
     if (mode === "rule") {
-      // Rule mode: only closed/low-score properties
-      query = query.or("snap_score.is.null,snap_score.lte.40")
-        .or("open_violations.is.null,open_violations.eq.0");
+      // Rule mode: everything EXCEPT score 70+ (those get AI)
+      query = query.or("snap_score.is.null,snap_score.lt.70");
     } else {
-      // AI mode: only properties that actually need AI (score>40 OR open violations>0)
-      query = query.or("snap_score.gt.40,open_violations.gt.0");
+      // AI mode: ONLY hot leads (score >= 70)
+      query = query.gte("snap_score", 70);
     }
 
     const { data: properties, error: fetchErr } = await query

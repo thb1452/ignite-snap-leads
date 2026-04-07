@@ -1,5 +1,5 @@
 /**
- * SNAP INSIGHT GENERATION v9.1 - AZURE GPT-4o MINI + WHOLESALER FIELD INTELLIGENCE
+ * SNAP INSIGHT GENERATION v9.2 - AZURE GPT-4o MINI + PLAIN ENGLISH SCOUT VOICE
  * 
  * Properties with snap_score >= 20: AI-generated wholesaler distress brief
  *   - Uses Azure OpenAI GPT-4o mini

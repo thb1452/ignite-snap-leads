@@ -19,24 +19,47 @@ export function Settings() {
   const { toast } = useToast();
 
   // Handle ?credits_added=N param set by Stripe success_url redirect.
-  // Invalidate the credit cache immediately so the UI reflects the purchase
-  // without waiting for the staleTime to expire.
+  // The Stripe webhook inserts into credit_ledger, but it may not have fired
+  // yet when the user is redirected. Poll for the credits to appear.
   useEffect(() => {
     const creditsAdded = searchParams.get('credits_added');
     if (!creditsAdded) return;
 
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['credits'] }),
-      queryClient.invalidateQueries({ queryKey: ['credits', 'balance'] }),
-    ]);
+    const expectedCredits = Number(creditsAdded);
 
-    toast({
-      title: `✅ ${Number(creditsAdded).toLocaleString()} credits added to your account`,
-    });
-
+    // Clean the URL immediately
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('credits_added');
     setSearchParams(newParams, { replace: true });
+
+    // Poll for the credits to actually appear in the ledger
+    let attempts = 0;
+    const maxAttempts = 20; // ~30 seconds total
+
+    const poll = async () => {
+      attempts++;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['credits'] }),
+        queryClient.invalidateQueries({ queryKey: ['credits', 'balance'] }),
+        queryClient.invalidateQueries({ queryKey: ['user', 'credits'] }),
+      ]);
+
+      // Check if balance has increased
+      const balance = Number(queryClient.getQueryData<number>(['credits', 'balance']) ?? 0);
+
+      if (balance >= expectedCredits || attempts >= maxAttempts) {
+        toast({
+          title: `✅ ${expectedCredits.toLocaleString()} credits added to your account`,
+        });
+        return;
+      }
+
+      // Wait and try again
+      setTimeout(poll, 1500);
+    };
+
+    // Start polling after a short initial delay (give webhook time)
+    setTimeout(poll, 2000);
   }, [searchParams, setSearchParams, queryClient, toast]);
 
   // Sync subscription/bulk credit state when returning from Stripe checkout

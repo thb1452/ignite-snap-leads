@@ -3,6 +3,8 @@ import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Download, Infinity } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getCreditBalance } from "@/services/credits";
 
 export function ExportQuotaDisplay() {
   const { plan, usage, subscription, loading: subLoading } = useSubscription();
@@ -14,6 +16,14 @@ export function ExportQuotaDisplay() {
     trialExportsLimit,
     loading: trialLoading,
   } = useTrialStatus();
+
+  // Bulk credits from credit_ledger
+  const { data: ledgerBalance = 0 } = useQuery({
+    queryKey: ["credits", "balance"],
+    queryFn: getCreditBalance,
+    retry: 1,
+    staleTime: 30000,
+  });
 
   const loading = subLoading || trialLoading;
 
@@ -73,14 +83,23 @@ export function ExportQuotaDisplay() {
   }
 
   const isUnlimited = plan.max_monthly_exports === -1;
-  const remaining = isUnlimited
+  const subRemaining = isUnlimited
     ? null
     : Math.max(0, plan.max_monthly_exports - usage.exports_count);
+  const totalAvailable = isUnlimited
+    ? null
+    : (subRemaining ?? 0) + ledgerBalance;
   const usedPercentage = isUnlimited
     ? 0
     : (usage.exports_count / plan.max_monthly_exports) * 100;
-  const isLow = !isUnlimited && remaining !== null && remaining <= 2;
-  const isExhausted = !isUnlimited && remaining === 0;
+  const isLow = !isUnlimited && totalAvailable !== null && totalAvailable <= 2;
+  const isExhausted = !isUnlimited && totalAvailable === 0;
+
+  const displayText = isUnlimited
+    ? ""
+    : ledgerBalance > 0
+      ? `${usage.exports_count.toLocaleString()}/${plan.max_monthly_exports.toLocaleString()} monthly + ${ledgerBalance.toLocaleString()} bulk`
+      : `${usage.exports_count.toLocaleString()}/${plan.max_monthly_exports.toLocaleString()} credits`;
 
   return (
     <div className="flex items-center gap-3 px-3 py-2 bg-muted/50 rounded-lg border">
@@ -102,7 +121,7 @@ export function ExportQuotaDisplay() {
             </Badge>
           ) : isLow ? (
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-orange-500 text-orange-600">
-              {remaining?.toLocaleString()} left
+              {totalAvailable?.toLocaleString()} left
             </Badge>
           ) : null}
         </div>
@@ -114,7 +133,7 @@ export function ExportQuotaDisplay() {
               className={`h-1.5 w-20 ${isExhausted ? '[&>div]:bg-destructive' : isLow ? '[&>div]:bg-orange-500' : ''}`}
             />
             <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-              {usage.exports_count.toLocaleString()}/{plan.max_monthly_exports.toLocaleString()} credits
+              {displayText}
             </span>
           </div>
         )}

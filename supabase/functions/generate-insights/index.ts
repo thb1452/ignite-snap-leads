@@ -1,27 +1,24 @@
 /**
- * SNAP INSIGHT GENERATION v8.0 - HYBRID AI + INVESTOR VOICE DETERMINISTIC ENGINE
+ * SNAP INSIGHT GENERATION v9.0 - AZURE GPT-4o MINI + WHOLESALER FIELD INTELLIGENCE
  * 
- * Properties with snap_score >= 50: AI-generated investor brief insight
- *   - Uses Lovable AI (Gemini Flash) via gateway
- *   - Investor-voice framing with action labels
- *   - Falls back to deterministic engine if AI credits exhausted or error
+ * Properties with snap_score >= 20: AI-generated wholesaler distress brief
+ *   - Uses Azure OpenAI GPT-4o mini
+ *   - Field intelligence / scout voice with signal stacks
+ *   - Falls back to deterministic engine if Azure unavailable
  * 
- * Properties with snap_score < 50 (or AI unavailable): deterministic investor-voice engine v5.0
+ * Properties with snap_score < 20 (or AI unavailable): deterministic engine
  *   - Fact → Signal → Action Label format
- *   - Score-aligned labels: 70+ HIGH/GOOD, 40-69 GOOD/WATCH, 0-39 WATCH/PASS
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v8.0";
+const VERSION = "v9.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const AI_MODEL = "google/gemini-3-flash-preview";
 const SNAP_SCORE_AI_THRESHOLD = 20;
 
 interface Violation {
@@ -80,80 +77,106 @@ const INSIGHT_BLOCKS = {
 //   - oldest_violation_days in prompt
 // ============================================================================
 async function generateAIInsight(
-  property: { address: string; city: string; enforcement_type?: string },
+  property: { address: string; city: string; state?: string; zip?: string; enforcement_type?: string },
   violations: Violation[],
   classified: ViolationWithPriority[],
   intelligence: PropertyIntelligence,
   scoreResult: SnapScoreResult,
-  apiKey: string
+  azureConfig: { endpoint: string; apiKey: string; deployment: string }
 ): Promise<string | null> {
   try {
-    const categories = [...new Set(classified.map(v => v.category))].join(', ');
-    const highPriority = classified.filter(v => v.priority === 'high');
-    const medPriority = classified.filter(v => v.priority === 'medium');
-    const lowPriority = classified.filter(v => v.priority === 'low');
-
-    // Pass up to 12 violations (not 8)
-    const violationSummary = violations.slice(0, 12).map(v => {
-      const desc = v.raw_description ? ` | Description: ${v.raw_description.slice(0, 120)}` : '';
-      return `- Type: ${v.violation_type || 'Unknown'} | Status: ${v.status || 'Unknown'} | Days open: ${v.days_open ?? 'N/A'}${desc}`;
-    }).join('\n');
-
     const isWaterShutoff = property.enforcement_type === 'water_shutoff';
+    const hasFireCitation = scoreResult.signals.some(s => s.includes('fire'));
+    const isEscalated = intelligence.escalated;
 
-    const systemPrompt = `You are a municipal enforcement data analyst. Write concise, factual, enforcement-pressure summaries for code compliance records.
+    // Build signal stack emojis
+    const signalIcons: string[] = [];
+    if (isWaterShutoff) signalIcons.push('🔴 Water Shutoff');
+    if (hasFireCitation) signalIcons.push('🔥 Fire Citation');
+    if (isEscalated) signalIcons.push('⚠️ Escalated');
+    if (intelligence.repeat_offender) signalIcons.push('🔁 Repeat Offender');
+    if (intelligence.multi_department) signalIcons.push('🏛️ Multi-Department');
+    if (scoreResult.signals.includes('extended_enforcement')) signalIcons.push('📅 Extended Enforcement');
+    if (scoreResult.signals.includes('active_enforcement_load')) signalIcons.push('🚨 Active Load');
 
-STRICT RULES:
-1. Write from the perspective of a neutral municipal enforcement data analyst — NOT a real estate investor.
-2. NEVER use words like: investor, acquisition, opportunity, distress, motivated, deal, profit, upside, buy, purchase, wholesale, flip, value-add, discounted, negotiation leverage, below market, negotiate, motivated seller, financial hardship, financial distress.
-3. Focus ONLY on: what enforcement actions municipalities have taken, how recent they are, and what that signals about ongoing oversight activity. USE the violation descriptions provided to write specific, grounded insights — reference the actual violation types and details rather than generic statements.${isWaterShutoff ? ' This property has a confirmed water service disconnection — frame it as an ACTIVE MUNICIPAL ENFORCEMENT ACTION.' : ' This property does NOT have a water disconnection — do NOT mention water service disconnection or water shutoff in your response.'}
-4. Keep the summary to 1–3 sentences, max 280 characters.
-5. Write in third-person, factual, neutral tone.
-6. Be SPECIFIC — mention actual violation categories, counts, and timeframes. Do not write generic statements.`;
+    // Determine action label
+    let actionLabel = 'WATCH';
+    if (isEscalated || isWaterShutoff || hasFireCitation || (scoreResult.score >= 90 && intelligence.open_violations >= 4)) {
+      actionLabel = 'CALL NOW';
+    } else if (scoreResult.score >= 70 || (intelligence.open_violations >= 2 && intelligence.open_violations <= 3) || intelligence.repeat_offender || intelligence.multi_department) {
+      actionLabel = 'WORTH A CALL';
+    }
 
-    const userPrompt = `Write an enforcement-pressure insight for this property:
+    const violationTypes = intelligence.violation_types.length > 0 ? intelligence.violation_types.join(', ') : '';
+    const opportunityClass = scoreResult.activityClass === 'critical' ? 'distressed' :
+                             scoreResult.activityClass === 'elevated' ? 'value_add' : 'watch';
 
-Enforcement type: ${isWaterShutoff ? 'WATER DISCONNECTION (confirmed)' : 'CODE VIOLATION (standard — no water disconnection)'}
-Address: ${property.address}, ${property.city}
-Snap Score: ${scoreResult.score}/100
-Open violations: ${intelligence.open_violations} of ${intelligence.total_violations} total
-Severity breakdown: ${highPriority.length} high-priority, ${medPriority.length} medium-priority, ${lowPriority.length} low-priority
-Enforcement categories: ${categories}
-${highPriority.length > 0 ? `High-priority categories: ${[...new Set(highPriority.map(v => v.category))].join(', ')}` : ''}
-Average days open: ${intelligence.avg_days_open}
-Oldest violation: ${intelligence.oldest_violation_days} days ago
-Escalated: ${intelligence.escalated ? 'Yes' : 'No'}
-Enforcement signals: ${scoreResult.signals.join(', ') || 'none'}
+    const systemPrompt = `You are a field intelligence analyst writing property distress briefs for experienced real estate wholesalers. Your job is NOT to sell — it is to report. Write like a scout, not a marketer. Wholesalers are sophisticated. They ignore hype. They cannot ignore specific, quantified distress data that proves seller motivation.
 
-Violations:
-${violationSummary}
+CORE RULES:
+1. Every sentence must contain a specific number or fact. Never use: "may," "could," "potential," "opportunity," "seems," "appears," "great," "highly," "very."
+2. Use ONLY the data provided. Never invent statistics, city comparisons, or lien timelines not in the input.
+3. Frame days_open as a countdown, not a data point. "Open 247 days" → "247 days unresolved — lien referral threshold approaching."
+4. Stack distress signals explicitly. Make them countable. The investor must be able to count signals at a glance.
+5. Write in loss-aversion framing — what the investor loses by waiting, not what they gain by acting.
+6. DO NOT reveal the exact address. Reveal city, state, zip only. The address is behind the unlock.
+7. If avg_days_open exceeds 3,650 (10 years), note it as "long-standing unresolved enforcement" — do not speculate on cause or overstate urgency.
+8. If a field is null or empty — skip it entirely.
+9. Output must be under 120 words total.
+10. Do NOT use dashes, hyphens, or em-dashes. Use periods to separate segments.
+11. Do NOT include any preamble, explanation, or markdown formatting. Output ONLY the brief in the exact format specified.`;
 
-Write only the insight text (no labels, no preamble):`;
+    const userPrompt = `INPUT DATA:
+Location: ${property.city}, ${property.state || ''} ${property.zip || ''}
+SnapScore: ${scoreResult.score}/100
+Class: ${opportunityClass}
+Open/Total Violations: ${intelligence.open_violations}/${intelligence.total_violations}
+${violationTypes ? `Types: ${violationTypes}` : ''}
+Avg Days Open: ${intelligence.avg_days_open}
+${intelligence.oldest_violation_date ? `Oldest Violation: ${intelligence.oldest_violation_date}` : ''}
+${intelligence.newest_violation_date ? `Newest Activity: ${intelligence.newest_violation_date}` : ''}
+Escalated: ${isEscalated ? 'true' : 'false'}
+Repeat Offender: ${intelligence.repeat_offender ? 'true' : 'false'}
+Multi-Department: ${intelligence.multi_department ? 'true' : 'false'}
+Water Shutoff: ${isWaterShutoff ? 'true' : 'false'}
+Distress Signals: ${scoreResult.signals.join(', ') || 'none'}
 
-    const response = await fetch(AI_GATEWAY_URL, {
+OUTPUT FORMAT — follow exactly:
+
+SIGNAL STACK: ${signalIcons.length > 0 ? signalIcons.join(' | ') : '[list only active signals with emoji]'}
+
+ENFORCEMENT BRIEF:
+[2-3 sentences. Lead with most severe signal. Include exact counts, days, and escalation status. Frame as countdown. Loss-aversion tone.]
+
+⚡ ${actionLabel} — [one sentence: exactly why, using specific data from input only.]`;
+
+    // Azure OpenAI API call
+    const azureUrl = `${azureConfig.endpoint}/openai/deployments/${azureConfig.deployment}/chat/completions?api-version=2024-08-01-preview`;
+
+    const response = await fetch(azureUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'api-key': azureConfig.apiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: AI_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        max_tokens: 300,
-        temperature: 0.5,
+        max_tokens: 400,
+        temperature: 0.4,
       }),
     });
 
-    if (response.status === 429 || response.status === 402) {
-      console.warn(`[generate-insights ${VERSION}] AI unavailable (${response.status}), falling back to deterministic`);
+    if (response.status === 429) {
+      console.warn(`[generate-insights ${VERSION}] Azure rate limited (429), falling back to deterministic`);
       return null;
     }
 
     if (!response.ok) {
-      console.error(`[generate-insights ${VERSION}] AI gateway error ${response.status}`);
+      const errBody = await response.text().catch(() => '');
+      console.error(`[generate-insights ${VERSION}] Azure error ${response.status}: ${errBody}`);
       return null;
     }
 
@@ -162,15 +185,12 @@ Write only the insight text (no labels, no preamble):`;
 
     if (!text || text.length < 10) return null;
 
-    // Truncate at 280 chars but never mid-word
-    if (text.length > 280) {
-      const truncated = text.substring(0, 277);
-      const lastSpace = truncated.lastIndexOf(' ');
-      return (lastSpace > 200 ? truncated.substring(0, lastSpace) : truncated) + '...';
-    }
-    return text;
+    // Clean up: remove dashes/hyphens per brand rules
+    let cleaned = text.replace(/[—–-]/g, '. ').replace(/\.\s*\./g, '.').replace(/\s{2,}/g, ' ').trim();
+
+    return cleaned;
   } catch (err) {
-    console.error(`[generate-insights ${VERSION}] AI error:`, err);
+    console.error(`[generate-insights ${VERSION}] Azure AI error:`, err);
     return null;
   }
 }
@@ -194,11 +214,17 @@ serve(async (req) => {
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const AZURE_OPENAI_API_KEY = Deno.env.get("AZURE_OPENAI_API_KEY");
+    const AZURE_OPENAI_ENDPOINT = Deno.env.get("AZURE_OPENAI_ENDPOINT");
+    const AZURE_OPENAI_DEPLOYMENT = Deno.env.get("AZURE_OPENAI_DEPLOYMENT");
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Missing required environment variables");
     }
+
+    const azureConfig = (AZURE_OPENAI_API_KEY && AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_DEPLOYMENT)
+      ? { apiKey: AZURE_OPENAI_API_KEY, endpoint: AZURE_OPENAI_ENDPOINT, deployment: AZURE_OPENAI_DEPLOYMENT }
+      : null;
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -213,6 +239,8 @@ serve(async (req) => {
           id,
           address,
           city,
+          state,
+          zip,
           snap_score,
           jurisdiction_id,
           enforcement_type,
@@ -279,13 +307,13 @@ serve(async (req) => {
       let method: 'ai' | 'deterministic' = 'deterministic';
 
       const effectiveScore = Math.max(property.snap_score ?? 0, scoreResult.score);
-      const shouldUseAI = LOVABLE_API_KEY && !aiCreditsExhausted && effectiveScore >= SNAP_SCORE_AI_THRESHOLD;
+      const shouldUseAI = azureConfig && !aiCreditsExhausted && effectiveScore >= SNAP_SCORE_AI_THRESHOLD;
 
       if (shouldUseAI) {
         await throttleAI();
         const aiInsight = await generateAIInsight(
-          { address: property.address, city: property.city, enforcement_type: (property as any).enforcement_type },
-          violations, classifiedViolations, intelligence, scoreResult, LOVABLE_API_KEY!
+          { address: property.address, city: property.city, state: (property as any).state, zip: (property as any).zip, enforcement_type: (property as any).enforcement_type },
+          violations, classifiedViolations, intelligence, scoreResult, azureConfig
         );
 
         if (aiInsight === null) {

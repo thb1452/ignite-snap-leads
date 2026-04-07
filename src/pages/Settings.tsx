@@ -31,8 +31,7 @@ export function Settings() {
     ]);
 
     toast({
-      title: 'Payment received',
-      description: `Finalizing your ${Number(creditsAdded).toLocaleString()} bulk credits — they'll appear here shortly.`,
+      title: `✅ ${Number(creditsAdded).toLocaleString()} credits added to your account`,
     });
 
     const newParams = new URLSearchParams(searchParams);
@@ -86,10 +85,10 @@ export function Settings() {
       clearPendingStripeCheckout();
 
       toast({
-        title: pending.type === "subscription" ? "Subscription activated!" : "Credits added!",
-        description: pending.type === "subscription"
-          ? "Your plan is now active."
-          : "Your bulk credits are now available.",
+        title: pending.type === "subscription"
+          ? "Subscription activated!"
+          : `✅ ${(pending.expectedBalance ?? 0).toLocaleString()} credits added to your account`,
+        description: pending.type === "subscription" ? "Your plan is now active." : undefined,
       });
     };
 

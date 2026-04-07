@@ -35,12 +35,14 @@ export function CreditBalanceChip() {
       display = "∞";
       tooltipText = "Unlimited credits";
     } else {
-      const remaining = Math.max(0, limit - used);
-      display = `${remaining}/${limit}`;
-      tooltipText = `${remaining} of ${limit} monthly credits remaining`;
-      // If they also have bulk credits on top, mention it
+      const subRemaining = Math.max(0, limit - used);
       if (ledgerBalance > 0) {
-        tooltipText += ` + ${ledgerBalance.toLocaleString()} bulk credits`;
+        const total = subRemaining + ledgerBalance;
+        display = total.toLocaleString();
+        tooltipText = `${subRemaining.toLocaleString()} monthly + ${ledgerBalance.toLocaleString()} bulk = ${total.toLocaleString()} total credits`;
+      } else {
+        display = `${subRemaining}/${limit}`;
+        tooltipText = `${subRemaining} of ${limit} monthly credits remaining`;
       }
     }
   } else if (ledgerBalance > 0) {

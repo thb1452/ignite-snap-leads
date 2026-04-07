@@ -233,7 +233,9 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-lg">{plan!.display_name}</span>
+                  <span className="font-semibold text-lg">
+                    {plan!.display_name}{ledgerBalance > 0 ? " + Bulk Credits" : ""}
+                  </span>
                   {plan!.price_monthly_cents > 0 && (
                     <span className="text-muted-foreground">· ${(plan!.price_monthly_cents / 100).toFixed(0)}/month</span>
                   )}
@@ -394,7 +396,7 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
               <Zap className="h-7 w-7 text-muted-foreground" />
             </div>
           </div>
-          <h3 className="text-lg font-semibold">{ledgerBalance > 0 ? "Bulk Credits Active" : "Free Plan"}</h3>
+          <h3 className="text-lg font-semibold">{ledgerBalance > 0 ? "Bulk Credits" : "Free Plan"}</h3>
           <p className="text-muted-foreground text-sm">
             {ledgerBalance > 0
               ? `You have ${ledgerBalance.toLocaleString()} bulk credits ready to use${freeUnlocksRemaining > 0 ? ` plus ${freeUnlocksRemaining} free unlock${freeUnlocksRemaining !== 1 ? 's' : ''}` : ''}.`

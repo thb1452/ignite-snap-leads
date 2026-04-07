@@ -17,6 +17,14 @@ export function ExportQuotaDisplay() {
     loading: trialLoading,
   } = useTrialStatus();
 
+  // Bulk credits from credit_ledger
+  const { data: ledgerBalance = 0 } = useQuery({
+    queryKey: ["credits", "balance"],
+    queryFn: getCreditBalance,
+    retry: 1,
+    staleTime: 30000,
+  });
+
   const loading = subLoading || trialLoading;
 
   // A paid subscriber must have an active/past_due status that is NOT a trial

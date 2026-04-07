@@ -1,5 +1,5 @@
 /**
- * SNAP INSIGHT GENERATION v9.2 - AZURE GPT-4o MINI + PLAIN ENGLISH SCOUT VOICE
+ * SNAP INSIGHT GENERATION v9.3 - AZURE GPT-4o MINI + COMPACT SCOUT BRIEF
  * 
  * Properties with snap_score >= 20: AI-generated wholesaler distress brief
  *   - Uses Azure OpenAI GPT-4o mini
@@ -12,7 +12,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const VERSION = "v9.2";
+const VERSION = "v9.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

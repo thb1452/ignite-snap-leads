@@ -2,12 +2,10 @@ import { memo, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
-import { formatOwnerName } from "@/utils/formatOwnerName";
-import { Lock, Unlock, Sparkles, Heart, Users, Phone, Download, Loader2 } from "lucide-react";
-import { ScarcityBadge } from "./ScarcityBadge";
-import { usePropertyContacts } from "@/hooks/usePropertyContacts";
+import { Lock, Unlock, Sparkles, Heart, Download, Loader2 } from "lucide-react";
 import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";
+import { getActionLabel, getBriefPreview, getFallbackActionLabel } from "@/utils/actionLabelUtils";
 
 interface Violation {
   id: string;
@@ -42,11 +40,8 @@ interface PropertyCardProps {
   onToggleSaved?: (id: string) => void;
   isUnlocked?: boolean;
   onUnlock?: (propertyId: string) => void;
-  /** When true, renders a compact single-row layout (List view). */
   compact?: boolean;
 }
-
-import { getActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
 
 export const PropertyCard = memo(function PropertyCard({
   property,
@@ -59,7 +54,6 @@ export const PropertyCard = memo(function PropertyCard({
   onUnlock,
   compact = false,
 }: PropertyCardProps) {
-  const { data: contacts } = usePropertyContacts(isUnlocked ? property.id : "");
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
@@ -72,24 +66,26 @@ export const PropertyCard = memo(function PropertyCard({
   };
 
   const insightText = property.snap_insight || "";
-  const actionLabel = getActionLabel(insightText);
-  const briefBody = stripActionLabel(insightText);
-  const ownerContact = contacts?.find(c => c.name);
+  const actionLabel = insightText
+    ? getActionLabel(insightText) ??
+      getFallbackActionLabel({
+        snapScore: property.snap_score,
+        openViolations: property.open_violations,
+        enforcementType: property.enforcement_type,
+        violationTypes: property.violation_types,
+      })
+    : null;
+  const briefPreview = insightText ? getBriefPreview(insightText, 1, compact ? 96 : 132) : "";
 
-  // ── COMPACT TWO-LINE ROW LAYOUT (List view) ───────────────────────────────
   if (compact) {
     return (
       <div
-        className={`flex flex-col justify-center px-3 border-b border-[#1f2937] cursor-pointer transition-colors h-[52px] ${
-          isSelected
-            ? "bg-[#161d2d] ring-1 ring-inset ring-[#0d9e75]"
-            : "bg-[#111827] hover:bg-[#161d2d]"
+        className={`flex flex-col justify-center px-3 py-2 border-b border-[#1f2937] cursor-pointer transition-colors min-h-[68px] ${
+          isSelected ? "bg-[#161d2d] ring-1 ring-inset ring-[#0d9e75]" : "bg-[#111827] hover:bg-[#161d2d]"
         }`}
         onClick={onClick}
       >
-        {/* ── LINE 1 ── */}
         <div className="flex items-center gap-2 min-w-0">
-          {/* Checkbox */}
           <Checkbox
             checked={isSelected}
             onCheckedChange={() => onToggleSelect(property.id)}
@@ -97,32 +93,22 @@ export const PropertyCard = memo(function PropertyCard({
             className="shrink-0"
           />
 
-          {/* LOCKED / UNLOCKED tag */}
           <span
             className={`text-[9px] font-bold uppercase tracking-widest shrink-0 flex items-center gap-0.5 ${
               isUnlocked ? "text-[#0d9e75]" : "text-slate-400"
             }`}
           >
-            {isUnlocked
-              ? <><Unlock className="w-2.5 h-2.5" />UNLOCKED</>
-              : <><Lock className="w-2.5 h-2.5" />LOCKED</>
-            }
+            {isUnlocked ? <><Unlock className="w-2.5 h-2.5" />UNLOCKED</> : <><Lock className="w-2.5 h-2.5" />LOCKED</>}
           </span>
 
-          {/* Address */}
-          <span
-            className="text-sm font-bold text-slate-100 truncate shrink-0 max-w-[200px]"
-            style={!isUnlocked ? { filter: "blur(4px)", userSelect: "none", pointerEvents: "none" } : undefined}
-          >
+          <span className="text-sm font-bold text-slate-100 truncate shrink-0 max-w-[200px]">
             {formatAddress(property.address)}
           </span>
 
-          {/* City, State */}
           <span className="text-xs text-slate-400 truncate shrink-0 max-w-[140px]">
             {formatCity(property.city)}, {property.state}
           </span>
 
-          {/* Issue badges */}
           {property.violation_types && property.violation_types.length > 0 && (
             <div className="hidden lg:flex items-center gap-1 shrink-0">
               {property.violation_types.slice(0, 3).map((vt) => (
@@ -136,18 +122,13 @@ export const PropertyCard = memo(function PropertyCard({
             </div>
           )}
 
-          {/* Spacer */}
           <div className="flex-1" />
 
-          {/* SnapScore */}
           <div className="flex items-center gap-1 shrink-0">
             <div className={`w-2 h-2 rounded-full ${getScoreDot(property.snap_score)}`} />
-            <span className="text-sm font-bold text-slate-100 w-8 text-right">
-              {property.snap_score || 0}
-            </span>
+            <span className="text-sm font-bold text-slate-100 w-8 text-right">{property.snap_score || 0}</span>
           </div>
 
-          {/* Action button */}
           {isUnlocked ? (
             <Button
               size="sm"
@@ -168,47 +149,40 @@ export const PropertyCard = memo(function PropertyCard({
                 }
               }}
             >
-              {isExporting
-                ? <Loader2 className="h-3 w-3 animate-spin" />
-                : <><Download className="h-3 w-3 mr-1" />Export Lead</>
-              }
+              {isExporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Download className="h-3 w-3 mr-1" />Export Lead</>}
             </Button>
           ) : (
             <Button
               size="sm"
               style={{ backgroundColor: "#1a2035", borderColor: "#374151" }}
               className="border text-slate-300 font-semibold text-xs h-7 px-2.5 shrink-0 hover:bg-slate-700 rounded-md"
-              onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnlock?.(property.id);
+              }}
             >
               🔒 Unlock
             </Button>
           )}
         </div>
 
-        {/* ── LINE 2: action label · brief text ── */}
-        <div className="flex items-center gap-1.5 pl-[4.5rem] min-w-0 overflow-hidden h-[18px]">
-          {actionLabel && (
-            <span className={`text-[11px] shrink-0 ${actionLabel.colorClass}`}>
-              {actionLabel.label}
-            </span>
-          )}
-          {actionLabel && briefBody && (
-            <span className="text-slate-500 text-xs shrink-0">·</span>
-          )}
-          {briefBody && (
-            <span className="text-xs text-slate-400 truncate">{briefBody}</span>
-          )}
-        </div>
+        {(briefPreview || actionLabel) && (
+          <div className="flex flex-col gap-0.5 pl-[4.5rem] min-w-0 overflow-hidden mt-1">
+            {briefPreview && (
+              <p className="text-[11px] text-slate-400 leading-tight whitespace-normal break-words">{briefPreview}</p>
+            )}
+            {actionLabel && (
+              <p className={`text-[11px] leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>
+            )}
+          </div>
+        )}
       </div>
     );
   }
 
-  // ── CARD LAYOUT (Map & List view) — ultra-compact to fit 6+ visible ─────
   return (
     <div className="px-1.5 py-1 border-b border-slate-800 bg-slate-950" onClick={onClick}>
       <div className={`bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 cursor-pointer transition-all ${isSelected ? "ring-1 ring-teal-500" : ""}`}>
-
-        {/* Row 1: Lock status + Address + Score */}
         <div className="flex items-center gap-1.5 min-w-0">
           <Checkbox
             checked={isSelected}
@@ -216,19 +190,12 @@ export const PropertyCard = memo(function PropertyCard({
             onClick={(e) => e.stopPropagation()}
             className="shrink-0 h-3.5 w-3.5"
           />
-          {isUnlocked ? (
-            <Unlock className="w-3 h-3 text-teal-400 shrink-0" />
-          ) : (
-            <Lock className="w-3 h-3 text-slate-400 shrink-0" />
-          )}
+          {isUnlocked ? <Unlock className="w-3 h-3 text-teal-400 shrink-0" /> : <Lock className="w-3 h-3 text-slate-400 shrink-0" />}
           <span className={`text-[9px] font-semibold uppercase tracking-wider shrink-0 ${isUnlocked ? "text-teal-400" : "text-slate-400"}`}>
             {isUnlocked ? "UNLOCKED" : "LOCKED"}
           </span>
 
-          <p
-            className="text-xs font-bold text-slate-100 leading-tight truncate flex-1 min-w-0"
-            style={!isUnlocked ? { filter: "blur(4px)", userSelect: "none", pointerEvents: "none" } : undefined}
-          >
+          <p className="text-xs font-bold text-slate-100 leading-tight truncate flex-1 min-w-0">
             {formatAddress(property.address)}
           </p>
 
@@ -238,7 +205,6 @@ export const PropertyCard = memo(function PropertyCard({
           </div>
         </div>
 
-        {/* Row 2: City + Violation tags */}
         <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pl-[4.5rem]">
           <span className="text-[10px] text-slate-400 shrink-0">
             {formatCity(property.city)}, {property.state} {property.zip}
@@ -254,24 +220,20 @@ export const PropertyCard = memo(function PropertyCard({
           )}
         </div>
 
-        {/* Row 3: AI Brief (1 line) + Action button */}
-        <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+        <div className="flex items-start gap-1.5 mt-0.5 min-w-0">
           {insightText ? (
-            <div className="flex-1 min-w-0 flex items-center gap-1 bg-slate-900 rounded px-1.5 py-0.5 border border-teal-500/20">
-              <Sparkles className="w-2.5 h-2.5 text-teal-400 shrink-0" />
-              {actionLabel && (
-                <span className={`text-[10px] shrink-0 ${actionLabel.colorClass}`}>
-                  {actionLabel.label}
-                </span>
-              )}
-              {actionLabel && briefBody && <span className="text-slate-600 text-[10px]">·</span>}
-              <span className="text-[10px] text-slate-400 truncate">{briefBody}</span>
+            <div className="flex-1 min-w-0 bg-slate-900 rounded px-1.5 py-1 border border-teal-500/20">
+              <div className="flex items-center gap-1 mb-0.5">
+                <Sparkles className="w-2.5 h-2.5 text-teal-400 shrink-0" />
+                <span className="text-[10px] font-semibold text-teal-400">AI Brief</span>
+              </div>
+              {briefPreview && <p className="text-[10px] text-slate-400 leading-relaxed break-words">{briefPreview}</p>}
+              {actionLabel && <p className={`text-[10px] mt-0.5 leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>}
             </div>
           ) : (
             <div className="flex-1" />
           )}
 
-          {/* CTA button */}
           {isUnlocked ? (
             <div className="flex items-center gap-1 shrink-0">
               <Button
@@ -280,7 +242,6 @@ export const PropertyCard = memo(function PropertyCard({
                 disabled={isExporting}
                 onClick={async (e) => {
                   e.stopPropagation();
-                  if (!isUnlocked) return;
                   setIsExporting(true);
                   try {
                     await exportFilteredCsv({ propertyIds: [property.id], expectedPropertyCount: 1 });
@@ -296,7 +257,10 @@ export const PropertyCard = memo(function PropertyCard({
                 {isExporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Download className="h-3 w-3 mr-0.5" />Export</>}
               </Button>
               <button
-                onClick={(e) => { e.stopPropagation(); onToggleSaved?.(property.id); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSaved?.(property.id);
+                }}
                 className="flex items-center justify-center h-6 w-6 rounded border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors"
               >
                 <Heart className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"} size={10} />
@@ -306,7 +270,10 @@ export const PropertyCard = memo(function PropertyCard({
             <Button
               size="sm"
               className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold h-6 text-[10px] px-2 shrink-0"
-              onClick={(e) => { e.stopPropagation(); onUnlock?.(property.id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnlock?.(property.id);
+              }}
             >
               <Lock className="w-3 h-3 mr-0.5" />
               Unlock

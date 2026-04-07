@@ -2,6 +2,13 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 
+import {
+  getActionLabel,
+  getFallbackActionLabel,
+  stripActionLabel,
+  type ActionLabel,
+} from "@/utils/actionLabelUtils";
+
 interface InvestorBrief {
   brief_text: string;
   enforcement_summary?: string;
@@ -24,11 +31,6 @@ interface InvestorInsightCardProps {
   onBriefGenerated?: (brief: InvestorBrief) => void;
 }
 
-// ── Action label utilities (shared with PropertyCard etc.) ──
-
-import { getActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
-
-// ── Rule-based distress summary (fallback when no AI brief exists) ──
 function buildRuleBasedSummary(
   distressSignals: string[] | null | undefined,
   openViolations: number | null,
@@ -87,17 +89,14 @@ function buildRuleBasedSummary(
   return parts.join(" ");
 }
 
-// ── Brief text renderer with action label colors ──
-function renderBriefText(text: string) {
+function renderBriefText(text: string, fallbackActionLabel: ActionLabel) {
   const cleaned = stripActionLabel(text);
-  const actionLabel = getActionLabel(text);
+  const actionLabel = getActionLabel(text) ?? fallbackActionLabel;
 
   return (
-    <div className="text-sm text-gray-200 leading-relaxed">
+    <div className="text-sm text-foreground leading-relaxed">
       <p>{cleaned}</p>
-      {actionLabel && (
-        <p className={`mt-1 ${actionLabel.colorClass}`}>{actionLabel.label}</p>
-      )}
+      <p className={`mt-2 ${actionLabel.colorClass}`}>{actionLabel.label}</p>
     </div>
   );
 }
@@ -108,18 +107,6 @@ function getBriefDisplayText(b: InvestorBrief): string {
   return parts.join(" ");
 }
 
-/**
- * InvestorInsightCard — DISPLAY ONLY
- *
- * Shows the pre-generated AI investor brief from the database.
- * No on-demand AI calls. Briefs are populated via bulk backfill.
- *
- * Fallback chain:
- *   1. cachedBrief (investor_insight_brief JSONB column)
- *   2. snap_insight (text column)
- *   3. Rule-based summary from distress signals
- *   4. "Brief pending" message
- */
 export function InvestorInsightCard({
   snapScore,
   snapInsight,
@@ -127,8 +114,12 @@ export function InvestorInsightCard({
   distressSignals,
   cachedBrief,
 }: InvestorInsightCardProps) {
+  const fallbackActionLabel = getFallbackActionLabel({
+    snapScore,
+    openViolations,
+    distressSignals,
+  });
 
-  // Determine which text to display
   let displayText: string | null = null;
 
   if (cachedBrief) {
@@ -139,7 +130,6 @@ export function InvestorInsightCard({
     displayText = buildRuleBasedSummary(distressSignals, openViolations, snapScore);
   }
 
-  // Nothing at all — show queued message
   if (!displayText) {
     return (
       <motion.div
@@ -164,14 +154,12 @@ export function InvestorInsightCard({
       animate={{ opacity: 1, y: 0 }}
       className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-2"
     >
-      {/* Header */}
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-teal-400" />
         <span className="text-sm font-semibold text-teal-400">AI Investor Brief</span>
       </div>
 
-      {/* Brief text */}
-      {renderBriefText(displayText)}
+      {renderBriefText(displayText, fallbackActionLabel)}
     </motion.div>
   );
 }

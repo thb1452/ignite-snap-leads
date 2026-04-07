@@ -104,7 +104,6 @@ export const PropertyCard = memo(function PropertyCard({
           <span className={`text-sm font-bold text-slate-100 shrink min-w-0 break-words max-w-[200px] leading-tight${!isUnlocked ? " [filter:blur(4px)] select-none" : ""}`}>
             {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
           </span>
-          </span>
 
           <span className="text-xs text-slate-400 shrink min-w-0 break-words max-w-[140px] leading-tight">
             {formatCity(property.city)}, {property.state}

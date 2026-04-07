@@ -13,9 +13,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const BATCH_SIZE = 200;
-const REGEN_VERSION = "v25-deal-strategist";
-const AI_CONCURRENCY = 15;
+const BATCH_SIZE_RULE = 500;
+const BATCH_SIZE_AI = 400;
+const REGEN_VERSION = "v25-deal-strategist-p2";
+const AI_CONCURRENCY = 30;
 const RULE_SCORE_THRESHOLD = 40;
 const CUTOFF_TIMESTAMP = "2026-04-07T00:00:00Z";
 

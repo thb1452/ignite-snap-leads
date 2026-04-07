@@ -380,8 +380,8 @@ serve(async (req) => {
 
       while (rowsFetched < MAX_EXPORT_ROWS) {
         const data = await withRetries<any[]>(`filter page offset=${offset}`, async () => {
-          const result = await buildFilterQuery().range(offset, offset + FILTER_PAGE - 1);
-          return result;
+          const { data: rows, error } = await buildFilterQuery().range(offset, offset + FILTER_PAGE - 1);
+          return { data: rows ?? [], error };
         });
 
         if (!data || data.length === 0) break;

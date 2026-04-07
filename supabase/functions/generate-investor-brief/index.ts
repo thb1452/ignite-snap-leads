@@ -13,6 +13,7 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { sanitizeInsightForStorage } from "../_shared/insightSanitizer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -515,8 +516,10 @@ function parseAIBrief(
   property_snap_score: number | null;
   newest_violation_date: string | null;
 } {
+  const sanitizedText = sanitizeInsightForStorage(aiText) ?? aiText.trim();
+
   return {
-    brief_text: aiText.trim(),
+    brief_text: sanitizedText,
     generated_at: new Date().toISOString(),
     property_snap_score: snapScore,
     newest_violation_date: newestViolationDate,

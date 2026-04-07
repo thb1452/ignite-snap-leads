@@ -14,6 +14,7 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { sanitizeInsightForStorage } from "../_shared/insightSanitizer.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -660,6 +661,19 @@ function normalizeInsightText(text: string | null | undefined): string {
   return (text ?? "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
 }
 
+function getFallbackActionLabel(property: Record<string, any>): string {
+  const score = property.snap_score ?? 0;
+  const openCount = property.open_violations ?? 0;
+  const signals: string[] = property.distress_signals || [];
+  const hasWater = property.enforcement_type === "water_shutoff" || signals.includes("water_shutoff_enforcement");
+  const hasEscalation = property.escalated || signals.includes("enforcement_escalation");
+  const hasFire = signals.includes("fire_citation");
+
+  if (hasWater || hasEscalation || hasFire || score >= 90) return "CALL NOW";
+  if (score >= 70 || openCount >= 2) return "WORTH A CALL";
+  return "WATCH";
+}
+
 function isAiGeneratedInsight(text: string | null | undefined, cachedBrief: unknown): boolean {
   if (cachedBrief && typeof cachedBrief === "object") return true;
   return /\b(CALL NOW|WORTH A CALL|WATCH)\b/i.test(normalizeInsightText(text));
@@ -769,23 +783,24 @@ async function generateInsightForProperty(
 
     const aiResult = await aiResponse.json();
     const aiText = aiResult?.choices?.[0]?.message?.content?.trim();
+    const safeAiText = sanitizeInsightForStorage(aiText, getFallbackActionLabel(property));
 
-    if (!aiText) {
+    if (!safeAiText) {
       return { status: 'error', property_id: propertyId, error: 'empty AI response' };
     }
 
     if (writeToDb) {
       const { error: updateError } = await supabase
         .from("properties")
-        .update({ snap_insight: aiText })
+        .update({ snap_insight: safeAiText })
         .eq("id", propertyId);
       if (updateError) {
-        return { status: 'error', property_id: propertyId, snap_insight: aiText, error: `db update failed: ${updateError.message}` };
+        return { status: 'error', property_id: propertyId, snap_insight: safeAiText, error: `db update failed: ${updateError.message}` };
       }
     }
 
-    console.log(`[bulk-insights-v9] ✅ ${propertyId} | score=${score} | AI | ${aiText.slice(0, 60)}...`);
-    return { status: 'success', property_id: propertyId, snap_insight: aiText, method: 'ai' };
+    console.log(`[bulk-insights-v9] ✅ ${propertyId} | score=${score} | AI | ${safeAiText.slice(0, 60)}...`);
+    return { status: 'success', property_id: propertyId, snap_insight: safeAiText, method: 'ai' };
 
   } catch (err) {
     return { status: 'error', property_id: propertyId, error: err instanceof Error ? err.message : String(err) };

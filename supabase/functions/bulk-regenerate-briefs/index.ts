@@ -6,6 +6,7 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { sanitizeInsightForStorage } from "../_shared/insightSanitizer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -130,7 +131,7 @@ function generateRuleBrief(prop: Record<string, any>): string {
   parts.push(getLabel());
 
   const result = parts.join(' ');
-  return result.length > 300 ? result.substring(0, 297) + '...' : result;
+  return sanitizeInsightForStorage(result, getLabel()) ?? result;
 }
 
 // ============================================================================
@@ -189,7 +190,7 @@ async function generateViaLovable(prop: Record<string, any>, apiKey: string): Pr
     if (res.status === 429 || res.status === 402) { await res.text(); return null; }
     if (!res.ok) { const t = await res.text(); console.error(`[bulk-regen] Lovable ${res.status}: ${t.slice(0, 200)}`); return null; }
     const result = await res.json();
-    return result?.choices?.[0]?.message?.content?.trim() || null;
+    return sanitizeInsightForStorage(result?.choices?.[0]?.message?.content?.trim() || null);
   } catch (err) {
     console.error(`[bulk-regen] Lovable error:`, err);
     return null;
@@ -210,7 +211,7 @@ async function generateViaGemini(prop: Record<string, any>, apiKey: string): Pro
     if (res.status === 429) { await res.text(); return null; }
     if (!res.ok) { const t = await res.text(); console.error(`[bulk-regen] Gemini ${res.status}: ${t.slice(0, 200)}`); return null; }
     const result = await res.json();
-    return result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+    return sanitizeInsightForStorage(result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null);
   } catch (err) {
     console.error(`[bulk-regen] Gemini error:`, err);
     return null;
@@ -221,9 +222,10 @@ async function generateAIBrief(prop: Record<string, any>, lovableKey: string, ge
   let text = lovableKey ? await generateViaLovable(prop, lovableKey) : null;
   if (!text && geminiKey) text = await generateViaGemini(prop, geminiKey);
 
-  if (text) {
-    text = text.replace(/\s*[—–-]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
-    if (!isCleanBrief(text, prop)) return null;
+    if (text) {
+      text = text.replace(/\s*[—–-]\s*/g, '. ').replace(/\.\.\s/g, '. ').replace(/\.\s\./g, '.');
+      text = sanitizeInsightForStorage(text);
+      if (!text || !isCleanBrief(text, prop)) return null;
   }
   return text;
 }

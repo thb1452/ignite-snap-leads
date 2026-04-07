@@ -91,9 +91,7 @@ function buildRuleBasedSummary(
 }
 
 function renderBriefText(text: string, fallbackActionLabel: ActionLabel) {
-  // Show the full brief text — never truncate in the detail view.
-  // Only strip the action label line so it renders separately below.
-  const cleaned = stripActionLabel(text).replace(/\s+/g, " ").trim() || text.trim();
+  const cleaned = getCompleteBriefText(text) || stripActionLabel(text).replace(/\s+/g, " ").trim() || text.trim();
   const actionLabel = getDisplayActionLabel(text, {
     snapScore: fallbackActionLabel.label === "CALL NOW" ? 90 : fallbackActionLabel.label === "WORTH A CALL" ? 70 : 0,
   });

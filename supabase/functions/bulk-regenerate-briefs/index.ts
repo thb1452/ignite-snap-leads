@@ -225,7 +225,7 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
 
-    const { autoResume = true, totalProcessed = 0, version = "", mode = "rule" } = await req.json().catch(() => ({}));
+    const { autoResume = true, totalProcessed = 0, version = "", mode = "ai" } = await req.json().catch(() => ({}));
 
     if (version && version !== REGEN_VERSION) {
       console.log(`[bulk-regen] Stopping old chain (version: ${version})`);

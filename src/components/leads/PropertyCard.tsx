@@ -46,7 +46,7 @@ interface PropertyCardProps {
   compact?: boolean;
 }
 
-import { getActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
+import { getActionLabel, getBriefPreview, stripActionLabel } from "@/utils/actionLabelUtils";
 
 export const PropertyCard = memo(function PropertyCard({
   property,
@@ -74,6 +74,7 @@ export const PropertyCard = memo(function PropertyCard({
   const insightText = property.snap_insight || "";
   const actionLabel = getActionLabel(insightText);
   const briefBody = stripActionLabel(insightText);
+  const briefPreview = getBriefPreview(insightText, 1, compact ? 110 : 120);
   const ownerContact = contacts?.find(c => c.name);
 
   // ── COMPACT TWO-LINE ROW LAYOUT (List view) ───────────────────────────────
@@ -185,18 +186,15 @@ export const PropertyCard = memo(function PropertyCard({
           )}
         </div>
 
-        {/* ── LINE 2: action label · brief text ── */}
-        <div className="flex items-center gap-1.5 pl-[4.5rem] min-w-0 overflow-hidden h-[18px]">
+        {/* ── LINE 2: brief text + action label on its own line ── */}
+        <div className="flex flex-col pl-[4.5rem] min-w-0 overflow-hidden">
+          {briefPreview && (
+            <span className="text-xs text-slate-400 truncate">{briefPreview}</span>
+          )}
           {actionLabel && (
-            <span className={`text-[11px] shrink-0 ${actionLabel.colorClass}`}>
+            <span className={`text-[11px] shrink-0 leading-tight ${actionLabel.colorClass}`}>
               {actionLabel.label}
             </span>
-          )}
-          {actionLabel && briefBody && (
-            <span className="text-slate-500 text-xs shrink-0">·</span>
-          )}
-          {briefBody && (
-            <span className="text-xs text-slate-400 truncate">{briefBody}</span>
           )}
         </div>
       </div>
@@ -254,18 +252,20 @@ export const PropertyCard = memo(function PropertyCard({
           )}
         </div>
 
-        {/* Row 3: AI Brief (1 line) + Action button */}
-        <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+        {/* Row 3: AI Brief + Action button */}
+        <div className="flex items-start gap-1.5 mt-0.5 min-w-0">
           {insightText ? (
-            <div className="flex-1 min-w-0 flex items-center gap-1 bg-slate-900 rounded px-1.5 py-0.5 border border-teal-500/20">
-              <Sparkles className="w-2.5 h-2.5 text-teal-400 shrink-0" />
-              {actionLabel && (
-                <span className={`text-[10px] shrink-0 ${actionLabel.colorClass}`}>
-                  {actionLabel.label}
-                </span>
+            <div className="flex-1 min-w-0 bg-slate-900 rounded px-1.5 py-1 border border-teal-500/20">
+              <div className="flex items-center gap-1 mb-0.5">
+                <Sparkles className="w-2.5 h-2.5 text-teal-400 shrink-0" />
+                <span className="text-[10px] font-semibold text-teal-400">AI Brief</span>
+              </div>
+              {briefPreview && (
+                <p className="text-[10px] text-slate-400 leading-relaxed break-words">{briefPreview}</p>
               )}
-              {actionLabel && briefBody && <span className="text-slate-600 text-[10px]">·</span>}
-              <span className="text-[10px] text-slate-400 truncate">{briefBody}</span>
+              {actionLabel && (
+                <p className={`text-[10px] mt-0.5 leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>
+              )}
             </div>
           ) : (
             <div className="flex-1" />

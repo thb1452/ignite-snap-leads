@@ -26,7 +26,7 @@ interface InvestorInsightCardProps {
 
 // ── Action label utilities (shared with PropertyCard etc.) ──
 
-import { getActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
+import { getActionLabel, getBriefPreview, stripActionLabel } from "@/utils/actionLabelUtils";
 
 // ── Rule-based distress summary (fallback when no AI brief exists) ──
 function buildRuleBasedSummary(
@@ -90,13 +90,14 @@ function buildRuleBasedSummary(
 // ── Brief text renderer with action label colors ──
 function renderBriefText(text: string) {
   const cleaned = stripActionLabel(text);
+  const preview = getBriefPreview(text, 3, 220);
   const actionLabel = getActionLabel(text);
 
   return (
-    <div className="text-sm text-gray-200 leading-relaxed">
-      <p>{cleaned}</p>
+    <div className="text-sm text-foreground leading-relaxed">
+      <p>{preview || cleaned}</p>
       {actionLabel && (
-        <p className={`mt-1 ${actionLabel.colorClass}`}>{actionLabel.label}</p>
+        <p className={`mt-2 ${actionLabel.colorClass}`}>{actionLabel.label}</p>
       )}
     </div>
   );

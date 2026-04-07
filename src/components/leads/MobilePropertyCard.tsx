@@ -44,7 +44,7 @@ interface MobilePropertyCardProps {
   onUnlock?: (propertyId: string) => void;
 }
 
-import { getActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
+import { getActionLabel, getBriefPreview, stripActionLabel } from "@/utils/actionLabelUtils";
 
 export const MobilePropertyCard = memo(function MobilePropertyCard({
   property,
@@ -71,6 +71,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
   const insightText = property.snap_insight || "";
   const actionLabel = getActionLabel(insightText);
   const briefBody = stripActionLabel(insightText);
+  const briefPreview = getBriefPreview(insightText, 2, 160);
   const ownerContact = contacts?.find(c => c.name);
 
   return (
@@ -133,12 +134,12 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
               <Sparkles className="w-3.5 h-3.5 text-teal-400" />
               <span className="text-xs font-semibold text-teal-400">AI Investor Brief</span>
             </div>
-            <p className="snap-insight-text text-xs text-slate-400 leading-relaxed">
-              {briefBody}{" "}
-              {actionLabel && (
-                <span className={actionLabel.colorClass}>{actionLabel.label}.</span>
-              )}
-            </p>
+            {briefPreview && (
+              <p className="snap-insight-text text-xs text-slate-400 leading-relaxed break-words">{briefPreview}</p>
+            )}
+            {actionLabel && (
+              <p className={`mt-1 text-xs leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>
+            )}
           </div>
         )}
 

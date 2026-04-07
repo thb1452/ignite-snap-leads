@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/externalClient";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
 import { formatViolationType } from "@/utils/formatViolationType";
+import { getActionLabel, stripActionLabel } from "@/utils/actionLabelUtils";
 import { PropertyMetricsGrid } from "./PropertyMetricsGrid";
 import { GroupedViolationsList } from "./GroupedViolationsList";
 import { OwnerContactSection } from "./OwnerContactSection";
@@ -53,23 +54,6 @@ interface MobilePropertyDetailSheetProps {
   onUnlock?: (propertyId: string) => void;
   isSaved?: boolean;
   onToggleSaved?: (id: string) => void;
-}
-
-function getActionLabel(text: string): { label: string; colorClass: string } | null {
-  if (/CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY/i.test(text))
-    return { label: "CALL NOW", colorClass: "text-red-500 font-bold" };
-  if (/WORTH A CALL|MONITOR/i.test(text))
-    return { label: "WORTH A CALL", colorClass: "text-orange-400 font-bold" };
-  if (/WATCH|LOW PRIORITY|WATCH\/PASS/i.test(text))
-    return { label: "WATCH", colorClass: "text-gray-400 font-bold" };
-  return null;
-}
-
-function stripActionLabel(text: string): string {
-  return text
-    .replace(/\*?\*?(CALL NOW|WORTH A CALL|WATCH|HIGH OPPORTUNITY|GOOD OPPORTUNITY|MONITOR|LOW PRIORITY|WATCH\/PASS)\*?\*?\.?/gi, "")
-    .replace(/\*\*/g, "")
-    .trim();
 }
 
 export function MobilePropertyDetailSheet({
@@ -247,12 +231,12 @@ export function MobilePropertyDetailSheet({
                   <Sparkles className="w-4 h-4 text-teal-400" />
                   <span className="text-xs font-semibold text-teal-400">AI Investor Brief</span>
                 </div>
-                <p className="text-sm text-slate-300 leading-relaxed">
-                  {briefBody}{" "}
-                  {actionLabel && (
-                    <span className={actionLabel.colorClass}>{actionLabel.label}.</span>
-                  )}
-                </p>
+                {briefBody && (
+                  <p className="text-sm text-slate-300 leading-relaxed break-words">{briefBody}</p>
+                )}
+                {actionLabel && (
+                  <p className={`mt-2 text-sm leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>
+                )}
               </div>
             )}
 

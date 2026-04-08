@@ -10,10 +10,10 @@ interface AiSearchBarProps {
 }
 
 const EXAMPLE_CHIPS = [
-  "Open violations in Florida",
-  "Repeat offenders score 80+",
-  "Structural issues last 30 days",
-  "Multiple violations in Texas",
+  "Open violations in Texas",
+  "High scores in Florida",
+  "Properties in Cleveland OH",
+  "Recently updated in California",
 ];
 
 export function AiSearchBar({ onFiltersApplied }: AiSearchBarProps) {

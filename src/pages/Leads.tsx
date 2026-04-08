@@ -758,7 +758,20 @@ function Leads() {
     setSelectMode("page"); // Reset selection mode
   }, []);
 
-  const handleToggleSelect = useCallback((id: string) => {
+  const handleAiFilters = useCallback((filters: Partial<LeadFilters>) => {
+    handleClearFilters();
+    if (filters.state) setSelectedState(filters.state);
+    if (filters.cities?.length) setSelectedCity(filters.cities[0]);
+    if (filters.openViolationsOnly) setOpenViolationsOnly(true);
+    if (filters.multipleViolationsOnly) setMultipleViolationsOnly(true);
+    if (filters.repeatOffenderOnly) setRepeatOffenderOnly(true);
+    if (filters.lastSeenDays) setLastSeenDays(filters.lastSeenDays);
+    if (filters.violationType) setSelectedSignal(filters.violationType);
+    if (filters.sortBy) setSortBy(filters.sortBy as SortOption);
+    setPage(1);
+  }, [handleClearFilters]);
+
+
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
     setSelectMode("page");
   }, []);

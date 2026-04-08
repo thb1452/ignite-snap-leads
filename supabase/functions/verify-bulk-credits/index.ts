@@ -130,8 +130,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
         });
 
         if (creditErr) {
-          // Unique constraint or RLS error — likely already inserted by webhook race
-          console.error("[verify-bulk-credits] Insert error:", creditErr.message);
+          // 23505 = unique constraint violation — already inserted by webhook race
+          if (creditErr.code === "23505") {
+            console.log("[verify-bulk-credits] Credits already added (unique constraint), session:", session.id);
+            totalFulfilled += credits;
+          } else {
+            console.error("[verify-bulk-credits] Insert error:", creditErr.message);
+          }
           continue;
         }
 

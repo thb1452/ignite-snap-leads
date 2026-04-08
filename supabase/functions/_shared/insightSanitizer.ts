@@ -1,5 +1,5 @@
-const ACTION_LABEL_REGEX = /\b(CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY|WORTH A CALL|WATCH|MONITOR|LOW PRIORITY|WATCH\/PASS|PASS)\b/gi;
-const ACTION_LABEL_LINE_REGEX = /\n?\s*\n?\s*\*?\*?⚡?\s*(CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY|WORTH A CALL|WATCH|MONITOR|LOW PRIORITY|WATCH\/PASS|PASS)\s*\*?\*?\s*$/i;
+const ACTION_LABEL_REGEX = /\b(CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY|WORTH A CALL|OPPORTUNITY|WATCH|MONITOR|LOW PRIORITY|WATCH\/PASS|PASS)\b/gi;
+const ACTION_LABEL_LINE_REGEX = /\n?\s*\n?\s*\*?\*?⚡?\s*(CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY|WORTH A CALL|OPPORTUNITY|WATCH|MONITOR|LOW PRIORITY|WATCH\/PASS|PASS)\s*\*?\*?\s*$/i;
 const COMPLETE_SENTENCE_REGEX = /[^.!?]+[.!?]+/g;
 const SENTENCE_END_REGEX = /[.!?]["')\]]*\s*$/;
 
@@ -13,12 +13,14 @@ function normalizeActionLabel(label: string | null | undefined): string | null {
     case "WORTH A CALL":
     case "GOOD OPPORTUNITY":
       return "WORTH A CALL";
+    case "OPPORTUNITY":
     case "WATCH":
     case "MONITOR":
     case "LOW PRIORITY":
     case "WATCH/PASS":
+      return "OPPORTUNITY";
     case "PASS":
-      return "WATCH";
+      return "PASS";
     default:
       return null;
   }

@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const BATCH_SIZE_RULE = 500;
 const BATCH_SIZE_AI = 250;
-const REGEN_VERSION = "v28-full-ai-sweep";
+const REGEN_VERSION = "v29-ai-upgrade-rulebased";
 const AI_CONCURRENCY = 10;
 const RULE_SCORE_THRESHOLD = 0;
 const CUTOFF_TIMESTAMP = "2026-04-07T00:00:00Z";
@@ -66,12 +66,13 @@ function generateRuleBrief(prop: Record<string, any>): string {
   };
 
   const getLabel = (): string => {
+    if (openCount === 0) return "PASS";
     if (hasWater || hasEscalation) return "CALL NOW";
     if (score >= 70) return "CALL NOW";
-    if (score >= 40) return openCount >= 3 || isRepeat || isExtended ? "WORTH A CALL" : "WATCH";
-    if (openCount === 0) return "PASS";
-    if (openCount >= 3 || isExtended || isRepeat) return "WATCH";
-    return "PASS";
+    if (score >= 40) return openCount >= 3 || isRepeat || isExtended ? "WORTH A CALL" : "WORTH A CALL";
+    // score < 40 with open violations
+    if (openCount >= 3 || isExtended || isRepeat) return "OPPORTUNITY";
+    return "OPPORTUNITY";
   };
 
   const parts: string[] = [];
@@ -138,12 +139,15 @@ function isCleanBrief(text: string, prop: Record<string, any>): boolean {
 }
 
 async function generateViaAzure(prop: Record<string, any>, azureConfig: AzureConfig): Promise<string | null> {
-  const actionLabel =
-    prop.enforcement_type === "water_shutoff" || prop.escalated || (prop.snap_score ?? 0) >= 70
-      ? "CALL NOW"
-      : (prop.snap_score ?? 0) >= 40 || (prop.open_violations ?? 0) >= 2 || prop.repeat_offender || prop.multi_department
-        ? "WORTH A CALL"
-        : "WATCH";
+    const openCount = prop.open_violations ?? 0;
+    const actionLabel =
+      openCount === 0
+        ? "PASS"
+        : prop.enforcement_type === "water_shutoff" || prop.escalated || (prop.snap_score ?? 0) >= 70
+          ? "CALL NOW"
+          : (prop.snap_score ?? 0) >= 40 || openCount >= 2 || prop.repeat_offender || prop.multi_department
+            ? "WORTH A CALL"
+            : "OPPORTUNITY";
 
   const azureUrl = `${azureConfig.endpoint.replace(/\/+$/, "")}/openai/deployments/${azureConfig.deployment}/chat/completions?api-version=2024-08-01-preview`;
   const retryDelaysMs = [1000, 2000, 4000];
@@ -223,10 +227,11 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const batchSize = mode === "ai" ? BATCH_SIZE_AI : BATCH_SIZE_RULE;
 
+    // Target properties with rule-based briefs (deterministic-v5) for AI upgrade
     let query = supabase
       .from("properties")
       .select("id, address, city, state, zip, county, snap_score, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class")
-      .is("investor_insight_brief", null);
+      .filter("investor_insight_brief->>model", "eq", "deterministic-v5");
 
     if (mode === "rule") {
       // Rule mode: fallback only

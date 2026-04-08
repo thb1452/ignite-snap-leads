@@ -832,13 +832,13 @@ function composeEnforcementInsight(
 
   // ── Determine action label based on score tier ──
   const getActionLabel = (): string => {
-    if (hasWaterShutoff || hasEscalation) return 'HIGH OPPORTUNITY';
-    if (score >= 70) return highCats.length > 0 || isMultiDept ? 'HIGH OPPORTUNITY' : 'GOOD OPPORTUNITY';
-    if (score >= 40) return openCount >= 3 || isRepeat || isExtended ? 'GOOD OPPORTUNITY' : 'WATCH';
-    // score < 40
     if (openCount === 0) return 'PASS';
-    if (openCount >= 3 || isExtended || isRepeat) return 'WATCH';
-    return 'PASS';
+    if (hasWaterShutoff || hasEscalation) return 'CALL NOW';
+    if (score >= 70) return 'CALL NOW';
+    if (score >= 40) return openCount >= 3 || isRepeat || isExtended ? 'WORTH A CALL' : 'WORTH A CALL';
+    // score < 40 with open violations
+    if (openCount >= 3 || isExtended || isRepeat) return 'OPPORTUNITY';
+    return 'OPPORTUNITY';
   };
 
   const catPhrase = (cats: string[]): string => {

@@ -80,7 +80,7 @@ export function CompactPropertyRow({
 
       {/* Address */}
       <div className="flex-1 min-w-0">
-        <p className={`property-address font-medium text-sm truncate leading-tight${!isUnlocked ? " [filter:blur(4px)] select-none" : ""}`}>
+        <p className={`property-address font-medium text-sm truncate leading-tight${!isUnlocked ? " blur-[4px] select-none" : ""}`}>
           {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
         </p>
         <p className="text-xs text-muted-foreground truncate">

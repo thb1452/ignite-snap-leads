@@ -101,7 +101,7 @@ export const PropertyCard = memo(function PropertyCard({
             {isUnlocked ? <><Unlock className="w-2.5 h-2.5" />UNLOCKED</> : <><Lock className="w-2.5 h-2.5" />LOCKED</>}
           </span>
 
-          <span className={`text-sm font-bold text-slate-100 shrink min-w-0 break-words max-w-[200px] leading-tight${!isUnlocked ? " [filter:blur(4px)] select-none" : ""}`}>
+          <span className={`text-sm font-bold text-slate-100 shrink min-w-0 break-words max-w-[200px] leading-tight${!isUnlocked ? " blur-[4px] select-none" : ""}`}>
             {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
           </span>
 
@@ -196,7 +196,7 @@ export const PropertyCard = memo(function PropertyCard({
             {isUnlocked ? "UNLOCKED" : "LOCKED"}
           </span>
 
-          <p className={`text-xs font-bold text-slate-100 leading-tight truncate flex-1 min-w-0${!isUnlocked ? " [filter:blur(4px)] select-none" : ""}`}>
+          <p className={`text-xs font-bold text-slate-100 leading-tight truncate flex-1 min-w-0${!isUnlocked ? " blur-[4px] select-none" : ""}`}>
             {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
           </p>
 

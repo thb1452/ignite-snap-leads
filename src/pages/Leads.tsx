@@ -771,7 +771,7 @@ function Leads() {
     setPage(1);
   }, [handleClearFilters]);
 
-
+  const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
     setSelectMode("page");
   }, []);

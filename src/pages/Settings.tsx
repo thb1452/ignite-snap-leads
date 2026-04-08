@@ -15,51 +15,45 @@ export function Settings() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const planSectionRef = useRef<HTMLDivElement>(null);
+  // Timers are kept in a ref so setSearchParams re-triggering this effect
+  // doesn't cancel them via the effect cleanup.
+  const creditPollTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Clean up any outstanding poll timers when the component unmounts.
+  useEffect(() => () => creditPollTimers.current.forEach(clearTimeout), []);
+
   // Handle ?credits_added=N param set by Stripe success_url redirect.
-  // The Stripe webhook inserts into credit_ledger, but it may not have fired
-  // yet when the user is redirected. Poll for the credits to appear.
+  // Uses hard refetchQueries (not invalidate) and schedules retries to catch
+  // webhook processing delay. Timers live in a ref so they survive the
+  // setSearchParams re-render without being cancelled.
   useEffect(() => {
     const creditsAdded = searchParams.get('credits_added');
     if (!creditsAdded) return;
 
-    const expectedCredits = Number(creditsAdded);
+    const refetch = () =>
+      void queryClient.refetchQueries({ queryKey: ['credits', 'balance'] });
 
-    // Clean the URL immediately
+    // Cancel any timers from a previous credits_added run.
+    creditPollTimers.current.forEach(clearTimeout);
+
+    // Immediate fetch + retries at 2 s / 5 s / 10 s to catch webhook delay.
+    refetch();
+    creditPollTimers.current = [
+      setTimeout(refetch, 2000),
+      setTimeout(refetch, 5000),
+      setTimeout(refetch, 10000),
+    ];
+
+    toast({
+      title: `✅ ${Number(creditsAdded).toLocaleString()} credits added to your account`,
+    });
+
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('credits_added');
     setSearchParams(newParams, { replace: true });
-
-    // Poll for the credits to actually appear in the ledger
-    let attempts = 0;
-    const maxAttempts = 20; // ~30 seconds total
-
-    const poll = async () => {
-      attempts++;
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['credits'] }),
-        queryClient.invalidateQueries({ queryKey: ['credits', 'balance'] }),
-        queryClient.invalidateQueries({ queryKey: ['user', 'credits'] }),
-      ]);
-
-      // Check if balance has increased
-      const balance = Number(queryClient.getQueryData<number>(['credits', 'balance']) ?? 0);
-
-      if (balance >= expectedCredits || attempts >= maxAttempts) {
-        toast({
-          title: `✅ ${expectedCredits.toLocaleString()} credits added to your account`,
-        });
-        return;
-      }
-
-      // Wait and try again
-      setTimeout(poll, 1500);
-    };
-
-    // Start polling after a short initial delay (give webhook time)
-    setTimeout(poll, 2000);
+    // No cleanup return here — timers are managed by the ref + unmount effect.
   }, [searchParams, setSearchParams, queryClient, toast]);
 
   // Sync subscription/bulk credit state when returning from Stripe checkout

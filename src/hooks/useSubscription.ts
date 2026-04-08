@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { withTimeout } from "@/lib/withTimeout";
 import type {
   SubscriptionPlan,
   UserSubscription,
@@ -11,61 +12,70 @@ import type {
   PlanTierName,
 } from "@/types/subscription";
 
-// Re-export types for convenience
 export type { SubscriptionPlan, UserSubscription, UsageTracking, LimitCheckResult, UsageType };
 
-// Fetch user's active subscription
+const SUBSCRIPTION_TIMEOUT_MS = 8000;
+
 async function fetchSubscription(userId: string): Promise<UserSubscription | null> {
-  const { data, error } = await supabase.rpc('fn_get_user_subscription', { 
-    p_user_id: userId 
-  });
-  
-  if (error) {
-    console.error('Error fetching subscription:', error);
+  try {
+    const { data, error } = await withTimeout(
+      supabase.rpc('fn_get_user_subscription', { p_user_id: userId }),
+      SUBSCRIPTION_TIMEOUT_MS,
+      'Subscription lookup timed out',
+    );
+
+    if (error) {
+      console.error('Error fetching subscription:', error);
+      return null;
+    }
+
+    if (Array.isArray(data) && data.length > 0) {
+      const row = data[0];
+      return {
+        ...row,
+        plan_name: row.plan_name as PlanTierName,
+      } as UserSubscription;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Subscription fetch failed:', error);
     return null;
   }
-  
-  // RPC returns an array, get the first item
-  if (Array.isArray(data) && data.length > 0) {
-    const row = data[0];
-    return {
-      ...row,
-      plan_name: row.plan_name as PlanTierName,
-    } as UserSubscription;
-  }
-  
-  return null;
 }
 
-// Fetch current usage
 async function fetchUsage(userId: string): Promise<UsageTracking | null> {
   type CurrentUsageRpcResult = UsageTracking | UsageTracking[] | null;
 
-  const { data, error } = await supabase.rpc('fn_get_current_usage', {
-    p_user_id: userId
-  });
-  
-  if (error) {
-    console.error('Error fetching usage:', error);
+  try {
+    const { data, error } = await withTimeout(
+      supabase.rpc('fn_get_current_usage', { p_user_id: userId }),
+      SUBSCRIPTION_TIMEOUT_MS,
+      'Usage lookup timed out',
+    );
+
+    if (error) {
+      console.error('Error fetching usage:', error);
+      return null;
+    }
+
+    const result = data as unknown as CurrentUsageRpcResult;
+
+    if (result && typeof result === 'object' && !Array.isArray(result)) {
+      return result as UsageTracking;
+    }
+
+    if (Array.isArray(result) && result.length > 0) {
+      return result[0] as UsageTracking;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Usage fetch failed:', error);
     return null;
   }
-  
-  const result = data as unknown as CurrentUsageRpcResult;
-
-  // RPC now returns jsonb directly (not an array)
-  if (result && typeof result === 'object' && !Array.isArray(result)) {
-    return result as UsageTracking;
-  }
-  
-  // Legacy: RPC might return array in some cases
-  if (Array.isArray(result) && result.length > 0) {
-    return result[0] as UsageTracking;
-  }
-  
-  return null;
 }
 
-// Check subscription limit (p_user_id disambiguates RPC if duplicate overloads ever return)
 async function checkLimit(
   userId: string,
   usageType: UsageType,
@@ -76,7 +86,7 @@ async function checkLimit(
     p_usage_type: usageType,
     p_amount: amount,
   } as any);
-  
+
   if (error) {
     console.error('Error checking limit:', error);
     return {
@@ -89,7 +99,6 @@ async function checkLimit(
   return data as unknown as LimitCheckResult;
 }
 
-// Increment usage counter (pass p_user_id so PostgREST targets a single RPC signature)
 async function incrementUsage(
   userId: string,
   usageType: UsageType,
@@ -100,7 +109,7 @@ async function incrementUsage(
     p_usage_type: usageType,
     p_amount: amount,
   } as any);
-  
+
   if (error) {
     console.error('Error incrementing usage:', error);
     return false;
@@ -113,9 +122,8 @@ export function useSubscription() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch subscription
-  const { 
-    data: subscription, 
+  const {
+    data: subscription,
     isLoading: subscriptionLoading,
     error: subscriptionError,
     refetch: refetchSubscription
@@ -126,11 +134,11 @@ export function useSubscription() {
     staleTime: 15 * 1000,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    retry: 0,
   });
 
-  // Fetch usage
-  const { 
-    data: usage, 
+  const {
+    data: usage,
     isLoading: usageLoading,
     refetch: refetchUsage
   } = useQuery({
@@ -140,9 +148,9 @@ export function useSubscription() {
     staleTime: 10 * 1000,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    retry: 0,
   });
 
-  // Build plan object from subscription data
   const plan: SubscriptionPlan | null = subscription ? {
     id: subscription.plan_id,
     name: subscription.plan_name,
@@ -161,7 +169,6 @@ export function useSubscription() {
     features: []
   } : null;
 
-  // Check if user can perform action
   const checkSubscriptionLimit = useCallback(async (
     usageType: UsageType,
     amount: number = 1
@@ -176,7 +183,6 @@ export function useSubscription() {
     return checkLimit(user.id, usageType, amount);
   }, [user?.id]);
 
-  // Increment usage and invalidate cache
   const trackUsage = useCallback(async (
     usageType: UsageType,
     amount: number = 1
@@ -189,14 +195,12 @@ export function useSubscription() {
     return success;
   }, [user?.id, queryClient]);
 
-  // Usage percentage calculations
   const getUsagePercentage = useCallback((type: 'exports'): number | null => {
     if (!plan || !usage) return 0;
     if (plan.max_monthly_exports === -1) return null;
     return (usage.exports_count / plan.max_monthly_exports) * 100;
   }, [plan, usage]);
 
-  // Returns null for unlimited plans
   const getRemainingCount = useCallback((type: 'exports'): number | null => {
     if (!plan || !usage) return 0;
     if (plan.max_monthly_exports === -1) return null;
@@ -209,7 +213,6 @@ export function useSubscription() {
     return usage.exports_count >= plan.max_monthly_exports;
   }, [plan, usage]);
 
-  // Refetch both subscription and usage
   const refetch = useCallback(async () => {
     await Promise.all([refetchSubscription(), refetchUsage()]);
   }, [refetchSubscription, refetchUsage]);
@@ -223,17 +226,11 @@ export function useSubscription() {
     usageLoading,
     error: subscriptionError?.message || null,
     hasActiveSubscription: !!subscription && ['active', 'trialing', 'past_due', 'trial'].includes(subscription.status),
-    
-    // Limit checking
     checkLimit: checkSubscriptionLimit,
     trackUsage,
-    
-    // Usage helpers
     getUsagePercentage,
     getRemainingCount,
     isAtLimit,
-    
-    // Refetch
     refetch,
   };
 }

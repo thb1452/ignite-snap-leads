@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { withTimeout } from "@/lib/withTimeout";
 
 export interface TrialStatus {
   isOnTrial: boolean;
@@ -35,47 +36,56 @@ interface TrialStatusRow {
   plan_id?: string | null;
 }
 
+const FALLBACK_TRIAL_STATUS: TrialStatus = {
+  isOnTrial: false,
+  hasTrialExpired: false,
+  hasActiveSubscription: false,
+  trialDaysRemaining: 0,
+  trialExportsUsed: 0,
+  trialExportsRemaining: 0,
+  trialExportsLimit: 500,
+  trialTier: null,
+  trialEndsAt: null,
+  trialStartedAt: null,
+  subscriptionStatus: null,
+  canExport: false,
+  planId: null,
+};
+
 async function fetchTrialStatus(userId: string): Promise<TrialStatus> {
-  const { data, error } = await supabase.rpc('fn_get_trial_status', {
-    p_user_id: userId,
-  });
+  try {
+    const { data, error } = await withTimeout(
+      supabase.rpc('fn_get_trial_status', { p_user_id: userId }),
+      8000,
+      'Trial status lookup timed out',
+    );
 
-  if (error) {
-    console.error('Error fetching trial status:', error);
+    if (error) {
+      console.error('Error fetching trial status:', error);
+      return FALLBACK_TRIAL_STATUS;
+    }
+
+    const row = data as unknown as TrialStatusRow | null;
+
     return {
-      isOnTrial: false,
-      hasTrialExpired: false,
-      hasActiveSubscription: false,
-      trialDaysRemaining: 0,
-      trialExportsUsed: 0,
-      trialExportsRemaining: 0,
-      trialExportsLimit: 500,
-      trialTier: null,
-      trialEndsAt: null,
-      trialStartedAt: null,
-      subscriptionStatus: null,
-      canExport: false,
-      planId: null,
+      isOnTrial: row?.is_on_trial ?? false,
+      hasTrialExpired: row?.has_trial_expired ?? false,
+      hasActiveSubscription: row?.has_active_subscription ?? false,
+      trialDaysRemaining: Math.ceil(row?.trial_days_remaining ?? 0),
+      trialExportsUsed: row?.trial_exports_used ?? 0,
+      trialExportsRemaining: row?.trial_exports_remaining ?? 0,
+      trialExportsLimit: row?.trial_exports_limit ?? 500,
+      trialTier: row?.trial_tier ?? null,
+      trialEndsAt: row?.trial_ends_at ?? null,
+      trialStartedAt: row?.trial_started_at ?? null,
+      subscriptionStatus: row?.subscription_status ?? null,
+      canExport: row?.can_export ?? false,
+      planId: row?.plan_id ?? null,
     };
+  } catch (error) {
+    console.error('Trial status fetch failed:', error);
+    return FALLBACK_TRIAL_STATUS;
   }
-
-  const row = data as unknown as TrialStatusRow | null;
-
-  return {
-    isOnTrial: row?.is_on_trial ?? false,
-    hasTrialExpired: row?.has_trial_expired ?? false,
-    hasActiveSubscription: row?.has_active_subscription ?? false,
-    trialDaysRemaining: Math.ceil(row?.trial_days_remaining ?? 0),
-    trialExportsUsed: row?.trial_exports_used ?? 0,
-    trialExportsRemaining: row?.trial_exports_remaining ?? 0,
-    trialExportsLimit: row?.trial_exports_limit ?? 500,
-    trialTier: row?.trial_tier ?? null,
-    trialEndsAt: row?.trial_ends_at ?? null,
-    trialStartedAt: row?.trial_started_at ?? null,
-    subscriptionStatus: row?.subscription_status ?? null,
-    canExport: row?.can_export ?? false,
-    planId: row?.plan_id ?? null,
-  };
 }
 
 export function useTrialStatus() {
@@ -94,6 +104,7 @@ export function useTrialStatus() {
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchInterval: 30 * 1000,
+    retry: 0,
   });
 
   interface StartTrialResult {
@@ -123,7 +134,6 @@ export function useTrialStatus() {
       return { success: false, error: result?.error || 'Failed to start trial' };
     }
 
-    // Invalidate all related queries
     queryClient.invalidateQueries({ queryKey: ['trial-status'] });
     queryClient.invalidateQueries({ queryKey: ['subscription'] });
 
@@ -156,28 +166,13 @@ export function useTrialStatus() {
       return { success: false, error: result?.error };
     }
 
-    // Refresh trial status
     queryClient.invalidateQueries({ queryKey: ['trial-status'] });
 
     return { success: true, remaining: result.remaining };
   }, [user?.id, queryClient]);
 
   return {
-    ...(trial ?? {
-      isOnTrial: false,
-      hasTrialExpired: false,
-      hasActiveSubscription: false,
-      trialDaysRemaining: 0,
-      trialExportsUsed: 0,
-      trialExportsRemaining: 0,
-      trialExportsLimit: 500,
-      trialTier: null,
-      trialEndsAt: null,
-      trialStartedAt: null,
-      subscriptionStatus: null,
-      canExport: false,
-      planId: null,
-    }),
+    ...(trial ?? FALLBACK_TRIAL_STATUS),
     loading: isLoading,
     startTrial,
     incrementTrialExports,

@@ -156,19 +156,16 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
           setPendingStripeCheckout(pendingPayload);
         }
         const rUrl = data.redirect_url || `${window.location.origin}/checkout/success`;
-        const w = window.open(rUrl, '_blank');
-        if (!w) window.location.href = rUrl;
+        window.location.href = rUrl;
         return;
       }
 
       const checkoutUrl = data?.url || data?.checkout_url;
       if (!checkoutUrl) throw new Error("No checkout URL returned. Please try again.");
-      // Store pending checkout type so the app refreshes on return
       if (pendingPayload) {
         setPendingStripeCheckout(pendingPayload);
       }
-      const w = window.open(checkoutUrl, '_blank');
-      if (!w) window.location.href = checkoutUrl;
+      window.location.href = checkoutUrl;
     } catch (error: any) {
       toast({
         title: "Checkout Failed",

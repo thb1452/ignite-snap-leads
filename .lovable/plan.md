@@ -1,26 +1,49 @@
 
 
-# Show 3-Line AI Brief on Map View Property Cards
+# Build AI-Powered Natural Language Search
 
-The insight is the product — currently it's truncated to 1 sentence on 1 line. This change expands it to 3 sentences across up to 3 visible lines.
+Add a search bar to the Properties page where users type natural language queries and get filters applied automatically using Azure OpenAI.
 
-## Changes
+## Files to Create
 
-**`src/components/leads/PropertyCard.tsx`**
+### 1. `supabase/functions/ai-search/index.ts`
+- Accepts `{ query: string }`, calls Azure OpenAI GPT-4o mini with tool calling
+- Tool schema maps to LeadFilters fields: `state`, `cities`, `snapScoreRange`, `openViolationsOnly`, `multipleViolationsOnly`, `repeatOffenderOnly`, `lastSeenDays`, `violationType`, `sortBy`
+- System prompt includes US state abbreviation mapping and field descriptions
+- Returns structured JSON filters or `{ filters: {}, message: "..." }` for unrecognized queries
+- CORS headers, input validation, error handling for Azure failures
 
-1. Update `getBriefPreview` call (line 72): change `maxSentences` from `1` to `3` and `maxChars` from `132` to `280` for non-compact mode:
-   ```
-   getBriefPreview(insightText, compact ? 1 : 3, compact ? 96 : 280)
-   ```
+### 2. `src/components/leads/AiSearchBar.tsx`
+- Text input with sparkle icon, placeholder: "Ask AI: e.g. 'open violations in Florida, score 80+'"
+- Submit on Enter, shows loading spinner (~1-2s)
+- On success: calls `onFiltersApplied` callback with parsed filters
+- On unrecognized query: shows toast with friendly message
+- Example chips below input for first-time guidance
+- Compact design that fits above existing filter controls
 
-2. In the map view card (line 232), change the brief `<p>` from single-line `truncate` to multi-line clamp:
-   - Remove `truncate`
-   - Add `line-clamp-3 whitespace-normal` so it wraps up to 3 lines
-   - Bump font slightly from `text-[10px]` to `text-[11px]` with `text-slate-300` (higher contrast since this is the product)
+## Files to Modify
 
-3. Restructure Row 2: Move the action label + brief preview into their own block that spans below Row 1, with buttons staying right-aligned. This lets the brief text use the full card width instead of competing with buttons on the same line.
+### 3. `src/pages/Leads.tsx`
+- Import and render AiSearchBar above the filter controls area
+- Wire callback to set filter state: `setSelectedState`, `setSelectedCity`, `setOpenViolationsOnly`, `setMultipleViolationsOnly`, `setRepeatOffenderOnly`, `setLastSeenDays`, `setSelectedSignal`, `setSortBy`
+- Clear existing filters before applying AI results so they don't conflict
 
-**`src/components/leads/VirtualizedPropertyList.tsx`**
+### 4. `supabase/config.toml`
+- Add `[functions.ai-search]` with `verify_jwt = false` (auth checked in code)
 
-- Update `estimateSize` for non-compact mode from `64` to `100` to accommodate the 3-line brief.
+### 5. `src/integrations/http/functions.ts`
+- Add `"ai-search"` to the `callFn` union type
+
+## How Guardrails Work
+
+- Azure tool calling constrains output to the exact filter schema — no free-form JSON
+- If user types nonsense, Azure returns no tool call → edge function returns `{ filters: {}, message: "I can help with property filters..." }`
+- Frontend shows a toast with the message and suggested example queries
+- Invalid filter values stripped by existing `cleanFilters()` utility
+
+## Technical Notes
+
+- Uses existing `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT` secrets
+- ~60 lines edge function, ~80 lines component, ~15 lines Leads.tsx changes
+- No database changes, no new tables, no new RPCs
 

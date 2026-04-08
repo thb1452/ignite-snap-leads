@@ -84,14 +84,14 @@ export function SubscriptionSettings() {
 
       if (data?.upgraded) {
         const rUrl = data.redirect_url || `${window.location.origin}/checkout/success`;
-        const w = window.open(rUrl, '_blank'); if (!w) window.location.href = rUrl;
+        window.location.href = rUrl;
         return;
       }
 
       const checkoutUrl = data?.url || data?.checkout_url;
       if (!checkoutUrl) throw new Error("No checkout URL returned. Please try again.");
 
-      const w = window.open(checkoutUrl, '_blank'); if (!w) window.location.href = checkoutUrl;
+      window.location.href = checkoutUrl;
     } catch (error: any) {
       console.error("[SubscriptionSettings] Checkout error:", error);
       toast({

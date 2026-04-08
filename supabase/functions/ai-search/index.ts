@@ -115,7 +115,7 @@ serve(async (req) => {
         tools: [TOOL_SCHEMA],
         tool_choice: "auto",
         temperature: 0,
-        max_tokens: 300,
+        max_completion_tokens: 300,
       }),
     });
 

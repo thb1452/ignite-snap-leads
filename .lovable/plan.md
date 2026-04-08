@@ -1,26 +1,26 @@
 
 
-# Make Property Cards More Compact in Map View
+# Show 3-Line AI Brief on Map View Property Cards
 
-The issue: In map view, the non-compact property cards (lines 184-287 of PropertyCard.tsx) take up too much vertical space because each card includes a full AI Brief preview section with text + action label, padded containers, and generous spacing. On the published site at full resolution, you can only see ~1-2 cards at a time in the 55% right panel.
-
-The Lovable preview looks "nicer" because the viewport is smaller (909px), so more cards fit visually — but on a 1920px published site, the cards stretch wider and the AI brief text wraps less, yet overall card height is still too tall relative to the panel.
+The insight is the product — currently it's truncated to 1 sentence on 1 line. This change expands it to 3 sentences across up to 3 visible lines.
 
 ## Changes
 
-**`src/components/leads/PropertyCard.tsx`** — Tighten the non-compact (map view) card layout:
+**`src/components/leads/PropertyCard.tsx`**
 
-1. **Collapse the AI Brief into a single inline row** instead of a boxed section with header + paragraph. Show just the action label (CALL NOW / WORTH A CALL / OPPORTUNITY / PASS) and a truncated one-line brief preview inline on the same row as the buttons — no separate bordered container, no "AI Brief" header, no multi-line text.
+1. Update `getBriefPreview` call (line 72): change `maxSentences` from `1` to `3` and `maxChars` from `132` to `280` for non-compact mode:
+   ```
+   getBriefPreview(insightText, compact ? 1 : 3, compact ? 96 : 280)
+   ```
 
-2. **Reduce vertical padding**: Outer wrapper from `py-1` → `py-0.5`, inner card from `py-1.5` → `py-1`. Remove `mt-0.5` gaps between rows.
+2. In the map view card (line 232), change the brief `<p>` from single-line `truncate` to multi-line clamp:
+   - Remove `truncate`
+   - Add `line-clamp-3 whitespace-normal` so it wraps up to 3 lines
+   - Bump font slightly from `text-[10px]` to `text-[11px]` with `text-slate-300` (higher contrast since this is the product)
 
-3. **Merge the city/violation-types row into the first row** where address is shown, reducing from 3 rows to 2 rows total per card.
+3. Restructure Row 2: Move the action label + brief preview into their own block that spans below Row 1, with buttons staying right-aligned. This lets the brief text use the full card width instead of competing with buttons on the same line.
 
-4. **Move action buttons inline** with the brief text on the second row.
+**`src/components/leads/VirtualizedPropertyList.tsx`**
 
-**Result**: Each card goes from ~92px estimated height down to ~56-64px, fitting 3-4x more cards visible at once.
-
-**`src/components/leads/VirtualizedPropertyList.tsx`** — Update `estimateSize` for non-compact mode from `92` → `64` to match the new card height.
-
-No other files affected — the compact (list view) cards are already dense enough.
+- Update `estimateSize` for non-compact mode from `64` to `100` to accommodate the 3-line brief.
 

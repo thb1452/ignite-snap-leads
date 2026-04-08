@@ -74,21 +74,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({ received: true, skipped: true }), { status: 200 });
     }
 
-    const { error: insertError } = await supabase.from("webhook_events").insert({
-      event_id: event.id,
-      event_type: event.type,
-      payload: event.data.object,
-    });
-
-    if (insertError) {
-      if (insertError.code === "23505") {
-        console.log("[webhook] Event being processed by another request:", event.id);
-        return new Response(JSON.stringify({ received: true, skipped: true }), { status: 200 });
-      }
-      console.error("[webhook] Failed to record event:", insertError);
-    }
-
     // ---- Handle Event ----
+    // Process FIRST, mark done AFTER. This way if processing fails, no stale
+    // idempotency record is left and Stripe can retry cleanly. The webhook_events
+    // table only has INSERT + SELECT grants (no DELETE), so the old mark-before-process
+    // pattern was permanently blocking retries whenever the handler threw.
     try {
       switch (event.type) {
         case "checkout.session.completed": {
@@ -143,14 +133,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
     } catch (handlerErr: any) {
       console.error("[webhook] Handler error for", event.type, handlerErr?.message);
       await logWebhookError(event.type, event.id, handlerErr?.message ?? String(handlerErr), event.data.object);
-      // Remove the idempotency record so Stripe can retry this event.
-      // Without this, a failure after recording would permanently skip the event on retry.
-      try {
-        await supabase.from("webhook_events").delete().eq("event_id", event.id);
-      } catch {
-        /* silent — idempotency cleanup is best-effort */
-      }
+      // Do NOT attempt to delete the webhook_events row here — the table has no
+      // DELETE grant for service_role. Since we now insert AFTER success, there is
+      // no stale record to clean up on failure.
       throw handlerErr;
+    }
+
+    // Mark event as successfully processed. Insert after success so that a failure
+    // above never leaves a stale record that blocks Stripe retries.
+    // 23505 = unique violation = a concurrent request finished first = fine to ignore.
+    const { error: markError } = await supabase.from("webhook_events").insert({
+      event_id: event.id,
+      event_type: event.type,
+      payload: event.data.object,
+    });
+    if (markError && markError.code !== "23505") {
+      console.error("[webhook] Failed to mark event as processed (non-fatal):", markError);
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 });
@@ -275,6 +273,22 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
     const credits = parseInt(session.metadata?.credit_count ?? "0", 10);
     if (credits <= 0) {
       console.error("[webhook] Invalid credits amount for bulk_credits pack");
+      return;
+    }
+
+    // Idempotency guard: check if this session already has a ledger entry.
+    // This catches the race where two concurrent webhook deliveries both pass
+    // the webhook_events SELECT check before either has inserted the done record.
+    const { data: existingLedger } = await supabase
+      .from("credit_ledger")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("reason", "credit_pack_purchase")
+      .filter("meta->>stripe_session_id", "eq", session.id)
+      .maybeSingle();
+
+    if (existingLedger) {
+      console.log("[webhook] Credits already added for session, skipping:", session.id);
       return;
     }
 

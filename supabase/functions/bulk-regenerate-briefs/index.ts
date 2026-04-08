@@ -231,7 +231,7 @@ serve(async (req) => {
     let query = supabase
       .from("properties")
       .select("id, address, city, state, zip, county, snap_score, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class")
-      .eq("investor_insight_brief->model", "deterministic-v5");
+      .filter("investor_insight_brief->>model", "eq", "deterministic-v5");
 
     if (mode === "rule") {
       // Rule mode: fallback only

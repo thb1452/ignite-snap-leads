@@ -227,10 +227,11 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const batchSize = mode === "ai" ? BATCH_SIZE_AI : BATCH_SIZE_RULE;
 
+    // Target properties with rule-based briefs (deterministic-v5) for AI upgrade
     let query = supabase
       .from("properties")
       .select("id, address, city, state, zip, county, snap_score, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class")
-      .is("investor_insight_brief", null);
+      .eq("investor_insight_brief->>model", "deterministic-v5");
 
     if (mode === "rule") {
       // Rule mode: fallback only

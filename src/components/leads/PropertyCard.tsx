@@ -75,7 +75,7 @@ export const PropertyCard = memo(function PropertyCard({
         violationTypes: property.violation_types,
       })
     : null;
-  const briefPreview = insightText ? getBriefPreview(insightText, 1, compact ? 96 : 132) : "";
+  const briefPreview = insightText ? getBriefPreview(insightText, compact ? 1 : 3, compact ? 96 : 280) : "";
 
   if (compact) {
     return (
@@ -223,16 +223,20 @@ export const PropertyCard = memo(function PropertyCard({
           </div>
         </div>
 
-        {/* Row 2: action label + brief preview + buttons */}
-        <div className="flex items-center gap-1.5 min-w-0 pl-5">
-          {actionLabel && (
-            <span className={`text-[9px] font-bold uppercase shrink-0 ${actionLabel.colorClass}`}>{actionLabel.label}</span>
-          )}
-          {briefPreview && (
-            <p className="text-[10px] text-slate-400 leading-tight truncate flex-1 min-w-0">{briefPreview}</p>
-          )}
-          {!actionLabel && !briefPreview && <div className="flex-1" />}
+        {/* Row 2: action label + brief preview */}
+        {(actionLabel || briefPreview) && (
+          <div className="flex items-start gap-1.5 min-w-0 pl-5 mt-0.5">
+            {actionLabel && (
+              <span className={`text-[9px] font-bold uppercase shrink-0 mt-px ${actionLabel.colorClass}`}>{actionLabel.label}</span>
+            )}
+            {briefPreview && (
+              <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-3 whitespace-normal flex-1 min-w-0">{briefPreview}</p>
+            )}
+          </div>
+        )}
 
+        {/* Row 3: buttons */}
+        <div className="flex items-center justify-end gap-1 min-w-0 pl-5">
           {isUnlocked ? (
             <div className="flex items-center gap-1 shrink-0">
               <Button

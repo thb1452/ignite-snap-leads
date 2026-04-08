@@ -53,7 +53,7 @@ const VirtualizedPropertyListInner = ({
   const virtualizer = useVirtualizer({
     count: properties.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => compact ? 68 : 64,
+    estimateSize: () => compact ? 68 : 100,
     measureElement: (el) => el.getBoundingClientRect().height,
     overscan: compact ? 10 : 5,
   });

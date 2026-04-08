@@ -385,21 +385,27 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
           Your Plan & Usage
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6 py-2">
-        {/* Plan Status */}
-        <div className="text-center sm:text-left space-y-2">
-          <div className="flex justify-center sm:justify-start">
-            <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
-              <Zap className="h-7 w-7 text-muted-foreground" />
+      <CardContent className="space-y-6">
+        {/* Plan Info Row — matches subscriber layout */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-background shadow-sm flex items-center justify-center flex-shrink-0">
+              <Zap className={cn("h-6 w-6", ledgerBalance > 0 ? "text-amber-500" : "text-blue-500")} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-lg">
+                  {ledgerBalance > 0 ? "Bulk Credits" : "Free Plan"}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {ledgerBalance > 0
+                  ? `${ledgerBalance.toLocaleString()} bulk credits ready to use.`
+                  : `${freeUnlocksRemaining} free unlock${freeUnlocksRemaining !== 1 ? 's' : ''} remaining.`}
+                {" "}Pick a plan or buy credits below.
+              </p>
             </div>
           </div>
-          <h3 className="text-lg font-semibold">{ledgerBalance > 0 ? "Bulk Credits" : "Free Plan"}</h3>
-          <p className="text-muted-foreground text-sm">
-            {ledgerBalance > 0
-              ? `You have ${ledgerBalance.toLocaleString()} bulk credits ready to use${freeUnlocksRemaining > 0 ? ` plus ${freeUnlocksRemaining} free unlock${freeUnlocksRemaining !== 1 ? 's' : ''}` : ''}.`
-              : `You're on the Free Plan — you have ${freeUnlocksRemaining} free unlock${freeUnlocksRemaining !== 1 ? 's' : ''} to try.`}
-            {" "}When you're ready to unlock more properties, pick a plan below or buy a one-time credit pack. No commitment required.
-          </p>
         </div>
 
         {/* Credit Balances */}
@@ -411,18 +417,20 @@ export function PlanUsageSection({ listsCount = 0, propertiesCount = 0 }: PlanUs
               <p className="text-lg font-semibold">{freeUnlocksRemaining} / 3</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border">
-            <Coins className="h-5 w-5 text-amber-600" />
-            <div>
-              <p className="text-xs text-muted-foreground">Bulk Credits</p>
-              <p className="text-lg font-semibold">{ledgerBalance > 0 ? ledgerBalance.toLocaleString() : '0'}</p>
+          {ledgerBalance > 0 && (
+            <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+              <Coins className="h-5 w-5 text-amber-700" />
+              <div>
+                <p className="text-xs text-amber-700">Bulk Credits</p>
+                <p className="text-lg font-semibold text-amber-900">{ledgerBalance.toLocaleString()}</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <Separator />
 
-        {/* Subscribe */}
+        {/* Subscribe — same button style as subscriber view */}
         <div>
           <p className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Subscribe & Save</p>
           <div className="grid gap-2">

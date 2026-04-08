@@ -211,8 +211,10 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
   const checkoutType = session.metadata?.checkout_type;
   const paymentIntentId = paymentIntentIdFromSession(session);
 
+  console.log("[webhook] One-time payment metadata — user_id:", userId, "checkout_type:", checkoutType, "session_id:", session.id);
+
   if (!userId || !checkoutType) {
-    console.error("[webhook] Missing metadata in one-time payment session");
+    console.error("[webhook] FATAL: Missing metadata — user_id:", userId, "checkout_type:", checkoutType, "full metadata:", JSON.stringify(session.metadata));
     return;
   }
 
@@ -293,7 +295,8 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
     }
 
     // Add credits via ledger
-    const { error: creditErr } = await supabase.from("credit_ledger").insert({
+    console.log("[webhook] Inserting credit_ledger row — user:", userId, "delta:", credits, "session:", session.id);
+    const { data: insertedRow, error: creditErr } = await supabase.from("credit_ledger").insert({
       user_id: userId,
       delta: credits,
       reason: "credit_pack_purchase",
@@ -302,14 +305,14 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
         payment_intent_id: paymentIntentId,
         credit_count: credits,
       },
-    });
+    }).select("id").single();
 
     if (creditErr) {
-      console.error("[webhook] Error adding credits:", creditErr);
+      console.error("[webhook] Error adding credits — code:", creditErr.code, "message:", creditErr.message, "details:", creditErr.details, "hint:", creditErr.hint);
       throw creditErr;
     }
 
-    console.log("[webhook] Bulk credits added:", credits, "for user:", userId);
+    console.log("[webhook] Bulk credits added:", credits, "for user:", userId, "ledger row id:", insertedRow?.id);
   }
 
   // ---- Affiliate Commission ----

@@ -12,15 +12,18 @@ export function useCreditBalance() {
     staleTime: 30000,
   });
 
-  // If the user has an active subscription plan, treat their remaining monthly exports as "credits remaining"
-  // (this matches the Settings "CSV Exports 0/150" display).
+  // For subscribers, total = remaining monthly quota + any bulk credits in the ledger.
   if (hasActiveSubscription && plan && usage && !subscriptionLoading) {
     const limit = plan.max_monthly_exports;
     const used = usage.exports_count ?? 0;
-    const remaining = limit === -1 ? Number.POSITIVE_INFINITY : Math.max(0, limit - used);
+    const subRemaining = limit === -1 ? Number.POSITIVE_INFINITY : Math.max(0, limit - used);
+    const bulkBalance = (ledgerQuery.data as number) ?? 0;
+    const total = subRemaining === Number.POSITIVE_INFINITY
+      ? Number.POSITIVE_INFINITY
+      : subRemaining + bulkBalance;
     return {
       ...ledgerQuery,
-      data: remaining,
+      data: total,
       isLoading: false,
     };
   }

@@ -1,55 +1,49 @@
 
-# Two Tasks: 4-Tier Labels + Resume AI Sweep
+
+# Two Tasks: 4-Tier Labels + Resume AI Sweep for 188k Properties
 
 ## Task 1: Implement 4-Tier Action Label System
 
-Replace the current 3-label system (CALL NOW, WORTH A CALL, WATCH) with 4 distinct labels that differentiate open vs closed violations.
+Replaces the current 3-label system with 4 distinct labels that differentiate open vs closed violations.
 
 | Label | When | Color |
 |-------|------|-------|
 | **CALL NOW** | Score 70+, water shutoff, escalated, fire | Red bold |
 | **WORTH A CALL** | Score 40-69, or 2+ open violations | Orange bold |
-| **OPPORTUNITY** | Score < 40, still has open violations | Amber bold |
+| **OPPORTUNITY** | Score < 40, still has open violations | Amber/yellow bold |
 | **PASS** | All violations resolved, no active enforcement | Muted gray |
 
-### Files to change:
+### Files changed (frontend):
 
-**A. `src/utils/actionLabelUtils.ts`** — Core frontend label logic
-- Add "OPPORTUNITY" and "PASS" as distinct label types with unique colors
-- Update `createActionLabel` to support 4 labels: CALL NOW (red), WORTH A CALL (orange), OPPORTUNITY (amber/yellow), PASS (gray)
-- Update `getActionLabel()` regex: map "WATCH"/"MONITOR" text → "OPPORTUNITY", keep "PASS" separate
-- Update `getFallbackActionLabel()`: if `openViolations === 0` → return "PASS"
-- Update `ACTION_LABEL_PRIORITY` map to include all 4 tiers
+**`src/utils/actionLabelUtils.ts`** — Core label logic
+- Add "OPPORTUNITY" and "PASS" as distinct labels with unique color classes
+- Map existing "WATCH"/"MONITOR" text in insights → display as "OPPORTUNITY"
+- Keep "PASS" as its own label (stop collapsing into WATCH)
+- Update `getFallbackActionLabel()`: `openViolations === 0` → PASS
 - Add "OPPORTUNITY" to all regex patterns
+- Update priority map for all 4 tiers
 
-**B. `supabase/functions/_shared/insightSanitizer.ts`** — Backend label normalization
-- Add "OPPORTUNITY" to regex patterns
-- Update `normalizeActionLabel`: "WATCH"/"MONITOR" → "OPPORTUNITY", "PASS" stays "PASS"
+No component files need changing — PropertyCard, MobilePropertyCard, InvestorInsightCard, CompactPropertyRow all read label/color dynamically from this utility.
 
-**C. `supabase/functions/_shared/dealStrategistPrompt.ts`** — AI prompt
-- Replace "WATCH" with "OPPORTUNITY" in action label rules and training examples
-- Add open/closed distinction to label instructions
+### Files changed (backend):
 
-**D. `supabase/functions/generate-insights/index.ts`** — Deterministic engine
-- In `getActionLabel()` (line 834): rename "WATCH" returns to "OPPORTUNITY"
-- Keep "PASS" for `openCount === 0` cases
+**`supabase/functions/_shared/insightSanitizer.ts`** — Add "OPPORTUNITY" to regex and normalization
+**`supabase/functions/_shared/dealStrategistPrompt.ts`** — Update AI prompt with 4-tier rules (OPPORTUNITY replaces WATCH)
+**`supabase/functions/generate-insights/index.ts`** — Deterministic engine: rename WATCH → OPPORTUNITY
+**`supabase/functions/bulk-regenerate-briefs/index.ts`** — Bulk engine: rename WATCH → OPPORTUNITY in `getLabel()`
 
-**E. `supabase/functions/bulk-regenerate-briefs/index.ts`** — Bulk engine
-- In `getLabel()` (line 68): rename "WATCH" returns to "OPPORTUNITY"
-
-No component changes needed — `PropertyCard`, `MobilePropertyCard`, `InvestorInsightCard`, `CompactPropertyRow` all read `actionLabel.label` and `actionLabel.colorClass` dynamically from the utility.
+---
 
 ## Task 2: Resume AI Sweep for 188k Rule-Based Properties
 
-The 188k rule-based properties already have `investor_insight_brief` set (model: `deterministic-v5`), so the current sweep (which filters `investor_insight_brief IS NULL`) won't pick them up.
+The 188k rule-based properties already have `investor_insight_brief` set (`model: "deterministic-v5"`), so the current sweep query (`investor_insight_brief IS NULL`) skips them.
 
-### Approach:
-- Update `bulk-regenerate-briefs/index.ts` to add a new query mode targeting properties where `investor_insight_brief->>'model' = 'deterministic-v5'` 
-- Trigger a new sweep with a fresh `REGEN_VERSION` (e.g., `v29-ai-upgrade-rulebased`)
-- The sweep will process these 188k properties through Azure GPT-4o, replacing rule-based one-liners with full AI insights
-- The new AI prompt will already include the updated 4-tier labels (OPPORTUNITY instead of WATCH)
+**Fix:** Update `bulk-regenerate-briefs` to target properties where the brief model is `deterministic-v5` instead of only NULL briefs. Bump `REGEN_VERSION` to `v29-ai-upgrade-rulebased`. Trigger the sweep after deploying.
 
 ### Deploy order:
-1. Deploy the label changes first (insightSanitizer, dealStrategistPrompt, generate-insights, bulk-regenerate-briefs)
-2. Deploy the updated sweep query
-3. Trigger the sweep via curl to start processing the 188k backlog
+1. Deploy all label changes + updated sweep query
+2. Trigger sweep via curl to start AI processing of 188k backlog
+3. New insights will use the updated 4-tier labels automatically
+
+**Estimated time:** ~10 minutes for code changes + deploy. The AI sweep itself runs in background over several hours.
+

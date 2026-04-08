@@ -381,7 +381,7 @@ export default function Landing() {
               { value: "500K+", label: "Properties Tracked" },
               { value: "3,800+", label: "Cities Covered" },
               { value: "Weekly", label: "Data Updates" },
-              { value: "100%", label: "FOIA-Sourced Data" },
+              { value: "AI", label: "Investor Briefs" },
             ].map((stat, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
                 <div className="text-3xl md:text-4xl font-bold text-landing-accent">{stat.value}</div>

@@ -182,8 +182,9 @@ export const PropertyCard = memo(function PropertyCard({
   }
 
   return (
-    <div className="px-1.5 py-1 border-b border-slate-800 bg-slate-950" onClick={onClick}>
-      <div className={`bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 cursor-pointer transition-all ${isSelected ? "ring-1 ring-teal-500" : ""}`}>
+    <div className="px-1.5 py-0.5 border-b border-slate-800 bg-slate-950" onClick={onClick}>
+      <div className={`bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 cursor-pointer transition-all ${isSelected ? "ring-1 ring-teal-500" : ""}`}>
+        {/* Row 1: checkbox + lock + address + city + violations + score */}
         <div className="flex items-center gap-1.5 min-w-0">
           <Checkbox
             checked={isSelected}
@@ -196,9 +197,25 @@ export const PropertyCard = memo(function PropertyCard({
             {isUnlocked ? "UNLOCKED" : "LOCKED"}
           </span>
 
-          <p className={`text-xs font-bold text-slate-100 leading-tight truncate flex-1 min-w-0${!isUnlocked ? " blur-[4px] select-none" : ""}`}>
+          <p className={`text-xs font-bold text-slate-100 leading-tight truncate min-w-0${!isUnlocked ? " blur-[4px] select-none" : ""}`}>
             {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
           </p>
+
+          <span className="text-[10px] text-slate-400 shrink-0">
+            {formatCity(property.city)}, {property.state}
+          </span>
+
+          {property.violation_types && property.violation_types.length > 0 && (
+            <div className="hidden lg:flex items-center gap-1 shrink-0">
+              {property.violation_types.slice(0, 2).map((vt) => (
+                <span key={vt} className="max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-medium px-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 leading-3.5" title={vt}>
+                  🔥 {vt}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="flex-1" />
 
           <div className="flex items-center gap-1 shrink-0">
             <div className={`w-1.5 h-1.5 rounded-full ${getScoreDot(property.snap_score)}`} />
@@ -206,40 +223,21 @@ export const PropertyCard = memo(function PropertyCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pl-[4.5rem]">
-          <span className="text-[10px] text-slate-400 shrink-0">
-            {formatCity(property.city)}, {property.state} {property.zip}
-          </span>
-          {property.violation_types && property.violation_types.length > 0 && (
-            <div className="flex items-center gap-1 shrink-0">
-              {property.violation_types.slice(0, 2).map((vt) => (
-                <span key={vt} className="max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-medium px-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 leading-3.5" title={vt}>
-                  🔥 {vt}
-                </span>
-              ))}
-            </div>
+        {/* Row 2: action label + brief preview + buttons */}
+        <div className="flex items-center gap-1.5 min-w-0 pl-5">
+          {actionLabel && (
+            <span className={`text-[9px] font-bold uppercase shrink-0 ${actionLabel.colorClass}`}>{actionLabel.label}</span>
           )}
-        </div>
-
-        <div className="flex items-start gap-1.5 mt-0.5 min-w-0">
-          {insightText ? (
-            <div className="flex-1 min-w-0 bg-slate-900 rounded px-1.5 py-1 border border-teal-500/20">
-              <div className="flex items-center gap-1 mb-0.5">
-                <Sparkles className="w-2.5 h-2.5 text-teal-400 shrink-0" />
-                <span className="text-[10px] font-semibold text-teal-400">AI Brief</span>
-              </div>
-              {briefPreview && <p className="text-[10px] text-slate-400 leading-relaxed break-words">{briefPreview}</p>}
-              {actionLabel && <p className={`text-[10px] mt-0.5 leading-tight ${actionLabel.colorClass}`}>{actionLabel.label}</p>}
-            </div>
-          ) : (
-            <div className="flex-1" />
+          {briefPreview && (
+            <p className="text-[10px] text-slate-400 leading-tight truncate flex-1 min-w-0">{briefPreview}</p>
           )}
+          {!actionLabel && !briefPreview && <div className="flex-1" />}
 
           {isUnlocked ? (
             <div className="flex items-center gap-1 shrink-0">
               <Button
                 size="sm"
-                className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold text-[10px] h-6 px-2"
+                className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold text-[10px] h-5 px-2"
                 disabled={isExporting}
                 onClick={async (e) => {
                   e.stopPropagation();
@@ -262,15 +260,15 @@ export const PropertyCard = memo(function PropertyCard({
                   e.stopPropagation();
                   onToggleSaved?.(property.id);
                 }}
-                className="flex items-center justify-center h-6 w-6 rounded border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors"
+                className="flex items-center justify-center h-5 w-5 rounded border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors"
               >
-                <Heart className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"} size={10} />
+                <Heart className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"} size={9} />
               </button>
             </div>
           ) : (
             <Button
               size="sm"
-              className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold h-6 text-[10px] px-2 shrink-0"
+              className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold h-5 text-[10px] px-2 shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
                 onUnlock?.(property.id);

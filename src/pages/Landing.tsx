@@ -522,7 +522,7 @@ export default function Landing() {
               </div>
               <div className="space-y-3 text-sm text-landing-text-muted">
                 {[
-                  "FOIA-sourced enforcement data from 3,800+ cities",
+                  "Municipal enforcement data from 3,800+ cities",
                   "Updated weekly with live violation records",
                   "AI investor brief on every property — free",
                   `Pay only for addresses you want — ${PAYG_PRICE_DISPLAY} each`,
@@ -584,7 +584,7 @@ export default function Landing() {
                 { q: "What are the 3 free unlocks?", a: "Every new account gets 3 free unlocks. Each unlock reveals the full address, violation data, and lets you export the record. No credit card needed." },
                 { q: "What happens when I unlock a property?", a: "You get the complete street address, full violation history, AI investor brief, and the ability to export or save the lead to a list." },
                 { q: "How does Pay As You Go work?", a: `Pay ${PAYG_PRICE_DISPLAY} per credit. No subscription, no commitment. 1 credit = 1 unlock + 1 export. Credits never expire.` },
-                { q: "Where does the data come from?", a: "All data is sourced directly from municipalities via FOIA (Freedom of Information Act) requests. We file thousands of records requests to build the most comprehensive enforcement database available." },
+                { q: "Where does the data come from?", a: "All data is sourced directly from municipalities through public records requests. We file thousands of records requests to build the most comprehensive enforcement database available." },
                 { q: "Can I cancel anytime?", a: "Yes — all subscription plans are month-to-month with no contracts or cancellation fees." },
               ].map((faq, i) => (
                 <AccordionItem key={i} value={`item-${i}`} className="bg-landing-bg/50 border border-landing-surface rounded-lg px-6 data-[state=open]:border-landing-accent/50">

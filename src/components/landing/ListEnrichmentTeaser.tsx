@@ -44,11 +44,11 @@ export function ListEnrichmentTeaser() {
           </h3>
 
           <p className="text-sm md:text-base text-landing-text-muted leading-relaxed mb-2">
-            Upload any property list. We'll scan every address against our enforcement database — violations, escalating fines, and city action — and return a SnapScore for each one instantly.
+            Upload your list and instantly see which properties have violations — so you know who's actually worth calling. We cross-reference every address against municipal enforcement records and return a SnapScore + AI investor brief for each one.
           </p>
 
           <p className="text-sm font-semibold text-landing-accent mb-6">
-            Your list. Our enforcement intelligence. Your edge.
+            Stop wasting time on dead leads. Know before you call.
           </p>
 
           {status === "success" ? (

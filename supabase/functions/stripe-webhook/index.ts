@@ -308,6 +308,11 @@ async function handleOneTimePayment(supabase: any, session: Stripe.Checkout.Sess
     }).select("id").single();
 
     if (creditErr) {
+      // 23505 = unique violation — credits already inserted (race with verify-bulk-credits)
+      if (creditErr.code === "23505") {
+        console.log("[webhook] Credits already added (unique constraint), skipping:", session.id);
+        return;
+      }
       console.error("[webhook] Error adding credits — code:", creditErr.code, "message:", creditErr.message, "details:", creditErr.details, "hint:", creditErr.hint);
       throw creditErr;
     }

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2, Lock, SlidersHorizontal } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
+import { AiSearchBar } from "@/components/leads/AiSearchBar";
 import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
 import { PressureLevelFilter } from "@/components/leads/PressureLevelFilter";

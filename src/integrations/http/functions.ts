@@ -2,7 +2,7 @@
 import { supabase, supabaseUrl } from "@/integrations/supabase/externalClient";
 
 export async function callFn<T = any>(
-  name: "sms-send" | "email-send" | "export-csv" | "generate-insights" | "geocode-properties" | "process-upload" | "bulk-rescore" | "refresh-outdated-insights" | "backfill-property-aggregates" | "bulk-generate-missing-insights",
+  name: "sms-send" | "email-send" | "export-csv" | "generate-insights" | "geocode-properties" | "process-upload" | "bulk-rescore" | "refresh-outdated-insights" | "backfill-property-aggregates" | "bulk-generate-missing-insights" | "ai-search",
   payload?: unknown,
   init?: RequestInit
 ): Promise<T> {

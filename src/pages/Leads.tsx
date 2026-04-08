@@ -1238,6 +1238,8 @@ function Leads() {
         {/* DESKTOP: Collapsible filter bar */}
         <div className="hidden md:block border-b bg-background">
           {/* Always-visible row: Search + Filters toggle + Map/List + actions */}
+          <AiSearchBar onFiltersApplied={handleAiFilters} />
+
           <div className="flex items-center gap-2 px-4 py-1.5 min-w-0">
             {/* Search */}
             <div className="relative w-44">

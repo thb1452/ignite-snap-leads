@@ -5,9 +5,9 @@ import type Stripe from "https://esm.sh/stripe@14.21.0";
  * Keep aligned with Stripe Dashboard and subscription_plans.stripe_price_id (migrations).
  */
 export const STRIPE_SUBSCRIPTION_PRICE_IDS_BY_PLAN: Record<string, string> = {
-  starter: "price_1TGlbmPfDZrVNjz5doWbUyvN",
-  professional: "price_1TGlb4PfDZrVNjz5WqCEG1D9",
-  enterprise: "price_1TGlcePfDZrVNjz5VLCsLkBQ",
+  starter: "price_1TK03JBg6vwuzzF0lZf6iT1b",
+  professional: "price_1TK03SBg6vwuzzF0d4M4ZT1A",
+  enterprise: "price_1TK05SBg6vwuzzF0Qy6T78LY",
 };
 
 /** price_xxx → DB plan name (starter | professional | enterprise) */

@@ -11,13 +11,13 @@ const corsHeaders = {
 };
 
 // PAYG: $0.67 per credit (single address unlock)
-const PAYG_PRICE_ID = "price_1TGleEPfDZrVNjz5uPoCIrhU";
+const PAYG_PRICE_ID = "price_1TK02PBg6vwuzzF0scv7hfMA";
 
 // Bulk credit packs (one-time payments)
 const BULK_PRICE_IDS: Record<string, { priceId: string; credits: number }> = {
-  "5000": { priceId: "price_1TGlsfPfDZrVNjz5rpCB2h8c", credits: 5000 },
-  "10000": { priceId: "price_1TGlu5PfDZrVNjz5GyjhPbEp", credits: 10000 },
-  "20000": { priceId: "price_1TGlv7PfDZrVNjz5akOCyZbl", credits: 20000 },
+  "5000": { priceId: "price_1TK029Bg6vwuzzF035DVZXnR", credits: 5000 },
+  "10000": { priceId: "price_1TK024Bg6vwuzzF0Z5Wj8nKO", credits: 10000 },
+  "20000": { priceId: "price_1TK01vBg6vwuzzF0XPTpewXV", credits: 20000 },
 };
 
 async function resolveLatestInvoice(stripe: Stripe, subscription: Stripe.Subscription): Promise<Stripe.Invoice | null> {

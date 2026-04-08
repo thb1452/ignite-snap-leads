@@ -173,9 +173,11 @@ function BulkCreditCards({ user, navigate, toast }: { user: any; navigate: any; 
         body: { checkout_type: "bulk_credits", credit_count: rawCount },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
+      if (res.error) throw new Error(res.error.message || "Checkout failed");
       const url = res.data?.url || res.data?.checkout_url;
-      if (url) { const w = window.open(url, '_blank'); if (!w) window.location.href = url; }
-      else throw new Error(res.data?.error || "Failed to create checkout");
+      if (!url) throw new Error(res.data?.error || "Failed to create checkout");
+      // Use direct navigation on mobile to avoid popup blockers
+      window.location.href = url;
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
@@ -239,7 +241,7 @@ export default function Pricing() {
       if (data?.upgraded) {
         toast({ title: 'Plan updated', description: data.message || 'Your subscription is updated.' });
         const rUrl = data.redirect_url || `${window.location.origin}/checkout/success`;
-        const w = window.open(rUrl, '_blank'); if (!w) window.location.href = rUrl;
+        window.location.href = rUrl;
         return;
       }
 
@@ -247,14 +249,8 @@ export default function Pricing() {
       if (!checkoutUrl) throw new Error('No checkout URL returned');
 
       setCheckoutFallbackUrl(checkoutUrl);
-      const w = window.open(checkoutUrl, '_blank'); if (!w) window.location.assign(checkoutUrl);
-
-      setTimeout(() => {
-        if (document.visibilityState === 'visible') {
-          setUpgradingTier(null);
-          upgradeInFlightRef.current = false;
-        }
-      }, 3000);
+      // Use direct navigation to avoid mobile popup blockers
+      window.location.href = checkoutUrl;
     } catch (err: any) {
       console.error('[Pricing] Upgrade error:', err);
       toast({ title: 'Unable to start checkout', description: err.message || 'Please try again.', variant: 'destructive' });

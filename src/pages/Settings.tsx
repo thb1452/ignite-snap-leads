@@ -77,6 +77,14 @@ export function Settings() {
         } catch (e) {
           console.error("[Settings] verify-subscription error:", e);
         }
+      } else {
+        // Bulk credits — call verify to ensure fulfillment
+        try {
+          const { data } = await supabase.functions.invoke("verify-bulk-credits", { body: {} });
+          synced = !!data?.fulfilled;
+        } catch (e) {
+          console.error("[Settings] verify-bulk-credits error:", e);
+        }
       }
 
       await Promise.all([

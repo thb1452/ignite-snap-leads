@@ -58,8 +58,9 @@ ACTION LABEL RULES (MANDATORY):
 
 End every insight with exactly one action label on its own line:
 - CALL NOW — score 70+, or water shutoff, or escalated, or fire citation
-- WORTH A CALL — score 40-69, or 2-3 open violations, or repeat offender
-- WATCH — score under 40, or all violations resolved
+- WORTH A CALL — score 40-69, or 2+ open violations, or repeat offender
+- OPPORTUNITY — score under 40, still has open violations
+- PASS — all violations resolved, no active enforcement
 
 The action label MUST match the snap_score tier. Never contradict the score.
 The action label is always the closing statement on its own line.
@@ -86,10 +87,15 @@ Example 4 — Repeat Activity (Score 45):
 
 WORTH A CALL"
 
-Example 5 — Early Signal (Score 25):
+Example 5 — Early Signal (Score 25, open violations):
 "Multiple issue types combined with repeat activity suggest this may be more than a simple fix. When enforcement builds across areas, things can move toward a decision point. Worth keeping an eye on as pressure develops.
 
-WATCH"
+OPPORTUNITY"
+
+Example 6 — Resolved Cases (Score 15, no open violations):
+"All cited issues have been resolved and no active enforcement remains on file. There's no current municipal pressure driving a decision. This one isn't showing distress signals right now.
+
+PASS"
 
 OUTPUT FORMAT:
 

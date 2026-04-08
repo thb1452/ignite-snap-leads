@@ -260,11 +260,29 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
 
           {/* Main Content - Scrollable */}
           <div className="flex-1 min-h-0 overflow-y-auto p-5 md:p-6 space-y-5 overscroll-contain touch-pan-y">
-            {/* Metrics Grid */}
+            {/* Investor Insight AI Brief - always visible, never collapsible */}
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.03 }}
+            >
+              <InvestorInsightCard
+                propertyId={property.id}
+                snapScore={snapScore}
+                snapInsight={property.snap_insight}
+                opportunityClass={property.opportunity_class ?? null}
+                openViolations={property.open_violations ?? null}
+                distressSignals={property.distress_signals ?? null}
+                newestViolationDate={property.newest_violation_date ?? null}
+                cachedBrief={property.investor_insight_brief ?? null}
+              />
+            </motion.div>
+
+            {/* Metrics Grid */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.04 }}
             >
               <PropertyMetricsGrid
                 snapScore={snapScore}
@@ -276,24 +294,6 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
                 oldestDaysOpen={violations.reduce((max, v) =>
                   Math.max(max, v.days_open || 0), 0
                 ) || null}
-              />
-            </motion.div>
-
-            {/* Investor Insight AI Brief - always visible, never collapsible */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.04 }}
-            >
-              <InvestorInsightCard
-                propertyId={property.id}
-                snapScore={snapScore}
-                snapInsight={property.snap_insight}
-                opportunityClass={property.opportunity_class ?? null}
-                openViolations={property.open_violations ?? null}
-                distressSignals={property.distress_signals ?? null}
-                newestViolationDate={property.newest_violation_date ?? null}
-                cachedBrief={property.investor_insight_brief ?? null}
               />
             </motion.div>
 

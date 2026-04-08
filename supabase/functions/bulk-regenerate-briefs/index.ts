@@ -226,15 +226,13 @@ serve(async (req) => {
     let query = supabase
       .from("properties")
       .select("id, address, city, state, zip, county, snap_score, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class")
-      .or(`last_analyzed_at.is.null,last_analyzed_at.lt.${CUTOFF_TIMESTAMP}`);
+      .is("investor_insight_brief", null);
 
     if (mode === "rule") {
-      // Rule mode: everything EXCEPT score 70+ (those get AI)
+      // Rule mode: fallback only
       query = query.or("snap_score.is.null,snap_score.lt.70");
-    } else {
-      // AI mode: ONLY hot leads (score >= 70)
-      query = query.gte("snap_score", 70);
     }
+    // AI mode: process ALL properties missing briefs (no score filter)
 
     const { data: properties, error: fetchErr } = await query
       .order("snap_score", { ascending: mode === "rule", nullsFirst: mode === "rule" })

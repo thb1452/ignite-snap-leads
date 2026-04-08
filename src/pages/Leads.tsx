@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ChevronLeft, ChevronRight, Search, X, Map as MapIcon, List, Download, Loader2, Lock, SlidersHorizontal } from "lucide-react";
 import { VirtualizedPropertyList } from "@/components/leads/VirtualizedPropertyList";
+import { AiSearchBar } from "@/components/leads/AiSearchBar";
 import { EnforcementAreaFilter } from "@/components/leads/EnforcementAreaFilter";
 import { EnforcementSignalsFilter } from "@/components/leads/EnforcementSignalsFilter";
 import { PressureLevelFilter } from "@/components/leads/PressureLevelFilter";
@@ -757,6 +758,19 @@ function Leads() {
     setSelectMode("page"); // Reset selection mode
   }, []);
 
+  const handleAiFilters = useCallback((filters: Partial<LeadFilters>) => {
+    handleClearFilters();
+    if (filters.state) setSelectedState(filters.state);
+    if (filters.cities?.length) setSelectedCity(filters.cities[0]);
+    if (filters.openViolationsOnly) setOpenViolationsOnly(true);
+    if (filters.multipleViolationsOnly) setMultipleViolationsOnly(true);
+    if (filters.repeatOffenderOnly) setRepeatOffenderOnly(true);
+    if (filters.lastSeenDays) setLastSeenDays(filters.lastSeenDays);
+    if (filters.violationType) setSelectedSignal(filters.violationType);
+    if (filters.sortBy) setSortBy(filters.sortBy as SortOption);
+    setPage(1);
+  }, [handleClearFilters]);
+
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
     setSelectMode("page");
@@ -1237,6 +1251,8 @@ function Leads() {
         {/* DESKTOP: Collapsible filter bar */}
         <div className="hidden md:block border-b bg-background">
           {/* Always-visible row: Search + Filters toggle + Map/List + actions */}
+          <AiSearchBar onFiltersApplied={handleAiFilters} />
+
           <div className="flex items-center gap-2 px-4 py-1.5 min-w-0">
             {/* Search */}
             <div className="relative w-44">

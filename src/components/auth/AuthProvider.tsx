@@ -119,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const userRef = useRef<User | null>(null);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -132,44 +133,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     };
 
-    const refreshRoles = async (userId: string) => {
-      const freshRoles = await fetchRolesWithRetry(userId);
-      if (!mounted || userRef.current?.id !== userId) return;
-      setRoles(freshRoles);
-      setLoading(false);
-    };
-
-    const applySignedInState = (currentUser: User, options?: { eager?: boolean }) => {
-      const eager = options?.eager ?? false;
+    const applyUser = async (currentUser: User) => {
       if (!mounted) return;
+
+      // Skip if we already processed this user
+      if (userRef.current?.id === currentUser.id && !loading) return;
 
       setUser(currentUser);
       userRef.current = currentUser;
 
+      // Use cached roles immediately
       const cachedRoles = getCachedRoles(currentUser.id);
       if (cachedRoles && cachedRoles.length > 0) {
         setRoles(cachedRoles);
         setLoading(false);
       } else {
-        const optimisticRoles: AppRole[] = ['user'];
-        setRoles(optimisticRoles);
-        cacheRoles(currentUser.id, optimisticRoles);
-        setLoading(eager);
+        // Set optimistic default and stop loading immediately
+        setRoles(['user']);
+        setLoading(false);
       }
 
-      const runRefresh = () => {
-        refreshRoles(currentUser.id);
-      };
-
-      if (eager) {
-        runRefresh();
-      } else {
-        setTimeout(runRefresh, 0);
+      // Refresh roles in background (won't block loading)
+      try {
+        const freshRoles = await fetchRolesWithRetry(currentUser.id);
+        if (mounted && userRef.current?.id === currentUser.id) {
+          setRoles(freshRoles);
+        }
+      } catch (err) {
+        console.warn('[useAuth] Background role refresh failed:', err);
       }
     };
 
     console.log('[useAuth] Initializing auth...');
 
+    // Get initial session first
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (!mounted) return;
+        const currentUser = session?.user ?? null;
+        console.log('[useAuth] Initial session:', currentUser?.id || 'none');
+
+        if (!currentUser) {
+          applySignedOutState();
+        } else {
+          applyUser(currentUser);
+        }
+        initializedRef.current = true;
+      })
+      .catch((err) => {
+        console.error('[useAuth] Init error:', err);
+        if (mounted) applySignedOutState();
+        initializedRef.current = true;
+      });
+
+    // Listen for changes AFTER initial load
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -181,33 +199,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      applySignedInState(currentUser);
+      applyUser(currentUser);
     });
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
-        const currentUser = session?.user ?? null;
-        console.log('[useAuth] User session:', currentUser?.id || 'none');
-
-        if (!currentUser) {
-          applySignedOutState();
-          return;
-        }
-
-        applySignedInState(currentUser, { eager: true });
-      })
-      .catch((err) => {
-        console.error('[useAuth] Init error:', err);
-        applySignedOutState();
-      });
+    // Safety timeout - never stay loading more than 5s
+    const safetyTimer = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('[useAuth] Safety timeout - forcing loading=false');
+        setLoading(false);
+      }
+    }, 5000);
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      clearTimeout(safetyTimer);
     };
-  }, [toast]);
-
+  }, []);
   const signUp = async (email: string, password: string, fullName: string, inviteToken?: string) => {
     try {
       const redirectUrl = `${window.location.origin}/`;

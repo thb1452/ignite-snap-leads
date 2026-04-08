@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_properties_insight_model ON properties ((investor_insight_brief->>'model'));

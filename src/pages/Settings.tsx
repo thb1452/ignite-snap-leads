@@ -38,6 +38,11 @@ export function Settings() {
     // Cancel any timers from a previous credits_added run.
     creditPollTimers.current.forEach(clearTimeout);
 
+    // Call verify-bulk-credits to ensure credits are fulfilled even if webhook missed
+    supabase.functions.invoke('verify-bulk-credits', { body: {} })
+      .then(() => refetch())
+      .catch((e) => console.error('[Settings] verify-bulk-credits error:', e));
+
     // Immediate fetch + retries at 2 s / 5 s / 10 s to catch webhook delay.
     refetch();
     creditPollTimers.current = [

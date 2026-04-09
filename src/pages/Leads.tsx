@@ -1326,32 +1326,25 @@ function Leads() {
             </div>
           )}
 
-          {/* Expandable filter controls row */}
-          {filtersExpanded && (
+          {/* Expandable filter controls — only in list view (map view has its own) */}
+          {desktopView === "list" && filtersExpanded && (
             <div className="flex items-center gap-2 px-4 py-1.5 border-t border-border/50 flex-wrap min-w-0 overflow-hidden">
-              {/* State/City */}
               <EnforcementAreaFilter
                 selectedCity={selectedCity}
                 selectedState={selectedState}
                 onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
                 onStateChange={(s) => { setSelectedState(s); setPage(1); }}
               />
-
-              {/* Time */}
               <TimeFilter
                 lastSeenDays={lastSeenDays}
                 onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
               />
-
-              {/* Issue Type */}
               <EnforcementSignalsFilter
                 selectedSignal={selectedSignal}
                 onSignalChange={(v) => { setSelectedSignal(v); setPage(1); if (v) setSearchInput(""); }}
                 selectedState={selectedState}
                 selectedCity={selectedCity}
               />
-
-              {/* Pressure Level — Pro/Elite only */}
               {canUsePressureLevelFilters ? (
                 <PressureLevelFilter
                   openViolationsOnly={openViolationsOnly}
@@ -1365,7 +1358,6 @@ function Leads() {
                 <a
                   href="/pricing"
                   className="flex items-center gap-1.5 px-2 py-1 rounded border border-dashed border-muted-foreground/40 text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                  title="Pressure Level™ filters — Pro/Elite only"
                 >
                   <Lock className="h-3 w-3" />
                   Pressure Level™

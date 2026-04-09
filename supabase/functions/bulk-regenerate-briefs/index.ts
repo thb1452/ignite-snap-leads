@@ -216,8 +216,10 @@ async function handleFixLabels(
   supabase: ReturnType<typeof createClient>,
   supabaseUrl: string,
   serviceKey: string,
+  azureConfig: AzureConfig | null,
   totalProcessed: number,
   autoResume: boolean,
+  subPhase: string,
   headers: Record<string, string>,
 ): Promise<Response> {
   const FIX_BATCH = 500;
@@ -272,28 +274,58 @@ async function handleFixLabels(
     console.log(`[bulk-regen] fix-labels: normalized ${fixedCount} legacy labels. Total: ${newTotal}`);
 
     if (autoResume && legacyProps.length === FIX_BATCH) {
-      // More legacy labels to fix — continue
-      const continueTask = async () => {
-        await new Promise(r => setTimeout(r, 500));
-        try {
-          await fetch(`${supabaseUrl}/functions/v1/bulk-regenerate-briefs`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-            body: JSON.stringify({ autoResume: true, totalProcessed: newTotal, version: REGEN_VERSION, mode: "fix-labels" }),
-          });
-        } catch (err) {
-          console.error("[bulk-regen] fix-labels resume failed:", err);
-        }
-      };
-      const runtime = (globalThis as any).EdgeRuntime;
-      if (runtime?.waitUntil) runtime.waitUntil(continueTask()); else continueTask().catch(console.error);
-
+      scheduleResume(supabaseUrl, serviceKey, newTotal, "fix-labels", "legacy");
       return new Response(JSON.stringify({ success: true, fixedCount, totalProcessed: newTotal, hasMore: true, phase: "legacy-labels" }), { headers });
     }
   }
 
-  // Phase 2: Find properties with snap_insight but no valid action label → regenerate with rule-based
-  const { data: missingLabelProps, error: mlErr } = await supabase
+  // Phase 2a: Quick rule-based PASS for properties with NO open violations and missing labels
+  if (subPhase === "" || subPhase === "closed-pass") {
+    const { data: closedProps, error: clErr } = await supabase
+      .from("properties")
+      .select("id, address, city, state, zip, county, snap_score, snap_insight, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class")
+      .not("snap_insight", "is", null)
+      .neq("snap_insight", "")
+      .not("snap_insight", "ilike", "%CALL NOW%")
+      .not("snap_insight", "ilike", "%WORTH A CALL%")
+      .not("snap_insight", "ilike", "%OPPORTUNITY%")
+      .not("snap_insight", "ilike", "%PASS%")
+      .or("open_violations.is.null,open_violations.eq.0")
+      .range(0, FIX_BATCH - 1);
+
+    if (!clErr && closedProps && closedProps.length > 0) {
+      let passCount = 0;
+      for (const prop of closedProps) {
+        const brief = generateRuleBrief(prop);
+        const briefJson = {
+          brief_text: brief,
+          generated_at: new Date().toISOString(),
+          model: "deterministic-v5",
+          version: REGEN_VERSION + "-closed-pass",
+        };
+        const { error } = await supabase
+          .from("properties")
+          .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
+          .eq("id", prop.id);
+        if (!error) passCount++;
+      }
+
+      const newTotal = totalProcessed + fixedCount + passCount;
+      console.log(`[bulk-regen] fix-labels/closed-pass: ${passCount} closed properties → rule-based. Total: ${newTotal}`);
+
+      if (autoResume && closedProps.length === FIX_BATCH) {
+        scheduleResume(supabaseUrl, serviceKey, newTotal, "fix-labels", "closed-pass");
+        return new Response(JSON.stringify({ success: true, passCount, totalProcessed: newTotal, hasMore: true, phase: "closed-pass" }), { headers });
+      }
+
+      // If fewer than batch size, closed phase done — fall through to open phase
+      totalProcessed = newTotal;
+    }
+  }
+
+  // Phase 2b: Azure AI briefs for properties WITH open violations and missing labels
+  const AI_BATCH = 100;
+  const { data: openProps, error: opErr } = await supabase
     .from("properties")
     .select("id, address, city, state, zip, county, snap_score, snap_insight, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class")
     .not("snap_insight", "is", null)
@@ -302,65 +334,109 @@ async function handleFixLabels(
     .not("snap_insight", "ilike", "%WORTH A CALL%")
     .not("snap_insight", "ilike", "%OPPORTUNITY%")
     .not("snap_insight", "ilike", "%PASS%")
+    .gt("open_violations", 0)
     .order("snap_score", { ascending: false, nullsFirst: false })
-    .range(0, FIX_BATCH - 1);
+    .range(0, AI_BATCH - 1);
 
-  if (mlErr) {
-    console.error("[bulk-regen] fix-labels fetch error:", mlErr);
-    return new Response(JSON.stringify({ error: mlErr.message }), { status: 500, headers });
+  if (opErr) {
+    console.error("[bulk-regen] fix-labels/open-ai fetch error:", opErr);
+    return new Response(JSON.stringify({ error: opErr.message }), { status: 500, headers });
   }
 
-  if (!missingLabelProps || missingLabelProps.length === 0) {
+  if (!openProps || openProps.length === 0) {
     const finalTotal = totalProcessed + fixedCount;
-    console.log(`[bulk-regen] ✅ fix-labels DONE! Total processed: ${finalTotal}`);
+    console.log(`[bulk-regen] ✅ fix-labels ALL DONE! Total processed: ${finalTotal}`);
     return new Response(JSON.stringify({ success: true, done: true, totalProcessed: finalTotal, message: "All labels fixed!" }), { headers });
   }
 
-  let regenCount = 0;
-  for (const prop of missingLabelProps) {
-    const brief = generateRuleBrief(prop);
-    const briefJson = {
-      brief_text: brief,
-      generated_at: new Date().toISOString(),
-      model: "deterministic-v5",
-      version: REGEN_VERSION + "-label-fix",
-    };
-    const { error } = await supabase
-      .from("properties")
-      .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
-      .eq("id", prop.id);
-    if (!error) regenCount++;
+  let aiCount = 0;
+  let ruleCount = 0;
+
+  if (azureConfig) {
+    // Use Azure AI for high-quality briefs
+    for (let i = 0; i < openProps.length; i += AI_CONCURRENCY) {
+      const chunk = openProps.slice(i, i + AI_CONCURRENCY);
+      const results = await Promise.all(
+        chunk.map(async (prop) => ({
+          id: prop.id,
+          prop,
+          brief: await generateViaAzure(prop, azureConfig),
+        })),
+      );
+
+      for (const result of results) {
+        const brief = result.brief || generateRuleBrief(result.prop); // fallback to rule-based
+        const isAI = !!result.brief;
+        const briefJson = {
+          brief_text: brief,
+          generated_at: new Date().toISOString(),
+          model: isAI ? "azure-openai" : "deterministic-v5",
+          version: REGEN_VERSION + "-label-fix-open",
+        };
+        const { error } = await supabase
+          .from("properties")
+          .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
+          .eq("id", result.id);
+        if (!error) { if (isAI) aiCount++; else ruleCount++; }
+      }
+
+      if (i + AI_CONCURRENCY < openProps.length) {
+        await new Promise(r => setTimeout(r, 1200));
+      }
+    }
+  } else {
+    // No Azure config — fallback to rule-based for all
+    for (const prop of openProps) {
+      const brief = generateRuleBrief(prop);
+      const briefJson = {
+        brief_text: brief,
+        generated_at: new Date().toISOString(),
+        model: "deterministic-v5",
+        version: REGEN_VERSION + "-label-fix-open-rule",
+      };
+      const { error } = await supabase
+        .from("properties")
+        .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
+        .eq("id", prop.id);
+      if (!error) ruleCount++;
+    }
   }
 
-  const newTotal = totalProcessed + fixedCount + regenCount;
-  console.log(`[bulk-regen] fix-labels: regenerated ${regenCount} missing-label briefs. Total: ${newTotal}`);
+  const newTotal = totalProcessed + fixedCount + aiCount + ruleCount;
+  console.log(`[bulk-regen] fix-labels/open: ${aiCount} AI + ${ruleCount} rule-based. Total: ${newTotal}`);
 
-  if (autoResume && missingLabelProps.length === FIX_BATCH) {
-    const continueTask = async () => {
-      await new Promise(r => setTimeout(r, 500));
-      try {
-        await fetch(`${supabaseUrl}/functions/v1/bulk-regenerate-briefs`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-          body: JSON.stringify({ autoResume: true, totalProcessed: newTotal, version: REGEN_VERSION, mode: "fix-labels" }),
-        });
-      } catch (err) {
-        console.error("[bulk-regen] fix-labels resume failed:", err);
-      }
-    };
-    const runtime = (globalThis as any).EdgeRuntime;
-    if (runtime?.waitUntil) runtime.waitUntil(continueTask()); else continueTask().catch(console.error);
+  if (autoResume && openProps.length === AI_BATCH) {
+    const resumeDelay = aiCount === 0 && ruleCount === 0 ? 30000 : 1000;
+    scheduleResume(supabaseUrl, serviceKey, newTotal, "fix-labels", "open-ai", resumeDelay);
   }
 
   return new Response(JSON.stringify({
     success: true,
     fixedCount,
-    regenCount,
+    aiCount,
+    ruleCount,
     totalProcessed: newTotal,
-    hasMore: missingLabelProps.length === FIX_BATCH,
-    phase: "missing-labels",
+    hasMore: openProps.length === AI_BATCH,
+    phase: "open-ai",
     autoResuming: autoResume,
   }), { headers });
+}
+
+function scheduleResume(supabaseUrl: string, serviceKey: string, totalProcessed: number, mode: string, subPhase: string, delay = 500) {
+  const continueTask = async () => {
+    await new Promise(r => setTimeout(r, delay));
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/bulk-regenerate-briefs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+        body: JSON.stringify({ autoResume: true, totalProcessed, version: REGEN_VERSION, mode, subPhase }),
+      });
+    } catch (err) {
+      console.error(`[bulk-regen] ${mode}/${subPhase} resume failed:`, err);
+    }
+  };
+  const runtime = (globalThis as any).EdgeRuntime;
+  if (runtime?.waitUntil) runtime.waitUntil(continueTask()); else continueTask().catch(console.error);
 }
 
 serve(async (req) => {
@@ -378,7 +454,7 @@ serve(async (req) => {
       ? { apiKey: AZURE_OPENAI_API_KEY, endpoint: AZURE_OPENAI_ENDPOINT, deployment: AZURE_OPENAI_DEPLOYMENT }
       : null;
 
-    const { autoResume = true, totalProcessed = 0, version = "", mode = "ai" } = await req.json().catch(() => ({}));
+    const { autoResume = true, totalProcessed = 0, version = "", mode = "ai", subPhase = "" } = await req.json().catch(() => ({}));
 
     if (version && version !== REGEN_VERSION) {
       console.log(`[bulk-regen] Stopping old chain (version: ${version})`);
@@ -389,7 +465,7 @@ serve(async (req) => {
 
     // ── MODE: fix-labels ── Normalize legacy labels & regenerate missing-label briefs
     if (mode === "fix-labels") {
-      return await handleFixLabels(supabase, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, totalProcessed, autoResume, headers);
+      return await handleFixLabels(supabase, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, azureConfig, totalProcessed, autoResume, subPhase, headers);
     }
 
     const batchSize = mode === "ai" ? BATCH_SIZE_AI : BATCH_SIZE_RULE;

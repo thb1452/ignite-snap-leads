@@ -1,54 +1,21 @@
 
 
-# Plan: Testimonial Redesign + Pricing CTA Fix
+# Plan: Add Heart/Save Button to Compact Property Cards
 
-## Two Changes
+## Problem
+The heart (save) button only appears on PropertyCard in **non-compact** (map) mode. In **compact** (list) mode, there is no heart button visible, so users have no way to save properties from the main list view.
 
-### 1. Redesign Testimonial Section
+## Changes
 
-Replace the current testimonial cards (lines 538-574) with premium, results-first cards following the exact structure provided.
+### File: `src/components/leads/PropertyCard.tsx`
 
-**New card layout (top to bottom):**
-- Result headline (largest, bold text)
-- Full name + role + location (no dashes, no abbreviated names)
-- Body text (2-3 short conversational lines)
-- Metric/result in accent color (no emoji — use text only)
+**Compact mode (lines ~128-167):** Add a heart button next to the existing Export/Unlock buttons in the action area.
 
-**New section header:** "Real results from investors using Snap Ignite"
-**New section footer:** "These results come from focusing on the right properties — not more outreach."
+- For **unlocked** rows: Add a heart button between the Export button and the score, matching the non-compact style (small 5x5 rounded button with Heart icon).
+- For **locked** rows: Add a heart button next to the Unlock button so users can save properties even before unlocking.
 
-**Design details:**
-- Rounded-xl (16px), soft shadow, spacious padding
-- Circular avatar with initials, accent background
-- Hover: slight lift (`hover:-translate-y-1`)
-- Mobile: single column stack. Desktop: 3-column grid
-- Metric text uses `text-landing-accent` and larger font weight
-- No emoji anywhere in the section
+The button will call `onToggleSaved?.(property.id)` on click (with `e.stopPropagation()`), and display filled red when saved, outline red when not. Same pattern already used in the non-compact branch (lines 262-270).
 
-**Three testimonials (exact copy from your spec):**
-
-| Headline | Name | Body | Metric |
-|---|---|---|---|
-| 3 deals in 6 weeks and I stopped wasting time. | Jake Martinez, Wholesaler, Phoenix AZ | I used to call 100+ people... conversations are completely different. | 3 contracts in 6 weeks |
-| We stopped convincing people. We started negotiating. | Sarah Reynolds, Acquisition Manager, Southeast | Before Snap, we were chasing homeowners... | 40% higher contact-to-contract rate |
-| This is the first time leads actually made sense. | Marcus Lee, Real Estate Investor | I didn't know who to call before... | First deal closed in under 30 days |
-
-### 2. Fix Pricing CTAs
-
-The user's point: every plan just sends people to `/auth?mode=signup` — nobody goes directly to Stripe. So CTAs like "Buy Credits," "Buy Now," "Get Starter" are misleading. They should all say something like "Start Free" or "Get Started" since the user sees everything for free first and only pays when they unlock.
-
-**Changes:**
-- Free tier CTA: "Start Free" (keep as-is)
-- PAYG CTA: "Buy Credits" → **"Start Free"**
-- Starter CTA: "Get Starter" → **"Start Free"**
-- Pro CTA: "Get Pro" → **"Start Free"**
-- Elite CTA: "Get Elite" → **"Start Free"**
-- Enterprise CTA: "Contact Us" (keep as-is)
-- Bulk credit "Buy Now" buttons → **"Get Started"**
-
-This is honest — users sign up free, browse everything, and only see pricing when they click Unlock.
-
-## Files Modified
-
-- `src/pages/Landing.tsx` — testimonial section rewrite + pricing CTA label changes
+### No other files need changes
+The `isSaved` and `onToggleSaved` props are already passed through from `VirtualizedPropertyList` → `PropertyCard` with `compact={compact}`. The wiring is complete; the compact render branch simply never renders the button.
 

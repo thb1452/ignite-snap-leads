@@ -635,6 +635,8 @@ serve(async (req) => {
       "SnapScore",
       "Last Activity Date",
       "Open Cases Count",
+      "AI Investor Brief",
+      "Action Label",
     ];
 
     const csvOutputLines: string[] = [];
@@ -651,6 +653,8 @@ serve(async (req) => {
         escapeCSV(enriched.snapScore),
         escapeCSV(enriched.lastActivityDate),
         escapeCSV(enriched.openCasesCount),
+        escapeCSV(enriched.aiBrief),
+        escapeCSV(enriched.actionLabel),
       ].join(",");
       csvOutputLines.push(line);
     }

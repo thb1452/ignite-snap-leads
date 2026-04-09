@@ -1287,79 +1287,64 @@ function Leads() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-4 py-1.5 min-w-0">
-            {/* Search */}
-            <div className="relative w-44">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-8 h-7 text-xs"
-              />
-            </div>
-
-            {/* Filters toggle button */}
-            <Button
-              variant={filtersExpanded ? "secondary" : "outline"}
-              size="sm"
-              onClick={toggleFilters}
-              className="h-7 px-2.5 text-xs gap-1.5 shrink-0"
-            >
-              <SlidersHorizontal className="h-3 w-3" />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="ml-0.5 bg-[#0d9e75] text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
-                  {activeFilterCount}
-                </span>
-              )}
-            </Button>
-
-            {activeFilterCount > 0 && (
+          {/* Search + Filters row — only shown in list-only view on desktop */}
+          {desktopView === "list" && (
+            <div className="flex items-center gap-2 px-4 py-1.5 min-w-0">
+              <div className="relative w-44">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="pl-8 h-7 text-xs"
+                />
+              </div>
               <Button
-                variant="ghost"
+                variant={filtersExpanded ? "secondary" : "outline"}
                 size="sm"
-                onClick={handleClearFilters}
-                className="h-7 px-2 text-xs gap-1"
+                onClick={toggleFilters}
+                className="h-7 px-2.5 text-xs gap-1.5 shrink-0"
               >
-                <X className="h-3 w-3" /> Clear
+                <SlidersHorizontal className="h-3 w-3" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="ml-0.5 bg-[#0d9e75] text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
+                    {activeFilterCount}
+                  </span>
+                )}
               </Button>
-            )}
-
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            <div className="hidden lg:flex items-center gap-3 min-w-0 overflow-hidden">
-              <PersonalStatsBar />
+              {activeFilterCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="h-7 px-2 text-xs gap-1"
+                >
+                  <X className="h-3 w-3" /> Clear
+                </Button>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Expandable filter controls row */}
-          {filtersExpanded && (
+          {/* Expandable filter controls — only in list view (map view has its own) */}
+          {desktopView === "list" && filtersExpanded && (
             <div className="flex items-center gap-2 px-4 py-1.5 border-t border-border/50 flex-wrap min-w-0 overflow-hidden">
-              {/* State/City */}
               <EnforcementAreaFilter
                 selectedCity={selectedCity}
                 selectedState={selectedState}
                 onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
                 onStateChange={(s) => { setSelectedState(s); setPage(1); }}
               />
-
-              {/* Time */}
               <TimeFilter
                 lastSeenDays={lastSeenDays}
                 onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
               />
-
-              {/* Issue Type */}
               <EnforcementSignalsFilter
                 selectedSignal={selectedSignal}
                 onSignalChange={(v) => { setSelectedSignal(v); setPage(1); if (v) setSearchInput(""); }}
                 selectedState={selectedState}
                 selectedCity={selectedCity}
               />
-
-              {/* Pressure Level — Pro/Elite only */}
               {canUsePressureLevelFilters ? (
                 <PressureLevelFilter
                   openViolationsOnly={openViolationsOnly}
@@ -1373,7 +1358,6 @@ function Leads() {
                 <a
                   href="/pricing"
                   className="flex items-center gap-1.5 px-2 py-1 rounded border border-dashed border-muted-foreground/40 text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                  title="Pressure Level™ filters — Pro/Elite only"
                 >
                   <Lock className="h-3 w-3" />
                   Pressure Level™
@@ -1509,13 +1493,90 @@ function Leads() {
         <div className="hidden md:flex flex-1 min-h-0 overflow-hidden">
           {/* Map - Left Side (hidden in list view) */}
           {desktopView === "map" && (
-            <div className="w-[45%] border-r relative">
-              <LeadsMap
-                filters={filters as LeadFilters}
-                onPropertyClick={handlePropertyClick}
-                selectedPropertyId={selectedPropertyId || undefined}
-                unlockedSet={unlockedSet}
-              />
+            <div className="w-[45%] border-r relative flex flex-col">
+              {/* Search + Filters inside map column */}
+              <div className="flex items-center gap-2 px-2 py-1.5 border-b bg-background shrink-0">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    className="pl-8 h-7 text-xs"
+                  />
+                </div>
+                <Button
+                  variant={filtersExpanded ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={toggleFilters}
+                  className="h-7 px-2.5 text-xs gap-1.5 shrink-0"
+                >
+                  <SlidersHorizontal className="h-3 w-3" />
+                  Filters
+                  {activeFilterCount > 0 && (
+                    <span className="ml-0.5 bg-[#0d9e75] text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </Button>
+                {activeFilterCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearFilters}
+                    className="h-7 px-2 text-xs gap-1"
+                  >
+                    <X className="h-3 w-3" /> Clear
+                  </Button>
+                )}
+              </div>
+              {/* Expandable filters inside map column */}
+              {filtersExpanded && (
+                <div className="flex items-center gap-2 px-2 py-1.5 border-b border-border/50 flex-wrap bg-background shrink-0">
+                  <EnforcementAreaFilter
+                    selectedCity={selectedCity}
+                    selectedState={selectedState}
+                    onCityChange={(c) => { setSelectedCity(c); setPage(1); }}
+                    onStateChange={(s) => { setSelectedState(s); setPage(1); }}
+                  />
+                  <TimeFilter
+                    lastSeenDays={lastSeenDays}
+                    onLastSeenChange={(v) => { setLastSeenDays(v); setPage(1); }}
+                  />
+                  <EnforcementSignalsFilter
+                    selectedSignal={selectedSignal}
+                    onSignalChange={(v) => { setSelectedSignal(v); setPage(1); if (v) setSearchInput(""); }}
+                    selectedState={selectedState}
+                    selectedCity={selectedCity}
+                  />
+                  {canUsePressureLevelFilters ? (
+                    <PressureLevelFilter
+                      openViolationsOnly={openViolationsOnly}
+                      onOpenViolationsChange={(v) => { setOpenViolationsOnly(v); setPage(1); }}
+                      multipleViolationsOnly={multipleViolationsOnly}
+                      onMultipleViolationsChange={(v) => { setMultipleViolationsOnly(v); setPage(1); }}
+                      repeatOffenderOnly={repeatOffenderOnly}
+                      onRepeatOffenderChange={(v) => { setRepeatOffenderOnly(v); setPage(1); }}
+                    />
+                  ) : (
+                    <a
+                      href="/pricing"
+                      className="flex items-center gap-1.5 px-2 py-1 rounded border border-dashed border-muted-foreground/40 text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                    >
+                      <Lock className="h-3 w-3" />
+                      Pressure Level™
+                    </a>
+                  )}
+                </div>
+              )}
+              <div className="flex-1 relative min-h-0">
+                <LeadsMap
+                  filters={filters as LeadFilters}
+                  onPropertyClick={handlePropertyClick}
+                  selectedPropertyId={selectedPropertyId || undefined}
+                  unlockedSet={unlockedSet}
+                />
+              </div>
             </div>
           )}
 

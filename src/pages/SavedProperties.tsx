@@ -14,6 +14,8 @@ import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { TrialExportGate } from "@/components/trial/TrialExportGate";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useQuery } from "@tanstack/react-query";
+import { useUnlockedProperties } from "@/hooks/useUnlockedProperties";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
 import {
   ArrowLeft,
   Download,
@@ -98,6 +100,10 @@ export default function SavedProperties() {
     enabled: paginatedIds.length > 0,
     staleTime: 30000,
   });
+
+  // Unlock state for blur enforcement
+  const propertyIds = useMemo(() => properties.map(p => p.id), [properties]);
+  const { isUnlocked } = useUnlockedProperties(propertyIds);
 
   const isLoading = savedLoading || propertiesLoading;
   const exportRemaining = hasActiveSubscription ? getRemainingCount("exports") : null;
@@ -315,39 +321,47 @@ export default function SavedProperties() {
             </div>
 
             <div className="space-y-2">
-              {properties.map((p) => (
-                <Card key={p.id} className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      checked={selectedIds.includes(p.id)}
-                      onCheckedChange={() => handleToggleSelect(p.id)}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{p.address}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {p.city}, {p.state} {p.zip}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {p.snap_score != null && (
-                        <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                          {p.snap_score}
+              {properties.map((p) => {
+                const unlocked = isUnlocked(p.id);
+                const displayStreet = unlocked
+                  ? p.address
+                  : formatBlurredStreet(p as any, false);
+                return (
+                  <Card key={p.id} className="p-4">
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={selectedIds.includes(p.id)}
+                        onCheckedChange={() => handleToggleSelect(p.id)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium text-sm truncate ${!unlocked ? "blur-[4px] select-none" : ""}`}>
+                          {displayStreet}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {p.city}, {p.state} {p.zip}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {p.snap_score != null && (
+                          <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            {p.snap_score}
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {p.open_violations ?? 0} open
                         </span>
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        {p.open_violations ?? 0} open
-                      </span>
-                      <button
-                        onClick={() => toggleSaved(p.id)}
-                        className="p-1 text-red-500 hover:text-red-600"
-                        aria-label="Unsave property"
-                      >
-                        <Heart className="h-4 w-4 fill-current" />
-                      </button>
+                        <button
+                          onClick={() => toggleSaved(p.id)}
+                          className="p-1 text-red-500 hover:text-red-600"
+                          aria-label="Unsave property"
+                        >
+                          <Heart className="h-4 w-4 fill-current" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
 
             {/* Pagination */}

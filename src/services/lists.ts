@@ -118,14 +118,72 @@ export async function getListProperties(
   page: number = 1,
   pageSize: number = 50
 ): Promise<ListPropertiesResult> {
-  const { data, error } = await supabase.rpc("fn_get_list_properties", {
-    p_list_id: listId,
-    p_page: page,
-    p_page_size: pageSize,
-  });
+  // Get total count first
+  const { count, error: countError } = await supabase
+    .from("list_properties")
+    .select("id", { count: "exact", head: true })
+    .eq("list_id", listId);
 
-  if (error) throw error;
-  return data as unknown as ListPropertiesResult;
+  if (countError) throw countError;
+  const total = count ?? 0;
+
+  if (total === 0) {
+    return { success: true, items: [], total: 0, page, page_size: pageSize };
+  }
+
+  // Fetch paginated property IDs
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data: listRows, error: listError } = await supabase
+    .from("list_properties")
+    .select("property_id, added_at")
+    .eq("list_id", listId)
+    .order("added_at", { ascending: false })
+    .range(from, to);
+
+  if (listError) throw listError;
+  if (!listRows || listRows.length === 0) {
+    return { success: true, items: [], total, page, page_size: pageSize };
+  }
+
+  const propertyIds = listRows.map(r => r.property_id).filter(Boolean) as string[];
+
+  // Fetch property details
+  const { data: props, error: propsError } = await supabase
+    .from("properties")
+    .select("id, address, city, state, zip, snap_score, total_violations, open_violations, enforcement_type, opportunity_class, street_name, street_number")
+    .in("id", propertyIds);
+
+  if (propsError) throw propsError;
+
+  // Build lookup and preserve order
+  const propMap = new Map((props || []).map(p => [p.id, p]));
+  const addedAtMap = new Map(listRows.map(r => [r.property_id, r.added_at]));
+
+  const items: ListProperty[] = propertyIds
+    .map(pid => {
+      const p = propMap.get(pid);
+      if (!p) return null;
+      return {
+        id: p.id,
+        address: p.address,
+        city: p.city,
+        state: p.state,
+        zip: p.zip,
+        snap_score: p.snap_score,
+        total_violations: p.total_violations,
+        open_violations: p.open_violations,
+        enforcement_type: p.enforcement_type,
+        opportunity_class: p.opportunity_class,
+        added_at: addedAtMap.get(pid) || "",
+        street_name: (p as any).street_name || null,
+        street_number: (p as any).street_number || null,
+      } as ListProperty;
+    })
+    .filter(Boolean) as ListProperty[];
+
+  return { success: true, items, total, page, page_size: pageSize };
 }
 
 export async function createList(name: string): Promise<string> {

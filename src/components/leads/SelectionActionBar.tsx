@@ -91,7 +91,7 @@ export function SelectionActionBar({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="fixed left-4 right-4 bottom-[72px] z-[9999] max-w-md mx-auto"
+          className="fixed left-4 right-4 bottom-[140px] z-[9999] max-w-md mx-auto"
         >
           <div className="bg-background border border-border rounded-xl shadow-2xl p-3">
             {/* Export limit warning */}

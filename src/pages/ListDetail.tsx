@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { UpgradePrompt, type ExportContext } from "@/components/subscription/Upg
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { TrialExportGate } from "@/components/trial/TrialExportGate";
 import { supabase } from "@/integrations/supabase/externalClient";
+import { useUnlockedProperties } from "@/hooks/useUnlockedProperties";
+import { formatBlurredStreet } from "@/utils/blurredAddress";
 import {
   ArrowLeft,
   Download,
@@ -97,6 +99,10 @@ export function ListDetail() {
   const properties = data?.items || [];
   const totalCount = data?.total || 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  // Unlock state for blur enforcement
+  const listPropertyIds = useMemo(() => properties.map((p: any) => p.id), [properties]);
+  const { isUnlocked } = useUnlockedProperties(listPropertyIds);
 
   const removeFromListMutation = useRemoveFromList();
 
@@ -555,55 +561,61 @@ export function ListDetail() {
                     </tr>
                   </thead>
                   <tbody>
-                    {properties.map((property) => (
-                      <tr
-                        key={property.id}
-                        className="border-b hover:bg-muted/30 cursor-pointer"
-                        onClick={() => handleToggleSelect(property.id)}
-                      >
-                        <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={selectedIds.includes(property.id)}
-                            onCheckedChange={() => handleToggleSelect(property.id)}
-                          />
-                        </td>
-                        <td className="p-3 font-medium">{property.address}</td>
-                        <td className="p-3">{property.city}</td>
-                        <td className="p-3">{property.state}</td>
-                        <td className="p-3">{property.zip}</td>
-                        <td className="p-3 text-center">
-                          {property.snap_score !== null ? (
-                            <Badge
-                              variant={
-                                property.snap_score >= 70
-                                  ? "default"
-                                  : property.snap_score >= 40
-                                  ? "secondary"
-                                  : "outline"
-                              }
-                            >
-                              {property.snap_score}
+                    {properties.map((property) => {
+                      const unlocked = isUnlocked(property.id);
+                      const displayAddress = unlocked
+                        ? property.address
+                        : formatBlurredStreet(property as any, false);
+                      return (
+                        <tr
+                          key={property.id}
+                          className="border-b hover:bg-muted/30 cursor-pointer"
+                          onClick={() => handleToggleSelect(property.id)}
+                        >
+                          <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.includes(property.id)}
+                              onCheckedChange={() => handleToggleSelect(property.id)}
+                            />
+                          </td>
+                          <td className={`p-3 font-medium ${!unlocked ? "blur-[4px] select-none" : ""}`}>{displayAddress}</td>
+                          <td className="p-3">{property.city}</td>
+                          <td className="p-3">{property.state}</td>
+                          <td className="p-3">{property.zip}</td>
+                          <td className="p-3 text-center">
+                            {property.snap_score !== null ? (
+                              <Badge
+                                variant={
+                                  property.snap_score >= 70
+                                    ? "default"
+                                    : property.snap_score >= 40
+                                    ? "secondary"
+                                    : "outline"
+                                }
+                              >
+                                {property.snap_score}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center">
+                            <Badge variant="outline">
+                              {property.open_violations || 0} / {property.total_violations || 0}
                             </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="p-3 text-center">
-                          <Badge variant="outline">
-                            {property.open_violations || 0} / {property.total_violations || 0}
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          {property.enforcement_type === "water_shutoff" ? (
-                            <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30">
-                              💧 Water
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">Code</Badge>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="p-3">
+                            {property.enforcement_type === "water_shutoff" ? (
+                              <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30">
+                                💧 Water
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">Code</Badge>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

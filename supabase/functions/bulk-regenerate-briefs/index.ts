@@ -216,8 +216,10 @@ async function handleFixLabels(
   supabase: ReturnType<typeof createClient>,
   supabaseUrl: string,
   serviceKey: string,
+  azureConfig: AzureConfig | null,
   totalProcessed: number,
   autoResume: boolean,
+  subPhase: string,
   headers: Record<string, string>,
 ): Promise<Response> {
   const FIX_BATCH = 500;

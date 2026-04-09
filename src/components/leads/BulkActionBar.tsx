@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Download, ListPlus, Loader2, ChevronDown, AlertTriangle } from "lucide-react";
+import { Download, ListPlus, Loader2, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 
 export type SelectMode = "page" | "custom" | "all";
 
@@ -22,6 +22,10 @@ interface BulkActionBarProps {
   showSelectMax?: boolean;
   // Export limit enforcement
   exportRemaining?: number | null; // null = unlimited
+  // Inline pagination
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
 }
 
 export function BulkActionBar({

@@ -3208,6 +3208,10 @@ export type Database = {
         Args: { p_batch_size?: number }
         Returns: Json
       }
+      batch_normalize_violation_types: {
+        Args: { batch_size?: number }
+        Returns: number
+      }
       bulk_upsert_violations: { Args: { p_violations: Json }; Returns: Json }
       check_foia_invite: {
         Args: { p_token: string }

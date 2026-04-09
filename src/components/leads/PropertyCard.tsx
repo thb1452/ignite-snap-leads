@@ -130,6 +130,16 @@ export const PropertyCard = memo(function PropertyCard({
             <span className="text-sm font-bold text-slate-100 w-8 text-right">{property.snap_score || 0}</span>
           </div>
 
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSaved?.(property.id);
+            }}
+            className="flex items-center justify-center h-5 w-5 rounded border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors shrink-0"
+          >
+            <Heart className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"} size={9} />
+          </button>
+
           {isUnlocked ? (
             <Button
               size="sm"

@@ -189,16 +189,19 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
             </div>
           </div>
         ) : (
-          <Button
-            className="w-full bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold"
-            onClick={(e) => {
-              e.stopPropagation();
-              onUnlock?.(property.id);
-            }}
-          >
-            <Lock className="w-4 h-4 mr-2" />
-            Unlock Property
-          </Button>
+          <div className="space-y-1">
+            <Button
+              className="w-full bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnlock?.(property.id);
+              }}
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              Unlock Property
+            </Button>
+            <p className="text-[10px] text-muted-foreground text-center">Owner contact info coming soon</p>
+          </div>
         )}
       </div>
     </div>

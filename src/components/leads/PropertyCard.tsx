@@ -278,22 +278,35 @@ export const PropertyCard = memo(function PropertyCard({
                   onToggleSaved?.(property.id);
                 }}
                 className="flex items-center justify-center h-5 w-5 rounded border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors"
+                aria-label={isSaved ? "Remove from saved" : "Save property"}
               >
                 <Heart className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"} size={9} />
               </button>
             </div>
           ) : (
-            <Button
-              size="sm"
-              className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold h-5 text-[10px] px-2 shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                onUnlock?.(property.id);
-              }}
-            >
-              <Lock className="w-3 h-3 mr-0.5" />
-              Unlock
-            </Button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSaved?.(property.id);
+                }}
+                className="flex items-center justify-center h-5 w-5 rounded border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors"
+                aria-label={isSaved ? "Remove from saved" : "Save property"}
+              >
+                <Heart className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"} size={9} />
+              </button>
+              <Button
+                size="sm"
+                className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold h-5 text-[10px] px-2 shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUnlock?.(property.id);
+                }}
+              >
+                <Lock className="w-3 h-3 mr-0.5" />
+                Unlock
+              </Button>
+            </div>
           )}
         </div>
       </div>

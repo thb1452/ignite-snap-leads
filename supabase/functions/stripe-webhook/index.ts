@@ -384,8 +384,8 @@ async function handleSubscriptionCheckout(supabase: any, stripe: Stripe, session
     status,
     stripe_customer_id: customerId,
     stripe_subscription_id: subscriptionId,
-    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+    current_period_start: subscription.current_period_start ? new Date(subscription.current_period_start * 1000).toISOString() : new Date().toISOString(),
+    current_period_end: subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : new Date(Date.now() + 30 * 86400000).toISOString(),
   };
 
   if (isTrialing && subscription.trial_end) {

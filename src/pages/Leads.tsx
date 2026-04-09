@@ -1295,7 +1295,7 @@ function Leads() {
             {/* Spacer */}
             <div className="flex-1" />
 
-            <div className="hidden lg:flex items-center gap-3 min-w-0 overflow-hidden">
+            <div className="hidden md:flex items-center gap-3 min-w-0 overflow-hidden">
               <PersonalStatsBar />
               <FreshnessIndicator />
             </div>
@@ -1504,7 +1504,7 @@ function Leads() {
         <div className="hidden md:flex flex-1 min-h-0 overflow-hidden">
           {/* Map - Left Side (hidden in list view) */}
           {desktopView === "map" && (
-            <div className="w-[45%] border-r relative">
+            <div className="w-[30%] border-r relative">
               <LeadsMap
                 filters={filters as LeadFilters}
                 onPropertyClick={handlePropertyClick}
@@ -1515,7 +1515,7 @@ function Leads() {
           )}
 
           {/* Property List — full width in list view, 40% in map view */}
-          <div className={`${desktopView === "list" ? "w-full" : "w-[55%]"} flex flex-col relative min-h-0 h-full`}>
+          <div className={`${desktopView === "list" ? "w-full" : "w-[70%]"} flex flex-col relative min-h-0 h-full`}>
             {/* Filter Results Count - Desktop */}
             {(activeFilterCount > 0 || searchQuery?.trim()) && (
               <div className="px-3 py-2 text-sm text-muted-foreground border-b bg-muted/30">

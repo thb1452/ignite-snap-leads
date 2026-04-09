@@ -386,14 +386,17 @@ export function MobilePropertyDetailSheet({
                 )}
               </div>
             ) : (
-              <Button
-                className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-                size="default"
-                onClick={() => onUnlock?.(property.id)}
-              >
-                <Lock className="h-4 w-4" />
-                Unlock Property
-              </Button>
+              <div className="space-y-1.5">
+                <Button
+                  className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  size="default"
+                  onClick={() => onUnlock?.(property.id)}
+                >
+                  <Lock className="h-4 w-4" />
+                  Unlock Property
+                </Button>
+                <p className="text-[11px] text-muted-foreground text-center">Owner contact info coming soon</p>
+              </div>
             )}
           </div>
 

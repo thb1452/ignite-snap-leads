@@ -16,42 +16,46 @@ serve(async (req) => {
 
   const BATCH = 500;
   let totalFixed = 0;
-  const labelPattern = /\s*(PASS|HIGH OPPORTUNITY|GOOD OPPORTUNITY|WORTH A CALL|CALL NOW|OPPORTUNITY|WATCH|MONITOR)\.\s*$/;
 
-  // Process up to 10 batches per invocation to stay within timeout
-  for (let round = 0; round < 20; round++) {
-    const { data: batch, error } = await supabase
-      .from("properties")
-      .select("id, snap_insight")
-      .like("snap_insight", "%.")
-      .limit(BATCH);
+  // Target specific patterns: "PASS.", "OPPORTUNITY.", etc.
+  const targets = ["PASS.", "OPPORTUNITY.", "HIGH OPPORTUNITY.", "GOOD OPPORTUNITY.", "WORTH A CALL.", "CALL NOW.", "WATCH.", "MONITOR."];
+  
+  for (const suffix of targets) {
+    const cleanLabel = suffix.slice(0, -1); // Remove the period
+    let round = 0;
+    
+    while (round < 100) {
+      const { data: batch, error } = await supabase
+        .from("properties")
+        .select("id")
+        .like("snap_insight", `%${suffix}`)
+        .limit(BATCH);
 
-    if (error) {
-      console.error("Select error:", error.message);
-      break;
+      if (error || !batch || batch.length === 0) break;
+
+      const ids = batch.map((p: any) => p.id);
+      
+      // Update each one
+      for (const id of ids) {
+        const { data: prop } = await supabase
+          .from("properties")
+          .select("snap_insight")
+          .eq("id", id)
+          .single();
+        
+        if (prop?.snap_insight) {
+          const fixed = prop.snap_insight.replace(new RegExp(`\\s*${suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`), ` ${cleanLabel}`);
+          await supabase.from("properties").update({ snap_insight: fixed }).eq("id", id);
+        }
+      }
+
+      totalFixed += ids.length;
+      round++;
+      console.log(`${suffix}: round ${round}, fixed ${ids.length} (total: ${totalFixed})`);
     }
-
-    const toFix = (batch || []).filter((p: any) => labelPattern.test(p.snap_insight));
-    if (toFix.length === 0) break;
-
-    // Batch update using Promise.all with concurrency
-    const updates = toFix.map((p: any) => {
-      const fixed = p.snap_insight.replace(labelPattern, " $1");
-      return supabase.from("properties").update({ snap_insight: fixed }).eq("id", p.id);
-    });
-
-    await Promise.all(updates);
-    totalFixed += toFix.length;
-    console.log(`Round ${round + 1}: fixed ${toFix.length} (total: ${totalFixed})`);
   }
 
-  // Check remaining
-  const { count } = await supabase
-    .from("properties")
-    .select("id", { count: "exact", head: true })
-    .like("snap_insight", "%.");
-
-  return new Response(JSON.stringify({ fixed: totalFixed, remaining_with_period: count }), {
+  return new Response(JSON.stringify({ fixed: totalFixed }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });

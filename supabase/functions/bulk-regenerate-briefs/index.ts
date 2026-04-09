@@ -225,6 +225,12 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // ── MODE: fix-labels ── Normalize legacy labels & regenerate missing-label briefs
+    if (mode === "fix-labels") {
+      return await handleFixLabels(supabase, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, totalProcessed, autoResume, headers);
+    }
+
     const batchSize = mode === "ai" ? BATCH_SIZE_AI : BATCH_SIZE_RULE;
 
     // Target properties with rule-based briefs (deterministic-v5) for AI upgrade

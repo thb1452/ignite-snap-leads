@@ -73,7 +73,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
       })
     : null;
   const briefPreview = insightText ? getBriefPreview(insightText, 2, 180) : "";
-  const ownerContact = contacts?.find((c) => c.name);
+  
 
   return (
     <div className="p-3 border-b border-slate-800 bg-slate-950" onClick={onClick}>

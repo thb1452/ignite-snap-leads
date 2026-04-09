@@ -1250,8 +1250,42 @@ function Leads() {
 
         {/* DESKTOP: Collapsible filter bar */}
         <div className="hidden md:block border-b bg-background">
-          {/* Always-visible row: Search + Filters toggle + Map/List + actions */}
-          <AiSearchBar onFiltersApplied={handleAiFilters} />
+          {/* Always-visible row: Search + Freshness + Map/List toggle */}
+          <div className="flex items-center gap-2 px-1 py-1">
+            <div className="flex-1 min-w-0">
+              <AiSearchBar onFiltersApplied={handleAiFilters} />
+            </div>
+            <div className="hidden lg:flex items-center gap-2 shrink-0 pr-2">
+              <FreshnessIndicator />
+            </div>
+            {/* Map / List view toggle */}
+            <div className="flex items-center rounded-md border border-border overflow-hidden shrink-0 mr-2">
+              <button
+                onClick={() => setDesktopView("map")}
+                className={`flex items-center gap-1 px-2 h-7 text-xs font-medium transition-colors ${
+                  desktopView === "map"
+                    ? "bg-[#0d9e75] text-white"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+                title="Map view"
+              >
+                <MapIcon className="h-3.5 w-3.5" />
+                Map
+              </button>
+              <button
+                onClick={() => setDesktopView("list")}
+                className={`flex items-center gap-1 px-2 h-7 text-xs font-medium transition-colors ${
+                  desktopView === "list"
+                    ? "bg-[#0d9e75] text-white"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+                title="List view"
+              >
+                <List className="h-3.5 w-3.5" />
+                List
+              </button>
+            </div>
+          </div>
 
           <div className="flex items-center gap-2 px-4 py-1.5 min-w-0">
             {/* Search */}
@@ -1297,35 +1331,6 @@ function Leads() {
 
             <div className="hidden lg:flex items-center gap-3 min-w-0 overflow-hidden">
               <PersonalStatsBar />
-              <FreshnessIndicator />
-            </div>
-
-            {/* Map / List view toggle */}
-            <div className="flex items-center rounded-md border border-border overflow-hidden shrink-0">
-              <button
-                onClick={() => setDesktopView("map")}
-                className={`flex items-center gap-1 px-2 h-7 text-xs font-medium transition-colors ${
-                  desktopView === "map"
-                    ? "bg-[#0d9e75] text-white"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-                title="Map view"
-              >
-                <MapIcon className="h-3.5 w-3.5" />
-                Map
-              </button>
-              <button
-                onClick={() => setDesktopView("list")}
-                className={`flex items-center gap-1 px-2 h-7 text-xs font-medium transition-colors ${
-                  desktopView === "list"
-                    ? "bg-[#0d9e75] text-white"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-                title="List view"
-              >
-                <List className="h-3.5 w-3.5" />
-                List
-              </button>
             </div>
           </div>
 

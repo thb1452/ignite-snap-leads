@@ -421,7 +421,7 @@ export default function Pricing() {
                 <span className="text-sm">{feature}</span>
               </li>
             ))}
-            {!tier.isFree && !tier.isEnterprise && (
+            {!tier.isEnterprise && (
               <li className="flex items-start gap-2.5">
                 <Check className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5" />
                 <span className="text-sm text-muted-foreground/60 italic">Skip Trace — Coming Soon</span>

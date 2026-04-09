@@ -454,7 +454,7 @@ serve(async (req) => {
       ? { apiKey: AZURE_OPENAI_API_KEY, endpoint: AZURE_OPENAI_ENDPOINT, deployment: AZURE_OPENAI_DEPLOYMENT }
       : null;
 
-    const { autoResume = true, totalProcessed = 0, version = "", mode = "ai" } = await req.json().catch(() => ({}));
+    const { autoResume = true, totalProcessed = 0, version = "", mode = "ai", subPhase = "" } = await req.json().catch(() => ({}));
 
     if (version && version !== REGEN_VERSION) {
       console.log(`[bulk-regen] Stopping old chain (version: ${version})`);
@@ -465,7 +465,7 @@ serve(async (req) => {
 
     // ── MODE: fix-labels ── Normalize legacy labels & regenerate missing-label briefs
     if (mode === "fix-labels") {
-      return await handleFixLabels(supabase, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, totalProcessed, autoResume, headers);
+      return await handleFixLabels(supabase, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, azureConfig, totalProcessed, autoResume, subPhase, headers);
     }
 
     const batchSize = mode === "ai" ? BATCH_SIZE_AI : BATCH_SIZE_RULE;

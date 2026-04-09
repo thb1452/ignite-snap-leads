@@ -45,7 +45,6 @@ const PRICING_TIERS: PricingTier[] = [
       "SnapScore ranking",
       "Violation data",
       "Address always blurred until unlock",
-      "Skip Trace – Coming Soon",
     ],
     icon: Users,
     cta: "Start Free — No Credit Card Required",
@@ -65,7 +64,6 @@ const PRICING_TIERS: PricingTier[] = [
       "Credits never expire",
       "No subscription required",
       "Perfect for thin markets",
-      "Skip Trace – Coming Soon",
     ],
     icon: Zap,
     cta: "Buy Credits",
@@ -86,7 +84,6 @@ const PRICING_TIERS: PricingTier[] = [
       "All Free features",
       "Code violation data",
       "Basic filters",
-      "Skip Trace – Coming Soon",
     ],
     icon: Zap,
     cta: "Get Starter",
@@ -424,7 +421,7 @@ export default function Pricing() {
                 <span className="text-sm">{feature}</span>
               </li>
             ))}
-            {!tier.isFree && !tier.isEnterprise && (
+            {!tier.isEnterprise && (
               <li className="flex items-start gap-2.5">
                 <Check className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5" />
                 <span className="text-sm text-muted-foreground/60 italic">Skip Trace — Coming Soon</span>

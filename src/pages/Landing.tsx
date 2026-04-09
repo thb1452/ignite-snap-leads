@@ -82,15 +82,7 @@ function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
 
       {unlocked ? (
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <Users className="w-3.5 h-3.5 text-landing-text-muted" />
-            <span className="text-landing-text">James Crawford (Owner)</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-landing-text-muted">📞</span>
-            <span className="text-landing-text">(512) 555-0192</span>
-          </div>
-          <div className="flex gap-2 mt-3">
+          <div className="flex gap-2 mt-1">
             <Button size="sm" className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg text-xs flex-1">Export Lead</Button>
             <Button size="sm" variant="outline" className="border-landing-surface text-landing-text text-xs flex-1">Save ❤️</Button>
           </div>

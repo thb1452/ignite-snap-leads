@@ -1,11 +1,9 @@
 import { memo, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Lock, Unlock, Sparkles, Heart, Users, Phone, Download, Loader2 } from "lucide-react";
+import { Lock, Unlock, Sparkles, Heart, Download, Loader2 } from "lucide-react";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
-import { formatOwnerName } from "@/utils/formatOwnerName";
-import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";
 import { getBriefPreview, getDisplayActionLabel } from "@/utils/actionLabelUtils";
@@ -54,7 +52,6 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
   isUnlocked = true,
   onUnlock,
 }: MobilePropertyCardProps) {
-  const { data: contacts } = usePropertyContacts(isUnlocked ? property.id : "");
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
@@ -76,7 +73,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
       })
     : null;
   const briefPreview = insightText ? getBriefPreview(insightText, 2, 180) : "";
-  const ownerContact = contacts?.find((c) => c.name);
+  
 
   return (
     <div className="p-3 border-b border-slate-800 bg-slate-950" onClick={onClick}>
@@ -134,27 +131,7 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
 
         {isUnlocked ? (
           <div className="space-y-2">
-            {ownerContact && (
-              <>
-                <div className="flex items-center gap-2 text-sm">
-                  <Users className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-slate-100">{formatOwnerName(ownerContact.name)} (Owner)</span>
-                </div>
-                {ownerContact.phone && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="w-3.5 h-3.5 text-slate-400" />
-                    <a
-                      href={`tel:${ownerContact.phone}`}
-                      className="text-slate-100 hover:text-teal-400"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {ownerContact.phone}
-                    </a>
-                  </div>
-                )}
-              </>
-            )}
-            <div className="flex gap-2 mt-3">
+            <div className="flex gap-2 mt-1">
               <Button
                 size="sm"
                 className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold text-xs flex-1"

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -8,8 +8,8 @@ const getOnboardingStorageKey = (userId: string) => `snap_onboarding_completed_$
 
 export function useOnboarding() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const dismissedRef = useRef(false);
 
   // User-specific storage key
   const storageKey = user?.id ? getOnboardingStorageKey(user.id) : null;
@@ -61,6 +61,11 @@ export function useOnboarding() {
     mutationFn: async () => {
       if (!user?.id) return;
 
+      // Set localStorage FIRST to prevent race window
+      if (storageKey) {
+        localStorage.setItem(storageKey, 'true');
+      }
+
       const { error } = await supabase
         .from("user_profiles")
         .upsert({
@@ -71,13 +76,6 @@ export function useOnboarding() {
       if (error) {
         console.error("[useOnboarding] Error saving to DB:", error);
       }
-
-      if (storageKey) {
-        localStorage.setItem(storageKey, 'true');
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["onboarding-profile"] });
     },
   });
 
@@ -85,20 +83,22 @@ export function useOnboarding() {
   useEffect(() => {
     if (isLoading || !user) return;
 
-    if (onboardingCompleted === false) {
+    if (onboardingCompleted === false && !dismissedRef.current) {
       const timer = setTimeout(() => {
-        setShowOnboarding(true);
+        if (!dismissedRef.current) setShowOnboarding(true);
       }, 1000);
       return () => clearTimeout(timer);
     }
   }, [onboardingCompleted, isLoading, user]);
 
   const markOnboardingComplete = useCallback(() => {
+    dismissedRef.current = true;
     markCompleteMutation.mutate();
     setShowOnboarding(false);
   }, [markCompleteMutation]);
 
   const resetOnboarding = useCallback(async () => {
+    dismissedRef.current = false;
     if (storageKey) {
       localStorage.removeItem(storageKey);
     }
@@ -107,9 +107,8 @@ export function useOnboarding() {
         .from("user_profiles")
         .update({ onboarding_completed: false })
         .eq("user_id", user.id);
-      queryClient.invalidateQueries({ queryKey: ["onboarding-profile"] });
     }
-  }, [user, queryClient, storageKey]);
+  }, [user, storageKey]);
 
   const triggerOnboarding = useCallback(() => {
     setShowOnboarding(true);

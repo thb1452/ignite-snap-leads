@@ -235,8 +235,6 @@ export function OnboardingFlow({ open, onOpenChange, onComplete }: OnboardingFlo
   const handleComplete = () => {
     onComplete?.();
     onOpenChange(false);
-    // Store onboarding completion in localStorage
-    localStorage.setItem('snap_onboarding_completed', 'true');
     // Navigate to properties dashboard
     navigate('/leads');
   };

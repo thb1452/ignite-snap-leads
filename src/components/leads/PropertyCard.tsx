@@ -101,44 +101,47 @@ export const PropertyCard = memo(function PropertyCard({
             {isUnlocked ? <><Unlock className="w-2.5 h-2.5" />UNLOCKED</> : <><Lock className="w-2.5 h-2.5" />LOCKED</>}
           </span>
 
-          <span className={`text-sm font-bold text-slate-100 shrink min-w-0 break-words max-w-[200px] leading-tight${!isUnlocked ? " blur-[4px] select-none" : ""}`}>
-            {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
-          </span>
-
-          <span className="text-xs text-slate-400 shrink min-w-0 break-words max-w-[140px] leading-tight">
-            {formatCity(property.city)}, {property.state}
-          </span>
-
-          {property.violation_types && property.violation_types.length > 0 && (
-            <div className="hidden lg:flex items-center gap-1 shrink-0">
-              {property.violation_types.slice(0, 3).map((vt) => (
-                <span
-                  key={vt}
-                  className="max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap text-[10px] font-semibold px-1.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/25 leading-4"
-                  title={vt}
-                >
-                  🔥 {vt}
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div className="flex-1" />
-
-          <div className="flex items-center gap-1 shrink-0">
-            <div className={`w-2 h-2 rounded-full ${getScoreDot(property.snap_score)}`} />
-            <span className="text-sm font-bold text-slate-100 w-8 text-right">{property.snap_score || 0}</span>
-          </div>
-
           <button
             onClick={(e) => {
               e.stopPropagation();
               onToggleSaved?.(property.id);
             }}
-            className="flex items-center justify-center h-5 w-5 rounded border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors shrink-0"
+            className="flex items-center justify-center h-6 w-6 rounded-md border border-slate-600 bg-slate-700 hover:bg-slate-600 transition-colors shrink-0"
+            aria-label={isSaved ? "Remove from saved" : "Save property"}
           >
-            <Heart className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"} size={9} />
+            <Heart className={isSaved ? "text-red-500 fill-red-500" : "text-red-400"} size={12} />
           </button>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start gap-2 min-w-0">
+              <span className={`text-sm font-bold text-slate-100 min-w-0 flex-1 truncate leading-tight${!isUnlocked ? " blur-[4px] select-none" : ""}`}>
+                {isUnlocked ? formatAddress(property.address) : formatBlurredStreet(property, false)}
+              </span>
+
+              <span className="text-xs text-slate-400 shrink-0 max-w-[140px] truncate leading-tight">
+                {formatCity(property.city)}, {property.state}
+              </span>
+            </div>
+
+            {property.violation_types && property.violation_types.length > 0 && (
+              <div className="hidden lg:flex items-center gap-1 shrink-0 mt-1">
+                {property.violation_types.slice(0, 3).map((vt) => (
+                  <span
+                    key={vt}
+                    className="max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap text-[10px] font-semibold px-1.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/25 leading-4"
+                    title={vt}
+                  >
+                    🔥 {vt}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0 self-center">
+            <div className={`w-2 h-2 rounded-full ${getScoreDot(property.snap_score)}`} />
+            <span className="text-sm font-bold text-slate-100 w-8 text-right">{property.snap_score || 0}</span>
+          </div>
 
           {isUnlocked ? (
             <Button

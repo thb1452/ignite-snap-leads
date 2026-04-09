@@ -3311,6 +3311,7 @@ export type Database = {
           last_enforcement_date: string
           open_violations: number
           property_id: string
+          snap_insight: string
           snap_score: number
           state: string
           violation_types: string[]

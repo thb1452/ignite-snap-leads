@@ -463,6 +463,8 @@ serve(async (req) => {
       snapScore: string;
       lastActivityDate: string;
       openCasesCount: string;
+      aiBrief: string;
+      actionLabel: string;
     }> = [];
 
     for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
@@ -508,6 +510,7 @@ serve(async (req) => {
         open_violations: number | null;
         violation_types: string[] | null;
         last_enforcement_date: string | null;
+        snap_insight: string | null;
       }>();
 
       if (matchedProps) {
@@ -517,6 +520,7 @@ serve(async (req) => {
             open_violations: p.open_violations,
             violation_types: p.violation_types,
             last_enforcement_date: p.last_enforcement_date,
+            snap_insight: p.snap_insight ?? null,
           });
         }
       }
@@ -530,6 +534,24 @@ serve(async (req) => {
         if (match) {
           matchedCount++;
           const hasOpenViolations = (match.open_violations || 0) > 0;
+          // Extract action label from the end of snap_insight
+          let aiBrief = "";
+          let actionLabel = "";
+          if (match.snap_insight) {
+            const labelMatch = match.snap_insight.match(/\b(CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY|WORTH A CALL|OPPORTUNITY|WATCH|MONITOR|LOW PRIORITY|WATCH\/PASS|PASS)\s*\.?\s*$/i);
+            if (labelMatch) {
+              const raw = labelMatch[1].toUpperCase().replace(/\.$/, "");
+              // Normalize legacy labels
+              if (raw === "CALL NOW" || raw === "HIGH OPPORTUNITY") actionLabel = "CALL NOW";
+              else if (raw === "WORTH A CALL" || raw === "GOOD OPPORTUNITY") actionLabel = "WORTH A CALL";
+              else if (raw === "OPPORTUNITY" || raw === "WATCH" || raw === "MONITOR" || raw === "LOW PRIORITY" || raw === "WATCH/PASS") actionLabel = "OPPORTUNITY";
+              else if (raw === "PASS") actionLabel = "PASS";
+              else actionLabel = raw;
+              aiBrief = match.snap_insight.slice(0, labelMatch.index).trim();
+            } else {
+              aiBrief = match.snap_insight.trim();
+            }
+          }
           enrichedRows.push({
             originalRow: row,
             activeViolation: hasOpenViolations ? "Yes" : "No",
@@ -537,6 +559,8 @@ serve(async (req) => {
             snapScore: match.snap_score?.toString() || "",
             lastActivityDate: match.last_enforcement_date || "",
             openCasesCount: (match.open_violations || 0).toString(),
+            aiBrief,
+            actionLabel,
           });
         } else {
           enrichedRows.push({
@@ -546,6 +570,8 @@ serve(async (req) => {
             snapScore: "",
             lastActivityDate: "",
             openCasesCount: "",
+            aiBrief: "",
+            actionLabel: "",
           });
         }
       }
@@ -615,6 +641,8 @@ serve(async (req) => {
       "SnapScore",
       "Last Activity Date",
       "Open Cases Count",
+      "AI Investor Brief",
+      "Action Label",
     ];
 
     const csvOutputLines: string[] = [];
@@ -631,6 +659,8 @@ serve(async (req) => {
         escapeCSV(enriched.snapScore),
         escapeCSV(enriched.lastActivityDate),
         escapeCSV(enriched.openCasesCount),
+        escapeCSV(enriched.aiBrief),
+        escapeCSV(enriched.actionLabel),
       ].join(",");
       csvOutputLines.push(line);
     }

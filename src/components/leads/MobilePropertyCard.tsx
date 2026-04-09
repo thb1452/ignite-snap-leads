@@ -7,6 +7,7 @@ import { formatBlurredStreet } from "@/utils/blurredAddress";
 import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";
 import { getBriefPreview, getDisplayActionLabel } from "@/utils/actionLabelUtils";
+import { generateFallbackBrief, getFallbackActionLabel } from "@/utils/actionLabelUtils";
 
 interface Violation {
   id: string;
@@ -32,6 +33,8 @@ interface MobilePropertyCardProps {
     open_violations?: number | null;
     violation_types?: string[] | null;
     enforcement_type?: string;
+    distress_signals?: string[] | null;
+    avg_days_open?: number | null;
   };
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
@@ -63,13 +66,15 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
     return "bg-teal-500";
   };
 
-  const insightText = property.snap_insight || "";
+  const rawInsight = property.snap_insight || "";
+  const insightText = rawInsight || generateFallbackBrief(property);
   const actionLabel = insightText
-    ? getDisplayActionLabel(insightText, {
+    ? getDisplayActionLabel(rawInsight || insightText, {
         snapScore: property.snap_score,
         openViolations: property.open_violations,
         enforcementType: property.enforcement_type,
         violationTypes: property.violation_types,
+        distressSignals: property.distress_signals,
       })
     : null;
   const briefPreview = insightText ? getBriefPreview(insightText, 2, 180) : "";

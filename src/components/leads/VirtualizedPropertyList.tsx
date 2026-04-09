@@ -22,6 +22,9 @@ interface Property {
   total_violations?: number | null;
   open_violations?: number | null;
   violation_types?: string[] | null;
+  enforcement_type?: string;
+  distress_signals?: string[] | null;
+  avg_days_open?: number | null;
 }
 
 interface VirtualizedPropertyListProps {

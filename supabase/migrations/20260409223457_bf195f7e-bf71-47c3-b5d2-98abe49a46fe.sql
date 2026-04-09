@@ -1,0 +1,1 @@
+UPDATE properties SET snap_insight = NULL, last_analyzed_at = NULL WHERE snap_insight ILIKE '%SIGNAL STACK%';

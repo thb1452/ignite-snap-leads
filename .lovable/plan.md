@@ -1,25 +1,29 @@
 
 
-# Move Stats & Toggle to Top Bar for More Property List Height
+# Maximize Property List Height — Move Search/Filters to Map Side Only
 
-## Problem
-The "54,000+ new enforcement actions" stat and "Map / List" toggle sit in the filter controls row (line 1256-1330), taking up vertical space above the property list. Users only see 2-3 properties before scrolling.
+## What you told me
+- The green-circled items (Search bar, Filters button, Saved/Lists/Heating up stats) currently span the full width above both the map AND the property list, stealing vertical space from the property cards.
+- You want the red box (property list) to occupy that vertical space instead.
+- Hide the Saved/Lists/Heating up stats on desktop entirely.
 
 ## Changes (single file: `src/pages/Leads.tsx`)
 
-### 1. Add FreshnessIndicator and Map/List toggle to the AiSearchBar row
-After the `<AiSearchBar>` component (line 1254), add a small wrapper row that places the FreshnessIndicator and Map/List toggle inline, right-aligned next to the search bar area. This puts them in the top section that's already outside the scrollable property area.
+### 1. Remove the full-width Search + Filters bar (lines 1290-1335)
+The second row containing the Search input, Filters button, and PersonalStatsBar currently spans the full page width above both map and property list. Remove it from here and move the Search + Filters into the map column only.
 
-### 2. Remove them from the filter controls row
-- **Lines 1298-1301**: Remove the `PersonalStatsBar` + `FreshnessIndicator` block (keep `PersonalStatsBar` where it is since user didn't mention it).
-- **Lines 1303-1329**: Remove the Map/List toggle from this row.
+### 2. Move Search + Filters inside the map container (line 1512)
+Place the Search input and Filters button as an overlay or top bar inside the `w-[45%]` map column, so they only affect the map side. The property list column starts immediately at the top with sort/export + cards.
 
-This eliminates ~32px of vertical height from the bar above the property list, letting the list expand to fill that space and show more properties.
+### 3. Hide PersonalStatsBar on desktop
+Remove the `PersonalStatsBar` from the desktop filter row entirely (it stays on mobile).
 
-### What stays the same
-- Map width and position: unchanged
-- Property list width: unchanged (55% in map view, 100% in list view)
-- All filter functionality: unchanged
-- PersonalStatsBar (10 Saved, 2 Lists): stays in the filter controls row
-- Mobile layout: unchanged
+### 4. In list-only view (no map), keep Search + Filters at the top
+When the user switches to "List" view (full width, no map), the search/filters row will appear above the list since there's no map column.
+
+### Result
+- The property list column starts at the very top of its space — only the thin sort/export row, then cards immediately
+- Gains ~60-70px of vertical space for more property cards
+- Map keeps search/filters overlaid on it
+- Mobile layout unchanged
 

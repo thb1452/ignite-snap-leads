@@ -90,7 +90,7 @@ export function CompactPropertyRow({
 
       {/* Action label */}
       {actionLabel && (
-        <span className={`text-[11px] font-bold shrink-0 ${actionLabel.colorClass}`}>
+        <span className={`text-[11px] shrink-0 ${actionLabel.colorClass}`}>
           {actionLabel.label}
         </span>
       )}

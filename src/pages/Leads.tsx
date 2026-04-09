@@ -706,9 +706,13 @@ function Leads() {
   useEffect(() => {
     if (error) {
       console.error("[Leads] Properties error:", error);
+      const msg = error instanceof Error ? error.message : String(error);
+      const isAmbiguity = msg.includes('PGRST203') || msg.includes('ambiguous');
       toast({
-        title: "Failed to load properties",
-        description: "Please try refreshing the page or check your connection.",
+        title: isAmbiguity ? "Temporary backend issue" : "Failed to load properties",
+        description: isAmbiguity
+          ? "The server is updating. Please refresh the page in a moment."
+          : "Please try refreshing the page or check your connection.",
         variant: "destructive",
       });
     }

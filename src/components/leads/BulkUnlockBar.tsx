@@ -159,7 +159,7 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked, onGetCredi
   const progressPercent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-background border rounded-xl shadow-2xl px-5 py-3 flex flex-col gap-2 max-w-lg w-[90vw]">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9998] bg-background border rounded-xl shadow-2xl px-5 py-3 flex flex-col gap-2 max-w-lg w-[90vw]">
       <div className="flex items-center gap-4">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium">

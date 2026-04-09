@@ -538,9 +538,15 @@ serve(async (req) => {
           let aiBrief = "";
           let actionLabel = "";
           if (match.snap_insight) {
-            const labelMatch = match.snap_insight.match(/\b(CALL NOW|WORTH A CALL|OPPORTUNITY|PASS)\s*\.?\s*$/i);
+            const labelMatch = match.snap_insight.match(/\b(CALL NOW|HIGH OPPORTUNITY|GOOD OPPORTUNITY|WORTH A CALL|OPPORTUNITY|WATCH|MONITOR|LOW PRIORITY|WATCH\/PASS|PASS)\s*\.?\s*$/i);
             if (labelMatch) {
-              actionLabel = labelMatch[1].toUpperCase().replace(/\.$/, "");
+              const raw = labelMatch[1].toUpperCase().replace(/\.$/, "");
+              // Normalize legacy labels
+              if (raw === "CALL NOW" || raw === "HIGH OPPORTUNITY") actionLabel = "CALL NOW";
+              else if (raw === "WORTH A CALL" || raw === "GOOD OPPORTUNITY") actionLabel = "WORTH A CALL";
+              else if (raw === "OPPORTUNITY" || raw === "WATCH" || raw === "MONITOR" || raw === "LOW PRIORITY" || raw === "WATCH/PASS") actionLabel = "OPPORTUNITY";
+              else if (raw === "PASS") actionLabel = "PASS";
+              else actionLabel = raw;
               aiBrief = match.snap_insight.slice(0, labelMatch.index).trim();
             } else {
               aiBrief = match.snap_insight.trim();

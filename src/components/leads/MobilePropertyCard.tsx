@@ -1,11 +1,9 @@
 import { memo, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Lock, Unlock, Sparkles, Heart, Users, Phone, Download, Loader2 } from "lucide-react";
+import { Lock, Unlock, Sparkles, Heart, Download, Loader2 } from "lucide-react";
 import { formatAddress, formatCity } from "@/utils/formatAddress";
 import { formatBlurredStreet } from "@/utils/blurredAddress";
-import { formatOwnerName } from "@/utils/formatOwnerName";
-import { usePropertyContacts } from "@/hooks/usePropertyContacts";
 import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useToast } from "@/hooks/use-toast";
 import { getBriefPreview, getDisplayActionLabel } from "@/utils/actionLabelUtils";

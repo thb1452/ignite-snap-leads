@@ -432,7 +432,7 @@ async function handleBulkCredits(
     payment_method_types: ["card"],
     line_items: [{ price: pack.priceId, quantity: 1 }],
     mode: "payment",
-    success_url: `${appUrl}/checkout-success?session_id={CHECKOUT_SESSION_ID}&credits_added=${pack.credits}`,
+    success_url: `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&credits_added=${pack.credits}`,
     cancel_url: `${appUrl}${returnPath}`,
     metadata: {
       user_id: user.id,

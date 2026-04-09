@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
@@ -21,7 +22,11 @@ const signInSchema = z.object({
 const signUpSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
   email: z.string().email('Invalid email address'),
+  phone: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  consent: z.literal(true, {
+    errorMap: () => ({ message: 'You must agree to receive alerts to create an account' }),
+  }),
 });
 
 type SignInFormData = z.infer<typeof signInSchema>;
@@ -71,7 +76,7 @@ export function AuthForm() {
 
   const signUpForm = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { fullName: '', email: '', password: '' },
+    defaultValues: { fullName: '', email: '', phone: '', password: '', consent: undefined as any },
   });
 
   const handleSignIn = async (data: SignInFormData) => {
@@ -171,6 +176,16 @@ export function AuthForm() {
                 )}
               </div>
               <div className="space-y-2">
+                <Label htmlFor="signup-phone">Phone Number <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Input
+                  id="signup-phone"
+                  type="tel"
+                  placeholder="+1 (555) 123-4567"
+                  {...signUpForm.register('phone')}
+                />
+                <p className="text-xs text-muted-foreground">For property alert SMS notifications</p>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="signup-password">Password</Label>
                 <Input
                   id="signup-password"
@@ -182,6 +197,25 @@ export function AuthForm() {
                   <p className="text-sm text-destructive">{signUpForm.formState.errors.password.message}</p>
                 )}
               </div>
+
+              <div className="flex items-start space-x-3 pt-2">
+                <Checkbox
+                  id="signup-consent"
+                  checked={signUpForm.watch('consent') === true}
+                  onCheckedChange={(checked) => {
+                    signUpForm.setValue('consent', checked === true ? true : undefined as any, { shouldValidate: true });
+                  }}
+                  className="mt-0.5"
+                />
+                <label htmlFor="signup-consent" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                  I agree to receive property alerts, account notifications, and service updates from Snap Ignite via email and SMS/text. Msg &amp; Data rates may apply. Reply STOP to cancel. View our{' '}
+                  <Link to="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link> and{' '}
+                  <Link to="/terms-and-conditions" className="text-primary hover:underline">Terms &amp; Conditions</Link>.
+                </label>
+              </div>
+              {signUpForm.formState.errors.consent && (
+                <p className="text-sm text-destructive">{signUpForm.formState.errors.consent.message}</p>
+              )}
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>

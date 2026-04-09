@@ -463,6 +463,8 @@ serve(async (req) => {
       snapScore: string;
       lastActivityDate: string;
       openCasesCount: string;
+      aiBrief: string;
+      actionLabel: string;
     }> = [];
 
     for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
@@ -508,6 +510,7 @@ serve(async (req) => {
         open_violations: number | null;
         violation_types: string[] | null;
         last_enforcement_date: string | null;
+        snap_insight: string | null;
       }>();
 
       if (matchedProps) {
@@ -517,6 +520,7 @@ serve(async (req) => {
             open_violations: p.open_violations,
             violation_types: p.violation_types,
             last_enforcement_date: p.last_enforcement_date,
+            snap_insight: p.snap_insight ?? null,
           });
         }
       }

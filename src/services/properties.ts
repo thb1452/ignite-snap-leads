@@ -3,7 +3,7 @@ import type { LeadFilters } from "@/schemas";
 import { getRandomSeed } from "@/lib/randomSeed";
 import { withTimeout } from "@/lib/withTimeout";
 
-const PROPERTIES_TIMEOUT_MS = 10000;
+const PROPERTIES_TIMEOUT_MS = 25000;
 
 export interface BBoxFilters {
   bbox?: [number, number, number, number];

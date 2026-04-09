@@ -534,6 +534,18 @@ serve(async (req) => {
         if (match) {
           matchedCount++;
           const hasOpenViolations = (match.open_violations || 0) > 0;
+          // Extract action label from the end of snap_insight
+          let aiBrief = "";
+          let actionLabel = "";
+          if (match.snap_insight) {
+            const labelMatch = match.snap_insight.match(/\b(CALL NOW|WORTH A CALL|OPPORTUNITY|PASS)\s*\.?\s*$/i);
+            if (labelMatch) {
+              actionLabel = labelMatch[1].toUpperCase().replace(/\.$/, "");
+              aiBrief = match.snap_insight.slice(0, labelMatch.index).trim();
+            } else {
+              aiBrief = match.snap_insight.trim();
+            }
+          }
           enrichedRows.push({
             originalRow: row,
             activeViolation: hasOpenViolations ? "Yes" : "No",
@@ -541,6 +553,8 @@ serve(async (req) => {
             snapScore: match.snap_score?.toString() || "",
             lastActivityDate: match.last_enforcement_date || "",
             openCasesCount: (match.open_violations || 0).toString(),
+            aiBrief,
+            actionLabel,
           });
         } else {
           enrichedRows.push({
@@ -550,6 +564,8 @@ serve(async (req) => {
             snapScore: "",
             lastActivityDate: "",
             openCasesCount: "",
+            aiBrief: "",
+            actionLabel: "",
           });
         }
       }

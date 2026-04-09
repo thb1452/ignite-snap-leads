@@ -274,22 +274,7 @@ async function handleFixLabels(
     console.log(`[bulk-regen] fix-labels: normalized ${fixedCount} legacy labels. Total: ${newTotal}`);
 
     if (autoResume && legacyProps.length === FIX_BATCH) {
-      // More legacy labels to fix — continue
-      const continueTask = async () => {
-        await new Promise(r => setTimeout(r, 500));
-        try {
-          await fetch(`${supabaseUrl}/functions/v1/bulk-regenerate-briefs`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-            body: JSON.stringify({ autoResume: true, totalProcessed: newTotal, version: REGEN_VERSION, mode: "fix-labels" }),
-          });
-        } catch (err) {
-          console.error("[bulk-regen] fix-labels resume failed:", err);
-        }
-      };
-      const runtime = (globalThis as any).EdgeRuntime;
-      if (runtime?.waitUntil) runtime.waitUntil(continueTask()); else continueTask().catch(console.error);
-
+      scheduleResume(supabaseUrl, serviceKey, newTotal, "fix-labels", "legacy");
       return new Response(JSON.stringify({ success: true, fixedCount, totalProcessed: newTotal, hasMore: true, phase: "legacy-labels" }), { headers });
     }
   }

@@ -526,7 +526,7 @@ function composeInvestorInsight(property: Record<string, any>): string {
   } else {
     if (openCount === 0) actionLabel = 'PASS';
     else if (openCount >= 3 || isExtended || isRepeat) actionLabel = 'WATCH';
-    else actionLabel = 'PASS';
+    else actionLabel = 'WATCH';
   }
 
   const parts: string[] = [];

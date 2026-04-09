@@ -137,6 +137,7 @@ export function getCompleteBriefText(text: string): string {
 }
 
 export function getBriefPreview(text: string, maxSentences = 2, maxChars = 140): string {
+  if (!text || !text.trim()) return "";
   const cleaned = getCompleteBriefText(text);
 
   if (!cleaned) return "";
@@ -190,4 +191,50 @@ export function getBriefPreview(text: string, maxSentences = 2, maxChars = 140):
   }
 
   return `${body}${labelSuffix}`.trim();
+}
+
+/**
+ * Generate a fallback brief when snap_insight is null but violation data exists.
+ * Returns a short, human-readable summary from available property metadata.
+ */
+export function generateFallbackBrief(property: {
+  open_violations?: number | null;
+  total_violations?: number | null;
+  violation_types?: string[] | null;
+  enforcement_type?: string | null;
+  distress_signals?: string[] | null;
+  snap_score?: number | null;
+  avg_days_open?: number | null;
+}): string {
+  const parts: string[] = [];
+  const openCount = property.open_violations ?? 0;
+  const totalCount = property.total_violations ?? 0;
+  const types = property.violation_types?.filter(Boolean) ?? [];
+  const score = property.snap_score ?? 0;
+
+  if (openCount > 0) {
+    parts.push(`This property has ${openCount} open violation${openCount !== 1 ? "s" : ""} on file.`);
+  } else if (totalCount > 0) {
+    parts.push(`This property has ${totalCount} total violation${totalCount !== 1 ? "s" : ""} on record.`);
+  }
+
+  if (types.length > 0) {
+    const typeStr = types.slice(0, 3).join(", ");
+    const hasFireOrSafety = types.some(t => /fire|safety/i.test(t));
+    if (hasFireOrSafety) {
+      parts.push(`Distress signals include ${typeStr.toLowerCase()} violations.`);
+    } else {
+      parts.push(`Issues span ${typeStr.toLowerCase()}.`);
+    }
+  }
+
+  if (property.enforcement_type === "water_shutoff") {
+    parts.push("Water shutoff enforcement is active.");
+  }
+
+  if (property.avg_days_open && property.avg_days_open > 90) {
+    parts.push(`Violations averaging ${property.avg_days_open} days open.`);
+  }
+
+  return parts.join(" ");
 }

@@ -621,7 +621,7 @@ export default function Landing() {
                 { q: "What are the 3 free unlocks?", a: "Every new account gets 3 free unlocks so you can see the quality before you spend. Each unlock reveals the full address, violation data, and deal brief. No credit card needed." },
                 { q: "What happens when I unlock a property?", a: "You get the complete street address, full violation history, AI deal brief, and the ability to export or save the lead. You're ready to make the call." },
                 { q: "How does Pay As You Go work?", a: `Pay ${PAYG_PRICE_DISPLAY} per credit. No subscription, no commitment. 1 credit = 1 unlock + 1 export. Credits never expire.` },
-                { q: "Where does the data come from?", a: "All data is sourced directly from municipalities through public records requests. These are real enforcement actions including code violations, fines, and water shutoffs, not estimates or scraped data." },
+                { q: "Where does the data come from?", a: "Snap Ignite aggregates real-time enforcement data from thousands of municipal sources. These are real enforcement actions including code violations, fines, and water shutoffs, not estimates or scraped data." },
                 { q: "How is this different from other lead lists?", a: "Most lead lists give you every homeowner in a zip code. Snap Ignite only shows you properties already under enforcement pressure. You're calling people with a visible reason to sell, not random homeowners." },
               ].map((faq, i) => (
                 <AccordionItem key={i} value={`item-${i}`} className="bg-landing-bg/50 border border-landing-surface rounded-lg px-6 data-[state=open]:border-landing-accent/50">

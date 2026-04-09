@@ -39,7 +39,7 @@ function createActionLabel(label: ActionLabelKey): ActionLabel {
     case "OPPORTUNITY":
       return { label, colorClass: "text-amber-500 font-bold" };
     case "PASS":
-      return { label, colorClass: "text-muted-foreground font-medium" };
+      return { label, colorClass: "text-slate-400 font-bold italic" };
   }
 }
 

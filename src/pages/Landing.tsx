@@ -617,7 +617,7 @@ export default function Landing() {
             <h2 id="faq-heading" className="text-3xl md:text-4xl font-bold text-center mb-12">Frequently Asked Questions</h2>
             <Accordion type="single" collapsible className="space-y-4">
               {[
-                { q: "Do I need a subscription to use Snap Ignite?", a: "No. Sign up free and browse every distressed property with AI deal briefs. Pay only for the addresses you actually want to call — $0.67 each, or subscribe for a better rate." },
+                { q: "Do I need a subscription to use Snap Ignite?", a: "No. Sign up free and browse every distressed property with AI deal briefs. Pay only for the addresses you actually want to call at $0.67 each, or subscribe for a better rate." },
                 { q: "What are the 3 free unlocks?", a: "Every new account gets 3 free unlocks so you can see the quality before you spend. Each unlock reveals the full address, violation data, and deal brief. No credit card needed." },
                 { q: "What happens when I unlock a property?", a: "You get the complete street address, full violation history, AI deal brief, and the ability to export or save the lead. You're ready to make the call." },
                 { q: "How does Pay As You Go work?", a: `Pay ${PAYG_PRICE_DISPLAY} per credit. No subscription, no commitment. 1 credit = 1 unlock + 1 export. Credits never expire.` },

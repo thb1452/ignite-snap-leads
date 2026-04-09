@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Download, ListPlus, Loader2, ChevronDown, AlertTriangle } from "lucide-react";
+import { Download, ListPlus, Loader2, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 
 export type SelectMode = "page" | "custom" | "all";
 
@@ -22,6 +22,10 @@ interface BulkActionBarProps {
   showSelectMax?: boolean;
   // Export limit enforcement
   exportRemaining?: number | null; // null = unlimited
+  // Inline pagination
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
 }
 
 export function BulkActionBar({
@@ -38,6 +42,9 @@ export function BulkActionBar({
   totalFilteredCount,
   showSelectMax = true,
   exportRemaining,
+  page,
+  totalPages,
+  onPageChange,
 }: BulkActionBarProps) {
   const hasSelection = selectedCount > 0;
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -82,7 +89,7 @@ export function BulkActionBar({
 
   return (
     <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-10">
-      <div className="flex items-center justify-between p-4">
+      <div className="flex items-center justify-between px-4 py-2">
         <div className="flex items-center gap-3">
           {/* Split checkbox control */}
           <div className="flex items-center" ref={dropdownRef}>
@@ -188,6 +195,33 @@ export function BulkActionBar({
               : `Select all ${totalCount > 0 ? `(${totalCount})` : ""}`}
           </span>
         </div>
+
+        {/* Inline pagination */}
+        {totalPages != null && totalPages > 1 && onPageChange && page != null && (
+          <div className="flex items-center gap-1 text-xs shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onPageChange(Math.max(1, page - 1))}
+              disabled={page <= 1}
+              className="h-6 w-6 p-0"
+            >
+              <ChevronLeft className="h-3 w-3" />
+            </Button>
+            <span className="text-muted-foreground whitespace-nowrap">
+              {page}/{totalPages}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+              disabled={page >= totalPages}
+              className="h-6 w-6 p-0"
+            >
+              <ChevronRight className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           {/* Export limit warning */}

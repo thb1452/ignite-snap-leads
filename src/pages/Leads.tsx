@@ -1295,8 +1295,10 @@ function Leads() {
             {/* Spacer */}
             <div className="flex-1" />
 
-            <PersonalStatsBar />
-            <FreshnessIndicator />
+            <div className="hidden lg:flex items-center gap-3 min-w-0 overflow-hidden">
+              <PersonalStatsBar />
+              <FreshnessIndicator />
+            </div>
 
             {/* Map / List view toggle */}
             <div className="flex items-center rounded-md border border-border overflow-hidden shrink-0">
@@ -1576,33 +1578,6 @@ function Leads() {
               )}
             </div>
 
-            {/* Compact Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-3 px-2 py-1 border-t bg-background text-xs">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handlePageChange(Math.max(1, page - 1))}
-                  disabled={page <= 1}
-                  className="h-6 px-2 text-xs"
-                >
-                  <ChevronLeft className="h-3 w-3" />
-                </Button>
-                <span className="text-muted-foreground">
-                  {page}/{totalPages}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
-                  disabled={page >= totalPages}
-                  className="h-6 px-2 text-xs"
-                >
-                  <ChevronRight className="h-3 w-3" />
-                </Button>
-              </div>
-            )}
-
             <BulkActionBar
               selectedCount={selectedIds.length}
               totalCount={properties.length}
@@ -1617,6 +1592,9 @@ function Leads() {
               totalFilteredCount={totalCount}
               showSelectMax={true}
               exportRemaining={exportRemaining}
+              page={page}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
             />
           </div>
         </div>

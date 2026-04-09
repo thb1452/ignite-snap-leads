@@ -356,12 +356,13 @@ async function handleSubscription(
     subscriptionData.trial_period_days = 3;
   }
 
+  const successPath = `/checkout-success?session_id={CHECKOUT_SESSION_ID}${trial ? "&trial=true" : ""}`;
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     payment_method_types: ["card"],
     line_items: [{ price: priceId, quantity: 1 }],
     mode: "subscription",
-    success_url: `${appUrl}${returnPath}`,
+    success_url: `${appUrl}${successPath}`,
     cancel_url: `${appUrl}${returnPath}`,
     metadata: { user_id: user.id, plan_id: plan?.id ?? tier_name, billing_cycle, is_trial: trial ? "true" : "false" },
     subscription_data: subscriptionData,

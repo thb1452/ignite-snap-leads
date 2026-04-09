@@ -98,6 +98,7 @@ export function useOnboarding() {
   }, [markCompleteMutation]);
 
   const resetOnboarding = useCallback(async () => {
+    dismissedRef.current = false;
     if (storageKey) {
       localStorage.removeItem(storageKey);
     }
@@ -106,9 +107,8 @@ export function useOnboarding() {
         .from("user_profiles")
         .update({ onboarding_completed: false })
         .eq("user_id", user.id);
-      queryClient.invalidateQueries({ queryKey: ["onboarding-profile"] });
     }
-  }, [user, queryClient, storageKey]);
+  }, [user, storageKey]);
 
   const triggerOnboarding = useCallback(() => {
     setShowOnboarding(true);

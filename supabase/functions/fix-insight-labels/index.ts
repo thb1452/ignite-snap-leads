@@ -14,17 +14,16 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const BATCH = 2000;
+  const BATCH = 500;
   let totalFixed = 0;
-
-  // Fix trailing periods on action labels
   const labelPattern = /\s*(PASS|HIGH OPPORTUNITY|GOOD OPPORTUNITY|WORTH A CALL|CALL NOW|OPPORTUNITY|WATCH|MONITOR)\.\s*$/;
 
-  while (true) {
+  // Process up to 10 batches per invocation to stay within timeout
+  for (let round = 0; round < 20; round++) {
     const { data: batch, error } = await supabase
       .from("properties")
       .select("id, snap_insight")
-      .like("snap_insight", "%.") // ends with period
+      .like("snap_insight", "%.")
       .limit(BATCH);
 
     if (error) {
@@ -35,20 +34,24 @@ serve(async (req) => {
     const toFix = (batch || []).filter((p: any) => labelPattern.test(p.snap_insight));
     if (toFix.length === 0) break;
 
-    for (const p of toFix) {
+    // Batch update using Promise.all with concurrency
+    const updates = toFix.map((p: any) => {
       const fixed = p.snap_insight.replace(labelPattern, " $1");
-      const { error: upErr } = await supabase
-        .from("properties")
-        .update({ snap_insight: fixed })
-        .eq("id", p.id);
-      if (!upErr) totalFixed++;
-    }
+      return supabase.from("properties").update({ snap_insight: fixed }).eq("id", p.id);
+    });
 
-    console.log(`Fixed ${totalFixed} so far...`);
-    if (toFix.length < BATCH) break;
+    await Promise.all(updates);
+    totalFixed += toFix.length;
+    console.log(`Round ${round + 1}: fixed ${toFix.length} (total: ${totalFixed})`);
   }
 
-  return new Response(JSON.stringify({ fixed: totalFixed }), {
+  // Check remaining
+  const { count } = await supabase
+    .from("properties")
+    .select("id", { count: "exact", head: true })
+    .like("snap_insight", "%.");
+
+  return new Response(JSON.stringify({ fixed: totalFixed, remaining_with_period: count }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });

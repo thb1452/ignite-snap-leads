@@ -1287,52 +1287,44 @@ function Leads() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-4 py-1.5 min-w-0">
-            {/* Search */}
-            <div className="relative w-44">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-8 h-7 text-xs"
-              />
-            </div>
-
-            {/* Filters toggle button */}
-            <Button
-              variant={filtersExpanded ? "secondary" : "outline"}
-              size="sm"
-              onClick={toggleFilters}
-              className="h-7 px-2.5 text-xs gap-1.5 shrink-0"
-            >
-              <SlidersHorizontal className="h-3 w-3" />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="ml-0.5 bg-[#0d9e75] text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
-                  {activeFilterCount}
-                </span>
-              )}
-            </Button>
-
-            {activeFilterCount > 0 && (
+          {/* Search + Filters row — only shown in list-only view on desktop */}
+          {desktopView === "list" && (
+            <div className="flex items-center gap-2 px-4 py-1.5 min-w-0">
+              <div className="relative w-44">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="pl-8 h-7 text-xs"
+                />
+              </div>
               <Button
-                variant="ghost"
+                variant={filtersExpanded ? "secondary" : "outline"}
                 size="sm"
-                onClick={handleClearFilters}
-                className="h-7 px-2 text-xs gap-1"
+                onClick={toggleFilters}
+                className="h-7 px-2.5 text-xs gap-1.5 shrink-0"
               >
-                <X className="h-3 w-3" /> Clear
+                <SlidersHorizontal className="h-3 w-3" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="ml-0.5 bg-[#0d9e75] text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
+                    {activeFilterCount}
+                  </span>
+                )}
               </Button>
-            )}
-
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            <div className="hidden lg:flex items-center gap-3 min-w-0 overflow-hidden">
-              <PersonalStatsBar />
+              {activeFilterCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="h-7 px-2 text-xs gap-1"
+                >
+                  <X className="h-3 w-3" /> Clear
+                </Button>
+              )}
             </div>
-          </div>
+          )}
 
           {/* Expandable filter controls row */}
           {filtersExpanded && (

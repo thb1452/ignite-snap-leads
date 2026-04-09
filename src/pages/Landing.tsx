@@ -278,7 +278,7 @@ export default function Landing() {
                   size="lg"
                   variant="outline"
                   onClick={() => scrollTo("how-it-works")}
-                  className="border-landing-surface text-landing-text hover:bg-landing-surface/50 text-lg px-8 py-6"
+                  className="border-landing-surface text-landing-text hover:bg-landing-surface/50 text-lg px-8 py-6 bg-transparent"
                 >
                   See How It Works <ChevronDown className="w-4 h-4 ml-2" />
                 </Button>
@@ -404,10 +404,10 @@ export default function Landing() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mb-8">
             {[
               { name: "Free", price: "$0", suffix: "/forever", features: ["3 lifetime unlocks", "Browse all properties", "AI investor briefs", "SnapScore ranking"], cta: "Start Free", highlighted: false },
-              { name: "Pay As You Go", price: PAYG_PRICE_DISPLAY, suffix: "/credit", features: ["No monthly fee", "1 credit = 1 unlock + export", "Credits never expire", "No commitment"], cta: "Buy Credits", highlighted: false, badge: "No Subscription Needed" },
-              { name: "Starter", price: "$49", suffix: "/mo", features: ["750 credits/month", "Code violation data", "Basic filters", "CSV export"], cta: "Get Starter", highlighted: false },
-              { name: "Pro", price: "$99", suffix: "/mo", features: ["1,500 credits/month", "Pressure Level™ filters", "Priority support", "All Starter features"], cta: "Get Pro", highlighted: true, badge: "Most Popular" },
-              { name: "Elite", price: "$199", suffix: "/mo", features: ["3,000 credits/month", "Water shutoff data", "API access", "All records pre-unlocked"], cta: "Get Elite", highlighted: false },
+              { name: "Pay As You Go", price: PAYG_PRICE_DISPLAY, suffix: "/credit", features: ["No monthly fee", "1 credit = 1 unlock + export", "Credits never expire", "No commitment"], cta: "Start Free", highlighted: false, badge: "No Subscription Needed" },
+              { name: "Starter", price: "$49", suffix: "/mo", features: ["750 credits/month", "Code violation data", "Basic filters", "CSV export"], cta: "Start Free", highlighted: false },
+              { name: "Pro", price: "$99", suffix: "/mo", features: ["1,500 credits/month", "Pressure Level™ filters", "Priority support", "All Starter features"], cta: "Start Free", highlighted: true, badge: "Most Popular" },
+              { name: "Elite", price: "$199", suffix: "/mo", features: ["3,000 credits/month", "Water shutoff data", "API access", "All records pre-unlocked"], cta: "Start Free", highlighted: false },
               { name: "Enterprise", price: "Custom", suffix: "", features: ["25,000+ addresses", "API access", "Dedicated account manager", "Custom contract"], cta: "Contact Us", highlighted: false, isEnterprise: true },
             ].map((plan, i) => (
               <motion.div
@@ -480,7 +480,7 @@ export default function Landing() {
                   <p className="text-3xl font-bold text-landing-accent mb-1">{pkg.price}</p>
                   <p className="text-sm text-landing-text-muted mb-4">{pkg.per}</p>
                   <Link to="/auth?mode=signup">
-                    <Button className="w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">Buy Now</Button>
+                    <Button className="w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">Get Started</Button>
                   </Link>
                 </motion.div>
               ))}
@@ -538,35 +538,72 @@ export default function Landing() {
       {/* ─── SOCIAL PROOF ─────────────────────────────────── */}
       <section className="py-20" aria-labelledby="proof-heading">
         <div className="container mx-auto px-4">
-          <h2 id="proof-heading" className="text-3xl md:text-4xl font-bold text-center mb-14">What Investors Are Saying</h2>
+          <p className="text-landing-accent font-semibold tracking-widest text-sm uppercase text-center mb-4">Real Results</p>
+          <h2 id="proof-heading" className="text-3xl md:text-4xl font-bold text-center mb-4">Real results from investors using Snap Ignite</h2>
+          <p className="text-lg text-landing-text-muted text-center mb-14 max-w-2xl mx-auto">
+            These results come from focusing on the right properties, not more outreach.
+          </p>
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {[
               {
-                initials: "JM", name: "Jake M.", role: "Wholesaler, Phoenix AZ",
-                quote: "I stopped wasting time on clean houses. Snap only shows me properties with real problems — the conversations are completely different now.",
-                result: "3 contracts in 6 weeks",
+                initials: "JM",
+                name: "Jake Martinez",
+                role: "Wholesaler",
+                location: "Phoenix, AZ",
+                headline: "3 deals in 6 weeks and I stopped wasting time.",
+                body: "I used to call 100+ people a week and get nowhere. Now I only reach out to properties with real problems. The conversations are completely different.",
+                metric: "3 contracts in 6 weeks",
               },
               {
-                initials: "SR", name: "Sarah R.", role: "Acquisition Manager, Southeast",
-                quote: "The conversation quality got way better. Owners already know their property has issues, so we're negotiating — not convincing.",
-                result: "40% better contact-to-contract rate",
+                initials: "SR",
+                name: "Sarah Reynolds",
+                role: "Acquisition Manager",
+                location: "Southeast",
+                headline: "We stopped convincing people. We started negotiating.",
+                body: "Before Snap, we were chasing homeowners and trying to create motivation. Now we talk to owners who already know there's an issue.",
+                metric: "40% higher contact-to-contract rate",
               },
               {
-                initials: "MT", name: "Marcus T.", role: "Fix & Flip, Dallas-Fort Worth",
-                quote: "The distress signals made the calls easier. Snap flagged a water shutoff I'd never seen on any list — that single deal paid for two years.",
-                result: "First deal paid for 2 years",
+                initials: "ML",
+                name: "Marcus Lee",
+                role: "Real Estate Investor",
+                location: "",
+                headline: "This is the first time leads actually made sense.",
+                body: "I didn't know who to call before. It felt like guessing. Snap showed me exactly where to focus.",
+                metric: "First deal closed in under 30 days",
               },
             ].map((t, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="bg-landing-surface/50 border border-landing-surface rounded-xl p-8">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-landing-accent/20 flex items-center justify-center text-landing-accent font-bold text-sm">{t.initials}</div>
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-landing-bg/60 border border-landing-surface rounded-2xl p-8 hover:-translate-y-1 hover:shadow-lg hover:shadow-landing-accent/5 transition-all duration-300"
+              >
+                {/* Result Headline */}
+                <h3 className="text-xl font-bold mb-5 leading-snug">{t.headline}</h3>
+
+                {/* User Identity */}
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-11 h-11 rounded-full bg-landing-accent/15 flex items-center justify-center text-landing-accent font-bold text-sm shrink-0">
+                    {t.initials}
+                  </div>
                   <div>
                     <div className="font-semibold text-sm">{t.name}</div>
-                    <div className="text-xs text-landing-text-muted">{t.role}</div>
+                    <div className="text-xs text-landing-text-muted">
+                      {t.role}{t.location ? `, ${t.location}` : ""}
+                    </div>
                   </div>
                 </div>
-                <blockquote className="text-sm text-landing-text-muted mb-4 italic leading-relaxed">"{t.quote}"</blockquote>
-                <div className="text-landing-accent font-semibold text-sm">{t.result}</div>
+
+                {/* Body */}
+                <p className="text-sm text-landing-text-muted leading-relaxed mb-5">{t.body}</p>
+
+                {/* Metric */}
+                <div className="pt-4 border-t border-landing-surface">
+                  <span className="text-landing-accent font-bold text-base">{t.metric}</span>
+                </div>
               </motion.div>
             ))}
           </div>

@@ -1,36 +1,25 @@
 
 
-# Fix: Header Overflow and Bottom Pagination/Action Bar Overlap
+# Maximize Property List Width
 
-## Issues Identified
-
-1. **Top bar overflow (circled in black)**: The row at line 1256 crams Search + Filters toggle + PersonalStatsBar + FreshnessIndicator + Map/List toggle into a single horizontal line. On 1025px viewports, the text overflows and clips behind the Map/List toggle.
-
-2. **Bottom overlap (green circle)**: The pagination (`1/9149`) and the BulkActionBar (`Select all (50)`) are separate elements stacked vertically, but with full padding they take too much vertical space and visually collide, eating into the card list area.
+## Problem
+The property list cards (right side) are cramped at 55% width. The stats row ("54,000+ new enforcement actions this week", "10 Saved", "2 Lists", etc.) and the Map/List toggle eat into valuable space above the cards.
 
 ## Plan
 
-### 1. Fix the top header row overflow (`src/pages/Leads.tsx`, lines ~1256-1328)
+### 1. Move stats and Map/List toggle into the existing top bar row (`src/pages/Leads.tsx`)
 
-Split the current single row into a cleaner layout:
-- **Row 1** (existing): Search + Filters toggle + Clear + spacer + Map/List toggle
-- Move `PersonalStatsBar` and `FreshnessIndicator` out of this row
-- Place them on the same line as the AI search bar or as a slim sub-row with `overflow-hidden` and `truncate` so they never push the Map/List toggle off-screen
+Move the `PersonalStatsBar` (10 Saved, 2 Lists) and `FreshnessIndicator` (54,000+ new enforcement actions) **out of the property list column** and into the always-visible top filter bar row (line ~1256). They're already partially there behind `hidden lg:flex` — make them always visible on desktop in that row. The Map/List toggle is already in that row.
 
-Alternatively, keep one row but:
-- Add `overflow-hidden min-w-0` to the middle section
-- Add `truncate` / `whitespace-nowrap` to PersonalStatsBar and FreshnessIndicator
-- Ensure Map/List toggle has `shrink-0` (already has it)
+This means the property list column no longer needs its own header with these stats — it only keeps the Sort dropdown and Export button.
 
-### 2. Merge pagination into BulkActionBar (`src/pages/Leads.tsx`, lines ~1579-1621)
+### 2. Widen the property list from 55% to 70% (`src/pages/Leads.tsx`)
 
-Instead of two separate bottom sections (pagination + BulkActionBar), combine them into one compact row:
-- Move the pagination controls (prev/next + page number) into the left side of the BulkActionBar, next to the checkbox and "Select all" text
-- This eliminates the separate `border-t` pagination div and saves ~30px of vertical space
-- Layout: `[Checkbox ▾] Select all (50)  |  ◀ 1/9149 ▶  |  [Export CSV] [Add to List]`
+- Map: `w-[45%]` → `w-[30%]` (line 1507)
+- Property list: `w-[55%]` → `w-[70%]` (line 1518)
+
+The map at 30% still shows clusters and context. The property cards at 70% (~717px on 1025px viewport) have enough room for address, badges, AI insight, and action buttons without truncation.
 
 ### Files Changed
-
-- `src/pages/Leads.tsx` — restructure desktop header row; move pagination into BulkActionBar area
-- `src/components/leads/BulkActionBar.tsx` — accept optional pagination props (`page`, `totalPages`, `onPageChange`) and render inline
+- `src/pages/Leads.tsx` — two width class changes + ensure stats are in the top bar only
 

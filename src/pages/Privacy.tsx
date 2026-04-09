@@ -205,8 +205,8 @@ export default function Privacy() {
 
         <div className="mt-16 pt-8 border-t">
           <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground mb-4">
-            <Link to="/privacy" className="hover:text-foreground transition">Privacy Policy</Link>
-            <Link to="/terms" className="hover:text-foreground transition">Terms of Service</Link>
+            <Link to="/privacy-policy" className="hover:text-foreground transition">Privacy Policy</Link>
+            <Link to="/terms-and-conditions" className="hover:text-foreground transition">Terms &amp; Conditions</Link>
             <a href="mailto:hello@snapignite.com" className="hover:text-foreground transition">Contact</a>
           </div>
           <p className="text-center text-sm text-muted-foreground">

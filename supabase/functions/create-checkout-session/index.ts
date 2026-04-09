@@ -383,7 +383,15 @@ async function getOrCreateCustomer(stripe: Stripe, supabase: any, user: any): Pr
     .limit(1)
     .maybeSingle();
 
-  if (existingSub?.stripe_customer_id) return existingSub.stripe_customer_id;
+  // Verify stored customer still exists in Stripe (handles env mismatch / deleted customers)
+  if (existingSub?.stripe_customer_id) {
+    try {
+      await stripe.customers.retrieve(existingSub.stripe_customer_id);
+      return existingSub.stripe_customer_id;
+    } catch {
+      console.warn("[checkout] Stored customer ID invalid, will create new:", existingSub.stripe_customer_id);
+    }
+  }
 
   const existingCustomers = await stripe.customers.list({ email: user.email, limit: 1 });
   if (existingCustomers.data.length > 0) return existingCustomers.data[0].id;

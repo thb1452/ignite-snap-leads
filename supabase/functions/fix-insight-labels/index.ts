@@ -9,53 +9,46 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const url = new URL(req.url);
+  const suffix = url.searchParams.get("suffix") || "PASS.";
+  const cleanLabel = suffix.slice(0, -1);
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const BATCH = 500;
   let totalFixed = 0;
 
-  // Target specific patterns: "PASS.", "OPPORTUNITY.", etc.
-  const targets = ["PASS.", "OPPORTUNITY.", "HIGH OPPORTUNITY.", "GOOD OPPORTUNITY.", "WORTH A CALL.", "CALL NOW.", "WATCH.", "MONITOR."];
-  
-  for (const suffix of targets) {
-    const cleanLabel = suffix.slice(0, -1); // Remove the period
-    let round = 0;
-    
-    while (round < 100) {
-      const { data: batch, error } = await supabase
-        .from("properties")
-        .select("id")
-        .like("snap_insight", `%${suffix}`)
-        .limit(BATCH);
+  for (let round = 0; round < 30; round++) {
+    const { data: batch, error } = await supabase
+      .from("properties")
+      .select("id, snap_insight")
+      .like("snap_insight", `%${suffix}`)
+      .limit(200);
 
-      if (error || !batch || batch.length === 0) break;
+    if (error || !batch || batch.length === 0) break;
 
-      const ids = batch.map((p: any) => p.id);
-      
-      // Update each one
-      for (const id of ids) {
-        const { data: prop } = await supabase
-          .from("properties")
-          .select("snap_insight")
-          .eq("id", id)
-          .single();
-        
-        if (prop?.snap_insight) {
-          const fixed = prop.snap_insight.replace(new RegExp(`\\s*${suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`), ` ${cleanLabel}`);
-          await supabase.from("properties").update({ snap_insight: fixed }).eq("id", id);
-        }
-      }
+    const updates = batch.map((p: any) => {
+      const fixed = p.snap_insight.replace(
+        new RegExp(`\\s*${suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`),
+        ` ${cleanLabel}`
+      );
+      return supabase.from("properties").update({ snap_insight: fixed }).eq("id", p.id);
+    });
 
-      totalFixed += ids.length;
-      round++;
-      console.log(`${suffix}: round ${round}, fixed ${ids.length} (total: ${totalFixed})`);
-    }
+    await Promise.all(updates);
+    totalFixed += batch.length;
+    console.log(`Round ${round + 1}: fixed ${batch.length} (total: ${totalFixed})`);
   }
 
-  return new Response(JSON.stringify({ fixed: totalFixed }), {
+  // Count remaining
+  const { count } = await supabase
+    .from("properties")
+    .select("id", { count: "exact", head: true })
+    .like("snap_insight", `%${suffix}`);
+
+  return new Response(JSON.stringify({ suffix, fixed: totalFixed, remaining: count }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });

@@ -546,9 +546,14 @@ async function handleSubscriptionChange(supabase: any, stripe: Stripe, subscript
 
   const updatePayload: Record<string, any> = {
     status,
-    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
     cancel_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
+  };
+
+  if (subscription.current_period_start) {
+    updatePayload.current_period_start = new Date(subscription.current_period_start * 1000).toISOString();
+  }
+  if (subscription.current_period_end) {
+    updatePayload.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
   };
 
   // M-4: sync plan_id when a user upgrades/downgrades mid-subscription

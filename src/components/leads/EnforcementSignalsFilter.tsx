@@ -1,7 +1,5 @@
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/externalClient";
 import { Home, Lock } from "lucide-react";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,11 +16,21 @@ interface EnforcementSignalsFilterProps {
 // Categories that require enterprise tier
 const ENTERPRISE_ONLY_CATEGORIES = ['water_disconnection'];
 
+const SIGNAL_CATEGORIES = [
+  { categoryId: 'exterior', label: 'Exterior Issues' },
+  { categoryId: 'safety', label: 'Safety Issues' },
+  { categoryId: 'structural', label: 'Structural Issues' },
+  { categoryId: 'zoning', label: 'Zoning Issues' },
+  { categoryId: 'vacancy', label: 'Vacancy Issues' },
+  { categoryId: 'utility', label: 'Utility Issues' },
+  { categoryId: 'water_disconnection', label: 'Water Disconnection' },
+] as const;
+
 export function EnforcementSignalsFilter({
   selectedSignal,
   onSignalChange,
-  selectedState,
-  selectedCity,
+  selectedState: _selectedState,
+  selectedCity: _selectedCity,
 }: EnforcementSignalsFilterProps) {
   const { hasFeature } = useFeatureAccess();
   const { isAdmin } = useAuth();
@@ -30,34 +38,6 @@ export function EnforcementSignalsFilter({
   const { toast } = useToast();
 
   const hasEscalationAlerts = isAdmin || hasFeature('escalation_alerts');
-
-  // Fetch property counts by category using the new RPC
-  // This returns accurate counts of unique properties per category
-  const { data: categories = [], isLoading } = useQuery({
-    queryKey: ["category-property-counts", selectedState, selectedCity],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("fn_category_property_counts", {
-        p_state: selectedState || null,
-        p_city: selectedCity || null,
-      });
-
-      if (error) {
-        console.error("[EnforcementSignalsFilter] RPC error:", error);
-        throw error;
-      }
-
-      // RPC returns category_id, category_label, property_count
-      const result = ((data || []) as unknown as Array<{ category_id: string; category_label: string; property_count: number }>).map((row) => ({
-        categoryId: row.category_id,
-        label: row.category_label,
-        propertyCount: row.property_count,
-      }));
-      
-      console.log("[EnforcementSignalsFilter] Categories:", result.length, result);
-      return result;
-    },
-    staleTime: 60000,
-  });
 
   const handleSignalChange = (value: string) => {
     if (value === "all") {
@@ -89,11 +69,11 @@ export function EnforcementSignalsFilter({
       onValueChange={handleSignalChange}
     >
       <SelectTrigger className="w-[120px] h-7 text-xs">
-        <SelectValue placeholder={isLoading ? "..." : "Issue"} />
+        <SelectValue placeholder="Issue" />
       </SelectTrigger>
       <SelectContent className="z-[9999]">
         <SelectItem value="all">All issues</SelectItem>
-        {categories.map(({ categoryId, label }) => {
+        {SIGNAL_CATEGORIES.map(({ categoryId, label }) => {
           const locked = isLockedCategory(categoryId);
           return (
             <SelectItem 

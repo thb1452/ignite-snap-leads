@@ -3823,6 +3823,13 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_duplicate_property_groups: {
+        Args: { batch_limit?: number }
+        Returns: {
+          loser_ids: string[]
+          winner_id: string
+        }[]
+      }
       get_error_logs_recent: {
         Args: never
         Returns: {

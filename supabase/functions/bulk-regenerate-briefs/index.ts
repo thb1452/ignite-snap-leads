@@ -202,6 +202,167 @@ async function generateViaAzure(prop: Record<string, any>, azureConfig: AzureCon
   }
 }
 
+const LABEL_REGEX = /(CALL NOW|WORTH A CALL|OPPORTUNITY|PASS)\s*\.?\s*$/;
+const LEGACY_LABEL_MAP: Record<string, string> = {
+  "WATCH": "OPPORTUNITY",
+  "MONITOR": "OPPORTUNITY",
+  "LOW PRIORITY": "OPPORTUNITY",
+  "WATCH/PASS": "OPPORTUNITY",
+  "GOOD OPPORTUNITY": "WORTH A CALL",
+  "HIGH OPPORTUNITY": "CALL NOW",
+};
+
+async function handleFixLabels(
+  supabase: ReturnType<typeof createClient>,
+  supabaseUrl: string,
+  serviceKey: string,
+  totalProcessed: number,
+  autoResume: boolean,
+  headers: Record<string, string>,
+): Promise<Response> {
+  const FIX_BATCH = 500;
+
+  // Phase 1: Find properties with legacy labels (WATCH, MONITOR, etc.)
+  const legacyLabels = Object.keys(LEGACY_LABEL_MAP);
+  const legacyPattern = legacyLabels.map(l => l.replace("/", "\\/")).join("|");
+
+  // Use RPC or direct query to find and fix legacy labels
+  // Fetch properties that have legacy labels in snap_insight
+  const { data: legacyProps, error: legacyErr } = await supabase
+    .from("properties")
+    .select("id, snap_insight")
+    .not("snap_insight", "is", null)
+    .or(legacyLabels.map(l => `snap_insight.ilike.%${l}`).join(","))
+    .range(0, FIX_BATCH - 1);
+
+  let fixedCount = 0;
+
+  if (!legacyErr && legacyProps && legacyProps.length > 0) {
+    for (const prop of legacyProps) {
+      const insight = prop.snap_insight as string;
+      let newInsight = insight;
+
+      for (const [legacy, replacement] of Object.entries(LEGACY_LABEL_MAP)) {
+        const regex = new RegExp(`\\n\\n${legacy.replace("/", "\\/")}\\s*\\.?\\s*$`, "i");
+        if (regex.test(newInsight)) {
+          newInsight = newInsight.replace(regex, `\n\n${replacement}`);
+          break;
+        }
+        // Also check if it ends with the label without double newline
+        const endRegex = new RegExp(`\\s+${legacy.replace("/", "\\/")}\\s*\\.?\\s*$`, "i");
+        if (endRegex.test(newInsight)) {
+          newInsight = newInsight.replace(endRegex, `\n\n${replacement}`);
+          break;
+        }
+      }
+
+      // Also strip trailing periods from valid labels
+      newInsight = newInsight.replace(/\n\n(CALL NOW|WORTH A CALL|OPPORTUNITY|PASS)\.\s*$/, "\n\n$1");
+
+      if (newInsight !== insight) {
+        const { error } = await supabase
+          .from("properties")
+          .update({ snap_insight: newInsight })
+          .eq("id", prop.id);
+        if (!error) fixedCount++;
+      }
+    }
+
+    const newTotal = totalProcessed + fixedCount;
+    console.log(`[bulk-regen] fix-labels: normalized ${fixedCount} legacy labels. Total: ${newTotal}`);
+
+    if (autoResume && legacyProps.length === FIX_BATCH) {
+      // More legacy labels to fix — continue
+      const continueTask = async () => {
+        await new Promise(r => setTimeout(r, 500));
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/bulk-regenerate-briefs`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+            body: JSON.stringify({ autoResume: true, totalProcessed: newTotal, version: REGEN_VERSION, mode: "fix-labels" }),
+          });
+        } catch (err) {
+          console.error("[bulk-regen] fix-labels resume failed:", err);
+        }
+      };
+      const runtime = (globalThis as any).EdgeRuntime;
+      if (runtime?.waitUntil) runtime.waitUntil(continueTask()); else continueTask().catch(console.error);
+
+      return new Response(JSON.stringify({ success: true, fixedCount, totalProcessed: newTotal, hasMore: true, phase: "legacy-labels" }), { headers });
+    }
+  }
+
+  // Phase 2: Find properties with snap_insight but no valid action label → regenerate with rule-based
+  const { data: missingLabelProps, error: mlErr } = await supabase
+    .from("properties")
+    .select("id, address, city, state, zip, county, snap_score, snap_insight, distress_signals, violation_types, open_violations, total_violations, enforcement_type, escalated, repeat_offender, multi_department, avg_days_open, oldest_violation_date, newest_violation_date, opportunity_class")
+    .not("snap_insight", "is", null)
+    .neq("snap_insight", "")
+    .not("snap_insight", "ilike", "%CALL NOW%")
+    .not("snap_insight", "ilike", "%WORTH A CALL%")
+    .not("snap_insight", "ilike", "%OPPORTUNITY%")
+    .not("snap_insight", "ilike", "%PASS%")
+    .order("snap_score", { ascending: false, nullsFirst: false })
+    .range(0, FIX_BATCH - 1);
+
+  if (mlErr) {
+    console.error("[bulk-regen] fix-labels fetch error:", mlErr);
+    return new Response(JSON.stringify({ error: mlErr.message }), { status: 500, headers });
+  }
+
+  if (!missingLabelProps || missingLabelProps.length === 0) {
+    const finalTotal = totalProcessed + fixedCount;
+    console.log(`[bulk-regen] ✅ fix-labels DONE! Total processed: ${finalTotal}`);
+    return new Response(JSON.stringify({ success: true, done: true, totalProcessed: finalTotal, message: "All labels fixed!" }), { headers });
+  }
+
+  let regenCount = 0;
+  for (const prop of missingLabelProps) {
+    const brief = generateRuleBrief(prop);
+    const briefJson = {
+      brief_text: brief,
+      generated_at: new Date().toISOString(),
+      model: "deterministic-v5",
+      version: REGEN_VERSION + "-label-fix",
+    };
+    const { error } = await supabase
+      .from("properties")
+      .update({ snap_insight: brief, investor_insight_brief: briefJson, last_analyzed_at: new Date().toISOString() })
+      .eq("id", prop.id);
+    if (!error) regenCount++;
+  }
+
+  const newTotal = totalProcessed + fixedCount + regenCount;
+  console.log(`[bulk-regen] fix-labels: regenerated ${regenCount} missing-label briefs. Total: ${newTotal}`);
+
+  if (autoResume && missingLabelProps.length === FIX_BATCH) {
+    const continueTask = async () => {
+      await new Promise(r => setTimeout(r, 500));
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/bulk-regenerate-briefs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+          body: JSON.stringify({ autoResume: true, totalProcessed: newTotal, version: REGEN_VERSION, mode: "fix-labels" }),
+        });
+      } catch (err) {
+        console.error("[bulk-regen] fix-labels resume failed:", err);
+      }
+    };
+    const runtime = (globalThis as any).EdgeRuntime;
+    if (runtime?.waitUntil) runtime.waitUntil(continueTask()); else continueTask().catch(console.error);
+  }
+
+  return new Response(JSON.stringify({
+    success: true,
+    fixedCount,
+    regenCount,
+    totalProcessed: newTotal,
+    hasMore: missingLabelProps.length === FIX_BATCH,
+    phase: "missing-labels",
+    autoResuming: autoResume,
+  }), { headers });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
@@ -225,6 +386,12 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // ── MODE: fix-labels ── Normalize legacy labels & regenerate missing-label briefs
+    if (mode === "fix-labels") {
+      return await handleFixLabels(supabase, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, totalProcessed, autoResume, headers);
+    }
+
     const batchSize = mode === "ai" ? BATCH_SIZE_AI : BATCH_SIZE_RULE;
 
     // Target properties with rule-based briefs (deterministic-v5) for AI upgrade

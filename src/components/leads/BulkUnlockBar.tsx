@@ -159,24 +159,21 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked, onGetCredi
   const progressPercent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9998] bg-background border rounded-xl shadow-2xl px-5 py-3 flex flex-col gap-2 max-w-lg w-[90vw]">
-      <div className="flex items-center gap-4">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9998] bg-background border border-border rounded-xl shadow-2xl px-4 py-2.5 max-w-lg w-[90vw]">
+      <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium">
+          <p className="text-sm font-medium truncate">
             {selectedIds.length.toLocaleString()} selected · <span className="text-muted-foreground">{estimatedLocked.toLocaleString()} locked</span>
           </p>
-          {knownUnlocked > 0 && (
-            <p className="text-xs text-muted-foreground">{knownUnlocked.toLocaleString()} already unlocked</p>
-          )}
           {!canUnlockWithBalance && !isUnlocking && (
-            <p className="text-xs text-orange-600">Not enough credits — purchase more to unlock</p>
+            <p className="text-xs text-orange-600 truncate">Not enough credits</p>
           )}
         </div>
 
         <Button
           disabled={isUnlocking}
           size="sm"
-          className="gap-2 shrink-0"
+          className="gap-1.5 shrink-0 h-9"
           onClick={canUnlockWithBalance ? handleUnlockAll : () => onGetCredits?.(estimatedLocked)}
         >
           {isUnlocking ? (
@@ -185,17 +182,17 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked, onGetCredi
             <Unlock className="h-4 w-4" />
           )}
           {canUnlockWithBalance
-            ? `Unlock ${estimatedLocked.toLocaleString()} leads`
-            : `Get credits to unlock ${estimatedLocked.toLocaleString()}`}
+            ? `Unlock ${estimatedLocked.toLocaleString()}`
+            : `Get credits`}
         </Button>
       </div>
 
       {/* Progress bar during bulk unlock */}
       {isUnlocking && progress.total > 0 && (
-        <div className="space-y-1">
-          <Progress value={progressPercent} className="h-2" />
+        <div className="mt-2 space-y-1">
+          <Progress value={progressPercent} className="h-1.5" />
           <p className="text-xs text-muted-foreground text-center">
-            Unlocking… {progress.done.toLocaleString()} / {progress.total.toLocaleString()} ({progressPercent}%)
+            {progress.done.toLocaleString()} / {progress.total.toLocaleString()} ({progressPercent}%)
           </p>
         </div>
       )}

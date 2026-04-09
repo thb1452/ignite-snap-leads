@@ -1295,7 +1295,7 @@ function Leads() {
             {/* Spacer */}
             <div className="flex-1" />
 
-            <div className="hidden md:flex items-center gap-3 min-w-0 overflow-hidden">
+            <div className="hidden lg:flex items-center gap-3 min-w-0 overflow-hidden">
               <PersonalStatsBar />
               <FreshnessIndicator />
             </div>

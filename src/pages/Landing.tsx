@@ -438,7 +438,14 @@ export default function Landing() {
                   {plan.features.map((f, j) => (
                     <li key={j} className="flex items-start gap-2 text-sm">
                       <Check className="w-4 h-4 text-landing-accent shrink-0 mt-0.5" />
-                      <span>{f}</span>
+                      <span>
+                        {f}
+                        {f === "Pressure Level™ filters" && (
+                          <span className="block text-xs text-landing-text-muted mt-0.5">
+                            Filter by active enforcement pressure from multiple departments
+                          </span>
+                        )}
+                      </span>
                     </li>
                   ))}
                 </ul>

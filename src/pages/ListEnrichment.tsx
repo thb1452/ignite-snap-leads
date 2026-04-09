@@ -475,8 +475,13 @@ export function ListEnrichment() {
             <Sparkles className="h-6 w-6 text-brand" />
             <h1 className="text-2xl font-semibold text-ink-900">Scan</h1>
           </div>
-          <p className="text-sm text-ink-500">
-            Upload a property list (CSV) and we'll enrich it with violation data and SnapScore insights.
+          <p className="text-sm text-ink-500 mb-2">
+            Upload a property list (CSV) and we'll cross-reference every address against our municipal enforcement database.
+          </p>
+          <p className="text-xs text-ink-400 leading-relaxed max-w-2xl">
+            Each matched property gets a <strong className="text-ink-600">SnapScore</strong> (0–100 distress ranking), 
+            an <strong className="text-ink-600">AI investor brief</strong> with an action label (CALL NOW / WORTH A CALL / OPPORTUNITY / PASS), 
+            and full violation history — so you can instantly prioritize which leads to pursue first.
           </p>
 
           {/* Credits badge */}

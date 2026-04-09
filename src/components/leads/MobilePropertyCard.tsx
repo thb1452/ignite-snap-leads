@@ -52,7 +52,6 @@ export const MobilePropertyCard = memo(function MobilePropertyCard({
   isUnlocked = true,
   onUnlock,
 }: MobilePropertyCardProps) {
-  const { data: contacts } = usePropertyContacts(isUnlocked ? property.id : "");
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 

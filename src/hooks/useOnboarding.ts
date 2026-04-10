@@ -97,6 +97,14 @@ export function useOnboarding() {
     setShowOnboarding(false);
   }, [markCompleteMutation]);
 
+  const handleSetShowOnboarding = useCallback((show: boolean) => {
+    setShowOnboarding(show);
+    if (!show) {
+      dismissedRef.current = true;
+      markCompleteMutation.mutate();
+    }
+  }, [markCompleteMutation]);
+
   const resetOnboarding = useCallback(async () => {
     dismissedRef.current = false;
     if (storageKey) {
@@ -117,7 +125,7 @@ export function useOnboarding() {
   return {
     hasCompletedOnboarding: onboardingCompleted,
     showOnboarding,
-    setShowOnboarding,
+    setShowOnboarding: handleSetShowOnboarding,
     markOnboardingComplete,
     resetOnboarding,
     triggerOnboarding,

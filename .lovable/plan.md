@@ -1,32 +1,23 @@
 
 
-# Plan: "Request Your Market" Feature
+## Fix: Onboarding Modal Appearing Twice
 
-## What We're Building
-A new "Request a Market" section on the Settings page where users can submit city/state requests for data coverage expansion. Requests are stored in a database table and users see their past requests with status updates.
+**Root Cause**
 
-## Steps
+The `OnboardingFlow` dialog passes `onOpenChange={setShowOnboarding}` directly. When a user closes the dialog via the X button or clicking outside, it only sets the state to `false` — it never calls `markOnboardingComplete()`, which means:
+1. `dismissedRef` stays `false`
+2. `onboarding_completed` is never saved
+3. The `useEffect` timer in `useOnboarding` re-fires and opens the modal again
 
-### 1. Create `market_requests` database table
-- Columns: `id` (uuid PK), `user_id` (uuid, not null), `market_name` (text, not null), `status` (text, default `'pending'`), `created_at` (timestamptz, default now()), `notified_at` (timestamptz, nullable)
-- RLS policies: users can INSERT and SELECT their own rows; admins get full access
+**Fix**
 
-### 2. Create `MarketRequestSection` component
-- New file: `src/components/settings/MarketRequestSection.tsx`
-- A Card matching the existing settings design with:
-  - A text input for "City, State"
-  - A submit button that inserts directly into `market_requests` via Supabase client
-  - A success toast: "Request received! We'll email you when [market] is available."
-  - Below the form, a list of the user's past requests showing market name, status badge, and date
+In `useOnboarding.ts`, wrap `setShowOnboarding` so that any call to close the modal also sets `dismissedRef = true` and triggers the completion mutation. This way, regardless of HOW the dialog is closed (Skip, Get Started, X button, click outside), the onboarding is marked complete.
 
-### 3. Add section to Settings page
-- Import and render `MarketRequestSection` between `PrivacySection` and `HelpSection`
+**Changes**
 
-### 4. Add contextual prompt on Leads page (optional secondary touchpoint)
-- When search returns zero results, show a "Don't see your market? Request it" link pointing to `/settings?tab=market-request`
+1. **`src/hooks/useOnboarding.ts`** — Replace the raw `setShowOnboarding` export with a wrapper function:
+   - When called with `false`, also set `dismissedRef = true` and call the mutation
+   - This ensures every dismissal path marks onboarding complete
 
-## Technical Details
-- No edge function needed; the insert goes directly via the Supabase JS client with RLS protecting writes to `user_id = auth.uid()`
-- The admin console already exists for managing data; admins can query and update `market_requests.status` directly
-- Table types will auto-generate after migration
+No other files need changes.
 

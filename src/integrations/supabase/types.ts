@@ -1151,6 +1151,33 @@ export type Database = {
           },
         ]
       }
+      market_requests: {
+        Row: {
+          created_at: string
+          id: string
+          market_name: string
+          notified_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          market_name: string
+          notified_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          market_name?: string
+          notified_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       marketing_leads: {
         Row: {
           campaign_id: string | null

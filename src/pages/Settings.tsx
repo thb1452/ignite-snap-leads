@@ -175,10 +175,10 @@ export function Settings() {
             propertiesCount={propertiesCount}
           />
         </div>
+        <MarketRequestSection />
         <NotificationsSection />
         <AccountDetailsSection />
         <PrivacySection />
-        <MarketRequestSection />
         <HelpSection />
       </div>
     </div>

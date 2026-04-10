@@ -9,6 +9,7 @@ import { NotificationsSection } from '@/components/settings/NotificationsSection
 import { AccountDetailsSection } from '@/components/settings/AccountDetailsSection';
 import { PrivacySection } from '@/components/settings/PrivacySection';
 import { HelpSection } from '@/components/settings/HelpSection';
+import { MarketRequestSection } from '@/components/settings/MarketRequestSection';
 import { clearPendingStripeCheckout, getPendingStripeCheckout } from '@/utils/pendingStripeCheckout';
 
 export function Settings() {
@@ -177,6 +178,7 @@ export function Settings() {
         <NotificationsSection />
         <AccountDetailsSection />
         <PrivacySection />
+        <MarketRequestSection />
         <HelpSection />
       </div>
     </div>

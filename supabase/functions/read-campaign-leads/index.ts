@@ -12,16 +12,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Authenticate: require the service role key as a shared secret
+    // Authenticate: require the custom pipeline API key
     const internalSecret = req.headers.get("x-internal-secret");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const pipelineKey = Deno.env.get("PIPELINE_API_KEY");
 
-    if (!internalSecret || internalSecret !== serviceRoleKey) {
+    if (!pipelineKey || !internalSecret || internalSecret !== pipelineKey) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const url = new URL(req.url);
     const status = url.searchParams.get("status") || "queued";

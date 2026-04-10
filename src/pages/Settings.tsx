@@ -178,6 +178,7 @@ export function Settings() {
         <NotificationsSection />
         <AccountDetailsSection />
         <PrivacySection />
+        <MarketRequestSection />
         <HelpSection />
       </div>
     </div>

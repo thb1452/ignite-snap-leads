@@ -58,6 +58,8 @@ Deno.serve(async (req) => {
       .range(offset, offset + limit - 1);
     if (status) dataQuery = dataQuery.eq("status", status);
 
+    const { data, error } = await dataQuery;
+
     if (error) {
       throw new Error(`Query failed: ${error.message}`);
     }
@@ -67,7 +69,7 @@ Deno.serve(async (req) => {
         total: count ?? 0,
         offset,
         limit,
-        status,
+        status: status ?? "all",
         rows: data ?? [],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

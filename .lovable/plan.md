@@ -1,23 +1,25 @@
 
 
-## Fix: Onboarding Modal Appearing Twice
+## Add 500 Credits to Melissa Allen's Account
 
-**Root Cause**
+**User**: Melissa Allen (`successizunlimited@gmail.com`, ID: `b8706600-5221-4a58-8f5d-1abd24582964`)
 
-The `OnboardingFlow` dialog passes `onOpenChange={setShowOnboarding}` directly. When a user closes the dialog via the X button or clicking outside, it only sets the state to `false` — it never calls `markOnboardingComplete()`, which means:
-1. `dismissedRef` stays `false`
-2. `onboarding_completed` is never saved
-3. The `useEffect` timer in `useOnboarding` re-fires and opens the modal again
+### What we'll do
 
-**Fix**
+Run a single database migration to insert a row into the `credit_ledger` table:
 
-In `useOnboarding.ts`, wrap `setShowOnboarding` so that any call to close the modal also sets `dismissedRef = true` and triggers the completion mutation. This way, regardless of HOW the dialog is closed (Skip, Get Started, X button, click outside), the onboarding is marked complete.
+```sql
+INSERT INTO credit_ledger (user_id, delta, reason, meta)
+VALUES (
+  'b8706600-5221-4a58-8f5d-1abd24582964',
+  500,
+  'admin_grant',
+  '{"note": "Manual admin grant of 500 credits", "granted_by": "admin"}'
+);
+```
 
-**Changes**
+This adds 500 credits to her balance immediately. The `v_user_credits` view sums all ledger deltas, so her balance will reflect this right away — no other changes needed.
 
-1. **`src/hooks/useOnboarding.ts`** — Replace the raw `setShowOnboarding` export with a wrapper function:
-   - When called with `false`, also set `dismissedRef = true` and call the mutation
-   - This ensures every dismissal path marks onboarding complete
-
-No other files need changes.
+### Files changed
+None — this is a database-only operation via migration.
 

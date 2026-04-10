@@ -164,6 +164,78 @@ export type Database = {
           },
         ]
       }
+      campaign_leads: {
+        Row: {
+          address: string
+          assigned_to: string | null
+          city: string
+          contacted_at: string | null
+          created_at: string
+          enforcement_type: string | null
+          id: string
+          notes: string | null
+          owner_name: string | null
+          phone: string | null
+          property_id: string | null
+          snap_score: number | null
+          state: string
+          status: string
+          updated_at: string
+          zip: string | null
+        }
+        Insert: {
+          address: string
+          assigned_to?: string | null
+          city: string
+          contacted_at?: string | null
+          created_at?: string
+          enforcement_type?: string | null
+          id?: string
+          notes?: string | null
+          owner_name?: string | null
+          phone?: string | null
+          property_id?: string | null
+          snap_score?: number | null
+          state: string
+          status?: string
+          updated_at?: string
+          zip?: string | null
+        }
+        Update: {
+          address?: string
+          assigned_to?: string | null
+          city?: string
+          contacted_at?: string | null
+          created_at?: string
+          enforcement_type?: string | null
+          id?: string
+          notes?: string | null
+          owner_name?: string | null
+          phone?: string | null
+          property_id?: string | null
+          snap_score?: number | null
+          state?: string
+          status?: string
+          updated_at?: string
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_leads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_leads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       census_places: {
         Row: {
           id: string

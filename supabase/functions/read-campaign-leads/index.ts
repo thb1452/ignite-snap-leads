@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const url = new URL(req.url);
-    const status = url.searchParams.get("status") || "queued";
+    const status = url.searchParams.get("status"); // optional — null means all
     const limitParam = url.searchParams.get("limit");
     const offsetParam = url.searchParams.get("offset");
     const limit = Math.min(parseInt(limitParam || "100", 10), 1000);
@@ -39,22 +39,26 @@ Deno.serve(async (req) => {
     );
 
     // Get total count
-    const { count, error: countError } = await supabase
+    let countQuery = supabase
       .from("campaign_leads")
-      .select("*", { count: "exact", head: true })
-      .eq("status", status);
+      .select("*", { count: "exact", head: true });
+    if (status) countQuery = countQuery.eq("status", status);
+
+    const { count, error: countError } = await countQuery;
 
     if (countError) {
       throw new Error(`Count query failed: ${countError.message}`);
     }
 
     // Fetch rows
-    const { data, error } = await supabase
+    let dataQuery = supabase
       .from("campaign_leads")
       .select("*")
-      .eq("status", status)
       .order("created_at", { ascending: true })
       .range(offset, offset + limit - 1);
+    if (status) dataQuery = dataQuery.eq("status", status);
+
+    const { data, error } = await dataQuery;
 
     if (error) {
       throw new Error(`Query failed: ${error.message}`);
@@ -65,7 +69,7 @@ Deno.serve(async (req) => {
         total: count ?? 0,
         offset,
         limit,
-        status,
+        status: status ?? "all",
         rows: data ?? [],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

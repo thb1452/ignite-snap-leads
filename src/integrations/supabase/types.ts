@@ -176,10 +176,13 @@ export type Database = {
           notes: string | null
           owner_name: string | null
           phone: string | null
+          phone_type: string | null
           property_id: string | null
           snap_score: number | null
           state: string
           status: string
+          trace_attempted_at: string | null
+          trace_source: string | null
           updated_at: string
           zip: string | null
         }
@@ -194,10 +197,13 @@ export type Database = {
           notes?: string | null
           owner_name?: string | null
           phone?: string | null
+          phone_type?: string | null
           property_id?: string | null
           snap_score?: number | null
           state: string
           status?: string
+          trace_attempted_at?: string | null
+          trace_source?: string | null
           updated_at?: string
           zip?: string | null
         }
@@ -212,10 +218,13 @@ export type Database = {
           notes?: string | null
           owner_name?: string | null
           phone?: string | null
+          phone_type?: string | null
           property_id?: string | null
           snap_score?: number | null
           state?: string
           status?: string
+          trace_attempted_at?: string | null
+          trace_source?: string | null
           updated_at?: string
           zip?: string | null
         }

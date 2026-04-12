@@ -866,9 +866,7 @@ function Leads() {
     : (hasActiveSubscription ? (getRemainingCount("exports") ?? 0) : 0)
       + freeUnlocksRemaining
       + bulkCreditBalance;
-  // If all selected properties are already unlocked, exporting them is free — don't gate.
-  const allSelectedUnlocked = selectedIds.length > 0 && selectedIds.every((id) => unlockedSet.has(id));
-  const hasNoCredits = !isElitePlan && totalAvailableCredits <= 0 && !allSelectedUnlocked;
+  // NOTE: allSelectedUnlocked and hasNoCredits are computed after unlockedSet is initialised (see below line ~1132)
 
   const handleExportCSV = async () => {
     if (selectedIds.length === 0) {

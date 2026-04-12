@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -10,15 +10,19 @@ export function useOnboarding() {
   const { user } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const dismissedRef = useRef(false);
+  const queryClient = useQueryClient();
 
   // User-specific storage key
   const storageKey = user?.id ? getOnboardingStorageKey(user.id) : null;
+  const onboardingQueryKey = ["onboarding-profile", user?.id] as const;
 
   // Fetch onboarding status from database
   const { data: profileData, isLoading } = useQuery({
-    queryKey: ["onboarding-profile", user?.id],
+    queryKey: onboardingQueryKey,
     enabled: !!user?.id,
     queryFn: async () => {
+      const localCompleted = storageKey ? localStorage.getItem(storageKey) === 'true' : false;
+
       const { data, error } = await supabase
         .from("user_profiles")
         .select("onboarding_completed")
@@ -27,9 +31,18 @@ export function useOnboarding() {
 
       if (error) {
         console.error("[useOnboarding] Error fetching status:", error);
-        // On error, default to showing onboarding for new users
-        const localCompleted = storageKey ? localStorage.getItem(storageKey) === 'true' : false;
         return { onboarding_completed: localCompleted };
+      }
+
+      if (localCompleted && !data?.onboarding_completed) {
+        await supabase
+          .from("user_profiles")
+          .upsert({
+            user_id: user!.id,
+            onboarding_completed: true,
+          }, { onConflict: 'user_id' });
+
+        return { onboarding_completed: true };
       }
 
       // Sync localStorage for this user
@@ -37,17 +50,7 @@ export function useOnboarding() {
         localStorage.setItem(storageKey, 'true');
       }
 
-      // Sync localStorage fallback for existing users
-      const localCompleted = storageKey ? localStorage.getItem(storageKey) === 'true' : false;
-      if (localCompleted && data && !data.onboarding_completed) {
-        await supabase
-          .from("user_profiles")
-          .update({ onboarding_completed: true })
-          .eq("user_id", user!.id);
-        return { ...data, onboarding_completed: true };
-      }
-
-      return data || { onboarding_completed: false };
+      return data ?? { onboarding_completed: localCompleted };
     },
     staleTime: Infinity, // onboarding_completed never changes back to false after being set
   });
@@ -58,13 +61,17 @@ export function useOnboarding() {
 
   // Mutation to mark onboarding complete
   const markCompleteMutation = useMutation({
-    mutationFn: async () => {
-      if (!user?.id) return;
-
-      // Set localStorage FIRST to prevent race window
+    onMutate: () => {
       if (storageKey) {
         localStorage.setItem(storageKey, 'true');
       }
+
+      if (user?.id) {
+        queryClient.setQueryData(onboardingQueryKey, { onboarding_completed: true });
+      }
+    },
+    mutationFn: async () => {
+      if (!user?.id) return;
 
       const { error } = await supabase
         .from("user_profiles")
@@ -93,13 +100,17 @@ export function useOnboarding() {
 
   const markOnboardingComplete = useCallback(() => {
     dismissedRef.current = true;
-    markCompleteMutation.mutate();
     setShowOnboarding(false);
+    markCompleteMutation.mutate();
   }, [markCompleteMutation]);
 
   const handleSetShowOnboarding = useCallback((show: boolean) => {
     setShowOnboarding(show);
     if (!show) {
+      if (dismissedRef.current) {
+        return;
+      }
+
       dismissedRef.current = true;
       markCompleteMutation.mutate();
     }
@@ -110,6 +121,11 @@ export function useOnboarding() {
     if (storageKey) {
       localStorage.removeItem(storageKey);
     }
+
+    if (user?.id) {
+      queryClient.setQueryData(onboardingQueryKey, { onboarding_completed: false });
+    }
+
     if (user?.id) {
       await supabase
         .from("user_profiles")

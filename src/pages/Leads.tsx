@@ -891,7 +891,10 @@ function Leads() {
     const propertyCount = selectedIds.length;
 
     // === TRIAL EXPORT GATING ===
-    if (isOnTrial || hasTrialExpired) {
+    // If all selected properties are already unlocked, skip trial gating — re-exporting is free
+    const allUnlocked = selectedIds.every((id) => unlockedSet.has(id));
+
+    if ((isOnTrial || hasTrialExpired) && !allUnlocked) {
       // Trial expired
       if (hasTrialExpired) {
         setTrialGateType("expired");

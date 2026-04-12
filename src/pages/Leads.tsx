@@ -1125,6 +1125,9 @@ function Leads() {
     return ids;
   }, [propertyIds, selectedPropertyId]);
   const { unlockedSet, confirmedUnlockedSet, invalidate: invalidateUnlocks } = useUnlockedProperties(unlockCheckIds);
+  // If all selected properties are already unlocked, exporting them is free — don't gate.
+  const allSelectedUnlocked = selectedIds.length > 0 && selectedIds.every((id) => unlockedSet.has(id));
+  const hasNoCredits = !isElitePlan && totalAvailableCredits <= 0 && !allSelectedUnlocked;
   const { data: violationsData = [], error: violationsError } = useQuery({
     queryKey: ["violations-for-properties", propertyIds],
     enabled: propertyIds.length > 0,

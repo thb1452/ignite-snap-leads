@@ -104,3 +104,9 @@ verify_jwt = true
 
 [functions.update-campaign-lead]
 verify_jwt = false
+
+[functions.read-properties]
+verify_jwt = false
+
+[functions.read-campaign-leads]
+verify_jwt = false

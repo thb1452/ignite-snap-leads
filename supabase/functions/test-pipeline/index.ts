@@ -19,23 +19,31 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  // Auth — require a logged-in user
+  // Auth — accept either Bearer JWT or x-internal-secret
+  const pipelineKey = Deno.env.get("PIPELINE_API_KEY");
+  const internalSecret = req.headers.get("x-internal-secret");
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return json({ error: "Unauthorized — Bearer token required" }, 401);
+
+  let authed = false;
+
+  if (pipelineKey && internalSecret && internalSecret === pipelineKey) {
+    authed = true;
+  } else if (authHeader?.startsWith("Bearer ")) {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (!claimsErr && claimsData?.claims) {
+      authed = true;
+    }
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-
-  const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(
-    authHeader.replace("Bearer ", ""),
-  );
-  if (claimsErr || !claimsData?.claims) {
-    return json({ error: "Invalid token" }, 401);
+  if (!authed) {
+    return json({ error: "Unauthorized" }, 401);
   }
 
   try {

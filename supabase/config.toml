@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.read-campaign-leads]
 verify_jwt = false
+
+[functions.pipeline-runner]
+verify_jwt = false

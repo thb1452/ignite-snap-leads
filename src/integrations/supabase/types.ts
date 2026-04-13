@@ -1469,6 +1469,51 @@ export type Database = {
         }
         Relationships: []
       }
+      pipeline_progress: {
+        Row: {
+          action: string
+          city: string | null
+          county: string | null
+          error: string | null
+          last_offset: number
+          matched: number
+          processed: number
+          run_key: string
+          state: string | null
+          status: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          city?: string | null
+          county?: string | null
+          error?: string | null
+          last_offset?: number
+          matched?: number
+          processed?: number
+          run_key: string
+          state?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          city?: string | null
+          county?: string | null
+          error?: string | null
+          last_offset?: number
+          matched?: number
+          processed?: number
+          run_key?: string
+          state?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       press_accounts: {
         Row: {
           created_at: string

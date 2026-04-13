@@ -1,11 +1,9 @@
 /**
- * test-pipeline — admin-only harness that triggers pipeline-runner
- * server-side, keeping PIPELINE_API_KEY off the wire.
+ * test-pipeline — server-side harness that triggers pipeline-runner.
+ * PIPELINE_API_KEY stays in env; never leaves the server.
  *
  * POST body (optional): { action, state, county, city, limit }
- * Auth: Bearer JWT → must be authenticated user
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 
 Deno.serve(async (req) => {
@@ -18,33 +16,6 @@ Deno.serve(async (req) => {
       status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
-  // Auth — accept either Bearer JWT or x-internal-secret
-  const pipelineKey = Deno.env.get("PIPELINE_API_KEY");
-  const internalSecret = req.headers.get("x-internal-secret");
-  const authHeader = req.headers.get("Authorization");
-
-  let authed = false;
-
-  if (pipelineKey && internalSecret && internalSecret === pipelineKey) {
-    authed = true;
-  } else if (authHeader?.startsWith("Bearer ")) {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(
-      authHeader.replace("Bearer ", ""),
-    );
-    if (!claimsErr && claimsData?.claims) {
-      authed = true;
-    }
-  }
-
-  if (!authed) {
-    return json({ error: "Unauthorized" }, 401);
-  }
 
   try {
     const body = await req.json().catch(() => ({}));

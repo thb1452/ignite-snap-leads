@@ -4,6 +4,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FreshnessIndicator } from "@/components/leads/FreshnessIndicator";
 
+const CATEGORY_LABELS: Record<string, string> = {
+  exterior: 'Exterior Issues',
+  safety: 'Safety Issues',
+  structural: 'Structural Issues',
+  zoning: 'Zoning Issues',
+  vacancy: 'Vacancy Issues',
+  utility: 'Utility Issues',
+  water_disconnection: 'Water Disconnection',
+};
+
 interface FilterBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
@@ -72,7 +82,7 @@ export function FilterBar({
         {/* Signal badge */}
         {selectedSignal && (
           <Badge variant="outline">
-            {selectedSignal}
+            {CATEGORY_LABELS[selectedSignal] ?? selectedSignal}
           </Badge>
         )}
         

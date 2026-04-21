@@ -60,6 +60,7 @@ const AdminMigration = lazy(() => import("./pages/AdminMigration"));
 const AuditReport = lazy(() => import("./pages/AuditReport"));
 const AdminMonitoring = lazy(() => import("./pages/AdminMonitoring"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminEnrichProperties = lazy(() => import("./pages/AdminEnrichProperties"));
 
 const FoiaLogin = lazy(() => import("./pages/FoiaLogin"));
 const FoiaAdminDashboard = lazy(() => import("./pages/foia/admin/FoiaAdminDashboard"));
@@ -133,6 +134,7 @@ const App = () => (
                 <Route path="/audit-report" element={<RoleProtectedRoute allowedRoles={["admin"]}><AuditReport /></RoleProtectedRoute>} />
                 <Route path="/admin/monitoring" element={<RoleProtectedRoute allowedRoles={["admin"]}><AdminMonitoring /></RoleProtectedRoute>} />
                 <Route path="/admin" element={<RoleProtectedRoute allowedRoles={["admin"]}><AdminDashboard /></RoleProtectedRoute>} />
+                <Route path="/admin/enrich-properties" element={<RoleProtectedRoute allowedRoles={["admin"]}><AdminEnrichProperties /></RoleProtectedRoute>} />
                 <Route path="/how-snap-works" element={<ProtectedRoute><HowSnapWorks /></ProtectedRoute>} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/privacy" element={<Privacy />} />

@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { Upload, FileSpreadsheet, Download, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { SEOHead } from "@/components/SEOHead";
+import SEOHead from "@/components/SEOHead";
 
 interface EnrichJob {
   id: string;
@@ -187,7 +187,7 @@ function JobCard({ job }: { job: EnrichJob }) {
     switch (job.status) {
       case "completed":
         return (
-          <Badge variant="default" className="bg-green-600">
+          <Badge variant="default">
             <CheckCircle2 className="h-3 w-3 mr-1" /> Completed
           </Badge>
         );
@@ -224,8 +224,8 @@ function JobCard({ job }: { job: EnrichJob }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <Stat label="Total" value={job.total_rows} />
             <Stat label="Matched" value={job.matched_rows} />
-            <Stat label="Updated" value={job.updated_rows} valueClass="text-green-600" />
-            <Stat label="Unmatched" value={job.unmatched_rows} valueClass={job.unmatched_rows > 0 ? "text-amber-600" : ""} />
+            <Stat label="Updated" value={job.updated_rows} valueClass="text-primary" />
+            <Stat label="Unmatched" value={job.unmatched_rows} valueClass={job.unmatched_rows > 0 ? "text-destructive" : ""} />
           </div>
         </>
       )}

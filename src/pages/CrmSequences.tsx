@@ -40,7 +40,7 @@ function usePipelineStages() {
       const { data, error } = await supabase
         .from("pipeline_stages" as any).select("id, name, position").eq("org_id", profile.org_id).order("position");
       if (error) throw error;
-      return (data ?? []) as Array<{ id: string; name: string; position: number }>;
+      return ((data ?? []) as unknown) as Array<{ id: string; name: string; position: number }>;
     },
   });
 }

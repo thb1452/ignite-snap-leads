@@ -52,7 +52,7 @@ export default function CrmPipeline() {
 
   return (
     <AppLayout>
-      <SEOHead title="Pipeline | Snap Ignite CRM" description="Track distress-rich leads through your pipeline." />
+      <SEOHead title="Pipeline | Snap Ignite CRM" description="Track distress-rich leads through your pipeline." canonical="/crm/pipeline" />
       <PageHeader
         title="Pipeline"
         description="Drag leads between stages. Every move is tracked."

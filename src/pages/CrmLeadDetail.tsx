@@ -59,7 +59,7 @@ export default function CrmLeadDetail() {
 
   return (
     <AppLayout>
-      <SEOHead title="Lead Detail | Snap Ignite CRM" description="View and manage a CRM lead." />
+      <SEOHead title="Lead Detail | Snap Ignite CRM" description="View and manage a CRM lead." canonical="/crm/leads" />
       <div className="px-4 md:px-6 py-6 space-y-4 max-w-6xl mx-auto">
         <div className="flex items-center justify-between gap-2">
           <Button variant="ghost" size="sm" asChild>

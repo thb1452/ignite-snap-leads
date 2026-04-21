@@ -19,9 +19,23 @@ export async function resolveIdempotencyKey(ctx: IdempotencyContext): Promise<{
   if (ctx.headerKey && ctx.headerKey.length >= 8 && ctx.headerKey.length <= 256) {
     return { key: `hdr:${ctx.headerKey}`, source: "header", windowMs: 24 * 60 * 60 * 1000 };
   }
-  const stable = JSON.stringify(sortObj(ctx.derivedFrom));
+  const stable = stableStringify(ctx.derivedFrom);
   const hash = await sha256Hex(`${ctx.integrationId}|${ctx.actionType}|${stable}`);
   return { key: `der:${hash}`, source: "derived", windowMs: 60 * 1000 };
+}
+
+/**
+ * Recursive stable JSON stringify — sorts keys at every depth so
+ * { a:1, b:{x:1,y:2} } and { b:{y:2,x:1}, a:1 } produce identical hashes.
+ */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  return `{${keys
+    .map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`)
+    .join(",")}}`;
 }
 
 export async function findRecentDuplicate(
@@ -30,7 +44,10 @@ export async function findRecentDuplicate(
   actionType: string,
   idempotencyKey: string,
   windowMs: number
-): Promise<{ id: number; created_at: string; success: boolean; response_status: number | null } | null> {
+): Promise<
+  | { id: number; created_at: string; success: boolean; response_status: number | null; request_metadata: Record<string, unknown> | null }
+  | null
+> {
   const cutoff = new Date(Date.now() - windowMs).toISOString();
   const { data } = await admin
     .from("integration_action_log")
@@ -49,17 +66,11 @@ export async function findRecentDuplicate(
         created_at: row.created_at as string,
         success: row.success as boolean,
         response_status: (row.response_status as number | null) ?? null,
+        request_metadata: meta,
       };
     }
   }
   return null;
-}
-
-function sortObj(o: Record<string, unknown>): Record<string, unknown> {
-  return Object.keys(o).sort().reduce((acc, k) => {
-    acc[k] = o[k];
-    return acc;
-  }, {} as Record<string, unknown>);
 }
 
 async function sha256Hex(s: string): Promise<string> {

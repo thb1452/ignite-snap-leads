@@ -75,14 +75,27 @@ export function LeadActivityTimeline({ leadId }: Props) {
             activities.map((a) => {
               const Icon = ACTIVITY_ICON[a.activity_type] ?? ActivityIcon;
               const payload = a.payload as Record<string, unknown>;
+              const isDistress = a.activity_type === "distress_event";
               return (
-                <div key={a.id} className="flex gap-3 border-l-2 border-border pl-3 pb-1">
+                <div
+                  key={a.id}
+                  className={`flex gap-3 border-l-2 pl-3 pb-1 ${
+                    isDistress ? "border-destructive/40" : "border-border"
+                  }`}
+                >
                   <div className="flex-shrink-0 mt-0.5">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    <Icon
+                      className={`h-4 w-4 ${
+                        isDistress ? "text-destructive" : "text-muted-foreground"
+                      }`}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+                      <Badge
+                        variant={isDistress ? "destructive" : "secondary"}
+                        className="text-[10px] uppercase tracking-wide"
+                      >
                         {a.activity_type.replace("_", " ")}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
@@ -95,6 +108,12 @@ export function LeadActivityTimeline({ leadId }: Props) {
                     {a.activity_type === "stage_change" && (
                       <p className="text-sm mt-1 text-muted-foreground">
                         Moved between stages
+                      </p>
+                    )}
+                    {isDistress && (
+                      <p className="text-sm mt-1">
+                        {(payload.event_type as string)?.replace("_", " ")}
+                        {payload.severity ? ` — ${payload.severity}` : ""}
                       </p>
                     )}
                   </div>

@@ -18,6 +18,7 @@ import {
   useArchiveLead,
 } from "@/hooks/useLeads";
 import { LeadActivityTimeline } from "@/components/crm/LeadActivityTimeline";
+import { DistressTimeline } from "@/components/crm/DistressTimeline";
 import { ArrowLeft, Archive, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -141,6 +142,8 @@ export default function CrmLeadDetail() {
                   )}
                 </CardContent>
               </Card>
+
+              <DistressTimeline propertyId={lead.property_id} />
 
               <LeadActivityTimeline leadId={lead.id} />
             </div>

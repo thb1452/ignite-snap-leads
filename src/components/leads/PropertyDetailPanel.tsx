@@ -16,6 +16,7 @@ import { exportFilteredCsv, getExportErrorToast } from "@/services/export";
 import { useTrialStatus } from "@/hooks/useTrialStatus";
 import { TrialExportGate } from "@/components/trial/TrialExportGate";
 import { OwnerContactSection } from "./OwnerContactSection";
+import { AddToPipelineButton } from "@/components/crm/AddToPipelineButton";
 
 interface Violation {
   id: string;
@@ -390,6 +391,15 @@ export function PropertyDetailPanel({ property, open, onOpenChange, isUnlocked =
                   <ListPlus className="h-4 w-4" />
                   Add to List
                 </Button>
+                {property && (
+                  <AddToPipelineButton
+                    propertyId={property.id}
+                    source="property_detail"
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-2"
+                  />
+                )}
                 <Button
                   variant="default"
                   size="sm"

@@ -2007,11 +2007,15 @@ export type Database = {
         Row: {
           address: string
           avg_days_open: number | null
+          baths: number | null
+          beds: number | null
           city: string
           county: string | null
           created_at: string | null
           distress_signals: string[] | null
           enforcement_type: string
+          enriched_at: string | null
+          enrichment_source: string | null
           escalated: boolean | null
           geom: unknown
           id: string
@@ -2021,6 +2025,7 @@ export type Database = {
           last_enforcement_date: string | null
           latitude: number | null
           longitude: number | null
+          lot_size_sqft: number | null
           multi_department: boolean | null
           newest_violation_date: string | null
           oldest_violation_date: string | null
@@ -2031,22 +2036,28 @@ export type Database = {
           scope: string | null
           snap_insight: string | null
           snap_score: number | null
+          sqft: number | null
           state: string
           street_name: string | null
           street_number: string | null
           total_violations: number | null
           updated_at: string | null
           violation_types: string[] | null
+          year_built: number | null
           zip: string
         }
         Insert: {
           address: string
           avg_days_open?: number | null
+          baths?: number | null
+          beds?: number | null
           city: string
           county?: string | null
           created_at?: string | null
           distress_signals?: string[] | null
           enforcement_type?: string
+          enriched_at?: string | null
+          enrichment_source?: string | null
           escalated?: boolean | null
           geom?: unknown
           id?: string
@@ -2056,6 +2067,7 @@ export type Database = {
           last_enforcement_date?: string | null
           latitude?: number | null
           longitude?: number | null
+          lot_size_sqft?: number | null
           multi_department?: boolean | null
           newest_violation_date?: string | null
           oldest_violation_date?: string | null
@@ -2066,22 +2078,28 @@ export type Database = {
           scope?: string | null
           snap_insight?: string | null
           snap_score?: number | null
+          sqft?: number | null
           state: string
           street_name?: string | null
           street_number?: string | null
           total_violations?: number | null
           updated_at?: string | null
           violation_types?: string[] | null
+          year_built?: number | null
           zip: string
         }
         Update: {
           address?: string
           avg_days_open?: number | null
+          baths?: number | null
+          beds?: number | null
           city?: string
           county?: string | null
           created_at?: string | null
           distress_signals?: string[] | null
           enforcement_type?: string
+          enriched_at?: string | null
+          enrichment_source?: string | null
           escalated?: boolean | null
           geom?: unknown
           id?: string
@@ -2091,6 +2109,7 @@ export type Database = {
           last_enforcement_date?: string | null
           latitude?: number | null
           longitude?: number | null
+          lot_size_sqft?: number | null
           multi_department?: boolean | null
           newest_violation_date?: string | null
           oldest_violation_date?: string | null
@@ -2101,12 +2120,14 @@ export type Database = {
           scope?: string | null
           snap_insight?: string | null
           snap_score?: number | null
+          sqft?: number | null
           state?: string
           street_name?: string | null
           street_number?: string | null
           total_violations?: number | null
           updated_at?: string | null
           violation_types?: string[] | null
+          year_built?: number | null
           zip?: string
         }
         Relationships: [
@@ -2179,6 +2200,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      property_enrichment_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          file_name: string
+          id: string
+          matched_rows: number
+          processed_rows: number
+          started_at: string | null
+          status: string
+          total_rows: number
+          unmatched_csv_url: string | null
+          unmatched_rows: number
+          updated_rows: number
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name: string
+          id?: string
+          matched_rows?: number
+          processed_rows?: number
+          started_at?: string | null
+          status?: string
+          total_rows?: number
+          unmatched_csv_url?: string | null
+          unmatched_rows?: number
+          updated_rows?: number
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name?: string
+          id?: string
+          matched_rows?: number
+          processed_rows?: number
+          started_at?: string | null
+          status?: string
+          total_rows?: number
+          unmatched_csv_url?: string | null
+          unmatched_rows?: number
+          updated_rows?: number
+          user_id?: string
+        }
+        Relationships: []
       }
       rotation_alerts: {
         Row: {

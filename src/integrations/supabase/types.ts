@@ -1153,6 +1153,56 @@ export type Database = {
         }
         Relationships: []
       }
+      integration_action_log: {
+        Row: {
+          action_type: string
+          cost_estimate_usd: number | null
+          created_at: string
+          error_code: string | null
+          error_message: string | null
+          id: number
+          integration_id: string | null
+          request_metadata: Json | null
+          response_status: number | null
+          success: boolean
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          cost_estimate_usd?: number | null
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: number
+          integration_id?: string | null
+          request_metadata?: Json | null
+          response_status?: number | null
+          success: boolean
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          cost_estimate_usd?: number | null
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: number
+          integration_id?: string | null
+          request_metadata?: Json | null
+          response_status?: number | null
+          success?: boolean
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_action_log_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "user_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jurisdictions: {
         Row: {
           ai_summary: string | null
@@ -1468,6 +1518,76 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      owners: {
+        Row: {
+          confidence: string | null
+          created_at: string
+          created_by: string | null
+          emails: Json | null
+          id: string
+          mailing_address: string | null
+          name: string | null
+          org_id: string
+          phones: Json | null
+          property_id: string
+          raw_payload: Json | null
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          confidence?: string | null
+          created_at?: string
+          created_by?: string | null
+          emails?: Json | null
+          id?: string
+          mailing_address?: string | null
+          name?: string | null
+          org_id: string
+          phones?: Json | null
+          property_id: string
+          raw_payload?: Json | null
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confidence?: string | null
+          created_at?: string
+          created_by?: string | null
+          emails?: Json | null
+          id?: string
+          mailing_address?: string | null
+          name?: string | null
+          org_id?: string
+          phones?: Json | null
+          property_id?: string
+          raw_payload?: Json | null
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owners_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owners_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owners_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pipeline_progress: {
         Row: {
@@ -2324,6 +2444,44 @@ export type Database = {
         }
         Relationships: []
       }
+      suppression_list: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          email: string | null
+          id: string
+          org_id: string | null
+          phone_number: string | null
+          reason: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          org_id?: string | null
+          phone_number?: string | null
+          reason: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          org_id?: string | null
+          phone_number?: string | null
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppression_list_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_logs: {
         Row: {
           created_at: string
@@ -2720,6 +2878,30 @@ export type Database = {
           },
         ]
       }
+      user_activation_events: {
+        Row: {
+          event_type: string
+          id: string
+          metadata: Json | null
+          occurred_at: string
+          user_id: string
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string
+          user_id: string
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_activity_log: {
         Row: {
           action: string
@@ -2815,6 +2997,65 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_integrations: {
+        Row: {
+          created_at: string
+          daily_spend_cap_usd: number | null
+          daily_spend_reset_at: string | null
+          daily_spend_used_usd: number
+          display_metadata: Json
+          id: string
+          last_validated_at: string | null
+          org_id: string
+          service_name: string
+          status: string
+          updated_at: string
+          user_id: string
+          validation_failure_count: number
+          vault_secret_id: string
+        }
+        Insert: {
+          created_at?: string
+          daily_spend_cap_usd?: number | null
+          daily_spend_reset_at?: string | null
+          daily_spend_used_usd?: number
+          display_metadata?: Json
+          id?: string
+          last_validated_at?: string | null
+          org_id: string
+          service_name: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          validation_failure_count?: number
+          vault_secret_id: string
+        }
+        Update: {
+          created_at?: string
+          daily_spend_cap_usd?: number | null
+          daily_spend_reset_at?: string | null
+          daily_spend_used_usd?: number
+          display_metadata?: Json
+          id?: string
+          last_validated_at?: string | null
+          org_id?: string
+          service_name?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          validation_failure_count?: number
+          vault_secret_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_integrations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_invitations: {
         Row: {
@@ -4129,6 +4370,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      get_integration_secret: {
+        Args: { p_integration_id: string }
+        Returns: string
       }
       get_system_logs_24h: {
         Args: never

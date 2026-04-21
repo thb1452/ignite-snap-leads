@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { SEOHead } from "@/components/SEOHead";
+import SEOHead from "@/components/SEOHead";
 import { useSmsThreads, useSmsMessages, sendSms, markThreadRead, type SmsThread } from "@/hooks/useSms";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

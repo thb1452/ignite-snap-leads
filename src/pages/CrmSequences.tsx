@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { SEOHead } from "@/components/SEOHead";
+import SEOHead from "@/components/SEOHead";
 import { useDripSequences, useDripSteps, type DripSequence } from "@/hooks/useSms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,11 +22,13 @@ export default function CrmSequences() {
   return (
     <AppLayout>
       <SEOHead title="Drip Sequences | Snap Ignite" description="Build SMS drip campaigns for your leads." canonical="/crm/sequences" />
-      <PageHeader
-        title="Drip Sequences"
-        description="Build multi-step SMS sequences. Manual enrollment from any lead."
-        actions={<NewSequenceDialog />}
-      />
+      <div className="flex items-start justify-between gap-4 mb-2">
+        <PageHeader
+          title="Drip Sequences"
+          description="Build multi-step SMS sequences. Manual enrollment from any lead."
+        />
+        <NewSequenceDialog />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
         {/* Sequence list */}

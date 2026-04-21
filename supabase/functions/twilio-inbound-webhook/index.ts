@@ -100,31 +100,30 @@ Deno.serve(async (req) => {
   const orgId = integRow.org_id as string;
 
   // ── Validate Twilio signature against this org's auth_token ───────────────
-  // Skip validation only if explicitly disabled via env (for local debugging).
-  const SKIP_VERIFY = Deno.env.get("TWILIO_SKIP_SIGNATURE_VERIFY") === "true";
-  if (!SKIP_VERIFY) {
-    if (!signature) {
-      console.warn("Missing X-Twilio-Signature header");
-      return new Response("Forbidden", { status: 403, headers: corsHeaders });
-    }
-    let authToken: string | null = null;
-    try {
-      const creds = await readVaultSecret(admin, (integRow as any).vault_secret_id);
-      authToken = creds?.auth_token ?? null;
-    } catch (e) {
-      console.error("vault read failed for inbound webhook", e);
-      return new Response("Forbidden", { status: 403, headers: corsHeaders });
-    }
-    if (!authToken) {
-      return new Response("Forbidden", { status: 403, headers: corsHeaders });
-    }
-    // Twilio signs the full request URL it called. Reconstruct from incoming req.
-    const url = req.url;
-    const valid = await validateTwilioSignature(authToken, url, formData, signature);
-    if (!valid) {
-      console.warn("Invalid Twilio signature for org", orgId);
-      return new Response("Forbidden", { status: 403, headers: corsHeaders });
-    }
+  // SECURITY CRITICAL: This check MUST NEVER be disabled in production.
+  // Without it, anyone can spoof inbound SMS, fake STOP keywords, and pollute
+  // the database. There is intentionally no env-based bypass.
+  if (!signature) {
+    console.warn("Missing X-Twilio-Signature header");
+    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+  }
+  let authToken: string | null = null;
+  try {
+    const creds = await readVaultSecret(admin, (integRow as any).vault_secret_id);
+    authToken = creds?.auth_token ?? null;
+  } catch (e) {
+    console.error("vault read failed for inbound webhook", e);
+    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+  }
+  if (!authToken) {
+    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+  }
+  // Twilio signs the full request URL it called. Reconstruct from incoming req.
+  const url = req.url;
+  const valid = await validateTwilioSignature(authToken, url, formData, signature);
+  if (!valid) {
+    console.warn("Invalid Twilio signature for org", orgId);
+    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -180,12 +179,20 @@ Deno.serve(async (req) => {
   // STOP / HELP keyword handling
   const upper = msgBody.trim().toUpperCase();
   if (STOP_KEYWORDS.has(upper)) {
+    // Per-org suppression (legacy)
     await admin.from("suppression_list" as any).insert({
       org_id: orgId, phone: fromSender, reason: "STOP keyword",
     }).then(() => {}).catch(() => {});
+    // GLOBAL suppression — blocks this number across ALL orgs (TCPA requirement)
+    await admin.from("global_sms_suppression" as any).insert({
+      phone_number: fromSender,
+      reason: "STOP_keyword",
+      source_org_id: orgId,
+    }).then(() => {}).catch(() => {}); // unique violation = already suppressed, ignore
+    // Pause every active enrollment globally for this number
     await admin.from("drip_enrollments")
       .update({ status: "paused", pause_reason: "opted_out" })
-      .eq("org_id", orgId).eq("to_number", fromSender).eq("status", "active");
+      .eq("to_number", fromSender).eq("status", "active");
     return twiml("You have been unsubscribed. Reply START to opt back in.");
   }
   if (HELP_KEYWORDS.has(upper)) {

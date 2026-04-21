@@ -96,7 +96,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
     );
   }
 
-  // Compliance gate
+  // GLOBAL suppression check — cross-org TCPA enforcement
+  // A number that opted out from any org is blocked everywhere.
+  const { data: globalBlock } = await admin
+    .from("global_sms_suppression" as any)
+    .select("phone_number")
+    .eq("phone_number", body.to)
+    .maybeSingle();
+  if (globalBlock) {
+    await logAction(admin, {
+      integrationId,
+      userId,
+      actionType: "sms.send",
+      success: false,
+      errorCode: "global_suppression",
+      errorMessage: "Recipient is on global opt-out list",
+      requestMetadata: { idempotency_key: idem.key, to: maskPhone(body.to) },
+    });
+    return jsonResponse({ error: "global_suppression", detail: "Recipient has opted out across all orgs" }, 403);
+  }
+
+  // Compliance gate (per-org suppression, quiet hours, blocked states)
   const compliance = await checkSmsCompliance(admin, {
     toPhoneE164: body.to,
     recipientZip: body.recipient_zip,

@@ -237,6 +237,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       responseStatus: providerResult.status,
       costEstimateUsd: cost,
       requestMetadata: {
+        idempotency_key: idem.key,
+        idempotency_source: idem.source,
         property_id: body.property_id,
         provider,
         hit: cost > 0,
@@ -255,9 +257,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       mailing_address: providerResult.mailing_address,
       confidence: providerResult.confidence,
       cost_usd: cost,
+      idempotency_key: idem.key,
     };
-
-    await recordIdempotency(admin, idem.key, responseBody);
 
     return new Response(JSON.stringify(responseBody), { headers });
   } catch (e) {

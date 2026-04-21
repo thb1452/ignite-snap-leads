@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       thread_id: threadId, org_id: orgId, direction: "outbound",
       body: msgBody, twilio_sid: sendJson.message_sid ?? null,
       status: sendJson.status ?? "sent",
-      cost_cents: sendJson.cost_estimate_usd ? Math.round(sendJson.cost_estimate_usd * 100 * 100) / 100 : null,
+      cost_cents: sendJson.cost_estimate_usd ? Math.round(sendJson.cost_estimate_usd * 100) : null,
       drip_enrollment_id: drip_enrollment_id ?? null,
       sent_by: userId, sent_at: nowIso,
     })

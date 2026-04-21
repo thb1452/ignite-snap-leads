@@ -4,10 +4,11 @@ export interface PipelineStage {
   id: string;
   org_id: string;
   name: string;
-  position: number;
+  sort_order: number;
   color: string;
   is_won: boolean;
   is_lost: boolean;
+  is_default: boolean;
   created_at: string;
 }
 
@@ -58,7 +59,7 @@ export async function fetchPipelineStages(): Promise<PipelineStage[]> {
     .from("pipeline_stages" as never)
     .select("*")
     .eq("org_id", orgId)
-    .order("position", { ascending: true });
+    .order("sort_order", { ascending: true });
   if (error) throw error;
   return (data as unknown as PipelineStage[]) ?? [];
 }

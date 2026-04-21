@@ -1239,6 +1239,51 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_activities: {
+        Row: {
+          activity_type: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          org_id: string
+          payload: Json
+        }
+        Insert: {
+          activity_type: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          org_id: string
+          payload?: Json
+        }
+        Update: {
+          activity_type?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          org_id?: string
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_activities_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_activity: {
         Row: {
           created_at: string | null
@@ -1304,6 +1349,161 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      lead_tag_assignments: {
+        Row: {
+          created_at: string
+          lead_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          lead_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          lead_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_tag_assignments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_tag_assignments_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "lead_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_tags: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          label: string
+          org_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          label: string
+          org_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          label?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_tags_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          archived_at: string | null
+          assigned_to: string | null
+          created_at: string
+          created_by: string
+          id: string
+          last_contacted_at: string | null
+          next_follow_up_at: string | null
+          notes: string | null
+          org_id: string
+          owner_id: string | null
+          priority: number
+          property_id: string
+          source: string
+          stage_id: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          last_contacted_at?: string | null
+          next_follow_up_at?: string | null
+          notes?: string | null
+          org_id: string
+          owner_id?: string | null
+          priority?: number
+          property_id: string
+          source?: string
+          stage_id: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          last_contacted_at?: string | null
+          next_follow_up_at?: string | null
+          notes?: string | null
+          org_id?: string
+          owner_id?: string | null
+          priority?: number
+          property_id?: string
+          source?: string
+          stage_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       list_enrichment_waitlist: {
         Row: {
@@ -1633,6 +1833,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      pipeline_stages: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          is_default: boolean
+          is_lost: boolean
+          is_won: boolean
+          name: string
+          org_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          is_lost?: boolean
+          is_won?: boolean
+          name: string
+          org_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          is_lost?: boolean
+          is_won?: boolean
+          name?: string
+          org_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_stages_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       press_accounts: {
         Row: {
@@ -4487,6 +4734,10 @@ export type Database = {
           processed: number
           remaining: number
         }[]
+      }
+      seed_default_pipeline_stages: {
+        Args: { _org_id: string }
+        Returns: undefined
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }

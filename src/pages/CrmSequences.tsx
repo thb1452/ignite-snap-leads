@@ -89,7 +89,7 @@ export default function CrmSequences() {
                 )}
               </div>
               <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                {s.trigger_type !== "manual" && <Zap className="h-3 w-3 text-amber-500" />}
+                {s.trigger_type !== "manual" && <Zap className="h-3 w-3 text-warning" />}
                 {TRIGGER_LABELS[s.trigger_type] ?? s.trigger_type}
               </div>
             </button>

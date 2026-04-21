@@ -1532,7 +1532,7 @@ export type Database = {
           phones: Json | null
           property_id: string
           raw_payload: Json | null
-          source: string | null
+          source: string
           updated_at: string
         }
         Insert: {
@@ -1547,7 +1547,7 @@ export type Database = {
           phones?: Json | null
           property_id: string
           raw_payload?: Json | null
-          source?: string | null
+          source?: string
           updated_at?: string
         }
         Update: {
@@ -1562,7 +1562,7 @@ export type Database = {
           phones?: Json | null
           property_id?: string
           raw_payload?: Json | null
-          source?: string | null
+          source?: string
           updated_at?: string
         }
         Relationships: [

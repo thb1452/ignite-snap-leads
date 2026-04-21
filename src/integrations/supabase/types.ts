@@ -565,6 +565,164 @@ export type Database = {
           },
         ]
       }
+      drip_enrollments: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_step: number
+          enrolled_by: string | null
+          id: string
+          lead_id: string
+          next_run_at: string
+          org_id: string
+          pause_reason: string | null
+          sequence_id: string
+          status: string
+          to_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          enrolled_by?: string | null
+          id?: string
+          lead_id: string
+          next_run_at?: string
+          org_id: string
+          pause_reason?: string | null
+          sequence_id: string
+          status?: string
+          to_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          enrolled_by?: string | null
+          id?: string
+          lead_id?: string
+          next_run_at?: string
+          org_id?: string
+          pause_reason?: string | null
+          sequence_id?: string
+          status?: string
+          to_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drip_enrollments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drip_enrollments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drip_enrollments_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "drip_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drip_sequences: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          org_id: string
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          org_id: string
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          org_id?: string
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drip_sequences_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drip_steps: {
+        Row: {
+          branch_condition: Json | null
+          channel: string
+          created_at: string
+          delay_hours: number
+          id: string
+          sequence_id: string
+          step_order: number
+          template_body: string
+        }
+        Insert: {
+          branch_condition?: Json | null
+          channel?: string
+          created_at?: string
+          delay_hours?: number
+          id?: string
+          sequence_id: string
+          step_order: number
+          template_body: string
+        }
+        Update: {
+          branch_condition?: Json | null
+          channel?: string
+          created_at?: string
+          delay_hours?: number
+          id?: string
+          sequence_id?: string
+          step_order?: number
+          template_body?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drip_steps_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "drip_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_analytics: {
         Row: {
           clicked_at: string | null
@@ -2563,6 +2721,66 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_messages: {
+        Row: {
+          body: string
+          cost_cents: number | null
+          direction: string
+          drip_enrollment_id: string | null
+          error_code: string | null
+          id: string
+          org_id: string
+          sent_at: string
+          sent_by: string | null
+          status: string
+          thread_id: string
+          twilio_sid: string | null
+        }
+        Insert: {
+          body: string
+          cost_cents?: number | null
+          direction: string
+          drip_enrollment_id?: string | null
+          error_code?: string | null
+          id?: string
+          org_id: string
+          sent_at?: string
+          sent_by?: string | null
+          status?: string
+          thread_id: string
+          twilio_sid?: string | null
+        }
+        Update: {
+          body?: string
+          cost_cents?: number | null
+          direction?: string
+          drip_enrollment_id?: string | null
+          error_code?: string | null
+          id?: string
+          org_id?: string
+          sent_at?: string
+          sent_by?: string | null
+          status?: string
+          thread_id?: string
+          twilio_sid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_messages_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "sms_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sms_templates: {
         Row: {
           content: string
@@ -2592,6 +2810,86 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      sms_threads: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          from_number: string
+          id: string
+          last_inbound_at: string | null
+          last_message_preview: string | null
+          last_outbound_at: string | null
+          lead_id: string | null
+          org_id: string
+          property_id: string | null
+          status: string
+          to_number: string
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          from_number: string
+          id?: string
+          last_inbound_at?: string | null
+          last_message_preview?: string | null
+          last_outbound_at?: string | null
+          lead_id?: string | null
+          org_id: string
+          property_id?: string | null
+          status?: string
+          to_number: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          from_number?: string
+          id?: string
+          last_inbound_at?: string | null
+          last_message_preview?: string | null
+          last_outbound_at?: string | null
+          lead_id?: string | null
+          org_id?: string
+          property_id?: string | null
+          status?: string
+          to_number?: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_threads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_threads_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_threads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_threads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       spatial_ref_sys: {
         Row: {
@@ -4102,6 +4400,7 @@ export type Database = {
       }
       consume_credit: { Args: { p_user_id: string }; Returns: number }
       current_user_email: { Args: never; Returns: string }
+      current_user_org_id: { Args: never; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean

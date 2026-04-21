@@ -126,3 +126,19 @@ verify_jwt = true
 
 [functions.integration-revalidate]
 verify_jwt = false
+
+# Phase 5: SMS + drip engine
+[functions.send-sms-threaded]
+verify_jwt = true
+
+[functions.twilio-inbound-webhook]
+verify_jwt = false
+
+[functions.drip-runner]
+verify_jwt = false
+
+[functions.drip-enroll]
+verify_jwt = true
+
+[functions.distress-event-fanout]
+verify_jwt = false

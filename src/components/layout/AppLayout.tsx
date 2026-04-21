@@ -17,6 +17,8 @@ import {
   PanelLeft,
   Menu,
   X,
+  Inbox,
+  Zap,
 } from "lucide-react";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { CreditBalanceChip } from "@/components/layout/CreditBalanceChip";
@@ -117,6 +119,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navItems: NavItem[] = [
     { name: "Properties", path: "/properties", icon: Map },
     { name: "Pipeline", path: "/crm/pipeline", icon: Briefcase },
+    { name: "Inbox", path: "/crm/inbox", icon: Inbox },
+    { name: "Sequences", path: "/crm/sequences", icon: Zap },
     { name: "Lists", path: "/lists", icon: List },
     { name: "Scan", path: "/enrich", icon: Sparkles },
   ];

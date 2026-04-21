@@ -1,18 +1,97 @@
 // drip-runner
 // Cron-triggered. Processes all due drip_enrollments (status=active AND next_run_at <= now).
-// For each: loads next step, sends SMS via send-sms-threaded, advances enrollment.
+// For each: loads next step, sends SMS via direct Twilio call (using org's BYOA creds from vault),
+// records the outbound message + thread, advances enrollment.
 // Completes when no more steps remain. Marks failed on hard errors.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
+import { readVaultSecret } from "../_shared/byoa/vault.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
 
+const SMS_COST_USD = 0.0083;
+
 function renderTemplate(tpl: string, vars: Record<string, string>): string {
   return tpl.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => vars[k] ?? "");
+}
+
+interface SendResult {
+  ok: boolean;
+  sid?: string | null;
+  status?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+}
+
+// Cache vault reads per integration for the duration of one runner invocation.
+async function sendViaTwilio(
+  admin: ReturnType<typeof createClient>,
+  orgId: string,
+  to: string,
+  body: string,
+  credCache: Map<string, { account_sid: string; auth_token: string; from_number: string } | null>,
+): Promise<{ result: SendResult; from_number: string | null }> {
+  let creds = credCache.get(orgId);
+  if (creds === undefined) {
+    const { data: integ } = await admin
+      .from("user_integrations")
+      .select("vault_secret_id")
+      .eq("org_id", orgId).eq("service_name", "twilio").eq("status", "active")
+      .maybeSingle();
+    if (!integ?.vault_secret_id) {
+      credCache.set(orgId, null);
+      return { result: { ok: false, errorCode: "no_integration", errorMessage: "No active Twilio integration for org" }, from_number: null };
+    }
+    try {
+      const c = await readVaultSecret(admin, integ.vault_secret_id);
+      if (!c?.account_sid || !c?.auth_token || !c?.from_number) {
+        credCache.set(orgId, null);
+        return { result: { ok: false, errorCode: "incomplete_creds", errorMessage: "Stored credentials incomplete" }, from_number: null };
+      }
+      creds = { account_sid: c.account_sid, auth_token: c.auth_token, from_number: c.from_number };
+      credCache.set(orgId, creds);
+    } catch (e) {
+      credCache.set(orgId, null);
+      const msg = e instanceof Error ? e.message : String(e);
+      return { result: { ok: false, errorCode: "vault_error", errorMessage: msg }, from_number: null };
+    }
+  }
+  if (creds === null) {
+    return { result: { ok: false, errorCode: "no_integration", errorMessage: "No usable Twilio creds" }, from_number: null };
+  }
+
+  const formBody = new URLSearchParams({ To: to, From: creds.from_number, Body: body });
+  try {
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${creds.account_sid}/Messages.json`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${btoa(`${creds.account_sid}:${creds.auth_token}`)}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formBody.toString(),
+      },
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        result: { ok: false, sid: null, errorCode: String(data?.code ?? res.status), errorMessage: String(data?.message ?? `HTTP ${res.status}`) },
+        from_number: creds.from_number,
+      };
+    }
+    return {
+      result: { ok: true, sid: data?.sid ?? null, status: data?.status ?? "sent" },
+      from_number: creds.from_number,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { result: { ok: false, errorCode: "network", errorMessage: msg }, from_number: creds.from_number };
+  }
 }
 
 Deno.serve(async (req) => {
@@ -23,6 +102,7 @@ Deno.serve(async (req) => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
   const nowIso = new Date().toISOString();
+  const credCache = new Map<string, { account_sid: string; auth_token: string; from_number: string } | null>();
 
   const { data: due, error } = await admin
     .from("drip_enrollments")
@@ -40,7 +120,7 @@ Deno.serve(async (req) => {
 
   for (const enr of due ?? []) {
     try {
-      // Get the next step (current_step is the next to send; 0 = first step)
+      // Get all steps for this sequence
       const { data: steps } = await admin
         .from("drip_steps")
         .select("id, step_order, delay_hours, channel, template_body")
@@ -64,10 +144,10 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Resolve owner / lead context for templating
+      // Resolve lead context for templating
       const { data: lead } = await admin
         .from("leads")
-        .select("id, property_id, owner_id, assigned_to, created_by, properties:property_id(address, city, state)")
+        .select("id, property_id, owner_id, properties:property_id(address, city, state), owners:owner_id(name)")
         .eq("id", enr.lead_id).maybeSingle();
 
       const ownerName = (lead as any)?.owners?.name ?? "there";
@@ -87,45 +167,90 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Service-role JWT (we are the system) — call integration-send-sms directly
-        // by creating a fresh admin token via the user who enrolled. Simpler: use service-role JWT.
-        const sendRes = await fetch(`${SUPABASE_URL}/functions/v1/integration-send-sms`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${SERVICE_KEY}`,
-            "Content-Type": "application/json",
-            "idempotency-key": `drip:${enr.id}:${step.step_order}`,
-          },
-          body: JSON.stringify({ to: enr.to_number, body: rendered, property_id: (lead as any)?.property_id ?? null }),
-        });
+        // Suppression check
+        const { data: suppressed } = await admin
+          .from("suppression_list" as any)
+          .select("id")
+          .eq("org_id", enr.org_id).eq("phone", enr.to_number)
+          .maybeSingle();
+        if (suppressed) {
+          await admin.from("drip_enrollments").update({
+            status: "paused", pause_reason: "opted_out",
+          }).eq("id", enr.id);
+          failed++;
+          continue;
+        }
 
-        // We can't fully impersonate with service role on integration-send-sms (it expects user JWT).
-        // Insert outbound message directly + mark step complete.
-        const sendOk = sendRes.ok;
-        const sendData = await sendRes.json().catch(() => ({}));
+        // Send via Twilio directly
+        const { result, from_number } = await sendViaTwilio(
+          admin, enr.org_id, enr.to_number, rendered, credCache,
+        );
 
-        // Record an outbound message regardless (best-effort)
-        const { data: thread } = await admin
-          .from("sms_threads").select("id, from_number")
-          .eq("org_id", enr.org_id).eq("to_number", enr.to_number).maybeSingle();
-        if (thread) {
+        const fromNum = from_number ?? "unknown";
+
+        // Upsert thread
+        const { data: existingThread } = await admin
+          .from("sms_threads")
+          .select("id")
+          .eq("org_id", enr.org_id).eq("from_number", fromNum).eq("to_number", enr.to_number)
+          .maybeSingle();
+
+        let threadId = existingThread?.id as string | undefined;
+        if (!threadId) {
+          const { data: newThread } = await admin
+            .from("sms_threads")
+            .insert({
+              org_id: enr.org_id, lead_id: enr.lead_id, property_id: (lead as any)?.property_id ?? null,
+              from_number: fromNum, to_number: enr.to_number, status: "active",
+              last_outbound_at: nowIso, last_message_preview: rendered.slice(0, 140),
+            })
+            .select("id").single();
+          threadId = newThread?.id;
+        } else {
+          await admin.from("sms_threads").update({
+            last_outbound_at: nowIso, last_message_preview: rendered.slice(0, 140),
+            lead_id: enr.lead_id,
+          }).eq("id", threadId);
+        }
+
+        // Record outbound message
+        if (threadId) {
           await admin.from("sms_messages").insert({
-            thread_id: thread.id, org_id: enr.org_id, direction: "outbound",
-            body: rendered, twilio_sid: sendData?.message_sid ?? null,
-            status: sendOk ? "sent" : "failed",
-            error_code: sendOk ? null : String(sendData?.error ?? sendRes.status),
+            thread_id: threadId, org_id: enr.org_id, direction: "outbound",
+            body: rendered, twilio_sid: result.sid ?? null,
+            status: result.ok ? (result.status ?? "sent") : "failed",
+            error_code: result.ok ? null : (result.errorCode ?? null),
+            cost_cents: result.ok ? Math.round(SMS_COST_USD * 100) : null,
             drip_enrollment_id: enr.id,
             sent_at: nowIso,
           });
-          await admin.from("sms_threads").update({
-            last_outbound_at: nowIso, last_message_preview: rendered.slice(0, 140),
-          }).eq("id", thread.id);
         }
 
-        if (!sendOk) {
-          console.warn("drip send failed", enr.id, sendData);
+        // Lead activity
+        await admin.from("lead_activities").insert({
+          lead_id: enr.lead_id, org_id: enr.org_id, actor_id: null,
+          activity_type: result.ok ? "sms_outbound" : "sms_failed",
+          payload: {
+            to: enr.to_number, preview: rendered.slice(0, 140),
+            message_sid: result.sid, thread_id: threadId,
+            sequence_id: enr.sequence_id, step_order: step.step_order,
+            error: result.ok ? null : result.errorMessage,
+          },
+        });
+
+        if (!result.ok) {
+          console.warn("drip send failed", enr.id, result.errorCode, result.errorMessage);
+          // Hard-fail enrollment if creds are missing/invalid
+          if (result.errorCode === "no_integration" || result.errorCode === "incomplete_creds") {
+            await admin.from("drip_enrollments").update({
+              status: "failed", pause_reason: result.errorCode,
+            }).eq("id", enr.id);
+            failed++;
+            continue;
+          }
+        } else {
+          sent++;
         }
-        sent++;
       }
 
       // Advance enrollment

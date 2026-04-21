@@ -108,7 +108,7 @@ export default function AdminEnrichProperties() {
 
   return (
     <>
-      <SEOHead title="Property Enrichment — Admin" description="Bulk enrich properties with beds, baths, sqft, year built, and lot size." />
+      <SEOHead title="Property Enrichment — Admin" description="Bulk enrich properties with beds, baths, sqft, year built, and lot size." canonical="https://snapignite.com/admin/enrich-properties" />
       <AppLayout>
         <div className="container max-w-5xl py-8 space-y-6">
           <div>

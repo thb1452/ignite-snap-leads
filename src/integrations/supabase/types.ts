@@ -4356,6 +4356,10 @@ export type Database = {
             }
             Returns: string
           }
+      auto_enroll_lead_in_sequences: {
+        Args: { _lead_id: string; _match_value: string; _trigger_type: string }
+        Returns: undefined
+      }
       backfill_insights_batch: {
         Args: { batch_size?: number }
         Returns: {

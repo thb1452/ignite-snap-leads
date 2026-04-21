@@ -34,8 +34,8 @@ const EVENT_META: Record<
 };
 
 const SEVERITY_STYLES: Record<DistressEvent["severity"], string> = {
-  info: "bg-muted text-muted-foreground",
-  warning: "bg-warning/15 text-warning-foreground border-warning/30",
+  info: "bg-muted text-muted-foreground border-border",
+  warning: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
   critical: "bg-destructive/15 text-destructive border-destructive/30",
 };
 
@@ -116,7 +116,7 @@ export function DistressTimeline({ propertyId }: Props) {
                       event.severity === "critical"
                         ? "bg-destructive"
                         : event.severity === "warning"
-                          ? "bg-warning"
+                          ? "bg-amber-500"
                           : "bg-muted-foreground",
                     )}
                   />

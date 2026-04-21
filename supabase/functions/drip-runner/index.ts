@@ -186,7 +186,21 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Suppression check
+        // GLOBAL suppression — checked first; cross-org STOP enforcement
+        const { data: globalSup } = await admin
+          .from("global_sms_suppression" as any)
+          .select("phone_number")
+          .eq("phone_number", enr.to_number)
+          .maybeSingle();
+        if (globalSup) {
+          await admin.from("drip_enrollments").update({
+            status: "paused", pause_reason: "global_opt_out",
+          }).eq("id", enr.id);
+          failed++;
+          continue;
+        }
+
+        // Per-org suppression
         const { data: suppressed } = await admin
           .from("suppression_list" as any)
           .select("id")

@@ -21,7 +21,7 @@ import { LeadActivityTimeline } from "@/components/crm/LeadActivityTimeline";
 import { ArrowLeft, Archive, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SEOHead } from "@/components/SEOHead";
+import SEOHead from "@/components/SEOHead";
 
 function usePropertySnapshot(propertyId: string | undefined) {
   return useQuery({
@@ -29,11 +29,19 @@ function usePropertySnapshot(propertyId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("properties")
-        .select("id, address, city, state, zip, snap_score, owner_name, snap_insight")
+        .select("id, address, city, state, zip, snap_score, snap_insight")
         .eq("id", propertyId!)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return data as {
+        id: string;
+        address: string | null;
+        city: string | null;
+        state: string | null;
+        zip: string | null;
+        snap_score: number | null;
+        snap_insight: string | null;
+      } | null;
     },
     enabled: !!propertyId,
   });
@@ -177,13 +185,9 @@ export default function CrmLeadDetail() {
                   <CardTitle className="text-base">Owner Contact</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {property?.owner_name ? (
-                    <p className="text-sm font-medium">{property.owner_name}</p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Owner contact not enriched yet.
-                    </p>
-                  )}
+                  <p className="text-sm text-muted-foreground">
+                    Owner contact will appear here once skip-trace is enriched.
+                  </p>
                 </CardContent>
               </Card>
             </div>

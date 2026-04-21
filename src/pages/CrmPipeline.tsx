@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeads, usePipelineStages, useUpdateLeadStage } from "@/hooks/useLeads";
 import { Briefcase, GripVertical } from "lucide-react";
-import { SEOHead } from "@/components/SEOHead";
+import SEOHead from "@/components/SEOHead";
 
 export default function CrmPipeline() {
   const { data: stages, isLoading: stagesLoading } = usePipelineStages();
@@ -56,7 +56,6 @@ export default function CrmPipeline() {
       <PageHeader
         title="Pipeline"
         description="Drag leads between stages. Every move is tracked."
-        icon={Briefcase}
       />
 
       <div className="px-4 md:px-6 pb-8">

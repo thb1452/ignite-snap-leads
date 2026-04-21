@@ -10,10 +10,40 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, MessageSquare, Clock, Power, PowerOff } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Trash2, MessageSquare, Clock, Power, PowerOff, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+const TRIGGER_LABELS: Record<string, string> = {
+  manual: "Manual enrollment",
+  distress_event: "Distress event",
+  stage_change: "Stage change",
+};
+
+const DISTRESS_EVENT_TYPES = [
+  { value: "*", label: "Any distress event" },
+  { value: "new_violation", label: "New violation" },
+  { value: "water_shutoff", label: "Water shutoff" },
+  { value: "escalation", label: "Escalation" },
+  { value: "score_increase", label: "SnapScore increase" },
+];
+
+function usePipelineStages() {
+  return useQuery({
+    queryKey: ["pipeline_stages_for_drip"],
+    queryFn: async () => {
+      const { data: profile } = await supabase
+        .from("profiles").select("org_id").eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "").maybeSingle();
+      if (!profile?.org_id) return [];
+      const { data, error } = await supabase
+        .from("pipeline_stages" as any).select("id, name, position").eq("org_id", profile.org_id).order("position");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; name: string; position: number }>;
+    },
+  });
+}
 
 export default function CrmSequences() {
   const { data: sequences = [], isLoading } = useDripSequences();
@@ -84,8 +114,11 @@ function NewSequenceDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [triggerType, setTriggerType] = useState<"manual" | "distress_event" | "stage_change">("manual");
+  const [matchValue, setMatchValue] = useState<string>("*");
   const [busy, setBusy] = useState(false);
   const qc = useQueryClient();
+  const { data: stages = [] } = usePipelineStages();
 
   async function handleCreate() {
     if (!name.trim()) return;
@@ -94,15 +127,15 @@ function NewSequenceDialog() {
       const { data: profile } = await supabase
         .from("profiles").select("org_id").eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "").maybeSingle();
       if (!profile?.org_id) throw new Error("No org");
+      const trigger_config = triggerType === "manual" ? {} : { match: matchValue };
       const { error } = await supabase.from("drip_sequences" as any).insert({
         org_id: profile.org_id, name: name.trim(), description: description.trim() || null,
-        trigger_type: "manual", is_active: true,
+        trigger_type: triggerType, trigger_config, is_active: true,
       });
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["drip_sequences"] });
       setOpen(false);
-      setName("");
-      setDescription("");
+      setName(""); setDescription(""); setTriggerType("manual"); setMatchValue("*");
       toast({ title: "Sequence created" });
     } catch (e: any) {
       toast({ title: "Failed", description: e?.message, variant: "destructive" });
@@ -127,6 +160,44 @@ function NewSequenceDialog() {
             <Label>Description (optional)</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What this sequence does…" />
           </div>
+          <div>
+            <Label>Trigger</Label>
+            <Select value={triggerType} onValueChange={(v) => { setTriggerType(v as any); setMatchValue("*"); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">Manual — enroll leads by hand</SelectItem>
+                <SelectItem value="distress_event">Distress event — auto-enroll when detected</SelectItem>
+                <SelectItem value="stage_change">Stage change — auto-enroll on pipeline move</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {triggerType === "distress_event" && (
+            <div>
+              <Label>When event type is</Label>
+              <Select value={matchValue} onValueChange={setMatchValue}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DISTRESS_EVENT_TYPES.map((e) => (
+                    <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {triggerType === "stage_change" && (
+            <div>
+              <Label>When lead enters stage</Label>
+              <Select value={matchValue} onValueChange={setMatchValue}>
+                <SelectTrigger><SelectValue placeholder="Select stage" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="*">Any stage</SelectItem>
+                  {stages.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button onClick={handleCreate} disabled={busy || !name.trim()}>Create</Button>

@@ -113,3 +113,16 @@ verify_jwt = false
 
 [functions.pipeline-runner]
 verify_jwt = false
+
+# BYOA integration functions
+[functions.integration-validate]
+verify_jwt = true
+
+[functions.integration-send-sms]
+verify_jwt = true
+
+[functions.integration-skip-trace]
+verify_jwt = true
+
+[functions.integration-revalidate]
+verify_jwt = false

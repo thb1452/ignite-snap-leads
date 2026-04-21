@@ -111,7 +111,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({ ok: false, error: validation.error }), { status: 400, headers });
     }
 
-    // Store plaintext in Vault, get a uuid handle
+    // ── Credential rotation flow ────────────────────────────────
+    // 1. Look up any existing integration row (so we can clean up its old Vault secret later)
+    // 2. Store the NEW plaintext in Vault → returns new vault_secret_id
+    // 3. Upsert user_integrations with the new vault_secret_id
+    // 4. ONLY after a successful upsert, delete the OLD Vault secret
+    //    (if step 3 fails, the new secret stays so we don't leave the user with no working integration)
+
+    const { data: existingIntegration } = await admin
+      .from("user_integrations" as any)
+      .select("vault_secret_id")
+      .eq("org_id", profile.org_id)
+      .eq("service_name", body.service_name)
+      .maybeSingle();
+
+    const oldVaultSecretId: string | null =
+      (existingIntegration as any)?.vault_secret_id ?? null;
+
+    // Store new plaintext in Vault
     const secretName = `byoa_${profile.org_id}_${body.service_name}_${Date.now()}`;
     const { data: vaultData, error: vaultErr } = await admin.rpc("vault_create_secret" as any, {
       secret: JSON.stringify(body.credentials),
@@ -125,11 +142,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const vaultSecretId = vaultData as string;
 
-    // Upsert integration row
+    // Upsert integration row with NEW vault_secret_id
     const { error: upsertErr } = await admin
       .from("user_integrations" as any)
       .upsert(
         {
+          user_id: userId,
           org_id: profile.org_id,
           service_name: body.service_name,
           vault_secret_id: vaultSecretId,
@@ -138,14 +156,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
           last_validated_at: new Date().toISOString(),
           validation_failure_count: 0,
           daily_spend_cap_usd: body.daily_spend_cap_usd ?? null,
-          created_by: userId,
         } as any,
         { onConflict: "org_id,service_name" } as any
       );
 
     if (upsertErr) {
       console.error("[integration-validate] upsert error:", upsertErr);
+      // New Vault secret is orphaned but the OLD one is still valid for the existing integration.
+      // We intentionally do NOT delete the new secret here — leave it for manual cleanup so we
+      // never accidentally break a working integration on a transient DB error.
       return new Response(JSON.stringify({ error: "Failed to save integration", detail: upsertErr.message }), { status: 500, headers });
+    }
+
+    // Upsert succeeded — safe to delete the OLD Vault secret (if any)
+    if (oldVaultSecretId && oldVaultSecretId !== vaultSecretId) {
+      const { error: deleteErr } = await admin.rpc("vault_delete_secret" as any, {
+        secret_id: oldVaultSecretId,
+      } as any);
+      if (deleteErr) {
+        // Non-fatal: the integration is working with the new secret. Just log the orphan.
+        console.warn(
+          "[integration-validate] failed to delete old vault secret",
+          oldVaultSecretId,
+          deleteErr.message
+        );
+      }
     }
 
     return new Response(JSON.stringify({ ok: true, display: validation.display }), { headers });

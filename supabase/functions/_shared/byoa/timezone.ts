@@ -186,11 +186,69 @@ export function tzFromPhone(phone: string | null | undefined): string | null {
   return AREA_CODE_TZ[area] ?? null;
 }
 
+// State → default tz (used as 1st-priority fallback when zip3 lookup misses).
+const STATE_TZ: Record<string, string> = {
+  ME: "America/New_York", NH: "America/New_York", VT: "America/New_York",
+  MA: "America/New_York", RI: "America/New_York", CT: "America/New_York",
+  NY: "America/New_York", NJ: "America/New_York", PA: "America/New_York",
+  DE: "America/New_York", MD: "America/New_York", DC: "America/New_York",
+  VA: "America/New_York", WV: "America/New_York", NC: "America/New_York",
+  SC: "America/New_York", GA: "America/New_York", FL: "America/New_York",
+  OH: "America/New_York", MI: "America/New_York", IN: "America/New_York",
+  KY: "America/New_York",
+  AL: "America/Chicago", MS: "America/Chicago", TN: "America/Chicago",
+  IL: "America/Chicago", WI: "America/Chicago", MN: "America/Chicago",
+  IA: "America/Chicago", MO: "America/Chicago", AR: "America/Chicago",
+  LA: "America/Chicago", OK: "America/Chicago", TX: "America/Chicago",
+  KS: "America/Chicago", NE: "America/Chicago", SD: "America/Chicago",
+  ND: "America/Chicago",
+  MT: "America/Denver", WY: "America/Denver", CO: "America/Denver",
+  NM: "America/Denver", UT: "America/Denver", ID: "America/Denver",
+  AZ: "America/Phoenix",
+  NV: "America/Los_Angeles", CA: "America/Los_Angeles",
+  OR: "America/Los_Angeles", WA: "America/Los_Angeles",
+  AK: "America/Anchorage", HI: "Pacific/Honolulu",
+};
+
+export function tzFromState(state: string | null | undefined): string | null {
+  if (!state) return null;
+  return STATE_TZ[state.toUpperCase()] ?? null;
+}
+
+export interface TimezoneResolution {
+  tz: string;
+  source: "state" | "zip" | "area_code" | "default";
+}
+
+/**
+ * Priority order:
+ *  1. property state (most reliable for owners — TCPA cares about recipient location)
+ *  2. property zip3
+ *  3. phone area code (least reliable due to mobile portability)
+ *  4. default America/New_York
+ *
+ * Returns both tz and source so callers can log fallback usage and improve mapping over time.
+ */
+export function resolveRecipientTimezoneVerbose(opts: {
+  state?: string | null;
+  zip?: string | null;
+  phone?: string | null;
+}): TimezoneResolution {
+  const stateTz = tzFromState(opts.state);
+  if (stateTz) return { tz: stateTz, source: "state" };
+  const zipTz = tzFromZip(opts.zip);
+  if (zipTz) return { tz: zipTz, source: "zip" };
+  const areaTz = tzFromPhone(opts.phone);
+  if (areaTz) return { tz: areaTz, source: "area_code" };
+  return { tz: DEFAULT_TZ, source: "default" };
+}
+
 export function resolveRecipientTimezone(opts: {
+  state?: string | null;
   zip?: string | null;
   phone?: string | null;
 }): string {
-  return tzFromZip(opts.zip) ?? tzFromPhone(opts.phone) ?? DEFAULT_TZ;
+  return resolveRecipientTimezoneVerbose(opts).tz;
 }
 
 /**

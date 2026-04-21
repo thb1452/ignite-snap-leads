@@ -20,9 +20,9 @@ export async function fetchWithRetry(
     try {
       const res = await fetch(url, { ...init, signal: ctrl.signal });
       clearTimeout(timer);
-      // Retry on 5xx and 429
+      // Retry on 5xx and 429 with exponential backoff + jitter
       if ((res.status >= 500 || res.status === 429) && attempt < maxRetries) {
-        await sleep(retryDelayMs * Math.pow(2, attempt));
+        await sleep(backoff(retryDelayMs, attempt));
         continue;
       }
       return res;
@@ -30,12 +30,19 @@ export async function fetchWithRetry(
       clearTimeout(timer);
       lastErr = e;
       if (attempt < maxRetries) {
-        await sleep(retryDelayMs * Math.pow(2, attempt));
+        await sleep(backoff(retryDelayMs, attempt));
         continue;
       }
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error("fetchWithRetry failed");
+}
+
+// Exponential backoff with full jitter (avoids retry-storm sync across callers).
+function backoff(baseMs: number, attempt: number): number {
+  const exp = baseMs * Math.pow(2, attempt);
+  const jitter = Math.random() * Math.min(250, exp);
+  return exp + jitter;
 }
 
 function sleep(ms: number) {

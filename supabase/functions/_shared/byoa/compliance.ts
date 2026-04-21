@@ -2,7 +2,7 @@
 // Per-org overrides will plug in via user_integrations.compliance_overrides (Phase 3).
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
-import { resolveRecipientTimezone, localHourInTz } from "./timezone.ts";
+import { resolveRecipientTimezoneVerbose, localHourInTz } from "./timezone.ts";
 
 // TCPA quiet hours: do not send before 8am or after 9pm recipient-local.
 export const QUIET_HOURS = { startHour: 8, endHourExclusive: 21 } as const;
@@ -53,11 +53,24 @@ export async function checkSmsCompliance(
     return { ok: false, reason: "suppression_list", phone: input.toPhoneE164 };
   }
 
-  // Quiet hours (recipient local time)
-  const tz = resolveRecipientTimezone({ zip: input.recipientZip, phone: input.toPhoneE164 });
-  const hour = localHourInTz(tz);
+  // Quiet hours (recipient local time) — log fallback source for tuning later.
+  const tzResult = resolveRecipientTimezoneVerbose({
+    state: input.recipientState,
+    zip: input.recipientZip,
+    phone: input.toPhoneE164,
+  });
+  if (tzResult.source === "default") {
+    console.warn(
+      `[compliance] tz fallback=default phone=${input.toPhoneE164.slice(-4)} state=${input.recipientState ?? "?"} zip=${input.recipientZip ?? "?"}`
+    );
+  } else if (tzResult.source === "area_code") {
+    console.log(
+      `[compliance] tz fallback=area_code (no state/zip) phone=${input.toPhoneE164.slice(-4)}`
+    );
+  }
+  const hour = localHourInTz(tzResult.tz);
   if (hour < QUIET_HOURS.startHour || hour >= QUIET_HOURS.endHourExclusive) {
-    return { ok: false, reason: "quiet_hours", localHour: hour, tz };
+    return { ok: false, reason: "quiet_hours", localHour: hour, tz: tzResult.tz };
   }
 
   return { ok: true };

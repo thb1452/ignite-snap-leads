@@ -20,6 +20,7 @@ import {
 import { LeadActivityTimeline } from "@/components/crm/LeadActivityTimeline";
 import { DistressTimeline } from "@/components/crm/DistressTimeline";
 import { ArrowLeft, Archive, ExternalLink } from "lucide-react";
+import { EnrollInSequenceButton } from "@/components/crm/EnrollInSequenceButton";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import SEOHead from "@/components/SEOHead";
@@ -70,15 +71,18 @@ export default function CrmLeadDetail() {
             </Link>
           </Button>
           {lead && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => archive(lead.id)}
-              disabled={archiving}
-            >
-              <Archive className="h-4 w-4" />
-              Archive
-            </Button>
+            <div className="flex items-center gap-2">
+              <EnrollInSequenceButton leadId={lead.id} />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => archive(lead.id)}
+                disabled={archiving}
+              >
+                <Archive className="h-4 w-4" />
+                Archive
+              </Button>
+            </div>
           )}
         </div>
 

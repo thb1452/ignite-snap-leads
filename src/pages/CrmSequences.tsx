@@ -88,7 +88,10 @@ export default function CrmSequences() {
                   <Badge variant="secondary" className="h-5 text-[10px]">Paused</Badge>
                 )}
               </div>
-              <div className="text-xs text-muted-foreground mt-1 capitalize">{s.trigger_type.replace("_", " ")} trigger</div>
+              <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                {s.trigger_type !== "manual" && <Zap className="h-3 w-3 text-amber-500" />}
+                {TRIGGER_LABELS[s.trigger_type] ?? s.trigger_type}
+              </div>
             </button>
           ))}
         </div>

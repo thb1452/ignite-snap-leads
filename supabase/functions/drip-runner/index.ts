@@ -15,8 +15,28 @@ const corsHeaders = {
 
 const SMS_COST_USD = 0.0083;
 
-function renderTemplate(tpl: string, vars: Record<string, string>): string {
-  return tpl.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => vars[k] ?? "");
+// Sanitize a single template variable value to prevent SMS injection.
+// - Strip control chars (incl. NULL, BEL, etc.) that some carriers interpret
+// - Collapse whitespace
+// - Hard-cap length so a malicious owner_name can't blow up the message
+// - Strip Unicode bidi/format chars used in spoofing attacks
+function sanitizeVar(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  let s = String(v);
+  // Remove control chars (0x00-0x1F, 0x7F) except space; remove bidi/format chars
+  s = s.replace(/[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g, "");
+  // Collapse whitespace runs
+  s = s.replace(/\s+/g, " ").trim();
+  // Cap length per variable
+  if (s.length > 80) s = s.slice(0, 80);
+  return s;
+}
+
+function renderTemplate(tpl: string, vars: Record<string, unknown>): string {
+  // Only the {{var}} pattern is interpolated. Templates themselves come from
+  // org-controlled drip_steps.template_body (RLS-guarded) — variables are the
+  // attacker-controlled surface, so each is sanitized at substitution time.
+  return tpl.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => sanitizeVar(vars[k]));
 }
 
 interface SendResult {
@@ -104,15 +124,14 @@ Deno.serve(async (req) => {
   const nowIso = new Date().toISOString();
   const credCache = new Map<string, { account_sid: string; auth_token: string; from_number: string } | null>();
 
-  const { data: due, error } = await admin
-    .from("drip_enrollments")
-    .select("id, org_id, lead_id, sequence_id, current_step, to_number")
-    .eq("status", "active")
-    .lte("next_run_at", nowIso)
-    .limit(50);
+  // CONCURRENCY-SAFE CLAIM: uses FOR UPDATE SKIP LOCKED inside a SECURITY DEFINER
+  // SQL function. Two cron ticks running in parallel will never grab the same
+  // enrollment because each row is row-locked and its next_run_at is bumped
+  // forward 5 minutes the moment it is claimed.
+  const { data: due, error } = await admin.rpc("claim_due_drip_enrollments", { _limit: 50 });
 
   if (error) {
-    console.error("drip-runner query failed", error);
+    console.error("drip-runner claim failed", error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
@@ -167,7 +186,21 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Suppression check
+        // GLOBAL suppression — checked first; cross-org STOP enforcement
+        const { data: globalSup } = await admin
+          .from("global_sms_suppression" as any)
+          .select("phone_number")
+          .eq("phone_number", enr.to_number)
+          .maybeSingle();
+        if (globalSup) {
+          await admin.from("drip_enrollments").update({
+            status: "paused", pause_reason: "global_opt_out",
+          }).eq("id", enr.id);
+          failed++;
+          continue;
+        }
+
+        // Per-org suppression
         const { data: suppressed } = await admin
           .from("suppression_list" as any)
           .select("id")

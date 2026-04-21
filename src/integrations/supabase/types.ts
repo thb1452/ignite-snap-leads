@@ -1356,6 +1356,30 @@ export type Database = {
         }
         Relationships: []
       }
+      global_sms_suppression: {
+        Row: {
+          id: string
+          opted_out_at: string
+          phone_number: string
+          reason: string
+          source_org_id: string | null
+        }
+        Insert: {
+          id?: string
+          opted_out_at?: string
+          phone_number: string
+          reason?: string
+          source_org_id?: string | null
+        }
+        Update: {
+          id?: string
+          opted_out_at?: string
+          phone_number?: string
+          reason?: string
+          source_org_id?: string | null
+        }
+        Relationships: []
+      }
       integration_action_log: {
         Row: {
           action_type: string
@@ -4390,6 +4414,17 @@ export type Database = {
           accepted: boolean
           email: string
           expires_at: string
+        }[]
+      }
+      claim_due_drip_enrollments: {
+        Args: { _limit?: number }
+        Returns: {
+          current_step: number
+          id: string
+          lead_id: string
+          org_id: string
+          sequence_id: string
+          to_number: string
         }[]
       }
       complete_foia_signup: {

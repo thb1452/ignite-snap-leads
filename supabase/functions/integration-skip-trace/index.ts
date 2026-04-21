@@ -4,11 +4,11 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
-import { resolveAuth, loadActiveIntegration } from "../_shared/byoa/auth.ts";
-import { getSecret } from "../_shared/byoa/vault.ts";
+import { getAuthContext, loadActiveIntegration } from "../_shared/byoa/auth.ts";
+import { readVaultSecret } from "../_shared/byoa/vault.ts";
 import { fetchWithRetry } from "../_shared/byoa/fetchWithRetry.ts";
 import { logAction, checkSpendCap } from "../_shared/byoa/actionLog.ts";
-import { resolveIdempotency, recordIdempotency } from "../_shared/byoa/idempotency.ts";
+import { resolveIdempotencyKey, findRecentDuplicate } from "../_shared/byoa/idempotency.ts";
 import { sanitizeForLog } from "../_shared/byoa/sanitize.ts";
 
 const corsHeaders = {
@@ -38,11 +38,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
     // 1. Auth
-    const auth = await resolveAuth(req, admin);
-    if (!auth.ok) {
-      return new Response(JSON.stringify({ error: auth.error }), { status: auth.status, headers });
+    const authResult = await getAuthContext(req);
+    if (!authResult.ok) {
+      return new Response(JSON.stringify({ error: authResult.error }), { status: authResult.status, headers });
     }
-    const { userId, orgId } = auth;
+    const { userId, orgId } = authResult.ctx;
 
     // 2. Body
     const body = (await req.json().catch(() => ({}))) as SkipTraceRequest;
@@ -50,17 +50,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({ error: "property_id required" }), { status: 400, headers });
     }
 
-    // 3. Load active skip-trace integration (batchdata or reisift)
-    const integration =
-      (await loadActiveIntegration(admin, orgId, "batchdata")) ??
-      (await loadActiveIntegration(admin, orgId, "reisift"));
-    if (!integration) {
+    // 3. Load active skip-trace integration (try batchdata first, then reisift)
+    let integrationLoad = await loadActiveIntegration(admin, orgId, "batchdata");
+    if (!integrationLoad.ok) {
+      integrationLoad = await loadActiveIntegration(admin, orgId, "reisift");
+    }
+    if (!integrationLoad.ok) {
       return new Response(
         JSON.stringify({ error: "No active skip-trace integration (batchdata or reisift)" }),
         { status: 412, headers }
       );
     }
-    const provider = integration.service_name as "batchdata" | "reisift";
+    const integration = integrationLoad.row;
+    // service_name isn't returned by loadActiveIntegration; re-fetch it.
+    const { data: svcRow } = await admin
+      .from("user_integrations" as any)
+      .select("service_name")
+      .eq("id", integration.id)
+      .maybeSingle();
+    const provider = ((svcRow as any)?.service_name ?? "batchdata") as "batchdata" | "reisift";
 
     // 4. Spend cap
     const cap = await checkSpendCap(admin, integration.id);
@@ -81,15 +89,29 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // 5. Idempotency (header preferred → derived 60s window)
-    const idem = await resolveIdempotency(admin, {
-      req,
+    const headerKey = req.headers.get("idempotency-key");
+    const idem = await resolveIdempotencyKey({
       integrationId: integration.id,
       actionType: "skiptrace.lookup",
-      payload: { property_id: body.property_id },
+      derivedFrom: { property_id: body.property_id },
+      headerKey,
     });
-    if (idem.replay) {
+    const dup = await findRecentDuplicate(
+      admin,
+      integration.id,
+      "skiptrace.lookup",
+      idem.key,
+      idem.windowMs
+    );
+    if (dup) {
       return new Response(
-        JSON.stringify({ replayed: true, ...idem.cached }),
+        JSON.stringify({
+          replayed: true,
+          idempotency_key: idem.key,
+          original_log_id: dup.id,
+          original_at: dup.created_at,
+          original_success: dup.success,
+        }),
         { headers }
       );
     }
@@ -105,9 +127,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // 7. Fetch credentials
-    const creds = await getSecret(admin, integration.vault_secret_id);
-    if (!creds) {
-      return new Response(JSON.stringify({ error: "Credentials unavailable" }), { status: 500, headers });
+    let creds: Record<string, string>;
+    try {
+      creds = await readVaultSecret(admin, integration.vault_secret_id);
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ error: "Credentials unavailable", detail: e instanceof Error ? e.message : "vault_error" }),
+        { status: 500, headers }
+      );
     }
 
     // 8. Provider call
@@ -210,6 +237,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       responseStatus: providerResult.status,
       costEstimateUsd: cost,
       requestMetadata: {
+        idempotency_key: idem.key,
+        idempotency_source: idem.source,
         property_id: body.property_id,
         provider,
         hit: cost > 0,
@@ -228,9 +257,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       mailing_address: providerResult.mailing_address,
       confidence: providerResult.confidence,
       cost_usd: cost,
+      idempotency_key: idem.key,
     };
-
-    await recordIdempotency(admin, idem.key, responseBody);
 
     return new Response(JSON.stringify(responseBody), { headers });
   } catch (e) {

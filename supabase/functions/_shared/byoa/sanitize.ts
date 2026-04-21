@@ -1,6 +1,7 @@
 // Strip credential-like values from any object before logging.
-// Never log: api_key, auth_token, password, secret, token, authorization, bearer
-const SECRET_KEY_RE = /^(api[_-]?key|auth[_-]?token|password|secret|token|authorization|account[_-]?sid)$/i;
+// Catches every common variant: token, secret, key, auth, password, sid, bearer,
+// access*, refresh*, private*, client_secret, etc.
+const SENSITIVE_KEYS = /(token|secret|key|auth|password|sid|bearer|credential|private)/i;
 
 export function sanitizeForLog(input: unknown, depth = 0): unknown {
   if (depth > 6) return "[depth-limit]";
@@ -16,8 +17,11 @@ export function sanitizeForLog(input: unknown, depth = 0): unknown {
   if (Array.isArray(input)) return input.map((v) => sanitizeForLog(v, depth + 1));
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
-    if (SECRET_KEY_RE.test(k)) {
-      out[k] = typeof v === "string" && v.length > 0 ? `${v.slice(0, 4)}…${v.slice(-2)}` : "[redacted]";
+    if (SENSITIVE_KEYS.test(k)) {
+      out[k] =
+        typeof v === "string" && v.length > 0
+          ? `${v.slice(0, 4)}…${v.slice(-2)}`
+          : "[redacted]";
     } else {
       out[k] = sanitizeForLog(v, depth + 1);
     }

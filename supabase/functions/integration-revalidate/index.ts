@@ -8,7 +8,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
-import { getSecret } from "../_shared/byoa/vault.ts";
+import { readVaultSecret } from "../_shared/byoa/vault.ts";
 import { fetchWithRetry } from "../_shared/byoa/fetchWithRetry.ts";
 import { logAction } from "../_shared/byoa/actionLog.ts";
 
@@ -53,7 +53,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let errMsg: string | null = null;
 
     try {
-      const creds = await getSecret(admin, r.vault_secret_id);
+      const creds = await readVaultSecret(admin, r.vault_secret_id);
       if (!creds) throw new Error("vault_secret_missing");
 
       switch (r.service_name) {

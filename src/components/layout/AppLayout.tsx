@@ -116,6 +116,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   // Build nav items based on role
   const navItems: NavItem[] = [
     { name: "Properties", path: "/properties", icon: Map },
+    { name: "Pipeline", path: "/crm/pipeline", icon: Briefcase },
     { name: "Lists", path: "/lists", icon: List },
     { name: "Scan", path: "/enrich", icon: Sparkles },
   ];

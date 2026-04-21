@@ -45,6 +45,8 @@ const ListEnrichment = lazy(() => import("./pages/ListEnrichment").then((m) => (
 const EnrichGate = lazy(() => import("./components/EnrichGate"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Referrals = lazy(() => import("./pages/Referrals"));
+const CrmPipeline = lazy(() => import("./pages/CrmPipeline"));
+const CrmLeadDetail = lazy(() => import("./pages/CrmLeadDetail"));
 
 const VADashboard = lazy(() => import("./pages/VADashboard"));
 const VAWorkspace = lazy(() => import("./pages/VAWorkspace"));
@@ -114,6 +116,9 @@ const App = () => (
                 <Route path="/saved" element={<RoleProtectedRoute allowedRoles={["admin", "user"]}><SavedProperties /></RoleProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/referrals" element={<ProtectedRoute><Referrals /></ProtectedRoute>} />
+                <Route path="/crm" element={<Navigate to="/crm/pipeline" replace />} />
+                <Route path="/crm/pipeline" element={<RoleProtectedRoute allowedRoles={["admin", "user"]}><CrmPipeline /></RoleProtectedRoute>} />
+                <Route path="/crm/leads/:id" element={<RoleProtectedRoute allowedRoles={["admin", "user"]}><CrmLeadDetail /></RoleProtectedRoute>} />
                 <Route path="/jobs" element={<RoleProtectedRoute allowedRoles={["admin", "va"]}><Jobs /></RoleProtectedRoute>} />
                 <Route path="/jobs/:id" element={<RoleProtectedRoute allowedRoles={["admin", "va"]}><JobDetail /></RoleProtectedRoute>} />
                 <Route path="/upload-jobs/:id" element={<RoleProtectedRoute allowedRoles={["admin", "va"]}><UploadJobDetail /></RoleProtectedRoute>} />

@@ -489,6 +489,8 @@ serve(async (req) => {
             snapScore: "",
             lastActivityDate: "",
             openCasesCount: "",
+            aiBrief: "",
+            actionLabel: "",
           });
         }
         continue;

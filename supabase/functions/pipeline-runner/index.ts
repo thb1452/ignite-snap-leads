@@ -14,6 +14,8 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
+declare const EdgeRuntime: { waitUntil: (p: Promise<unknown>) => void };
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -47,7 +49,7 @@ interface RunState {
 }
 
 async function loadProgress(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   runKey: string,
 ): Promise<RunState | null> {
   const { data } = await supabase
@@ -59,7 +61,7 @@ async function loadProgress(
 }
 
 async function saveProgress(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   runKey: string,
   state: Partial<RunState>,
 ) {

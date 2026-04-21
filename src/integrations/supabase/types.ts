@@ -520,6 +520,51 @@ export type Database = {
           },
         ]
       }
+      distress_events: {
+        Row: {
+          delta: Json
+          detected_at: string
+          event_type: string
+          id: string
+          property_id: string
+          severity: string
+          source: string
+        }
+        Insert: {
+          delta?: Json
+          detected_at?: string
+          event_type: string
+          id?: string
+          property_id: string
+          severity?: string
+          source?: string
+        }
+        Update: {
+          delta?: Json
+          detected_at?: string
+          event_type?: string
+          id?: string
+          property_id?: string
+          severity?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distress_events_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distress_events_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_analytics: {
         Row: {
           clicked_at: string | null

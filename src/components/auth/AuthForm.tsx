@@ -24,9 +24,7 @@ const signUpSchema = z.object({
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  consent: z.literal(true, {
-    errorMap: () => ({ message: 'You must agree to receive alerts to create an account' }),
-  }),
+  smsConsent: z.boolean().optional(),
 });
 
 type SignInFormData = z.infer<typeof signInSchema>;
@@ -76,7 +74,7 @@ export function AuthForm() {
 
   const signUpForm = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { fullName: '', email: '', phone: '', password: '', consent: undefined as any },
+    defaultValues: { fullName: '', email: '', phone: '', password: '', smsConsent: false },
   });
 
   const handleSignIn = async (data: SignInFormData) => {
@@ -198,24 +196,27 @@ export function AuthForm() {
                 )}
               </div>
 
-              <div className="flex items-start space-x-3 pt-2">
-                <Checkbox
-                  id="signup-consent"
-                  checked={signUpForm.watch('consent') === true}
-                  onCheckedChange={(checked) => {
-                    signUpForm.setValue('consent', checked === true ? true : undefined as any, { shouldValidate: true });
-                  }}
-                  className="mt-0.5"
-                />
-                <label htmlFor="signup-consent" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                  I agree to receive property alerts, account notifications, and service updates from Snap Ignite via email and SMS/text. Msg &amp; Data rates may apply. Reply STOP to cancel. View our{' '}
-                  <Link to="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link> and{' '}
-                  <Link to="/terms-and-conditions" className="text-primary hover:underline">Terms &amp; Conditions</Link>.
-                </label>
+              {/* A2P 10DLC SMS opt-in — OPTIONAL, not pre-checked, separate from Terms acceptance */}
+              <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="signup-sms-consent"
+                    checked={signUpForm.watch('smsConsent') === true}
+                    onCheckedChange={(checked) => {
+                      signUpForm.setValue('smsConsent', checked === true, { shouldValidate: false });
+                    }}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="signup-sms-consent" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                    I agree to receive recurring automated text messages from Snap Ignite, including property alerts, account notifications, and platform updates. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help.
+                  </label>
+                </div>
+                <p className="text-[11px] text-muted-foreground/80 pl-7">
+                  Optional — you can sign up without enabling SMS. Consent is not a condition of purchase. View our{' '}
+                  <Link to="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</Link>{' '}and{' '}
+                  <Link to="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms and Conditions</Link>.
+                </p>
               </div>
-              {signUpForm.formState.errors.consent && (
-                <p className="text-sm text-destructive">{signUpForm.formState.errors.consent.message}</p>
-              )}
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>

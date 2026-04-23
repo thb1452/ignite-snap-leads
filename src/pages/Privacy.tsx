@@ -126,6 +126,11 @@ export default function Privacy() {
                 <span>Your phone number will never be sold or shared with third parties</span>
               </li>
             </ul>
+            <div className="mt-4 bg-accent/30 border border-border rounded-lg p-4">
+              <p className="text-foreground font-semibold">
+                Mobile information and SMS opt-in data will not be shared, sold, or disclosed to third parties or affiliates for marketing or promotional purposes.
+              </p>
+            </div>
           </section>
 
           <section>

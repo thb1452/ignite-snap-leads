@@ -1273,6 +1273,87 @@ export type Database = {
         }
         Relationships: []
       }
+      foia_request_jobs: {
+        Row: {
+          attempt_count: number
+          city: string | null
+          contact_email: string | null
+          county_fips: string | null
+          created_at: string
+          credential_id: string | null
+          error_message: string | null
+          external_request_id: string | null
+          id: string
+          idempotency_key: string | null
+          jurisdiction: string | null
+          last_follow_up_at: string | null
+          metadata: Json
+          portal_url: string | null
+          priority: number
+          request_body: string | null
+          request_template: string | null
+          request_type: string
+          response_due_at: string | null
+          retry_count: number
+          sent_at: string | null
+          state: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          city?: string | null
+          contact_email?: string | null
+          county_fips?: string | null
+          created_at?: string
+          credential_id?: string | null
+          error_message?: string | null
+          external_request_id?: string | null
+          id?: string
+          idempotency_key?: string | null
+          jurisdiction?: string | null
+          last_follow_up_at?: string | null
+          metadata?: Json
+          portal_url?: string | null
+          priority?: number
+          request_body?: string | null
+          request_template?: string | null
+          request_type: string
+          response_due_at?: string | null
+          retry_count?: number
+          sent_at?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          city?: string | null
+          contact_email?: string | null
+          county_fips?: string | null
+          created_at?: string
+          credential_id?: string | null
+          error_message?: string | null
+          external_request_id?: string | null
+          id?: string
+          idempotency_key?: string | null
+          jurisdiction?: string | null
+          last_follow_up_at?: string | null
+          metadata?: Json
+          portal_url?: string | null
+          priority?: number
+          request_body?: string | null
+          request_template?: string | null
+          request_type?: string
+          response_due_at?: string | null
+          retry_count?: number
+          sent_at?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       foia_requests: {
         Row: {
           county_id: string | null
@@ -1400,6 +1481,122 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      foia_responses: {
+        Row: {
+          attachment_url: string | null
+          attachment_urls: string[]
+          classified_by_agent: string | null
+          id: string
+          metadata: Json
+          needs_human_review: boolean
+          parsed_status: string | null
+          raw_text: string | null
+          received_at: string
+          request_job_id: string
+          response_type: string | null
+          source: string | null
+        }
+        Insert: {
+          attachment_url?: string | null
+          attachment_urls?: string[]
+          classified_by_agent?: string | null
+          id?: string
+          metadata?: Json
+          needs_human_review?: boolean
+          parsed_status?: string | null
+          raw_text?: string | null
+          received_at?: string
+          request_job_id: string
+          response_type?: string | null
+          source?: string | null
+        }
+        Update: {
+          attachment_url?: string | null
+          attachment_urls?: string[]
+          classified_by_agent?: string | null
+          id?: string
+          metadata?: Json
+          needs_human_review?: boolean
+          parsed_status?: string | null
+          raw_text?: string | null
+          received_at?: string
+          request_job_id?: string
+          response_type?: string | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foia_responses_request_job_id_fkey"
+            columns: ["request_job_id"]
+            isOneToOne: false
+            referencedRelation: "foia_request_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      foia_sources: {
+        Row: {
+          automation_status: string | null
+          city: string | null
+          commercial_use_allowed: boolean
+          contact_email: string | null
+          county: string | null
+          created_at: string
+          id: string
+          instructions: string | null
+          jurisdiction: string | null
+          last_verified_at: string | null
+          notes: string | null
+          portal_vendor: string | null
+          requires_captcha: boolean
+          requires_login: boolean
+          source_type: string
+          source_url: string | null
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          automation_status?: string | null
+          city?: string | null
+          commercial_use_allowed?: boolean
+          contact_email?: string | null
+          county?: string | null
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          jurisdiction?: string | null
+          last_verified_at?: string | null
+          notes?: string | null
+          portal_vendor?: string | null
+          requires_captcha?: boolean
+          requires_login?: boolean
+          source_type: string
+          source_url?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          automation_status?: string | null
+          city?: string | null
+          commercial_use_allowed?: boolean
+          contact_email?: string | null
+          county?: string | null
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          jurisdiction?: string | null
+          last_verified_at?: string | null
+          notes?: string | null
+          portal_vendor?: string | null
+          requires_captcha?: boolean
+          requires_login?: boolean
+          source_type?: string
+          source_url?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       foia_templates: {
         Row: {

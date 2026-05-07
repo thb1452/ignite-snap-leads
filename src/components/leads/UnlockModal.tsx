@@ -9,11 +9,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Lock, CreditCard, Coins, Sparkles, Loader2, Zap, TrendingUp, Building2, Package } from "lucide-react";
+import { Lock, CreditCard, Coins, Sparkles, Loader2, Zap, TrendingUp, Building2, Package, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { PAYG_PRICE_DISPLAY } from "@/lib/pricing";
+import {
+  BULK_PACKS,
+  PAYG_PRICE_DISPLAY,
+  SUBSCRIPTION_TIERS,
+  type PlanTierName,
+} from "@/lib/pricing";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUserCredits } from "@/hooks/useUserProfile";
@@ -36,17 +41,11 @@ interface UnlockModalProps {
   onUnlocked?: () => void;
 }
 
-const SUBSCRIPTION_TIERS = [
-  { name: "starter", label: "Starter", price: "$49/mo", credits: "750 credits/mo", icon: Zap },
-  { name: "professional", label: "Pro", price: "$99/mo", credits: "1,500 credits/mo", icon: TrendingUp },
-  { name: "enterprise", label: "Elite", price: "$199/mo", credits: "3,000 credits/mo", icon: Building2 },
-];
-
-const BULK_PACKS = [
-  { count: 5000, label: "5,000", price: "$750", per: "$0.15/ea" },
-  { count: 10000, label: "10,000", price: "$1,300", per: "$0.13/ea" },
-  { count: 20000, label: "20,000", price: "$2,200", per: "$0.11/ea" },
-];
+const TIER_ICONS: Record<PlanTierName, typeof Zap> = {
+  starter: Zap,
+  professional: TrendingUp,
+  enterprise: Building2,
+};
 
 export function UnlockModal({
   open,
@@ -296,15 +295,23 @@ export function UnlockModal({
             )}
 
             {!canUseSubscriptionUnlock && canUseFreeUnlock && (
-              <Button
-                onClick={handleUnlockWithCredits}
-                disabled={isUnlocking}
-                className="w-full gap-2"
-                size="lg"
-              >
-                {isUnlocking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Use Free Unlock ({freeUnlocksRemaining} left)
-              </Button>
+              <>
+                <Button
+                  onClick={handleUnlockWithCredits}
+                  disabled={isUnlocking}
+                  className="w-full gap-2"
+                  size="lg"
+                >
+                  {isUnlocking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  Use Free Unlock ({freeUnlocksRemaining} left)
+                </Button>
+                {freeUnlocksRemaining <= 1 && (
+                  <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                    <Flame className="h-3.5 w-3.5" />
+                    Last free unlock — make it count, then pick a plan or pack to keep going.
+                  </p>
+                )}
+              </>
             )}
 
             {!canUseSubscriptionUnlock && !canUseFreeUnlock && canUseBulkCredit && (
@@ -364,7 +371,7 @@ export function UnlockModal({
             </p>
             <div className="grid gap-2">
               {SUBSCRIPTION_TIERS.map((tier) => {
-                const Icon = tier.icon;
+                const Icon = TIER_ICONS[tier.name];
                 const isCurrentPlan = currentPlanName === tier.name;
                 const targetKey = `subscription-${JSON.stringify({ tier_name: tier.name, billing_cycle: "monthly" })}`;
                 return (
@@ -387,13 +394,17 @@ export function UnlockModal({
                         <Icon className="h-4 w-4" />
                       )}
                       <span className="font-medium">{tier.label}</span>
-                      <span className="text-muted-foreground text-xs">{tier.credits}</span>
+                      <span className="text-muted-foreground text-xs">{tier.creditsDisplay}</span>
                     </span>
-                    <span className="font-semibold text-sm">{isCurrentPlan ? "Current" : tier.price}</span>
+                    <span className="font-semibold text-sm">{isCurrentPlan ? "Current" : tier.priceDisplay}</span>
                   </Button>
                 );
               })}
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Subscription credits cost as little as ${SUBSCRIPTION_TIERS[0].effectivePerCredit.toFixed(2)} each — about{" "}
+              {Math.round((1 - SUBSCRIPTION_TIERS[0].effectivePerCredit / 0.67) * 100)}% off pay-as-you-go.
+            </p>
           </div>
 
           <Separator />
@@ -426,13 +437,19 @@ export function UnlockModal({
                       <Coins className="h-3.5 w-3.5" />
                     )}
                     <span className="font-medium">{pack.label} credits</span>
-                    <span className="text-muted-foreground text-xs">{pack.per}</span>
+                    <span className="text-muted-foreground text-xs">{pack.perCreditDisplay}</span>
+                    <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      Save {pack.savingsPercent}%
+                    </span>
                   </span>
-                  <span className="font-semibold text-sm">{pack.price}</span>
+                  <span className="font-semibold text-sm">{pack.priceDisplay}</span>
                 </Button>
               );
             })}
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            Bulk credits never expire and stack with subscription credits.
+          </p>
         </div>
       </DialogContent>
     </Dialog>

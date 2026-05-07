@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import SEOHead from "@/components/SEOHead";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Loader2, Crown, Shield, AlertTriangle, Sparkles, Users, Mail } from "lucide-react";
+import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Loader2, Crown, Shield, AlertTriangle, Sparkles, Users, Mail, type LucideIcon } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
+import type { User } from "@supabase/supabase-js";
 
 interface PricingTier {
   id: string;
@@ -19,7 +20,7 @@ interface PricingTier {
   description: string;
   features: string[];
   notIncluded?: string[];
-  icon: any;
+  icon: LucideIcon;
   popular?: boolean;
   badge?: string;
   savingsBadge?: string;
@@ -37,11 +38,11 @@ const PRICING_TIERS: PricingTier[] = [
     name: "free",
     display_name: "Free",
     price: 0,
-    description: "Browse everything. Pay nothing.",
+    description: "Browse markets and learn the pressure signals before you unlock.",
     features: [
       "3 free unlocks on signup",
-      "Browse all properties",
-      "AI investor briefs",
+      "Browse market-level property signals",
+      "AI Investor Brief previews",
       "SnapScore ranking",
       "Violation data",
       "Address always blurred until unlock",
@@ -57,13 +58,13 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: "Pay As You Go",
     price: 0.67,
     perAddress: "$0.67/credit",
-    description: "No monthly fee. No commitment.",
+    description: "For selective unlocks when a signal is strong enough to act.",
     features: [
       "$0.67 per credit",
-      "1 credit = 1 unlock + export",
+      "1 credit = 1 selective unlock + export",
       "Credits never expire",
       "No subscription required",
-      "Perfect for thin markets",
+      "Best for targeted market checks",
     ],
     icon: Zap,
     cta: "Buy Credits",
@@ -77,13 +78,13 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: "Starter",
     price: 49,
     perAddress: "$0.07/address",
-    description: "For investors getting started with enforcement data.",
+    description: "For investors starting a recurring market-monitoring habit.",
     features: [
       "750 credits/month",
       "1 credit = 1 unlock + export",
       "All Free features",
-      "Code violation data",
-      "Basic filters",
+      "Code violation monitoring",
+      "Basic market filters",
     ],
     icon: Zap,
     cta: "Get Starter",
@@ -95,13 +96,13 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: "Pro",
     price: 99,
     perAddress: "$0.07/address",
-    description: "For serious operators stacking enforcement data.",
+    description: "For operators reviewing municipal pressure signals every week.",
     features: [
       "1,500 credits/month",
       "1 credit = 1 unlock + export",
       "All Starter features",
       "Pressure Level™ filters",
-      "Priority support",
+      "Weekly monitoring workflow",
     ],
     icon: TrendingUp,
     popular: true,
@@ -116,13 +117,13 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: "Elite",
     price: 199,
     perAddress: "$0.07/address",
-    description: "For teams running enforcement-first strategies.",
+    description: "For teams monitoring multiple markets and premium pressure signals.",
     features: [
       "3,000 credits/month",
       "1 credit = 1 unlock + export",
       "All Pro features",
       "Water shutoff data",
-      "API Access",
+      "Multi-market monitoring",
       "Priority support",
     ],
     icon: Building2,
@@ -135,15 +136,15 @@ const PRICING_TIERS: PricingTier[] = [
     name: "custom",
     display_name: "Enterprise",
     price: null,
-    description: "For teams, funds, and high-volume operators. Custom pricing, API access, and dedicated support.",
+    description: "For teams, funds, and data operators monitoring coverage at scale. Custom pricing, API access, and dedicated support.",
     features: [
-      "25,000+ addresses",
+      "25,000+ monitored records",
       "API access",
       "Dedicated account manager",
       "Custom contract",
       "Custom rate limits",
       "Dedicated onboarding",
-      "SLA guarantee",
+      "SLA terms",
     ],
     icon: Shield,
     cta: "Contact Us",
@@ -158,7 +159,7 @@ const BULK_PACKS = [
   { credits: "20,000", rawCount: 20000, price: "$2,200", per: "$0.11/credit" },
 ];
 
-function BulkCreditCards({ user, navigate, toast }: { user: any; navigate: any; toast: any }) {
+function BulkCreditCards({ user, navigate, toast }: { user: User | null; navigate: NavigateFunction; toast: ReturnType<typeof useToast>["toast"] }) {
   const [loadingPack, setLoadingPack] = useState<number | null>(null);
 
   const handleBuy = async (rawCount: number) => {
@@ -178,8 +179,9 @@ function BulkCreditCards({ user, navigate, toast }: { user: any; navigate: any; 
       if (!url) throw new Error(res.data?.error || "Failed to create checkout");
       // Use direct navigation on mobile to avoid popup blockers
       window.location.href = url;
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Checkout failed";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoadingPack(null);
     }
@@ -251,9 +253,10 @@ export default function Pricing() {
       setCheckoutFallbackUrl(checkoutUrl);
       // Use direct navigation to avoid mobile popup blockers
       window.location.href = checkoutUrl;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Pricing] Upgrade error:', err);
-      toast({ title: 'Unable to start checkout', description: err.message || 'Please try again.', variant: 'destructive' });
+      const message = err instanceof Error ? err.message : 'Please try again.';
+      toast({ title: 'Unable to start checkout', description: message, variant: 'destructive' });
       setUpgradingTier(null);
       upgradeInFlightRef.current = false;
     }
@@ -444,7 +447,7 @@ export default function Pricing() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <SEOHead
         title="Pricing — Plans from $0.67/credit | Snap Ignite"
-        description="Choose your Snap Ignite plan. Free forever, Pay As You Go ($0.67/credit), Starter ($49/mo), Pro ($99/mo), or Elite ($199/mo). One deal pays for years of Snap Ignite."
+        description="Choose your Snap Ignite plan. Browse market pressure signals free, use Pay As You Go for selective unlocks, or subscribe for recurring market monitoring."
         canonical="https://snapignite.com/pricing"
       />
 
@@ -489,10 +492,10 @@ export default function Pricing() {
       <div className="container max-w-7xl py-12 px-4">
         <div className="text-center mb-12">
           <h1 className="text-3xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
-            Our competitor sells raw code violation CSVs. We show you which ones to call first and why.
+            Pricing for monitoring municipal pressure — not dumping commodity lead lists.
           </h1>
           <p className="text-xl text-muted-foreground mb-2">
-            Only pay for what's in your market. One deal pays for years of Snap Ignite.
+            Browse markets, compare visible enforcement signals, and spend credits only when a record is strong enough to unlock.
           </p>
         </div>
 
@@ -504,10 +507,10 @@ export default function Pricing() {
         {/* Bulk Credits Section */}
         <div className="max-w-4xl mx-auto mb-16">
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-2">
-            Need a large targeted list? Buy once, use anytime.
+            Need selective unlock capacity? Buy once, use anytime.
           </h2>
           <p className="text-center text-muted-foreground mb-2">No subscription required.</p>
-          <p className="text-center text-sm text-muted-foreground mb-8">Each credit unlocks one full property record including address and violation data.</p>
+          <p className="text-center text-sm text-muted-foreground mb-8">Each credit unlocks one full property record, including the exact address and export rights for that record.</p>
           <BulkCreditCards user={user} navigate={navigate} toast={toast} />
           <p className="text-center text-sm text-muted-foreground mt-4">
             Need 25,000+? <a href="mailto:hello@snapignite.com?subject=Enterprise%20Pricing%20Inquiry" className="text-primary hover:underline">Contact us</a> for Enterprise pricing.
@@ -525,8 +528,8 @@ export default function Pricing() {
             </CardHeader>
             <CardContent>
               <p className="text-center text-muted-foreground">
-                Water shutoffs represent the highest level of municipal enforcement pressure on a property.
-                This premium data is available exclusively on the Elite plan.
+                Water shutoffs are among the strongest municipal pressure signals visible on a property record.
+                This premium signal layer is available on the Elite plan.
               </p>
             </CardContent>
           </Card>
@@ -540,8 +543,8 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">Do I need a subscription?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  No. Browse everything free. When you find a lead worth pursuing, unlock it for $0.67 — no subscription required.
-                  Subscriptions give you a better per-address rate if you're unlocking regularly.
+                  No. Browse market signals free. When the public enforcement evidence is strong enough to act, unlock the record for $0.67 — no subscription required.
+                  Subscriptions are for investors who monitor markets and unlock records regularly.
                 </p>
               </CardContent>
             </Card>
@@ -549,7 +552,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">How does Pay As You Go work?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Buy credits one at a time for $0.67 each. Each credit unlocks one property — full address + violation data.
+                  Buy credits one at a time for $0.67 each. Each credit unlocks one property — exact address, violation context, and export rights.
                   No monthly commitment, no expiration.
                 </p>
               </CardContent>
@@ -558,8 +561,8 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">What's the difference between code violations and water shutoffs?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  <strong>Code violations</strong> indicate properties where the city is applying enforcement pressure.
-                  <strong> Water shutoffs</strong> are utility disconnections — a stronger enforcement signal.
+                  <strong>Code violations</strong> indicate properties with visible municipal enforcement activity.
+                  <strong> Water shutoffs</strong> are utility disconnections — a stronger pressure signal when available.
                   Water shutoff data is available on the Elite plan.
                 </p>
               </CardContent>
@@ -578,7 +581,7 @@ export default function Pricing() {
 
         <div className="text-center mt-16">
           <p className="text-sm text-muted-foreground mb-6 italic">
-            Each credit unlocks one full property record including address and violation data. Skip trace (owner phone/contact) coming soon.
+            Unlocks are the unit of value: one credit reveals one full property record and export rights. AI Investor Briefs explain visible enforcement signals; they do not claim an owner wants to sell.
           </p>
           <p className="text-muted-foreground mb-4">
             Questions? Email us at <a href="mailto:hello@snapignite.com" className="text-blue-600 dark:text-blue-400 hover:underline">hello@snapignite.com</a>

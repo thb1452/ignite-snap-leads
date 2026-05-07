@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, ChevronLeft, Target, BarChart3, Lock, Zap, CheckCircle2 } from "lucide-react";
+import { ChevronRight, ChevronLeft, BarChart3, Lock, Zap, CheckCircle2, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { PAYG_PRICE_DISPLAY } from "@/lib/pricing";
@@ -15,19 +15,18 @@ interface OnboardingFlowProps {
 
 const ONBOARDING_STEPS = [
   {
-    title: "Welcome to Snap Ignite",
-    icon: Target,
+    title: "Start with a market to monitor",
+    icon: MapPin,
     content: (
       <div className="space-y-4">
         <p className="text-lg text-ink-700 font-medium">
-          AI‑powered investor intelligence, not another lead list.
+          Enforcement intelligence for monitoring municipal pressure — not another disposable lead list.
         </p>
         <div className="p-4 bg-brand/5 border border-brand/20 rounded-lg">
           <p className="text-sm text-ink-700">
-            Snap monitors active code violations, water shutoffs, and city enforcement across{" "}
+            Choose a city or market, then use Snap to monitor active code violations, water shutoffs, repeat notices, and city enforcement across{" "}
             <strong className="text-brand">3,800+ cities</strong>. Every property gets a{" "}
-            <strong className="text-brand">2-sentence Investor Brief</strong> that tells you exactly
-            what's happening and what to do next.
+            <strong className="text-brand">2-sentence Investor Brief</strong> that explains the visible pressure signals before you unlock.
           </p>
         </div>
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
@@ -41,7 +40,7 @@ const ONBOARDING_STEPS = [
             ███ Oak Street, Austin TX
           </p>
           <p className="text-xs text-ink-600 mt-2">
-            "Active water shutoff notice filed. City enforcement escalated to structural review — immediate action window open."
+            "Active water shutoff notice filed. City enforcement escalated to structural review — pressure signal changed this cycle."
           </p>
           <div className="flex items-center gap-2 mt-2">
             <Badge className="bg-score-red text-score-red-foreground text-xs">SnapScore 94</Badge>
@@ -53,7 +52,7 @@ const ONBOARDING_STEPS = [
     ),
   },
   {
-    title: "Browse free. Unlock when you're ready.",
+    title: "Browse free. Unlock when the signal is strong.",
     icon: Lock,
     content: (
       <div className="space-y-4">
@@ -63,7 +62,7 @@ const ONBOARDING_STEPS = [
             <ul className="space-y-1.5 text-xs text-ink-600">
               <li className="flex items-start gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
-                Full AI Investor Brief
+                AI Investor Brief preview
               </li>
               <li className="flex items-start gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
@@ -84,7 +83,7 @@ const ONBOARDING_STEPS = [
               </li>
               <li className="flex items-start gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
-                Owner contact info
+                Contact-ready details when available
               </li>
               <li className="flex items-start gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
@@ -95,7 +94,7 @@ const ONBOARDING_STEPS = [
         </div>
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
-            <strong>No monthly fee required.</strong> Pay {PAYG_PRICE_DISPLAY} per credit, or subscribe for monthly credits and advanced features.
+            <strong>No monthly fee required.</strong> Pay {PAYG_PRICE_DISPLAY} per credit for selective unlocks, or subscribe when monitoring becomes a weekly workflow.
           </p>
         </div>
       </div>
@@ -108,7 +107,7 @@ const ONBOARDING_STEPS = [
       <div className="space-y-4">
         <p className="text-ink-700">
           Every property includes a 2-sentence plain-English{" "}
-          <strong>Investor Brief</strong> and a <strong>SnapScore</strong> from 0–100.
+          <strong>Investor Brief</strong> and a <strong>SnapScore</strong> from 0–100 based on visible enforcement signals.
         </p>
 
         <div className="space-y-2">
@@ -117,8 +116,8 @@ const ONBOARDING_STEPS = [
               70–100
             </Badge>
             <div>
-              <h4 className="font-semibold text-sm text-ink-900">CALL NOW</h4>
-              <p className="text-xs text-ink-600">Highest urgency — act immediately.</p>
+              <h4 className="font-semibold text-sm text-ink-900">HIGH PRESSURE</h4>
+              <p className="text-xs text-ink-600">Strong visible signal — review before outreach.</p>
             </div>
           </div>
 
@@ -127,8 +126,8 @@ const ONBOARDING_STEPS = [
               40–69
             </Badge>
             <div>
-              <h4 className="font-semibold text-sm text-ink-900">STRONG OPPORTUNITY</h4>
-              <p className="text-xs text-ink-600">Active signal — worth your attention.</p>
+              <h4 className="font-semibold text-sm text-ink-900">ACTIVE SIGNAL</h4>
+              <p className="text-xs text-ink-600">Worth monitoring and comparing against your market.</p>
             </div>
           </div>
 
@@ -138,7 +137,7 @@ const ONBOARDING_STEPS = [
             </Badge>
             <div>
               <h4 className="font-semibold text-sm text-ink-900">WATCH</h4>
-              <p className="text-xs text-ink-600">Emerging or lower-priority signal.</p>
+              <p className="text-xs text-ink-600">Emerging or lower-priority signal to revisit later.</p>
             </div>
           </div>
         </div>
@@ -146,18 +145,18 @@ const ONBOARDING_STEPS = [
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-center gap-2 mb-1">
             <Badge className="bg-score-red text-score-red-foreground text-xs">SnapScore 100</Badge>
-            <span className="font-bold text-xs text-red-700">CALL NOW</span>
+            <span className="font-bold text-xs text-red-700">HIGH PRESSURE</span>
           </div>
           <p className="text-xs text-green-800 italic">
-            "Active water shutoff notice filed. City enforcement escalated — immediate action window
-            open."
+            "Active water shutoff notice filed. City enforcement escalated — review the
+            visible pressure before outreach."
           </p>
         </div>
       </div>
     ),
   },
   {
-    title: "Pay as you go, or subscribe for volume",
+    title: "Pay as you go, or subscribe for weekly monitoring",
     icon: Zap,
     content: (
       <div className="space-y-4">
@@ -168,7 +167,7 @@ const ONBOARDING_STEPS = [
             </div>
             <div>
               <h4 className="font-semibold text-sm text-ink-900">Pay‑as‑you‑go</h4>
-              <p className="text-xs text-ink-600">{PAYG_PRICE_DISPLAY} per credit. No commitment.</p>
+              <p className="text-xs text-ink-600">{PAYG_PRICE_DISPLAY} per credit for selective unlocks. No commitment.</p>
             </div>
           </div>
 
@@ -178,7 +177,7 @@ const ONBOARDING_STEPS = [
             </div>
             <div>
               <h4 className="font-semibold text-sm text-ink-900">Starter — $49/mo</h4>
-              <p className="text-xs text-ink-600">750 credits/month.</p>
+              <p className="text-xs text-ink-600">750 credits/month for recurring market checks.</p>
             </div>
           </div>
 
@@ -188,7 +187,7 @@ const ONBOARDING_STEPS = [
             </div>
             <div>
               <h4 className="font-semibold text-sm text-ink-900">Pro — $99/mo</h4>
-              <p className="text-xs text-ink-600">1,500 credits/month + advanced filters.</p>
+              <p className="text-xs text-ink-600">1,500 credits/month + pressure filters for weekly monitoring.</p>
             </div>
           </div>
 
@@ -198,15 +197,15 @@ const ONBOARDING_STEPS = [
             </div>
             <div>
               <h4 className="font-semibold text-sm text-ink-900">Elite — $199/mo</h4>
-              <p className="text-xs text-ink-600">3,000 credits/month + water shutoff data.</p>
+              <p className="text-xs text-ink-600">3,000 credits/month + water shutoff data for multi-market monitoring.</p>
             </div>
           </div>
         </div>
 
         <div className="pt-4 border-t border-slate-200">
           <p className="text-xs text-ink-500">
-            Investor Briefs and SnapScore are AI-generated interpretations of public enforcement
-            records.
+            Investor Briefs and SnapScore interpret public/property pressure signals; they do
+            not claim that an owner wants to sell.
           </p>
         </div>
       </div>

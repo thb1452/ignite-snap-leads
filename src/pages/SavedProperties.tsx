@@ -92,7 +92,7 @@ export default function SavedProperties() {
       if (paginatedIds.length === 0) return [];
       const { data, error } = await supabase
         .from("properties")
-        .select("id, address, city, state, zip, snap_score, total_violations, open_violations, enforcement_type, opportunity_class")
+        .select("id, address, street_number, street_name, city, state, zip, snap_score, total_violations, open_violations, enforcement_type, opportunity_class")
         .in("id", paginatedIds);
       if (error) throw error;
       return data || [];
@@ -238,10 +238,10 @@ export default function SavedProperties() {
             <Heart className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-semibold">No saved properties</h3>
             <p className="text-muted-foreground mt-1">
-              Tap the heart icon on any property to save it here.
+              Tap the heart icon on any property to monitor it here before deciding whether to unlock or export.
             </p>
             <Button variant="outline" className="mt-4" onClick={() => navigate("/leads")}>
-              Browse Properties
+              Monitor Properties
             </Button>
           </div>
         ) : (
@@ -325,7 +325,7 @@ export default function SavedProperties() {
                 const unlocked = isUnlocked(p.id);
                 const displayStreet = unlocked
                   ? p.address
-                  : formatBlurredStreet(p as any, false);
+                  : formatBlurredStreet(p, false);
                 return (
                   <Card key={p.id} className="p-4">
                     <div className="flex items-center gap-3">

@@ -7,9 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2, AlertTriangle, RefreshCw, Bug, Webhook, Activity, Server } from "lucide-react";
+import { CheckCircle2, AlertTriangle, RefreshCw, Bug, Webhook, Activity, Server, Database, FileText, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { EnrichmentQueueCard } from "@/components/admin/operations/EnrichmentQueueCard";
+import { FoiaQueueCard } from "@/components/admin/operations/FoiaQueueCard";
+import { NeedsHumanReviewTable } from "@/components/admin/operations/NeedsHumanReviewTable";
+import { AgentRunsTable } from "@/components/admin/operations/AgentRunsTable";
+import { JurisdictionVerifierTable } from "@/components/admin/operations/JurisdictionVerifierTable";
 
 // ── Types ──
 type SystemLog = {
@@ -193,6 +198,15 @@ export default function AdminMonitoring() {
             <TabsTrigger value="system" className="gap-1">
               <Server className="h-4 w-4" /> System Logs
             </TabsTrigger>
+            <TabsTrigger value="enrichment" className="gap-1">
+              <Database className="h-4 w-4" /> Enrichment
+            </TabsTrigger>
+            <TabsTrigger value="foia" className="gap-1">
+              <FileText className="h-4 w-4" /> FOIA
+            </TabsTrigger>
+            <TabsTrigger value="operations" className="gap-1">
+              <Wrench className="h-4 w-4" /> Operations
+            </TabsTrigger>
           </TabsList>
 
           {/* Errors Tab */}
@@ -346,6 +360,25 @@ export default function AdminMonitoring() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Enrichment Tab */}
+          <TabsContent value="enrichment">
+            <EnrichmentQueueCard />
+          </TabsContent>
+
+          {/* FOIA Tab */}
+          <TabsContent value="foia">
+            <FoiaQueueCard />
+          </TabsContent>
+
+          {/* Operations Tab */}
+          <TabsContent value="operations">
+            <div className="space-y-4">
+              <NeedsHumanReviewTable />
+              <AgentRunsTable />
+              <JurisdictionVerifierTable />
+            </div>
           </TabsContent>
         </Tabs>
       </div>

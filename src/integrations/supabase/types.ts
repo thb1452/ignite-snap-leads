@@ -915,6 +915,87 @@ export type Database = {
         }
         Relationships: []
       }
+      enrichment_agent_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          idempotency_key: string | null
+          job_type: string
+          locked_at: string | null
+          locked_by: string | null
+          max_retries: number
+          payload: Json
+          priority: number
+          property_id: string | null
+          result: Json | null
+          retry_count: number
+          scheduled_for: string
+          source: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string | null
+          job_type: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_retries?: number
+          payload?: Json
+          priority?: number
+          property_id?: string | null
+          result?: Json | null
+          retry_count?: number
+          scheduled_for?: string
+          source?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string | null
+          job_type?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_retries?: number
+          payload?: Json
+          priority?: number
+          property_id?: string | null
+          result?: Json | null
+          retry_count?: number
+          scheduled_for?: string
+          source?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrichment_agent_jobs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrichment_agent_jobs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrichment_jobs: {
         Row: {
           addresses_charged: number
@@ -951,6 +1032,42 @@ export type Database = {
           status?: string
           total_rows?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      enrichment_sources: {
+        Row: {
+          base_url: string | null
+          config: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          rate_limit_per_minute: number | null
+          source_type: string
+          updated_at: string
+        }
+        Insert: {
+          base_url?: string | null
+          config?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          rate_limit_per_minute?: number | null
+          source_type: string
+          updated_at?: string
+        }
+        Update: {
+          base_url?: string | null
+          config?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          rate_limit_per_minute?: number | null
+          source_type?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2009,6 +2126,87 @@ export type Database = {
           },
           {
             foreignKeyName: "owners_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parcel_attributes: {
+        Row: {
+          assessed_value: number | null
+          baths: number | null
+          beds: number | null
+          created_at: string
+          enriched_at: string
+          id: string
+          last_sale_date: string | null
+          last_sale_price: number | null
+          lot_size_sqft: number | null
+          market_value: number | null
+          owner_mailing_address: string | null
+          owner_name: string | null
+          property_id: string
+          raw_data: Json | null
+          source: string | null
+          source_record_id: string | null
+          sqft: number | null
+          updated_at: string
+          year_built: number | null
+        }
+        Insert: {
+          assessed_value?: number | null
+          baths?: number | null
+          beds?: number | null
+          created_at?: string
+          enriched_at?: string
+          id?: string
+          last_sale_date?: string | null
+          last_sale_price?: number | null
+          lot_size_sqft?: number | null
+          market_value?: number | null
+          owner_mailing_address?: string | null
+          owner_name?: string | null
+          property_id: string
+          raw_data?: Json | null
+          source?: string | null
+          source_record_id?: string | null
+          sqft?: number | null
+          updated_at?: string
+          year_built?: number | null
+        }
+        Update: {
+          assessed_value?: number | null
+          baths?: number | null
+          beds?: number | null
+          created_at?: string
+          enriched_at?: string
+          id?: string
+          last_sale_date?: string | null
+          last_sale_price?: number | null
+          lot_size_sqft?: number | null
+          market_value?: number | null
+          owner_mailing_address?: string | null
+          owner_name?: string | null
+          property_id?: string
+          raw_data?: Json | null
+          source?: string | null
+          source_record_id?: string | null
+          sqft?: number | null
+          updated_at?: string
+          year_built?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parcel_attributes_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcel_attributes_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "v_hot_properties"

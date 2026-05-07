@@ -965,65 +965,56 @@ export type Database = {
       }
       enrichment_agent_jobs: {
         Row: {
-          completed_at: string | null
+          attempt_count: number
           created_at: string
           error_message: string | null
           id: string
           idempotency_key: string | null
           job_type: string
+          last_attempted_at: string | null
           locked_at: string | null
           locked_by: string | null
-          max_retries: number
-          payload: Json
+          metadata: Json
           priority: number
           property_id: string | null
-          result: Json | null
           retry_count: number
-          scheduled_for: string
           source: string | null
-          started_at: string | null
           status: string
           updated_at: string
         }
         Insert: {
-          completed_at?: string | null
+          attempt_count?: number
           created_at?: string
           error_message?: string | null
           id?: string
           idempotency_key?: string | null
           job_type: string
+          last_attempted_at?: string | null
           locked_at?: string | null
           locked_by?: string | null
-          max_retries?: number
-          payload?: Json
+          metadata?: Json
           priority?: number
           property_id?: string | null
-          result?: Json | null
           retry_count?: number
-          scheduled_for?: string
           source?: string | null
-          started_at?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
-          completed_at?: string | null
+          attempt_count?: number
           created_at?: string
           error_message?: string | null
           id?: string
           idempotency_key?: string | null
           job_type?: string
+          last_attempted_at?: string | null
           locked_at?: string | null
           locked_by?: string | null
-          max_retries?: number
-          payload?: Json
+          metadata?: Json
           priority?: number
           property_id?: string | null
-          result?: Json | null
           retry_count?: number
-          scheduled_for?: string
           source?: string | null
-          started_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -1085,36 +1076,60 @@ export type Database = {
       }
       enrichment_sources: {
         Row: {
-          base_url: string | null
-          config: Json
+          access_method: string | null
+          city: string | null
+          county_fips: string | null
           created_at: string
           id: string
-          is_active: boolean
-          name: string
-          rate_limit_per_minute: number | null
-          source_type: string
+          jurisdiction: string | null
+          last_checked_at: string | null
+          notes: string | null
+          rate_limit_notes: string | null
+          requires_human_review: boolean
+          source_name: string | null
+          source_type: string | null
+          source_url: string | null
+          state: string | null
+          status: string
+          terms_notes: string | null
           updated_at: string
         }
         Insert: {
-          base_url?: string | null
-          config?: Json
+          access_method?: string | null
+          city?: string | null
+          county_fips?: string | null
           created_at?: string
           id?: string
-          is_active?: boolean
-          name: string
-          rate_limit_per_minute?: number | null
-          source_type: string
+          jurisdiction?: string | null
+          last_checked_at?: string | null
+          notes?: string | null
+          rate_limit_notes?: string | null
+          requires_human_review?: boolean
+          source_name?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          state?: string | null
+          status?: string
+          terms_notes?: string | null
           updated_at?: string
         }
         Update: {
-          base_url?: string | null
-          config?: Json
+          access_method?: string | null
+          city?: string | null
+          county_fips?: string | null
           created_at?: string
           id?: string
-          is_active?: boolean
-          name?: string
-          rate_limit_per_minute?: number | null
-          source_type?: string
+          jurisdiction?: string | null
+          last_checked_at?: string | null
+          notes?: string | null
+          rate_limit_notes?: string | null
+          requires_human_review?: boolean
+          source_name?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          state?: string | null
+          status?: string
+          terms_notes?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -2383,77 +2398,86 @@ export type Database = {
           assessed_value: number | null
           baths: number | null
           beds: number | null
+          building_sqft: number | null
+          census_tract: string | null
+          confidence_score: number | null
           created_at: string
-          enriched_at: string
+          enriched_at: string | null
+          flood_zone: string | null
           id: string
+          last_sale_amount: number | null
           last_sale_date: string | null
-          last_sale_price: number | null
-          lot_size_sqft: number | null
-          market_value: number | null
-          owner_mailing_address: string | null
-          owner_name: string | null
+          lot_sqft: number | null
+          owner_occupied: boolean | null
+          owner_occupied_confidence: number | null
           property_id: string
-          raw_data: Json | null
-          source: string | null
-          source_record_id: string | null
-          sqft: number | null
+          property_type: string | null
+          raw_payload: Json
+          source_attribution: Json
           updated_at: string
+          verification_status: string | null
           year_built: number | null
         }
         Insert: {
           assessed_value?: number | null
           baths?: number | null
           beds?: number | null
+          building_sqft?: number | null
+          census_tract?: string | null
+          confidence_score?: number | null
           created_at?: string
-          enriched_at?: string
+          enriched_at?: string | null
+          flood_zone?: string | null
           id?: string
+          last_sale_amount?: number | null
           last_sale_date?: string | null
-          last_sale_price?: number | null
-          lot_size_sqft?: number | null
-          market_value?: number | null
-          owner_mailing_address?: string | null
-          owner_name?: string | null
+          lot_sqft?: number | null
+          owner_occupied?: boolean | null
+          owner_occupied_confidence?: number | null
           property_id: string
-          raw_data?: Json | null
-          source?: string | null
-          source_record_id?: string | null
-          sqft?: number | null
+          property_type?: string | null
+          raw_payload?: Json
+          source_attribution?: Json
           updated_at?: string
+          verification_status?: string | null
           year_built?: number | null
         }
         Update: {
           assessed_value?: number | null
           baths?: number | null
           beds?: number | null
+          building_sqft?: number | null
+          census_tract?: string | null
+          confidence_score?: number | null
           created_at?: string
-          enriched_at?: string
+          enriched_at?: string | null
+          flood_zone?: string | null
           id?: string
+          last_sale_amount?: number | null
           last_sale_date?: string | null
-          last_sale_price?: number | null
-          lot_size_sqft?: number | null
-          market_value?: number | null
-          owner_mailing_address?: string | null
-          owner_name?: string | null
+          lot_sqft?: number | null
+          owner_occupied?: boolean | null
+          owner_occupied_confidence?: number | null
           property_id?: string
-          raw_data?: Json | null
-          source?: string | null
-          source_record_id?: string | null
-          sqft?: number | null
+          property_type?: string | null
+          raw_payload?: Json
+          source_attribution?: Json
           updated_at?: string
+          verification_status?: string | null
           year_built?: number | null
         }
         Relationships: [
           {
             foreignKeyName: "parcel_attributes_property_id_fkey"
             columns: ["property_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "properties"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "parcel_attributes_property_id_fkey"
             columns: ["property_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_hot_properties"
             referencedColumns: ["id"]
           },

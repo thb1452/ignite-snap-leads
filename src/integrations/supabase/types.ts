@@ -86,6 +86,54 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_runs: {
+        Row: {
+          agent_name: string
+          cost_usd: number | null
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: number
+          input_summary: string | null
+          job_id: string
+          job_table: string
+          metadata: Json
+          output_summary: string | null
+          status: string
+          tokens_used: number | null
+        }
+        Insert: {
+          agent_name: string
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: number
+          input_summary?: string | null
+          job_id: string
+          job_table: string
+          metadata?: Json
+          output_summary?: string | null
+          status: string
+          tokens_used?: number | null
+        }
+        Update: {
+          agent_name?: string
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: number
+          input_summary?: string | null
+          job_id?: string
+          job_table?: string
+          metadata?: Json
+          output_summary?: string | null
+          status?: string
+          tokens_used?: number | null
+        }
+        Relationships: []
+      }
       beta_waitlist: {
         Row: {
           created_at: string

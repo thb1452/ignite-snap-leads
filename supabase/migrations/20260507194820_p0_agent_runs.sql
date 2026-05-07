@@ -17,7 +17,7 @@ create table public.agent_runs (
   id bigserial primary key,
   agent_name text not null,
   job_table text not null check (
-    job_table in ('enrichment_jobs','foia_request_jobs')
+    job_table in ('enrichment_agent_jobs','foia_request_jobs')
   ),
   job_id uuid not null,
   status text not null check (

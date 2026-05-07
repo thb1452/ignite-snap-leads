@@ -119,9 +119,12 @@ create policy "enrichment_sources_admin_all"
   using (public.has_role(auth.uid(), 'admin'))
   with check (public.has_role(auth.uid(), 'admin'));
 
--- ── enrichment_jobs: queue infrastructure for enrichment agents ─────────────
+-- ── enrichment_agent_jobs: queue infrastructure for enrichment agents ──────
+-- Renamed from enrichment_jobs to avoid collision with the existing legacy
+-- list-enrichment table public.enrichment_jobs (see 20260314190000 +
+-- 20260315205445 migrations).
 
-create table public.enrichment_jobs (
+create table public.enrichment_agent_jobs (
   id uuid primary key default gen_random_uuid(),
   property_id uuid references public.properties(id) on delete cascade,
   job_type text not null check (
@@ -144,23 +147,23 @@ create table public.enrichment_jobs (
   last_attempted_at timestamptz
 );
 
-create index idx_enrichment_jobs_dequeue
-  on public.enrichment_jobs(status, priority desc, created_at)
+create index idx_enrichment_agent_jobs_dequeue
+  on public.enrichment_agent_jobs(status, priority desc, created_at)
   where status in ('pending','needs_human_review');
-create index idx_enrichment_jobs_property_id
-  on public.enrichment_jobs(property_id);
-create index idx_enrichment_jobs_locked
-  on public.enrichment_jobs(locked_at)
+create index idx_enrichment_agent_jobs_property_id
+  on public.enrichment_agent_jobs(property_id);
+create index idx_enrichment_agent_jobs_locked
+  on public.enrichment_agent_jobs(locked_at)
   where locked_at is not null;
 
-create trigger trg_enrichment_jobs_updated_at
-  before update on public.enrichment_jobs
+create trigger trg_enrichment_agent_jobs_updated_at
+  before update on public.enrichment_agent_jobs
   for each row execute function public.update_updated_at_column();
 
-alter table public.enrichment_jobs enable row level security;
+alter table public.enrichment_agent_jobs enable row level security;
 
-create policy "enrichment_jobs_admin_all"
-  on public.enrichment_jobs
+create policy "enrichment_agent_jobs_admin_all"
+  on public.enrichment_agent_jobs
   for all
   to authenticated
   using (public.has_role(auth.uid(), 'admin'))

@@ -115,7 +115,7 @@ This is the team. Every agent is a stateless worker consuming pgmq queues, regis
 **Deliverables**
 - P0 schema PR (the additive infrastructure):
   - `property_enrichment` + `parcel_attributes` (bed/bath/sqft + normalized property data)
-  - `enrichment_jobs` + `enrichment_sources` + `enrichment_agent_runs`
+  - `enrichment_agent_jobs` + `enrichment_sources` + `enrichment_agent_runs`
   - `foia_request_jobs` + `foia_sources` + `foia_responses` + `foia_agent_runs`
   - `agent_runs` (universal observability)
   - Mission Control admin views (queue depth, stale jurisdictions, failed jobs, needs_human_review queue)

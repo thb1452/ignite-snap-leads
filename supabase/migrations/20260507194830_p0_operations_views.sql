@@ -16,7 +16,7 @@ select
   extract(
     epoch from (now() - min(created_at) filter (where status = 'pending'))
   )::int as oldest_pending_age_seconds
-from public.enrichment_jobs
+from public.enrichment_agent_jobs
 group by status;
 
 -- ── v_foia_queue_health: same shape ─────────────────────────────────────────
@@ -46,7 +46,7 @@ select
   error_message,
   created_at,
   updated_at
-from public.enrichment_jobs
+from public.enrichment_agent_jobs
 where status = 'failed' and updated_at > now() - interval '24 hours'
 union all
 select
@@ -74,7 +74,7 @@ select * from (
     error_message,
     created_at,
     updated_at
-  from public.enrichment_jobs
+  from public.enrichment_agent_jobs
   where status = 'needs_human_review'
   union all
   select

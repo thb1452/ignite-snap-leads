@@ -4623,6 +4623,47 @@ export type Database = {
         }
         Relationships: []
       }
+      v_enrichment_coverage_by_county: {
+        Row: {
+          county: string | null
+          coverage_pct: number | null
+          enriched_properties: number | null
+          state: string | null
+          total_properties: number | null
+        }
+        Relationships: []
+      }
+      v_enrichment_queue_health: {
+        Row: {
+          job_count: number | null
+          oldest_pending_age_seconds: number | null
+          oldest_pending_at: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      v_failed_jobs_last_24h: {
+        Row: {
+          created_at: string | null
+          domain: string | null
+          error_message: string | null
+          job_id: string | null
+          job_subtype: string | null
+          retry_count: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
+      v_foia_queue_health: {
+        Row: {
+          job_count: number | null
+          oldest_pending_age_seconds: number | null
+          oldest_pending_at: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
       v_hot_properties: {
         Row: {
           address: string | null
@@ -4678,6 +4719,34 @@ export type Database = {
         }
         Relationships: []
       }
+      v_jurisdictions_needing_verification: {
+        Row: {
+          city: string | null
+          id: string | null
+          jurisdiction: string | null
+          last_checked_at: string | null
+          notes: string | null
+          registry: string | null
+          source_name: string | null
+          source_type: string | null
+          state: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      v_needs_human_review_queue: {
+        Row: {
+          created_at: string | null
+          domain: string | null
+          error_message: string | null
+          job_id: string | null
+          job_subtype: string | null
+          jurisdiction: string | null
+          state: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       v_opportunity_funnel: {
         Row: {
           avg_score: number | null
@@ -4709,6 +4778,37 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_recent_agent_runs: {
+        Row: {
+          agent_name: string | null
+          cost_usd: number | null
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          id: number | null
+          input_summary: string | null
+          job_id: string | null
+          job_table: string | null
+          output_summary: string | null
+          status: string | null
+          tokens_used: number | null
+        }
+        Relationships: []
+      }
+      v_stale_jurisdictions: {
+        Row: {
+          city: string | null
+          county: string | null
+          days_since_last_response: number | null
+          jurisdiction: string | null
+          last_response_at: string | null
+          portal_vendor: string | null
+          source_id: string | null
+          source_type: string | null
+          state: string | null
+        }
+        Relationships: []
       }
       v_user_credits: {
         Row: {

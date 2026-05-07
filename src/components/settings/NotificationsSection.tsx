@@ -67,7 +67,7 @@ export function NotificationsSection() {
                 Weekly Intelligence Digest
               </Label>
               <p className="text-sm text-muted-foreground">
-                Get a weekly summary of new violations and hot properties
+                Get a weekly summary of fresh enforcement actions and high-pressure properties to review
               </p>
             </div>
             <Switch

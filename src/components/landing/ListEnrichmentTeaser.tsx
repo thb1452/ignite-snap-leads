@@ -13,8 +13,8 @@ export function ListEnrichmentTeaser() {
     setStatus("loading");
     try {
       const { error } = await supabase
-        .from("list_enrichment_waitlist" as any)
-        .insert({ email: email.trim() } as any);
+        .from("list_enrichment_waitlist" as never)
+        .insert({ email: email.trim() } as never);
 
       if (error) throw error;
       setStatus("success");
@@ -40,15 +40,15 @@ export function ListEnrichmentTeaser() {
           <div className="absolute -top-20 -right-20 w-60 h-60 bg-landing-accent/10 rounded-full blur-3xl pointer-events-none" />
 
           <h3 className="text-xl md:text-2xl font-bold text-landing-text mb-3">
-            🔥 Scan Your List
+            Scan Your List for Enforcement Signals
           </h3>
 
           <p className="text-sm md:text-base text-landing-text-muted leading-relaxed mb-2">
-            Upload your list and instantly see which properties have violations — so you know who's actually worth calling. We cross-reference every address against municipal enforcement records and return a SnapScore + AI investor brief for each one.
+            Upload your list and see which addresses match visible municipal enforcement records. We cross-reference each property against code violations and pressure signals, then return a SnapScore + AI Investor Brief to help prioritize review.
           </p>
 
           <p className="text-sm font-semibold text-landing-accent mb-6">
-            Stop wasting time on dead leads. Know before you call.
+            Prioritize outreach with evidence first — unlock and act only when the signal is strong.
           </p>
 
           {status === "success" ? (

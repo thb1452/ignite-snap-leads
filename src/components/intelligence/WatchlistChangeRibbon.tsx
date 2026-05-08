@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useWatchlistChangeCount } from "@/hooks/useWatchlistChangeCount";
+import {
+  useWatchlistChangeCount,
+  useMarkMyWatchlistEventsSeen,
+} from "@/hooks/useWatchlistChangeCount";
 import { useUserRole } from "@/hooks/useUserRole";
 
 const SESSION_DISMISS_KEY = "watchlist-ribbon-dismissed";
@@ -14,10 +17,13 @@ const SESSION_DISMISS_KEY = "watchlist-ribbon-dismissed";
  *
  * Behavior:
  *   - Renders only when (isAdmin && count > 0 && not session-dismissed)
- *   - Click "View" navigates to /saved
+ *   - Click "View" marks all unread events as seen (fire-and-forget RPC),
+ *     then navigates to /saved. The mark-seen call is non-blocking — if
+ *     the RPC fails or the migration isn't applied, navigation still
+ *     happens cleanly.
  *   - Dismiss is session-only (sessionStorage); does NOT mark events seen
- *     server-side — that's a heavier semantic action reserved for the
- *     /saved page.
+ *     server-side. Dismiss = "I don't want to see this right now."
+ *     View = "I'm acting on this; advance my state."
  *
  * P1.6c admin-preview surface. Once the UX is validated here, the same
  * component can drop the isAdmin gate to ship to all users.
@@ -26,6 +32,7 @@ export function WatchlistChangeRibbon() {
   const navigate = useNavigate();
   const { isAdmin } = useUserRole();
   const { data: count = 0, isLoading } = useWatchlistChangeCount();
+  const markSeen = useMarkMyWatchlistEventsSeen();
 
   const [dismissed, setDismissed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -46,6 +53,10 @@ export function WatchlistChangeRibbon() {
   };
 
   const handleView = () => {
+    // Fire-and-forget: don't block navigation on the mark-seen RPC.
+    // Errors are swallowed inside markSeen — partial rollback (SQL only)
+    // is safe; the click still navigates to /saved.
+    void markSeen();
     navigate("/saved");
   };
 

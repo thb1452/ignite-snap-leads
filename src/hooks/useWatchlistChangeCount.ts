@@ -1,8 +1,60 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useAuth } from "@/hooks/use-auth";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Marks the calling user's unread/undismissed watchlist_intelligence_events
+ * as seen via the SECURITY DEFINER RPC. Returns the number of rows updated,
+ * or null on error. Errors are intentionally swallowed — this is a
+ * fire-and-forget call from "View →" that should never block navigation.
+ */
+export async function markMyWatchlistEventsSeen(): Promise<number | null> {
+  try {
+    // Cast to `never` because the generated supabase types do not yet
+    // include P1.6c RPC. Once `supabase gen types` is re-run the cast
+    // can be removed.
+    const { data, error } = await supabase.rpc(
+      "fn_mark_my_watchlist_events_seen" as never,
+    );
+    if (error) {
+      // 42883 = undefined_function (RPC not deployed yet)
+      // 42501 = insufficient_privilege
+      const code = (error as { code?: string }).code;
+      if (code !== "42883" && code !== "42501") {
+        console.warn("[markMyWatchlistEventsSeen] failed:", error);
+      }
+      return null;
+    }
+    return typeof data === "number" ? data : null;
+  } catch (err) {
+    console.warn("[markMyWatchlistEventsSeen] threw:", err);
+    return null;
+  }
+}
+
+/**
+ * React-friendly version of markMyWatchlistEventsSeen that also invalidates
+ * the cached count query so the UI can re-render with the new (zero) state
+ * without a manual refetch.
+ */
+export function useMarkMyWatchlistEventsSeen() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+
+  return async () => {
+    const updated = await markMyWatchlistEventsSeen();
+    // Invalidate the count query so consumers see the drop on next read.
+    if (userId) {
+      await queryClient.invalidateQueries({
+        queryKey: ["watchlist-change-count", userId],
+      });
+    }
+    return updated;
+  };
+}
 
 /**
  * Reads the current user's unseen, undismissed watchlist_intelligence_events

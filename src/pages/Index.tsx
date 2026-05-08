@@ -104,7 +104,7 @@ export default function Index() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-ink-900 mb-2">Dashboard</h1>
-        <p className="text-ink-400">Your lead generation command center</p>
+        <p className="text-ink-400">Your enforcement-monitoring command center</p>
       </div>
 
       {/* Stats Grid */}

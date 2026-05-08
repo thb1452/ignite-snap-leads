@@ -168,7 +168,7 @@ export const PropertyCard = memo(function PropertyCard({
                 }
               }}
             >
-              {isExporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Download className="h-3 w-3 mr-1" />Export Lead</>}
+              {isExporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Download className="h-3 w-3 mr-1" />Export</>}
             </Button>
           ) : (
             <Button

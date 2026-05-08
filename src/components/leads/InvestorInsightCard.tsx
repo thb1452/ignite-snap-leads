@@ -145,7 +145,7 @@ export function InvestorInsightCard({
           <span className="text-sm font-semibold text-teal-400">AI Investor Brief</span>
         </div>
         <p className="text-sm text-slate-400 mt-2">
-          Brief pending — this property will be analyzed in the next batch run.
+          Brief generating — this property will be summarized once the latest enforcement data finishes processing.
         </p>
       </motion.div>
     );
@@ -157,9 +157,12 @@ export function InvestorInsightCard({
       animate={{ opacity: 1, y: 0 }}
       className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-2"
     >
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-teal-400" />
-        <span className="text-sm font-semibold text-teal-400">AI Investor Brief</span>
+      <div className="flex items-center gap-2 justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-teal-400" />
+          <span className="text-sm font-semibold text-teal-400">AI Investor Brief</span>
+        </div>
+        <span className="text-[10px] uppercase tracking-wider text-slate-500">Based on visible enforcement signals</span>
       </div>
 
       {renderBriefText(displayText, fallbackActionLabel)}

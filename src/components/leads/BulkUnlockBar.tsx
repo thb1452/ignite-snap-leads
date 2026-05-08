@@ -130,10 +130,10 @@ export function BulkUnlockBar({ selectedIds, unlockedSet, onUnlocked, onGetCredi
         addToOptimisticSet(successfulIds);
 
         toast({
-          title: `${successCount} properties unlocked! 🔓`,
+          title: `${successCount} ${successCount === 1 ? "property" : "properties"} unlocked`,
           description: failCount > 0
             ? `${failCount} failed. Check your credit balance.`
-            : "Full addresses and contacts are now available.",
+            : "Address, owner contact, and full enforcement record are now visible — review the brief before outreach.",
         });
 
         queryClient.refetchQueries({ queryKey: ["unlocked-properties"] });

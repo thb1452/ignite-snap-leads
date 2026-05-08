@@ -269,7 +269,7 @@ export default function Landing() {
 
               <motion.p variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="text-sm text-landing-text-muted flex items-center gap-2">
                 <Check className="w-4 h-4 text-landing-accent" />
-                Free signup · 3 free unlocks · Choose a market before you export
+                Free signup · 3 free unlocks · Choose a market and start monitoring
               </motion.p>
             </motion.div>
 

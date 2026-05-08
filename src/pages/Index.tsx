@@ -7,6 +7,7 @@ import { Phone, Mail, ListChecks, Zap, TrendingUp, Users, Lock, Heart, CreditCar
 import { useNavigate } from "react-router-dom";
 import { IntelligenceDashboard } from "@/components/intelligence/IntelligenceDashboard";
 import { BatchRescoreButton } from "@/components/intelligence/BatchRescoreButton";
+import { WatchlistChangeRibbon } from "@/components/intelligence/WatchlistChangeRibbon";
 import { useDashboardStats } from "@/hooks/useIntelligenceDashboard";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useSavedProperties } from "@/hooks/useSavedProperties";
@@ -106,6 +107,8 @@ export default function Index() {
         <h1 className="text-3xl font-bold text-ink-900 mb-2">Dashboard</h1>
         <p className="text-ink-400">Your enforcement-monitoring command center</p>
       </div>
+
+      <WatchlistChangeRibbon />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

@@ -13,7 +13,7 @@ export function EmptyListsState({ onCreateClick }: EmptyListsStateProps) {
       </div>
       <h3 className="text-xl font-semibold text-foreground mb-2">No lists yet</h3>
       <p className="text-muted-foreground text-center max-w-md mb-6">
-        Create your first list to start organizing your leads, or use "Add All to List" from the Properties page.
+        Group properties into focused lists — neighborhoods, markets, or active campaigns — to track how their enforcement signals evolve between visits. Use "Add All to List" from the Properties page to populate one fast.
       </p>
       <Button size="lg" onClick={onCreateClick}>
         <Plus className="h-5 w-5 mr-2" />

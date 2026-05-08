@@ -236,12 +236,12 @@ export default function SavedProperties() {
         ) : properties.length === 0 ? (
           <div className="text-center py-16">
             <Heart className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-semibold">No saved properties</h3>
-            <p className="text-muted-foreground mt-1">
-              Tap the heart icon on any property to monitor it here before deciding whether to unlock or export.
+            <h3 className="text-lg font-semibold">Your watchlist is empty</h3>
+            <p className="text-muted-foreground mt-1 max-w-md mx-auto">
+              Tap the heart icon on any property to add it to your watchlist. You'll be able to come back, see how the enforcement signal evolves, and selectively unlock when the timing fits — no unlock required to monitor.
             </p>
             <Button variant="outline" className="mt-4" onClick={() => navigate("/leads")}>
-              Monitor Properties
+              Open Markets
             </Button>
           </div>
         ) : (

@@ -124,10 +124,10 @@ export function UnlockModal({
             ? `Free unlock used. ${formatRemaining(data.free_remaining)} remaining.`
             : data.source === "credit_pack"
               ? `1 credit used. ${formatRemaining(data.credits_remaining)} credits remaining.`
-              : "Full addresses and contacts are now available.";
+              : "Address, owner contact, and full enforcement record are now visible.";
 
       toast({
-        title: "Property unlocked! 🔓",
+        title: "Property unlocked",
         description: unlockDescription,
       });
 
@@ -255,7 +255,7 @@ export function UnlockModal({
             Unlock Property
           </DialogTitle>
           <DialogDescription>
-            Get full address, owner contacts, and export access.
+            Confirm the signal and unlock the full address, owner contact, and complete enforcement record for this property.
           </DialogDescription>
         </DialogHeader>
 
@@ -360,7 +360,7 @@ export function UnlockModal({
         <>
           <div className="space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              {hasActiveSubscription ? "Change Plan" : "Subscribe & Save"}
+              {hasActiveSubscription ? "Change Plan" : "Subscribe for ongoing monitoring"}
             </p>
             <div className="grid gap-2">
               {SUBSCRIPTION_TIERS.map((tier) => {

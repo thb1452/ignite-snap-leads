@@ -67,7 +67,7 @@ export function NotificationsSection() {
                 Weekly Intelligence Digest
               </Label>
               <p className="text-sm text-muted-foreground">
-                Get a weekly summary of fresh enforcement actions and high-pressure properties to review
+                Weekly summary of new enforcement activity, fresh violations on file, and properties moving up in pressure score across the markets you're tracking.
               </p>
             </div>
             <Switch

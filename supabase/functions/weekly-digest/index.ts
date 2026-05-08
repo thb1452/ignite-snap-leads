@@ -65,6 +65,24 @@ function severityBadgeColor(severity: number): string {
   return "#6b7280";                      // gray
 }
 
+// Cap on watchlist events surfaced per email; mirrors p_limit in the
+// fn_top_watchlist_events_for_user RPC call below. When the user has more
+// unread events than this cap we honestly indicate "N+" in both subject
+// and body so the reader knows additional events exist.
+const WATCHLIST_EVENT_CAP = 5;
+
+// Minimal HTML entity escaping for values interpolated into email markup.
+// Treats null/undefined as empty string so callers don't need to guard.
+function escapeHtml(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 interface ProfileRow {
   user_id: string;
   email: string | null;
@@ -79,14 +97,20 @@ function formatWatchlistEmail(
   userName: string | null,
   events: WatchlistEventRow[]
 ): string {
-  const name = userName || "there";
+  const name = escapeHtml(userName || "there");
   const eventCount = events.length;
+  const isAtCap = eventCount >= WATCHLIST_EVENT_CAP;
+  const countDisplay = isAtCap ? `${eventCount}+` : String(eventCount);
+  const propertyWord = eventCount === 1 ? "property" : "properties";
 
   const eventsHtml = events.map((e, i) => {
-    const label = deltaTypeLabel(e.delta_type);
+    const label = escapeHtml(deltaTypeLabel(e.delta_type));
     const sevColor = severityBadgeColor(e.severity);
-    const addr = e.address || "Address unavailable";
-    const cityLine = [e.city, e.state].filter(Boolean).join(", ");
+    const addr = escapeHtml(e.address || "Address unavailable");
+    const cityLine = escapeHtml([e.city, e.state].filter(Boolean).join(", "));
+    const severity = escapeHtml(e.severity);
+    const snapScore = e.snap_score !== null ? escapeHtml(e.snap_score) : null;
+    const propertyHref = `${APP_URL}/properties?propertyId=${encodeURIComponent(e.property_id)}`;
     return `
       <tr style="border-bottom: 1px solid #e5e5e5;">
         <td style="padding: 12px 0; vertical-align: top;">
@@ -99,12 +123,12 @@ function formatWatchlistEmail(
           <div style="font-size: 12px; margin-top: 4px;">
             <span style="color: #1a1a1a; font-weight: 500;">${label}</span>
             <span style="color: #888;"> · </span>
-            <span style="color: ${sevColor}; font-weight: 600;">Severity ${e.severity}</span>
-            ${e.snap_score !== null ? `<span style="color: #888;"> · SnapScore ${e.snap_score}</span>` : ""}
+            <span style="color: ${sevColor}; font-weight: 600;">Severity ${severity}</span>
+            ${snapScore !== null ? `<span style="color: #888;"> · SnapScore ${snapScore}</span>` : ""}
           </div>
         </td>
         <td style="padding: 12px 0; vertical-align: middle; text-align: right; width: 100px;">
-          <a href="${APP_URL}/properties?propertyId=${e.property_id}"
+          <a href="${propertyHref}"
              style="display: inline-block; padding: 8px 16px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 500;">
             View →
           </a>
@@ -129,7 +153,7 @@ function formatWatchlistEmail(
   <p style="font-size: 15px; margin-bottom: 8px;">Hey ${name},</p>
 
   <p style="font-size: 15px; margin-bottom: 24px;">
-    ${eventCount === 1 ? "1 property" : `${eventCount} properties`} on your watchlist had meaningful pressure changes this week. Highest severity first:
+    ${countDisplay} ${propertyWord} on your watchlist had meaningful pressure changes this week. Highest severity first:
   </p>
 
   <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
@@ -163,9 +187,9 @@ function formatPropertyEmail(
   weeklyCount: number,
   topProperties: TopProperty[]
 ): string {
-  const name = userName || "there";
-  const formattedCount = weeklyCount >= 1000 
-    ? `${Math.round(weeklyCount / 100) * 100}+` 
+  const name = escapeHtml(userName || "there");
+  const formattedCount = weeklyCount >= 1000
+    ? `${Math.round(weeklyCount / 100) * 100}+`
     : weeklyCount.toString();
 
   let propertiesHtml = "";
@@ -175,29 +199,38 @@ function formatPropertyEmail(
         🔥 Top Opportunities This Week
       </h2>
       <table style="width: 100%; border-collapse: collapse;">
-        ${topProperties.map((p, i) => `
+        ${topProperties.map((p, i) => {
+          const score = p.snap_score || 0;
+          const scoreColor = score >= 70 ? '#dc2626' : score >= 40 ? '#f59e0b' : '#22c55e';
+          const addr = escapeHtml(p.address);
+          const cityLine = escapeHtml([p.city, p.state].filter(Boolean).join(", "));
+          const violations = escapeHtml(p.total_violations || 0);
+          const firstType = p.violation_types?.length ? escapeHtml(p.violation_types[0]) : null;
+          const propertyHref = `${APP_URL}/properties?propertyId=${encodeURIComponent(p.id)}`;
+          return `
           <tr style="border-bottom: 1px solid #e5e5e5;">
             <td style="padding: 12px 0; vertical-align: top;">
               <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 4px;">
-                ${i + 1}. ${p.address}
+                ${i + 1}. ${addr}
               </div>
               <div style="font-size: 13px; color: #666;">
-                ${p.city}, ${p.state}
+                ${cityLine}
               </div>
               <div style="font-size: 12px; color: #888; margin-top: 4px;">
-                SnapScore: <strong style="color: ${(p.snap_score || 0) >= 70 ? '#dc2626' : (p.snap_score || 0) >= 40 ? '#f59e0b' : '#22c55e'}">${p.snap_score || 0}</strong>
-                • ${p.total_violations || 0} violations
-                ${p.violation_types?.length ? `• ${p.violation_types[0]}` : ''}
+                SnapScore: <strong style="color: ${scoreColor}">${escapeHtml(score)}</strong>
+                • ${violations} violations
+                ${firstType ? `• ${firstType}` : ''}
               </div>
             </td>
             <td style="padding: 12px 0; vertical-align: middle; text-align: right; width: 100px;">
-              <a href="${APP_URL}/properties?propertyId=${p.id}" 
+              <a href="${propertyHref}"
                  style="display: inline-block; padding: 8px 16px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 500;">
                 View →
               </a>
             </td>
           </tr>
-        `).join('')}
+        `;
+        }).join('')}
       </table>
     `;
   }
@@ -536,8 +569,13 @@ const handler = async (req: Request): Promise<Response> => {
         const events = await getUserWatchlistEvents(supabaseUrl, supabaseServiceKey, user.user_id);
         const useWatchlist = events.length > 0;
 
+        // When the user has more unread events than the cap, surface "+"
+        // honestly so the subject doesn't understate the actual delta count.
+        const isAtCap = events.length >= WATCHLIST_EVENT_CAP;
+        const watchlistCountDisplay = isAtCap ? `${events.length}+` : String(events.length);
+        const watchlistChangeWord = events.length === 1 ? "change" : "changes";
         const subject = useWatchlist
-          ? `${events.length} ${events.length === 1 ? "change" : "changes"} in your Snap Ignite watchlist this week`
+          ? `${watchlistCountDisplay} ${watchlistChangeWord} in your Snap Ignite watchlist this week`
           : `${formattedCount} new enforcement actions this week`;
 
         const emailHtml = useWatchlist

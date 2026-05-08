@@ -24,10 +24,45 @@ interface TopProperty {
   violation_types: string[] | null;
 }
 
+interface WatchlistEventRow {
+  event_id: string;
+  signal_delta_id: string;
+  property_id: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  snap_score: number | null;
+  delta_type: string;
+  severity: number;
+  source: string;
+  created_at: string;
+}
+
 interface UserDigestData {
   user_id: string;
   email: string;
   full_name: string | null;
+}
+
+// Maps signal_delta_type enum values to short, evidence-grounded labels.
+// Kept in lockstep with the enum in
+// supabase/migrations/20260508000000_p1_freshness_foundation_schema.sql.
+function deltaTypeLabel(deltaType: string): string {
+  switch (deltaType) {
+    case "new_open_violation":                return "New violation filed";
+    case "enforcement_escalation":            return "Enforcement escalated";
+    case "water_shutoff_added":               return "Water shutoff added";
+    case "repeat_offender_threshold_crossed": return "Repeat-offender threshold crossed";
+    case "extended_enforcement_milestone":    return "Long-open milestone reached";
+    case "closed_after_long_open":            return "Closed after long open";
+    default: return deltaType.replaceAll("_", " ");
+  }
+}
+
+function severityBadgeColor(severity: number): string {
+  if (severity >= 80) return "#dc2626"; // red
+  if (severity >= 60) return "#f59e0b"; // amber
+  return "#6b7280";                      // gray
 }
 
 interface ProfileRow {
@@ -38,6 +73,89 @@ interface ProfileRow {
 
 interface EmailPrefRow {
   user_id: string;
+}
+
+function formatWatchlistEmail(
+  userName: string | null,
+  events: WatchlistEventRow[]
+): string {
+  const name = userName || "there";
+  const eventCount = events.length;
+
+  const eventsHtml = events.map((e, i) => {
+    const label = deltaTypeLabel(e.delta_type);
+    const sevColor = severityBadgeColor(e.severity);
+    const addr = e.address || "Address unavailable";
+    const cityLine = [e.city, e.state].filter(Boolean).join(", ");
+    return `
+      <tr style="border-bottom: 1px solid #e5e5e5;">
+        <td style="padding: 12px 0; vertical-align: top;">
+          <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 4px;">
+            ${i + 1}. ${addr}
+          </div>
+          <div style="font-size: 13px; color: #666;">
+            ${cityLine}
+          </div>
+          <div style="font-size: 12px; margin-top: 4px;">
+            <span style="color: #1a1a1a; font-weight: 500;">${label}</span>
+            <span style="color: #888;"> · </span>
+            <span style="color: ${sevColor}; font-weight: 600;">Severity ${e.severity}</span>
+            ${e.snap_score !== null ? `<span style="color: #888;"> · SnapScore ${e.snap_score}</span>` : ""}
+          </div>
+        </td>
+        <td style="padding: 12px 0; vertical-align: middle; text-align: right; width: 100px;">
+          <a href="${APP_URL}/properties?propertyId=${e.property_id}"
+             style="display: inline-block; padding: 8px 16px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 500;">
+            View →
+          </a>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+
+  <div style="text-align: center; margin-bottom: 24px;">
+    <img src="${APP_URL}/logo.jpg" alt="Snap Ignite" style="height: 40px; width: auto;">
+  </div>
+
+  <p style="font-size: 15px; margin-bottom: 8px;">Hey ${name},</p>
+
+  <p style="font-size: 15px; margin-bottom: 24px;">
+    ${eventCount === 1 ? "1 property" : `${eventCount} properties`} on your watchlist had meaningful pressure changes this week. Highest severity first:
+  </p>
+
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+    ${eventsHtml}
+  </table>
+
+  <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e5e5;">
+    <a href="${APP_URL}/saved"
+       style="display: block; text-align: center; padding: 14px 24px; background: #111; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+      Open your watchlist →
+    </a>
+  </div>
+
+  <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #888; text-align: center;">
+    <p>
+      You're receiving this because you have an active Snap Ignite account.<br>
+      <a href="${APP_URL}/settings" style="color: #666;">Manage email preferences</a>
+    </p>
+    <p style="margin-top: 8px;">
+      © ${new Date().getFullYear()} Snap Ignite. All rights reserved.
+    </p>
+  </div>
+
+</body>
+</html>
+  `.trim();
 }
 
 function formatPropertyEmail(
@@ -238,6 +356,24 @@ async function getWeeklyStats(supabaseUrl: string, supabaseServiceKey: string) {
   };
 }
 
+async function getUserWatchlistEvents(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  userId: string,
+): Promise<WatchlistEventRow[]> {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const { data, error } = await supabase.rpc("fn_top_watchlist_events_for_user", {
+    p_user_id: userId,
+    p_window_days: 7,
+    p_limit: 5,
+  });
+  if (error) {
+    console.warn(`[weekly-digest] watchlist query failed for ${userId}:`, error);
+    return [];
+  }
+  return (data ?? []) as WatchlistEventRow[];
+}
+
 async function getActiveUsers(supabaseUrl: string, supabaseServiceKey: string): Promise<UserDigestData[]> {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
@@ -386,31 +522,47 @@ const handler = async (req: Request): Promise<Response> => {
       : weeklyCount.toString();
 
     let sentCount = 0;
+    let watchlistVariantSent = 0;
+    let fallbackVariantSent = 0;
     const errors: string[] = [];
 
     const resend = await getResend();
 
     for (const user of users) {
       try {
-        const emailHtml = formatPropertyEmail(user.full_name, weeklyCount, topProperties);
-        
+        // Prefer per-user watchlist content if the user has unseen events
+        // from the last 7 days. Fall back to system-wide top-5 only when
+        // the watchlist stream is empty for this user.
+        const events = await getUserWatchlistEvents(supabaseUrl, supabaseServiceKey, user.user_id);
+        const useWatchlist = events.length > 0;
+
+        const subject = useWatchlist
+          ? `${events.length} ${events.length === 1 ? "change" : "changes"} in your Snap Ignite watchlist this week`
+          : `${formattedCount} new enforcement actions this week`;
+
+        const emailHtml = useWatchlist
+          ? formatWatchlistEmail(user.full_name, events)
+          : formatPropertyEmail(user.full_name, weeklyCount, topProperties);
+
         await resend.emails.send({
           from: "Snap Ignite <digest@snapignite.com>",
           to: [user.email],
-          subject: `${formattedCount} new enforcement actions this week`,
+          subject,
           html: emailHtml,
         });
 
         await supabase.from("email_analytics").insert({
           user_id: user.user_id,
           email_type: "weekly_digest",
-          email_subject: `${formattedCount} new enforcement actions this week`,
-          properties_featured: topProperties.length,
-          new_violations_count: weeklyCount
+          email_subject: subject,
+          properties_featured: useWatchlist ? events.length : topProperties.length,
+          new_violations_count: weeklyCount,
         });
 
         sentCount++;
-        console.log(`Sent digest to ${user.email}`);
+        if (useWatchlist) watchlistVariantSent++;
+        else fallbackVariantSent++;
+        console.log(`Sent ${useWatchlist ? "watchlist" : "fallback"} digest to ${user.email}`);
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         console.error(`Failed to send to ${user.email}:`, errorMsg);
@@ -419,12 +571,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        sent: sentCount, 
+      JSON.stringify({
+        success: true,
+        sent: sentCount,
+        watchlist_variant: watchlistVariantSent,
+        fallback_variant: fallbackVariantSent,
         failed: errors.length,
         weeklyCount,
-        errors: errors.length > 0 ? errors : undefined 
+        errors: errors.length > 0 ? errors : undefined,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );

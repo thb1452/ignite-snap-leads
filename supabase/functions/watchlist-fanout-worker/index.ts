@@ -5,13 +5,12 @@
 // who care about this property + delta and inserts watchlist_intelligence_events
 // rows on their behalf.
 //
-// P1.5 v0 sources (matched in priority order — first match wins per user):
+// Sources (matched in priority order — first match wins per user):
 //   1. saved_property — user has the property in saved_properties
 //   2. list           — user has a lead_lists row whose list_properties contains the property
-//
-// NOT yet matched (deferred to P1.6):
-//   3. saved_market   — user's saved_markets.filter_payload matches the property
-//                       (needs fn_property_matches_filter)
+//   3. saved_market   — user has a saved_markets row whose filter_payload matches
+//                       the property's current state (per fn_property_matches_filter)
+//                       AND whose notify_on permits this delta_type
 //
 // Per-user severity threshold:
 //   - Read user_signal_preferences row for (user_id, delta_type)
@@ -23,7 +22,7 @@
 //
 // Strict scope:
 //   - NO LLM, NO SnapScore changes, NO billing/auth/export changes
-//   - NO digest rewrite, NO frontend changes
+//   - NO digest rewrite (P1.6b), NO frontend changes
 //   - Coexists with P1 #161 signal-delta-worker (different queue, different table)
 //
 // See docs/SNAP_INTELLIGENCE_ARCHITECTURE_2026.md §6.
@@ -89,6 +88,11 @@ interface ListMatch {
   list_id: string;
 }
 
+interface SavedMarketMatch {
+  user_id: string;
+  market_id: string;
+}
+
 async function findListUsers(propertyId: string): Promise<ListMatch[]> {
   // service_role bypasses RLS so this returns all matching rows regardless of owner.
   const { data, error } = await supabase
@@ -108,6 +112,40 @@ async function findListUsers(propertyId: string): Promise<ListMatch[]> {
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({ user_id: userId, list_id: listId });
+  }
+  return out;
+}
+
+async function loadDeltaState(signalDeltaId: string): Promise<Record<string, unknown>> {
+  const { data, error } = await supabase
+    .from("signal_deltas")
+    .select("new_state")
+    .eq("id", signalDeltaId)
+    .maybeSingle();
+  if (error) throw error;
+  const state = (data?.new_state ?? {}) as Record<string, unknown>;
+  return state;
+}
+
+async function findSavedMarketMatches(
+  propertyState: Record<string, unknown>,
+  deltaType: string,
+): Promise<SavedMarketMatch[]> {
+  const { data, error } = await supabase.rpc("fn_find_saved_market_matches", {
+    p_property_state: propertyState,
+    p_delta_type: deltaType,
+  });
+  if (error) throw error;
+  const out: SavedMarketMatch[] = [];
+  const seen = new Set<string>();
+  for (const row of (data ?? []) as Array<{ market_id?: string; user_id?: string }>) {
+    const userId = row.user_id;
+    const marketId = row.market_id;
+    if (!userId || !marketId) continue;
+    const key = `${userId}:${marketId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ user_id: userId, market_id: marketId });
   }
   return out;
 }
@@ -135,7 +173,7 @@ async function loadUserPreferences(
 
 interface Candidate {
   user_id: string;
-  source: "saved_property" | "list";
+  source: "saved_property" | "list" | "saved_market";
   source_id: string | null;
 }
 
@@ -164,12 +202,14 @@ async function processMessage(msg: QueueMessage): Promise<{ status: string; emit
   const runId = runRow!.id as number;
 
   try {
-    // Find candidate users via the two P1.5 sources. saved_property is more
-    // specific than list; if a user appears in both, saved_property wins
-    // and the list source is skipped (the unique index prevents collision).
-    const [savedUserIds, listMatches] = await Promise.all([
+    // Three sources, matched in priority order. Most specific wins per user;
+    // duplicates land via the unique index on (user_id, signal_delta_id, source)
+    // anyway, but skipping at this layer avoids unnecessary inserts.
+    const propertyState = await loadDeltaState(signal_delta_id);
+    const [savedUserIds, listMatches, marketMatches] = await Promise.all([
       findSavedPropertyUsers(property_id),
       findListUsers(property_id),
+      findSavedMarketMatches(propertyState, delta_type),
     ]);
 
     const candidatesByUser = new Map<string, Candidate>();
@@ -186,6 +226,15 @@ async function processMessage(msg: QueueMessage): Promise<{ status: string; emit
           user_id: match.user_id,
           source: "list",
           source_id: match.list_id,
+        });
+      }
+    }
+    for (const match of marketMatches) {
+      if (!candidatesByUser.has(match.user_id)) {
+        candidatesByUser.set(match.user_id, {
+          user_id: match.user_id,
+          source: "saved_market",
+          source_id: match.market_id,
         });
       }
     }

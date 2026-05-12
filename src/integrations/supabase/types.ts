@@ -2269,6 +2269,42 @@ export type Database = {
         }
         Relationships: []
       }
+      mcp_proxy_log: {
+        Row: {
+          caller_ip: string | null
+          duration_ms: number | null
+          error: string | null
+          id: string
+          operation: string | null
+          request_bytes: number | null
+          status_code: number | null
+          success: boolean | null
+          ts: string
+        }
+        Insert: {
+          caller_ip?: string | null
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          operation?: string | null
+          request_bytes?: number | null
+          status_code?: number | null
+          success?: boolean | null
+          ts?: string
+        }
+        Update: {
+          caller_ip?: string | null
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          operation?: string | null
+          request_bytes?: number | null
+          status_code?: number | null
+          success?: boolean | null
+          ts?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null

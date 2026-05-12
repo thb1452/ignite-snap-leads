@@ -142,3 +142,7 @@ verify_jwt = true
 
 [functions.distress-event-fanout]
 verify_jwt = false
+
+# External MCP proxy — auth handled in-function via HMAC-SHA256 signature
+[functions.snap-mcp-proxy]
+verify_jwt = false

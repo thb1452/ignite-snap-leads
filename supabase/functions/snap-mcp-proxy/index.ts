@@ -170,19 +170,39 @@ Deno.serve(async (req) => {
   const operation = payload?.operation;
   const params = payload?.params ?? {};
 
+  // Keep-warm endpoint. HMAC already verified above. No DB read.
+  if (operation === "ping") {
+    await log(200, true, { operation, requestBytes });
+    return jsonResponse(200, { ok: true });
+  }
+
   if (operation === "lookup_property_by_address") {
     const address = typeof (params as any).address === "string" ? (params as any).address.trim() : "";
+    const stateRaw = typeof (params as any).state === "string" ? (params as any).state.trim() : "";
     if (!address) {
       await log(400, false, { operation, error: "missing_address", requestBytes });
       return jsonResponse(400, { error: "missing_address" });
     }
 
+    let state: string | null = null;
+    if (stateRaw) {
+      if (!/^[A-Za-z]{2}$/.test(stateRaw)) {
+        await log(400, false, { operation, error: "invalid_state", requestBytes });
+        return jsonResponse(400, { error: "invalid_state" });
+      }
+      state = stateRaw.toUpperCase();
+    }
+
     const escaped = address.replace(/[\\%_]/g, (m) => `\\${m}`);
-    const { data: rows, error } = await admin
+    let query = admin
       .from("properties")
       .select("address, city, state, snap_score, total_violations, newest_violation_date")
-      .ilike("address", `${escaped}%`)
-      .limit(5);
+      .ilike("address", `${escaped}%`);
+
+    // Supabase query builder methods return a NEW builder; must reassign.
+    if (state) query = query.eq("state", state);
+
+    const { data: rows, error } = await query.limit(5);
 
     if (error) {
       await log(500, false, { operation, error: error.message, requestBytes });

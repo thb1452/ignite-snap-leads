@@ -359,7 +359,7 @@ Deno.serve(async (req) => {
 
     const { data: property, error: propErr } = await admin
       .from("properties")
-      .select("id, snap_score, escalated, last_analyzed_at")
+      .select("id, snap_score, escalated, last_analyzed_at, investor_insight_brief, snap_insight")
       .eq("id", propertyId)
       .maybeSingle();
 

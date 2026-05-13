@@ -146,3 +146,6 @@ verify_jwt = false
 # External MCP proxy — auth handled in-function via HMAC-SHA256 signature
 [functions.snap-mcp-proxy]
 verify_jwt = false
+
+[functions.seed_mcp_client]
+verify_jwt = false

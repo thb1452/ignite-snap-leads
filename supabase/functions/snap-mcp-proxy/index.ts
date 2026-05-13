@@ -28,6 +28,14 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
+import {
+  classifyViolation,
+  aggregatePropertyIntelligence,
+  buildComponentBreakdown,
+  type Violation as ScoringViolation,
+} from "../_shared/enforcementScoring.ts";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

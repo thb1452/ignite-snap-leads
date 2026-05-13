@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
   const rawKey = Deno.env.get("CLIENT_RAW_KEY");
   if (!clientName || !rawKey) return jsonResponse(400, { error: "missing_env_inputs" });
 
-  if (!/^snip_[a-f0-9]{64}$/.test(rawKey)) {
+  if (!/^(snip_)?[a-f0-9]{64}$/.test(rawKey)) {
     return jsonResponse(400, { error: "invalid_raw_key_format" });
   }
 

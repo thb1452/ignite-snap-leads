@@ -149,3 +149,6 @@ verify_jwt = false
 
 [functions.seed_mcp_client]
 verify_jwt = false
+
+[functions.seed_trigger]
+verify_jwt = false

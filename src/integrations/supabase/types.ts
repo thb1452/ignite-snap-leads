@@ -5817,6 +5817,25 @@ export type Database = {
       }
       is_foia_admin: { Args: never; Returns: boolean }
       is_foia_va: { Args: never; Returns: boolean }
+      list_recent_violation_events_v1: {
+        Args: {
+          p_city?: string
+          p_county?: string
+          p_days_back?: number
+          p_limit?: number
+          p_state: string
+        }
+        Returns: {
+          address: string
+          city: string
+          most_recent_violation_date: string
+          property_id: string
+          snapscore: number
+          state: string
+          violation_count_recent: number
+          zip: string
+        }[]
+      }
       longtransactionsenabled: { Args: never; Returns: boolean }
       move_to_dlq: {
         Args: {

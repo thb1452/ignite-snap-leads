@@ -2269,6 +2269,45 @@ export type Database = {
         }
         Relationships: []
       }
+      mcp_clients: {
+        Row: {
+          api_key_hash: string
+          api_key_prefix: string
+          client_name: string
+          created_at: string
+          id: string
+          last_used_at: string | null
+          notes: string | null
+          rate_limit_per_minute: number
+          revoked_at: string | null
+          status: string
+        }
+        Insert: {
+          api_key_hash: string
+          api_key_prefix: string
+          client_name: string
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          notes?: string | null
+          rate_limit_per_minute?: number
+          revoked_at?: string | null
+          status?: string
+        }
+        Update: {
+          api_key_hash?: string
+          api_key_prefix?: string
+          client_name?: string
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          notes?: string | null
+          rate_limit_per_minute?: number
+          revoked_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       mcp_proxy_log: {
         Row: {
           caller_ip: string | null
@@ -2304,6 +2343,56 @@ export type Database = {
           ts?: string
         }
         Relationships: []
+      }
+      mcp_tool_calls: {
+        Row: {
+          caller_ip: string | null
+          client_id: string
+          created_at: string
+          duration_ms: number | null
+          error: string | null
+          id: number
+          operation: string | null
+          request_bytes: number | null
+          response_status: number
+          success: boolean
+          tool_name: string
+        }
+        Insert: {
+          caller_ip?: string | null
+          client_id: string
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: number
+          operation?: string | null
+          request_bytes?: number | null
+          response_status: number
+          success: boolean
+          tool_name: string
+        }
+        Update: {
+          caller_ip?: string | null
+          client_id?: string
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: number
+          operation?: string | null
+          request_bytes?: number | null
+          response_status?: number
+          success?: boolean
+          tool_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mcp_tool_calls_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "mcp_clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {

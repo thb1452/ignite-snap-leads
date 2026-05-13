@@ -28,6 +28,14 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
+import {
+  classifyViolation,
+  aggregatePropertyIntelligence,
+  buildComponentBreakdown,
+  type Violation as ScoringViolation,
+} from "../_shared/enforcementScoring.ts";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -339,6 +347,79 @@ Deno.serve(async (req) => {
       count: results.length,
       filters_applied: { state, city, county, days_back: daysBack, limit },
       results,
+    });
+  }
+
+  if (operation === "get_enforcement_breakdown") {
+    const propertyId = typeof (params as any).property_id === "string" ? (params as any).property_id.trim() : "";
+    if (!UUID_RE.test(propertyId)) {
+      await log(400, false, { operation, error: "invalid_property_id", requestBytes });
+      return jsonResponse(400, { error: "invalid_property_id" });
+    }
+
+    const { data: property, error: propErr } = await admin
+      .from("properties")
+      .select("id, snap_score, escalated, last_analyzed_at, investor_insight_brief, snap_insight")
+      .eq("id", propertyId)
+      .maybeSingle();
+
+    if (propErr) {
+      await log(500, false, { operation, error: propErr.message, requestBytes });
+      return jsonResponse(500, { error: "query_failed" });
+    }
+    if (!property) {
+      await log(404, false, { operation, error: "property_not_found", requestBytes });
+      return jsonResponse(404, { error: "property_not_found" });
+    }
+
+    const { data: vRows, error: vErr } = await admin
+      .from("violations")
+      .select("id, violation_type, status, days_open, opened_date, raw_description, last_updated")
+      .eq("property_id", propertyId);
+
+    if (vErr) {
+      await log(500, false, { operation, error: vErr.message, requestBytes });
+      return jsonResponse(500, { error: "query_failed" });
+    }
+
+    const violations: ScoringViolation[] = (vRows ?? []) as ScoringViolation[];
+    const classified = violations.map(classifyViolation);
+    const intelligence = aggregatePropertyIntelligence(violations, classified, !!(property as any).escalated);
+    const breakdown = buildComponentBreakdown(violations, classified, intelligence);
+
+    const persisted = typeof property.snap_score === "number" ? property.snap_score : null;
+    const recomputed = breakdown.final_score;
+    const drift = persisted == null ? null : Math.abs(persisted - recomputed);
+    let weightReconciliation: "exact" | "approximate" | "stale" | "unavailable" = "unavailable";
+    if (drift !== null) {
+      if (drift <= 5) weightReconciliation = "exact";
+      else if (drift <= 15) weightReconciliation = "approximate";
+      else weightReconciliation = "stale";
+    }
+
+    // Narrative from properties.investor_insight_brief, fallback snap_insight
+    const briefText = (property as any).investor_insight_brief;
+    const snapInsight = (property as any).snap_insight;
+    const narrative: string | null = (typeof briefText === "string" && briefText.trim())
+      ? briefText
+      : (typeof snapInsight === "string" && snapInsight.trim() ? snapInsight : null);
+
+    await log(200, true, { operation, requestBytes });
+    return jsonResponse(200, {
+      operation: "get_enforcement_breakdown",
+      property_id: propertyId,
+      scoring_version: breakdown.scoring_version,
+      persisted_snap_score: persisted,
+      recomputed_snap_score: recomputed,
+      raw_sum_pre_cap: breakdown.raw_sum_pre_cap,
+      resolved_cap_applied: breakdown.resolved_cap_applied,
+      drift,
+      weight_reconciliation: weightReconciliation,
+      activity_class: breakdown.activity_class,
+      signals: breakdown.signals,
+      components: breakdown.components,
+      narrative,
+      last_analyzed_at: (property as any).last_analyzed_at ?? null,
     });
   }
 

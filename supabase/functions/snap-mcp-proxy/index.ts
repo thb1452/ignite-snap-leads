@@ -176,6 +176,70 @@ Deno.serve(async (req) => {
     return jsonResponse(200, { ok: true });
   }
 
+  if (operation === "auth_lookup") {
+    const hash = typeof (params as any).api_key_hash === "string" ? (params as any).api_key_hash : "";
+    if (!hash || !/^[a-f0-9]{64}$/.test(hash)) {
+      await log(400, false, { operation, error: "invalid_hash_format", requestBytes });
+      return jsonResponse(400, { error: "invalid_hash_format" });
+    }
+
+    const { data, error } = await admin
+      .from("mcp_clients")
+      .select("id, client_name, status, rate_limit_per_minute")
+      .eq("api_key_hash", hash)
+      .maybeSingle();
+
+    if (error) {
+      await log(500, false, { operation, error: error.message, requestBytes });
+      return jsonResponse(500, { error: "lookup_failed" });
+    }
+    if (!data) {
+      await log(200, true, { operation, requestBytes });
+      return jsonResponse(200, { found: false });
+    }
+    if (data.status !== "active") {
+      await log(200, true, { operation, requestBytes });
+      return jsonResponse(200, { found: true, client_id: data.id, client_name: data.client_name, status: data.status });
+    }
+
+    // Update last_used_at fire-and-forget
+    admin.from("mcp_clients").update({ last_used_at: new Date().toISOString() }).eq("id", data.id).then(() => {});
+
+    await log(200, true, { operation, requestBytes });
+    return jsonResponse(200, {
+      found: true,
+      client_id: data.id,
+      client_name: data.client_name,
+      status: "active",
+      rate_limit_per_minute: data.rate_limit_per_minute,
+    });
+  }
+
+  if (operation === "log_tool_call") {
+    const p = params as any;
+    if (!p.client_id || !p.tool_name || typeof p.response_status !== "number") {
+      await log(400, false, { operation, error: "missing_fields", requestBytes });
+      return jsonResponse(400, { error: "missing_fields" });
+    }
+    const { error } = await admin.from("mcp_tool_calls").insert({
+      client_id: p.client_id,
+      tool_name: p.tool_name,
+      operation: p.operation_inner ?? null,
+      caller_ip: p.caller_ip ?? null,
+      request_bytes: p.request_bytes ?? null,
+      response_status: p.response_status,
+      duration_ms: p.duration_ms ?? null,
+      success: !!p.success,
+      error: p.error ?? null,
+    });
+    if (error) {
+      await log(500, false, { operation, error: error.message, requestBytes });
+      return jsonResponse(500, { error: "log_failed" });
+    }
+    await log(200, true, { operation, requestBytes });
+    return jsonResponse(200, { logged: true });
+  }
+
   if (operation === "lookup_property_by_address") {
     const address = typeof (params as any).address === "string" ? (params as any).address.trim() : "";
     const stateRaw = typeof (params as any).state === "string" ? (params as any).state.trim() : "";

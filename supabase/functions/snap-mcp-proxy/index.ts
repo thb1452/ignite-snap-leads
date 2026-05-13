@@ -289,6 +289,59 @@ Deno.serve(async (req) => {
     return jsonResponse(200, { operation, confidence, count: results.length, results });
   }
 
+  if (operation === "list_recent_violation_events") {
+    const p = params as any;
+
+    const state = typeof p.state === "string" ? p.state.toUpperCase() : null;
+    if (!state || !/^[A-Z]{2}$/.test(state)) {
+      await log(400, false, { operation, error: "invalid_state", requestBytes });
+      return jsonResponse(400, { error: "invalid_state" });
+    }
+
+    const city = typeof p.city === "string" && p.city.length > 0 && p.city.length < 100 ? p.city : null;
+    const county = typeof p.county === "string" && p.county.length > 0 && p.county.length < 100 ? p.county : null;
+
+    const daysBackAllowed = [7, 14, 30, 60, 90];
+    const daysBack = daysBackAllowed.includes(p.days_back) ? p.days_back : 30;
+
+    let limit = Number.isInteger(p.limit) ? p.limit : 25;
+    if (limit < 1) limit = 1;
+    if (limit > 100) limit = 100;
+
+    const { data, error } = await admin.rpc("list_recent_violation_events_v1", {
+      p_state: state,
+      p_city: city,
+      p_county: county,
+      p_days_back: daysBack,
+      p_limit: limit,
+    });
+
+    if (error) {
+      await log(500, false, { operation, error: error.message, requestBytes });
+      return jsonResponse(500, { error: "query_failed" });
+    }
+
+    const REDACTED_ADDRESS = "•••• REDACTED";
+    const results = (data ?? []).map((r: any) => ({
+      property_id: r.property_id,
+      address: REDACTED_ADDRESS,
+      city: r.city,
+      state: r.state,
+      zip: r.zip,
+      violation_count_recent: r.violation_count_recent,
+      most_recent_violation_date: r.most_recent_violation_date,
+      snapscore: r.snapscore,
+    }));
+
+    await log(200, true, { operation, requestBytes });
+    return jsonResponse(200, {
+      operation: "list_recent_violation_events",
+      count: results.length,
+      filters_applied: { state, city, county, days_back: daysBack, limit },
+      results,
+    });
+  }
+
   await log(400, false, { operation: operation ?? null, error: "unknown_operation", requestBytes });
   return jsonResponse(400, { error: "unknown_operation" });
 });

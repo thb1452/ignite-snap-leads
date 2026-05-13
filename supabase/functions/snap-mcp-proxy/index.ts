@@ -397,16 +397,12 @@ Deno.serve(async (req) => {
       else weightReconciliation = "stale";
     }
 
-    // Narrative from investor_insight_brief
-    let narrative: string | null = null;
-    const { data: briefRow } = await admin
-      .from("investor_insight_brief")
-      .select("brief_text")
-      .eq("property_id", propertyId)
-      .maybeSingle();
-    if (briefRow && typeof (briefRow as any).brief_text === "string") {
-      narrative = (briefRow as any).brief_text;
-    }
+    // Narrative from properties.investor_insight_brief, fallback snap_insight
+    const briefText = (property as any).investor_insight_brief;
+    const snapInsight = (property as any).snap_insight;
+    const narrative: string | null = (typeof briefText === "string" && briefText.trim())
+      ? briefText
+      : (typeof snapInsight === "string" && snapInsight.trim() ? snapInsight : null);
 
     await log(200, true, { operation, requestBytes });
     return jsonResponse(200, {

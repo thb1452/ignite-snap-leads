@@ -147,6 +147,11 @@ verify_jwt = false
 [functions.snap-mcp-proxy]
 verify_jwt = false
 
+# Keep-warm pinger — no JWT (called by pg_cron via net.http_post unauthenticated).
+# Internally signs HMAC and pings snap-mcp-proxy with operation: "ping".
+[functions.snap-mcp-keepwarm]
+verify_jwt = false
+
 [functions.seed_mcp_client]
 verify_jwt = false
 

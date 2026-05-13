@@ -13,6 +13,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { sanitizeInsightForStorage } from "../_shared/insightSanitizer.ts";
 import { DEAL_STRATEGIST_PROMPT, formatPropertyForPrompt } from "../_shared/dealStrategistPrompt.ts";
+import {
+  type Violation,
+  type ViolationWithPriority,
+  type SnapScoreResult,
+  type PropertyIntelligence,
+  aggregatePropertyIntelligence,
+  calculateEnforcementIntensity,
+  classifyViolation,
+} from "../_shared/enforcementScoring.ts";
 
 const VERSION = "v9.4";
 
@@ -23,43 +32,8 @@ const corsHeaders = {
 
 const SNAP_SCORE_AI_THRESHOLD = 20;
 
-interface Violation {
-  id: string;
-  violation_type: string;
-  status: string;
-  days_open: number | null;
-  opened_date: string | null;
-  raw_description: string | null;
-  last_updated: string | null;
-}
-
-interface ViolationWithPriority {
-  category: string;
-  priority: 'high' | 'medium' | 'low';
-  original: Violation;
-}
-
-interface SnapScoreResult {
-  score: number;
-  signals: string[];
-  activityClass: 'critical' | 'elevated' | 'monitoring';
-}
-
-interface PropertyIntelligence {
-  total_violations: number;
-  open_violations: number;
-  oldest_violation_date: string | null;
-  newest_violation_date: string | null;
-  avg_days_open: number;
-  violation_types: string[];
-  repeat_offender: boolean;
-  multi_department: boolean;
-  escalated: boolean;
-  oldest_violation_days: number;
-  high_priority_count: number;
-  medium_priority_count: number;
-  low_priority_count: number;
-}
+// Scoring types + functions are imported from ../_shared/enforcementScoring.ts
+// (canonical SnapScore v7.1 algorithm — do not redefine here).
 
 // ============================================================================
 // DETERMINISTIC INSIGHT BLOCKS

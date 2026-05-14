@@ -1074,6 +1074,51 @@ export type Database = {
         }
         Relationships: []
       }
+      enrichment_misses: {
+        Row: {
+          attempted_at: string | null
+          error_reason: string | null
+          id: string
+          next_retry_at: string | null
+          property_id: string | null
+          retry_count: number | null
+          source: string
+        }
+        Insert: {
+          attempted_at?: string | null
+          error_reason?: string | null
+          id?: string
+          next_retry_at?: string | null
+          property_id?: string | null
+          retry_count?: number | null
+          source: string
+        }
+        Update: {
+          attempted_at?: string | null
+          error_reason?: string | null
+          id?: string
+          next_retry_at?: string | null
+          property_id?: string | null
+          retry_count?: number | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrichment_misses_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrichment_misses_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_hot_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrichment_sources: {
         Row: {
           access_method: string | null

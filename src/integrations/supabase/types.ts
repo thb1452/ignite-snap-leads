@@ -161,6 +161,62 @@ export type Database = {
         }
         Relationships: []
       }
+      buyer_purchases: {
+        Row: {
+          buyer_id: string
+          county_fips: string
+          created_at: string
+          deed_type: string | null
+          id: string
+          parcel_id: string | null
+          property_address: string
+          raw_grantee_name: string
+          sale_date: string
+          sale_price: number | null
+          source: string | null
+          source_record_id: string | null
+          zip: string | null
+        }
+        Insert: {
+          buyer_id: string
+          county_fips?: string
+          created_at?: string
+          deed_type?: string | null
+          id?: string
+          parcel_id?: string | null
+          property_address: string
+          raw_grantee_name: string
+          sale_date: string
+          sale_price?: number | null
+          source?: string | null
+          source_record_id?: string | null
+          zip?: string | null
+        }
+        Update: {
+          buyer_id?: string
+          county_fips?: string
+          created_at?: string
+          deed_type?: string | null
+          id?: string
+          parcel_id?: string | null
+          property_address?: string
+          raw_grantee_name?: string
+          sale_date?: string
+          sale_price?: number | null
+          source?: string | null
+          source_record_id?: string | null
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_purchases_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "cash_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_logs: {
         Row: {
           call_type: string
@@ -292,6 +348,93 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cash_buyers: {
+        Row: {
+          active_zips: string[] | null
+          avg_price_usd: number | null
+          buyer_score: number | null
+          buyer_tier: string | null
+          buyer_type: string
+          created_at: string
+          emails: Json | null
+          first_buy_date: string | null
+          id: string
+          inbiz_resolution_status: string | null
+          inbiz_resolved_at: string | null
+          is_institutional: boolean | null
+          is_out_of_state: boolean | null
+          last_buy_date: string | null
+          manual_review_reason: string | null
+          member_managers: Json | null
+          normalized_name: string
+          phones: Json | null
+          primary_county_fips: string
+          principal_address: string | null
+          raw_names: string[]
+          registered_agent: string | null
+          skip_traced_at: string | null
+          total_purchases: number
+          total_spend_usd: number
+          updated_at: string
+        }
+        Insert: {
+          active_zips?: string[] | null
+          avg_price_usd?: number | null
+          buyer_score?: number | null
+          buyer_tier?: string | null
+          buyer_type: string
+          created_at?: string
+          emails?: Json | null
+          first_buy_date?: string | null
+          id?: string
+          inbiz_resolution_status?: string | null
+          inbiz_resolved_at?: string | null
+          is_institutional?: boolean | null
+          is_out_of_state?: boolean | null
+          last_buy_date?: string | null
+          manual_review_reason?: string | null
+          member_managers?: Json | null
+          normalized_name: string
+          phones?: Json | null
+          primary_county_fips?: string
+          principal_address?: string | null
+          raw_names: string[]
+          registered_agent?: string | null
+          skip_traced_at?: string | null
+          total_purchases?: number
+          total_spend_usd?: number
+          updated_at?: string
+        }
+        Update: {
+          active_zips?: string[] | null
+          avg_price_usd?: number | null
+          buyer_score?: number | null
+          buyer_tier?: string | null
+          buyer_type?: string
+          created_at?: string
+          emails?: Json | null
+          first_buy_date?: string | null
+          id?: string
+          inbiz_resolution_status?: string | null
+          inbiz_resolved_at?: string | null
+          is_institutional?: boolean | null
+          is_out_of_state?: boolean | null
+          last_buy_date?: string | null
+          manual_review_reason?: string | null
+          member_managers?: Json | null
+          normalized_name?: string
+          phones?: Json | null
+          primary_county_fips?: string
+          principal_address?: string | null
+          raw_names?: string[]
+          registered_agent?: string | null
+          skip_traced_at?: string | null
+          total_purchases?: number
+          total_spend_usd?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       census_places: {
         Row: {

@@ -52,6 +52,7 @@ const TABLES_TO_MIGRATE = [
   "list_properties",        // 119,307
   "property_contacts",
   "owners",
+  "upload_jobs",
   "parcel_attributes",
   "enrichment_misses",
   "enrichment_jobs",

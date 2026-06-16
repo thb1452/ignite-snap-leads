@@ -127,6 +127,41 @@ Deno.serve(async (req: Request): Promise<Response> => {
           break;
         }
 
+        // Refund + dispute events: log to webhook_errors for admin visibility.
+        // We deliberately do NOT auto-reverse unlocks/credits here — that requires
+        // legal/finance policy decisions (e.g. partial refunds, fraud disputes vs
+        // legitimate refunds). The handler below records the event so JR can review
+        // and reconcile via the admin console. Add reversal logic in a follow-up
+        // migration once the policy is defined.
+        case "charge.refunded":
+        case "charge.dispute.created":
+        case "charge.dispute.closed": {
+          const charge = event.data.object as Stripe.Charge | Stripe.Dispute;
+          const chargeId =
+            (charge as Stripe.Charge).id ??
+            (charge as Stripe.Dispute).charge?.toString() ??
+            null;
+          const customerId =
+            (charge as Stripe.Charge).customer?.toString() ??
+            null;
+          const amount =
+            (charge as Stripe.Charge).amount_refunded ??
+            (charge as Stripe.Dispute).amount ??
+            null;
+          console.warn(
+            "[webhook] Refund/dispute event received — manual reconciliation required:",
+            event.type,
+            { chargeId, customerId, amount }
+          );
+          await logWebhookError(
+            event.type,
+            event.id,
+            `Refund/dispute received: ${event.type} (manual reconciliation required)`,
+            { chargeId, customerId, amount, raw: event.data.object },
+          );
+          break;
+        }
+
         default:
           console.log("[webhook] Unhandled event type:", event.type);
       }

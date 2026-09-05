@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,6 +92,8 @@ export default function AdminConsole() {
             </Button>
           </div>
         </div>
+
+        <Button asChild variant="outline"><Link to="/admin/operations">Open owner dashboard</Link></Button>
 
         {/* Tab Navigation */}
         <div className="flex gap-2 border-b border-border pb-2">

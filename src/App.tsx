@@ -55,6 +55,7 @@ const VAWorkspace = lazy(() => import("./pages/VAWorkspace"));
 const VACountyDetail = lazy(() => import("./pages/VACountyDetail"));
 const VATemplates = lazy(() => import("./pages/VATemplates"));
 
+const OwnerDashboard = lazy(() => import("./pages/OwnerDashboard"));
 const AdminConsole = lazy(() => import("./pages/AdminConsole"));
 const AdminImportCounties = lazy(() => import("./pages/AdminImportCounties"));
 const AdminAssignCounties = lazy(() => import("./pages/AdminAssignCounties"));
@@ -131,6 +132,7 @@ const App = () => (
                 <Route path="/va-workspace" element={<RoleProtectedRoute allowedRoles={["va", "admin"]}><VAWorkspace /></RoleProtectedRoute>} />
                 <Route path="/va-workspace/county/:id" element={<RoleProtectedRoute allowedRoles={["va", "admin"]}><VACountyDetail /></RoleProtectedRoute>} />
                 <Route path="/va-workspace/templates" element={<RoleProtectedRoute allowedRoles={["va", "admin"]}><VATemplates /></RoleProtectedRoute>} />
+                <Route path="/admin/operations" element={<OwnerDashboard />} />
                 <Route path="/admin-console" element={<RoleProtectedRoute allowedRoles={["admin"]}><AdminConsole /></RoleProtectedRoute>} />
                 <Route path="/admin/import-counties" element={<RoleProtectedRoute allowedRoles={["admin"]}><AdminImportCounties /></RoleProtectedRoute>} />
                 <Route path="/admin/assign-counties" element={<RoleProtectedRoute allowedRoles={["admin"]}><AdminAssignCounties /></RoleProtectedRoute>} />

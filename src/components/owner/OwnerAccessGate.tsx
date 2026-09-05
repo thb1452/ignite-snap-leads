@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/hooks/use-auth';
+import { useOwnerSession } from '@/services/owner/session';
+import { ownerClient } from '@/services/owner/client';
+import { OwnerLogin } from './OwnerLogin';
 import { verifyOwner } from '@/services/owner/operations';
 import { Button } from '@/components/ui/button';
 
 export function OwnerAccessGate({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading } = useOwnerSession();
   const access = useQuery({
     queryKey: ['owner-access', user?.id],
     queryFn: () => verifyOwner(user!.id),
@@ -15,9 +16,9 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
     refetchOnMount: 'always', refetchOnWindowFocus: true,
   });
   if (loading || (!!user && access.isPending)) return <Gate title="Checking owner access…" />;
-  if (!user) return <Gate title="Sign in to your owner dashboard"><Button asChild><Link to="/auth?mode=signin">Sign in</Link></Button></Gate>;
+  if (!user) return <OwnerLogin />;
   if (access.isError) return <Gate title="We couldn’t verify owner access"><Button onClick={() => access.refetch()}>Try again</Button></Gate>;
-  if (access.data !== true) return <Gate title="Owner access required"><p>This dashboard is available to authorized Snap administrators.</p><Link to="/properties" className="underline">Back to Snap</Link></Gate>;
+  if (access.data !== true) return <Gate title="Owner access required"><p>This dashboard is available to authorized Snap administrators.</p><Button variant="outline" onClick={() => ownerClient.auth.signOut()}>Sign in with a different account</Button></Gate>;
   return <>{children}</>;
 }
 function Gate({ title, children }: { title: string; children?: ReactNode }) {

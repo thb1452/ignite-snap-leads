@@ -1,48 +1,47 @@
 # Owner dashboard
 
-Route: `/admin/operations`. Access it from **Owner dashboard** in the admin sidebar, or **Open owner dashboard** in the Admin Console.
+Route: `/admin/operations`. This owner monitoring area uses its own verified sign-in and the working operations database. The retired VA signup is not required.
 
-## What is implemented
+## Access and enforcement
+
+`src/services/owner/client.ts` connects only the owner area to worker project `dqwolscmceelqpkfclgi`, using a public browser key and separate `snap-owner-auth` session storage. The main customer application client is unchanged; its fallback project `ojyxblegxpdgaqiscxpz` did not resolve in the September 5, 2026 check.
+
+An owner creates an account in the owner login form, confirms their email, and signs in. Account creation alone does not grant dashboard access. The deployed `owner-operations` Edge Function verifies the JWT with Auth and requires a confirmed email enabled in the separate `owner_dashboard_access` registry. Legacy VA roles, subscriptions, and user-editable metadata cannot grant access.
+
+The hosted migration `owner_dashboard_access_registry` is recorded in `docs/owner-dashboard-access.sql`. RLS is enabled, browser roles have no table privileges, and only the service role can read the registry. The owner-approved email was registered separately; it is not embedded in source code. No service key is shipped to the browser.
+
+The function allows GET/OPTIONS only, explicit origins, fixed tables and columns, and bounded result sets. The gateway also requires JWT verification. Its access-only check returns no business records. Modern built-in Supabase key dictionaries are used, with legacy environment fallbacks.
+
+## Connected monitoring
 
 - Overview, Collection, Agents, News outlets, Data quality, and Your decisions.
-- Exact daily recorded send/reply counts, using one explicit UTC reporting window.
-- Latest 100 request jobs, agent runs, owner uploads, and review items, with visible record counts and scope.
-- Code-violation / water-shutoff / other filters that leave unknown request types unclassified.
-- Registered outlet details from selected non-secret columns, with a target of six. Registration is not treated as proof of working mailboxes or verified ownership.
-- Agent costs remain unknown if any displayed run lacks a cost. Recent costs are not presented as daily totals.
-- Original file names and upload metrics; processed rows are not presented as approved unique records.
-- Per-feed failure, empty, loading, and successful-check states. Failure does not become a green status or a zero.
-- Refresh every minute while visible, pause control, and manual refresh without page reload.
-- Main-app administrator verification through a fresh Auth getUser check and server has_role RPC. Cached roles, subscriptions, and old FOIA/VA signup are not used as access authority.
-- The retired VA workspace is removed from administrator navigation. Its existing routes/history are preserved.
-- No mutations, requests, payments, retry jobs, or publishing actions are performed.
+- Recorded daily send/reply counts share one UTC reporting window.
+- Latest 100 request jobs, agent runs, uploads, review items, source tasks, and research runs, with exact totals where available.
+- Separate code-violation and water-shutoff filters; unknown types remain unclassified.
+- Registered agent heartbeat timestamps, mailbox check timestamps and configured limits. Registration and old delivery scores are not proof of current health.
+- Failed, blocked, and stale source tasks appear in Your decisions.
+- Public website availability and published article metadata from Civic Records and Data Research. Each article query uses that site's own public key, never owner credentials. Drafts, future-dated articles, bodies and contact submissions are excluded. Article routes were verified against the deployed assets.
+- Missing costs, failed feeds and unavailable health checks remain explicit. Historical uploads are not counted as fresh approved unique records.
+- Refresh every minute while visible, pause control, manual refresh, and mobile layout.
 
-## Data connection and limitations
+Latest-record filters apply only to displayed rows. The old VA `foia_requests` table is not counted as fresh agent work. No requests, payments, retries, or stories are sent or published by this dashboard.
 
-The page uses the existing canonical Supabase client and session. Its fallback project is `ojyxblegxpdgaqiscxpz`; environment configuration can override that. It does not silently switch the rest of Snap to the worker project `dqwolscmceelqpkfclgi`.
+## Verified recovery findings — September 5, 2026
 
-The management connector could not access the customer project during implementation. Its live table/RLS behavior and end-to-end owner session remain unverified. Worker schema inspection confirmed the monitoring tables exist in the worker project, but no live worker jobs were recorded there at inspection time. The interface therefore shows a persistent coverage notice.
+- Worker project reports ACTIVE_HEALTHY.
+- Seven registered agents all have missing heartbeat timestamps.
+- Source task history has 1,782 records: 1,647 completed, 79 cancelled, 14 failed, and 42 stale. The 56 failed/stale tasks require review.
+- 46 research runs and 6,377 upload records exist; these counts do not establish current collection readiness.
+- The new request-job queue has zero records.
+- One press account is registered, Civic Records, with a configured daily limit of 50 and no recorded mailbox health check. Six outlets remain a target.
+- Civic Records and Data Research website shells respond, but their published-story database hostnames fail DNS resolution. The dashboard surfaces unavailable story feeds rather than inventing zero stories. Ground Truth Ops also fails DNS resolution.
 
-The owner gate is an additional frontend control. Database grants and RLS remain the enforcement boundary. Do not weaken them or add a service-role key to the browser to make missing data appear.
+## Validation and release status
 
-Publishing activity, state assignments across six outlets, mailbox health, complete quality checks, all-worker uploads, and approval execution need verified backend feeds. They are explicitly marked as not connected. Current upload visibility is scoped to the owner's user_id and existing RLS.
+Eight backend tests and six browser tests pass, along with app and handler TypeScript checks, owner-code lint, production build, and whitespace checks. Backend tests cover missing/invalid credentials, unconfirmed email, non-owner rejection, approved-owner feeds, partial failure, read-only methods/origins, and separation of publishing credentials. Browser tests cover the access gate, navigation/filtering, unavailable versus empty feeds, costs, refresh, and desktop/mobile layout.
 
-Latest-record panels are intentionally bounded; filters apply to the displayed records, not complete nationwide inventory. The old VA foia_requests table is not counted as fresh agent work.
+Browser tests use synthetic fixtures and intercept external requests. Screenshots in ignored `test-results` are layout previews, not live business activity.
 
-## Validation
+The registry migration and protected Edge Function have been deployed. Live unauthenticated access returns 401 and the allowed-origin preflight returns 204. A successful owner sign-in and real dashboard response remain to be verified after the owner creates and confirms their account. The frontend is in draft PR 172 and has not been merged or published.
 
-- Production build: `npm run build`.
-- TypeScript: `npx tsc -p tsconfig.app.json --noEmit`.
-- Lint: the three new production files pass ESLint.
-- Browser tests: `npx playwright test --config playwright.owner.config.ts`.
-- For an existing local Chrome binary, set `PLAYWRIGHT_CHROME_PATH`; otherwise Playwright uses its installed browser.
-
-Browser tests isolate every external request and use synthetic fixtures only. They cover signed-out access, cached-admin spoofing denied by the server role check, section navigation, queue filters, outlets, review details, failed versus empty feeds, missing costs, refresh, and responsive layout.
-
-Screenshots in test-results are **layout previews with synthetic data**, not screenshots of live business activity. They are ignored by Git.
-
-## Before publishing
-
-Verify the intended customer environment, owner sign-in, exact grants/RLS, and feed visibility. Confirm which worker events reach that environment and connect the remaining feeds through an authenticated backend. Keep monitoring-only controls until the corresponding audited actions are implemented.
-
-No database migration, production deployment, or paid service change is included in this patch.
+Before release, verify the confirmed owner's authenticated response and feed visibility. Restore the news databases and customer application separately, then reconnect agent heartbeats and mailbox health. Do not treat the monitoring implementation as proof that collection workers or publishing are running.

@@ -4,6 +4,7 @@ import { Activity, ArrowUpRight, Building2, CheckCircle2, Clock3, FileCheck2, In
 import { useOwnerSession } from '@/services/owner/session';
 import { OwnerLayout } from '@/components/owner/OwnerLayout';
 import { OwnerAccessGate } from '@/components/owner/OwnerAccessGate';
+import { CollectionRegister, EditorialRegister } from '@/components/owner/CollectionRegister';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,7 +80,7 @@ function OwnerDashboardContent() {
 }
 function DashboardSections({ section, data, navigate }: { section: Section; data: Snapshot; navigate: (s: Section) => void }) {
   const cost = data.agents.data ? knownCost(data.agents.data) : null;
-  const failedFeeds = [data.requests, data.agents, data.outlets, data.uploads, data.reviews, data.sentToday, data.repliesToday, data.registry, data.research, data.tasks, data.taskReviews, data.mailboxSync, data.mailboxReview, data.mailboxTests, data.mailReviewHealth, data.mailboxSuggestions].filter(f => f?.error).length;
+  const failedFeeds = [data.requests, data.agents, data.outlets, data.uploads, data.reviews, data.sentToday, data.repliesToday, data.registry, data.research, data.tasks, data.taskReviews, data.mailboxSync, data.mailboxReview, data.mailboxTests, data.mailReviewHealth, data.mailboxSuggestions, data.collectionDeliveries, data.collectionProcessing, data.collectionOriginals, data.collectionEditorial, data.freshCollectionCount, data.customerAcceptedCollections].filter(f => f?.error).length;
   const overview = section === 'Overview';
   return <div className="space-y-6">
     {overview && <>
@@ -118,6 +119,7 @@ function DashboardSections({ section, data, navigate }: { section: Section; data
     </>}
     {section === 'News outlets' && <Outlets data={data} />}
     {section === 'Data quality' && <>
+      <CollectionRegister data={data} />
       <p className="text-sm text-muted-foreground">Worker-database uploads are shown below, including historical deliveries. Processed rows are not the same as approved, unique records. Confidentiality and duplicate review need separate validator results.</p>
       <FeedPanel title="Delivered files in the worker database" feed={data.uploads} empty="No uploads are visible for your account. The worker database may hold deliveries that are not connected here yet.">
         {rows => <div className="space-y-3">{rows.map(row => <article key={row.id} className="rounded-lg border p-4">
@@ -126,7 +128,7 @@ function DashboardSections({ section, data, navigate }: { section: Section; data
           <div className="mt-3 flex flex-wrap gap-5 text-sm"><span>Processed rows: {number(row.processed_rows)}</span><span>Address issues: {number(row.bad_addresses)}</span><span>Finished: {time(row.finished_at)}</span></div>
         </article>)}</div>}
       </FeedPanel>
-      <Setup title="Quality checks still to connect" text="Unique records delivered, duplicate review, missing dates and locations, confidentiality flags, and original-file links. Unknown values will stay unknown until the validator reports them." />
+      <Setup title="Customer delivery review" text="Registered candidates still need location, date, duplicate and confidentiality review. Source collections, case counts and candidate rows do not establish approved unique properties." />
     </>}
     {(overview || section === 'Your decisions') && data.mailboxReview && <div className="rounded-xl border p-4"><p className="text-sm">Incoming messages to review: {data.mailboxReview.error ? 'Unavailable' : number(data.mailboxReview.total)}</p><Button className="mt-3" variant="outline" onClick={() => navigate('News outlets')}>View incoming mail</Button></div>}
     {(overview || section === 'Your decisions') && <FeedPanel title="Needs your attention" feed={data.reviews} empty="No review items are visible. Fee approvals, login challenges, and story reviews still need their workflow connections.">
@@ -194,6 +196,7 @@ function Outlets({ data }: { data: Snapshot }) {
         })}</div>}
     </FeedPanel>}
     <MailReviewStatus data={data} />
+    <EditorialRegister data={data} />
     {data.mailboxReview && <FeedPanel title="Incoming messages to review" feed={data.mailboxReview} empty="No incoming messages need review. Internal connection tests are excluded.">
       {rows => <div className="space-y-3">{data.mailboxSuggestions?.error && <p role="alert" className="text-sm text-amber-700">Mail review suggestions are unavailable. Incoming messages remain visible below.</p>}{rows.map(row => {
         const suggestion = data.mailboxSuggestions?.data?.find(item => item.inbox_id === row.inbox_id && item.message_id === row.message_id && item.review_state === 'pending_review');
@@ -221,7 +224,7 @@ function Outlets({ data }: { data: Snapshot }) {
       <p className="text-sm">Website: {site.siteStatus != null && site.siteStatus >= 200 && site.siteStatus < 300 ? 'Reachable' : 'Check needed'}{site.siteStatus != null ? ' (HTTP ' + site.siteStatus + ')' : ''}</p>
       {site.error ? <p role="alert" className="mt-3 text-sm text-amber-700">{site.error}</p> : <><p className="mt-3 text-sm">{number(site.articles?.total)} publicly dated stories · Latest five below</p><ul className="mt-3 space-y-3">{site.articles?.rows.map(article => <li key={article.id}><a className="text-sm font-medium text-primary underline" href={safeWebsite(article.url) ?? undefined} target="_blank" rel="noopener noreferrer">{article.title}</a><p className="mt-1 text-xs text-muted-foreground">{time(article.publishedAt)}</p></li>)}</ul></>}
     </CardContent></Card>)}</div>
-    <Setup title="Editorial review still to connect" text="The feeds above read existing public stories. Drafts, source evidence, and approval controls are separate; no stories are published automatically." />
+    <Setup title="Publication approval" text="The published-story feeds remain separate from the private draft register. No approval or publication action is available from this screen." />
   </div>;
 }
 function Setup({ title, text }: { title: string; text: string }) {

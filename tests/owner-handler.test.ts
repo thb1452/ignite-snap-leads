@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHandler} from '../supabase/functions/owner-operations/handler.ts';
 const env={url:'https://worker.example',publicKey:'public-test-key',secretKey:'private-test-key'};
 const request=(extra:RequestInit={})=>new Request('https://worker.example/functions/v1/owner-operations',{headers:{Authorization:'Bearer test-user-token',Origin:'http://127.0.0.1:4173'},...extra});
-function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:boolean;brokenMailReview?:boolean}={}){
+function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:boolean;brokenMailReview?:boolean;brokenCollectionProcessing?:boolean}={}){
   const calls:{url:string;init:RequestInit}[]=[];
   const fetcher=async(input:string|URL|Request, init:RequestInit={})=>{
     const url=String(input);calls.push({url,init});
@@ -11,6 +11,7 @@ function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:
     if(url.includes('/owner_dashboard_access?'))return new Response(JSON.stringify(options.owner===false?[]:[{enabled:true}]));
     if(options.broken&&url.includes('/foia_request_jobs?'))return new Response('{}',{status:503});
     if(options.brokenMailReview&&url.includes('/mailbox_processing_results?'))return new Response('{}',{status:503});
+    if(options.brokenCollectionProcessing&&url.includes('/collection_processing_runs?'))return new Response('{}',{status:503});
     return new Response(init.method==='HEAD'?null:JSON.stringify([]),{headers:{'content-range':'*/0'}});
   };
   return {calls,handler:createHandler(env,[],fetcher as typeof fetch)};
@@ -48,6 +49,38 @@ test('unavailable suggestions do not hide incoming messages or imply completed r
  const {handler}=mocked({brokenMailReview:true});const data=await(await handler(request())).json();
  assert.equal(data.mailboxSuggestions.data,null);assert.ok(data.mailboxSuggestions.error);
  assert.deepEqual(data.mailboxReview.data,[]);assert.equal(data.mailboxReview.error,null);assert.deepEqual(data.mailReviewHealth.data,[]);
+});
+test('private collection register exposes selected metadata and separate acquisition counts',async()=>{
+ const {handler,calls}=mocked();const data=await(await handler(request())).json();
+ const getUrl=(table:string)=>new URL(calls.find(c=>c.url.includes('/'+table+'?')&&c.init.method==='GET')!.url);
+ const deliveries=getUrl('collection_deliveries');
+ assert.equal(deliveries.searchParams.get('limit'),'100');
+ assert.equal(deliveries.searchParams.get('order'),'collected_at.desc,id.asc');
+ assert.ok(deliveries.searchParams.get('select')!.includes('freshness,source_rows,customer_accepted'));
+ const runs=getUrl('collection_processing_runs');
+ assert.equal(runs.searchParams.get('order'),'staged_at.desc,id.asc');
+ assert.ok(runs.searchParams.get('select')!.includes('candidate_rows,duplicate_rows,held_rows,source_case_count'));
+ const originals=getUrl('collection_delivery_artifacts');
+ assert.equal(originals.searchParams.get('select'),'delivery_id,role,storage_kind');
+ assert.equal(originals.searchParams.get('role'),'in.(government_raw_response,preserved_original)');
+ assert.equal(originals.searchParams.get('limit'),'1000');
+ assert.equal(getUrl('collection_editorial_handoffs').searchParams.get('limit'),'100');
+ const counters=calls.filter(c=>c.url.includes('/collection_deliveries?')&&c.init.method==='HEAD').map(c=>new URL(c.url));
+ assert.ok(counters.some(url=>url.searchParams.get('freshness')==='eq.fresh_verified'));
+ assert.ok(counters.some(url=>url.searchParams.get('customer_accepted')==='eq.true'));
+ assert.equal(data.freshCollectionCount.data,0);assert.equal(data.customerAcceptedCollections.data,0);
+ assert.ok(calls.filter(c=>c.url.includes('/collection_')).every(c=>['GET','HEAD'].includes(c.init.method!)));
+ assert.ok(!calls.some(c=>/storage_ref|payload|raw_text|source_url|select=\*/.test(decodeURIComponent(c.url))));
+});
+test('collection feeds remain owner-only and a processing failure does not invent zeros',async()=>{
+ const denied=mocked({owner:false});assert.equal((await denied.handler(request())).status,403);
+ assert.ok(!denied.calls.some(c=>/collection_deliveries|collection_processing_runs|collection_delivery_artifacts|collection_editorial_handoffs/.test(c.url)));
+ const accessOnly=mocked();await accessOnly.handler(new Request('https://worker.example/functions/v1/owner-operations?access=1',request()));
+ assert.equal(accessOnly.calls.length,2);
+ const {handler}=mocked({brokenCollectionProcessing:true});const data=await(await handler(request())).json();
+ assert.equal(data.collectionProcessing.data,null);assert.ok(data.collectionProcessing.error);
+ assert.deepEqual(data.collectionDeliveries.data,[]);assert.equal(data.collectionDeliveries.error,null);
+ assert.equal(data.freshCollectionCount.data,0);assert.equal(data.customerAcceptedCollections.data,0);
 });
 test('writes and unapproved browser origins are rejected before authentication',async()=>{const {handler,calls}=mocked();assert.equal((await handler(request({method:'POST'}))).status,405);assert.equal((await handler(request({headers:{Origin:'https://evil.example',Authorization:'Bearer token'}}))).status,403);assert.equal(calls.length,0);});
 test('published-story reads never receive the owner token or worker secret',async()=>{

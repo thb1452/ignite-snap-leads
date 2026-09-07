@@ -10,12 +10,22 @@ export type Review = Omit<Database['public']['Views']['v_needs_human_review_queu
 export type Feed<T> = { data: T | null; error: string | null; checkedAt: string; total?: number };
 export type MailReviewHealth = { worker_name: string; version: string; last_success_at: string | null; last_error_code: string | null };
 export type MailReviewSuggestion = { inbox_id: string; message_id: string; processor_version: string; request_job_id: string | null; match_state: string; processed_at: string; next_action: string | null; signals: string[] | null; review_state: string | null; usable_records: boolean | null };
+export type CollectionDelivery = { id: string; source_name: string; jurisdiction: string; state: string; record_type: string; collected_at: string; freshness: string; source_rows: number; customer_accepted: boolean; usable_records: boolean; registered_at: string };
+export type CollectionProcessing = { id: string; delivery_id: string; processor_version: string; staged_at: string; input_rows: number; candidate_rows: number; duplicate_rows: number; held_rows: number; source_case_count: number | null; candidate_case_count: number | null; review_state: string; customer_accepted: boolean; usable_records: boolean; registered_at: string };
+export type CollectionOriginal = { delivery_id: string; role: string; storage_kind: string };
+export type CollectionEditorial = { id: string; delivery_id: string; processing_run_id: string; outlet_name: string; title: string; review_state: string; published: boolean; registered_at: string };
 export type Snapshot = {
   mailboxSync?: Feed<{ inbox_id: string; enabled: boolean; checked_at: string | null; last_success_at: string | null; last_error_code: string | null; scan_before: string | null }[]>;
   mailboxReview?: Feed<{ inbox_id: string; message_id: string; received_at: string; stored_at: string; sender: string; subject: string | null; review_state: string }[]>;
   mailboxTests?: Feed<number>;
   mailReviewHealth?: Feed<MailReviewHealth[]>;
   mailboxSuggestions?: Feed<MailReviewSuggestion[]>;
+  collectionDeliveries?: Feed<CollectionDelivery[]>;
+  collectionProcessing?: Feed<CollectionProcessing[]>;
+  collectionOriginals?: Feed<CollectionOriginal[]>;
+  collectionEditorial?: Feed<CollectionEditorial[]>;
+  freshCollectionCount?: Feed<number>;
+  customerAcceptedCollections?: Feed<number>;
   requests: Feed<RequestJob[]>; agents: Feed<AgentRun[]>; outlets: Feed<Outlet[]>;
   uploads: Feed<Upload[]>; reviews: Feed<Review[]>;
   sentToday: Feed<number>; repliesToday: Feed<number>;

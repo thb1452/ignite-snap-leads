@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 const id = '00000000-0000-4000-8000-000000000001';
 const now = new Date().toISOString();
 const user = { id, email: 'owner@example.test', aud: 'authenticated', role: 'authenticated', email_confirmed_at: now, created_at: now, app_metadata: {}, user_metadata: {} };
-async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean; mailReview?: 'recent' | 'overdue' | 'error' | 'empty' | 'unavailable' } = {}) {
+async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean; collection?: 'loaded' | 'processing_unavailable' | 'partial_locations'; mailReview?: 'recent' | 'overdue' | 'error' | 'empty' | 'unavailable' } = {}) {
   const session = { access_token: 'test-only', refresh_token: 'test-only', expires_at: Math.floor(Date.now()/1000)+3600, expires_in: 3600, token_type: 'bearer', user };
   if (options.auth !== false) await page.addInitScript(({ session, id }) => {
     localStorage.setItem('snap-owner-auth', JSON.stringify(session));
@@ -32,6 +32,22 @@ async function mock(page: Page, options: { owner?: boolean; failed?: boolean; em
         outlets: feed(options.empty ? [] : [{ id: 'press-1', name: 'Test News Outlet', domain: 'news.example.test', email: 'press@news.example.test', is_active: true, daily_send_limit: 50, emails_sent_today: null, last_send_reset_date: null, last_health_check_at: null }]),
         uploads: feed([]), reviews: feed(options.empty ? [] : [{ domain: 'foia', job_id: 'review-1', job_subtype: 'fee_quote', jurisdiction: 'Review County', state: 'FL', updated_at: now, created_at: now }]),
         registry: feed([{id:'agent-1', name:'Registered agent', role:'collector', status:'active', last_heartbeat:null}]), research: feed([]), tasks: feed([]), taskReviews: feed([]),
+        ...(options.collection ? {
+          collectionDeliveries: feed([
+            {id:'delivery-fresh',source_name:'Synthetic source collection',jurisdiction:'Test City',state:'FL',record_type:'code_violations',collected_at:now,freshness:'fresh_verified',source_rows:20,customer_accepted:false,usable_records:false,registered_at:now},
+            {id:'delivery-old',source_name:'Synthetic historical file',jurisdiction:'Old City',state:'TX',record_type:'water_shutoff',collected_at:'2026-01-01T00:00:00Z',freshness:'historical_preserved',source_rows:5,customer_accepted:false,usable_records:false,registered_at:now},
+          ]),
+          collectionProcessing: options.collection === 'processing_unavailable' ? {data:null,error:'Processing feed unavailable.',checkedAt:now} : feed([
+            {id:'run-old',delivery_id:'delivery-fresh',processor_version:'synthetic-v1',staged_at:'2026-01-01T00:00:00Z',input_rows:20,candidate_rows:10,duplicate_rows:5,held_rows:5,source_case_count:15,candidate_case_count:8,review_state:'pending_review',customer_accepted:false,usable_records:false,registered_at:now},
+            {id:'run-latest',delivery_id:'delivery-fresh',processor_version:'synthetic-v2',staged_at:now,input_rows:20,candidate_rows:12,duplicate_rows:3,held_rows:5,source_case_count:15,candidate_case_count:9,review_state:'pending_review',customer_accepted:false,usable_records:false,registered_at:now},
+            {id:'run-history',delivery_id:'delivery-old',processor_version:'synthetic-v1',staged_at:now,input_rows:5,candidate_rows:0,duplicate_rows:0,held_rows:5,source_case_count:null,candidate_case_count:null,review_state:'held',customer_accepted:false,usable_records:false,registered_at:now},
+          ]),
+          collectionOriginals: feed([{delivery_id:'delivery-fresh',role:'government_raw_response',storage_kind:'local'},
+            {delivery_id:'delivery-old',role:'preserved_original',storage_kind:'local'},
+            {delivery_id:'delivery-old',role:'preserved_original',storage_kind:'supabase_private'}],options.collection==='partial_locations'?2000:3),
+          collectionEditorial: feed([{id:'draft-one',delivery_id:'delivery-fresh',processing_run_id:'run-latest',outlet_name:'Synthetic Regional News',title:'Synthetic sourced story awaiting review',review_state:'pending_review',published:false,registered_at:now}]),
+          freshCollectionCount: feed(1),customerAcceptedCollections: feed(0),
+        } : {}),
         ...(options.mailReview ? {
           mailReviewHealth: feed(options.mailReview === 'empty' ? [] : [{worker_name:'hermes-intake',version:'hermes-intake-v1',last_success_at:options.mailReview === 'overdue' ? new Date(Date.parse(now)-3600000).toISOString() : now,last_error_code:options.mailReview === 'error' ? 'database_error' : null}]),
           mailboxReview: feed([{inbox_id:'records@news.example.test',message_id:'mail-1',received_at:now,stored_at:now,sender:'records@agency.example.test',subject:'Your request has a fee quote',review_state:'needs_review'}]),
@@ -137,4 +153,41 @@ test('incoming messages stay visible when review suggestions are unavailable', a
   await expect(page.getByText('Mail review suggestions are unavailable.', { exact: false })).toBeVisible();
   await expect(page.getByText('Your request has a fee quote', { exact: true })).toBeVisible();
   await expect(page.getByText('Suggestion · Pending review', { exact: true })).toHaveCount(0);
+});
+test('source collections and latest candidate rows remain separate from customer acceptance', async ({ page }) => {
+  await mock(page,{collection:'loaded'});
+  await page.goto('/admin/operations');
+  await page.getByRole('button',{name:'Data quality',exact:true}).click();
+  const metric=(label:string)=>page.getByText(label,{exact:true}).locator('..');
+  await expect(metric('Fresh source collections').getByText('1',{exact:true})).toBeVisible();
+  await expect(metric('Candidate rows in view').getByText('12',{exact:true})).toBeVisible();
+  await expect(metric('Candidate rows in view').getByText('22',{exact:true})).toHaveCount(0);
+  await expect(metric('Accepted for customers').getByText('0',{exact:true})).toBeVisible();
+  await expect(page.getByText('Historical file',{exact:true})).toBeVisible();
+  await expect(page.getByText('Original locations: Local files only; no durable copy registered',{exact:true})).toBeVisible();
+  await expect(page.getByText('Original locations: Local files and private storage copies recorded',{exact:true})).toBeVisible();
+  await expect(page.getByText('Customer acceptance: not approved.',{exact:true})).toHaveCount(2);
+  await page.getByRole('button',{name:'News outlets',exact:true}).click();
+  await expect(page.getByText('Synthetic sourced story awaiting review',{exact:true})).toBeVisible();
+  await expect(page.getByText('Pending editorial review',{exact:true})).toBeVisible();
+  await expect(page.getByText('Synthetic Regional News · Not published',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:/publish|approve|accept/i})).toHaveCount(0);
+});
+test('unavailable processing cannot hide sources or display zero candidate rows', async ({ page }) => {
+  await mock(page,{collection:'processing_unavailable'});
+  await page.goto('/admin/operations');
+  await page.getByRole('button',{name:'Data quality',exact:true}).click();
+  await expect(page.getByText('Synthetic source collection',{exact:true})).toBeVisible();
+  await expect(page.getByText('Candidate rows in view',{exact:true}).locator('..').getByText('Unavailable',{exact:true})).toBeVisible();
+  await expect(page.getByText('Processing results are unavailable. Source collections remain visible.',{exact:true})).toBeVisible();
+});
+test('incomplete original-location list does not claim that durable copies are absent', async ({ page }) => {
+  await mock(page,{collection:'partial_locations'});
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/admin/operations');
+  await page.getByRole('button',{name:'Data quality',exact:true}).click();
+  await expect(page.getByText('Original locations: Local files recorded; other locations may be outside this view',{exact:true})).toBeVisible();
+  await expect(page.getByText('Original locations: Local files only; no durable copy registered',{exact:true})).toHaveCount(0);
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/owner/collection-register-mobile-fixture.png',fullPage:true});
 });

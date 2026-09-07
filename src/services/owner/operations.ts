@@ -8,7 +8,14 @@ export type Outlet = Pick<Row<'press_accounts'>, 'id' | 'name' | 'domain' | 'ema
 export type Upload = Pick<Row<'upload_jobs'>, 'id' | 'filename' | 'status' | 'created_at' | 'finished_at' | 'processed_rows' | 'bad_addresses' | 'source_type'>;
 export type Review = Omit<Database['public']['Views']['v_needs_human_review_queue']['Row'], 'error_message'>;
 export type Feed<T> = { data: T | null; error: string | null; checkedAt: string; total?: number };
+export type MailReviewHealth = { worker_name: string; version: string; last_success_at: string | null; last_error_code: string | null };
+export type MailReviewSuggestion = { inbox_id: string; message_id: string; processor_version: string; request_job_id: string | null; match_state: string; processed_at: string; next_action: string | null; signals: string[] | null; review_state: string | null; usable_records: boolean | null };
 export type Snapshot = {
+  mailboxSync?: Feed<{ inbox_id: string; enabled: boolean; checked_at: string | null; last_success_at: string | null; last_error_code: string | null; scan_before: string | null }[]>;
+  mailboxReview?: Feed<{ inbox_id: string; message_id: string; received_at: string; stored_at: string; sender: string; subject: string | null; review_state: string }[]>;
+  mailboxTests?: Feed<number>;
+  mailReviewHealth?: Feed<MailReviewHealth[]>;
+  mailboxSuggestions?: Feed<MailReviewSuggestion[]>;
   requests: Feed<RequestJob[]>; agents: Feed<AgentRun[]>; outlets: Feed<Outlet[]>;
   uploads: Feed<Upload[]>; reviews: Feed<Review[]>;
   sentToday: Feed<number>; repliesToday: Feed<number>;

@@ -79,14 +79,14 @@ function OwnerDashboardContent() {
 }
 function DashboardSections({ section, data, navigate }: { section: Section; data: Snapshot; navigate: (s: Section) => void }) {
   const cost = data.agents.data ? knownCost(data.agents.data) : null;
-  const failedFeeds = [data.requests, data.agents, data.outlets, data.uploads, data.reviews, data.sentToday, data.repliesToday, data.registry, data.research, data.tasks, data.taskReviews].filter(f => f.error).length;
+  const failedFeeds = [data.requests, data.agents, data.outlets, data.uploads, data.reviews, data.sentToday, data.repliesToday, data.registry, data.research, data.tasks, data.taskReviews, data.mailboxSync, data.mailboxReview, data.mailboxTests, data.mailReviewHealth, data.mailboxSuggestions].filter(f => f?.error).length;
   const overview = section === 'Overview';
   return <div className="space-y-6">
     {overview && <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Requests sent today" value={number(data.sentToday.data)} detail="Recorded sends since midnight UTC" icon={<ArrowUpRight className="h-4 w-4" />} />
         <Metric label="Replies received today" value={number(data.repliesToday.data)} detail="Recorded replies since midnight UTC" icon={<Inbox className="h-4 w-4" />} />
-        <Metric label="Needs your review" value={data.reviews.error || data.taskReviews.error ? 'Unavailable' : number((data.reviews.total ?? 0) + (data.taskReviews.total ?? 0))} detail="Accessible items in the review feed" icon={<Clock3 className="h-4 w-4" />} />
+        <Metric label="Needs your review" value={data.reviews.error || data.taskReviews.error || data.mailboxReview?.error ? 'Unavailable' : number((data.reviews.total ?? 0) + (data.taskReviews.total ?? 0) + (data.mailboxReview?.total ?? 0))} detail="Accessible items in the review feed" icon={<Clock3 className="h-4 w-4" />} />
         <Metric label="Recent agent cost" value={cost == null ? 'Not fully recorded' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 4 }).format(cost)} detail="Displayed runs only · excludes record fees" icon={<Activity className="h-4 w-4" />} />
       </div>
       {failedFeeds > 0 && <p role="alert" className="rounded-lg border border-amber-300 p-3 text-sm">{failedFeeds} feed{failedFeeds === 1 ? ' is' : 's are'} unavailable. Missing figures are not counted as zero.</p>}
@@ -105,6 +105,7 @@ function DashboardSections({ section, data, navigate }: { section: Section; data
       </div>)}</div>}
     </FeedPanel>}
     {section === 'Agents' && <>
+      <MailReviewStatus data={data} />
       <FeedPanel title="Registered agents and heartbeats" feed={data.registry} empty="No registered agents are recorded.">
         {rows => <div className="grid gap-3 md:grid-cols-2">{rows.map(row => <article className="rounded-lg border p-4" key={row.id}><h3 className="font-medium">{row.name}</h3><p className="mt-1 text-sm text-muted-foreground">{row.role} · Registered status: {row.status}</p><p className="mt-2 text-sm">Heartbeat: {time(row.last_heartbeat)}</p><p className="mt-1 text-xs text-muted-foreground">{row.last_heartbeat ? 'Compare this timestamp with the expected worker schedule.' : 'No heartbeat evidence; not confirmed running.'}</p></article>)}</div>}
       </FeedPanel>
@@ -127,6 +128,7 @@ function DashboardSections({ section, data, navigate }: { section: Section; data
       </FeedPanel>
       <Setup title="Quality checks still to connect" text="Unique records delivered, duplicate review, missing dates and locations, confidentiality flags, and original-file links. Unknown values will stay unknown until the validator reports them." />
     </>}
+    {(overview || section === 'Your decisions') && data.mailboxReview && <div className="rounded-xl border p-4"><p className="text-sm">Incoming messages to review: {data.mailboxReview.error ? 'Unavailable' : number(data.mailboxReview.total)}</p><Button className="mt-3" variant="outline" onClick={() => navigate('News outlets')}>View incoming mail</Button></div>}
     {(overview || section === 'Your decisions') && <FeedPanel title="Needs your attention" feed={data.reviews} empty="No review items are visible. Fee approvals, login challenges, and story reviews still need their workflow connections.">
       {rows => <div className="space-y-3">{rows.slice(0, overview ? 5 : 100).map((row, i) => <details key={`${row.domain}-${row.job_id}-${i}`} className="rounded-lg border p-4">
         <summary className="cursor-pointer text-sm font-medium">{row.jurisdiction ?? readable(row.domain ?? 'Operation')} {row.state ? '· ' + row.state : ''} <span className="ml-2 text-muted-foreground">{readable(row.job_subtype ?? 'Review needed')}</span></summary>
@@ -158,9 +160,50 @@ function Collection({ data, compact }: { data: Snapshot; compact: boolean }) {
     }}
   </FeedPanel>;
 }
+function MailReviewStatus({ data }: { data: Snapshot }) {
+  if (!data.mailReviewHealth) return <Setup title="Mail review" text="Mail review status has not been connected to this dashboard." />;
+  return <FeedPanel title="Mail review" feed={data.mailReviewHealth} empty="No completed mail review run is recorded yet.">
+    {rows => <div className="space-y-3"><p className="text-sm text-muted-foreground">This tracks the incoming-message review step. Classification and next-action suggestions remain pending review before a request action or record approval.</p>
+      {rows.map(row => {
+        const age = row.last_success_at ? Date.parse(data.checkedAt) - Date.parse(row.last_success_at) : NaN;
+        const label = row.last_error_code ? 'Check needed' : !row.last_success_at ? 'Awaiting first successful run' : !Number.isFinite(age) || age < 0 ? 'Run time needs review' : age < 15 * 60000 ? 'Recent successful run' : 'Run overdue';
+        return <div key={row.worker_name} className="rounded-lg border p-3"><p className="text-sm font-medium">{label}</p><p className="mt-1 text-sm">Last successful run: {time(row.last_success_at)}</p><p className="mt-1 text-xs text-muted-foreground">Scope: incoming mail review · {row.version}</p></div>;
+      })}</div>}
+  </FeedPanel>;
+}
+const mailActions: Record<string, string> = {
+  review_request_match: 'Review which request this message belongs to',
+  review_fee_and_deadline: 'Review the fee and response deadline',
+  review_clarification_and_deadline: 'Review the clarification and response deadline',
+  review_agency_decision: 'Review the agency decision',
+  recover_attachment_then_review: 'Recover the attachment, then review it',
+  review_delivery_before_parsing: 'Review the delivery before processing records',
+  review_confirmation_and_set_portal_check: 'Review the confirmation and schedule a portal check',
+  review_message: 'Review the message',
+};
+const mailSignals: Record<string, string> = { fee_quote: 'Possible fee quote', clarification: 'Possible clarification', denied: 'Possible denial', closed: 'Possible closure', delivery_available: 'Possible delivery', confirmation: 'Possible confirmation', processing: 'Possible processing update' };
 function Outlets({ data }: { data: Snapshot }) {
   return <div className="space-y-5">
     <div><h2 className="text-xl font-semibold">Six outlets, one operation</h2><p className="mt-2 text-sm text-muted-foreground">Registered outlets are shown below. An active database flag does not verify domain ownership, mailbox delivery, or publishing readiness.</p></div>
+    {data.mailboxSync && <FeedPanel title="Incoming mail monitoring" feed={data.mailboxSync} empty="Incoming mail monitoring has not been connected.">
+      {rows => <div className="space-y-3"><p className="text-sm text-muted-foreground">Azure checks incoming mail every five minutes. Messages wait for review before they are linked to collection requests. Internal test deliveries recorded: {number(data.mailboxTests?.data)}.</p>
+        {rows.map(row => {
+          const fresh = row.last_success_at && Date.parse(data.checkedAt) - Date.parse(row.last_success_at) < 15 * 60000;
+          const label = !row.enabled ? 'Paused' : row.last_error_code ? 'Check needed' : fresh ? 'Receiving checks active' : row.last_success_at ? 'Check overdue' : 'Awaiting first check';
+          return <div key={row.inbox_id} className="rounded-lg border p-3"><p className="break-all text-sm font-medium">{row.inbox_id}</p><p className="mt-1 text-sm">{label}</p><p className="mt-1 text-xs text-muted-foreground">Last successful check: {time(row.last_success_at)} · Monitoring does not send mail.</p></div>;
+        })}</div>}
+    </FeedPanel>}
+    <MailReviewStatus data={data} />
+    {data.mailboxReview && <FeedPanel title="Incoming messages to review" feed={data.mailboxReview} empty="No incoming messages need review. Internal connection tests are excluded.">
+      {rows => <div className="space-y-3">{data.mailboxSuggestions?.error && <p role="alert" className="text-sm text-amber-700">Mail review suggestions are unavailable. Incoming messages remain visible below.</p>}{rows.map(row => {
+        const suggestion = data.mailboxSuggestions?.data?.find(item => item.inbox_id === row.inbox_id && item.message_id === row.message_id && item.review_state === 'pending_review');
+        const signals = suggestion?.signals?.map(signal => mailSignals[signal]).filter(Boolean) ?? [];
+        const matchLabel = suggestion?.match_state === 'matched' ? 'Request link found' : suggestion?.match_state === 'ambiguous' ? 'Multiple request matches need review' : 'Request match needed';
+        return <div key={JSON.stringify([row.inbox_id, row.message_id])} className="rounded-lg border p-3"><p className="text-sm font-medium">{row.subject || 'No subject'}</p><p className="mt-1 break-all text-xs text-muted-foreground">{row.sender} → {row.inbox_id}</p><p className="mt-1 text-xs text-muted-foreground">Received {time(row.received_at)} · {matchLabel}</p>
+          {suggestion ? <div className="mt-3 border-t pt-3"><Badge variant="outline">Suggestion · Pending review</Badge><p className="mt-2 text-sm">Suggested next step: {mailActions[suggestion.next_action ?? ''] ?? 'Review the message'}</p><p className="mt-1 text-xs text-muted-foreground">{signals.length ? signals.join(' · ') : 'Message type needs review'} · Suggestion recorded {time(suggestion.processed_at)}</p><p className="mt-1 text-xs text-muted-foreground">Record quality approval remains separate.</p></div> : <p className="mt-2 text-xs text-muted-foreground">No review suggestion is available in this snapshot.</p>}
+        </div>;
+      })}</div>}
+    </FeedPanel>}
     <FeedPanel title="Registered news outlets" feed={data.outlets} empty="No outlets are visible in this connected database. Recover existing registrations before creating replacements.">
       {rows => <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{rows.map(row => <article key={row.id} className="rounded-xl border p-5">
         <Newspaper className="mb-4 h-6 w-6 text-primary" /><h3 className="font-semibold">{row.name}</h3>

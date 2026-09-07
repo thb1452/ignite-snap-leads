@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 const id = '00000000-0000-4000-8000-000000000001';
 const now = new Date().toISOString();
 const user = { id, email: 'owner@example.test', aud: 'authenticated', role: 'authenticated', email_confirmed_at: now, created_at: now, app_metadata: {}, user_metadata: {} };
-async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean } = {}) {
+async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean; mailReview?: 'recent' | 'overdue' | 'error' | 'empty' | 'unavailable' } = {}) {
   const session = { access_token: 'test-only', refresh_token: 'test-only', expires_at: Math.floor(Date.now()/1000)+3600, expires_in: 3600, token_type: 'bearer', user };
   if (options.auth !== false) await page.addInitScript(({ session, id }) => {
     localStorage.setItem('snap-owner-auth', JSON.stringify(session));
@@ -32,6 +32,11 @@ async function mock(page: Page, options: { owner?: boolean; failed?: boolean; em
         outlets: feed(options.empty ? [] : [{ id: 'press-1', name: 'Test News Outlet', domain: 'news.example.test', email: 'press@news.example.test', is_active: true, daily_send_limit: 50, emails_sent_today: null, last_send_reset_date: null, last_health_check_at: null }]),
         uploads: feed([]), reviews: feed(options.empty ? [] : [{ domain: 'foia', job_id: 'review-1', job_subtype: 'fee_quote', jurisdiction: 'Review County', state: 'FL', updated_at: now, created_at: now }]),
         registry: feed([{id:'agent-1', name:'Registered agent', role:'collector', status:'active', last_heartbeat:null}]), research: feed([]), tasks: feed([]), taskReviews: feed([]),
+        ...(options.mailReview ? {
+          mailReviewHealth: feed(options.mailReview === 'empty' ? [] : [{worker_name:'hermes-intake',version:'hermes-intake-v1',last_success_at:options.mailReview === 'overdue' ? new Date(Date.parse(now)-3600000).toISOString() : now,last_error_code:options.mailReview === 'error' ? 'database_error' : null}]),
+          mailboxReview: feed([{inbox_id:'records@news.example.test',message_id:'mail-1',received_at:now,stored_at:now,sender:'records@agency.example.test',subject:'Your request has a fee quote',review_state:'needs_review'}]),
+          mailboxSuggestions: options.mailReview === 'unavailable' ? {data:null,error:'This feed is unavailable.',checkedAt:now} : feed([{inbox_id:'records@news.example.test',message_id:'mail-1',processor_version:'hermes-intake-v1',request_job_id:null,match_state:'ambiguous',processed_at:now,next_action:'review_request_match',signals:['fee_quote'],review_state:'pending_review',usable_records:false}]),
+        } : {}),
         publishing: [{name:'Test News Outlet',domain:'news.example.test',checkedAt:now,siteStatus:200,error:null,articles:{total:1,rows:[{id:'story-1',title:'Test published story',url:'https://news.example.test/article/test',publishedAt:now}]}}]
       }) });
     }
@@ -100,4 +105,36 @@ test('desktop and mobile layouts fit, refresh works, and partial costs remain un
   await page.screenshot({ path: 'test-results/owner/mobile-fixture.png', fullPage: true });
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/owner/mobile-fixture.png', fullPage: true });
+});
+test('mail review success stays scoped and suggestions remain pending review', async ({ page }) => {
+  await mock(page, { mailReview: 'recent' });
+  await page.goto('/admin/operations');
+  await page.getByRole('button', { name: 'Agents', exact: true }).click();
+  await expect(page.getByText('Recent successful run', { exact: true })).toBeVisible();
+  await expect(page.getByText('Scope: incoming mail review', { exact: false })).toBeVisible();
+  await expect(page.getByText('No heartbeat evidence; not confirmed running.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'News outlets', exact: true }).click();
+  await expect(page.getByText('Your request has a fee quote', { exact: true })).toBeVisible();
+  await expect(page.getByText('Suggestion · Pending review', { exact: true })).toBeVisible();
+  await expect(page.getByText('Multiple request matches need review', { exact: false })).toBeVisible();
+  await expect(page.getByText('Suggested next step: Review which request this message belongs to', { exact: true })).toBeVisible();
+  await expect(page.getByText('Possible fee quote', { exact: false })).toBeVisible();
+  await expect(page.getByText('Record quality approval remains separate.', { exact: true })).toBeVisible();
+});
+for (const [state, label] of [['overdue', 'Run overdue'], ['error', 'Check needed'], ['empty', 'No completed mail review run is recorded yet.']] as const) {
+  test(`mail review ${state} does not appear recently successful`, async ({ page }) => {
+    await mock(page, { mailReview: state });
+    await page.goto('/admin/operations');
+    await page.getByRole('button', { name: 'Agents', exact: true }).click();
+    await expect(page.getByText(label, { exact: true })).toBeVisible();
+    await expect(page.getByText('Recent successful run', { exact: true })).toHaveCount(0);
+  });
+}
+test('incoming messages stay visible when review suggestions are unavailable', async ({ page }) => {
+  await mock(page, { mailReview: 'unavailable' });
+  await page.goto('/admin/operations');
+  await page.getByRole('button', { name: 'News outlets', exact: true }).click();
+  await expect(page.getByText('Mail review suggestions are unavailable.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Your request has a fee quote', { exact: true })).toBeVisible();
+  await expect(page.getByText('Suggestion · Pending review', { exact: true })).toHaveCount(0);
 });

@@ -44,6 +44,11 @@ export function createHandler(env: Env, sites: Site[], fetcher: Fetcher = fetch)
       const windowStart=windowEnd.slice(0,10)+'T00:00:00.000Z';
       const safe=async(task:Promise<unknown>)=>{try{return await task;}catch{return {data:null,error:'This feed is unavailable. Refresh to try again.',checkedAt:new Date().toISOString()};}};
       const definitions:Record<string,[string,Record<string,string>,boolean?]>={
+        mailboxSync:['mailbox_sync_state',{select:'inbox_id,enabled,checked_at,last_success_at,last_error_code,scan_before',order:'inbox_id.asc',limit:'100'}],
+        mailboxReview:['mailbox_received_messages',{select:'inbox_id,message_id,received_at,stored_at,sender,subject,review_state',review_state:'eq.needs_review',order:'stored_at.desc',limit:'100'}],
+        mailboxTests:['mailbox_received_messages',{select:'message_id',review_state:'eq.internal_test'},true],
+        mailReviewHealth:['collection_worker_health',{select:'worker_name,version,last_success_at,last_error_code',worker_name:'eq.hermes-intake',limit:'1'}],
+        mailboxSuggestions:['mailbox_processing_results',{select:'inbox_id,message_id,processor_version,request_job_id,match_state,processed_at,next_action:result->>next_action,signals:result->signals,review_state:result->>review_state,usable_records:result->usable_records','result->>review_state':'eq.pending_review',order:'processed_at.desc,inbox_id.asc,message_id.asc',limit:'100'}],
         requests:['foia_request_jobs',{select:'id,request_type,status,jurisdiction,state,updated_at,sent_at,response_due_at,retry_count',order:'updated_at.desc,id.asc',limit:'100'}],
         agents:['agent_runs',{select:'id,agent_name,status,created_at,cost_usd,duration_ms',order:'created_at.desc,id.asc',limit:'100'}],
         outlets:['press_accounts',{select:'id,name,domain,email,is_active,daily_send_limit,emails_sent_today,last_send_reset_date,deliverability_score,last_health_check_at',order:'name.asc',limit:'100'}],

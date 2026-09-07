@@ -12,10 +12,15 @@ request sending, editorial approval, and publication are not actions on this scr
   `3ac72fda87f266785e36580b12dc62503ae054fa` had exactly the same tree:
   `84d2b9c28d0b4da9742c45533a25b16461f2d60b`.
 - Live Supabase `owner-operations` was ACTIVE version 5 with gateway JWT
-  verification enabled when inspected. This change has not been deployed.
+  verification enabled when inspected. After the private registry migration
+  passed its database checks, this integration was deployed as version 6 with
+  JWT verification still enabled. All four deployed source files matched the
+  reviewed payload byte for byte, and unauthenticated access still returned 401.
 - The separate `snap-owner-dashboard` worktree and its pre-existing dirty files
-  were preserved. Browser tests ran on port 4186; the owner's 4173 preview was not
-  replaced or used as test evidence.
+  were preserved. Browser tests ran on port 4186. The 4173 worktree then received
+  only the checked eight-file integration patch after every prior file matched
+  the verified PR base. TypeScript passed after transfer. The original v5 sources
+  and a SHA-256 manifest were saved locally for rollback.
 
 The endpoint remains GET/OPTIONS only. Auth verifies the bearer token and confirmed
 email before the server-owned owner allowlist is read. Access-only checks return
@@ -88,5 +93,7 @@ The test runner accepts `OWNER_TEST_PORT` for an isolated server and refuses to
 reuse a pre-existing server when that override is supplied. It keeps the existing
 4173 default for prior workflows. No dependency versions or lockfiles changed.
 
-These tests validate the integration with synthetic data. They do not establish
-that the new tables contain live deliveries or that this version is deployed.
+These browser tests validate the integration with synthetic data. Deployment and
+its source verification are separate evidence recorded above. An authenticated
+owner-session check against registered live deliveries remains a separate rollout
+check; these tests do not establish customer delivery or editorial publication.

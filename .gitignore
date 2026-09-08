@@ -31,3 +31,7 @@ dist-ssr
 
 # Supabase CLI temp files
 supabase/.temp/
+
+# Owner dashboard browser-test artifacts
+test-results/
+playwright-report/

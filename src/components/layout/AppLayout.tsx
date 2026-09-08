@@ -132,11 +132,12 @@ export function AppLayout({ children }: AppLayoutProps) {
     );
   }
 
-  if (isVA || isAdmin) {
+  if (isVA && !isAdmin) {
     navItems.push({ name: "VA Workspace", path: "/va-workspace", icon: Users });
   }
 
   if (isAdmin) {
+    navItems.push({ name: "Owner dashboard", path: "/admin/operations", icon: Shield });
     navItems.push({ name: "Admin", path: "/admin-console", icon: Shield });
   }
 

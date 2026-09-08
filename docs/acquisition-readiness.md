@@ -2,7 +2,7 @@
 
 The owner dashboard now includes a read-only collection-readiness section in Overview, Collection and Your decisions. It separates request controls, policy approval, state assignment, agency-history review and provider capacity from incoming-mail monitoring. No overall ready score, send/start control, approval action or publication action is added.
 
-The change was prepared against PR #172 head `57e973bd96e53ddb2a55e8824683452d0fdb56da`. Existing owner access and customer authentication are unchanged. The required private runtime tables come from the separate `collection-core/runtime-schema.sql` migration; this UI does not create or populate them. Backend deployment remains held until that schema is confirmed installed.
+The change was prepared against PR #172 head `57e973bd96e53ddb2a55e8824683452d0fdb56da`; the tested readiness and collector-label source is preserved at `271d05614a57e653e05ee7b05322686d01211a51`. Existing owner access and customer authentication are unchanged. The required private runtime tables come from the separate `collection-core/runtime-schema.sql` migration; this UI does not create or populate them. After those seven tables were installed and their private grants verified, the readiness endpoint was deployed as version 7.
 
 ## Fixed metadata feeds
 
@@ -36,4 +36,13 @@ The existing incoming worker feed still refers only to `hermes-intake`. Public-d
 - 24 browser tests pass on an isolated 4186 server with synthetic intercepted responses. They cover existing owner navigation and authorization, missing/unapproved/expired/incomplete readiness evidence, blocked states, collapsed coverage, incoming-vs-submission separation, explicit empty/paused/failed collector results and the 390px layout.
 - App and handler/test TypeScript checks, scoped lint, production build and whitespace checks pass. The small-screen readiness screenshot was visually inspected with no horizontal overflow.
 
-These tests do not submit a request, change an approval, inspect private request bodies, establish a live provider allowance or certify that the Harvester is scheduled. Runtime schema installation, function deployment and the signed-in live 4173 view require separate verification.
+These tests do not submit a request, change an approval, inspect private request bodies, establish a live provider allowance or certify that the Harvester is scheduled.
+
+## Verified deployment
+
+- `owner-operations` is ACTIVE version 7 with gateway JWT verification enabled. Its four fetched deployed files matched the pinned source exactly; unauthenticated GET still returns 401. The existing `deno.json` import-map path was retained explicitly during deployment.
+- Deployed handler SHA-256: `b20bb46af85a03232922f61ac9b875cf3aa91b2b7de02c6ed04c731e1681e168`. Deployment archive SHA-256: `ec38482d307162de4b53ad5fb87120074827444be3c543615b546bf4f4737927`.
+- Exact version 6 source and hashes, the prior five changed preview source files, and the previous preview `dist` were preserved in `owner-operations-releases/2026-09-07-v6-before-readiness` outside this repository. No earlier dirty source was overwritten without first matching its expected base.
+- The existing 4173 preview kept the same process, port and owner session. Its seven-file source patch passed TypeScript and built successfully in a temporary output directory before the old assets were moved to rollback and the new assets installed.
+- Served entry `/assets/index-p8gIqEml.js` links `OwnerDashboard-DEsVUbpE.js`. The served owner bundle matched disk exactly, contains the readiness/empty/paused labels, and has SHA-256 `0cdeb4c2a227d1240c6761a3941d5aeee69f5181942471e7432d2b92f3ab69eb`.
+- The signed-in owner view of the new runtime metadata is a separate rollout check. No request control, state assignment, customer acceptance flag or publication state was changed by this dashboard deployment.

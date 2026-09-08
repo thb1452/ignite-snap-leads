@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 const id = '00000000-0000-4000-8000-000000000001';
 const now = new Date().toISOString();
 const user = { id, email: 'owner@example.test', aud: 'authenticated', role: 'authenticated', email_confirmed_at: now, created_at: now, app_metadata: {}, user_metadata: {} };
-async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean; collection?: 'loaded' | 'processing_unavailable' | 'partial_locations'; mailReview?: 'recent' | 'overdue' | 'error' | 'empty' | 'unavailable';readiness?:'missing'|'configured'|'unavailable'|'partial';publicDownload?:{status:string;error?:string|null} } = {}) {
+async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean; collection?: 'loaded' | 'processing_unavailable' | 'partial_locations'; backup?: 'verified' | 'pending' | 'stale' | 'unavailable' | 'partial'; backupVerifiedAt?: string; mailReview?: 'recent' | 'overdue' | 'error' | 'empty' | 'unavailable';readiness?:'missing'|'configured'|'unavailable'|'partial';publicDownload?:{status:string;error?:string|null} } = {}) {
   const session = { access_token: 'test-only', refresh_token: 'test-only', expires_at: Math.floor(Date.now()/1000)+3600, expires_in: 3600, token_type: 'bearer', user };
   if (options.auth !== false) await page.addInitScript(({ session, id }) => {
     localStorage.setItem('snap-owner-auth', JSON.stringify(session));
@@ -59,9 +59,19 @@ async function mock(page: Page, options: { owner?: boolean; failed?: boolean; em
           ]),
           collectionOriginals: feed([{delivery_id:'delivery-fresh',role:'government_raw_response',storage_kind:'local'},
             {delivery_id:'delivery-old',role:'preserved_original',storage_kind:'local'},
-            {delivery_id:'delivery-old',role:'preserved_original',storage_kind:'supabase_private'}],options.collection==='partial_locations'?2000:3),
+            {delivery_id:'delivery-old',role:'preserved_original',storage_kind:'supabase_private'},
+            ...(options.backup ? [{delivery_id:'delivery-fresh',role:'government_raw_response',storage_kind:'supabase_private'}] : [])],options.collection==='partial_locations'?2000:options.backup?4:3),
           collectionEditorial: feed([{id:'draft-one',delivery_id:'delivery-fresh',processing_run_id:'run-latest',outlet_name:'Synthetic Regional News',title:'Synthetic sourced story awaiting review',review_state:'pending_review',published:false,registered_at:now}]),
           freshCollectionCount: feed(1),customerAcceptedCollections: feed(0),
+        } : {}),
+        ...(options.backup ? {
+          archivePlans: feed([{id:'archive-plan',delivery_id:'delivery-fresh',artifact_count:2,registered_at:'2026-01-01T00:00:00Z'}]),
+          archiveVerifications: options.backup==='unavailable' ? {data:null,error:'Backup proof feed unavailable.',checkedAt:now} : feed(options.backup==='pending' ? [] : [
+            {id:'proof-new',plan_id:'archive-plan',delivery_id:'delivery-fresh',artifact_count:2,verified_at:options.backupVerifiedAt??(options.backup==='stale'?'2026-01-02T00:00:00Z':now),registered_at:now},
+            {id:'proof-repeated',plan_id:'archive-plan',delivery_id:'delivery-fresh',artifact_count:2,verified_at:options.backupVerifiedAt??(options.backup==='stale'?'2026-01-02T00:00:00Z':now),registered_at:now},
+          ]),
+          archiveCopies: feed([{id:'cloud-one',delivery_id:'delivery-fresh',storage_kind:'supabase_private'},
+            {id:'cloud-two',delivery_id:'delivery-fresh',storage_kind:'supabase_private'}],options.backup==='partial'?5000:2),
         } : {}),
         ...(options.mailReview ? {
           mailReviewHealth: feed(options.mailReview === 'empty' ? [] : [{worker_name:'hermes-intake',version:'hermes-intake-v1',last_success_at:options.mailReview === 'overdue' ? new Date(Date.parse(now)-3600000).toISOString() : now,last_error_code:options.mailReview === 'error' ? 'database_error' : null}]),
@@ -84,6 +94,54 @@ test('signed-out visitors cannot load the dashboard', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sign in to your owner dashboard' })).toBeVisible();
   await expect(page.getByText('Requests sent today')).toHaveCount(0);
 });
+test('private backup counts use verified collections once and remain separate from candidates', async ({ page }) => {
+  await mock(page, {collection:'loaded',backup:'verified'});
+  await page.goto('/admin/operations');await page.getByRole('button',{name:'Data quality',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Private backups',exact:true})).toBeVisible();
+  await page.getByRole('heading',{name:'Private backups',exact:true}).scrollIntoViewIfNeeded();
+  await page.screenshot({path:'test-results/owner/private-backup-desktop.png',fullPage:true});
+  const recent=page.getByText('Collections verified in 24 hours',{exact:true}).locator('..');
+  await expect(recent.getByText('1',{exact:true})).toBeVisible();
+  await expect(page.getByText('Verified within 24 hours',{exact:true})).toBeVisible();
+  await expect(page.getByText('Candidate rows in view',{exact:true}).locator('..').getByText('12',{exact:true})).toBeVisible();
+  await expect(page.getByText('Refreshing this dashboard does not recheck file hashes.',{exact:false})).toBeVisible();
+  await expect(page.getByRole('button',{name:/backup|upload|accept|publish|verify files/i})).toHaveCount(0);
+  await page.setViewportSize({width:390,height:844});
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/owner/private-backup-mobile.png',fullPage:true});
+});
+test('old private backup verification stays stale after dashboard refresh', async ({ page }) => {
+  await mock(page, {collection:'loaded',backup:'stale'});
+  await page.goto('/admin/operations');await page.getByRole('button',{name:'Data quality',exact:true}).click();
+  await expect(page.getByText('Recheck due',{exact:true})).toBeVisible();
+  await expect(page.getByText('Collections verified in 24 hours',{exact:true}).locator('..').getByText('0',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await expect(page.getByText('Recheck due',{exact:true})).toBeVisible();
+});
+test('backup verification expires while automatic refresh is paused', async ({ page }) => {
+  await page.clock.install({time:new Date(now)});
+  await mock(page,{collection:'loaded',backup:'verified',backupVerifiedAt:new Date(Date.parse(now)-24*60*60*1000+5_000).toISOString()});
+  let reads=0;
+  page.on('request',request=>{if(request.url().includes('/owner-operations')&&!request.url().includes('access=1'))reads++;});
+  await page.goto('/admin/operations');
+  await page.getByRole('checkbox',{name:'Auto refresh',exact:true}).uncheck();
+  await page.getByRole('button',{name:'Data quality',exact:true}).click();
+  await expect(page.getByText('Verified within 24 hours',{exact:true})).toBeVisible();
+  const previousReads=reads;
+  await page.clock.fastForward(10_000);
+  await expect(page.getByText('Recheck due',{exact:true})).toBeVisible();
+  await expect(page.getByText('Collections verified in 24 hours',{exact:true}).locator('..').getByText('0',{exact:true})).toBeVisible();
+  expect(reads).toBe(previousReads);
+});
+for(const state of ['pending','unavailable','partial'] as const){
+  test(`private backup ${state} does not claim verified originals`,async({page})=>{
+    await mock(page,{collection:'loaded',backup:state});
+    await page.goto('/admin/operations');await page.getByRole('button',{name:'Data quality',exact:true}).click();
+    await expect(page.getByText('Verified within 24 hours',{exact:true})).toHaveCount(0);
+    if(state==='pending')await expect(page.getByText('Saved plan is awaiting file verification.',{exact:true})).toBeVisible();
+    else await expect(page.getByText('Collections verified in 24 hours',{exact:true}).locator('..').getByText('Unavailable',{exact:true})).toBeVisible();
+  });
+}
 test('cached admin roles do not bypass server authorization', async ({ page }) => {
   await mock(page, { owner: false });
   let reads = 0;
@@ -192,7 +250,7 @@ test('unavailable processing cannot hide sources or display zero candidate rows'
   await mock(page,{collection:'processing_unavailable'});
   await page.goto('/admin/operations');
   await page.getByRole('button',{name:'Data quality',exact:true}).click();
-  await expect(page.getByText('Synthetic source collection',{exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Synthetic source collection',exact:true})).toBeVisible();
   await expect(page.getByText('Candidate rows in view',{exact:true}).locator('..').getByText('Unavailable',{exact:true})).toBeVisible();
   await expect(page.getByText('Processing results are unavailable. Source collections remain visible.',{exact:true})).toBeVisible();
 });

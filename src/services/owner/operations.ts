@@ -13,6 +13,9 @@ export type MailReviewSuggestion = { inbox_id: string; message_id: string; proce
 export type CollectionDelivery = { id: string; source_name: string; jurisdiction: string; state: string; record_type: string; collected_at: string; freshness: string; source_rows: number; customer_accepted: boolean; usable_records: boolean; registered_at: string };
 export type CollectionProcessing = { id: string; delivery_id: string; processor_version: string; staged_at: string; input_rows: number; candidate_rows: number; duplicate_rows: number; held_rows: number; source_case_count: number | null; candidate_case_count: number | null; review_state: string; customer_accepted: boolean; usable_records: boolean; registered_at: string };
 export type CollectionOriginal = { delivery_id: string; role: string; storage_kind: string };
+export type ArchivePlan = { id: string; delivery_id: string; artifact_count: number; registered_at: string };
+export type ArchiveVerification = { id: string; plan_id: string; delivery_id: string; verified_at: string; artifact_count: number; registered_at: string };
+export type ArchiveCopy = { id: string; delivery_id: string; storage_kind: string };
 export type CollectionEditorial = { id: string; delivery_id: string; processing_run_id: string; outlet_name: string; title: string; review_state: string; published: boolean; registered_at: string };
 export type AcquisitionControls = { atlas_live_enabled: boolean | null; foia_paused: boolean | null; blocked_states: string[] | null };
 export type AcquisitionPolicy = { revision: string; approved: boolean; global_paused: boolean };
@@ -36,6 +39,9 @@ export type Snapshot = {
   collectionDeliveries?: Feed<CollectionDelivery[]>;
   collectionProcessing?: Feed<CollectionProcessing[]>;
   collectionOriginals?: Feed<CollectionOriginal[]>;
+  archivePlans?: Feed<ArchivePlan[]>;
+  archiveVerifications?: Feed<ArchiveVerification[]>;
+  archiveCopies?: Feed<ArchiveCopy[]>;
   collectionEditorial?: Feed<CollectionEditorial[]>;
   freshCollectionCount?: Feed<number>;
   customerAcceptedCollections?: Feed<number>;

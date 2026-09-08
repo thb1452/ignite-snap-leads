@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHandler} from '../supabase/functions/owner-operations/handler.ts';
 const env={url:'https://worker.example',publicKey:'public-test-key',secretKey:'private-test-key'};
 const request=(extra:RequestInit={})=>new Request('https://worker.example/functions/v1/owner-operations',{headers:{Authorization:'Bearer test-user-token',Origin:'http://127.0.0.1:4173'},...extra});
-function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:boolean;brokenMailReview?:boolean;brokenCollectionProcessing?:boolean;brokenRuntime?:boolean;runtimeControls?:unknown}={}){
+function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:boolean;brokenMailReview?:boolean;brokenCollectionProcessing?:boolean;brokenRuntime?:boolean;brokenArchive?:boolean;runtimeControls?:unknown}={}){
   const calls:{url:string;init:RequestInit}[]=[];
   const fetcher=async(input:string|URL|Request, init:RequestInit={})=>{
     const url=String(input);calls.push({url,init});
@@ -13,6 +13,7 @@ function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:
     if(options.brokenMailReview&&url.includes('/mailbox_processing_results?'))return new Response('{}',{status:503});
     if(options.brokenCollectionProcessing&&url.includes('/collection_processing_runs?'))return new Response('{}',{status:503});
     if(options.brokenRuntime&&url.includes('/atlas_'))return new Response('{}',{status:503});
+    if(options.brokenArchive&&url.includes('/collection_archive_'))return new Response('{}',{status:503});
     if(url.includes('/ops_control?')&&options.runtimeControls!==undefined)return Response.json(options.runtimeControls,{headers:{'content-range':'*/3'}});
     return new Response(init.method==='HEAD'?null:JSON.stringify([]),{headers:{'content-range':'*/0'}});
   };
@@ -83,6 +84,28 @@ test('collection feeds remain owner-only and a processing failure does not inven
  assert.equal(data.collectionProcessing.data,null);assert.ok(data.collectionProcessing.error);
  assert.deepEqual(data.collectionDeliveries.data,[]);assert.equal(data.collectionDeliveries.error,null);
  assert.equal(data.freshCollectionCount.data,0);assert.equal(data.customerAcceptedCollections.data,0);
+});
+test('backup feeds select bounded metadata without manifests, proofs or private object references',async()=>{
+ const {handler,calls}=mocked();const data=await(await handler(request())).json();
+ const get=(table:string)=>new URL(calls.find(c=>c.url.includes('/'+table+'?'))!.url);
+ assert.equal(get('collection_archive_plans').searchParams.get('select'),'id,delivery_id,artifact_count,registered_at');
+ assert.equal(get('collection_archive_verifications').searchParams.get('select'),'id,plan_id,delivery_id,verified_at,artifact_count,registered_at');
+ for(const table of ['collection_archive_plans','collection_archive_verifications'])assert.equal(get(table).searchParams.get('limit'),'1000');
+ const copies=new URL(calls.find(c=>c.url.includes('/collection_delivery_artifacts?')&&new URL(c.url).searchParams.get('storage_kind')==='eq.supabase_private')!.url);
+ assert.equal(copies.searchParams.get('select'),'id,delivery_id,storage_kind');assert.equal(copies.searchParams.get('limit'),'2000');
+ assert.deepEqual(data.archivePlans.data,[]);assert.deepEqual(data.archiveVerifications.data,[]);assert.deepEqual(data.archiveCopies.data,[]);
+ assert(!calls.some(c=>/storage_ref|manifest_sha256|plan_sha256|report_sha256|select=\*|report->|plan->/.test(decodeURIComponent(c.url))));
+});
+test('backup data remains owner-only and access-only never reads archive metadata',async()=>{
+ const denied=mocked({owner:false});assert.equal((await denied.handler(request())).status,403);
+ assert(!denied.calls.some(c=>c.url.includes('/collection_archive_')));
+ const access=mocked();await access.handler(new Request('https://worker.example/functions/v1/owner-operations?access=1',request()));assert.equal(access.calls.length,2);
+});
+test('failed backup proof feeds stay unavailable while original locations remain visible',async()=>{
+ const {handler}=mocked({brokenArchive:true});const data=await(await handler(request())).json();
+ assert.equal(data.archivePlans.data,null);assert.ok(data.archivePlans.error);
+ assert.equal(data.archiveVerifications.data,null);assert.ok(data.archiveVerifications.error);
+ assert.deepEqual(data.collectionOriginals.data,[]);assert.deepEqual(data.archiveCopies.data,[]);
 });
 test('acquisition metadata is fixed, bounded and excludes policy, request, history and provider payloads',async()=>{
  const {handler,calls}=mocked();const data=await(await handler(request())).json();

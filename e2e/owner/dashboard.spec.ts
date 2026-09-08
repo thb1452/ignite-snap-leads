@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 const id = '00000000-0000-4000-8000-000000000001';
 const now = new Date().toISOString();
 const user = { id, email: 'owner@example.test', aud: 'authenticated', role: 'authenticated', email_confirmed_at: now, created_at: now, app_metadata: {}, user_metadata: {} };
-async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean; collection?: 'loaded' | 'processing_unavailable' | 'partial_locations'; backup?: 'verified' | 'pending' | 'stale' | 'unavailable' | 'partial'; backupVerifiedAt?: string; mailReview?: 'recent' | 'overdue' | 'error' | 'empty' | 'unavailable';readiness?:'missing'|'configured'|'unavailable'|'partial';publicDownload?:{status:string;error?:string|null} } = {}) {
+async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean; collection?: 'loaded' | 'processing_unavailable' | 'partial_locations'; backup?: 'verified' | 'pending' | 'stale' | 'unavailable' | 'partial'; backupVerifiedAt?: string; archiveQueue?: 'states'|'paused'|'unknown'|'unavailable'|'partial'|'boundary'; mailReview?: 'recent' | 'overdue' | 'error' | 'empty' | 'unavailable';readiness?:'missing'|'configured'|'unavailable'|'partial';publicDownload?:{status:string;error?:string|null} } = {}) {
   const session = { access_token: 'test-only', refresh_token: 'test-only', expires_at: Math.floor(Date.now()/1000)+3600, expires_in: 3600, token_type: 'bearer', user };
   if (options.auth !== false) await page.addInitScript(({ session, id }) => {
     localStorage.setItem('snap-owner-auth', JSON.stringify(session));
@@ -25,6 +25,10 @@ async function mock(page: Page, options: { owner?: boolean; failed?: boolean; em
         { id: 'water-1', request_type: 'water_shutoff', status: 'pending', jurisdiction: 'Water City', state: 'TX', updated_at: now, sent_at: null, response_due_at: null, retry_count: 1 },
         { id: 'other-1', request_type: 'tax_records', status: 'needs_review', jurisdiction: 'Other County', state: 'GA', updated_at: now, sent_at: null, response_due_at: null, retry_count: 0 },
       ];
+      const at=(ms:number)=>new Date(Date.parse(now)+ms).toISOString();
+      const job=(id:string,state:string,attempt_count:number,extra:Record<string,unknown>={})=>({id,delivery_id:'delivery-fresh',processing_run_id:id+'-run',state,attempt_count,next_attempt_at:now,lease_expires_at:null,verification_id:null,last_error_code:null,created_at:at(-60000),updated_at:now,...extra});
+      const jobs=options.archiveQueue==='states' ? [job('job-queued','queued',0),job('job-leased','leased',1,{lease_expires_at:at(600000)}),job('job-expired','leased',2,{lease_expires_at:at(-1000)}),job('job-retry','retry_wait',1,{next_attempt_at:at(900000),last_error_code:'archive_deadline'}),job('job-due','retry_wait',2,{next_attempt_at:at(-1000)}),job('job-held','held',4,{last_error_code:'archive_attempts_exhausted'}),job('job-verified','verified',1,{verification_id:'proof-new'})]
+        : options.archiveQueue==='boundary' ? [job('job-leased','leased',1,{lease_expires_at:at(5000)}),job('job-retry','retry_wait',1,{next_attempt_at:at(5000)})] : [job('job-queued','queued',0)];
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
         source: 'worker', checkedAt: now, windowStart: now.slice(0,10)+'T00:00:00.000Z', windowEnd: now,
         requests: feed(requests), sentToday: feed(options.empty ? 0 : 1), repliesToday: feed(options.empty ? 0 : 2),
@@ -64,6 +68,10 @@ async function mock(page: Page, options: { owner?: boolean; failed?: boolean; em
           collectionEditorial: feed([{id:'draft-one',delivery_id:'delivery-fresh',processing_run_id:'run-latest',outlet_name:'Synthetic Regional News',title:'Synthetic sourced story awaiting review',review_state:'pending_review',published:false,registered_at:now}]),
           freshCollectionCount: feed(1),customerAcceptedCollections: feed(0),
         } : {}),
+        ...(options.archiveQueue ? {
+          archiveJobs:options.archiveQueue==='unavailable'?{data:null,error:'Job table unavailable.',checkedAt:now}:feed(jobs,options.archiveQueue==='partial'?1000:jobs.length),
+          archiveControl:feed({enabled:options.archiveQueue==='unknown'?null:options.archiveQueue!=='paused'}),
+        }:{}),
         ...(options.backup ? {
           archivePlans: feed([{id:'archive-plan',delivery_id:'delivery-fresh',artifact_count:2,registered_at:'2026-01-01T00:00:00Z'}]),
           archiveVerifications: options.backup==='unavailable' ? {data:null,error:'Backup proof feed unavailable.',checkedAt:now} : feed(options.backup==='pending' ? [] : [
@@ -351,4 +359,46 @@ test('an error attached to an empty status requires a check rather than claiming
   await page.getByRole('button',{name:'Agents',exact:true}).click();
   await expect(page.getByText('Collector check needed',{exact:true})).toBeVisible();
   await expect(page.getByText('Check completed · No records found in the checked period',{exact:true})).toHaveCount(0);
+});
+
+test('recent backup jobs show bounded states while source and verification counts stay separate',async({page})=>{
+ await mock(page,{collection:'loaded',backup:'verified',archiveQueue:'states'});
+ await page.goto('/admin/operations');await page.getByRole('button',{name:'Data quality',exact:true}).click();
+ const section=page.getByRole('heading',{name:'Recent backup jobs',exact:true}).locator('..').locator('..');
+ for(const label of ['Backup queued','Backup attempt in progress','Recovery pending','Retry scheduled','Retry due','Backup needs review','Backup job finished'])await expect(section.getByText(label,{exact:true})).toBeVisible();
+ await expect(section.getByText('Showing 7 recent jobs from 7 recorded jobs',{exact:false})).toBeVisible();
+ await expect(page.getByText('Collections verified in 24 hours',{exact:true}).locator('..').getByText('1',{exact:true})).toBeVisible();
+ await expect(page.getByText('Fresh source collections',{exact:true}).locator('..').getByText('1',{exact:true})).toBeVisible();
+ await expect(page.getByText('Candidate rows in view',{exact:true}).locator('..').getByText('12',{exact:true})).toBeVisible();
+ await expect(page.getByText('Accepted for customers',{exact:true}).locator('..').getByText('0',{exact:true})).toBeVisible();
+ await expect(section.getByRole('button')).toHaveCount(0);
+ await section.screenshot({path:'test-results/owner/archive-jobs-desktop.png'});
+ await page.setViewportSize({width:390,height:844});await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+ await section.screenshot({path:'test-results/owner/archive-jobs-mobile.png'});
+});
+for(const state of ['paused','unknown'] as const){
+ test(`archive ${state} control does not imply another attempt will run`,async({page})=>{
+  await mock(page,{collection:'loaded',backup:'verified',archiveQueue:state});await page.goto('/admin/operations');await page.getByRole('button',{name:'Data quality',exact:true}).click();
+  const section=page.getByRole('heading',{name:'Recent backup jobs',exact:true}).locator('..').locator('..');
+  await expect(section.getByText(state==='paused'?'Automatic backup paused':'Backup control unavailable',{exact:true})).toBeVisible();
+  await expect(section.getByText(state==='paused'?'Review the pause before expecting another attempt.':'Check the backup worker configuration before expecting another attempt.',{exact:false})).toBeVisible();
+ });
+}
+for(const state of ['unavailable','partial'] as const){
+ test(`archive queue ${state} preserves proof counts without declaring zero work`,async({page})=>{
+  await mock(page,{collection:'loaded',backup:'verified',archiveQueue:state});await page.goto('/admin/operations');await page.getByRole('button',{name:'Data quality',exact:true}).click();
+  const section=page.getByRole('heading',{name:'Recent backup jobs',exact:true}).locator('..').locator('..');
+  await expect(section.getByRole('alert')).toContainText(state==='partial'?'incomplete recent-job view':'Backup jobs are unavailable');
+  await expect(section.getByText('No automatic backup jobs are recorded.',{exact:false})).toHaveCount(0);
+  await expect(page.getByText('Collections verified in 24 hours',{exact:true}).locator('..').getByText('1',{exact:true})).toBeVisible();
+ });
+}
+test('lease and retry boundaries update with automatic refresh paused and no network reads',async({page})=>{
+ await page.clock.install({time:new Date(now)});await mock(page,{collection:'loaded',backup:'verified',archiveQueue:'boundary'});
+ let reads=0;page.on('request',request=>{if(request.url().includes('/owner-operations')&&!request.url().includes('access=1'))reads++;});
+ await page.goto('/admin/operations');await page.getByRole('checkbox',{name:'Auto refresh',exact:true}).uncheck();await page.getByRole('button',{name:'Data quality',exact:true}).click();
+ const section=page.getByRole('heading',{name:'Recent backup jobs',exact:true}).locator('..').locator('..');
+ await expect(section.getByText('Backup attempt in progress',{exact:true})).toBeVisible();await expect(section.getByText('Retry scheduled',{exact:true})).toBeVisible();
+ const before=reads;await page.clock.fastForward(10000);
+ await expect(section.getByText('Recovery pending',{exact:true})).toBeVisible();await expect(section.getByText('Retry due',{exact:true})).toBeVisible();expect(reads).toBe(before);
 });

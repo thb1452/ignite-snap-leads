@@ -1,6 +1,11 @@
 type Env = { url: string; publicKey: string; secretKey: string };
 type Site = { name: string; domain: string; url: string; key: string; dateColumn: string; publishedFilter: string | null; articlePath: string };
 type Fetcher = typeof fetch;
+function archiveControl(rows: unknown) {
+  const values = Array.isArray(rows) ? rows : [];
+  const found = values.filter(row => row && typeof row === 'object' && row.key === 'harvester_syracuse_archive_enabled');
+  return { enabled: found.length === 1 && typeof found[0].value === 'boolean' ? found[0].value : null };
+}
 function acquisitionControls(rows: unknown) {
   const values = Array.isArray(rows) ? rows : [];
   const one = (key: string): unknown => {
@@ -78,6 +83,8 @@ export function createHandler(env: Env, sites: Site[], fetcher: Fetcher = fetch)
         archivePlans:['collection_archive_plans',{select:'id,delivery_id,artifact_count,registered_at',order:'registered_at.desc,id.asc',limit:'1000'}],
         archiveVerifications:['collection_archive_verifications',{select:'id,plan_id,delivery_id,verified_at,artifact_count,registered_at',order:'verified_at.desc,id.asc',limit:'1000'}],
         archiveCopies:['collection_delivery_artifacts',{select:'id,delivery_id,storage_kind',storage_kind:'eq.supabase_private',order:'registered_at.desc,id.asc',limit:'2000'}],
+        archiveJobs:['collection_archive_jobs',{select:'id,delivery_id,processing_run_id,state,attempt_count,next_attempt_at,lease_expires_at,verification_id,last_error_code,created_at,updated_at',worker_name:'eq.archive_syracuse',order:'updated_at.desc,id.asc',limit:'100'}],
+        archiveControl:['ops_control',{select:'key,value',key:'eq.harvester_syracuse_archive_enabled',limit:'2'}],
         collectionEditorial:['collection_editorial_handoffs',{select:'id,delivery_id,processing_run_id,outlet_name,title,review_state,published,registered_at',order:'registered_at.desc,id.asc',limit:'100'}],
         freshCollectionCount:['collection_deliveries',{select:'id',freshness:'eq.fresh_verified'},true],
         customerAcceptedCollections:['collection_deliveries',{select:'id',customer_accepted:'eq.true'},true],
@@ -89,7 +96,7 @@ export function createHandler(env: Env, sites: Site[], fetcher: Fetcher = fetch)
         taskReviews:['cartographer_agent_tasks',{select:'id,agent_role,task_type,status,state,county,updated_at,heartbeat_at',status:'in.(needs_review,stale_needs_review,failed,blocked)',order:'updated_at.desc,id.asc',limit:'100'}],
         tasks:['cartographer_agent_tasks',{select:'id,agent_role,task_type,status,state,county,assigned_worker,heartbeat_at,started_at,completed_at,updated_at,exit_code',order:'updated_at.desc,id.asc',limit:'100'}],
       };
-      const result=Object.fromEntries(await Promise.all(Object.entries(definitions).map(async([name,[table,params,head]])=>[name,await safe(read(table,params,head).then(feed => name === 'acquisitionControls' ? {...feed,data:acquisitionControls(feed.data)} : feed))])));
+      const result=Object.fromEntries(await Promise.all(Object.entries(definitions).map(async([name,[table,params,head]])=>[name,await safe(read(table,params,head).then(feed => name === 'acquisitionControls' ? {...feed,data:acquisitionControls(feed.data)} : name === 'archiveControl' ? {...feed,data:archiveControl(feed.data)} : feed))])));
       const publishing=await Promise.all(sites.map(async site=>{
         const checkedAt=new Date().toISOString();
         const params:Record<string,string>={select:'id,title,slug,'+site.dateColumn,order:site.dateColumn+'.desc',limit:'5'};

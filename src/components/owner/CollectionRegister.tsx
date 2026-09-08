@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { CollectionProcessing, Feed, Snapshot } from '@/services/owner/operations';
 import { PrivateBackupStatus } from './PrivateBackupStatus';
+import { ArchiveJobs } from './ArchiveJobs';
 
 const count = (value: number | null | undefined) => value == null ? 'Unavailable' : value.toLocaleString();
 const time = (value: string | null | undefined) => value && Number.isFinite(Date.parse(value))
@@ -64,6 +65,7 @@ export function CollectionRegister({ data }: { data: Snapshot }) {
       ].map(([label, value, detail]) => <Card key={String(label)}><CardContent className="p-5"><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-semibold">{count(value as number | null | undefined)}</p><p className="mt-2 text-xs text-muted-foreground">{detail}</p></CardContent></Card>)}
     </div>
     <PrivateBackupStatus data={data} />
+    <ArchiveJobs data={data} />
     <RegisterPanel title="Registered source collections" feed={deliveries} empty="No source collections have been registered yet. Historical uploads remain listed separately below.">
       {rows => <div className="space-y-4">{rows.map(row => {
         const run = !processing?.error ? latest.get(row.id) : undefined;

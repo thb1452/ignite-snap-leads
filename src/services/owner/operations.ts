@@ -16,6 +16,7 @@ export type CollectionOriginal = { delivery_id: string; role: string; storage_ki
 export type ArchivePlan = { id: string; delivery_id: string; artifact_count: number; registered_at: string };
 export type ArchiveVerification = { id: string; plan_id: string; delivery_id: string; verified_at: string; artifact_count: number; registered_at: string };
 export type ArchiveCopy = { id: string; delivery_id: string; storage_kind: string };
+export type ArchiveJob = { id: string; delivery_id: string; processing_run_id: string; state: string; attempt_count: number; next_attempt_at: string; lease_expires_at: string | null; verification_id: string | null; last_error_code: string | null; created_at: string; updated_at: string };
 export type CollectionEditorial = { id: string; delivery_id: string; processing_run_id: string; outlet_name: string; title: string; review_state: string; published: boolean; registered_at: string };
 export type AcquisitionControls = { atlas_live_enabled: boolean | null; foia_paused: boolean | null; blocked_states: string[] | null };
 export type AcquisitionPolicy = { revision: string; approved: boolean; global_paused: boolean };
@@ -42,6 +43,8 @@ export type Snapshot = {
   archivePlans?: Feed<ArchivePlan[]>;
   archiveVerifications?: Feed<ArchiveVerification[]>;
   archiveCopies?: Feed<ArchiveCopy[]>;
+  archiveJobs?: Feed<ArchiveJob[]>;
+  archiveControl?: Feed<{ enabled: boolean | null }>;
   collectionEditorial?: Feed<CollectionEditorial[]>;
   freshCollectionCount?: Feed<number>;
   customerAcceptedCollections?: Feed<number>;

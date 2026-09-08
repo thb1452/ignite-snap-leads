@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHandler} from '../supabase/functions/owner-operations/handler.ts';
 const env={url:'https://worker.example',publicKey:'public-test-key',secretKey:'private-test-key'};
 const request=(extra:RequestInit={})=>new Request('https://worker.example/functions/v1/owner-operations',{headers:{Authorization:'Bearer test-user-token',Origin:'http://127.0.0.1:4173'},...extra});
-function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:boolean;brokenMailReview?:boolean;brokenCollectionProcessing?:boolean;brokenRuntime?:boolean;brokenArchive?:boolean;runtimeControls?:unknown}={}){
+function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:boolean;brokenMailReview?:boolean;brokenCollectionProcessing?:boolean;brokenRuntime?:boolean;brokenArchive?:boolean;brokenArchiveJobs?:boolean;archiveControlRows?:unknown;runtimeControls?:unknown}={}){
   const calls:{url:string;init:RequestInit}[]=[];
   const fetcher=async(input:string|URL|Request, init:RequestInit={})=>{
     const url=String(input);calls.push({url,init});
@@ -13,6 +13,8 @@ function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:
     if(options.brokenMailReview&&url.includes('/mailbox_processing_results?'))return new Response('{}',{status:503});
     if(options.brokenCollectionProcessing&&url.includes('/collection_processing_runs?'))return new Response('{}',{status:503});
     if(options.brokenRuntime&&url.includes('/atlas_'))return new Response('{}',{status:503});
+    if(options.brokenArchiveJobs&&url.includes('/collection_archive_jobs?'))return new Response('{}',{status:404});
+    if(url.includes('/ops_control?')&&new URL(url).searchParams.get('key')==='eq.harvester_syracuse_archive_enabled'&&options.archiveControlRows!==undefined)return Response.json(options.archiveControlRows,{headers:{'content-range':'*/1'}});
     if(options.brokenArchive&&url.includes('/collection_archive_'))return new Response('{}',{status:503});
     if(url.includes('/ops_control?')&&options.runtimeControls!==undefined)return Response.json(options.runtimeControls,{headers:{'content-range':'*/3'}});
     return new Response(init.method==='HEAD'?null:JSON.stringify([]),{headers:{'content-range':'*/0'}});
@@ -164,4 +166,37 @@ test('published-story reads never receive the owner token or worker secret',asyn
  })as typeof fetch);
  const data=await(await handler(request())).json();assert.equal(data.publishing[0].articles.total,0);
  const news=calls.find(c=>c.url.startsWith('https://news-db.example'))!;assert.equal((news.init.headers as Record<string,string>).apikey,'public-news-key');assert.ok(!JSON.stringify(news).includes('test-user-token'));assert.ok(!JSON.stringify(news).includes(env.secretKey));assert.ok(news.url.includes('is_published=eq.true'));
+});
+
+test('archive jobs read a fixed worker projection and only the dedicated control',async()=>{
+ const {handler,calls}=mocked({archiveControlRows:[{key:'harvester_syracuse_archive_enabled',value:false}]});
+ const data=await(await handler(request())).json();
+ const c=calls.find(c=>c.url.includes('/collection_archive_jobs?'))!;const u=new URL(c.url);
+ assert.equal(u.searchParams.get('select'),'id,delivery_id,processing_run_id,state,attempt_count,next_attempt_at,lease_expires_at,verification_id,last_error_code,created_at,updated_at');
+ assert.equal(u.searchParams.get('worker_name'),'eq.archive_syracuse');assert.equal(u.searchParams.get('limit'),'100');assert.equal(u.searchParams.get('order'),'updated_at.desc,id.asc');
+ assert.equal((c.init.headers as Record<string,string>).Prefer,'count=exact');assert.equal(c.init.method,'GET');
+ const control=new URL(calls.find(c=>new URL(c.url).searchParams.get('key')==='eq.harvester_syracuse_archive_enabled')!.url);
+ assert.equal(control.searchParams.get('select'),'key,value');assert.equal(control.searchParams.get('limit'),'2');assert.deepEqual(data.archiveControl.data,{enabled:false});
+ assert(!/intent|lease_token|sha256|storage|object_key/.test(u.searchParams.get('select')!));
+});
+test('archive control never returns arbitrary JSON or treats duplicate values as enabled',async()=>{
+ for(const value of [true,false]){
+  const {handler}=mocked({archiveControlRows:[{key:'harvester_syracuse_archive_enabled',value}]});
+  assert.deepEqual((await(await handler(request())).json()).archiveControl.data,{enabled:value});
+ }
+ for(const rows of [[],[{key:'harvester_syracuse_archive_enabled',value:'true'}],[{key:'harvester_syracuse_archive_enabled',value:{private:'DO-NOT-RETURN'}}],[{key:'other_control',value:true}],[{key:'harvester_syracuse_archive_enabled',value:true},{key:'harvester_syracuse_archive_enabled',value:false}]]){
+  const {handler}=mocked({archiveControlRows:rows});const data=await(await handler(request())).json();
+  assert.deepEqual(data.archiveControl.data,{enabled:null});assert(!JSON.stringify(data).includes('DO-NOT-RETURN'));
+ }
+});
+test('archive queue and control are unavailable to nonowners and skipped for access-only requests',async()=>{
+ const denied=mocked({owner:false});assert.equal((await denied.handler(request())).status,403);assert.equal(denied.calls.length,2);
+ const allowed=mocked();await allowed.handler(new Request('https://worker.example/functions/v1/owner-operations?access=1',request()));
+ assert.equal(allowed.calls.length,2);assert(!allowed.calls.some(c=>/collection_archive_jobs|ops_control/.test(c.url)));
+});
+test('an absent archive queue does not hide existing backup proof or collection counts',async()=>{
+ const {handler}=mocked({brokenArchiveJobs:true});const data=await(await handler(request())).json();
+ assert.equal(data.archiveJobs.data,null);assert(data.archiveJobs.error);
+ assert.deepEqual(data.archiveVerifications.data,[]);assert.equal(data.archiveVerifications.error,null);
+ assert.deepEqual(data.archiveCopies.data,[]);assert.equal(data.freshCollectionCount.data,0);assert.equal(data.customerAcceptedCollections.data,0);
 });

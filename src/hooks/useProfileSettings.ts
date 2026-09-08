@@ -1,153 +1,72 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { createProfileGateway } from "@/services/profileGateway";
+import { loadProfileReadiness, profileReadinessMessage, saveProfileName } from "@/services/profileReadiness";
+import type { ProfileReadiness } from "@/services/profileReadiness";
 
-interface ProfileData {
-  id: string;
-  user_id: string;
-  email: string | null;
-  full_name: string | null;
-  org_id: string;
-  created_at: string;
-}
-
-interface OrganizationData {
-  id: string;
-  name: string;
-}
+const gateway = createProfileGateway(supabase);
 
 export function useProfileSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const { data: profile, isLoading: profileLoading } = useQuery({
-    queryKey: ["profile-settings"],
-    queryFn: async (): Promise<ProfileData | null> => {
-      // Use getSession for reliability - getUser makes a network call that can fail
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-      if (!user) return null;
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching profile:", error);
-        // Return a minimal profile with the auth user's email even if profiles row is missing
-        return {
-          id: user.id,
-          user_id: user.id,
-          email: user.email || null,
-          full_name: user.user_metadata?.full_name || null,
-          org_id: '',
-          created_at: user.created_at || new Date().toISOString(),
-        };
-      }
-
-      // If no profile row found, return fallback from auth session
-      if (!data) {
-        return {
-          id: user.id,
-          user_id: user.id,
-          email: user.email || null,
-          full_name: user.user_metadata?.full_name || null,
-          org_id: '',
-          created_at: user.created_at || new Date().toISOString(),
-        };
-      }
-
-      // If profile exists but email is null, fall back to auth user email
-      if (!data.email) {
-        return { ...data, email: user.email || null };
-      }
-
-      return data;
-    },
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.id ?? null;
+  const queryKey = ["profile-settings", userId];
+  const query = useQuery({
+    queryKey,
+    queryFn: () => loadProfileReadiness(gateway, userId!),
+    enabled: !!userId && !authLoading,
+    retry: false,
+    staleTime: 0,
+    placeholderData: undefined,
   });
-
-  const { data: organization, isLoading: orgLoading } = useQuery({
-    queryKey: ["organization-settings", profile?.org_id],
-    queryFn: async (): Promise<OrganizationData | null> => {
-      if (!profile?.org_id) return null;
-
-      const { data, error } = await supabase
-        .from("organizations")
-        .select("id, name")
-        .eq("id", profile.org_id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching organization:", error);
-        return null;
-      }
-
-      return data;
-    },
-    enabled: !!profile?.org_id,
-  });
+  const state: ProfileReadiness = userId && query.data &&
+    (query.data.status !== "ready" || query.data.profile.user_id === userId)
+    ? query.data
+    : { status: userId ? "unavailable" : "signed_out", profile: null, organization: null };
+  const profile = state.status === "ready" ? state.profile : null;
+  const organization = state.status === "ready" ? state.organization : null;
 
   const updateProfile = useMutation({
+    retry: false,
     mutationFn: async (updates: { full_name?: string }) => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-      if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("user_id", user.id);
-
-      if (error) throw error;
+      if (!userId || !profile || typeof updates.full_name !== "string")
+        throw new Error("Your account details are not ready to update.");
+      await saveProfileName(gateway, userId, profile.id, updates.full_name);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile-settings"] });
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been saved.",
-      });
+      queryClient.invalidateQueries({ queryKey });
+      toast({ title: "Profile Updated", description: "Your profile has been saved." });
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Update Failed",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: () => {
+      toast({ title: "Update Failed", description: "Your details could not be updated. Refresh and try again.", variant: "destructive" });
     },
   });
 
   const requestPasswordReset = useMutation({
+    retry: false,
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('send-password-reset', {
-        method: 'POST',
-        body: {},
+      if (!userId) throw new Error("Sign in again before changing your password.");
+      const fresh = await loadProfileReadiness(gateway, userId);
+      if (fresh.status !== "ready") throw new Error("Your account could not be verified.");
+      // The existing Auth password-reset flow replaces the absent custom Edge function.
+      const result = await supabase.auth.resetPasswordForEmail(fresh.profile.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (result.error) throw new Error("Password reset could not be requested.");
     },
     onSuccess: () => {
-      toast({
-        title: "Password Reset Email Sent",
-        description: "Check your inbox for the password reset link.",
-      });
+      toast({ title: "Password Reset Email Sent", description: "Check your inbox for the password reset link." });
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Failed to Send Reset Email",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: () => {
+      toast({ title: "Failed to Send Reset Email", description: "Try again shortly, or use the sign-in page to reset your password.", variant: "destructive" });
     },
   });
 
-  return {
-    profile,
-    organization,
-    isLoading: profileLoading || orgLoading,
-    updateProfile,
-    requestPasswordReset,
-  };
+  return { profile, organization, readiness: state.status,
+    readinessMessage: profileReadinessMessage(state.status),
+    isLoading: authLoading || (!!userId && query.isPending),
+    refreshProfile: query.refetch, updateProfile, requestPasswordReset };
 }

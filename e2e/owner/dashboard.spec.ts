@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 const id = '00000000-0000-4000-8000-000000000001';
 const now = new Date().toISOString();
 const user = { id, email: 'owner@example.test', aud: 'authenticated', role: 'authenticated', email_confirmed_at: now, created_at: now, app_metadata: {}, user_metadata: {} };
-async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean; collection?: 'loaded' | 'processing_unavailable' | 'partial_locations'; mailReview?: 'recent' | 'overdue' | 'error' | 'empty' | 'unavailable' } = {}) {
+async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean; collection?: 'loaded' | 'processing_unavailable' | 'partial_locations'; mailReview?: 'recent' | 'overdue' | 'error' | 'empty' | 'unavailable';readiness?:'missing'|'configured'|'unavailable'|'partial' } = {}) {
   const session = { access_token: 'test-only', refresh_token: 'test-only', expires_at: Math.floor(Date.now()/1000)+3600, expires_in: 3600, token_type: 'bearer', user };
   if (options.auth !== false) await page.addInitScript(({ session, id }) => {
     localStorage.setItem('snap-owner-auth', JSON.stringify(session));
@@ -32,6 +32,20 @@ async function mock(page: Page, options: { owner?: boolean; failed?: boolean; em
         outlets: feed(options.empty ? [] : [{ id: 'press-1', name: 'Test News Outlet', domain: 'news.example.test', email: 'press@news.example.test', is_active: true, daily_send_limit: 50, emails_sent_today: null, last_send_reset_date: null, last_health_check_at: null }]),
         uploads: feed([]), reviews: feed(options.empty ? [] : [{ domain: 'foia', job_id: 'review-1', job_subtype: 'fee_quote', jurisdiction: 'Review County', state: 'FL', updated_at: now, created_at: now }]),
         registry: feed([{id:'agent-1', name:'Registered agent', role:'collector', status:'active', last_heartbeat:null}]), research: feed([]), tasks: feed([]), taskReviews: feed([]),
+        ...(options.readiness ? {
+          acquisitionControls: feed({atlas_live_enabled:false,foia_paused:false,blocked_states:['SC']}),
+          acquisitionPolicy: options.readiness==='unavailable' ? {data:null,error:'Runtime rules unavailable',checkedAt:now} : feed(options.readiness==='configured' ? [{revision:'test-policy',approved:false,global_paused:true}] : []),
+          acquisitionAssignments: options.readiness==='unavailable' ? {data:null,error:'Assignments unavailable',checkedAt:now} : feed(options.readiness==='configured' ? [
+            {state:'FL',outlet_id:'press-1',revision:'test-assignment',approved:false,starts_on:'2026-01-01',ends_on:null},
+            {state:'NY',outlet_id:'press-1',revision:'test-assignment',approved:true,starts_on:'2020-01-01',ends_on:'2021-01-01'},
+            {state:'TX',outlet_id:'press-1',revision:'test-assignment',approved:true,starts_on:'2099-01-01',ends_on:null},
+            {state:'CA',outlet_id:'press-1',revision:'test-assignment',approved:true,starts_on:'2020-01-01',ends_on:null},
+          ] : [],options.readiness==='partial'?200:options.readiness==='configured'?4:0),
+          acquisitionHistory: feed(options.readiness==='configured' ? [{revision:'test-history',complete:true,reviewed_at:'2020-01-01T00:00:00Z',valid_until:'2021-01-01T00:00:00Z'}] : []),
+          acquisitionCapacity: feed(options.readiness==='configured' ? [{revision:'test-capacity',checked_at:'2020-01-01T00:00:00Z',window_start:'2020-01-01T00:00:00Z',window_end:'2020-02-01T00:00:00Z',utc_day:'2020-01-01',submission_slots_available:100,outbound_messages_available:50}] : []),
+          acquisitionHealth: feed(options.readiness==='configured' ? [{kind:'outbound',checked_at:'2020-01-01T00:00:00Z',available:true}] : []),
+          publicDownloadHealth: feed(options.readiness==='configured' ? [{worker_name:'harvester_syracuse',version:'test-only',last_success_at:now,last_error_code:null,status:'staged'}] : []),
+        } : {}),
         ...(options.collection ? {
           collectionDeliveries: feed([
             {id:'delivery-fresh',source_name:'Synthetic source collection',jurisdiction:'Test City',state:'FL',record_type:'code_violations',collected_at:now,freshness:'fresh_verified',source_rows:20,customer_accepted:false,usable_records:false,registered_at:now},
@@ -91,7 +105,7 @@ test('owner navigation, type filters, outlets and decisions work', async ({ page
   await expect(page.getByRole('heading', { name: 'Test News Outlet', exact: true })).toBeVisible();
   await expect(page.getByText('Test published story')).toBeVisible();
   await page.getByRole('button', { name: 'Your decisions', exact: true }).click();
-  await page.locator('summary').click();
+  await page.locator('summary').filter({hasText:'Review County'}).click();
   await expect(page.getByText('No approval is submitted from this screen.', { exact: false })).toBeVisible();
 });
 test('failed feeds are unavailable, never empty or healthy', async ({ page }) => {
@@ -190,4 +204,58 @@ test('incomplete original-location list does not claim that durable copies are a
   await expect(page.getByText('Original locations: Local files only; no durable copy registered',{exact:true})).toHaveCount(0);
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/owner/collection-register-mobile-fixture.png',fullPage:true});
+});
+test('missing acquisition controls stay distinct from working incoming mail and state coverage is collapsed',async({page})=>{
+  await mock(page,{readiness:'missing',mailReview:'recent'});
+  await page.goto('/admin/operations');
+  await expect(page.getByText('New request submissions: Disabled',{exact:true})).toBeVisible();
+  await expect(page.getByText('Operating policy missing or ambiguous.',{exact:true})).toBeVisible();
+  await expect(page.getByText('Provider capacity snapshot missing or ambiguous.',{exact:true})).toBeVisible();
+  await expect(page.getByText('Agency history review missing.',{exact:true})).toBeVisible();
+  await expect(page.getByText('No state assignments recorded.',{exact:true})).toBeVisible();
+  await expect(page.getByText('Alabama (AL)',{exact:true})).not.toBeVisible();
+  await page.getByText('State assignment coverage · Expand to view',{exact:true}).click();
+  await expect(page.getByText('Alabama (AL)',{exact:true}).locator('..').getByText('Unassigned',{exact:true})).toBeVisible();
+  await expect(page.getByText('South Carolina (SC)',{exact:true}).locator('..').getByText('Blocked by operations',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Agents',exact:true}).click();
+  await expect(page.getByText('Recent successful run',{exact:true})).toBeVisible();
+  await expect(page.getByText('No public-download run is recorded yet.',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:/start|send|approve|publish/i})).toHaveCount(0);
+});
+test('assignment approvals, dates and stale provider evidence remain explicit',async({page})=>{
+  await mock(page,{readiness:'configured'});
+  await page.goto('/admin/operations');
+  await page.getByRole('button',{name:'Collection',exact:true}).click();
+  await expect(page.getByText('Policy awaiting approval',{exact:true})).toBeVisible();
+  await expect(page.getByText('Collection pause: On',{exact:true})).toBeVisible();
+  await expect(page.getByText('Capacity snapshot expired or out of date',{exact:true})).toBeVisible();
+  await expect(page.getByText('Recorded submission slots: 100 · Recorded outbound messages: 50',{exact:true})).toBeVisible();
+  await expect(page.getByText('1 review records shown · 0 marked complete within their review window',{exact:true})).toBeVisible();
+  await page.getByText('State assignment coverage · Expand to view',{exact:true}).click();
+  for(const [state,label] of [['Florida (FL)','Awaiting approval'],['New York (NY)','Assignment expired'],['Texas (TX)','Approved · Starts later'],['California (CA)','Assignment approval recorded']]){
+    await expect(page.getByText(state,{exact:true}).locator('..').getByText(label,{exact:true})).toBeVisible();
+  }
+  await expect(page.getByText('Records staged for review',{exact:true})).toBeVisible();
+  await expect(page.getByText('New request submissions: Disabled',{exact:true})).toBeVisible();
+  await expect(page.getByText('Ready to send',{exact:true})).toHaveCount(0);
+});
+test('unavailable or incomplete assignment feeds never report unassigned or zero ready states',async({page})=>{
+  await mock(page,{readiness:'partial'});
+  await page.goto('/admin/operations');
+  await page.getByText('State assignment coverage · Expand to view',{exact:true}).click();
+  await expect(page.getByText('The assignment list is unavailable or incomplete. Absent rows remain unknown.',{exact:true})).toBeVisible();
+  await expect(page.getByText('Alabama (AL)',{exact:true}).locator('..').getByText('Assignment unknown',{exact:true})).toBeVisible();
+  await expect(page.getByText('Unassigned',{exact:true})).toHaveCount(0);
+  await expect(page.getByText('0 ready',{exact:false})).toHaveCount(0);
+});
+test('runtime feed failure preserves recorded disabled controls and fits a small screen',async({page})=>{
+  await mock(page,{readiness:'unavailable'});
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/admin/operations');
+  await page.getByRole('button',{name:'Collection',exact:true}).click();
+  await expect(page.getByText('New request submissions: Disabled',{exact:true})).toBeVisible();
+  await expect(page.getByText('Status unavailable. This check has not been connected or could not be read.',{exact:true}).first()).toBeVisible();
+  await expect(page.getByText('Operating policy missing or ambiguous.',{exact:true})).toHaveCount(0);
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/owner/acquisition-readiness-mobile-fixture.png',fullPage:true});
 });

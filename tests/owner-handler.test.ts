@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHandler} from '../supabase/functions/owner-operations/handler.ts';
 const env={url:'https://worker.example',publicKey:'public-test-key',secretKey:'private-test-key'};
 const request=(extra:RequestInit={})=>new Request('https://worker.example/functions/v1/owner-operations',{headers:{Authorization:'Bearer test-user-token',Origin:'http://127.0.0.1:4173'},...extra});
-function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:boolean;brokenMailReview?:boolean;brokenCollectionProcessing?:boolean}={}){
+function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:boolean;brokenMailReview?:boolean;brokenCollectionProcessing?:boolean;brokenRuntime?:boolean;runtimeControls?:unknown}={}){
   const calls:{url:string;init:RequestInit}[]=[];
   const fetcher=async(input:string|URL|Request, init:RequestInit={})=>{
     const url=String(input);calls.push({url,init});
@@ -12,6 +12,8 @@ function mocked(options:{owner?:boolean;verified?:boolean;auth?:boolean;broken?:
     if(options.broken&&url.includes('/foia_request_jobs?'))return new Response('{}',{status:503});
     if(options.brokenMailReview&&url.includes('/mailbox_processing_results?'))return new Response('{}',{status:503});
     if(options.brokenCollectionProcessing&&url.includes('/collection_processing_runs?'))return new Response('{}',{status:503});
+    if(options.brokenRuntime&&url.includes('/atlas_'))return new Response('{}',{status:503});
+    if(url.includes('/ops_control?')&&options.runtimeControls!==undefined)return Response.json(options.runtimeControls,{headers:{'content-range':'*/3'}});
     return new Response(init.method==='HEAD'?null:JSON.stringify([]),{headers:{'content-range':'*/0'}});
   };
   return {calls,handler:createHandler(env,[],fetcher as typeof fetch)};
@@ -82,10 +84,56 @@ test('collection feeds remain owner-only and a processing failure does not inven
  assert.deepEqual(data.collectionDeliveries.data,[]);assert.equal(data.collectionDeliveries.error,null);
  assert.equal(data.freshCollectionCount.data,0);assert.equal(data.customerAcceptedCollections.data,0);
 });
+test('acquisition metadata is fixed, bounded and excludes policy, request, history and provider payloads',async()=>{
+ const {handler,calls}=mocked();const data=await(await handler(request())).json();
+ const get=(table:string)=>new URL(calls.find(c=>c.url.includes('/'+table+'?'))!.url);
+ assert.equal(get('atlas_operating_policies').searchParams.get('select'),'revision,approved,global_paused');
+ assert.equal(get('atlas_operating_policies').searchParams.get('singleton'),'eq.true');
+ assert.equal(get('atlas_state_assignments').searchParams.get('select'),'state,outlet_id,revision,approved,starts_on,ends_on');
+ assert.equal(get('atlas_agency_history_reviews').searchParams.get('select'),'revision,complete,reviewed_at,valid_until');
+ assert.equal(get('atlas_health_observations').searchParams.get('select'),'kind,checked_at,available');
+ assert.equal(get('atlas_capacity_snapshots').searchParams.get('select'),'revision,checked_at,window_start,window_end,utc_day,submission_slots_available,outbound_messages_available');
+ assert.equal(get('ops_control').searchParams.get('key'),'in.(atlas_live_enabled,foia_paused,blocked_states)');
+ assert.equal(get('ops_control').searchParams.get('limit'),'3');
+ const checks=calls.filter(c=>/\/atlas_|\/ops_control\?/.test(c.url));
+ assert(checks.every(c=>c.init.method==='GET'&&Number(new URL(c.url).searchParams.get('limit'))<=100));
+ assert(checks.every(c=>!/(policy|binding|reconciliation|entry|approved_by|evidence_ref|inventory_sha256|source_sha256|spec|request_body)/.test(new URL(c.url).searchParams.get('select')!)));
+ assert(!calls.some(c=>/atlas_legacy_history_resolutions|atlas_agency_aliases/.test(c.url)));
+ assert.deepEqual(data.acquisitionControls.data,{atlas_live_enabled:null,foia_paused:null,blocked_states:null});
+});
+test('acquisition control output retains only typed booleans and state codes',async()=>{
+ const good=mocked({runtimeControls:[{key:'atlas_live_enabled',value:false},{key:'foia_paused',value:false},{key:'blocked_states',value:['SC']}]});
+ const data=await(await good.handler(request())).json();
+ assert.deepEqual(data.acquisitionControls.data,{atlas_live_enabled:false,foia_paused:false,blocked_states:['SC']});
+ const bad=mocked({runtimeControls:[{key:'atlas_live_enabled',value:{private:'DO-NOT-RETURN'}},{key:'foia_paused',value:'false'},{key:'blocked_states',value:['SC',{private:'DO-NOT-RETURN'}]},{key:'secret_key',value:'DO-NOT-RETURN'}]});
+ const malformed=await(await bad.handler(request())).json();
+ assert.deepEqual(malformed.acquisitionControls.data,{atlas_live_enabled:null,foia_paused:null,blocked_states:null});
+ assert(!JSON.stringify(malformed).includes('DO-NOT-RETURN'));
+});
+test('runtime failure remains unavailable while incoming review and submission controls remain separate',async()=>{
+ const {handler}=mocked({brokenRuntime:true,runtimeControls:[{key:'atlas_live_enabled',value:false}]});
+ const data=await(await handler(request())).json();
+ for(const key of ['acquisitionPolicy','acquisitionAssignments','acquisitionHistory','acquisitionHealth','acquisitionCapacity']){
+   assert.equal(data[key].data,null);assert(data[key].error);
+ }
+ assert.equal(data.acquisitionControls.data.atlas_live_enabled,false);
+ assert.deepEqual(data.mailReviewHealth.data,[]);assert.equal(data.mailReviewHealth.error,null);
+});
+test('runtime and public-download feeds are owner-only and access-only performs no runtime reads',async()=>{
+ const denied=mocked({owner:false});assert.equal((await denied.handler(request())).status,403);
+ assert(!denied.calls.some(c=>/atlas_|ops_control|harvester_syracuse/.test(c.url)));
+ const only=mocked();await only.handler(new Request('https://worker.example/functions/v1/owner-operations?access=1',request()));
+ assert.equal(only.calls.length,2);
+ const allowed=mocked();await allowed.handler(request());
+ const harvester=new URL(allowed.calls.find(c=>c.url.includes('harvester_syracuse'))!.url);
+ assert.equal(harvester.searchParams.get('worker_name'),'eq.harvester_syracuse');
+ assert.equal(harvester.searchParams.get('select'),'worker_name,version,last_success_at,last_error_code,status:last_result->>status');
+ assert.equal(harvester.searchParams.get('limit'),'1');
+});
 test('writes and unapproved browser origins are rejected before authentication',async()=>{const {handler,calls}=mocked();assert.equal((await handler(request({method:'POST'}))).status,405);assert.equal((await handler(request({headers:{Origin:'https://evil.example',Authorization:'Bearer token'}}))).status,403);assert.equal(calls.length,0);});
 test('published-story reads never receive the owner token or worker secret',async()=>{
  const calls:{url:string;init:RequestInit}[]=[];
- const handler=createHandler(env,[{name:'News',domain:'news.example',url:'https://news-db.example',key:'public-news-key',dateColumn:'publish_date',publishedFilter:'is_published',articlePath:'/article/'}],(async(input,init={})=>{
+ const handler=createHandler(env,[{name:'News',domain:'news.example',url:'https://news-db.example',key:'public-news-key',dateColumn:'publish_date',publishedFilter:'is_published',articlePath:'/article/'}],(async(input,init:RequestInit={})=>{
  const url=String(input);calls.push({url,init});
  if(url.endsWith('/auth/v1/user'))return Response.json({id:'owner',email:'owner@example.test',email_confirmed_at:'2026-01-01'});
  if(url.includes('owner_dashboard_access'))return Response.json([{enabled:true}]);

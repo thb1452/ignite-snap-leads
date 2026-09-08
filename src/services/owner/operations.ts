@@ -14,11 +14,24 @@ export type CollectionDelivery = { id: string; source_name: string; jurisdiction
 export type CollectionProcessing = { id: string; delivery_id: string; processor_version: string; staged_at: string; input_rows: number; candidate_rows: number; duplicate_rows: number; held_rows: number; source_case_count: number | null; candidate_case_count: number | null; review_state: string; customer_accepted: boolean; usable_records: boolean; registered_at: string };
 export type CollectionOriginal = { delivery_id: string; role: string; storage_kind: string };
 export type CollectionEditorial = { id: string; delivery_id: string; processing_run_id: string; outlet_name: string; title: string; review_state: string; published: boolean; registered_at: string };
+export type AcquisitionControls = { atlas_live_enabled: boolean | null; foia_paused: boolean | null; blocked_states: string[] | null };
+export type AcquisitionPolicy = { revision: string; approved: boolean; global_paused: boolean };
+export type StateAssignment = { state: string; outlet_id: string; revision: string; approved: boolean; starts_on: string; ends_on: string | null };
+export type AcquisitionHistory = { revision: string; complete: boolean; reviewed_at: string; valid_until: string };
+export type AcquisitionHealth = { kind: string; checked_at: string; available: boolean };
+export type AcquisitionCapacity = { revision: string; checked_at: string; window_start: string; window_end: string; utc_day: string; submission_slots_available: number; outbound_messages_available: number };
 export type Snapshot = {
   mailboxSync?: Feed<{ inbox_id: string; enabled: boolean; checked_at: string | null; last_success_at: string | null; last_error_code: string | null; scan_before: string | null }[]>;
   mailboxReview?: Feed<{ inbox_id: string; message_id: string; received_at: string; stored_at: string; sender: string; subject: string | null; review_state: string }[]>;
   mailboxTests?: Feed<number>;
   mailReviewHealth?: Feed<MailReviewHealth[]>;
+  publicDownloadHealth?: Feed<(MailReviewHealth & { status: string | null })[]>;
+  acquisitionControls?: Feed<AcquisitionControls>;
+  acquisitionPolicy?: Feed<AcquisitionPolicy[]>;
+  acquisitionAssignments?: Feed<StateAssignment[]>;
+  acquisitionHistory?: Feed<AcquisitionHistory[]>;
+  acquisitionHealth?: Feed<AcquisitionHealth[]>;
+  acquisitionCapacity?: Feed<AcquisitionCapacity[]>;
   mailboxSuggestions?: Feed<MailReviewSuggestion[]>;
   collectionDeliveries?: Feed<CollectionDelivery[]>;
   collectionProcessing?: Feed<CollectionProcessing[]>;

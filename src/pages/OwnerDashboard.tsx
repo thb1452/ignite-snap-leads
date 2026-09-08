@@ -5,6 +5,7 @@ import { useOwnerSession } from '@/services/owner/session';
 import { OwnerLayout } from '@/components/owner/OwnerLayout';
 import { OwnerAccessGate } from '@/components/owner/OwnerAccessGate';
 import { CollectionRegister, EditorialRegister } from '@/components/owner/CollectionRegister';
+import { AcquisitionReadiness, PublicDownloadStatus } from '@/components/owner/AcquisitionReadiness';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -80,7 +81,7 @@ function OwnerDashboardContent() {
 }
 function DashboardSections({ section, data, navigate }: { section: Section; data: Snapshot; navigate: (s: Section) => void }) {
   const cost = data.agents.data ? knownCost(data.agents.data) : null;
-  const failedFeeds = [data.requests, data.agents, data.outlets, data.uploads, data.reviews, data.sentToday, data.repliesToday, data.registry, data.research, data.tasks, data.taskReviews, data.mailboxSync, data.mailboxReview, data.mailboxTests, data.mailReviewHealth, data.mailboxSuggestions, data.collectionDeliveries, data.collectionProcessing, data.collectionOriginals, data.collectionEditorial, data.freshCollectionCount, data.customerAcceptedCollections].filter(f => f?.error).length;
+  const failedFeeds = [data.requests, data.agents, data.outlets, data.uploads, data.reviews, data.sentToday, data.repliesToday, data.registry, data.research, data.tasks, data.taskReviews, data.mailboxSync, data.mailboxReview, data.mailboxTests, data.mailReviewHealth, data.mailboxSuggestions, data.collectionDeliveries, data.collectionProcessing, data.collectionOriginals, data.collectionEditorial, data.freshCollectionCount, data.customerAcceptedCollections, data.acquisitionControls, data.acquisitionPolicy, data.acquisitionAssignments, data.acquisitionHistory, data.acquisitionHealth, data.acquisitionCapacity, data.publicDownloadHealth].filter(f => f?.error).length;
   const overview = section === 'Overview';
   return <div className="space-y-6">
     {overview && <>
@@ -98,7 +99,9 @@ function DashboardSections({ section, data, navigate }: { section: Section; data
         <Button className="mt-4" variant="secondary" onClick={() => navigate('Collection')}>View collection <ArrowUpRight className="ml-2 h-4 w-4" /></Button>
       </div>
     </>}
+    {(overview || section === 'Collection' || section === 'Your decisions') && <AcquisitionReadiness data={data} compact={overview} />}
     {(overview || section === 'Collection') && <Collection data={data} compact={overview} />}
+    {section === 'Collection' && <PublicDownloadStatus data={data} />}
     {section === 'Agents' && <FeedPanel title="Agent activity" feed={data.agents} empty="No agent runs are visible in this database. Confirm the worker connection before treating this as an idle system.">
       {rows => <div className="divide-y">{rows.map(row => <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
         <div><p className="font-medium">{row.agent_name}</p><p className="mt-1 text-xs text-muted-foreground">Last recorded: {time(row.created_at)} · {row.duration_ms == null ? 'Duration not recorded' : `${(row.duration_ms / 1000).toFixed(1)} seconds`}</p></div>
@@ -107,6 +110,7 @@ function DashboardSections({ section, data, navigate }: { section: Section; data
     </FeedPanel>}
     {section === 'Agents' && <>
       <MailReviewStatus data={data} />
+      <PublicDownloadStatus data={data} />
       <FeedPanel title="Registered agents and heartbeats" feed={data.registry} empty="No registered agents are recorded.">
         {rows => <div className="grid gap-3 md:grid-cols-2">{rows.map(row => <article className="rounded-lg border p-4" key={row.id}><h3 className="font-medium">{row.name}</h3><p className="mt-1 text-sm text-muted-foreground">{row.role} · Registered status: {row.status}</p><p className="mt-2 text-sm">Heartbeat: {time(row.last_heartbeat)}</p><p className="mt-1 text-xs text-muted-foreground">{row.last_heartbeat ? 'Compare this timestamp with the expected worker schedule.' : 'No heartbeat evidence; not confirmed running.'}</p></article>)}</div>}
       </FeedPanel>

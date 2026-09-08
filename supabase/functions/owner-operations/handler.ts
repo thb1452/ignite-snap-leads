@@ -1,6 +1,18 @@
 type Env = { url: string; publicKey: string; secretKey: string };
 type Site = { name: string; domain: string; url: string; key: string; dateColumn: string; publishedFilter: string | null; articlePath: string };
 type Fetcher = typeof fetch;
+function acquisitionControls(rows: unknown) {
+  const values = Array.isArray(rows) ? rows : [];
+  const one = (key: string): unknown => {
+    const found = values.filter(row => row && typeof row === 'object' && row.key === key);
+    return found.length === 1 ? found[0].value : null;
+  };
+  const live = one('atlas_live_enabled'), paused = one('foia_paused'), blocked = one('blocked_states');
+  // Return only known scalar shapes; never return arbitrary ops-control JSON.
+  return { atlas_live_enabled: typeof live === 'boolean' ? live : null,
+    foia_paused: typeof paused === 'boolean' ? paused : null,
+    blocked_states: Array.isArray(blocked) && blocked.every(state => typeof state === 'string' && /^[A-Z]{2}$/.test(state)) ? [...new Set(blocked)] : null };
+}
 const allowedOrigins = new Set(['https://ignite-snap-leads.lovable.app', 'https://snapignite.com', 'https://www.snapignite.com', 'https://id-preview--6082ede1-ff48-4b44-926f-7dbadb14f9e1.lovable.app', 'http://127.0.0.1:4173', 'http://localhost:4173']);
 export function createHandler(env: Env, sites: Site[], fetcher: Fetcher = fetch) {
   return async (req: Request): Promise<Response> => {
@@ -48,6 +60,13 @@ export function createHandler(env: Env, sites: Site[], fetcher: Fetcher = fetch)
         mailboxReview:['mailbox_received_messages',{select:'inbox_id,message_id,received_at,stored_at,sender,subject,review_state',review_state:'eq.needs_review',order:'stored_at.desc',limit:'100'}],
         mailboxTests:['mailbox_received_messages',{select:'message_id',review_state:'eq.internal_test'},true],
         mailReviewHealth:['collection_worker_health',{select:'worker_name,version,last_success_at,last_error_code',worker_name:'eq.hermes-intake',limit:'1'}],
+        publicDownloadHealth:['collection_worker_health',{select:'worker_name,version,last_success_at,last_error_code,status:last_result->>status',worker_name:'eq.harvester_syracuse',limit:'1'}],
+        acquisitionControls:['ops_control',{select:'key,value',key:'in.(atlas_live_enabled,foia_paused,blocked_states)',order:'key.asc',limit:'3'}],
+        acquisitionPolicy:['atlas_operating_policies',{select:'revision,approved,global_paused',singleton:'eq.true',limit:'1'}],
+        acquisitionAssignments:['atlas_state_assignments',{select:'state,outlet_id,revision,approved,starts_on,ends_on',order:'state.asc',limit:'100'}],
+        acquisitionHistory:['atlas_agency_history_reviews',{select:'revision,complete,reviewed_at,valid_until',order:'reviewed_at.desc,agency_key.asc',limit:'100'}],
+        acquisitionHealth:['atlas_health_observations',{select:'kind,checked_at,available',order:'checked_at.desc,kind.asc,subject_key.asc',limit:'100'}],
+        acquisitionCapacity:['atlas_capacity_snapshots',{select:'revision,checked_at,window_start,window_end,utc_day,submission_slots_available,outbound_messages_available',singleton:'eq.true',limit:'1'}],
         mailboxSuggestions:['mailbox_processing_results',{select:'inbox_id,message_id,processor_version,request_job_id,match_state,processed_at,next_action:result->>next_action,signals:result->signals,review_state:result->>review_state,usable_records:result->usable_records','result->>review_state':'eq.pending_review',order:'processed_at.desc,inbox_id.asc,message_id.asc',limit:'100'}],
         requests:['foia_request_jobs',{select:'id,request_type,status,jurisdiction,state,updated_at,sent_at,response_due_at,retry_count',order:'updated_at.desc,id.asc',limit:'100'}],
         agents:['agent_runs',{select:'id,agent_name,status,created_at,cost_usd,duration_ms',order:'created_at.desc,id.asc',limit:'100'}],
@@ -67,7 +86,7 @@ export function createHandler(env: Env, sites: Site[], fetcher: Fetcher = fetch)
         taskReviews:['cartographer_agent_tasks',{select:'id,agent_role,task_type,status,state,county,updated_at,heartbeat_at',status:'in.(needs_review,stale_needs_review,failed,blocked)',order:'updated_at.desc,id.asc',limit:'100'}],
         tasks:['cartographer_agent_tasks',{select:'id,agent_role,task_type,status,state,county,assigned_worker,heartbeat_at,started_at,completed_at,updated_at,exit_code',order:'updated_at.desc,id.asc',limit:'100'}],
       };
-      const result=Object.fromEntries(await Promise.all(Object.entries(definitions).map(async([name,[table,params,head]])=>[name,await safe(read(table,params,head))])));
+      const result=Object.fromEntries(await Promise.all(Object.entries(definitions).map(async([name,[table,params,head]])=>[name,await safe(read(table,params,head).then(feed => name === 'acquisitionControls' ? {...feed,data:acquisitionControls(feed.data)} : feed))])));
       const publishing=await Promise.all(sites.map(async site=>{
         const checkedAt=new Date().toISOString();
         const params:Record<string,string>={select:'id,title,slug,'+site.dateColumn,order:site.dateColumn+'.desc',limit:'5'};

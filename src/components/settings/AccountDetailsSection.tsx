@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,11 +10,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/use-auth';
 
 export function AccountDetailsSection() {
-  const { profile, isLoading, updateProfile, requestPasswordReset } = useProfileSettings();
+  const { profile, isLoading, readiness, readinessMessage, refreshProfile, updateProfile, requestPasswordReset } = useProfileSettings();
   const { emailVerified, resendVerificationEmail } = useAuth();
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState('');
   const [isResending, setIsResending] = useState(false);
+
+  useEffect(() => {
+    setIsEditingName(false);
+    setNewName('');
+  }, [profile?.id]);
 
   const handleEditName = () => {
     setNewName(profile?.full_name || '');
@@ -48,6 +53,25 @@ export function AccountDetailsSection() {
         <CardContent className="space-y-4">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Account Details</CardTitle>
+          <CardDescription>{readinessMessage}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex gap-2">
+          <Button variant="outline" onClick={() => refreshProfile()}>Check again</Button>
+          {readiness === 'email_unverified' && (
+            <Button variant="outline" onClick={handleResendVerification} disabled={isResending}>
+              {isResending ? 'Sending…' : 'Resend verification'}
+            </Button>
+          )}
         </CardContent>
       </Card>
     );

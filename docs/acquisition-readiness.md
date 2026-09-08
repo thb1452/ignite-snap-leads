@@ -18,7 +18,7 @@ All reads happen after the existing Auth verification and server-owned owner all
 | `acquisitionCapacity` | Singleton revision, observation/window times, UTC day and recorded submission/outbound capacities. No mailbox-specific capacity JSON or provider-reconciliation payload. |
 | `publicDownloadHealth` | Only the `harvester_syracuse` worker's name, version, success time, error code and scalar result status. Its complete result remains private. |
 
-The existing incoming worker feed still refers only to `hermes-intake`. Public-download history has its own panel in Collection and Agents. An absent Harvester row says no run is recorded; it does not claim a timer or worker is active.
+The existing incoming worker feed still refers only to `hermes-intake`. Public-download history has its own panel in Collection and Agents. An absent Harvester row says no run is recorded; it does not claim a timer or worker is active. The tested `empty` success explicitly reports no records in the checked period. The wrapper uses `paused` for a false, missing or malformed collector control, with `harvester_paused`, `control_missing` or `control_invalid` codes; those states have distinct plain-language explanations and retain the historical last-success time. There is no separate `disabled` status. `failed` and contradictory success-with-error observations require a check.
 
 ## Interpretation
 
@@ -33,7 +33,7 @@ The existing incoming worker feed still refers only to `hermes-intake`. Public-d
 ## Validation
 
 - 17 owner API tests pass, including fixed runtime metadata, bounded GET reads, scalar control sanitization, unavailable runtime tables, separate worker lookups and owner/access-only protection.
-- 18 browser tests pass on an isolated 4186 server with synthetic intercepted responses. They cover existing owner navigation and authorization, missing/unapproved/expired/incomplete readiness evidence, blocked states, collapsed coverage, incoming-vs-submission separation and the 390px layout.
+- 24 browser tests pass on an isolated 4186 server with synthetic intercepted responses. They cover existing owner navigation and authorization, missing/unapproved/expired/incomplete readiness evidence, blocked states, collapsed coverage, incoming-vs-submission separation, explicit empty/paused/failed collector results and the 390px layout.
 - App and handler/test TypeScript checks, scoped lint, production build and whitespace checks pass. The small-screen readiness screenshot was visually inspected with no horizontal overflow.
 
 These tests do not submit a request, change an approval, inspect private request bodies, establish a live provider allowance or certify that the Harvester is scheduled. Runtime schema installation, function deployment and the signed-in live 4173 view require separate verification.

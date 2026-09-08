@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 const id = '00000000-0000-4000-8000-000000000001';
 const now = new Date().toISOString();
 const user = { id, email: 'owner@example.test', aud: 'authenticated', role: 'authenticated', email_confirmed_at: now, created_at: now, app_metadata: {}, user_metadata: {} };
-async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean; collection?: 'loaded' | 'processing_unavailable' | 'partial_locations'; mailReview?: 'recent' | 'overdue' | 'error' | 'empty' | 'unavailable';readiness?:'missing'|'configured'|'unavailable'|'partial' } = {}) {
+async function mock(page: Page, options: { owner?: boolean; failed?: boolean; empty?: boolean; auth?: boolean; missingCost?: boolean; collection?: 'loaded' | 'processing_unavailable' | 'partial_locations'; mailReview?: 'recent' | 'overdue' | 'error' | 'empty' | 'unavailable';readiness?:'missing'|'configured'|'unavailable'|'partial';publicDownload?:{status:string;error?:string|null} } = {}) {
   const session = { access_token: 'test-only', refresh_token: 'test-only', expires_at: Math.floor(Date.now()/1000)+3600, expires_in: 3600, token_type: 'bearer', user };
   if (options.auth !== false) await page.addInitScript(({ session, id }) => {
     localStorage.setItem('snap-owner-auth', JSON.stringify(session));
@@ -46,6 +46,7 @@ async function mock(page: Page, options: { owner?: boolean; failed?: boolean; em
           acquisitionHealth: feed(options.readiness==='configured' ? [{kind:'outbound',checked_at:'2020-01-01T00:00:00Z',available:true}] : []),
           publicDownloadHealth: feed(options.readiness==='configured' ? [{worker_name:'harvester_syracuse',version:'test-only',last_success_at:now,last_error_code:null,status:'staged'}] : []),
         } : {}),
+        ...(options.publicDownload ? {publicDownloadHealth:feed([{worker_name:'harvester_syracuse',version:'test-only',last_success_at:now,last_error_code:options.publicDownload.error??null,status:options.publicDownload.status}])} : {}),
         ...(options.collection ? {
           collectionDeliveries: feed([
             {id:'delivery-fresh',source_name:'Synthetic source collection',jurisdiction:'Test City',state:'FL',record_type:'code_violations',collected_at:now,freshness:'fresh_verified',source_rows:20,customer_accepted:false,usable_records:false,registered_at:now},
@@ -258,4 +259,38 @@ test('runtime feed failure preserves recorded disabled controls and fits a small
   await expect(page.getByText('Operating policy missing or ambiguous.',{exact:true})).toHaveCount(0);
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/owner/acquisition-readiness-mobile-fixture.png',fullPage:true});
+});
+test('zero-record public-download success is explicit and stays separate from a collection delivery',async({page})=>{
+  await mock(page,{publicDownload:{status:'empty'}});
+  await page.goto('/admin/operations');
+  await page.getByRole('button',{name:'Agents',exact:true}).click();
+  await expect(page.getByText('Check completed · No records found in the checked period',{exact:true})).toBeVisible();
+  await expect(page.getByText('Collector status needs verification',{exact:true})).toHaveCount(0);
+  await expect(page.getByText('Collection registered',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/start|send|approve|publish/i})).toHaveCount(0);
+});
+for(const [error,reason] of [['harvester_paused','The collector control is off.'],['control_missing','The collector control is missing.'],['control_invalid','The collector control needs review.']]){
+  test(`public collector pause ${error} stays explicit despite a previous successful run`,async({page})=>{
+    await mock(page,{publicDownload:{status:'paused',error}});
+    await page.goto('/admin/operations');
+    await page.getByRole('button',{name:'Agents',exact:true}).click();
+    await expect(page.getByText('Collector paused',{exact:true})).toBeVisible();
+    await expect(page.getByText(reason,{exact:true})).toBeVisible();
+    await expect(page.getByText('Collector status needs verification',{exact:true})).toHaveCount(0);
+    await expect(page.getByText('Collector check needed',{exact:true})).toHaveCount(0);
+  });
+}
+test('failed public-download wrapper status is never interpreted as successful',async({page})=>{
+  await mock(page,{publicDownload:{status:'failed',error:'database_unavailable'}});
+  await page.goto('/admin/operations');
+  await page.getByRole('button',{name:'Agents',exact:true}).click();
+  await expect(page.getByText('Collector check needed',{exact:true})).toBeVisible();
+  await expect(page.getByText('Check completed · No records found in the checked period',{exact:true})).toHaveCount(0);
+});
+test('an error attached to an empty status requires a check rather than claiming successful zero records',async({page})=>{
+  await mock(page,{publicDownload:{status:'empty',error:'health_write_failed'}});
+  await page.goto('/admin/operations');
+  await page.getByRole('button',{name:'Agents',exact:true}).click();
+  await expect(page.getByText('Collector check needed',{exact:true})).toBeVisible();
+  await expect(page.getByText('Check completed · No records found in the checked period',{exact:true})).toHaveCount(0);
 });

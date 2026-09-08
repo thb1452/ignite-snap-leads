@@ -108,10 +108,12 @@ export function AcquisitionReadiness({ data, compact = false }: { data: Snapshot
 
 export function PublicDownloadStatus({ data }: { data: Snapshot }) {
   const feed = data.publicDownloadHealth;
-  const labels: Record<string,string> = { staged:'Records staged for review',registered:'Collection registered',unchanged:'No change found at the last check',registration_replayed:'Previous registration confirmed',held:'Run needs review',busy:'Another run was recorded in progress' };
+  const labels: Record<string,string> = { staged:'Records staged for review',registered:'Collection registered',unchanged:'No change found at the last check',registration_replayed:'Previous registration confirmed',empty:'Check completed · No records found in the checked period',paused:'Collector paused',failed:'Collector check needed',held:'Run needs review',busy:'Another run was recorded in progress' };
+  const pauseReasons: Record<string,string> = { harvester_paused:'The collector control is off.',control_missing:'The collector control is missing.',control_invalid:'The collector control needs review.' };
   return <Panel title="Public download collector · Syracuse" checkedAt={feed?.checkedAt}>
     {!available(feed) ? <Unavailable /> : !feed!.data!.length ? <p>No public-download run is recorded yet.</p> : feed!.data!.map(row => <div key={row.worker_name}>
-      <p className="font-medium">{row.last_error_code ? 'Collector check needed' : labels[row.status ?? ''] ?? 'Collector status needs verification'}</p>
+      <p className="font-medium">{row.status === 'paused' ? labels.paused : row.last_error_code ? 'Collector check needed' : labels[row.status ?? ''] ?? 'Collector status needs verification'}</p>
+      {row.status === 'paused' && <p className="mt-2">{pauseReasons[row.last_error_code ?? ''] ?? 'The pause reason needs review.'}</p>}
       <p className="mt-2">Last successful run: {time(row.last_success_at)}</p>
     </div>)}
     <p className="text-xs text-muted-foreground">Scope: download and stage public records for review. A recorded run does not establish a continuous schedule, customer acceptance or outgoing correspondence.</p>

@@ -1,3 +1,6 @@
+import { SOURCE_SEMANTIC_RELEASE } from '../_shared/sourceSemanticRelease.ts';
+import { readSourceBinding, stageBoundSourceUpload, SourceReviewUnconfirmedError } from '../_shared/boundSourceUpload.ts';
+import { legacySourceMeaning } from '../_shared/municipalSourceSemantics.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import Papa from "https://esm.sh/papaparse@5.4.1";
@@ -473,8 +476,8 @@ function parseCSVWithPapaparse(csvText: string): { headers: string[], dataRows: 
     skipEmptyLines: true,
     transformHeader: (header: string) => header.trim().toLowerCase(),
     transform: (value: string) => {
-      // Flatten multi-line values by replacing newlines with spaces
-      return value.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+      // Preserve source text; downstream normalization is separate from the original row.
+      return value;
     }
   });
 
@@ -566,6 +569,19 @@ async function processUploadJob(jobId: string) {
       return;
     }
 
+    // Rich collection records must use an operator-bound source adapter before
+    // any legacy CSV aliases, property matching, public upsert or AI/geocoding.
+    const sourceBinding = await readSourceBinding(supabaseClient, jobId);
+    if (sourceBinding) {
+      if (job.file_size > 8 * 1024 * 1024) throw new Error('rich_source_input_size');
+      const { data: sourceFile, error: sourceError } = await supabaseClient.storage
+        .from('csv-uploads').download(job.storage_path);
+      if (sourceError || !sourceFile) throw new Error('source_file_download_failed');
+      await stageBoundSourceUpload(supabaseClient, jobId, sourceFile, sourceBinding);
+      console.log('[process-upload] Source-native records retained for review; no customer import.');
+      return;
+    }
+
     // Determine scope: if city is missing but county+state are present, it's a county-level upload
     const isCountyScope = !job.city && job.county && job.state;
     const isCityScope = job.city && job.state;
@@ -604,6 +620,7 @@ async function processUploadJob(jobId: string) {
     }
 
     const rawCsvText = await fileData.text();
+    if (/^[\s\uFEFF]*[\[{]/.test(rawCsvText)) throw new Error('Rich JSON needs an operator-bound source adapter.');
     
     // Parse CSV using papaparse (handles multi-line quoted fields properly)
     const { headers, dataRows: parsedRows } = parseCSVWithPapaparse(rawCsvText);
@@ -661,7 +678,7 @@ async function processUploadJob(jobId: string) {
         const row = parsedRows[i] as Record<string, any>;
 
         // Flexible column mapping - support multiple CSV formats
-        const caseId = row.case_id || row['case/file id'] || row['file #'] || row.file_number || row.id || row['file number'] || null;
+        const caseId = row.case_id || row['case/file id'] || row['file #'] || row.file_number || row['file number'] || null;
         const rawAddress = row.address || row.location || row.property_address || row['property address'] || '';
         const violationType = row.category || row.violation || row.type || row.violation_type || row['violation type'] || row.violation_category || '';
         const rawOpenDate = row.opened_date || row.open_date || row['open date'] || row.date || row.date_opened || null;
@@ -732,6 +749,7 @@ async function processUploadJob(jobId: string) {
           last_updated: closeDate || row.last_updated || null,
           jurisdiction_id: job.jurisdiction_id || null,
           raw_description: truncatedDescription,
+          source_semantics: { ...legacySourceMeaning(), original_input: structuredClone(row) },
         });
 
         if (stagingRows.length >= STAGING_BATCH_SIZE) {
@@ -782,7 +800,7 @@ async function processUploadJob(jobId: string) {
       const row = parsedRows[i] as Record<string, any>;
 
       // Flexible column mapping - support multiple CSV formats
-      const caseId = row.case_id || row['case/file id'] || row['file #'] || row.file_number || row.id || row['file number'] || null;
+      const caseId = row.case_id || row['case/file id'] || row['file #'] || row.file_number || row['file number'] || null;
       const rawAddress = row.address || row.location || row.property_address || row['property address'] || '';
       const violationType = row.category || row.violation || row.type || row.violation_type || row['violation type'] || row.violation_category || '';
       // Parse dates immediately to catch invalid values before inserting to staging
@@ -869,7 +887,8 @@ async function processUploadJob(jobId: string) {
         opened_date: openDate,
         last_updated: closeDate || row.last_updated || null,
         jurisdiction_id: job.jurisdiction_id || null,
-        raw_description: truncatedDescription, // Store raw notes for AI processing (INTERNAL ONLY)
+        raw_description: truncatedDescription, // Compatibility field; full original remains next to it.
+        source_semantics: { ...legacySourceMeaning(), original_input: structuredClone(row) },
       });
 
       if (stagingRows.length >= STAGING_BATCH_SIZE) {
@@ -2002,6 +2021,12 @@ async function processUploadJob(jobId: string) {
     console.log(`[process-upload] Upload complete with automatic insights and geocoding triggered.`);
 
   } catch (error) {
+    if (error instanceof SourceReviewUnconfirmedError) {
+      // SQL may have committed COMPLETE. Preserve that result, or keep PARSING
+      // eligible for the existing five-minute stalled-job retry with identical bytes.
+      console.error(`[process-upload] Source review ${jobId} unconfirmed; reconcile existing job`);
+      return;
+    }
     console.error(`[process-upload] Job ${jobId} failed:`, error);
     
     // Update job with error
@@ -2061,7 +2086,7 @@ function normalizeStatus(status: string): string {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeaders, 'X-Snap-Release': SOURCE_SEMANTIC_RELEASE } });
   }
 
   try {

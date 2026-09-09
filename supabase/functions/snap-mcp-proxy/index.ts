@@ -1,3 +1,5 @@
+import { SOURCE_SEMANTIC_RELEASE } from '../_shared/sourceSemanticRelease.ts';
+import { requiresSourceSemanticReview } from '../_shared/municipalSourceSemantics.ts';
 // snap-mcp-proxy
 // HMAC-SHA256 signed proxy for an external MCP server (Azure VM).
 //
@@ -98,7 +100,7 @@ function getCallerIp(req: Request): string | null {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: { ...corsHeaders, "X-Snap-Release": SOURCE_SEMANTIC_RELEASE } });
 
   const startedAt = Date.now();
   const callerIp = getCallerIp(req);
@@ -383,6 +385,9 @@ Deno.serve(async (req) => {
     }
 
     const violations: ScoringViolation[] = (vRows ?? []) as ScoringViolation[];
+    if (violations.some(requiresSourceSemanticReview)) {
+      return jsonResponse(200, { available: false, reason: 'source_semantics_require_review', score: null, current_condition_verified: false });
+    }
     const classified = violations.map(classifyViolation);
     const intelligence = aggregatePropertyIntelligence(violations, classified, !!(property as any).escalated);
     const breakdown = buildComponentBreakdown(violations, classified, intelligence);

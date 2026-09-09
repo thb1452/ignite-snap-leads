@@ -1,3 +1,5 @@
+import { SOURCE_SEMANTIC_RELEASE } from '../_shared/sourceSemanticRelease.ts';
+import { requiresSourceSemanticReview } from '../_shared/municipalSourceSemantics.ts';
 /**
  * SNAP INSIGHT GENERATION v9.4 - AZURE GPT-4o MINI + PUNCHY SCOUT BRIEF
  * 
@@ -157,7 +159,7 @@ serve(async (req) => {
   console.log(`[generate-insights ${VERSION}] Request received`);
   
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeaders, 'X-Snap-Release': SOURCE_SEMANTIC_RELEASE } });
   }
 
   try {
@@ -236,6 +238,7 @@ serve(async (req) => {
     console.log(`[generate-insights ${VERSION}] Processing ${properties.length} properties`);
 
     const updates = [];
+    const sourceReviewHeldPropertyIds: string[] = [];
     let successCount = 0;
     let errorCount = 0;
     let aiGeneratedCount = 0;
@@ -252,6 +255,10 @@ serve(async (req) => {
 
     for (const property of properties) {
       const violations = (property.violations || []) as Violation[];
+      if (violations.some(requiresSourceSemanticReview)) {
+        sourceReviewHeldPropertyIds.push(property.id);
+        continue; // No score, generated summary, paid AI request or property update.
+      }
       
       if ((property as any).enforcement_type === 'water_shutoff') {
         (violations as any).__enforcement_type = 'water_shutoff';
@@ -360,6 +367,8 @@ serve(async (req) => {
         processed: successCount,
         errors: errorCount,
         total: propertyIds.length,
+        source_review_held_property_ids: sourceReviewHeldPropertyIds,
+        source_semantics: 'legacy_unknown_unless_bound',
         breakdown: {
           ai_generated: aiGeneratedCount,
           rule_based: deterministicCount,

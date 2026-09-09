@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, FileSpreadsheet, MapPin, Clock, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/hooks/use-auth';
+import { UploadRowsReview } from '@/components/uploads/UploadRowsReview';
 
 const STATUS_CONFIG = {
   QUEUED: { icon: Clock, bg: 'bg-gray-100', text: 'text-gray-700', label: 'Queued' },
@@ -22,39 +24,26 @@ const STATUS_CONFIG = {
 export default function UploadJobDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
 
-  const { data: job, isLoading } = useQuery({
-    queryKey: ['upload-job', id],
-    queryFn: async () => {
+  const { data: job, isLoading, isError: jobError, refetch } = useQuery({
+    queryKey: ['upload-job', user?.id, id],
+    queryFn: async ({ signal }) => {
       const { data, error } = await supabase
         .from('upload_jobs')
         .select('*')
         .eq('id', id)
-        .single();
+        .abortSignal(signal).single();
 
       if (error) throw error;
       return data;
     },
-    enabled: !!id,
+    enabled: !!id && !!user && !authLoading,
+    gcTime: 0,
+    retry: false,
   });
 
-  const { data: stagingData } = useQuery({
-    queryKey: ['upload-staging', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('upload_staging')
-        .select('*')
-        .eq('job_id', id)
-        .order('row_num', { ascending: true })
-        .limit(100);
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!id,
-  });
-
-  if (isLoading) {
+  if (authLoading || (user && isLoading)) {
     return (
       <AppLayout>
         <div className="container mx-auto py-8 px-4 max-w-6xl">
@@ -66,6 +55,20 @@ export default function UploadJobDetail() {
         </div>
       </AppLayout>
     );
+  }
+
+  if (!user) {
+    return <AppLayout><div className="container mx-auto py-8 px-4 max-w-6xl">
+      <p>Sign in to review your upload rows.</p>
+      <Button onClick={() => navigate('/auth?mode=signin')}>Sign in</Button>
+    </div></AppLayout>;
+  }
+
+  if (jobError) {
+    return <AppLayout><div className="container mx-auto py-8 px-4 max-w-6xl" role="alert">
+      <p>This upload job could not be loaded for your account.</p>
+      <Button variant="outline" onClick={() => void refetch()}>Retry job</Button>
+    </div></AppLayout>;
   }
 
   if (!job) {
@@ -195,7 +198,7 @@ export default function UploadJobDetail() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-1 text-sm">
-                {job.warnings.map((warning: any, i: number) => (
+                {job.warnings.map((warning: unknown, i: number) => (
                   <li key={i} className="text-warning">• {typeof warning === 'string' ? warning : JSON.stringify(warning)}</li>
                 ))}
               </ul>
@@ -203,49 +206,7 @@ export default function UploadJobDetail() {
           </Card>
         )}
 
-        {stagingData && stagingData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Sample Rows (First 100)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Row</th>
-                      <th className="text-left p-2">Address</th>
-                      <th className="text-left p-2">City</th>
-                      <th className="text-left p-2">Violation</th>
-                      <th className="text-left p-2">Status</th>
-                      <th className="text-left p-2">Error</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stagingData.map((row) => (
-                      <tr key={row.id} className="border-b">
-                        <td className="p-2">{row.row_num}</td>
-                        <td className="p-2">{row.address}</td>
-                        <td className="p-2">{row.city}</td>
-                        <td className="p-2 truncate max-w-xs">{row.violation}</td>
-                        <td className="p-2">
-                          {row.processed ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <Clock className="h-4 w-4 text-gray-400" />
-                          )}
-                        </td>
-                        <td className="p-2 text-destructive text-xs truncate max-w-xs">
-                          {row.error || '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <UploadRowsReview key={`${user.id}:${job.id}`} jobId={job.id} viewerId={user.id} />
       </div>
     </AppLayout>
   );

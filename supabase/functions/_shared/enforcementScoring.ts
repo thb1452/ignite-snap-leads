@@ -1,9 +1,10 @@
+import { requiresSourceSemanticReview } from './municipalSourceSemantics.ts';
 // SnapScore v7.1 canonical algorithm. Used by:
 //   - supabase/functions/generate-insights (writes properties.snap_score)
 //   - supabase/functions/snap-mcp-proxy (get_enforcement_breakdown tool)
 // All scoring logic lives here. Do not duplicate.
 
-export const SCORING_VERSION = "v7.1";
+export const SCORING_VERSION = "v7.1-source-semantics-1";
 
 export interface Violation {
   id: string;
@@ -13,6 +14,7 @@ export interface Violation {
   opened_date: string | null;
   raw_description: string | null;
   last_updated: string | null;
+  source_semantics?: unknown;
 }
 
 export interface ViolationWithPriority {
@@ -32,7 +34,7 @@ export interface PropertyIntelligence {
   open_violations: number;
   oldest_violation_date: string | null;
   newest_violation_date: string | null;
-  avg_days_open: number;
+  avg_days_open: number | null;
   violation_types: string[];
   repeat_offender: boolean;
   multi_department: boolean;
@@ -51,6 +53,7 @@ export function aggregatePropertyIntelligence(
   classified: ViolationWithPriority[],
   propertyEscalated?: boolean
 ): PropertyIntelligence {
+  assertLegacyScoringInput(violations);
   const escalatedStatuses = ['board', 'legal', 'court', 'condemned', 'prosecution'];
   const now = new Date();
   
@@ -62,16 +65,8 @@ export function aggregatePropertyIntelligence(
         v.days_open = Math.max(0, Math.floor((now.getTime() - opened.getTime()) / (1000 * 60 * 60 * 24)));
       }
     }
-    // Also check last_updated as fallback for days_open
-    if (v.days_open == null && v.last_updated) {
-      const updated = new Date(v.last_updated);
-      if (!isNaN(updated.getTime())) {
-        v.days_open = Math.max(0, Math.floor((now.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24)));
-      }
-    }
-    if (v.days_open == null && !v.opened_date && !v.last_updated) {
-      console.warn(`[enforcementScoring ${SCORING_VERSION}] Violation ${v.id} has no date info — days_open defaults to 0`);
-    }
+    // Modification/import time cannot establish opening time or unresolved duration.
+    // Keep an unsupported duration null; it is not a zero-day observation.
   }
   
   const openViolations = violations.filter(v => (v.status || '').toLowerCase().trim() === 'open');
@@ -84,10 +79,10 @@ export function aggregatePropertyIntelligence(
     .filter(d => !isNaN(d.getTime()) && d.getTime() <= now_ts) // Filter out future dates
     .sort((a, b) => a.getTime() - b.getTime());
   
-  const daysOpen = violations.map(v => v.days_open || 0);
+  const daysOpen = violations.map(v => v.days_open).filter((v): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0);
   const avgDays = daysOpen.length > 0 
     ? Math.round(daysOpen.reduce((a, b) => a + b, 0) / daysOpen.length) 
-    : 0;
+    : null;
   
   const violationTypes = [...new Set(violations.map(v => v.violation_type).filter(Boolean))];
   
@@ -143,6 +138,8 @@ export interface ScoreComponent {
   points_contributed: number;
   max_possible: number;
   evidence: Record<string, unknown>;
+  available?: boolean;
+  unavailable_reason?: string;
   signals: string[];
 }
 
@@ -151,6 +148,7 @@ export function computeScoreComponents(
   classified: ViolationWithPriority[],
   intelligence: PropertyIntelligence
 ): ScoreComponent[] {
+  assertLegacyScoringInput(violations);
   const openViolations = violations.filter(v => (v.status || '').toLowerCase().trim() === 'open');
   const openClassified = classified.filter(c => (c.original.status || '').toLowerCase().trim() === 'open');
 
@@ -169,7 +167,9 @@ export function computeScoreComponents(
       name: 'duration',
       points_contributed: pts,
       max_possible: 30,
-      evidence: { max_days_open: maxDaysOpen, months_open: monthsOpen },
+      available: openViolations.some(v => v.days_open != null),
+      unavailable_reason: openViolations.some(v => v.days_open != null) ? undefined : 'opening_duration_unavailable',
+      evidence: { max_days_open: openViolations.some(v => v.days_open != null) ? maxDaysOpen : null, months_open: openViolations.some(v => v.days_open != null) ? monthsOpen : null },
       signals: sigs,
     });
   }
@@ -477,6 +477,7 @@ export function buildComponentBreakdown(
 // VIOLATION CLASSIFICATION — uses keyword scan on combined type + description
 // ============================================================================
 export function classifyViolation(violation: Violation): ViolationWithPriority {
+  assertLegacyScoringInput([violation]);
   const t = (violation.violation_type || '').toLowerCase();
   const desc = (violation.raw_description || '').toLowerCase();
   const combined = `${t} ${desc}`;
@@ -565,4 +566,9 @@ export function classifyViolation(violation: Violation): ViolationWithPriority {
   }
   
   return { category: 'Other', priority: 'low', original: violation };
+}
+
+// The legacy keyword model is not a reviewed classifier for municipal source namespaces.
+export function assertLegacyScoringInput(violations: Violation[]): void {
+  if (violations.some(requiresSourceSemanticReview)) throw new Error('source_semantics_require_review');
 }

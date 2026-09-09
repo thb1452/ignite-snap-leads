@@ -31,3 +31,6 @@ dist-ssr
 
 # Supabase CLI temp files
 supabase/.temp/
+
+# Local browser test artifacts
+test-results/

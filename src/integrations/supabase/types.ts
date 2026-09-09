@@ -4259,6 +4259,50 @@ export type Database = {
           },
         ]
       }
+      upload_source_bindings: {
+        Row: {
+          collected_at: string
+          created_at: string
+          customer_accepted: boolean
+          input_sha256: string
+          job_id: string
+          review_state: string
+          reviewer_user_id: string
+          source_event_id: string
+          source_key: string
+        }
+        Insert: {
+          collected_at: string
+          created_at?: string
+          customer_accepted?: boolean
+          input_sha256: string
+          job_id: string
+          review_state?: string
+          reviewer_user_id: string
+          source_event_id: string
+          source_key: string
+        }
+        Update: {
+          collected_at?: string
+          created_at?: string
+          customer_accepted?: boolean
+          input_sha256?: string
+          job_id?: string
+          review_state?: string
+          reviewer_user_id?: string
+          source_event_id?: string
+          source_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upload_source_bindings_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "upload_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       upload_staging: {
         Row: {
           address: string
@@ -4275,6 +4319,7 @@ export type Database = {
           property_id: string | null
           raw_description: string | null
           row_num: number
+          source_semantics: Json | null
           state: string | null
           status: string | null
           violation: string
@@ -4295,6 +4340,7 @@ export type Database = {
           property_id?: string | null
           raw_description?: string | null
           row_num: number
+          source_semantics?: Json | null
           state?: string | null
           status?: string | null
           violation: string
@@ -4315,6 +4361,7 @@ export type Database = {
           property_id?: string | null
           raw_description?: string | null
           row_num?: number
+          source_semantics?: Json | null
           state?: string | null
           status?: string | null
           violation?: string
@@ -6685,6 +6732,10 @@ export type Database = {
       st_wrapx: {
         Args: { geom: unknown; move: number; wrap: number }
         Returns: unknown
+      }
+      stage_bound_source_upload_v1: {
+        Args: { p_job_id: string; p_original_text: string; p_projection: Json }
+        Returns: Json
       }
       unlockrows: { Args: { "": string }; Returns: number }
       updategeometrysrid: {

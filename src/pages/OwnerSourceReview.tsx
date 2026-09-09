@@ -85,23 +85,36 @@ export default function OwnerSourceReview() {
 function ReviewSignIn() {
   const [email,setEmail] = useState('');
   const [password,setPassword] = useState('');
+  const [resetMode,setResetMode] = useState(false);
+  const [resetRequested,setResetRequested] = useState(false);
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState<string | null>(null);
   async function submit(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(null);
     try {
+      if (resetMode) {
+        // Use the published recovery page so the email also works on another device.
+        const {error} = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: 'https://ignite-snap-leads.lovable.app/reset-password',
+        });
+        if (error) setError('The reset email could not be requested. Please wait a minute and try again.');
+        else setResetRequested(true);
+        return;
+      }
       const {error} = await supabase.auth.signInWithPassword({email:email.trim(),password});
       if (error) setError('Sign-in was not successful. Check your email and password.');
-    } catch { setError('Sign-in is unavailable. Please try again.'); }
+    } catch { setError(resetMode ? 'The reset email could not be requested. Please try again.' : 'Sign-in is unavailable. Please try again.'); }
     finally { setPassword(''); setBusy(false); }
   }
   return <section className="max-w-md rounded-xl border bg-card p-6 space-y-4">
-    <div><h2 className="text-xl font-semibold">Sign in to review</h2><p className="mt-2 text-sm text-muted-foreground">Use your existing Snap customer account. Only the account assigned to this batch can see its records.</p></div>
+    <div><h2 className="text-xl font-semibold">{resetMode ? 'Reset your password' : 'Sign in to review'}</h2><p className="mt-2 text-sm text-muted-foreground">{resetMode ? 'Enter your Snap account email to request a password-reset link.' : 'Use your existing Snap customer account. Only the account assigned to this batch can see its records.'}</p></div>
     <form className="space-y-4" onSubmit={submit}>
-      <label className="block text-sm">Email<input className="mt-1 block w-full rounded-md border bg-background px-3 py-2" type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} /></label>
-      <label className="block text-sm">Password<input className="mt-1 block w-full rounded-md border bg-background px-3 py-2" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></label>
+      <label className="block text-sm">Email<input className="mt-1 block w-full rounded-md border bg-background px-3 py-2" type="email" autoComplete="username" required value={email} onChange={e => {setEmail(e.target.value);setResetRequested(false);}} /></label>
+      {!resetMode && <label className="block text-sm">Password<input className="mt-1 block w-full rounded-md border bg-background px-3 py-2" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></label>}
       {error && <p role="alert" className="text-sm">{error}</p>}
-      <button className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+      {resetRequested && <p role="status" className="text-sm">If this email has a Snap account, a reset link is on its way. Check your inbox and spam folder. After resetting, return here and sign in.</p>}
+      <button className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50" disabled={busy || (resetMode && resetRequested)}>{busy ? (resetMode ? 'Requesting link…' : 'Signing in…') : (resetMode ? 'Send reset link' : 'Sign in')}</button>
     </form>
+    <button type="button" className="text-sm underline underline-offset-4" disabled={busy} onClick={() => {setResetMode(value => !value);setPassword('');setError(null);setResetRequested(false);}}>{resetMode ? 'Back to sign in' : 'Forgot password?'}</button>
   </section>;
 }

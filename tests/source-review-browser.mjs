@@ -11,6 +11,7 @@ const session={access_token:'test-only-owner-session',refresh_token:'test-only-r
 let reviewAccess=true, hold=false, releaseHeld, holdLogout=false, releaseLogout;
 const context=await browser.newContext({viewport:{width:1280,height:900}});
 const externalWrites=[];
+const recoveryRequests=[];
 await context.route('**/*',async route=>{
   const request=route.request(),u=new URL(request.url());
   if(u.hostname==='127.0.0.1')return route.continue();
@@ -28,6 +29,10 @@ await context.route('**/*',async route=>{
     if (holdLogout) {await new Promise(resolve=>{releaseLogout=resolve;});return route.fulfill({status:400,contentType:'application/json',body:'{"msg":"Synthetic logout failure"}'});}
     return route.fulfill({status:204});
   }
+  if(u.pathname==='/auth/v1/recover') {
+    recoveryRequests.push({url:request.url(),body:request.postDataJSON()});
+    return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+  }
   if(u.pathname.startsWith('/auth/v1/'))return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(user)});
   if(u.hostname.endsWith('.supabase.co') && request.method()==='GET')return route.fulfill({status:200,contentType:'application/json',body:'[]'});
   if(u.hostname.endsWith('.supabase.co') && request.method()!=='GET')externalWrites.push(u.pathname);
@@ -40,6 +45,19 @@ try {
   await expect(page.locator('article')).toHaveCount(0);
   await page.screenshot({path:artifactRoot+'/signed-out.png',fullPage:true});
   results.push('Signed-out browser receives no review rows.');
+  await page.getByRole('button',{name:'Forgot password?',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Reset your password'})).toBeVisible();
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await page.getByLabel('Email',{exact:true}).fill('owner@example.test');
+  await page.getByRole('button',{name:'Send reset link',exact:true}).click();
+  await expect(page.getByRole('status')).toContainText('a reset link is on its way');
+  await expect(page.getByRole('button',{name:'Send reset link',exact:true})).toBeDisabled();
+  if(recoveryRequests.length!==1 || recoveryRequests[0].body.email!=='owner@example.test' ||
+    new URL(recoveryRequests[0].url).hostname!=='ojyxblegxpdgaqiscxpz.supabase.co' ||
+    new URL(recoveryRequests[0].url).searchParams.get('redirect_to')!=='https://ignite-snap-leads.lovable.app/reset-password')throw new Error('Recovery request target mismatch');
+  await page.getByRole('button',{name:'Back to sign in',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Sign in to review'})).toBeVisible();
+  results.push('Forgot password requests one email on the customer backend with the published recovery destination and no password requirement.');
   await page.evaluate(value=>localStorage.setItem('sb-ojyxblegxpdgaqiscxpz-auth-token',JSON.stringify(value)),session);
   await page.reload();
   await expect(page.getByText('Showing 1–25 of 63 violations')).toBeVisible();

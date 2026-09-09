@@ -49,6 +49,7 @@ const CrmPipeline = lazy(() => import("./pages/CrmPipeline"));
 const CrmLeadDetail = lazy(() => import("./pages/CrmLeadDetail"));
 const CrmInbox = lazy(() => import("./pages/CrmInbox"));
 const CrmSequences = lazy(() => import("./pages/CrmSequences"));
+const OwnerSourceReview = lazy(() => import("./pages/OwnerSourceReview"));
 
 const VADashboard = lazy(() => import("./pages/VADashboard"));
 const VAWorkspace = lazy(() => import("./pages/VAWorkspace"));
@@ -109,6 +110,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/checkout/success" element={<CheckoutSuccess />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/owner/source-review" element={<OwnerSourceReview />} />
                 <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
                 <Route path="/app" element={<Navigate to="/properties" replace />} />
                 <Route path="/leads" element={<Navigate to="/properties" replace />} />

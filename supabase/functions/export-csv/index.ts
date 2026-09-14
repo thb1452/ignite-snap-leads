@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Cache-Control": "no-store",
 };
 
 // Batched fetch size (RPC uses POST JSON — safe for large uuid[]; keep moderate for query time / memory)
@@ -159,16 +160,51 @@ serve(async (req) => {
     }
     const user = { id: claimsData.claims.sub as string, email: claimsData.claims.email as string };
 
-    const { data: subData } = await supabase
+    const { data: subData, error: subError } = await supabase
       .from("user_subscriptions")
       .select(
-        "status, trial_exports_used, trial_exports_limit, trial_ends_at, plan:subscription_plans(data_tier, max_monthly_exports)",
+        "status, current_period_start, current_period_end, trial_exports_used, trial_exports_limit, trial_ends_at, plan:subscription_plans(data_tier, max_monthly_exports)",
       )
       .eq("user_id", user.id)
-      .in("status", ["active", "trialing", "past_due", "trial"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    if (subError) {
+      return new Response(JSON.stringify({ error: "Unable to verify export access", code: "AUTHORIZATION_UNAVAILABLE" }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // A stored status is not proof that its trial or paid period is still current.
+    // Check the newest subscription, including cancelled records, so an older
+    // active row cannot silently restore an expired or cancelled entitlement.
+    if (subData) {
+      const now = Date.now();
+      const trial = ["trial", "trialing"].includes(subData.status);
+      const startsAt = Date.parse(subData.current_period_start ?? "");
+      const endsAt = Date.parse((trial ? subData.trial_ends_at : subData.current_period_end) ?? "");
+      const current = Number.isFinite(endsAt) && endsAt > now &&
+        (trial || (Number.isFinite(startsAt) && startsAt <= now));
+      if (!["active", "past_due", "trial", "trialing"].includes(subData.status) || !current) {
+        return new Response(JSON.stringify({
+          error: "A current subscription period is required to export.",
+          code: trial ? "TRIAL_EXPIRED" : "SUBSCRIPTION_EXPIRED",
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    // Deduplicate before checking or spending any property entitlements.
+    if (propertyIds) {
+      if (propertyIds.some((id) => typeof id !== "string" ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) ||
+          propertyIds.length > MAX_EXPORT_ROWS) {
+        return new Response(JSON.stringify({ error: "Invalid export property selection", code: "INVALID_EXPORT" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      propertyIds = [...new Set(propertyIds.map((id) => id.toLowerCase()))];
+    }
 
     let isPaygUser = false;
     // Track which properties still need unlocking (for credit deduction during export)
@@ -187,7 +223,9 @@ serve(async (req) => {
 
           if (unlockedErr) {
             console.error("[export-csv] Unlock entitlement check failed:", unlockedErr.message);
-            break;
+            return new Response(JSON.stringify({ error: "Unable to verify property access", code: "AUTHORIZATION_UNAVAILABLE" }), {
+              status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
           }
           for (const r of (unlockedRows as { property_id: string }[] | null) || []) {
             alreadyUnlockedIds.add(r.property_id);
@@ -245,13 +283,6 @@ serve(async (req) => {
     }
 
     const isTrialUser = !isPaygUser && !!subData && (subData.status === "trial" || subData.status === "trialing");
-
-    if (isTrialUser && subData?.trial_ends_at && new Date(subData.trial_ends_at) < new Date()) {
-      return new Response(
-        JSON.stringify({ error: "Trial has expired. Please upgrade to continue exporting.", code: "TRIAL_EXPIRED" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
 
     const dataTier = (subData?.plan as { data_tier?: string })?.data_tier || "basic";
     const maxExports = (subData?.plan as { max_monthly_exports?: number })?.max_monthly_exports || 0;
@@ -400,6 +431,17 @@ serve(async (req) => {
     const exportCount = csvDataLines.length;
     console.log(`[export-csv] Built CSV for ${exportCount} properties for user ${user.id}`);
 
+    if (exportCount === 0) {
+      return new Response(JSON.stringify({ error: "No authorized properties matched this export", code: "EMPTY_EXPORT" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (propertyIds?.length && exportCount !== propertyIds.length) {
+      return new Response(JSON.stringify({ error: "Some selected properties are unavailable for this account", code: "EXPORT_SELECTION_UNAVAILABLE" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (isPaygUser) {
       // Deduct credits for any properties not yet unlocked
       if (propertyIdsNeedingUnlock.length > 0) {
@@ -418,14 +460,20 @@ serve(async (req) => {
             continue;
           }
           const result = unlockResult as { success?: boolean; error?: string };
-          if (result && !result.success) {
-            console.warn(`[export-csv] fn_unlock_property denied for ${propId}:`, result.error);
+          if (result?.success !== true) {
+            console.warn(`[export-csv] fn_unlock_property denied for ${propId}:`, result?.error);
             unlockErrors++;
           }
         }
         console.log(
           `[export-csv] PAYG unlock complete: ${propertyIdsNeedingUnlock.length - unlockErrors} succeeded, ${unlockErrors} failed`,
         );
+        if (unlockErrors > 0) {
+          return new Response(JSON.stringify({
+            error: "Export access could not be confirmed for every property. Completed unlocks are preserved; review before retrying.",
+            code: "UNLOCK_UNCONFIRMED",
+          }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
       } else {
         console.log("[export-csv] PAYG user — all properties already unlocked, no credits deducted");
       }
@@ -468,14 +516,14 @@ serve(async (req) => {
         });
       }
 
-      if (trialResult && !trialResult.success) {
-        console.log("[export-csv] Trial export denied by DB:", trialResult.error);
+      if (trialResult?.success !== true) {
+        console.log("[export-csv] Trial export denied by DB:", trialResult?.error);
         return new Response(
           JSON.stringify({
             error: "Trial export limit reached",
             code: "TRIAL_EXPORT_LIMIT_EXCEEDED",
-            message: trialResult.error || "Trial export limit exceeded",
-            remaining: trialResult.remaining || 0,
+            message: trialResult?.error || "Trial export authorization was not confirmed",
+            remaining: trialResult?.remaining || 0,
           }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
@@ -507,17 +555,17 @@ serve(async (req) => {
         );
       }
 
-      if (usageResult && usageResult.allowed === false) {
+      if (usageResult?.allowed !== true) {
         console.log("[export-csv] User hit export limit:", user.id, "tried to export:", exportCount);
         return new Response(
           JSON.stringify({
             error: "Credit limit reached",
             code: "EXPORT_LIMIT_EXCEEDED",
             message:
-              usageResult.message ||
+              usageResult?.message ||
               `Cannot export ${exportCount} properties. You have reached your monthly credit limit. Please upgrade your plan to continue.`,
             requested: exportCount,
-            remaining: usageResult.remaining || 0,
+            remaining: usageResult?.remaining || 0,
           }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );

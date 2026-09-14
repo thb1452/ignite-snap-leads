@@ -5847,6 +5847,10 @@ export type Database = {
         Args: { p_job_id: string; p_property_ids: string[]; p_reason: string }
         Returns: Json
       }
+      fn_require_rpc_reader_v1: {
+        Args: { p_admin_only: boolean }
+        Returns: undefined
+      }
       fn_reserve_export_v1: {
         Args: {
           p_enforce_code_violation_only?: boolean

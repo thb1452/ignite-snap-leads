@@ -13,6 +13,8 @@ const object = (v: unknown): v is JsonObject => v !== null && typeof v === 'obje
 const id = (v: unknown): v is string => typeof v === 'string' && UUID.test(v);
 const hash = (v: unknown): v is string => typeof v === 'string' && SHA256.test(v);
 const text = (v: unknown): v is string => typeof v === 'string';
+const nullableText = (v: unknown): v is string | null => v === null || text(v);
+const optionalText = (v: unknown): v is string | null | undefined => v === undefined || nullableText(v);
 
 export function normalizeSourceExportRequest(input: Record<string, unknown>): SourceExportRequest {
   if (Object.keys(input).length !== 2 || input.format !== SOURCE_EXPORT_FORMAT || !id(input.acceptanceId)) {
@@ -68,18 +70,21 @@ export async function validateSourceExportReceipt(data: unknown, requestId: stri
           !id(e.delivery_id) || !id(e.processing_run_id) || !hash(e.original_sha256) || !hash(e.canonical_sha256) ||
           !text(e.source_original_text) || !object(e.source_fields) || !Array.isArray(e.original_review_reasons) ||
           !e.original_review_reasons.every(text) || !Array.isArray(e.review_resolutions) ||
-          !text(e.case_opened_date) || e.violation_opened_date !== null || !text(e.case_opened_date_meaning) ||
-          !text(e.violation_date) || !text(e.violation_timestamp_utc) || !text(e.status_as_collected) || !text(e.collected_at)) invalid();
+          !nullableText(e.case_opened_date) || e.violation_opened_date !== null || !text(e.case_opened_date_meaning) ||
+          !nullableText(e.violation_date) || !nullableText(e.violation_timestamp_utc) || !nullableText(e.status_as_collected) || !text(e.collected_at)) invalid();
       events.add(e.record_key);
       const s = e.source_fields;
       if (s.record_key !== e.record_key || s.original_sha256 !== e.original_sha256 || s.canonical_sha256 !== e.canonical_sha256 ||
           s.delivery_id !== e.delivery_id || s.processing_run_id !== e.processing_run_id ||
           s.source_parcel_reference !== parcel.source_parcel_reference || s.source_original_json !== e.source_original_text ||
-          s.opened_date !== e.case_opened_date || s.violation_date !== e.violation_date ||
-          s.violation_timestamp_utc !== e.violation_timestamp_utc || s.source_status !== e.status_as_collected ||
+          !optionalText(s.opened_date) || !optionalText(s.violation_date) ||
+          !optionalText(s.violation_timestamp_utc) || !optionalText(s.source_status) ||
+          (s.opened_date ?? null) !== e.case_opened_date || (s.violation_date ?? null) !== e.violation_date ||
+          (s.violation_timestamp_utc ?? null) !== e.violation_timestamp_utc || (s.source_status ?? null) !== e.status_as_collected ||
           s.code_collected_at !== e.collected_at ||
-          ![s.case_id, s.published_violation_number, s.source_numeric_violation_id, s.source_object_id, s.original_description,
-            s.code_source_url, s.source_attribution, s.source_notice, s.terms_url].every(text) ||
+          ![s.original_description, s.source_attribution, s.source_notice].every(optionalText) ||
+          ![s.case_id, s.published_violation_number, s.source_numeric_violation_id, s.source_object_id,
+            s.code_source_url, s.terms_url].every(text) ||
           await sourceExportHash(e.source_original_text) !== e.original_sha256) invalid();
     }
   }

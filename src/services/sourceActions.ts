@@ -10,13 +10,28 @@ export type SourceActionRpc = {
 };
 export class SourceActionAccessError extends Error {}
 export class SourceActionRejectedError extends Error {}
+// Each network stage has its own deadline; a complete bounded history may take
+// longer. Abort races prevent late Auth responses from continuing into an RPC.
+export async function boundedSourceRequest<T>(signal:AbortSignal,run:(requestSignal:AbortSignal)=>PromiseLike<T>):Promise<T> {
+  const controller=new AbortController();let timer:ReturnType<typeof setTimeout>|undefined;
+  let interrupted:()=>void=()=>{};
+  try{return await new Promise<T>((resolve,reject)=>{
+    interrupted=()=>{controller.abort();reject(new Error('The action check was interrupted. Any saved decision remains available for reconciliation.'));};
+    signal.addEventListener('abort',interrupted,{once:true});
+    if(signal.aborted){interrupted();return;}
+    timer=setTimeout(()=>{controller.abort();reject(new Error('This request timed out. Refresh or reconcile the same saved decision before continuing.'));},15000);
+    Promise.resolve().then(()=>{if(controller.signal.aborted)throw new Error('The action check was interrupted.');return run(controller.signal);})
+      .then(value=>{if(controller.signal.aborted)throw new Error('The action check was interrupted.');resolve(value);},reject).catch(reject);
+  });}finally{if(timer!==undefined)clearTimeout(timer);signal.removeEventListener('abort',interrupted);}
+}
 export async function sourceRpc(client: SourceActionRpc, actor: string, name: string, args: Record<string, unknown>, signal: AbortSignal) {
   if (!ID.test(actor)) throw new SourceActionAccessError('Sign in with the owner account assigned to this batch.');
-  const auth = await client.auth.getUser();
+  const auth = await boundedSourceRequest(signal,()=>client.auth.getUser());
   if (signal.aborted) throw new Error('The action check was interrupted.');
   if (auth.error || auth.data?.user?.id !== actor) throw new SourceActionAccessError('Your account changed or owner access could not be verified.');
-  const result = await client.rpc(name, args).abortSignal(signal);
+  const result = await boundedSourceRequest(signal,requestSignal=>client.rpc(name, args).abortSignal(requestSignal));
   if (result.error?.code === '42501' || result.error?.code === 'PGRST301') throw new SourceActionAccessError('This account cannot perform that action on these records.');
+  if (result.error?.code === '40001') throw new SourceActionRejectedError('The source history changed. Refresh to load every history page before continuing.');
   if (result.error?.code === '22023') throw new SourceActionRejectedError('The evidence or saved action no longer matches. Refresh and review the saved decision before continuing.');
   if (result.error?.code === 'P0001') throw new SourceActionRejectedError('The server rejected this action. Check the evidence and current account allowance before trying again.');
   if (result.error) throw new Error('The action could not be confirmed. Reconcile the saved attempt before trying another action.');

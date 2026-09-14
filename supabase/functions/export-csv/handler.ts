@@ -1,9 +1,10 @@
 import { normalizeExportRequest, exportRequestFingerprint, MAX_RESERVED_EXPORT_ROWS, UUID } from '../_shared/exportRequest.ts';
+import { normalizeSourceExportRequest, validateSourceExportReceipt, sourceExportCsv, sourceExportHash, SOURCE_EXPORT_FORMAT } from '../_shared/sourceExport.ts';
 export const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, idempotency-key',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Expose-Headers': 'X-Export-Request-Id, X-Export-Property-Count',
+  'Access-Control-Expose-Headers': 'X-Export-Request-Id, X-Export-Property-Count, X-Export-Event-Count, X-Export-Acceptance-Id, X-Export-Format, X-Export-Content-SHA256',
   'Cache-Control': 'no-store',
 };
 function json(status: number, code: string, error: string) {
@@ -50,10 +51,36 @@ export async function handleExport(req: Request, client: any): Promise<Response>
   const rawId = req.headers.get('idempotency-key');
   if (!rawId || !UUID.test(rawId)) return json(400, 'EXPORT_IDENTITY_REQUIRED', 'A saved export request identity is required. Reload the app and retry.');
   const requestId = rawId.toLowerCase();
+  let input;
+  try {
+    input = req.method === 'POST' ? await req.json() : Object.fromEntries(new URL(req.url).searchParams);
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw Error('Invalid export request');
+  } catch { return json(400, 'INVALID_EXPORT', 'Invalid export request'); }
+  if ('format' in input || 'acceptanceId' in input) {
+    let sourceRequest;
+    try {
+      if (req.method !== 'POST') throw Error('Source detail exports require POST.');
+      sourceRequest = normalizeSourceExportRequest(input);
+    } catch { return json(400, 'INVALID_SOURCE_EXPORT', 'Select a supported source export and its reviewed acceptance.'); }
+    try {
+      // The user-scoped RPC repeats admin containment, exact consumer ownership,
+      // current review/mapping and subscription checks on fresh calls and replay.
+      const response = await client.rpc('fn_reserve_source_export_v1', {
+        p_request_id: requestId, p_acceptance_id: sourceRequest.acceptanceId,
+      });
+      if (response.error) return failure(response.error);
+      const receipt = await validateSourceExportReceipt(response.data, requestId, sourceRequest.acceptanceId);
+      const body = sourceExportCsv(receipt);
+      return new Response(body, { headers: { ...headers, 'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="snapignite_source_events_${requestId}.csv"`,
+        'X-Export-Request-Id': requestId, 'X-Export-Property-Count': String(receipt.row_count),
+        'X-Export-Event-Count': String(receipt.event_count), 'X-Export-Acceptance-Id': sourceRequest.acceptanceId,
+        'X-Export-Format': SOURCE_EXPORT_FORMAT, 'X-Export-Content-SHA256': await sourceExportHash(body),
+      } });
+    } catch { return failure(null); }
+  }
   let request;
   try {
-    const input = req.method === 'POST' ? await req.json() : Object.fromEntries(new URL(req.url).searchParams);
-    if (!input || typeof input !== 'object' || Array.isArray(input)) throw Error('Invalid export request');
     if (req.method === 'GET' && input.propertyIds) input.propertyIds = input.propertyIds.split(',');
     request = normalizeExportRequest(input);
   } catch (error) { return json(400, 'INVALID_EXPORT', error instanceof Error ? error.message : 'Invalid export request'); }

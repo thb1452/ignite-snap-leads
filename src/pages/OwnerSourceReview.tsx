@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/integrations/supabase/client';
 import { loadSourceReview, loadSourceReviewBatches, type ReviewRpc, type SourceReviewPage, type SourceReviewBatches } from '@/services/sourceReview';
-import { SourceReviewRecords } from '@/components/source-review/SourceReviewRecords';
+import { OwnerSourceActions } from '@/components/source-review/OwnerSourceActions';
 
 export default function OwnerSourceReview() {
   const {user, loading} = useAuth();
@@ -75,9 +75,11 @@ export default function OwnerSourceReview() {
         </section>}
         {!privacyBlocked && busy && <p role="status" className="rounded-xl border p-5">Checking the collected records…</p>}
         {!privacyBlocked && error && <div role="alert" className="rounded-xl border p-5 space-y-3"><p>{error}</p><button className="rounded-lg border px-4 py-2 text-sm" onClick={() => setRefresh(n => n + 1)}>Try again</button></div>}
-        {visible && <SourceReviewRecords page={visible} offset={offset} busy={busy} onPage={setOffset} onRefresh={() => setRefresh(n => n + 1)} />}
+        {!privacyBlocked && userId && batch && assigned?.batches.some(b=>b.preparation_sha256===batch) && <OwnerSourceActions
+          key={`source-actions:${userId}:${batch}`} actor={userId} preparation={batch} page={visible} offset={offset}
+          recordsBusy={busy} onPage={setOffset} onRefresh={() => setRefresh(n => n + 1)} />}
       </>}
-      <footer className="border-t pt-5 text-sm text-muted-foreground">Owner review · Customer release and export remain pending.</footer>
+      <footer className="border-t pt-5 text-sm text-muted-foreground">Evidence review and account-specific approval are separate. Sending and publication remain held.</footer>
     </div>
   </main>;
 }

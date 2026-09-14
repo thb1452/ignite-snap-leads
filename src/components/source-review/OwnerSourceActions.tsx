@@ -3,7 +3,7 @@ import {supabase} from '@/integrations/supabase/client';
 import {SourceReviewRecords} from './SourceReviewRecords';
 import {loadSourceReview,REVIEW_PAGE_SIZE,type ReviewRpc,type SourceReviewEvent,type SourceReviewPage} from '@/services/sourceReview';
 import {exportSourceDetailCsv} from '@/services/export';
-import {acknowledgeSourceCommand,allowedDispositions,buildResolutions,confirmSourceActionReadback,evidenceFileHash,HASH,ID,readPending,reasonLabels,runSourceCommand,
+import {acknowledgeSourceCommand,allowedDispositions,boundedSourceRequest,buildResolutions,confirmSourceActionReadback,evidenceFileHash,HASH,ID,readPending,reasonLabels,runSourceCommand,
   type Resolution,type SourceActionRpc,type SourceCommand} from '@/services/sourceActions';
 import {loadSourceActionState,loadSourceAcceptanceDetail,lookupSourceConsumer,previewSourceSelection,previewSourceTarget,
   type SourceActionState,type SourceConsumer,type SourcePreview,type SourceTarget} from '@/services/sourceActionState';
@@ -32,6 +32,7 @@ function Evidence({label,value,onChange}:{label:string;value:Proof;onChange:(p:P
 export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,onPage,onRefresh,client=supabase as unknown as SourceActionRpc,
   exportCsv=exportSourceDetailCsv}:{actor:string;preparation:string;page:SourceReviewPage|null;offset:number;recordsBusy:boolean;onPage:(n:number)=>void;onRefresh:()=>void;
   client?:SourceActionRpc;exportCsv?:(id:string)=>Promise<any>}) {
+  const active=useRef<AbortController|null>(null);
   const alive=useRef(true),[loadedState,setState]=useState<SourceActionState|null>(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState('');
   const state=loadedState?.actor_user_id===actor&&loadedState.preparation_sha256===preparation?loadedState:null;
   const [selected,setSelected]=useState<Record<string,SourceReviewEvent>>({}),[preview,setPreview]=useState<SourcePreview|null>(null);
@@ -54,27 +55,29 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
   function selectionChanged(next:Record<string,SourceReviewEvent>){setSelected(next);setPreview(null);setSourceId('');setResolutions({});setApplyReasons(false);setAcceptConfirmed(false);}
   async function refresh(signal:AbortSignal){
     const next=await loadSourceActionState(client,actor,preparation,signal);
-    if(alive.current)setState(next);return next;
+    if(alive.current&&!signal.aborted)setState(next);return next;
   }
   async function task(label:string,fn:(signal:AbortSignal)=>Promise<void>){
-    if(busy)return;setBusy(label);setError('');setMessage('');const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),60000);
-    try{await fn(controller.signal);}catch(e){if(alive.current){setError(e instanceof Error?e.message:'This step could not be confirmed.');setState(null);}}
-    finally{clearTimeout(timer);if(alive.current){setBusy('');try{setPending(readPending(localStorage,actor,preparation));}catch(e){setError(e instanceof Error?e.message:'Saved action unavailable.');}}}
+    if(active.current)return;setBusy(label);setError('');setMessage('');const controller=new AbortController();active.current=controller;
+    const current=()=>alive.current&&active.current===controller;
+    try{await fn(controller.signal);}catch(e){if(current()){setError(e instanceof Error?e.message:'This step could not be confirmed.');setState(null);}}
+    finally{if(current()){active.current=null;setBusy('');try{setPending(readPending(localStorage,actor,preparation));}catch(e){setError(e instanceof Error?e.message:'Saved action unavailable.');}}}
   }
-  useEffect(()=>{alive.current=true;const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),60000);
+  useEffect(()=>{alive.current=true;const controller=new AbortController();active.current=controller;
+    const current=()=>alive.current&&active.current===controller;
     setState(null);setError('');setBusy('Checking owner action access');
-    if(!actor||!preparation){setBusy('');return()=>{alive.current=false;clearTimeout(timer);controller.abort();};}
+    if(!actor||!preparation){active.current=null;setBusy('');return()=>{alive.current=false;active.current?.abort();active.current=null;};}
     Promise.resolve().then(()=>{setPending(readPending(localStorage,actor,preparation));return refresh(controller.signal);})
-      .catch(e=>{if(alive.current)setError(e instanceof Error?e.message:'Owner access could not be checked.');})
-      .finally(()=>{clearTimeout(timer);if(alive.current)setBusy('');});
-    return()=>{alive.current=false;clearTimeout(timer);controller.abort();};
+      .catch(e=>{if(current())setError(e instanceof Error?e.message:'Owner access could not be checked.');})
+      .finally(()=>{if(current()){active.current=null;setBusy('');}});
+    return()=>{alive.current=false;active.current?.abort();active.current=null;};
   },[actor,preparation]);
   async function commit(command:SourceCommand){
     await task('Saving and checking the decision',async signal=>{
       const receipt=await runSourceCommand(client,actor,preparation,command,localStorage,navigator.locks,signal);
       const history=await refresh(signal);confirmSourceActionReadback(command,receipt.result,history);
       await acknowledgeSourceCommand(localStorage,navigator.locks,actor,preparation,receipt.commandId);
-      if(alive.current){setMessage('Saved decision confirmed in the server history.');setDetail(null);setAcceptConfirmed(false);setMappingConfirmed(false);setRevokeConfirmed(false);}
+      if(alive.current&&!signal.aborted){setMessage('Saved decision confirmed in the server history.');setDetail(null);setAcceptConfirmed(false);setMappingConfirmed(false);setRevokeConfirmed(false);}
     });
   }
   function mapCommand():SourceCommand {
@@ -94,7 +97,7 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
       selectedKeys={keys} onSelect={e=>selectionChanged(selected[e.record_key]?Object.fromEntries(Object.entries(selected).filter(([k])=>k!==e.record_key)):{...selected,[e.record_key]:e})}/>}
     <section className="rounded-xl border bg-card p-5 space-y-4" aria-label="Owner source decisions">
       <div><h2 className="text-xl font-semibold">Source decisions</h2><p className="mt-2 text-sm text-muted-foreground">Reviewing evidence, mapping a property and approving one account are separate recorded decisions. Original intake stays unchanged. Sending, tracing, SMS and public release remain held.</p></div>
-      {busy&&<p role="status">{busy}…</p>}{error&&<p role="alert" className="rounded-lg border p-3">{error}</p>}{message&&<p role="status">{message}</p>}
+      {busy&&<div className="space-y-2"><p role="status">{busy}…</p><button className={button} onClick={()=>active.current?.abort()}>Stop waiting</button><p className="text-xs text-muted-foreground">A saved decision remains available for reconciliation if its result is uncertain.</p></div>}{error&&<p role="alert" className="rounded-lg border p-3">{error}</p>}{message&&<p role="status">{message}</p>}
       <button className={button} disabled={!!busy} onClick={()=>void task('Refreshing owner history',async s=>{await refresh(s);})}>Refresh owner history</button>
       {!state&&!busy&&<p className="text-sm">Actions stay unavailable until current owner access and server history are confirmed.</p>}
       {pending&&<div className="rounded-lg border border-amber-400 p-4 space-y-3"><p>A saved {pending.command.kind} action needs reconciliation before another action.</p>
@@ -107,12 +110,12 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
           <div className="flex flex-wrap gap-2"><button className={button} disabled={!ready||!visiblePage} onClick={()=>selectionChanged({...selected,...Object.fromEntries(visiblePage!.events.map(e=>[e.record_key,e]))})}>Select displayed records</button>
             <button className={button} disabled={!ready||!visiblePage} onClick={()=>void task('Loading this batch for selection',async signal=>{
               const all:Record<string,SourceReviewEvent>={};let next:number|null=0;
-              while(next!==null){const p=await loadSourceReview(client as unknown as ReviewRpc,preparation,next,signal);for(const e of p.events)all[e.record_key]=e;next=p.next_offset;if(Object.keys(all).length>2000)throw new Error('This selection exceeds the review limit.');}
-              if(alive.current)selectionChanged(all);
+              while(next!==null){const p=await boundedSourceRequest(signal,requestSignal=>loadSourceReview(client as unknown as ReviewRpc,preparation,next!,requestSignal));for(const e of p.events)all[e.record_key]=e;next=p.next_offset;if(Object.keys(all).length>2000)throw new Error('This selection exceeds the review limit.');}
+              if(alive.current&&!signal.aborted)selectionChanged(all);
             })}>Select all records in this batch</button>
             <button className={button} disabled={!!busy} onClick={()=>selectionChanged({})}>Clear selection</button>
             <button className={button} disabled={!ready||!keys.length} onClick={()=>void task('Checking selected evidence',async signal=>{
-              const p=await previewSourceSelection(client,actor,preparation,keys,signal);if(alive.current){setPreview(p);setMessage('Selection checked. This has not approved customer access.');}
+              const p=await previewSourceSelection(client,actor,preparation,keys,signal);if(alive.current&&!signal.aborted){setPreview(p);setMessage('Selection checked. This has not approved customer access.');}
             })}>Check selected evidence</button></div>
           {preview&&<p className="text-sm">The server matched {preview.items.length} original records and {sourceIds.length} dated parcel identities.</p>}
         </div>
@@ -127,7 +130,7 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
           <label className="block text-sm">Source parcel<select className={field} value={sourceId} onChange={e=>{setSourceId(e.target.value);setMappingConfirmed(false);}}><option value="">Choose a checked parcel</option>{sourceIds.map(id=><option key={id} value={id}>{records.find(e=>e.property.property_id===id)?.property.address} · {preview?.items.find(i=>i.source_property_id===id)?.source_parcel_reference}</option>)}</select></label>
           <label className="block text-sm">Connection<select className={field} value={mappingMode} onChange={e=>{setMappingMode(e.target.value);setTarget(null);setMappingConfirmed(false);}}><option value="">Choose explicitly</option><option value="create_source_identity">Create a private source property record</option><option value="reuse_existing">Use a reviewed existing customer property</option></select></label>
           {mappingMode==='reuse_existing'&&<><label className="block text-sm">Existing property reference<input className={field} value={targetId} onChange={e=>{setTargetId(e.target.value.trim().toLowerCase());setTarget(null);setMappingConfirmed(false);}}/></label>
-            <button className={button} disabled={!ready||!ID.test(targetId)} onClick={()=>void task('Checking existing property',async signal=>{const p=await previewSourceTarget(client,actor,preparation,targetId,signal);if(alive.current)setTarget(p);})}>Check existing property</button>
+            <button className={button} disabled={!ready||!ID.test(targetId)} onClick={()=>void task('Checking existing property',async signal=>{const p=await previewSourceTarget(client,actor,preparation,targetId,signal);if(alive.current&&!signal.aborted)setTarget(p);})}>Check existing property</button>
             {target&&<p className="text-sm">{target.address}, {target.city}, {target.state} {target.zip} · {target.supported_scope?'Supported source scope':'Unsupported scope; mapping held'}{target.already_mapped?' · An existing source mapping needs review':''}</p>}</>}
           <Evidence label="Property match" value={mappingProof} onChange={setMappingProof}/>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={mappingConfirmed} onChange={e=>setMappingConfirmed(e.target.checked)}/>I checked this exact parcel and the selected customer-property connection.</label>
@@ -137,7 +140,7 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
           <p className="text-sm">{currentReview?'Current evidence review is recorded.':'Record a reviewed outcome for this exact checked selection first.'} {mappings.length===sourceIds.length&&sourceIds.length?'All selected parcel mappings are current.':'Complete the selected parcel mappings before approval.'}</p>
           <label className="block text-sm">Existing account reference<input className={field} value={consumerId} onChange={e=>{setConsumerId(e.target.value.trim().toLowerCase());setConsumer(null);setAcceptConfirmed(false);}}/></label>
           <div className="flex gap-2"><button className={button} disabled={!ready} onClick={()=>{setConsumerId(actor);setConsumer(null);setAcceptConfirmed(false);}}>Use my signed-in account</button>
-            <button className={button} disabled={!ready||!ID.test(consumerId)} onClick={()=>void task('Checking exact account',async signal=>{const c=await lookupSourceConsumer(client,actor,preparation,consumerId,signal);if(alive.current){setConsumer(c);setStage('');}})}>Verify account and CRM stages</button></div>
+            <button className={button} disabled={!ready||!ID.test(consumerId)} onClick={()=>void task('Checking exact account',async signal=>{const c=await lookupSourceConsumer(client,actor,preparation,consumerId,signal);if(alive.current&&!signal.aborted){setConsumer(c);setStage('');}})}>Verify account and CRM stages</button></div>
           {consumer&&<p className="text-sm">Verified account: {consumer.label}{consumer.email?' ('+consumer.email+')':''} · {consumer.subscription.mode==='payg'?'Available credits will be checked at export':consumer.subscription.current?'Subscription dates are current; remaining allowance is checked at export':'Current subscription dates are unverified; export remains held'}{consumer.customer_access_held?' · Ordinary customer access remains held':''}</p>}
           <label className="block text-sm">Approve for<select className={field} value={purpose} onChange={e=>{setPurpose(e.target.value);setAcceptConfirmed(false);}}><option value="">Choose one purpose</option><option value="customer_export">Private source-detail export</option><option value="crm">Internal CRM handoff</option></select></label>
           <label className="block text-sm">Approval expires<input className={field} type="datetime-local" value={expires} onChange={e=>{setExpires(e.target.value);setAcceptConfirmed(false);}}/></label>
@@ -155,8 +158,8 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
           {!state.acceptances.length&&<p className="text-sm">No account approvals have been recorded for this batch.</p>}
           {state.acceptances.map(a=><article className="rounded-lg border p-3 space-y-2" key={a.id}><p className="font-medium">{a.consumer_label} · {a.purpose==='crm'?'CRM':'Private export'} · {a.record_keys.length} source records</p>
             <p className="text-sm">{a.current?'Current':'Unavailable: '+(a.unavailable_reason||'Review required')} · Expires {time(a.valid_until)}</p>
-            <button className={button} disabled={!!busy} onClick={()=>void task('Loading saved approval evidence',async signal=>{const d=await loadSourceAcceptanceDetail(client,actor,preparation,a.id,signal);if(alive.current){setActiveAcceptance(a.id);setDetail(d);setCrmSource('');setStage('');}})}>View saved evidence</button>
-            {a.purpose==='customer_export'&&<button className={button} disabled={!ready||!a.current||a.consumer_user_id!==actor} onClick={()=>void task('Downloading private source details',async()=>{const r=await exportCsv(a.id);if(alive.current)setMessage(`${r.eventCount} dated source records downloaded across ${r.propertyCount} properties.`);})}>Download source details</button>}
+            <button className={button} disabled={!!busy} onClick={()=>void task('Loading saved approval evidence',async signal=>{const d=await loadSourceAcceptanceDetail(client,actor,preparation,a.id,signal);if(alive.current&&!signal.aborted){setActiveAcceptance(a.id);setDetail(d);setCrmSource('');setStage('');}})}>View saved evidence</button>
+            {a.purpose==='customer_export'&&<button className={button} disabled={!ready||!a.current||a.consumer_user_id!==actor} onClick={()=>void task('Downloading private source details',async signal=>{const r=await exportCsv(a.id);if(alive.current&&!signal.aborted)setMessage(`${r.eventCount} dated source records downloaded across ${r.propertyCount} properties.`);})}>Download source details</button>}
             {a.consumer_user_id!==actor&&<p className="text-xs text-muted-foreground">Only the approved account can export or create its CRM handoff.</p>}
           </article>)}
           {detail&&acceptance&&<div className="rounded-lg bg-muted/40 p-4 space-y-3"><h4 className="font-medium">Saved approval evidence</h4><p className="text-sm">Approval {acceptance.id} · Original review {acceptance.review_event_id}</p>

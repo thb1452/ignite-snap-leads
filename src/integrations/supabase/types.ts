@@ -1393,29 +1393,50 @@ export type Database = {
       }
       export_logs: {
         Row: {
+          authorized_property_ids: string[] | null
           city_filter: string | null
           created_at: string
+          entitlement_receipt: Json | null
           filters: Json | null
           id: string
+          receipt_payload: Json | null
+          request_sha256: string | null
+          reservation_key: string | null
+          reservation_version: string | null
           row_count: number
+          selection_sha256: string | null
           state_filter: string | null
           user_id: string
         }
         Insert: {
+          authorized_property_ids?: string[] | null
           city_filter?: string | null
           created_at?: string
+          entitlement_receipt?: Json | null
           filters?: Json | null
           id?: string
+          receipt_payload?: Json | null
+          request_sha256?: string | null
+          reservation_key?: string | null
+          reservation_version?: string | null
           row_count?: number
+          selection_sha256?: string | null
           state_filter?: string | null
           user_id: string
         }
         Update: {
+          authorized_property_ids?: string[] | null
           city_filter?: string | null
           created_at?: string
+          entitlement_receipt?: Json | null
           filters?: Json | null
           id?: string
+          receipt_payload?: Json | null
+          request_sha256?: string | null
+          reservation_key?: string | null
+          reservation_version?: string | null
           row_count?: number
+          selection_sha256?: string | null
           state_filter?: string | null
           user_id?: string
         }
@@ -5824,6 +5845,15 @@ export type Database = {
       fn_record_view: { Args: { p_user_id: string }; Returns: Json }
       fn_refund_credits: {
         Args: { p_job_id: string; p_property_ids: string[]; p_reason: string }
+        Returns: Json
+      }
+      fn_reserve_export_v1: {
+        Args: {
+          p_enforce_code_violation_only?: boolean
+          p_property_ids?: string[]
+          p_request_fingerprint: string
+          p_request_id: string
+        }
         Returns: Json
       }
       fn_start_trial: {

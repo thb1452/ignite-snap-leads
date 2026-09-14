@@ -1,6 +1,6 @@
 import { supabase, supabaseUrl } from "@/integrations/supabase/externalClient";
 import { queryClient } from "@/lib/query";
-import { logExportEvent } from "./exportLog";
+import { normalizeExportRequest, exportRequestFingerprint, getOrCreateExportAttempt, completeExportAttempt } from "../../supabase/functions/_shared/exportRequest.ts";
 
 interface ExportParams {
   city?: string;
@@ -86,6 +86,14 @@ export async function exportFilteredCsv(params: ExportParams) {
     throw new Error("Please sign in to export data");
   }
 
+  const userId = data.session?.user.id;
+  if (!userId) throw new Error("Please sign in to export data");
+  if (!navigator.locks) throw new Error("This browser cannot safely save export attempts across tabs. Export remains held.");
+  const requestFingerprint = await exportRequestFingerprint(normalizeExportRequest(params as unknown as Record<string, unknown>));
+  const lockName = `snap-export-attempt-v1:${userId}:${requestFingerprint}`;
+  const attempt = await navigator.locks.request(lockName, () =>
+    getOrCreateExportAttempt(localStorage, userId, requestFingerprint));
+
   const baseUrl = `${supabaseUrl}/functions/v1/export-csv`;
 
   // Use POST for large exports (many propertyIds), GET for small/filter-based exports
@@ -112,6 +120,7 @@ export async function exportFilteredCsv(params: ExportParams) {
           Accept: 'text/csv',
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Idempotency-Key': attempt.requestId,
         },
         body: JSON.stringify({
           city: params.city,
@@ -137,13 +146,14 @@ export async function exportFilteredCsv(params: ExportParams) {
         headers: {
           Accept: 'text/csv',
           Authorization: `Bearer ${token}`,
+          'Idempotency-Key': attempt.requestId,
         },
       });
     }
   } catch (e: unknown) {
     const name = e instanceof Error ? e.name : '';
     if (name === 'AbortError') {
-      throw new Error('Export timed out. Try a smaller selection or retry.');
+      throw new Error('Export timed out. Retry the same selection to recover this saved attempt without a second charge.');
     }
     throw e;
   }
@@ -190,6 +200,12 @@ export async function exportFilteredCsv(params: ExportParams) {
     throw new Error(detail ? `Export failed: ${detail}` : "Export failed");
   }
 
+  const confirmedCount = Number(response.headers.get('X-Export-Property-Count'));
+  if (response.headers.get('X-Export-Request-Id') !== attempt.requestId ||
+      !Number.isInteger(confirmedCount) || confirmedCount < 1 ||
+      !response.headers.get('Content-Type')?.startsWith('text/csv')) {
+    throw new Error('Export receipt could not be confirmed. Retry the same selection to reconcile the saved attempt.');
+  }
   const csv = await response.text();
 
   // Server updated usage; refresh cached subscription/trial/credits so Settings counters update without a full reload.
@@ -217,12 +233,10 @@ export async function exportFilteredCsv(params: ExportParams) {
     link.remove();
   }, 1000);
 
-  // Fire-and-forget: log export event for admin dashboard
-  const rowCount = params.expectedPropertyCount || params.propertyIds?.length || 0;
-  logExportEvent({
-    rowCount,
-    stateFilter: params.stateFilter,
-    cityFilter: params.cityFilter || params.city,
-    filters: params.filters,
-  });
+  // The server writes the export log in the same transaction as its usage.
+  try {
+    await navigator.locks.request(lockName, () => completeExportAttempt(localStorage, attempt.key, attempt.requestId));
+  } catch (error) {
+    console.warn('Export completed; saved receipt retained for safe reconciliation.', error);
+  }
 }

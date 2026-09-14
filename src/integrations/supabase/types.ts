@@ -5813,6 +5813,16 @@ export type Database = {
         Args: { p_acceptance_id: string; p_preparation: string }
         Returns: Json
       }
+      fn_owner_source_action_page_v1: {
+        Args: {
+          p_after?: Json
+          p_kind: string
+          p_limit?: number
+          p_preparation: string
+          p_revision?: string
+        }
+        Returns: Json
+      }
       fn_owner_source_action_state_v1: {
         Args: { p_preparation: string }
         Returns: Json

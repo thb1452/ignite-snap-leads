@@ -1,4 +1,4 @@
-import type { SourceReviewPage } from '@/services/sourceReview';
+import type { SourceReviewPage, SourceReviewEvent } from '@/services/sourceReview';
 import { sourceLink } from '@/services/sourceReview';
 
 const holdLabels: Record<string, string> = {
@@ -17,8 +17,9 @@ function calendar(value: string | null) {
   const date = new Date(value);
   return Number.isNaN(date.valueOf()) ? value : date.toLocaleString('en-US', {timeZone: 'UTC',year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) + ' UTC';
 }
-export function SourceReviewRecords({page, offset, busy, onPage, onRefresh}: {
+export function SourceReviewRecords({page, offset, busy, onPage, onRefresh, selectedKeys=[], onSelect}: {
   page: SourceReviewPage; offset: number; busy: boolean; onPage: (offset: number) => void; onRefresh: () => void;
+  selectedKeys?: string[]; onSelect?: (event: SourceReviewEvent) => void;
 }) {
   const url = sourceLink(page.batch.source_url);
   return <div className="space-y-6">
@@ -29,7 +30,7 @@ export function SourceReviewRecords({page, offset, busy, onPage, onRefresh}: {
     </div>
     <section className="rounded-xl border bg-card p-5 space-y-2">
       <h2 className="font-semibold">{page.batch.source_name}</h2>
-      <p className="text-sm text-muted-foreground">These records are awaiting release review. Each violation remains separate, including violations that share a case or property.</p>
+      <p className="text-sm text-muted-foreground">Original intake records stay preserved. Later reviews and account approvals are recorded separately below. Each violation remains separate, including violations that share a case or property.</p>
       {url && <a className="text-sm underline underline-offset-4" href={url} target="_blank" rel="noreferrer">View the government source</a>}
       {page.batch.limitations.length > 0 && <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">{page.batch.limitations.map((item,i) => <li key={i}>{item}</li>)}</ul>}
     </section>
@@ -38,6 +39,8 @@ export function SourceReviewRecords({page, offset, busy, onPage, onRefresh}: {
       <button className="rounded-lg border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50" disabled={busy} onClick={onRefresh}>Refresh records</button>
     </div>
     <div className="space-y-3">{page.events.map(event => <article key={event.record_key} className="rounded-xl border bg-card p-5">
+      {onSelect && <label className="mb-3 flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy}
+        checked={selectedKeys.includes(event.record_key)} onChange={()=>onSelect(event)}/>Select this source record for a separate decision</label>}
       <div className="flex flex-wrap justify-between gap-3">
         <div><h3 className="font-semibold">{event.property.address}</h3><p className="text-sm text-muted-foreground">{event.property.city}, {event.property.state} {event.property.zip}</p></div>
         <div className="text-sm sm:text-right"><p>{event.source_status || 'Status not supplied'}</p><p className="text-muted-foreground">Violation date: {calendar(event.violation_date)}</p></div>

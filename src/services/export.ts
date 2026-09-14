@@ -1,6 +1,7 @@
 import { supabase, supabaseUrl } from "@/integrations/supabase/externalClient";
 import { queryClient } from "@/lib/query";
 import { normalizeExportRequest, exportRequestFingerprint, getOrCreateExportAttempt, completeExportAttempt } from "../../supabase/functions/_shared/exportRequest.ts";
+import { requestSourceDetailCsv, SOURCE_EXPORT_FORMAT } from "../../supabase/functions/_shared/sourceExport.ts";
 
 interface ExportParams {
   city?: string;
@@ -239,4 +240,41 @@ export async function exportFilteredCsv(params: ExportParams) {
   } catch (error) {
     console.warn('Export completed; saved receipt retained for safe reconciliation.', error);
   }
+}
+
+/** Download one previously accepted private source selection. This does not approve records. */
+export async function exportSourceDetailCsv(acceptanceId: string) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const userId = data.session?.user.id;
+  if (!token || !userId) throw new Error("Please sign in to export data");
+  const result = await requestSourceDetailCsv({ format: SOURCE_EXPORT_FORMAT, acceptanceId }, {
+    userId, token, endpoint: `${supabaseUrl}/functions/v1/export-csv`, storage: localStorage, locks: navigator.locks,
+    fetch: (url, init) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 120_000);
+      return fetch(url, { ...init, signal: controller.signal }).catch((error: unknown) => {
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new Error('Export timed out. Retry this reviewed selection to recover its saved receipt without a second charge.');
+        }
+        throw error;
+      }).finally(() => clearTimeout(timer));
+    },
+  });
+  const current = await supabase.auth.getSession();
+  if (current.data.session?.user.id !== userId) throw new Error('Account changed. Sign back in to retrieve the saved source export.');
+  for (const queryKey of [["subscription-usage"], ["trial-status"], ["credits"], ["free-unlocks"], ["user", "credits"]]) {
+    void queryClient.invalidateQueries({ queryKey });
+  }
+  void queryClient.refetchQueries({ queryKey: ["unlocked-properties"] });
+  const link = document.createElement('a');
+  const blobUrl = URL.createObjectURL(new Blob([result.csv], { type: 'text/csv;charset=utf-8' }));
+  link.href = blobUrl;
+  link.download = `snapignite_source_events_${result.requestId}.csv`;
+  document.body.appendChild(link);
+  try { link.click(); } finally {
+    setTimeout(() => { URL.revokeObjectURL(blobUrl); link.remove(); }, 1000);
+  }
+  return { requestId: result.requestId, acceptanceId: result.acceptanceId,
+    propertyCount: result.propertyCount, eventCount: result.eventCount };
 }

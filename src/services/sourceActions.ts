@@ -17,6 +17,7 @@ export async function sourceRpc(client: SourceActionRpc, actor: string, name: st
   if (auth.error || auth.data?.user?.id !== actor) throw new SourceActionAccessError('Your account changed or owner access could not be verified.');
   const result = await client.rpc(name, args).abortSignal(signal);
   if (result.error?.code === '42501' || result.error?.code === 'PGRST301') throw new SourceActionAccessError('This account cannot perform that action on these records.');
+  if (result.error?.code === '40001') throw new SourceActionRejectedError('The source history changed. Refresh to load every history page before continuing.');
   if (result.error?.code === '22023') throw new SourceActionRejectedError('The evidence or saved action no longer matches. Refresh and review the saved decision before continuing.');
   if (result.error?.code === 'P0001') throw new SourceActionRejectedError('The server rejected this action. Check the evidence and current account allowance before trying again.');
   if (result.error) throw new Error('The action could not be confirmed. Reconcile the saved attempt before trying another action.');

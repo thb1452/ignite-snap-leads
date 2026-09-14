@@ -57,11 +57,11 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
     if(alive.current)setState(next);return next;
   }
   async function task(label:string,fn:(signal:AbortSignal)=>Promise<void>){
-    if(busy)return;setBusy(label);setError('');setMessage('');const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),25000);
+    if(busy)return;setBusy(label);setError('');setMessage('');const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),60000);
     try{await fn(controller.signal);}catch(e){if(alive.current){setError(e instanceof Error?e.message:'This step could not be confirmed.');setState(null);}}
     finally{clearTimeout(timer);if(alive.current){setBusy('');try{setPending(readPending(localStorage,actor,preparation));}catch(e){setError(e instanceof Error?e.message:'Saved action unavailable.');}}}
   }
-  useEffect(()=>{alive.current=true;const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),25000);
+  useEffect(()=>{alive.current=true;const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),60000);
     setState(null);setError('');setBusy('Checking owner action access');
     if(!actor||!preparation){setBusy('');return()=>{alive.current=false;clearTimeout(timer);controller.abort();};}
     Promise.resolve().then(()=>{setPending(readPending(localStorage,actor,preparation));return refresh(controller.signal);})
@@ -100,7 +100,7 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
       {pending&&<div className="rounded-lg border border-amber-400 p-4 space-y-3"><p>A saved {pending.command.kind} action needs reconciliation before another action.</p>
         <p className="text-xs break-all">Saved action reference: {pending.commandId}</p>
         <button className={button} disabled={!!busy||!state?.can_administer} onClick={()=>void commit(pending.command)}>Reconcile saved action</button></div>}
-      {state&&!state.complete&&<p role="alert">The server returned only part of this batch’s decision history. New actions stay held until the complete history can be checked.</p>}
+      {state&&!state.complete&&<p role="alert">The complete decision history could not be checked. Refresh to load every history page before taking another action.</p>}
       {state&&<>
         <p className="text-xs text-muted-foreground">Owner access confirmed · History checked {time(state.checked_at)}</p>
         <div className="rounded-lg bg-muted/40 p-4 space-y-3"><p>{records.length} source records selected across {new Set(records.map(e=>e.property.property_id)).size} parcels.</p>

@@ -27,9 +27,51 @@ export function parseSourceActionState(value:any,actor:string,preparation:string
   for(const a of value.acceptances)if(!uuid(a.review_event_id)||!uuid(a.consumer_user_id)||!uuid(a.consumer_org_id)||!Array.isArray(a.mapping_ids)||!a.mapping_ids.every(uuid)||!Array.isArray(a.record_keys)||!a.record_keys.every(digest)||typeof a.current!=='boolean'||!['customer_export','crm'].includes(a.purpose))throw new Error('Consumer decisions could not be checked.');
   return value;
 }
-export async function loadSourceActionState(client:SourceActionRpc,actor:string,preparation:string,signal:AbortSignal) {
+export const SOURCE_STATE_KINDS=['reviews','mappings','acceptances','revocations','crm_links'] as const;
+type StateKind=typeof SOURCE_STATE_KINDS[number];
+const MAX_STATE_ROWS=20000,MAX_STATE_BYTES=64*1024*1024,MAX_PAGE_BYTES=1048576;
+type StateCursor={created_at:string;id:string}|null;
+function sameCounts(a:Record<string,number>,b:Record<string,number>){return SOURCE_STATE_KINDS.every(k=>a[k]===b[k]);}
+export function parseSourceStatePage(value:any,actor:string,preparation:string,kind:StateKind,revision:string|null){
+  if(!obj(value)||value.version!=='owner-source-action-page-v1'||value.actor_user_id!==actor||value.preparation_sha256!==preparation||value.can_administer!==true||value.kind!==kind||!digest(value.revision)||revision!==null&&revision!==value.revision||!obj(value.counts)||
+   SOURCE_STATE_KINDS.some(k=>!Number.isSafeInteger(value.counts[k])||value.counts[k]<0)||Object.keys(value.counts).length!==SOURCE_STATE_KINDS.length||typeof value.checked_at!=='string'||!Number.isFinite(Date.parse(value.checked_at))||
+   !Array.isArray(value.rows)||value.rows.length>100||value.rows.some((r:any)=>!obj(r)||!uuid(r.id)||typeof r.created_at!=='string'||!Number.isFinite(Date.parse(r.created_at)))||!unique(value.rows))throw new Error('Source history page could not be verified. Refresh to load the complete history.');
+  const last=value.rows[value.rows.length-1],next=value.next_cursor;
+  if(next!==null&&(!last||!obj(next)||Object.keys(next).sort().join(',')!=='created_at,id'||next.id!==last.id||next.created_at!==last.created_at))throw new Error('Source history cursor could not be verified.');
+  if(SOURCE_STATE_KINDS.reduce((n,k)=>n+value.counts[k],0)>MAX_STATE_ROWS||new TextEncoder().encode(JSON.stringify(value)).length>MAX_PAGE_BYTES)throw new Error('Source history exceeds the supported review size. No partial history was loaded.');
+  return value;
+}
+export async function loadSourceActionState(client:SourceActionRpc,actor:string,preparation:string,signal:AbortSignal):Promise<SourceActionState> {
   if(!HASH.test(preparation))throw new Error('Choose an assigned source batch.');
-  return parseSourceActionState(await sourceRpc(client,actor,'fn_owner_source_action_state_v1',{p_preparation:preparation},signal),actor,preparation);
+  const controller=new AbortController(),abort=()=>controller.abort();signal.addEventListener('abort',abort,{once:true});if(signal.aborted)abort();
+  let totalBytes=0;
+  const page=async(kind:StateKind,after:StateCursor,revision:string|null)=>parseSourceStatePage(await sourceRpc(client,actor,'fn_owner_source_action_page_v1',{
+    p_preparation:preparation,p_kind:kind,p_after:after,p_revision:revision,p_limit:100,
+  },controller.signal),actor,preparation,kind,revision);
+  try{
+    const first=await page('reviews',null,null),all:Record<StateKind,any[]>={reviews:[],mappings:[],acceptances:[],revocations:[],crm_links:[]};
+    const revision=first.revision,counts=first.counts;
+    await Promise.all(SOURCE_STATE_KINDS.map(async kind=>{
+      let cursor:StateCursor=null,initial=true;const seen=new Set<string>(),cursors=new Set<string>();
+      for(;;){
+        const part=kind==='reviews'&&initial?first:await page(kind,cursor,revision);initial=false;
+        if(!sameCounts(part.counts,counts))throw new Error('Source history changed while loading. Refresh before continuing.');
+        totalBytes+=new TextEncoder().encode(JSON.stringify(part)).length;
+        if(totalBytes>MAX_STATE_BYTES)throw new Error('Source history exceeds the supported review size. No partial history was loaded.');
+        for(const row of part.rows){if(seen.has(row.id))throw new Error('Source history repeated a row. Refresh before continuing.');seen.add(row.id);all[kind].push(row);}
+        if(all[kind].length>counts[kind])throw new Error('Source history counts changed while loading.');
+        cursor=part.next_cursor;
+        if(cursor===null){if(all[kind].length!==counts[kind])throw new Error('Source history is missing rows. No partial history was loaded.');break;}
+        const token=JSON.stringify(cursor);if(cursors.has(token)||part.rows.length===0)throw new Error('Source history did not advance.');cursors.add(token);
+      }
+    }));
+    // Recheck the same history revision and current owner authorization once all
+    // categories finish. Current flags remain per-page observations; writes and
+    // exports independently recheck current roles, expiry and source evidence.
+    await page('reviews',null,revision);
+    return parseSourceActionState({version:'owner-source-action-state-v1',preparation_sha256:preparation,actor_user_id:actor,checked_at:first.checked_at,
+      can_administer:true,complete:true,counts,...all},actor,preparation);
+  }catch(error){controller.abort();throw error;}finally{signal.removeEventListener('abort',abort);}
 }
 export async function previewSourceSelection(client:SourceActionRpc,actor:string,preparation:string,keys:string[],signal:AbortSignal):Promise<SourcePreview> {
   if(!keys.length||keys.length>2000||!keys.every(digest)||new Set(keys).size!==keys.length)throw new Error('Select the exact source records to review.');

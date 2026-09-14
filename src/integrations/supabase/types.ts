@@ -5622,6 +5622,13 @@ export type Database = {
           user_id: string
         }[]
       }
+      fn_has_role_client_v1: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       fn_increment_trial_exports: {
         Args: { p_count?: number; p_user_id: string }
         Returns: Json
@@ -5849,6 +5856,10 @@ export type Database = {
       }
       fn_require_rpc_reader_v1: {
         Args: { p_admin_only: boolean }
+        Returns: undefined
+      }
+      fn_require_scoped_rpc_v1: {
+        Args: { p_admin_only: boolean; p_user_id: string }
         Returns: undefined
       }
       fn_reserve_export_v1: {

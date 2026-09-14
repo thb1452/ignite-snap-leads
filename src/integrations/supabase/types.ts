@@ -5430,6 +5430,19 @@ export type Database = {
         Returns: number
       }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      fn_accept_source_selection_v1: {
+        Args: {
+          p_command_id: string
+          p_consumer_user_id: string
+          p_evidence_sha256: string
+          p_mapping_ids: string[]
+          p_purpose: string
+          p_resolutions: Json
+          p_review_id: string
+          p_valid_until: string
+        }
+        Returns: Json
+      }
       fn_add_filtered_to_list: {
         Args: {
           p_city?: string
@@ -5453,6 +5466,20 @@ export type Database = {
       }
       fn_backfill_zips_nearest_neighbor: {
         Args: { p_batch_size?: number; p_city?: string; p_state?: string }
+        Returns: Json
+      }
+      fn_bind_source_property_v1: {
+        Args: {
+          p_command_id: string
+          p_evidence_sha256: string
+          p_existing_property_id: string
+          p_expected_target_sha256: string
+          p_mode: string
+          p_note: string
+          p_preparation: string
+          p_source_evidence_sha256: string
+          p_source_property_id: string
+        }
         Returns: Json
       }
       fn_bulk_insert_properties: {
@@ -5584,6 +5611,10 @@ export type Database = {
         Args: { p_list_id: string; p_page?: number; p_page_size?: number }
         Returns: Json
       }
+      fn_get_source_crm_detail_v1: {
+        Args: { p_lead_id: string }
+        Returns: Json
+      }
       fn_get_trial_status: { Args: { p_user_id: string }; Returns: Json }
       fn_get_unlock_count: { Args: { p_property_id: string }; Returns: number }
       fn_get_user_allowed_states: {
@@ -5622,6 +5653,15 @@ export type Database = {
           user_id: string
         }[]
       }
+      fn_handoff_source_to_crm_v1: {
+        Args: {
+          p_acceptance_id: string
+          p_request_id: string
+          p_source_property_id: string
+          p_stage_id: string
+        }
+        Returns: Json
+      }
       fn_has_role_client_v1: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -5635,6 +5675,10 @@ export type Database = {
       }
       fn_increment_usage: {
         Args: { p_amount?: number; p_usage_type: string; p_user_id?: string }
+        Returns: boolean
+      }
+      fn_is_source_property_v1: {
+        Args: { p_property_id: string }
         Returns: boolean
       }
       fn_job_status: { Args: { p_job_id: string }; Returns: Json }
@@ -5681,6 +5725,10 @@ export type Database = {
           property_count: number
           state: string
         }[]
+      }
+      fn_lookup_source_consumer_v1: {
+        Args: { p_preparation: string; p_user_id: string }
+        Returns: Json
       }
       fn_map_markers: {
         Args: {
@@ -5761,6 +5809,14 @@ export type Database = {
           property_count: number
         }[]
       }
+      fn_owner_source_acceptance_detail_v1: {
+        Args: { p_acceptance_id: string; p_preparation: string }
+        Returns: Json
+      }
+      fn_owner_source_action_state_v1: {
+        Args: { p_preparation: string }
+        Returns: Json
+      }
       fn_owner_source_review_batches_v1: { Args: never; Returns: Json }
       fn_owner_source_review_v1: {
         Args: {
@@ -5768,6 +5824,14 @@ export type Database = {
           p_offset?: number
           p_preparation_sha256: string
         }
+        Returns: Json
+      }
+      fn_preview_source_review_v1: {
+        Args: { p_preparation: string; p_record_keys: string[] }
+        Returns: Json
+      }
+      fn_preview_source_target_v1: {
+        Args: { p_preparation: string; p_property_id: string }
         Returns: Json
       }
       fn_properties_by_bbox:
@@ -5849,6 +5913,18 @@ export type Database = {
           property_id: string
         }[]
       }
+      fn_record_source_review_v1: {
+        Args: {
+          p_command_id: string
+          p_evidence_sha256: string
+          p_expected_selection_sha256: string
+          p_note: string
+          p_outcome: string
+          p_preparation: string
+          p_record_keys: string[]
+        }
+        Returns: Json
+      }
       fn_record_view: { Args: { p_user_id: string }; Returns: Json }
       fn_refund_credits: {
         Args: { p_job_id: string; p_property_ids: string[]; p_reason: string }
@@ -5870,6 +5946,28 @@ export type Database = {
           p_request_id: string
         }
         Returns: Json
+      }
+      fn_reserve_source_export_v1: {
+        Args: { p_acceptance_id: string; p_request_id: string }
+        Returns: Json
+      }
+      fn_revoke_source_decision_v1: {
+        Args: {
+          p_command_id: string
+          p_evidence_sha256: string
+          p_kind: string
+          p_note: string
+          p_target_id: string
+        }
+        Returns: Json
+      }
+      fn_source_lead_visible_v1: {
+        Args: { p_lead_id: string; p_property_id?: string }
+        Returns: boolean
+      }
+      fn_source_property_visible_v1: {
+        Args: { p_property_id: string }
+        Returns: boolean
       }
       fn_start_trial: {
         Args: { p_trial_tier: string; p_user_id: string }

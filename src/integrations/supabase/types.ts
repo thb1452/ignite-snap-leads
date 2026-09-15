@@ -5975,6 +5975,10 @@ export type Database = {
         Args: { p_lead_id: string; p_property_id?: string }
         Returns: boolean
       }
+      fn_source_owner_capabilities_v1: {
+        Args: { p_preparation: string }
+        Returns: Json
+      }
       fn_source_property_visible_v1: {
         Args: { p_property_id: string }
         Returns: boolean

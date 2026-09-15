@@ -23,6 +23,8 @@ import { ArrowLeft, Archive, ExternalLink } from "lucide-react";
 import { EnrollInSequenceButton } from "@/components/crm/EnrollInSequenceButton";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from '@/hooks/use-auth';
+import { SourceCrmDetail } from '@/components/crm/SourceCrmDetail';
 import SEOHead from "@/components/SEOHead";
 
 function usePropertySnapshot(propertyId: string | undefined) {
@@ -51,9 +53,13 @@ function usePropertySnapshot(propertyId: string | undefined) {
 
 export default function CrmLeadDetail() {
   const { id } = useParams<{ id: string }>();
-  const { data: lead, isLoading: leadLoading } = useLead(id);
+  const { user } = useAuth();
+  const { data: loadedLead, isLoading: leadLoading } = useLead(id);
+  // A shared query cache must never surface a prior account's private source lead.
+  const lead = loadedLead?.source === 'checked_source_review' && loadedLead.created_by !== user?.id ? null : loadedLead;
+  const isSourceLead = lead?.source === 'checked_source_review';
   const { data: stages } = usePipelineStages();
-  const { data: property, isLoading: propLoading } = usePropertySnapshot(lead?.property_id);
+  const { data: property, isLoading: propLoading } = usePropertySnapshot(isSourceLead ? undefined : lead?.property_id);
   const { mutate: moveStage } = useUpdateLeadStage();
   const { mutate: archive, isPending: archiving } = useArchiveLead();
 
@@ -93,7 +99,7 @@ export default function CrmLeadDetail() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 space-y-4">
-              <Card>
+              {isSourceLead && user ? <SourceCrmDetail actor={user.id} leadId={lead.id} propertyId={lead.property_id}/> : <Card>
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2 flex-wrap">
                     <div>
@@ -145,9 +151,9 @@ export default function CrmLeadDetail() {
                     </Button>
                   )}
                 </CardContent>
-              </Card>
+              </Card>}
 
-              <DistressTimeline propertyId={lead.property_id} />
+              {!isSourceLead && <DistressTimeline propertyId={lead.property_id} />}
 
               <LeadActivityTimeline leadId={lead.id} />
             </div>
@@ -204,3 +210,4 @@ export default function CrmLeadDetail() {
     </AppLayout>
   );
 }
+

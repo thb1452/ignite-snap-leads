@@ -1,3 +1,4 @@
+import { insightOperatorDenial } from "../_shared/insightOperatorAuth.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
@@ -8,6 +9,9 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const denial = await insightOperatorDenial(req, corsHeaders);
+  if (denial) return denial;
 
   const url = new URL(req.url);
   const suffix = url.searchParams.get("suffix") || "PASS.";

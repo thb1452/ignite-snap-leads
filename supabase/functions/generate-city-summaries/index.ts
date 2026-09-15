@@ -1,3 +1,4 @@
+import { insightOperatorDenial, insightsHeldResponse, insightsGenerationHeld } from "../_shared/insightOperatorAuth.ts";
 /**
  * Generate AI City Summaries — Content Moat Engine
  * 
@@ -110,6 +111,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const denial = await insightOperatorDenial(req, corsHeaders);
+  if (denial) return denial;
+  // Preserve the implementation below for a separately reviewed restoration.
+  if (insightsGenerationHeld()) return insightsHeldResponse(corsHeaders);
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;

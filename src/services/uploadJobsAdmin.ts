@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/externalClient';
 import { callFn } from '@/integrations/http/functions';
+import { requestUploadRecovery } from '@/services/uploadRecovery';
 
 export async function deleteUploadJob(jobId: string) {
   const { data, error } = await supabase.functions.invoke('delete-upload-job', {
@@ -12,13 +13,7 @@ export async function deleteUploadJob(jobId: string) {
 }
 
 export async function reprocessUploadJob(jobId: string) {
-  const { data, error } = await supabase.functions.invoke('reprocess-upload-job', {
-    body: { jobId },
-  });
-
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return data;
+  return requestUploadRecovery(jobId);
 }
 
 export async function cleanupDeletedJobs() {

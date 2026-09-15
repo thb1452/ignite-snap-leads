@@ -11,6 +11,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { formatDistanceToNow } from "date-fns";
 import { deleteUploadJob, reprocessUploadJob, cleanupDeletedJobs } from "@/services/uploadJobsAdmin";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,20 +35,28 @@ const STATUS_CONFIG = {
 
 export default function Jobs() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [deleteJobId, setDeleteJobId] = React.useState<string | null>(null);
 
-  const { data: jobs, isLoading } = useQuery({
-    queryKey: ['upload-jobs'],
-    queryFn: async () => {
+  const { data: jobs, isLoading, isError: statusError, refetch } = useQuery({
+    queryKey: ['upload-jobs', user?.id],
+    enabled: !!user && !authLoading,
+    gcTime: 0,
+    retry: false,
+    queryFn: async ({ signal }) => {
+      if (!user) throw new Error('Sign in to view your upload jobs.');
       const { data, error } = await supabase
         .from('upload_jobs')
-        .select('*')
+        .select('id,user_id,filename,status,created_at,file_size,total_rows,processed_rows,properties_created,violations_created,error_message')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(50)
+        .abortSignal(signal);
 
       if (error) throw error;
+      if (!Array.isArray(data) || data.some(job => job.user_id !== user.id)) throw new Error('Upload jobs could not be checked for your account.');
       return data;
     },
   });
@@ -73,17 +82,10 @@ export default function Jobs() {
 
   const reprocessMutation = useMutation({
     mutationFn: reprocessUploadJob,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['upload-jobs'] });
-      toast({
-        title: 'Job Reprocessing',
-        description: 'The upload job has been queued for reprocessing.',
-      });
-    },
     onError: (error) => {
       toast({
-        title: 'Reprocess Failed',
-        description: error instanceof Error ? error.message : 'Failed to reprocess job',
+        title: 'Upload recovery unavailable',
+        description: error instanceof Error ? error.message : 'The recovery check could not be confirmed.',
         variant: 'destructive',
       });
     },
@@ -107,7 +109,7 @@ export default function Jobs() {
     },
   });
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <AppLayout>
         <div className="container mx-auto py-8 px-4 max-w-6xl">
@@ -120,6 +122,19 @@ export default function Jobs() {
         </div>
       </AppLayout>
     );
+  }
+
+  if (!user) {
+    return <AppLayout><div className="container mx-auto py-8 px-4 max-w-6xl">
+      <p>Sign in to view your upload jobs.</p>
+      <Button onClick={() => navigate('/auth?mode=signin')}>Sign in</Button>
+    </div></AppLayout>;
+  }
+  if (statusError) {
+    return <AppLayout><div className="container mx-auto py-8 px-4 max-w-6xl" role="alert">
+      <p>Upload status is unavailable for your account. No recovery was requested.</p>
+      <Button variant="outline" onClick={() => void refetch()}>Refresh upload status</Button>
+    </div></AppLayout>;
   }
 
   return (
@@ -197,13 +212,13 @@ export default function Jobs() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {(job.status === 'COMPLETE' || job.status === 'FAILED') && (
+                        {(job.status === 'QUEUED' || job.status === 'FAILED') && (
                           <Button
                             size="icon"
                             variant="ghost"
                             onClick={() => reprocessMutation.mutate(job.id)}
                             disabled={reprocessMutation.isPending}
-                            title="Reprocess"
+                            title="Check recovery status"
                           >
                             <RefreshCw className="h-4 w-4" />
                           </Button>

@@ -29,13 +29,16 @@ export default function UploadJobDetail() {
   const { data: job, isLoading, isError: jobError, refetch } = useQuery({
     queryKey: ['upload-job', user?.id, id],
     queryFn: async ({ signal }) => {
+      if (!user || !id) throw new Error('Sign in to view this upload.');
       const { data, error } = await supabase
         .from('upload_jobs')
-        .select('*')
+        .select('id,user_id,filename,status,created_at,file_size,total_rows,properties_created,violations_created,city,county,state,error_message,warnings')
         .eq('id', id)
+        .eq('user_id', user.id)
         .abortSignal(signal).single();
 
       if (error) throw error;
+      if (!data || data.id !== id || data.user_id !== user.id) throw new Error('This upload is not available to your account.');
       return data;
     },
     enabled: !!id && !!user && !authLoading,
@@ -67,7 +70,7 @@ export default function UploadJobDetail() {
   if (jobError) {
     return <AppLayout><div className="container mx-auto py-8 px-4 max-w-6xl" role="alert">
       <p>This upload job could not be loaded for your account.</p>
-      <Button variant="outline" onClick={() => void refetch()}>Retry job</Button>
+      <Button variant="outline" onClick={() => void refetch()}>Refresh job status</Button>
     </div></AppLayout>;
   }
 

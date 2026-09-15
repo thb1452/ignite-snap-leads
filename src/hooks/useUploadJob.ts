@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/externalClient';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 
 export interface UploadJob {
   id: string;
+  user_id?: string;
+  updated_at?: string | null;
   status: 'QUEUED' | 'PARSING' | 'PROCESSING' | 'DEDUPING' | 'CREATING_VIOLATIONS' | 'FINALIZING' | 'COMPLETE' | 'FAILED';
   total_rows: number | null;
   processed_rows: number | null;
@@ -19,149 +22,80 @@ export interface UploadJob {
 }
 
 export function useUploadJob(jobId: string | null) {
-  const [job, setJob] = useState<UploadJob | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
+  const ownerId = user?.id ?? null;
+  const key = ownerId && jobId ? `${ownerId}:${jobId}` : null;
+  const [snapshot, setSnapshot] = useState<{ key: string | null; job: UploadJob | null; loading: boolean }>({ key: null, job: null, loading: true });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { toast } = useToast();
-  
-  const refresh = () => setRefreshTrigger(prev => prev + 1);
+  const refresh = useCallback(() => setRefreshTrigger(previous => previous + 1), []);
 
   useEffect(() => {
-    if (!jobId) {
-      setLoading(false);
-      return;
-    }
-
-    let pollInterval: NodeJS.Timeout | null = null;
-    let retryAttempted = false;
-
-    // Check if job is stuck and needs auto-retry
-    const checkAndRetryStuckJob = async (jobData: UploadJob) => {
-      if (retryAttempted) return;
-      
-      const stuckStatuses = ['PARSING', 'PROCESSING', 'DEDUPING', 'CREATING_VIOLATIONS', 'FINALIZING'];
-      if (!stuckStatuses.includes(jobData.status)) return;
-      
-      // If job has been in a processing state for more than 3 minutes, auto-retry
-      const startedAt = jobData.started_at ? new Date(jobData.started_at).getTime() : 0;
-      const stuckThreshold = 3 * 60 * 1000; // 3 minutes
-      
-      if (startedAt && Date.now() - startedAt > stuckThreshold) {
-        retryAttempted = true;
-        console.log('[useUploadJob] Job appears stuck, triggering auto-retry...');
-        
-        try {
-          // Call job monitor to reset stuck jobs
-          await supabase.functions.invoke('job-monitor', {});
-          toast({
-            title: 'Retrying Upload',
-            description: 'Job appeared stuck, automatically restarting...',
-          });
-        } catch (e) {
-          console.error('[useUploadJob] Auto-retry failed:', e);
-        }
-      }
-    };
-
-    // Fetch initial job state
+    setSnapshot({ key, job: null, loading: Boolean(key) });
+    if (!key || !ownerId || !jobId || authLoading) return;
+    const lifetime = new AbortController();
+    let poll: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
+    let failureNotified = false;
+    let stalledNotified = false;
+    let terminal: string | null = null;
     const fetchJob = async () => {
-      const { data, error } = await supabase
-        .from('upload_jobs')
-        .select('*')
-        .eq('id', jobId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching job:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to fetch job status',
-          variant: 'destructive',
-        });
-        setLoading(false);
-        return;
-      }
-
-      console.log('[useUploadJob] Fetched job:', data.id, 'Status:', data.status);
-      
-      // Only update state if status actually changed or we don't have job data yet
-      setJob(prev => {
-        if (!prev || prev.status !== data.status || prev.violations_created !== data.violations_created) {
-          return data as UploadJob;
+      if (inFlight || lifetime.signal.aborted) return;
+      inFlight = true;
+      const request = new AbortController();
+      const cancel = () => request.abort();
+      lifetime.signal.addEventListener('abort', cancel, { once: true });
+      const timeout = setTimeout(cancel, 10000);
+      try {
+        const { data, error } = await supabase.from('upload_jobs').select('id,user_id,status,total_rows,processed_rows,properties_created,properties_matched,violations_created,violations_updated,error_message,started_at,finished_at,bad_addresses,bad_address_samples,updated_at,warnings')
+          .eq('id', jobId).eq('user_id', ownerId).abortSignal(request.signal).single();
+        if (lifetime.signal.aborted) return;
+        if (request.signal.aborted || error || !data || data.id !== jobId || data.user_id !== ownerId) {
+          setSnapshot({ key, job: null, loading: false });
+          if (!failureNotified) toast({ title: 'Upload status unavailable', description: 'The job could not be checked for your account. No restart was requested.', variant: 'destructive' });
+          failureNotified = true;
+          return;
         }
-        return prev;
-      });
-      setLoading(false);
-
-      // Check if stuck and auto-retry
-      await checkAndRetryStuckJob(data as UploadJob);
-
-      // Show completion notification only on status change to COMPLETE
-      if (data.status === 'COMPLETE') {
-        console.log('[useUploadJob] Job completed!', data.id);
-      } else if (data.status === 'FAILED') {
-        console.log('[useUploadJob] Job failed!', data.id, data.error_message);
+        // Counters, warnings and evidence updates matter even when status is unchanged.
+        setSnapshot({ key, job: data as UploadJob, loading: false });
+        const previousTerminal = terminal;
+        terminal = data.status === 'COMPLETE' || data.status === 'FAILED' ? data.status : null;
+        if (terminal && previousTerminal !== terminal) {
+          toast(terminal === 'COMPLETE'
+            ? { title: 'Upload processing complete', description: 'The saved job reports completion. Source review and customer acceptance remain separate.' }
+            : { title: 'Upload needs review', description: 'The saved job reports a failure. Its processing evidence has been preserved.', variant: 'destructive' });
+        }
+        const changedAt = data.updated_at ? Date.parse(data.updated_at) : NaN;
+        if (!terminal && Number.isFinite(changedAt) && Date.now() - changedAt > 3 * 60 * 1000 && !stalledNotified) {
+          stalledNotified = true;
+          toast({ title: 'Upload status has not changed recently', description: 'Refresh or review this job before recovery. No automatic restart was requested.' });
+        }
+      } catch {
+        if (!lifetime.signal.aborted) {
+          setSnapshot({ key, job: null, loading: false });
+          if (!failureNotified) toast({ title: 'Upload status unavailable', description: 'The job could not be checked. No restart was requested.', variant: 'destructive' });
+          failureNotified = true;
+        }
+      } finally {
+        clearTimeout(timeout); lifetime.signal.removeEventListener('abort', cancel); inFlight = false;
+        if (!lifetime.signal.aborted && !terminal) {
+          if (poll) clearTimeout(poll);
+          poll = setTimeout(() => void fetchJob(), 2000);
+        }
       }
-
-      return data;
     };
-
-    fetchJob();
-
-    // Poll for updates every 500ms while job is active (faster for better UX)
-    pollInterval = setInterval(async () => {
-      const data = await fetchJob();
-      if (data && (data.status === 'COMPLETE' || data.status === 'FAILED')) {
-        if (pollInterval) clearInterval(pollInterval);
-      }
-    }, 500);
-
-    // Subscribe to realtime updates as backup
-    const channel = supabase
-      .channel(`upload_job_${jobId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'upload_jobs',
-          filter: `id=eq.${jobId}`,
-        },
-        (payload) => {
-          console.log('Job update (realtime):', payload);
-          setJob(payload.new as UploadJob);
-
-          // Show completion notification
-          if (payload.new.status === 'COMPLETE') {
-            if (pollInterval) clearInterval(pollInterval);
-            const newProps = payload.new.properties_created || 0;
-            const matchedProps = payload.new.properties_matched || 0;
-            const propsDesc = newProps > 0 
-              ? `${newProps} new${matchedProps > 0 ? ` + ${matchedProps} existing` : ''} properties`
-              : matchedProps > 0 
-                ? `${matchedProps} existing properties (all deduplicated)` 
-                : '0 properties';
-            toast({
-              title: 'Upload Complete',
-              description: `${propsDesc} and ${payload.new.violations_created} violations`,
-            });
-          } else if (payload.new.status === 'FAILED') {
-            if (pollInterval) clearInterval(pollInterval);
-            toast({
-              title: 'Upload Failed',
-              description: payload.new.error_message || 'An error occurred',
-              variant: 'destructive',
-            });
-          }
-        }
-      )
-      .subscribe();
-
+    void fetchJob();
+    const channel = supabase.channel(`upload_job_${ownerId}_${jobId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'upload_jobs', filter: `id=eq.${jobId}` }, () => {
+        // Realtime is only an invalidation hint. Re-read through owner scope;
+        // never display an unverified event body or a late former-account row.
+        if (!lifetime.signal.aborted) void fetchJob();
+      }).subscribe();
     return () => {
-      if (pollInterval) clearInterval(pollInterval);
-      supabase.removeChannel(channel);
+      lifetime.abort(); if (poll) clearTimeout(poll); void supabase.removeChannel(channel);
     };
-  }, [jobId, toast, refreshTrigger]);
+  }, [key, ownerId, jobId, authLoading, toast, refreshTrigger]);
 
-  return { job, loading, refresh };
+  return { job: snapshot.key === key && !authLoading ? snapshot.job : null,
+    loading: authLoading || Boolean(key && (snapshot.key !== key || snapshot.loading)), refresh };
 }

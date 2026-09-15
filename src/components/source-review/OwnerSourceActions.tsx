@@ -1,3 +1,4 @@
+import {loadSourceCapabilities,type SourceCapabilities} from '@/services/sourceCapabilities';
 import {useEffect,useRef,useState} from 'react';
 import {supabase} from '@/integrations/supabase/client';
 import {SourceReviewRecords} from './SourceReviewRecords';
@@ -33,7 +34,9 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
   exportCsv=exportSourceDetailCsv}:{actor:string;preparation:string;page:SourceReviewPage|null;offset:number;recordsBusy:boolean;onPage:(n:number)=>void;onRefresh:()=>void;
   client?:SourceActionRpc;exportCsv?:(id:string)=>Promise<any>}) {
   const active=useRef<AbortController|null>(null);
+  const [loadedCapabilities,setCapabilities]=useState<SourceCapabilities|null>(null);
   const alive=useRef(true),[loadedState,setState]=useState<SourceActionState|null>(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState('');
+  const capabilities=loadedCapabilities?.actor_user_id===actor&&loadedCapabilities.preparation_sha256===preparation?loadedCapabilities:null;
   const state=loadedState?.actor_user_id===actor&&loadedState.preparation_sha256===preparation?loadedState:null;
   const [selected,setSelected]=useState<Record<string,SourceReviewEvent>>({}),[preview,setPreview]=useState<SourcePreview|null>(null);
   const [pending,setPending]=useState<ReturnType<typeof readPending>>(null),[outcome,setOutcome]=useState(''),[reviewProof,setReviewProof]=useState(emptyProof);
@@ -43,7 +46,7 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
   const [revoke,setRevoke]=useState(''),[revokeProof,setRevokeProof]=useState(emptyProof),[revokeConfirmed,setRevokeConfirmed]=useState(false);
   const [activeAcceptance,setActiveAcceptance]=useState(''),[detail,setDetail]=useState<any>(null),[crmSource,setCrmSource]=useState(''),[stage,setStage]=useState('');
   const records=Object.values(selected).sort((a,b)=>a.source_row-b.source_row),keys=records.map(e=>e.record_key);
-  const ready=!!state?.can_administer&&state.complete&&!busy&&!pending;
+  const ready=!!capabilities?.can_manage_source&&!!state?.can_administer&&state.complete&&!busy&&!pending;
   const visiblePage=page?.batch.preparation_sha256===preparation?page:null;
   const currentReview=preview&&state?.reviews.find(r=>r.current&&r.outcome==='reviewed'&&r.selection_sha256===preview.selection_sha256);
   const sourceIds=[...new Set(preview?.items.map(i=>i.source_property_id)||[])];
@@ -54,6 +57,9 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
   const sourceChoices=acceptance?state?.mappings.filter(m=>acceptance.mapping_ids.includes(m.id))||[]:[];
   function selectionChanged(next:Record<string,SourceReviewEvent>){setSelected(next);setPreview(null);setSourceId('');setResolutions({});setApplyReasons(false);setAcceptConfirmed(false);}
   async function refresh(signal:AbortSignal){
+    const access=await loadSourceCapabilities(client,actor,preparation,signal);
+    if(alive.current&&!signal.aborted)setCapabilities(access);
+    if(!access.can_manage_source){if(alive.current&&!signal.aborted)setState(null);return null;}
     const next=await loadSourceActionState(client,actor,preparation,signal);
     if(alive.current&&!signal.aborted)setState(next);return next;
   }
@@ -65,7 +71,7 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
   }
   useEffect(()=>{alive.current=true;const controller=new AbortController();active.current=controller;
     const current=()=>alive.current&&active.current===controller;
-    setState(null);setError('');setBusy('Checking owner action access');
+    setState(null);setCapabilities(null);setError('');setBusy('Checking owner action access');
     if(!actor||!preparation){active.current=null;setBusy('');return()=>{alive.current=false;active.current?.abort();active.current=null;};}
     Promise.resolve().then(()=>{setPending(readPending(localStorage,actor,preparation));return refresh(controller.signal);})
       .catch(e=>{if(current())setError(e instanceof Error?e.message:'Owner access could not be checked.');})
@@ -75,7 +81,7 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
   async function commit(command:SourceCommand){
     await task('Saving and checking the decision',async signal=>{
       const receipt=await runSourceCommand(client,actor,preparation,command,localStorage,navigator.locks,signal);
-      const history=await refresh(signal);confirmSourceActionReadback(command,receipt.result,history);
+      const history=await refresh(signal);if(!history)throw new Error('Source permission changed. The saved decision remains available for reconciliation.');confirmSourceActionReadback(command,receipt.result,history);
       await acknowledgeSourceCommand(localStorage,navigator.locks,actor,preparation,receipt.commandId);
       if(alive.current&&!signal.aborted){setMessage('Saved decision confirmed in the server history.');setDetail(null);setAcceptConfirmed(false);setMappingConfirmed(false);setRevokeConfirmed(false);}
     });
@@ -97,6 +103,11 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
       selectedKeys={keys} onSelect={e=>selectionChanged(selected[e.record_key]?Object.fromEntries(Object.entries(selected).filter(([k])=>k!==e.record_key)):{...selected,[e.record_key]:e})}/>}
     <section className="rounded-xl border bg-card p-5 space-y-4" aria-label="Owner source decisions">
       <div><h2 className="text-xl font-semibold">Source decisions</h2><p className="mt-2 text-sm text-muted-foreground">Reviewing evidence, mapping a property and approving one account are separate recorded decisions. Original intake stays unchanged. Sending, tracing, SMS and public release remain held.</p></div>
+      {capabilities&&<div className="rounded-lg border p-3 space-y-1 text-sm" role="status">
+        <p>{capabilities.management_authority==='preparation_grant'?'You can manage this source batch under a specific permission.':capabilities.management_authority==='existing_admin'?'Your existing administrator access covers this assigned source batch.':'You can inspect this source batch. Final source-management permission has not been granted to this account.'}</p>
+        {capabilities.management_authority==='preparation_grant'&&capabilities.management_expires_at&&<p>Source-management permission ends {time(capabilities.management_expires_at)}.</p>}
+        <p>{capabilities.customer_access_held?'Customer exports and CRM execution remain held for this account.':'Customer account access and export allowance are checked separately on execution.'}</p>
+      </div>}
       {busy&&<div className="space-y-2"><p role="status">{busy}…</p><button className={button} onClick={()=>active.current?.abort()}>Stop waiting</button><p className="text-xs text-muted-foreground">A saved decision remains available for reconciliation if its result is uncertain.</p></div>}{error&&<p role="alert" className="rounded-lg border p-3">{error}</p>}{message&&<p role="status">{message}</p>}
       <button className={button} disabled={!!busy} onClick={()=>void task('Refreshing owner history',async s=>{await refresh(s);})}>Refresh owner history</button>
       {!state&&!busy&&<p className="text-sm">Actions stay unavailable until current owner access and server history are confirmed.</p>}

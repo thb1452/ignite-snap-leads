@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTrialStatus } from "./useTrialStatus";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -120,6 +121,7 @@ async function incrementUsage(
 
 export function useSubscription() {
   const { user } = useAuth();
+  const trial = useTrialStatus();
   const queryClient = useQueryClient();
 
   const {
@@ -195,33 +197,53 @@ export function useSubscription() {
     return success;
   }, [user?.id, queryClient]);
 
+  const currentTrialQuota = useCallback((): { used: number; limit: number; remaining: number } | null => {
+    if (!subscription || !['trial', 'trialing'].includes(subscription.status)) return null;
+    const start = Date.parse(trial.trialStartedAt ?? '');
+    const end = Date.parse(trial.trialEndsAt ?? '');
+    if (trial.loading || !trial.isOnTrial || trial.hasTrialExpired ||
+        trial.planId !== subscription.plan_id || trial.subscriptionStatus !== subscription.status ||
+        !Number.isFinite(start) || start > Date.now() || !Number.isFinite(end) || end <= Date.now() ||
+        !Number.isInteger(trial.trialExportsUsed) || trial.trialExportsUsed < 0 ||
+        !Number.isInteger(trial.trialExportsLimit) || trial.trialExportsLimit < 0 ||
+        trial.trialExportsRemaining !== Math.max(0, trial.trialExportsLimit - trial.trialExportsUsed)) return null;
+    return { used: trial.trialExportsUsed, limit: trial.trialExportsLimit, remaining: trial.trialExportsRemaining };
+  }, [subscription, trial.loading, trial.isOnTrial, trial.hasTrialExpired, trial.planId, trial.subscriptionStatus,
+      trial.trialStartedAt, trial.trialEndsAt, trial.trialExportsUsed, trial.trialExportsLimit, trial.trialExportsRemaining]);
+
   const getUsagePercentage = useCallback((type: 'exports'): number | null => {
+    if (subscription && ['trial', 'trialing'].includes(subscription.status)) {
+      const quota = currentTrialQuota();
+      return quota ? quota.limit === 0 ? 100 : quota.used / quota.limit * 100 : null;
+    }
     if (!plan || !usage) return 0;
     if (plan.max_monthly_exports === -1) return null;
     return (usage.exports_count / plan.max_monthly_exports) * 100;
-  }, [plan, usage]);
+  }, [subscription, currentTrialQuota, plan, usage]);
 
   const getRemainingCount = useCallback((type: 'exports'): number | null => {
+    if (subscription && ['trial', 'trialing'].includes(subscription.status)) return currentTrialQuota()?.remaining ?? 0;
     if (!plan || !usage) return 0;
     if (plan.max_monthly_exports === -1) return null;
     return Math.max(0, plan.max_monthly_exports - usage.exports_count);
-  }, [plan, usage]);
+  }, [subscription, currentTrialQuota, plan, usage]);
 
   const isAtLimit = useCallback((type: 'exports'): boolean => {
+    if (subscription && ['trial', 'trialing'].includes(subscription.status)) return (currentTrialQuota()?.remaining ?? 0) === 0;
     if (!plan || !usage) return false;
     if (plan.max_monthly_exports === -1) return false;
     return usage.exports_count >= plan.max_monthly_exports;
-  }, [plan, usage]);
+  }, [subscription, currentTrialQuota, plan, usage]);
 
   const refetch = useCallback(async () => {
-    await Promise.all([refetchSubscription(), refetchUsage()]);
-  }, [refetchSubscription, refetchUsage]);
+    await Promise.all([refetchSubscription(), refetchUsage(), trial.refetch()]);
+  }, [refetchSubscription, refetchUsage, trial.refetch]);
 
   return {
     subscription,
     plan,
     usage,
-    loading: subscriptionLoading || usageLoading,
+    loading: subscriptionLoading || usageLoading || (!!subscription && ['trial', 'trialing'].includes(subscription.status) && trial.loading),
     subscriptionLoading,
     usageLoading,
     error: subscriptionError?.message || null,

@@ -1,3 +1,4 @@
+import { insightOperatorDenial } from "../_shared/insightOperatorAuth.ts";
 /**
  * Scheduled Rescore - Lightweight weekly score refresh
  * 
@@ -20,6 +21,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const denial = await insightOperatorDenial(req, corsHeaders);
+  if (denial) return denial;
+
   const startTime = Date.now();
 
   try {
@@ -30,37 +34,6 @@ serve(async (req) => {
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Missing required environment variables");
-    }
-
-    // Auth: service role, internal self-invoke, pg_cron (via pg_net), or admin user
-    const authHeader = req.headers.get("authorization") || "";
-    const isInternal = req.headers.get("x-internal-secret") === SUPABASE_SERVICE_ROLE_KEY;
-
-    // pg_cron/pg_net calls come with the anon key — allow if offset=0 (initial trigger)
-    // Self-invocations use x-internal-secret header
-    if (!isInternal) {
-      const token = authHeader.replace("Bearer ", "");
-      const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      const { data: { user } } = await supabaseAuth.auth.getUser(token);
-      
-      // Allow if no user (pg_cron sends anon key) and offset is 0
-      if (!user && offset !== 0) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
-      // If there IS a user, verify admin role
-      if (user) {
-        const { data: roles } = await supabaseAuth.from("user_roles").select("role").eq("user_id", user.id);
-        if (!roles?.some(r => r.role === "admin")) {
-          return new Response(JSON.stringify({ error: "Admin only" }), {
-            status: 403,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-      }
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -105,13 +78,24 @@ serve(async (req) => {
       });
 
       if (!resp.ok) {
-        console.error(`[scheduled-rescore] generate-insights error: ${await resp.text()}`);
+        await resp.body?.cancel();
+        return new Response(JSON.stringify({ success: false, error: resp.status === 503 ? 'insights_held' : 'insights_outcome_unconfirmed', auto_continuing: false, offset }), {
+          status: resp.status === 503 ? 503 : 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       } else {
         const result = await resp.json();
+        if (!result || result.success === false || Object.hasOwn(result, 'error') || !Number.isInteger(result.processed) || result.processed !== propertyIds.length) {
+          return new Response(JSON.stringify({ success: false, error: 'insights_outcome_unconfirmed', auto_continuing: false, offset }), {
+            status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         console.log(`[scheduled-rescore] Batch done: ${result.processed} rescored`);
       }
     } catch (err) {
       console.error(`[scheduled-rescore] Insight call failed:`, err);
+      return new Response(JSON.stringify({ success: false, error: 'insights_outcome_unconfirmed', auto_continuing: false, offset }), {
+        status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const nextOffset = offset + BATCH_SIZE;

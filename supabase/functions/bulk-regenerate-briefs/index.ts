@@ -1,5 +1,6 @@
+import { insightOperatorDenial, insightsHeldResponse, insightsGenerationHeld } from "../_shared/insightOperatorAuth.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { sanitizeInsightForStorage } from "../_shared/insightSanitizer.ts";
 import { DEAL_STRATEGIST_PROMPT, formatPropertyForPrompt } from "../_shared/dealStrategistPrompt.ts";
 
@@ -213,7 +214,7 @@ const LEGACY_LABEL_MAP: Record<string, string> = {
 };
 
 async function handleFixLabels(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   supabaseUrl: string,
   serviceKey: string,
   azureConfig: AzureConfig | null,
@@ -441,6 +442,11 @@ function scheduleResume(supabaseUrl: string, serviceKey: string, totalProcessed:
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const denial = await insightOperatorDenial(req, corsHeaders);
+  if (denial) return denial;
+  // Preserve the implementation below for a separately reviewed restoration.
+  if (insightsGenerationHeld()) return insightsHeldResponse(corsHeaders);
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
 
   try {

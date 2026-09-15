@@ -1,3 +1,4 @@
+import { insightOperatorDenial, insightsHeldResponse, insightsGenerationHeld } from "../_shared/insightOperatorAuth.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -77,6 +78,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const denial = await insightOperatorDenial(req, corsHeaders);
+  if (denial) return denial;
+  // Preserve the implementation below for a separately reviewed restoration.
+  if (insightsGenerationHeld()) return insightsHeldResponse(corsHeaders);
 
   try {
     const { query } = await req.json();

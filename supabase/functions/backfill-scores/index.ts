@@ -1,7 +1,8 @@
+import { insightOperatorDenial } from "../_shared/insightOperatorAuth.ts";
 /**
  * BACKFILL SCORES v1.2 - Process properties missing snap_score
  * Admin-only function with x-internal-secret support for self-invocation.
- * Also accepts pg_cron watchdog calls (no auth headers = cron trigger).
+ * Scheduler calls must carry the actual configured private internal credential.
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -24,39 +25,8 @@ serve(async (req) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-  // AUTH: Three paths allowed:
-  // 1. x-internal-secret matching service role key (self-invocation)
-  // 2. Bearer token from an admin user
-  // 3. No auth headers at all (pg_cron watchdog via pg_net)
-  const internalSecret = req.headers.get("x-internal-secret");
-  const authHeader = req.headers.get("Authorization");
-
-  const isInternalCall = internalSecret && internalSecret === SUPABASE_SERVICE_ROLE_KEY;
-  const isCronCall = !internalSecret && !authHeader;
-
-  if (!isInternalCall && !isCronCall) {
-    // Must be a user call — require admin JWT
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    const token = authHeader.replace("Bearer ", "");
-    const authClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData, error: userError } = await authClient.auth.getUser(token);
-    if (userError || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", userData.user.id).eq("role", "admin").maybeSingle();
-    if (!roleData) {
-      return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-  }
-
-  if (isCronCall) {
-    console.log(`[backfill-scores ${VERSION}] Triggered by pg_cron watchdog`);
-  }
+  const denial = await insightOperatorDenial(req, corsHeaders);
+  if (denial) return denial;
 
   const startTime = Date.now();
   
@@ -109,10 +79,17 @@ serve(async (req) => {
     let processed = 0;
     if (insightResponse.ok) {
       const result = await insightResponse.json();
-      processed = result.processed || 0;
+      if (!result || result.success === false || Object.hasOwn(result, 'error') || !Number.isInteger(result.processed) || result.processed !== propertyIds.length) {
+        return new Response(JSON.stringify({ success: false, error: 'insights_outcome_unconfirmed', auto_continuing: false, _version: VERSION }), {
+          status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      processed = result.processed;
     } else {
-      const errText = await insightResponse.text();
-      console.error(`[backfill-scores ${VERSION}] generate-insights failed (${insightResponse.status}): ${errText}`);
+      await insightResponse.body?.cancel();
+      return new Response(JSON.stringify({ success: false, error: insightResponse.status === 503 ? 'insights_held' : 'insights_outcome_unconfirmed', auto_continuing: false, _version: VERSION }), {
+        status: insightResponse.status === 503 ? 503 : 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const elapsed = Date.now() - startTime;

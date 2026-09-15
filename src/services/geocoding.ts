@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/externalClient";
 import { callFn } from "@/integrations/http/functions";
 
+function geocodingExecutionHeld(): boolean { return true; }
+
 export type GeocodingJobStatus = "queued" | "running" | "completed" | "failed";
 
 export interface GeocodingJob {
@@ -25,6 +27,8 @@ export interface GeocodingJob {
  * - Returns jobId immediately for the UI
  */
 export async function startGeocodingJob(): Promise<string> {
+  // Do not create a job or launch the old background loop while execution is held.
+  if (geocodingExecutionHeld()) throw new Error('Geocoding is paused. No job was created or started.');
   try {
     // Get current user
     const {

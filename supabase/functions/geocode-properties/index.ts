@@ -1,3 +1,5 @@
+import { insightOperatorDenial } from '../_shared/insightOperatorAuth.ts';
+import { uploadExecutionHeld, uploadExecutionHeldResponse } from '../_shared/uploadExecutionHold.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
@@ -139,6 +141,10 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const denial = await insightOperatorDenial(req, corsHeaders);
+  if (denial) return denial;
+  if (uploadExecutionHeld()) return uploadExecutionHeldResponse(corsHeaders, 'geocoding');
 
   try {
     const supabase = createClient(

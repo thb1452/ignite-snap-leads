@@ -32,7 +32,7 @@ export default function UploadJobDetail() {
       if (!user || !id) throw new Error('Sign in to view this upload.');
       const { data, error } = await supabase
         .from('upload_jobs')
-        .select('id,user_id,filename,status,created_at,file_size,total_rows,properties_created,violations_created,city,county,state,error_message,warnings')
+        .select('id,user_id,filename,storage_path,status,created_at,file_size,total_rows,properties_created,violations_created,city,county,state,error_message,warnings')
         .eq('id', id)
         .eq('user_id', user.id)
         .abortSignal(signal).single();
@@ -108,6 +108,8 @@ export default function UploadJobDetail() {
             Back to Jobs
           </Button>
           
+          {job.storage_path?.startsWith('_snap_originals/v1/') && <Button variant="outline" onClick={() => navigate(`/upload?job=${job.id}`)} className="mb-4">Check original file</Button>}
+
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold mb-2">{job.filename}</h1>

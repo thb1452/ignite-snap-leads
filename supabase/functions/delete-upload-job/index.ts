@@ -76,6 +76,30 @@ Deno.serve(async (req) => {
       }
     }
 
+    // A reserved original must never enter the legacy destructive cleanup path.
+    // This guard runs before staging, violation, Storage or job deletion.
+    if (typeof job.storage_path === 'string' && job.storage_path.startsWith('_snap_originals/v1/')) {
+      return new Response(JSON.stringify({ error: 'This original is preserved for review. Deletion is held.', code: 'original_intake_preserved' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    let originalProtected: unknown;
+    try {
+      const guard = await authClient.rpc('fn_original_intake_delete_guard_v1', { p_job: jobId });
+      if (guard.error) throw new Error('Original guard unavailable');
+      originalProtected = guard.data;
+    } catch {
+      return new Response(JSON.stringify({ error: 'Original preservation could not be checked. Nothing was deleted.', code: 'original_intake_guard_unavailable' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (typeof originalProtected !== 'boolean') {
+      return new Response(JSON.stringify({ error: 'Original preservation could not be checked. Nothing was deleted.', code: 'original_intake_guard_unavailable' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (originalProtected) {
+      return new Response(JSON.stringify({ error: 'This original is preserved for review. Deletion is held.', code: 'original_intake_preserved' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     // 2. Get all property IDs created by this job from upload_staging
     const { data: stagingRows, error: stagingError } = await supabaseClient
       .from('upload_staging')

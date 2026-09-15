@@ -1,3 +1,4 @@
+import { uploadExecutionHeld, uploadExecutionHeldResponse } from '../_shared/uploadExecutionHold.ts';
 import { SOURCE_SEMANTIC_RELEASE } from '../_shared/sourceSemanticRelease.ts';
 import { readSourceBinding, stageBoundSourceUpload, SourceReviewUnconfirmedError } from '../_shared/boundSourceUpload.ts';
 import { legacySourceMeaning } from '../_shared/municipalSourceSemantics.ts';
@@ -2088,6 +2089,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: { ...corsHeaders, 'X-Snap-Release': SOURCE_SEMANTIC_RELEASE } });
   }
+
+  // Stop before configuration, authorization, body reads or background work.
+  if (uploadExecutionHeld()) return uploadExecutionHeldResponse(corsHeaders, 'upload');
 
   try {
     // ---- Auth: verify caller owns the job ----

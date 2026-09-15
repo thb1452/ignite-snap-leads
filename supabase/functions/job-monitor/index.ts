@@ -1,3 +1,4 @@
+import { uploadExecutionHeld, uploadExecutionHeldResponse } from '../_shared/uploadExecutionHold.ts';
 import { insightOperatorDenial } from "../_shared/insightOperatorAuth.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -18,6 +19,7 @@ Deno.serve(async (req) => {
 
   const denial = await insightOperatorDenial(req, corsHeaders);
   if (denial) return denial;
+  if (uploadExecutionHeld()) return uploadExecutionHeldResponse(corsHeaders, 'monitor');
 
   try {
     const supabaseClient = createClient(

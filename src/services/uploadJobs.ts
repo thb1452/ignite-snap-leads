@@ -1,6 +1,31 @@
 import { supabase } from '@/integrations/supabase/externalClient';
-import { callFn } from '@/integrations/http/functions';
 import { sanitizeFilename } from '@/utils/sanitizeFilename';
+
+
+async function requireCurrentOwner(expected: string): Promise<void> {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user || user.id !== expected || user.is_anonymous === true || !user.email_confirmed_at && !user.phone_confirmed_at) throw new Error();
+    const current = user as unknown as Record<string, unknown>;
+    if (current.deleted_at != null || current.disabled === true || current.is_disabled === true || current.banned_until != null && (!Number.isFinite(Date.parse(String(current.banned_until))) || Date.parse(String(current.banned_until)) > Date.now())) throw new Error();
+  } catch {
+    throw new Error('Your signed-in account could not be confirmed. No processing was requested. Check your saved uploads before trying again.');
+  }
+}
+
+export function newOriginalIntakeHeld(): boolean { return true; }
+export class UploadIntakeHeldError extends Error {
+  constructor() { super('New original intake is paused. Nothing was saved and no job was created.'); this.name = 'UploadIntakeHeldError'; }
+}
+
+export class UploadIntakeValidationError extends Error {}
+
+export class UploadIntakeUnconfirmedError extends Error {
+  constructor(readonly proposedJobId: string, readonly actorUserId: string) {
+    super('The original file or job may already be saved. Check the saved job reference before retrying. No processing was requested.');
+    this.name = 'UploadIntakeUnconfirmedError';
+  }
+}
 
 interface CreateJobParams {
   file: File;
@@ -12,73 +37,60 @@ interface CreateJobParams {
   isWaterData?: boolean;  // Flag for water disconnection data
 }
 
-export async function createUploadJob({ file, userId, city, county, state, scope, isWaterData }: CreateJobParams): Promise<string> {
-  // Determine scope automatically if not provided
-  const effectiveScope = scope || (!city && county && state ? 'county' : 'city');
+export async function createUploadJob({ file, userId }: CreateJobParams): Promise<string> {
+  // No Auth, storage, job creation or retry is permitted without a reviewed durable intake receipt.
+  if (newOriginalIntakeHeld()) throw new UploadIntakeHeldError();
+  await requireCurrentOwner(userId);
+  if (!(file instanceof File) || file.size < 1 || file.size > 15 * 1024 * 1024 || !file.name.toLowerCase().endsWith('.csv')) throw new UploadIntakeValidationError('Choose one complete CSV file up to 15 MB. The file was not saved.');
+  if (file.type && !['text/csv', 'application/vnd.ms-excel'].includes(file.type) || /^[\s\uFEFF]*[\[{]/.test(await file.text())) {
+    throw new UploadIntakeValidationError('This format is held. The original was not relabeled or saved. Use the reviewed source intake for non-CSV files.');
+  }
   // 1. Upload file to storage with sanitized filename
-  const timestamp = Date.now();
+  const proposedJobId = crypto.randomUUID();
   const sanitizedName = sanitizeFilename(file.name);
-  const storagePath = `${userId}/${timestamp}-${sanitizedName}`;
+  const storagePath = `${userId}/${proposedJobId}-${sanitizedName}`;
 
-  console.log(`[uploadJobs] Uploading file: "${file.name}" → "${sanitizedName}"${isWaterData ? ' (Water Disconnection Data)' : ''}`);
 
+  try {
   const { error: uploadError } = await supabase.storage
     .from('csv-uploads')
     .upload(storagePath, file);
 
   if (uploadError) {
-    // Check if it's a filename issue
-    if (uploadError.message.includes('Invalid key')) {
-      throw new Error(
-        `Filename contains invalid characters. Please rename your file and try again. ` +
-        `Original name: "${file.name}"`
-      );
-    }
-    throw new Error(`Failed to upload file: ${uploadError.message}`);
+    throw new Error('File save could not be confirmed. Check Upload Jobs before trying again. No processing was requested.');
   }
 
-  // 2. Create job record with source_type for water disconnection tracking
+  await requireCurrentOwner(userId);
+
+  // 2. Bind one pending job to this complete original. No source identity is invented.
   const { data: job, error: jobError } = await supabase
     .from('upload_jobs')
     .insert({
+      id: proposedJobId,
       user_id: userId,
       storage_path: storagePath,
       filename: file.name,
       file_size: file.size,
       status: 'QUEUED',
-      city: city || null,
-      county,
-      state,
-      scope: effectiveScope,
-      source_type: isWaterData ? 'water_disconnection' : 'code_violation',
+      // Original intake carries no verified geography, source type or water status.
+      city: null, county: null, state: null, scope: null, source_type: null,
+      warnings: ['Original file retained only. Source classification and processing remain held.'],
     })
-    .select('id')
+    .select('id,user_id,storage_path')
     .single();
 
-  if (jobError || !job) {
-    throw new Error(`Failed to create job: ${jobError?.message}`);
+  if (jobError || !job || job.id !== proposedJobId || job.user_id !== userId || job.storage_path !== storagePath) {
+    throw new Error('The file was saved, but its job receipt is unconfirmed. Check Upload Jobs before trying again. No processing was requested.');
   }
 
-  // 3. Trigger processing edge function
-  console.log('[uploadJobs] Invoking process-upload function for job:', job.id);
-  try {
-    const result = await callFn('process-upload', { jobId: job.id });
-    console.log('[uploadJobs] process-upload function invoked successfully:', result);
-  } catch (error) {
-    console.error('[uploadJobs] Failed to trigger processing:', error);
-    // Mark job as failed if we can't even invoke the function
-    await supabase
-      .from('upload_jobs')
-      .update({
-        status: 'FAILED',
-        error_message: `Failed to start processing: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        finished_at: new Date().toISOString()
-      })
-      .eq('id', job.id);
-    throw error;
-  }
+  // Intake is separate from permission to process. Never invoke the legacy worker,
+  // and never erase this saved job after a denied or unconfirmed start.
+  await requireCurrentOwner(userId);
 
   return job.id;
+  } catch {
+    throw new UploadIntakeUnconfirmedError(proposedJobId, userId);
+  }
 }
 
 export async function getUploadJob(jobId: string) {

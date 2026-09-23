@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 
-VERSION = 'city-response-policy-v1'
+VERSION = 'city-response-policy-v2'
 POLICY = 'existing-code-requests-routine-replies-20260923-v1'
 
 
@@ -32,10 +32,11 @@ PATTERNS = {
     'closed': r'\b(?:request (?:is |has been )?(?:closed|withdrawn)|closed due to)\b',
     'referral': r'\b(?:forward (?:your|this) request to|re-?submit|submit (?:your|this|a new) request (?:to|through|via|at)|contact .{0,90} instead|wrong (?:department|agency|office)|does not hold (?:those|the) requested records)\b',
     'delivery_available': r'\b(?:attached|enclosed|records (?:are |now )?available|download (?:the |your )?records|here is (?:that|the) report)\b',
-    'confirmation': r'\b(?:(?:we have |we.ve )?received your (?:public records |records )?request|(?:records )?request (?:has been |was |is )?(?:received|submitted successfully)|request confirmation)\b',
+    'confirmation': r'\b(?:(?:we have |we.ve )?received your (?:public records |records )?request|(?:is|are) in receipt of your (?:public records |records )?request|(?:records )?request (?:has been |was |is )?(?:received|submitted successfully|submitted through|added to|assigned)|(?:logged|entered) your request|request confirmation)\b',
     'processing': r'\b(?:request is (?:being processed|in progress)|currently processing|searching for (?:the |responsive )?records|working on your request|request has been (?:forwarded|entered)|will (?:review our files|get started on your request))\b',
     'out_of_office': r'\b(?:out of (?:the )?office|automatic reply|auto(?:matic)?[- ]response)\b',
     'bounce': r'\b(?:delivery status notification.*failure|undeliverable|delivery failure|failure notice|address not found|delivery has failed)\b',
+    'portal_update': r'\b(?:all (?:further|future) (?:updates and )?communications?.{0,100}(?:portal|following link)|(?:request|information).{0,100}(?:in|through) (?:this|the|our|a public) portal)\b',
 }
 
 QUESTION_PATTERNS = {
@@ -56,6 +57,9 @@ def classify(message, *, matched=False, prohibited_reply=False):
     saved = any(a.get('status') == 'saved' for a in attachments)
     failed = any(a.get('status') != 'saved' for a in attachments)
     questions = {k for k, v in QUESTION_PATTERNS.items() if re.search(v, body, re.I)}
+    # These notices are evidence to preserve, not directions to create requests.
+    if re.search(r'\bsubmit your (?:public records |records )?request (?:through|via|to)\b', body, re.I):
+        signals.add('referral')
     request_sentence = re.compile(r'\b(?:please (?:provide|confirm|clarify|specify|send|complete|answer|fill|submit)|(?:can|could|would) you|we (?:need|require|request)|you (?:must|need to)|(?:send|provide|confirm|accept|authorize) (?:us |your |the |our ))\b', re.I)
     sentences = re.split(r'(?<=[.!?])\s+|\n+', body)
     unresolved = []
@@ -104,7 +108,8 @@ def classify(message, *, matched=False, prohibited_reply=False):
         reply = 'no_reply'
     else:
         reply = 'needs_message_review'
-    document = ('needs_request_match' if not matched else
+    document = ('preserve_delivery_notice' if 'bounce' in signals else
+                'needs_request_match' if not matched else
                 'recover_attachment' if failed else
                 'preserve_form_for_review' if saved and 'agency_form' in signals else
                 'preserve_and_process' if saved else

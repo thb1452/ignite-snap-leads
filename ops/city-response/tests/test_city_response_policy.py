@@ -51,6 +51,18 @@ class PolicyTests(unittest.TestCase):
         m=self.msg('We received your request. We will respond by Wednesday, October 7, 2026.')
         self.assertEqual(m['stated_dates'][0]['date'],'2026-10-07')
 
+    def test_acknowledgment_forms_and_portal_referral(self):
+        for body in ['The City is in receipt of your request for public records.',
+                     'Your request has been added to our Public Records Request system.',
+                     'We logged your request. All future communications will be in the portal.']:
+            self.assertEqual(self.msg(body)['reply_action'],'no_reply')
+        self.assertEqual(self.msg('Please submit your Public Records Request through our public portal.')['reply_action'],'waiting_for_jd')
+
+    def test_bounce_attachment_is_not_code_records(self):
+        m=self.msg('Delivery has failed.',attachments=[{'status':'saved'}])
+        self.assertEqual(m['reply_action'],'delivery_failed_no_resend')
+        self.assertEqual(m['document_action'],'preserve_delivery_notice')
+
     def test_render_uses_only_trusted_original(self):
         original=dict(confirmed_receipt=True,record_type='code_violations',person_name='Fixture Requester',phone_number='555-0100',mailbox='fixture@example.test',signature_text='Fixture Requester\nPublication')
         reply=render_routine_reply(self.msg('Please provide your phone number.'),original)

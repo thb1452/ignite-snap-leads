@@ -5669,6 +5669,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      fn_import_cleaned_receipt_v1: {
+        Args: { p_payload_sha256: string; p_payload_text: string }
+        Returns: Json
+      }
       fn_increment_trial_exports: {
         Args: { p_count?: number; p_user_id: string }
         Returns: Json
@@ -5842,6 +5846,10 @@ export type Database = {
       }
       fn_preview_source_target_v1: {
         Args: { p_preparation: string; p_property_id: string }
+        Returns: Json
+      }
+      fn_private_cleaned_records_v1: {
+        Args: { p_limit?: number; p_offset?: number }
         Returns: Json
       }
       fn_properties_by_bbox:

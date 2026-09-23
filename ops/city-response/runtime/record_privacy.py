@@ -123,13 +123,14 @@ def clean_madison(raw,*,agency_key,expected_agency_key,request_id,receipt_id,per
         evidence=dict(agency_key=agency_key,request_id=request_id,receipt_id=receipt_id,
           original_sha256=report['original_sha256'],source_rows=item['source_rows'],source_row_hash=item['source_row_hash'],adapter_version=MADISON_VERSION)
         canonical_record=dict(record_key=record_key,record_kind='case',case_id=source['Enforcement Number'],violation_id=None,
-          address=address,city='Madison Heights',state='MI',unit=None,category=source['Category'] if source['Category'] in CATEGORIES else None,
+          address=address,city='Madison Heights',state='MI',unit=None,parcel_id=source['parcel_id'],category=source['Category'] if source['Category'] in CATEGORIES else None,
           source_status=source['Status'] if source['Status'] in STATUSES else None,status=STATUSES.get(source['Status']),**dates,
           cleaned_description=privacy['cleaned_description'],privacy=privacy,evidence=evidence,
           accuracy_status='needs_review' if reasons else 'passed',review_reasons=sorted(set(reasons)),warnings=warnings,
           import_status='not_imported',insight_status='not_generated')
         records.append(canonical_record)
     return dict(version=VERSION,adapter_version=MADISON_VERSION,original_sha256=report['original_sha256'],
+        report_date=report['report_date'],source_period_start=report['source_period_start'],source_period_end=report['source_period_end'],
         physical_rows=report['physical_rows'],input_records=report['case_rows'],passed_records=sum(r['accuracy_status']=='passed' for r in records),
         held_records=sum(r['accuracy_status']!='passed' for r in records),records=records)
 

@@ -34,6 +34,7 @@ function validReceipt(data: any, requestId: string): boolean {
     data.property_ids.every((id: unknown) => typeof id === 'string' && UUID.test(id));
 }
 function failure(error: any): Response {
+  if (error?.code === '55000') return json(503, 'SOURCE_PRIVACY_REVIEW_REQUIRED', 'Source export is paused until its records have verified privacy cleaning. No export allowance was charged.');
   if (error?.code === '42501') return json(403, 'EXPORT_ACCESS_DENIED', 'This account is not authorized for this export.');
   if (error?.code === '22023') return json(409, 'EXPORT_REQUEST_CONFLICT', 'This export identity conflicts with its saved request. Review the saved attempt before retrying.');
   if (error?.code === 'P0001') return json(403, 'EXPORT_LIMIT_EXCEEDED', 'The selected properties exceed the available export allowance. Nothing from this attempt was charged.');

@@ -13,7 +13,7 @@ const ts = require('typescript');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const proofs = [];
 const changed = ['scheduled-rescore', 'backfill-scores', 'job-monitor', 'bulk-regenerate-briefs', 'ai-search', 'generate-city-summaries', 'generate-investor-brief', 'fix-insight-labels'];
-const held = new Set(changed.slice(3, 7));
+const held = new Set(['job-monitor', ...changed.slice(3, 7)]);
 const envBase = {
   SUPABASE_URL: 'https://backend.invalid', SUPABASE_SERVICE_ROLE_KEY: 'private-service-fixture', SUPABASE_ANON_KEY: 'public-anon-fixture',
   AZURE_OPENAI_API_KEY: 'fake-azure', AZURE_OPENAI_ENDPOINT: 'https://azure.invalid', AZURE_OPENAI_DEPLOYMENT: 'fake-model',
@@ -126,8 +126,8 @@ for (const name of changed) {
   });
   for (const [label, headers] of [['current admin', { Authorization: 'Bearer admin' }], ['exact internal header', { 'x-internal-secret': 'private-service-fixture' }], ['exact private Bearer', { Authorization: 'Bearer private-service-fixture' }]]) await check(`${name}: ${label} ${held.has(name) ? 'remains held' : 'authorized empty maintenance path'}`, async () => {
     const h = harness(name); const response = await h.request(headers, { autoResume: false });
-    assert.equal(response.status, held.has(name) ? 503 : 200);
-    if (held.has(name)) { assert.equal((await response.json()).error, 'insights_held'); assert.deepEqual(business(h), []); }
+    assert.equal(response.status, held.has(name) ? 503 : 200, name + ': ' + label);
+    if (held.has(name)) { assert.equal((await response.json()).error, name === 'job-monitor' ? 'monitor_execution_held' : 'insights_held'); assert.deepEqual(business(h), []); }
     if (label !== 'current admin') assert(!h.calls.some(c => c.kind === 'auth'));
     else assert(h.calls.some(c => c.kind === 'role' && c.methods.some(m => m[0] === 'eq' && m[1] === 'user_id' && m[2] === '11111111-1111-4111-8111-111111111111')));
   });

@@ -60,7 +60,11 @@ def madison_rows(raw):
     require(not any(x.strip() for x in rows[2]),'source_header_separator_changed')
     require(rows[-3][0]=='Records:' and rows[-3][1].isdigit() and not any(rows[-3][2:]),'source_count_footer_missing')
     require(rows[-2]==['Population:','All Records','','','','','',''],'source_population_changed')
-    require(re.fullmatch(r'Enforcement\.DateFiled  Between  \d{1,2}/\d{1,2}/\d{4} 12:00:00 AM AND \d{1,2}/\d{1,2}/\d{4} 11:59:59 PM',rows[-1][0]) and not any(rows[-1][1:]),'source_period_footer_changed')
+    period=re.fullmatch(r'Enforcement\.DateFiled  Between  (\d{1,2}/\d{1,2}/\d{4}) 12:00:00 AM AND (\d{1,2}/\d{1,2}/\d{4}) 11:59:59 PM',rows[-1][0])
+    require(period and not any(rows[-1][1:]),'source_period_footer_changed')
+    try: source_start,source_end=[datetime.strptime(v,'%m/%d/%Y').date().isoformat() for v in period.groups()]
+    except ValueError:raise ValueError('source_period_invalid') from None
+    require(source_start<=source_end<=report_date,'source_period_invalid')
     results=[];i=3
     while i<len(rows)-3:
         r=rows[i]
@@ -71,7 +75,8 @@ def madison_rows(raw):
         results.append(dict(source_rows=indices,original=entry,source_row_hash=sha([r,rows[i-1]])))
     require(len(results)==int(rows[-3][1]),'source_row_count_mismatch')
     return dict(adapter_version=MADISON_VERSION,original_sha256=sha(raw),physical_rows=len(rows),
-                case_rows=len(results),report_date=report_date,source_period_text=rows[-1][0],rows=results)
+                case_rows=len(results),report_date=report_date,source_period_text=rows[-1][0],
+                source_period_start=source_start,source_period_end=source_end,rows=results)
 
 def normalize_address(value):
     return re.sub(r'\s+',' ',value.strip().upper()) if isinstance(value,str) else ''
@@ -90,6 +95,10 @@ def clean_madison(raw,*,agency_key,expected_agency_key,request_id,receipt_id,per
     require(request_id and receipt_id,'request_and_receipt_required')
     start,end=date.fromisoformat(period_start),date.fromisoformat(period_end);require(start<=end,'request_period_invalid')
     report=madison_rows(raw);records=[];seen={}
+    # Detect a conflicting case across the whole file before any row can pass.
+    versions={}
+    for item in report['rows']:
+        versions.setdefault(item['original']['Enforcement Number'],set()).add(item['source_row_hash'])
     for item in report['rows']:
         source=item['original'];reasons=[];warnings=[]
         privacy=privacy_check(None,rule=MADISON_VERSION,structured_fields={'category':source['Category'],'source_status':source['Status']})
@@ -100,12 +109,14 @@ def clean_madison(raw,*,agency_key,expected_agency_key,request_id,receipt_id,per
             except ValueError as e:dates[target]=None;reasons.append(str(e))
         if not dates['filed_date']:reasons.append('missing_filed_date')
         elif not period_start<=dates['filed_date']<=period_end:reasons.append('outside_original_request_period')
+        if dates['filed_date'] and not report['source_period_start']<=dates['filed_date']<=report['source_period_end']:reasons.append('outside_agency_report_period')
         if dates['closed_date'] and dates['filed_date'] and dates['closed_date']<dates['filed_date']:reasons.append('closed_before_filed')
         if any(d and d>report['report_date'] for k,d in dates.items() if k!='next_action_date'):reasons.append('event_after_report_date')
         if source['Next Action']:reasons.append('unreviewed_next_action_text')
         address=source['Address/ Parcel Number']
         if not re.fullmatch(r'\d+[A-Za-z]? [A-Za-z0-9 .#/-]{2,160}',address):reasons.append('unrecognized_property_address')
         record_key=sha([agency_key,'case',source['Enforcement Number']])
+        if len(versions[source['Enforcement Number']])>1:reasons.append('conflicting_source_case')
         prior=seen.get(record_key)
         if prior:reasons.append('duplicate_source_case' if prior==item['source_row_hash'] else 'conflicting_source_case')
         seen[record_key]=item['source_row_hash']

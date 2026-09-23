@@ -56,6 +56,17 @@ class PrivacyTests(unittest.TestCase):
             row=process(fixture([['E26-00001','123 FIXTURE ST','WEEDS',filed,'VIOLATION','','',closed]]))['records'][0]
             self.assertIn(reason,row['review_reasons'])
 
+    def test_conflicting_duplicates_hold_every_version(self):
+        a=['E26-00001','123 FIXTURE ST','WEEDS','09/01/2026','VIOLATION','','','']
+        b=a.copy();b[4]='COMPLIED'
+        result=process(fixture([a,b,a]))
+        self.assertEqual(result['passed_records'],0)
+        self.assertTrue(all('conflicting_source_case' in r['review_reasons'] for r in result['records']))
+
+    def test_report_period_is_validated(self):
+        for source in [fixture().replace(b'8/23/2026',b'13/23/2026'),fixture().replace(b'9/23/2026 11:',b'9/24/2026 11:')]:
+            with self.assertRaises(ValueError):process(source)
+
     def test_property_match_requires_unique_city_state_address(self):
         r={'address':'123 Fixture ST','city':'Madison Heights','state':'MI'};p=dict(r,id='one')
         self.assertEqual(exact_property_match(r,[p])['status'],'matched')

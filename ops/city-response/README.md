@@ -1,0 +1,9 @@
+City deliveries previously stopped at private file review. This change connects the existing receipt worker to a narrow cleaned-record import and adds a private Snap review for cited source facts and investor considerations. It also separates Hermes document handling from reply handling and removes legacy raw-description export/brief paths.
+
+Madison Heights uses a reviewed field mapping: 332 cases reconcile to 242 accepted private case records and 90 exceptions. Originals and verified backups remain linked by receipt, request, source row and hash. Missing facts stay missing; case entries are not promoted to confirmed violations. Unreviewed narrative layouts remain held. Import replay uses the same saved envelope and immutable receipt.
+
+The private worker key and automatic Madison processing are installed under JD's explicit approval. Real Azure-to-Snap import succeeded; two concurrent replays returned the same receipt, with 242 total records and no duplicates. Scheduled processing ran without a manual trigger. Seminole still has all 117 case rows; no reply was sent. The private owner dashboard shows import outcomes and review reasons. Customer launch, public publishing and expanded sending remain held.
+
+Validation: 42 Python tests, 17 isolated database tests, 213 insight-containment checks, 90 owner API checks, cleaned-consumer/status checks and production builds passed. Native owner access succeeded; anonymous and unavailable accounts were denied. No external AI/provider calls were used for source-fact summaries.
+
+The routine-reply compiler is included but remains inactive: native standing-policy integration and protected-sender verification are still outstanding. This PR is the private cleaned-record release, not a claim that the entire city-response plan is complete. SQL under ops/city-response/sql documents the installed narrow migrations and must not be blindly reapplied. No credentials are committed.

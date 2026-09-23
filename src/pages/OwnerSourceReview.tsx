@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/integrations/supabase/client';
 import { loadSourceReview, loadSourceReviewBatches, type ReviewRpc, type SourceReviewPage, type SourceReviewBatches } from '@/services/sourceReview';
+import { CleanedCityRecords } from '@/components/source-review/CleanedCityRecords';
 import { OwnerSourceActions } from '@/components/source-review/OwnerSourceActions';
 
 export default function OwnerSourceReview() {
@@ -63,9 +64,10 @@ export default function OwnerSourceReview() {
       {user && <div className="flex items-center gap-3 text-sm"><span className="text-muted-foreground">{user.email}</span><button className="underline underline-offset-4" disabled={signingOut} onClick={() => void signOut()}>{signingOut ? 'Signing out…' : 'Sign out'}</button></div>}
     </div></header>
     <div className="mx-auto max-w-5xl px-5 py-8 space-y-7">
-      <div><span className="rounded-full border bg-muted/50 px-3 py-1 text-xs">Private · Pending review</span><h1 className="mt-4 text-3xl font-semibold tracking-tight">Review collected records.</h1><p className="mt-2 text-muted-foreground">Original violations, property evidence, and the decisions needed before customer delivery.</p></div>
+      <div><span className="rounded-full border bg-muted/50 px-3 py-1 text-xs">Private · Pending review</span><h1 className="mt-4 text-3xl font-semibold tracking-tight">Review collected records.</h1><p className="mt-2 text-muted-foreground">Cleaned city records, private insights, and source records that need your review.</p></div>
       {signOutError && <p role="alert" className="rounded-xl border p-5">{signOutError}</p>}
       {loading ? <p role="status">Checking your session…</p> : !user ? <ReviewSignIn /> : <>
+        {!privacyBlocked && userId && <CleanedCityRecords key={userId} actor={userId} />}
         {!privacyBlocked && batchError && <div role="alert" className="rounded-xl border p-5 space-y-3"><p>{batchError}</p><button className="rounded-lg border px-4 py-2 text-sm" onClick={() => setBatchRefresh(n=>n+1)}>Refresh assigned batches</button></div>}
         {!privacyBlocked && !assigned && !batchError && <p role="status">Checking assigned batches…</p>}
         {assigned && <section className="rounded-xl border p-5 flex flex-wrap items-end gap-4 justify-between">
@@ -79,7 +81,7 @@ export default function OwnerSourceReview() {
           key={`source-actions:${userId}:${batch}`} actor={userId} preparation={batch} page={visible} offset={offset}
           recordsBusy={busy} onPage={setOffset} onRefresh={() => setRefresh(n => n + 1)} />}
       </>}
-      <footer className="border-t pt-5 text-sm text-muted-foreground">Evidence review and account-specific approval are separate. Sending and publication remain held.</footer>
+      <footer className="border-t pt-5 text-sm text-muted-foreground">This page is private. Received records and source review do not authorize new requests or public publishing.</footer>
     </div>
   </main>;
 }

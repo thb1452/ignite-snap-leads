@@ -42,7 +42,14 @@ jobs:
           node scripts/tests/release-supabase/prepare.mjs "$SNAP_LOCAL_STACK_DIR"
       - name: Start real local Auth, REST and gateway services
         run: |
-          supabase start --workdir "$SNAP_LOCAL_STACK_DIR" --exclude realtime,storage-api,imgproxy,postgres-meta,studio,logflare,vector,supavisor >"$RUNNER_TEMP/supabase-start.log" 2>&1
+          if supabase start --workdir "$SNAP_LOCAL_STACK_DIR" --exclude realtime,storage-api,imgproxy,postgres-meta,studio,logflare,vector,supavisor >"$RUNNER_TEMP/supabase-start.log" 2>&1; then
+            :
+          else
+            startup_exit=$?
+            echo "Supabase start exit status: $startup_exit"
+            node scripts/tests/release-supabase/start-diagnostics.mjs "$RUNNER_TEMP/supabase-start.log"
+            exit "$startup_exit"
+          fi
           supabase status --workdir "$SNAP_LOCAL_STACK_DIR" --output json >"$SNAP_LOCAL_STACK_DIR/status.json"
           chmod 600 "$SNAP_LOCAL_STACK_DIR/status.json"
       - name: Apply bounded fixture without replacing managed Auth

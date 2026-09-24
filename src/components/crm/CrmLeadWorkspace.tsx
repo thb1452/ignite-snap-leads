@@ -11,7 +11,7 @@ import { hasOutcomeReceipt, type Lead, type CrmContact, type ContactInput } from
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { readOutcomeRecovery, saveOutcomeAttempt, clearOutcomeAttempt, type OutcomeRecovery } from '@/services/crmOutcomeRecovery';
+import { readOutcomeRecovery, saveOutcomeAttempt, clearOutcomeAttempt, isOutcomeVersionConflict, type OutcomeRecovery } from '@/services/crmOutcomeRecovery';
 
 export function LeadWorkEditor({lead}:{lead:Lead}) {
   const [title,setTitle]=useState(lead.title??'');const [action,setAction]=useState(lead.next_action??'');const [due,setDue]=useState(toLocalInput(lead.next_follow_up_at));
@@ -64,8 +64,8 @@ export function ManualOutcome({lead}:{lead:Lead}) {
     const saved=saveOutcomeAttempt(window.sessionStorage,actor,command);setRecovery({status:'pending',saved});
     save.mutate(saved.command,{onSuccess:()=>{clearConfirmed(command.requestId);setNote('');setAction('');setDue('');setNoNext(false);},onError:failure=>{
       // The server checks an existing request receipt before optimistic version
-      // rejection. A 40001 therefore proves this exact request did not commit.
-      if((failure as Error & {code?:string}).code==='40001')clearConfirmed(command.requestId);
+      // rejection. Only this RPC's explicit PT409 proves no new commit occurred.
+      if(isOutcomeVersionConflict(failure)){clearConfirmed(command.requestId);queryClient.invalidateQueries({queryKey:crmKey(actor)});}
     }});
   }catch(err){setError(err instanceof Error?err.message:'Check your entries.');}}
   return <Card><CardHeader><CardTitle className="text-base">Record manual work</CardTitle></CardHeader><CardContent><form onSubmit={submit} className="space-y-3">

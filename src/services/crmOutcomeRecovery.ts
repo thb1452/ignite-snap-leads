@@ -2,6 +2,13 @@ import { OUTCOMES, type Outcome } from './crmModel.ts';
 
 export const CRM_OUTCOME_STORAGE_KEY = 'snap_crm_outcome_attempt_v1';
 export const CRM_OUTCOME_TTL_MS = 24 * 60 * 60 * 1000;
+// Only this RPC's explicit business conflict proves this request was rejected
+// after its idempotent receipt lookup. Serialization/network failures remain
+// uncertain and must preserve the exact saved command for reconciliation.
+export function isOutcomeVersionConflict(error:unknown):boolean {
+ return !!error&&typeof error==='object'&&'code' in error&&error.code==='PT409'
+  &&'message' in error&&error.message==='Lead changed. Refresh before recording this outcome.';
+}
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type OutcomeCommand = {leadId:string;requestId:string;expected:string;outcome:Outcome;note:string;nextAction:string|null;dueAt:string|null;completeAction:boolean};
 type StorageLike = Pick<Storage,'getItem'|'setItem'|'removeItem'>;

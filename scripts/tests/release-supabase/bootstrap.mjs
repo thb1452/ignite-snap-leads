@@ -35,7 +35,7 @@ try{
     return client.query(sql);
   }};
   await createTenancyDb({applyMigration:false,database:db});await billingBaseline(db);
-  const migrations=['20260924182954_snap_customer_workspace_isolation_v1.sql','20260924183006_snap_billing_atomic_fulfillment_v1.sql','20260924183021_snap_crm_workflow_v1.sql'];
+  const migrations=['20260924182954_snap_customer_workspace_isolation_v1.sql','20260924183006_snap_billing_atomic_fulfillment_v1.sql','20260924183021_snap_crm_workflow_v1.sql','20260924214048_snap_crm_outcome_conflict_v1.sql'];
   for(const name of migrations)await db.exec(await readFile(new URL(`../../../supabase/migrations/${name}`,import.meta.url),'utf8'));
   assert.equal(removedManagedBootstrap,1);assert.equal(await managedSnapshot(),before,'Managed Auth definitions changed');
   // Synthetic ordinary-property visibility only. Preserve the real held/source
@@ -43,5 +43,5 @@ try{
   await client.query('CREATE POLICY fixture_local_released_property ON public.properties FOR SELECT TO authenticated USING(id IN (SELECT property_id FROM public.unlocked_properties WHERE user_id=auth.uid()))');
   await client.query("NOTIFY pgrst,'reload schema'");
   await writeFile(`${workdir}/bootstrap-receipt.json`,JSON.stringify({managed_auth_preserved:true,candidate_migrations:migrations,source_lineage_fixture:true,hosted_supabase_verified:false})+'\n');
-  console.log('Synthetic application fixture and three unchanged migrations applied; managed Auth preserved.');
+  console.log('Synthetic application fixture and candidate migrations applied; managed Auth preserved.');
 }finally{await client.end();}

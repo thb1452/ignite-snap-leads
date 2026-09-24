@@ -6,14 +6,14 @@ import {createTenancyDb,asRole,newUser,migration as tenancyMigration} from './he
 
 const sqlFile=name=>readFile(new URL(`../supabase/migrations/${name}`,import.meta.url),'utf8');
 const id=n=>`33333333-3333-4333-8333-${String(n).padStart(12,'0')}`;
-test('all three release migrations interoperate with native billing shape, private CRM and persistent holds',async t=>{
+test('all release migrations interoperate with native billing shape, private CRM and persistent holds',async t=>{
   const db=await createTenancyDb({applyMigration:false});t.after(()=>db.close());
   await billingBaseline(db);
   const old=id(1),a=id(2),b=id(3),legacy=await newUser(db,old),property=id(10),held=id(11),oldProperty=id(12);
   await db.query("INSERT INTO public.properties(id,address) VALUES ($1,'Synthetic released property'),($2,'Synthetic held property'),($3,'Synthetic legacy property')",[property,held,oldProperty]);
   const oldStage=(await db.query('SELECT id FROM public.pipeline_stages WHERE org_id=$1 ORDER BY sort_order LIMIT 1',[legacy])).rows[0].id;
   await db.query("INSERT INTO public.leads(id,org_id,property_id,stage_id,created_by,next_follow_up_at,notes) VALUES ($1,$2,$3,$4,$5,'2030-01-05T12:00:00Z','Preserve legacy note')",[id(20),legacy,oldProperty,oldStage,old]);
-  const migrations=[tenancyMigration,'20260924183006_snap_billing_atomic_fulfillment_v1.sql','20260924183021_snap_crm_workflow_v1.sql'];
+  const migrations=[tenancyMigration,'20260924183006_snap_billing_atomic_fulfillment_v1.sql','20260924183021_snap_crm_workflow_v1.sql','20260924214048_snap_crm_outcome_conflict_v1.sql'];
   assert.deepEqual([...migrations].sort(),migrations);
   for(const migration of migrations)await db.exec(await sqlFile(migration));
   const oldLead=(await db.query('SELECT notes,next_action,next_follow_up_at FROM public.leads WHERE id=$1',[id(20)])).rows[0];

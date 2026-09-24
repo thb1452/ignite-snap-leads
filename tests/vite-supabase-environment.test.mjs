@@ -72,12 +72,21 @@ test('deployment pair wins over dotenv and reaches the real client and legacy UR
   });
 });
 
-test('mode dotenv values are honored when there is no deployment override', async () => {
-  await environment({}, { '.env': envFile(urlA, publicA), '.env.staging': envFile(urlB, jwt(projectB)) }, async () => {
+test('production mode dotenv values are honored when there is no deployment override', async () => {
+  await environment({ VERCEL_ENV: 'production' }, { '.env': envFile(urlA, publicA), '.env.staging': envFile(urlB, jwt(projectB)) }, async () => {
     const resolved = await config('staging');
     assert.equal(defined(resolved, 'VITE_SUPABASE_URL'), urlB);
     assert.equal(defined(resolved, 'VITE_SUPABASE_PUBLISHABLE_KEY'), jwt(projectB));
     assert.equal(defined(resolved, 'VITE_SUPABASE_PROJECT_ID'), projectB);
+  });
+});
+
+test('Vercel preview cannot inherit a complete dotenv backend without an explicit deployment pair', async () => {
+  await environment({ VERCEL_ENV: 'preview' }, {
+    '.env': envFile(urlA, publicA),
+    '.env.production': envFile(urlB, jwt(projectB)),
+  }, async () => {
+    await assert.rejects(config(), /Preview builds require/);
   });
 });
 

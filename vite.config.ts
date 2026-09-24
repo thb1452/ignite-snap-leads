@@ -16,7 +16,7 @@ function supabaseBuildConfig(mode: string) {
   const deploymentPair = process.env[urlName] !== undefined || process.env[keyName] !== undefined;
   const values = deploymentPair ? process.env : loaded;
   const supplied = values[urlName] !== undefined || values[keyName] !== undefined || values.VITE_SUPABASE_PROJECT_ID !== undefined;
-  if (!supplied && process.env.VERCEL_ENV === "preview") {
+  if (!deploymentPair && process.env.VERCEL_ENV === "preview") {
     throw new Error("Preview builds require an explicit Supabase URL and public key pair.");
   }
   if (supplied && (!values[urlName]?.trim() || !values[keyName]?.trim())) {

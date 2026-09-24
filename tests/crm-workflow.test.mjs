@@ -21,6 +21,7 @@ test('CRM input rules preserve timezones, money bounds and private CSV safety',(
 test('private CRM persistence, authorization and atomic outcomes in PostgreSQL',async t=>{
   const db=await createTenancyDb();t.after(()=>db.close());
   await db.exec(await readFile(new URL('../supabase/migrations/20260924183021_snap_crm_workflow_v1.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/20260924214048_snap_crm_outcome_conflict_v1.sql',import.meta.url),'utf8'));
   const a=id(1),b=id(2),orgA=await newUser(db,a),orgB=await newUser(db,b),prop=id(10),held=id(11);
   await db.query("INSERT INTO public.properties(id,address) VALUES ($1,'123 Fixture Street'),($2,'Held record')",[prop,held]);
   await db.query('INSERT INTO public.unlocked_properties VALUES ($1,$2)',[a,prop]);
@@ -69,7 +70,7 @@ test('private CRM persistence, authorization and atomic outcomes in PostgreSQL',
     assert.equal((await db.query('SELECT count(*)::int n FROM public.lead_activities WHERE id=$1',[id(30)])).rows[0].n,1);
     const payload=(await db.query('SELECT payload FROM public.lead_activities WHERE id=$1',[id(30)])).rows[0].payload;assert.equal(payload.completed_action,'Review source');
     await assert.rejects(()=>db.query(sql,[...args.slice(0,4),'Changed body',...args.slice(5)]),e=>e.code==='22023');
-    await assert.rejects(()=>db.query(sql,[lead.id,id(31),initial.updated_at,'research','Stale',null,null,true]),e=>e.code==='40001');
+    await assert.rejects(()=>db.query(sql,[lead.id,id(31),initial.updated_at,'research','Stale',null,null,true]),e=>e.code==='PT409');
     assert.equal((await db.query('SELECT count(*)::int n FROM public.lead_activities WHERE id=$1',[id(31)])).rows[0].n,0);
   }));
   await t.test('successful conversation updates last-contact time; DNC persists for current and future contacts',async()=>auth(a,async()=>{
@@ -120,6 +121,7 @@ test('migration preserves legacy due dates and permits later stage changes',asyn
  const stage=(await db.query('SELECT id FROM public.pipeline_stages WHERE org_id=$1 ORDER BY sort_order LIMIT 1',[org])).rows[0].id;
  await db.query("INSERT INTO public.leads(id,org_id,property_id,stage_id,created_by,next_follow_up_at) VALUES ($1,$2,$3,$4,$5,'2026-11-02T15:00Z')",[leadId,org,prop,stage,user]);
  await db.exec(await readFile(new URL('../supabase/migrations/20260924183021_snap_crm_workflow_v1.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/20260924214048_snap_crm_outcome_conflict_v1.sql',import.meta.url),'utf8'));
  await asRole(db,'authenticated',user,async()=>{
   const before=(await db.query('SELECT next_action,next_follow_up_at FROM public.leads WHERE id=$1',[leadId])).rows[0];
   assert.equal(before.next_action,'Review saved follow-up');assert.equal(new Date(before.next_follow_up_at).toISOString(),'2026-11-02T15:00:00.000Z');

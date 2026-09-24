@@ -22,6 +22,8 @@ The tenancy helper loads relevant real repository migrations and uses labeled te
 
 `node --test tests/crm-outcome-recovery.test.mjs` additionally verifies exact-command recovery, cross-account privacy, different-lead blocking, changed-draft rejection, TTL text removal, unavailable/malformed storage, and lost-acknowledgement replay against PostgreSQL.
 
+The additive `20260924214048_snap_crm_outcome_conflict_v1.sql` changes a stale manual-outcome version to `PT409` / HTTP 409. A business conflict must not use retryable database serialization code `40001`: some hosted PostgREST versions automatically repeat that transaction. The original workflow migration remains unchanged. Exact-command receipt lookup still precedes version rejection; the client clears recovery only for this RPC's exact conflict code/message, then refetches the lead. Network failures and generic serialization errors retain recovery. Migration tests preserve pre-upgrade receipt replay, existing data, owner/ACL and invoker authority, and reject unexpected function drift. Native/HTTP checks must be rerun for the changed migration; earlier receipts do not certify it.
+
 Application type check and focused lint for the new CRM service/model/hooks/editors/pages and export files pass. Existing broader legacy lint findings are not represented as repaired here.
 
 ## Still required before release
@@ -36,4 +38,4 @@ Application type check and focused lint for the new CRM service/model/hooks/edit
 
 This is a complete small **single-owner manual workflow** in code, not a team CRM. Contacts are private per-opportunity relationships, not a deduplicated global person directory. No VA assignment system, inbound CRM CSV import, dialer disposition import, automated SMS/email sequences, integrated calling, external enrichment, or offer-calculation engine was added. Those broader audited candidates require their own product/provider/cost decisions.
 
-Migration: `supabase/migrations/20260924183021_snap_crm_workflow_v1.sql`; must follow `20260924182954_snap_customer_workspace_isolation_v1.sql`.
+Migration order: `20260924182954_snap_customer_workspace_isolation_v1.sql`, the reviewed billing migration, `20260924183021_snap_crm_workflow_v1.sql`, then `20260924214048_snap_crm_outcome_conflict_v1.sql`.

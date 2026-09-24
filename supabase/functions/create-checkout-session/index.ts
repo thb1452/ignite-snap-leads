@@ -2,23 +2,13 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { expectedStripeMode } from "../_shared/stripeMode.ts";
-import { STRIPE_SUBSCRIPTION_PRICE_IDS_BY_PLAN } from "../_shared/stripeSubscriptionPlan.ts";
+import { subscriptionCheckoutCatalog, bulkCheckoutCatalog, existingCheckoutSubscription } from "../_shared/checkoutCatalog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-// PAYG: $0.67 per credit (single address unlock)
-const PAYG_PRICE_ID = "price_1TK02PBg6vwuzzF0scv7hfMA";
-
-// Bulk credit packs (one-time payments)
-const BULK_PRICE_IDS: Record<string, { priceId: string; credits: number }> = {
-  "5000": { priceId: "price_1TK029Bg6vwuzzF035DVZXnR", credits: 5000 },
-  "10000": { priceId: "price_1TK024Bg6vwuzzF0Z5Wj8nKO", credits: 10000 },
-  "20000": { priceId: "price_1TK01vBg6vwuzzF0XPTpewXV", credits: 20000 },
 };
 
 async function resolveLatestInvoice(stripe: Stripe, subscription: Stripe.Subscription): Promise<Stripe.Invoice | null> {
@@ -87,31 +77,29 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const appUrl = Deno.env.get("APP_URL") || "http://localhost:5173";
 
-    if (!supabaseUrl || !supabaseKey || !stripeKey) {
-      throw new Error("SERVER_MISCONFIGURED");
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    expectedStripeMode(Deno.env.get("STRIPE_EXPECTED_LIVEMODE"), stripeKey);
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: "2023-10-16",
-      httpClient: Stripe.createFetchHttpClient(),
-    });
-
-    // Auth
+    // Authenticate before inspecting Stripe configuration or constructing its
+    // client. A publishable API key is not an authenticated customer session.
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
     }
-
+    if (!supabaseUrl || !supabaseKey) throw new Error("SERVER_MISCONFIGURED");
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const token = authHeader.replace("Bearer ", "");
     const { data: authData, error: authErr } = await supabase.auth.getUser(token);
     if (authErr || !authData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
     }
+
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) throw new Error("SERVER_MISCONFIGURED");
+    const expectedLivemode = expectedStripeMode(Deno.env.get("STRIPE_EXPECTED_LIVEMODE"), stripeKey);
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: "2023-10-16",
+      httpClient: Stripe.createFetchHttpClient(),
+    });
 
     // The default is closed. This call must succeed before customer creation,
     // subscription changes, portal plan updates, or checkout writes to Stripe.
@@ -128,54 +116,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const { checkout_type } = body;
 
     if (checkout_type === "single_unlock") {
-      return await handleSingleUnlock(stripe, supabase, user, body, appUrl, headers);
+      // Customer property delivery is still held, even when billing tests are enabled.
+      return new Response(JSON.stringify({ code: "customer_access_held", error: "Property unlock purchases are paused." }), { status: 503, headers });
     } else if (checkout_type === "bulk_credits") {
-      return await handleBulkCredits(stripe, supabase, user, body, appUrl, headers);
+      return await handleBulkCredits(stripe, supabase, user, body, appUrl, headers, expectedLivemode);
     } else {
-      return await handleSubscription(stripe, supabase, user, body, appUrl, headers);
+      return await handleSubscription(stripe, supabase, user, body, appUrl, headers, expectedLivemode);
     }
   } catch (e: any) {
     console.error("[checkout] error", e?.message ?? e);
     return new Response(JSON.stringify({ error: e?.message ?? "Internal error" }), { status: 500, headers });
   }
 });
-
-// ---- Single Unlock (PAYG $0.67) ----
-async function handleSingleUnlock(
-  stripe: Stripe,
-  supabase: any,
-  user: any,
-  body: any,
-  appUrl: string,
-  headers: Record<string, string>,
-) {
-  const { property_id } = body;
-  if (!property_id) {
-    return new Response(JSON.stringify({ error: "property_id required for single_unlock" }), { status: 400, headers });
-  }
-
-  const customerId = await getOrCreateCustomer(stripe, supabase, user);
-
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    line_items: [{ price: PAYG_PRICE_ID, quantity: 1 }],
-    mode: "payment",
-    // Stripe replaces {CHECKOUT_SESSION_ID}. Client calls handle-unlock with stripe_session_id so unlock works if webhook is delayed.
-    success_url: `${appUrl}/properties?checkout=success&propertyId=${property_id}&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl}/properties?unlock_cancelled=true`,
-    metadata: {
-      user_id: user.id,
-      checkout_type: "single_unlock",
-      property_id,
-    },
-  });
-
-  console.log("[checkout] Created single unlock session:", session.id, "for property:", property_id);
-
-  return new Response(JSON.stringify({ sessionId: session.id, checkout_url: session.url, url: session.url }), {
-    headers,
-  });
-}
 
 // ---- Subscription ----
 async function handleSubscription(
@@ -185,6 +137,7 @@ async function handleSubscription(
   body: any,
   appUrl: string,
   headers: Record<string, string>,
+  expectedLivemode: boolean,
 ) {
   const { tier_name, billing_cycle = "monthly", trial = false } = body;
   if (trial || billing_cycle !== "monthly") {
@@ -196,20 +149,7 @@ async function handleSubscription(
     return new Response(JSON.stringify({ error: "tier_name required" }), { status: 400, headers });
   }
 
-  const TIER_ALIAS: Record<string, string> = { elite: "enterprise" };
-  const dbTierName = TIER_ALIAS[tier_name.toLowerCase()] || tier_name.toLowerCase();
-
-  // Use the aliased name so "elite" resolves to the enterprise price
-  const priceId = STRIPE_SUBSCRIPTION_PRICE_IDS_BY_PLAN[dbTierName];
-  if (!priceId) {
-    return new Response(JSON.stringify({ error: `Unknown plan: ${tier_name}` }), { status: 400, headers });
-  }
-
-  const { data: plan } = await supabase
-    .from("subscription_plans")
-    .select("id, display_name, name")
-    .eq("name", dbTierName)
-    .single();
+  const { plan, priceId } = await subscriptionCheckoutCatalog(supabase, stripe, tier_name, expectedLivemode);
 
   const { data: existingSubscription, error: existingError } = await supabase
     .from("user_subscriptions")
@@ -236,7 +176,10 @@ async function handleSubscription(
     existingSubscription.plan_id === plan.id
   ) {
     try {
+      const trialSubscription = await existingCheckoutSubscription(stripe, existingSubscription.stripe_subscription_id, user.id,
+        existingSubscription.stripe_customer_id, expectedLivemode, priceId);
       const updated = await stripe.subscriptions.update(existingSubscription.stripe_subscription_id, {
+        items: [{ id: trialSubscription.items.data[0].id, price: priceId, quantity: 1 }],
         trial_end: "now",
         proration_behavior: "always_invoice",
         payment_behavior: "pending_if_incomplete",
@@ -268,7 +211,8 @@ async function handleSubscription(
   ) {
     let stripeSub: Stripe.Subscription;
     try {
-      stripeSub = await stripe.subscriptions.retrieve(existingSubscription.stripe_subscription_id);
+      stripeSub = await existingCheckoutSubscription(stripe, existingSubscription.stripe_subscription_id, user.id,
+        existingSubscription.stripe_customer_id, expectedLivemode);
     } catch (retrieveErr: unknown) {
       const rmsg = retrieveErr instanceof Error ? retrieveErr.message : String(retrieveErr);
       console.error("[checkout] Failed to load Stripe subscription:", rmsg);
@@ -303,7 +247,7 @@ async function handleSubscription(
     // Webhooks resolve plan from stripe_price_id; user from stripe_subscription_id / customer metadata.
     try {
       const updated = await stripe.subscriptions.update(existingSubscription.stripe_subscription_id, {
-        items: [{ id: itemId, price: priceId }],
+        items: [{ id: itemId, price: priceId, quantity: 1 }],
         proration_behavior: "always_invoice",
         payment_behavior: "pending_if_incomplete",
       });
@@ -427,18 +371,11 @@ async function handleBulkCredits(
   body: any,
   appUrl: string,
   headers: Record<string, string>,
+  expectedLivemode: boolean,
 ) {
   const { credit_count } = body;
   const returnPath = normalizeReturnPath(body.return_path, "/settings?tab=subscription");
-  const key = String(credit_count);
-  const pack = BULK_PRICE_IDS[key];
-
-  if (!pack) {
-    return new Response(JSON.stringify({ error: `Invalid credit pack: ${credit_count}. Valid: 5000, 10000, 20000` }), {
-      status: 400,
-      headers,
-    });
-  }
+  const pack = await bulkCheckoutCatalog(stripe, credit_count, Deno.env.get("STRIPE_BULK_PRICE_IDS"), expectedLivemode);
 
   const customerId = await getOrCreateCustomer(stripe, supabase, user);
 

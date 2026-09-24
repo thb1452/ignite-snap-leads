@@ -76,8 +76,8 @@ test('real local Supabase Auth, PostgREST and function gateway preserve release 
     assert.equal(success(await request(`/rest/v1/lead_activities?id=eq.${outcome}&select=id`,{token:a.token})).length,1);
     const staleRequest=randomUUID();
     const stale=await rpc('fn_crm_record_outcome_v1',a.token,{...command,p_request_id:staleRequest});
-    // PostgREST 16 maps SQLSTATE40* (transaction rollback) to HTTP500.
-    assert.equal(stale.status,500);assert.equal(stale.data.code,'40001');
+    // Business version conflicts map directly to HTTP409; never request a transaction retry.
+    assert.equal(stale.status,409);assert.equal(stale.data.code,'PT409');
     assert.equal((await sql.query('SELECT count(*)::int n FROM public.lead_activities WHERE id=$1',[staleRequest])).rows[0].n,0);
     assert.equal(row(success(await request(`/rest/v1/leads?id=eq.${lead.id}&select=*`,{token:a.token}))).updated_at,changed.updated_at);
     denied(await rpc('fn_crm_record_outcome_v1',b.token,{...command,p_request_id:randomUUID(),p_expected_updated_at:changed.updated_at}));

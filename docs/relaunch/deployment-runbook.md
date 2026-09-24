@@ -36,15 +36,16 @@ Capture a fresh baseline before migration: signup-function definition/hash, exis
 
 ## 3. Apply only the reviewed candidate migrations
 
-Establish the known baseline in staging through the approved restore/schema process. Do not blindly replay every historical repository migration or run operations intake scripts to create a baseline. Then apply these three files in order through the approved platform migration mechanism, recording target, filename, checksum, result and timestamp:
+Establish the known baseline in staging through the approved restore/schema process. Do not blindly replay every historical repository migration or run operations intake scripts to create a baseline. Then apply these four files in order through the approved platform migration mechanism, recording target, filename, checksum, result and timestamp:
 
 | Order | Migration | Required result / stop condition |
 | --- | --- | --- |
 | 1 | `supabase/migrations/20260924182954_snap_customer_workspace_isolation_v1.sql` | Private workspace authority, restrictive legacy quarantine and relationship preservation. Signup drift, missing baseline objects or inconsistent relationships stop the transaction. |
 | 2 | `supabase/migrations/20260924183006_snap_billing_atomic_fulfillment_v1.sql` | Atomic receipt/synchronization RPCs and closed release control. Duplicate historical subscription identities stop migration; no deletion or arbitrary winner is permitted. |
 | 3 | `supabase/migrations/20260924183021_snap_crm_workflow_v1.sql` | Authorized, idempotent CRM workflow with concurrency control, manual outcomes and archival behavior. Must follow workspace isolation. |
+| 4 | `supabase/migrations/20260924214048_snap_crm_outcome_conflict_v1.sql` | Stale manual outcomes return explicit HTTP 409 without serialization retries. Known-function preflight stops on drift; existing receipts, RLS and grants are preserved. |
 
-- [ ] Check migration ledger and deployed definitions after each commit. Stop on any error; the three files are not one global transaction.
+- [ ] Check migration ledger and deployed definitions after each commit. Stop on any error; the four files are not one global transaction.
 - [ ] Verify `snap_billing.release_controls.checkout_enabled` remains false. No approval reference or fulfillment timestamp is fabricated to open it.
 - [ ] Run staging database advisors and review findings against the actual hosted schema. Preserve existing municipal source policies and holds.
 - [ ] Run the service-only, read-only `SELECT * FROM public.fn_workspace_backfill_report_v1();` and preserve its result privately. Review staff, clean accounts and ownership conflicts separately.
@@ -143,7 +144,7 @@ Before making a chargeable change, confirm the planned project/backend resources
 
 Create a separate staging project and backend. Do not use Lovable Test/Live beta. Do not mutate, deploy to, clone private customer data from or reuse credentials from the existing customer backend [PRODUCTION_PROJECT_REF] or the operations backend [OPERATIONS_PROJECT_REF]. Do not publish to a production domain or enable automatic production publication from main. Existing preview access is not proof of backend isolation.
 
-Use the exact reviewed commit without generated feature changes. Follow docs/relaunch/deployment-runbook.md. Establish the reviewed baseline schema with synthetic fixtures only; if a compatible baseline is unavailable, stop with a precise blocker instead of replaying all historical migrations or weakening preconditions. Apply only the three candidate migrations in their documented order after the target and baseline are verified. Preserve every source/privacy/provider/checkout hold and restrictive workspace policy.
+Use the exact reviewed commit without generated feature changes. Follow docs/relaunch/deployment-runbook.md. Establish the reviewed baseline schema with synthetic fixtures only; if a compatible baseline is unavailable, stop with a precise blocker instead of replaying all historical migrations or weakening preconditions. Apply only the four candidate migrations in their documented order after the target and baseline are verified. Preserve every source/privacy/provider/checkout hold and restrictive workspace policy.
 
 Configure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY explicitly for the new backend before any private-flow preview. Verify Auth, REST, functions and realtime network destinations belong only to staging. Never expose a service key in frontend variables. Deploy only the documented candidate functions and matching gateway configuration together; no blanket authorization bypass. Keep schedulers, message delivery and paid-provider integrations inert. Use independent staging secrets delivered through the secure secret interface, never in prompts, source or logs.
 

@@ -33,7 +33,7 @@ test('native PostgreSQL sessions serialize workspace, CRM and billing operations
   assert.equal(existing,0,'Refusing bootstrap into non-empty database');
   await createTenancyDb({applyMigration:false,database:db});await billingBaseline(db);
   const legacyClean=id(1),legacyBusy=id(2);await newUser(db,legacyClean);const legacyOrg=await newUser(db,legacyBusy);
-  const migrations=['20260924182954_snap_customer_workspace_isolation_v1.sql','20260924183006_snap_billing_atomic_fulfillment_v1.sql','20260924183021_snap_crm_workflow_v1.sql'];
+  const migrations=['20260924182954_snap_customer_workspace_isolation_v1.sql','20260924183006_snap_billing_atomic_fulfillment_v1.sql','20260924183021_snap_crm_workflow_v1.sql','20260924214048_snap_crm_outcome_conflict_v1.sql'];
   for(const file of migrations)await setup.query(await sqlFile(file));
   const account=id(3),other=id(4),org=await newUser(db,account);await newUser(db,other);
   const property=id(10),busyProperty=id(11),plan=id(12);
@@ -86,7 +86,7 @@ test('native PostgreSQL sessions serialize workspace, CRM and billing operations
   }));
   await t.test('competing outcome with stale version fails without a second event',()=>race({
     name:'crm_outcome_conflict',role:'authenticated',user:account,firstSql:outcomeSql,firstArgs:[lead.id,id(21),lead.updated_at],secondArgs:[lead.id,id(22),lead.updated_at],
-    after:async(a,b)=>{assert.equal(b.error?.code,'40001');lead=a.rows[0];assert.equal((await setup.query('SELECT count(*)::int n FROM public.lead_activities WHERE id=$1',[id(22)])).rows[0].n,0);}
+    after:async(a,b)=>{assert.equal(b.error?.code,'PT409');lead=a.rows[0];assert.equal((await setup.query('SELECT count(*)::int n FROM public.lead_activities WHERE id=$1',[id(22)])).rows[0].n,0);}
   }));
   const billingSql='SELECT public.fn_apply_billing_event_v1($1) result';
   const pack={user_id:account,kind:'bulk_credits',session_id:'cs_native_race',payment_intent_id:'pi_native_race',amount:75000,currency:'usd',credits:5000};

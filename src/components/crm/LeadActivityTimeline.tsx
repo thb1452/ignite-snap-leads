@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLeadActivities, useAddLeadNote } from "@/hooks/useLeads";
+import { privateActivities } from '@/services/receiptCases';
 import {
   ArrowRightLeft,
   StickyNote,
@@ -74,7 +75,7 @@ export function LeadActivityTimeline({ leadId }: Props) {
               No activity yet. Add a note above to start a record.
             </p>
           ) : (
-            activities.map((a) => {
+            privateActivities(activities).map((a) => {
               const Icon = ACTIVITY_ICON[a.activity_type] ?? ActivityIcon;
               const payload = a.payload as Record<string, unknown>;
               const isDistress = a.activity_type === "distress_event";

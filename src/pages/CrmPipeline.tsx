@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { dueBucket } from '@/services/crmModel';
 import { exportPrivateCrm, type Lead } from '@/services/leads';
 import SEOHead from '@/components/SEOHead';
+import { ReceiptCaseBrowser } from '@/components/crm/ReceiptCaseBrowser';
 
 type View = 'pipeline'|'today'|'overdue'|'archived';
 function LeadCard({lead}:{lead:Lead}) {
@@ -41,6 +42,7 @@ export default function CrmPipeline() {
     <SEOHead title="Pipeline | Snap Ignite CRM" description="Your private property research and follow-up workspace." canonical="/crm/pipeline" />
     <PageHeader title="Pipeline" description="Pick the next useful action. Open a lead to record work, contacts and deal assumptions." />
     <div className="px-4 md:px-6 pb-8 space-y-4">
+      <ReceiptCaseBrowser/>
       <div className="flex flex-wrap gap-2" aria-label="Pipeline views">
         {(['pipeline','today','overdue','archived'] as View[]).map(v=><Button key={v} variant={view===v?'default':'outline'} aria-pressed={view===v} onClick={()=>setView(v)}>{v==='pipeline'?'All active':v[0].toUpperCase()+v.slice(1)}{['today','overdue'].includes(v)?` (${active.filter(l=>dueBucket(l.next_follow_up_at,clock)===v).length})`:''}</Button>)}
         <Button variant="outline" disabled={exporting||!leads.data?.length} onClick={download}>Export private lead summary</Button>

@@ -1,5 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { csvCell, type Outcome } from './crmModel';
+import { receiptCaseService, privateActivities, type ReceiptRpc } from './receiptCases';
+import type { ReceiptCaseDetail } from './receiptCaseContract';
 
 export interface PipelineStage { id:string; org_id:string; name:string; sort_order:number; color:string; is_won:boolean; is_lost:boolean; is_default:boolean; created_at:string }
 export interface Lead {
@@ -54,7 +56,11 @@ export async function fetchLeadById(actor:string,id:string):Promise<Lead|null> {
   return checked(actor,()=>db.from('leads').select('*').eq('id',id).maybeSingle());
 }
 export async function fetchLeadActivities(actor:string,id:string):Promise<LeadActivity[]> {
-  return (await allRows<LeadActivity>(actor,'lead_activities',q=>q.eq('lead_id',id))).sort((a,b)=>b.created_at.localeCompare(a.created_at));
+  // Source annotations have a different authorization lifetime from private work.
+  // Their facts belong exclusively in the revalidated evidence panel, never in
+  // this longer-lived private activity cache or an offline fallback.
+  return privateActivities(await allRows<LeadActivity>(actor,'lead_activities',q=>q.eq('lead_id',id)))
+    .sort((a,b)=>b.created_at.localeCompare(a.created_at));
 }
 export async function createLeadFromProperty(actor:string,propertyId:string):Promise<Lead> {
   const lead = await checked<Lead>(actor,()=>db.rpc('fn_crm_add_property_v1',{p_property_id:propertyId}));
@@ -107,8 +113,9 @@ export async function exportPrivateCrm(actor:string) {
   return csv;
 }
 
-export async function fetchCrmEvidence(actor:string,lead:Lead):Promise<{kind:'source';rows:SourceDetail[]}|{kind:'property';property:PropertySnapshot|null}|{kind:'removed'}> {
+export async function fetchCrmEvidence(actor:string,lead:Lead,signal=new AbortController().signal):Promise<{kind:'receipt';detail:ReceiptCaseDetail}|{kind:'source';rows:SourceDetail[]}|{kind:'property';property:PropertySnapshot|null}|{kind:'removed'}> {
   if(!lead.property_id)return {kind:'removed'};
+  if(lead.source==='receipt_case_snapshot')return {kind:'receipt',detail:await receiptCaseService(db as unknown as ReceiptRpc,assertCrmIdentity).detail(actor,lead.id,lead.property_id,signal)};
   const source=await checked<boolean>(actor,()=>db.rpc('fn_is_source_property_v1',{p_property_id:lead.property_id}));
   if(source===true)return {kind:'source',rows:await fetchSourceDetail(actor,lead.id)};
   if(source!==false)throw new Error('Property access could not be verified.');

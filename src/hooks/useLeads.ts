@@ -4,6 +4,8 @@ import { useToast } from '@/hooks/use-toast';
 import { crmKey } from '@/services/crmModel';
 import * as service from '@/services/leads';
 import type { Outcome } from '@/services/crmModel';
+import { receiptQueryOptions, useReceiptDeadline } from './useReceiptCases';
+import { visibleReceiptData, readReceiptWithoutFallback } from '@/services/receiptCases';
 
 export function usePipelineStages() {
   const {user}=useAuth();
@@ -64,6 +66,10 @@ export function useRecordOutcome() {
 }
 
 export function useCrmEvidence(lead:service.Lead|null|undefined) {
-  const {user}=useAuth();
-  return useQuery({queryKey:crmKey(user?.id,'evidence',lead?.id),queryFn:()=>service.fetchCrmEvidence(user!.id,lead!),enabled:!!user&&!!lead,retry:false});
+  const {user,loading,authError}=useAuth();
+  const query=useQuery({...receiptQueryOptions,queryKey:crmKey(user?.id,'evidence',lead?.id),queryFn:({signal})=>readReceiptWithoutFallback(()=>service.fetchCrmEvidence(user!.id,lead!,signal)),enabled:!!user&&!loading&&!authError&&!!lead});
+  const value=query.data?.ok?query.data.value:undefined;
+  const deadline=value?.kind==='receipt'?value.detail.snapshot.valid_until:undefined;
+  useReceiptDeadline(deadline,user?.id);
+  return {...query,isError:query.isError||query.data?.ok===false,data:!user||loading||authError?undefined:visibleReceiptData({...query,data:value},deadline)};
 }

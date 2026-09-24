@@ -9,6 +9,7 @@ import { LeadActivityTimeline } from '@/components/crm/LeadActivityTimeline';
 import { LeadWorkEditor, LeadContacts, ManualOutcome } from '@/components/crm/CrmLeadWorkspace';
 import { propertyLink } from '@/services/crmModel';
 import SEOHead from '@/components/SEOHead';
+import { ReceiptCaseEvidence } from '@/components/crm/ReceiptCaseEvidence';
 
 export default function CrmLeadDetail() {
   const {id}=useParams<{id:string}>(); const query=useLead(id);const lead=query.data;
@@ -23,7 +24,8 @@ export default function CrmLeadDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
           <Card><CardHeader><CardTitle className="text-base">Property evidence</CardTitle></CardHeader><CardContent className="space-y-3">
-            {evidence.isLoading?<p>Checking current evidence access…</p>:evidence.isError?<div role="status"><p>Source evidence is unavailable or its permission has expired. Your private contacts, notes and follow-up history remain below.</p><Button variant="outline" size="sm" onClick={()=>evidence.refetch()}>Check access again</Button></div>
+            {evidence.isLoading||evidence.isFetching?<p>Checking current evidence access…</p>:evidence.isError?<div role="status"><p>Source evidence is unavailable or its permission has expired. Your private contacts, notes and follow-up history remain below.</p><Button variant="outline" size="sm" onClick={()=>evidence.refetch()}>Check access again</Button></div>
+            :evidence.data?.kind==='receipt'?<ReceiptCaseEvidence detail={evidence.data.detail}/>
             :evidence.data?.kind==='source'?evidence.data.rows.map((row,i)=><div key={i} className="space-y-2"><p className="font-medium">{row.address}, {row.city}, {row.state}</p><p className="text-sm">Reviewed historical snapshot · {row.scope}</p><p className="text-xs text-muted-foreground">A source snapshot is not proof of current condition or seller intent. Collection time is separate from the event date.</p>{row.events.map(event=><details key={event.record_key} className="border p-3 rounded-md text-sm"><summary>Case opened {event.case_opened_date||'not supplied'} · {event.status_as_collected||'status not supplied'}</summary><p>{event.case_opened_date_meaning}</p><p>Violation date: {event.violation_date||'not supplied'} · Collected: {event.collected_at||'not supplied'}</p><pre className="whitespace-pre-wrap font-sans text-xs mt-2">{event.source_original_text}</pre></details>)}</div>)
             :property?<><p>{property.address}, {property.city}, {property.state} {property.zip}</p><Button variant="outline" size="sm" asChild><Link to={propertyLink(property.id)}>View full property</Link></Button></>:<p className="text-sm text-muted-foreground">Property evidence is not currently available. Your private work is preserved.</p>}
           </CardContent></Card>

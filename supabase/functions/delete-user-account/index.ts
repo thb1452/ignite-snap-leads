@@ -1,114 +1,41 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
+import Stripe from "https://esm.sh/stripe@14.21.0";
+import { cancelOwnedSubscriptions } from "../_shared/billingClosure.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  if (req.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405, headers });
+  let userId: string | undefined;
+  let supabase: ReturnType<typeof createClient> | undefined;
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("Missing authorization header");
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get user from JWT
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
-    if (userError || !user) {
-      throw new Error("Invalid or expired token");
-    }
-
-    const userId = user.id;
-    console.log(`Starting account deletion for user: ${userId}`);
-
-    // Delete user data from all tables (in order to respect foreign keys)
-    const deletionResults = [];
-
-    // Delete from tables that reference user_id
-    const tablesToDelete = [
-      { table: "list_properties", column: "created_by" },
-      { table: "lead_activity", column: "user_id" },
-      { table: "email_preferences", column: "user_id" },
-      { table: "email_templates", column: "user_id" },
-      { table: "email_analytics", column: "user_id" },
-      { table: "call_logs", column: "user_id" },
-      { table: "credit_ledger", column: "user_id" },
-      { table: "credit_ledger_skiptrace", column: "user_id" },
-      { table: "property_contacts", column: "created_by" },
-      { table: "skiptrace_jobs", column: "user_id" },
-      { table: "skiptrace_bulk_runs", column: "user_id" },
-      { table: "skiptrace_consent_log", column: "user_id" },
-      { table: "upload_jobs", column: "user_id" },
-      { table: "user_allowed_states", column: "user_id" },
-      { table: "user_profiles", column: "user_id" },
-      { table: "user_roles", column: "user_id" },
-      { table: "user_subscriptions", column: "user_id" },
-      { table: "geocoding_jobs", column: "user_id" },
-      { table: "lead_lists", column: "user_id" },
-      { table: "profiles", column: "user_id" },
-    ];
-
-    for (const { table, column } of tablesToDelete) {
-      try {
-        const { error } = await supabase
-          .from(table)
-          .delete()
-          .eq(column, userId);
-        
-        if (error) {
-          console.warn(`Warning deleting from ${table}:`, error.message);
-        } else {
-          console.log(`Deleted user data from ${table}`);
-        }
-        deletionResults.push({ table, success: !error, error: error?.message });
-      } catch (e: unknown) {
-        const errMsg = e instanceof Error ? e.message : String(e);
-        console.warn(`Error deleting from ${table}:`, errMsg);
-        deletionResults.push({ table, success: false, error: errMsg });
-      }
-    }
-
-    // Finally, delete the auth user
-    const { error: deleteUserError } = await supabase.auth.admin.deleteUser(userId);
-    
-    if (deleteUserError) {
-      console.error("Error deleting auth user:", deleteUserError);
-      throw new Error(`Failed to delete user account: ${deleteUserError.message}`);
-    }
-
-    console.log(`Account deletion complete for user: ${userId}`);
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Account deleted successfully",
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    console.error("Error deleting user account:", errMsg);
-    return new Response(
-      JSON.stringify({ error: errMsg }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    const url = Deno.env.get("SUPABASE_URL"), key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!url || !key || !stripeKey) throw new Error("SERVER_MISCONFIGURED");
+    supabase = createClient(url, key);
+    const authorization = req.headers.get("authorization");
+    if (!authorization?.startsWith("Bearer ")) return Response.json({ error: "Unauthorized" }, { status: 401, headers });
+    const { data: { user }, error } = await supabase.auth.getUser(authorization.slice(7));
+    if (error || !user) return Response.json({ error: "Unauthorized" }, { status: 401, headers });
+    if ((await req.json()).confirmation !== "DELETE") return Response.json({ error: "Explicit deletion confirmation required" }, { status: 400, headers });
+    userId = user.id;
+    const { data: rows, error: mappingError } = await supabase.from("user_subscriptions")
+      .select("stripe_subscription_id,stripe_customer_id,status").eq("user_id", userId);
+    if (mappingError) throw mappingError;
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16", httpClient: Stripe.createFetchHttpClient() });
+    const { error: startError } = await supabase.rpc("fn_record_account_closure_v1", { p_user_id: userId, p_status: "cancellation_requested" });
+    if (startError) throw startError;
+    await cancelOwnedSubscriptions(stripe, userId, user.email, rows ?? []);
+    const { error: recordError } = await supabase.rpc("fn_record_account_closure_v1", { p_user_id: userId, p_status: "pending_retention_review" });
+    if (recordError) throw recordError;
+    // Financial records, private CRM and source retention require a reviewed erasure policy.
+    // Never report deletion or delete auth/local rows before this work is complete.
+    return Response.json({ success: false, closure_requested: true, billing_cancelled: true,
+      message: "Subscription cancellation is confirmed. Account deletion is pending support review; your data has not been deleted. You can still export your account data." }, { status: 202, headers });
+  } catch (error) {
+    console.error("[account-closure] incomplete", error instanceof Error ? error.message : String(error));
+    if (userId && supabase) await supabase.rpc("fn_record_account_closure_v1", { p_user_id: userId, p_status: "cancellation_failed" });
+    return Response.json({ success: false, error: "Account closure could not be completed. Your data has been retained. Contact support to verify billing cancellation before retrying." }, { status: 503, headers });
   }
 });

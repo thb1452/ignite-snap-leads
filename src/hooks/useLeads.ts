@@ -1,135 +1,69 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  addLeadNote,
-  archiveLead,
-  createLeadFromProperty,
-  fetchLeadActivities,
-  fetchLeadById,
-  fetchLeads,
-  fetchPipelineStages,
-  updateLead,
-  updateLeadStage,
-  type Lead,
-} from "@/services/leads";
-import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { useToast } from '@/hooks/use-toast';
+import { crmKey } from '@/services/crmModel';
+import * as service from '@/services/leads';
+import type { Outcome } from '@/services/crmModel';
 
 export function usePipelineStages() {
-  return useQuery({
-    queryKey: ["pipeline-stages"],
-    queryFn: fetchPipelineStages,
-    staleTime: 5 * 60 * 1000,
-  });
+  const {user}=useAuth();
+  return useQuery({queryKey:crmKey(user?.id,'stages'),queryFn:()=>service.fetchPipelineStages(user!.id),enabled:!!user,staleTime:300000});
 }
-
 export function useLeads() {
-  return useQuery({
-    queryKey: ["leads"],
-    queryFn: fetchLeads,
-    staleTime: 30_000,
+  const {user}=useAuth();
+  return useQuery({queryKey:crmKey(user?.id,'leads'),queryFn:()=>service.fetchLeads(user!.id),enabled:!!user,staleTime:30000});
+}
+export function useLead(id:string|undefined) {
+  const {user}=useAuth();
+  return useQuery({queryKey:crmKey(user?.id,'lead',id),queryFn:()=>service.fetchLeadById(user!.id,id!),enabled:!!user&&!!id});
+}
+export function useLeadActivities(id:string|undefined) {
+  const {user}=useAuth();
+  return useQuery({queryKey:crmKey(user?.id,'activities',id),queryFn:()=>service.fetchLeadActivities(user!.id,id!),enabled:!!user&&!!id});
+}
+export function useCrmContacts(id:string|undefined) {
+  const {user}=useAuth();
+  return useQuery({queryKey:crmKey(user?.id,'contacts',id),queryFn:()=>service.fetchContacts(user!.id,id!),enabled:!!user&&!!id});
+}
+export function usePropertySnapshot(id:string|undefined) {
+  const {user}=useAuth();
+  return useQuery({queryKey:crmKey(user?.id,'property',id),queryFn:()=>service.fetchPropertySnapshot(user!.id,id!),enabled:!!user&&!!id});
+}
+export function useSourceCrmDetail(id:string|undefined) {
+  const {user}=useAuth();
+  return useQuery({queryKey:crmKey(user?.id,'source',id),queryFn:()=>service.fetchSourceDetail(user!.id,id!),enabled:!!user&&!!id,retry:false});
+}
+function useCrmMutation<T,R>(run:(actor:string,args:T)=>Promise<R>,success?:string) {
+  const {user}=useAuth(); const qc=useQueryClient(); const {toast}=useToast();
+  return useMutation({
+    mutationFn:(args:T)=>{if(!user) throw new Error('Sign in required.');return run(user.id,args);},
+    onSuccess:()=>{qc.invalidateQueries({queryKey:crmKey(user?.id)});if(success)toast({title:success});},
+    onError:(error:Error)=>toast({title:'Change could not be confirmed',description:error.message,variant:'destructive'}),
   });
 }
-
-export function useLead(id: string | undefined) {
-  return useQuery({
-    queryKey: ["lead", id],
-    queryFn: () => fetchLeadById(id!),
-    enabled: !!id,
-  });
-}
-
-export function useLeadActivities(leadId: string | undefined) {
-  return useQuery({
-    queryKey: ["lead-activities", leadId],
-    queryFn: () => fetchLeadActivities(leadId!),
-    enabled: !!leadId,
-  });
-}
-
 export function useAddToPipeline() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  return useMutation({
-    mutationFn: ({ propertyId, source }: { propertyId: string; source?: string }) =>
-      createLeadFromProperty(propertyId, source),
-    onSuccess: (lead) => {
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      toast({
-        title: "Added to pipeline",
-        description: "Property is now in your CRM. Open the lead to start tracking.",
-      });
-      return lead;
-    },
-    onError: (err: Error) => {
-      toast({
-        title: "Could not add to pipeline",
-        description: err.message,
-        variant: "destructive",
-      });
-    },
-  });
+  return useCrmMutation((actor:string,args:{propertyId:string;source?:string})=>service.createLeadFromProperty(actor,args.propertyId),'Pipeline ready');
 }
-
 export function useUpdateLeadStage() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  return useMutation({
-    mutationFn: ({ leadId, stageId }: { leadId: string; stageId: string }) =>
-      updateLeadStage(leadId, stageId),
-    onMutate: async ({ leadId, stageId }) => {
-      await qc.cancelQueries({ queryKey: ["leads"] });
-      const previous = qc.getQueryData<Lead[]>(["leads"]);
-      qc.setQueryData<Lead[]>(["leads"], (old) =>
-        old?.map((l) => (l.id === leadId ? { ...l, stage_id: stageId } : l)),
-      );
-      return { previous };
-    },
-    onError: (err: Error, _vars, ctx) => {
-      if (ctx?.previous) qc.setQueryData(["leads"], ctx.previous);
-      toast({ title: "Move failed", description: err.message, variant: "destructive" });
-    },
-    onSettled: (_data, _err, vars) => {
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      qc.invalidateQueries({ queryKey: ["lead-activities", vars.leadId] });
-    },
-  });
+  return useCrmMutation((actor:string,args:{leadId:string;stageId:string})=>service.updateLeadStage(actor,args.leadId,args.stageId));
 }
-
 export function useUpdateLead() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ leadId, updates }: { leadId: string; updates: Partial<Lead> }) =>
-      updateLead(leadId, updates),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
-    },
-  });
+  return useCrmMutation((actor:string,args:{leadId:string;expected:string;updates:service.LeadEdits})=>service.updateLead(actor,args.leadId,args.expected,args.updates),'Lead saved');
 }
-
 export function useArchiveLead() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  return useMutation({
-    mutationFn: archiveLead,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      toast({ title: "Lead archived" });
-    },
-  });
+  return useCrmMutation((actor:string,args:{leadId:string;restore?:boolean})=>service.archiveLead(actor,args.leadId,args.restore),'Pipeline updated');
+}
+export function useAddLeadNote() {
+  return useCrmMutation((actor:string,args:{leadId:string;note:string})=>service.addLeadNote(actor,args.leadId,args.note),'Note added');
+}
+export function useSaveCrmContact() {
+  return useCrmMutation((actor:string,args:{lead:service.Lead;input:service.ContactInput})=>service.saveContact(actor,args.lead,args.input),'Contact saved');
+}
+export function useRecordOutcome() {
+  return useCrmMutation((actor:string,args:{leadId:string;requestId:string;expected:string;outcome:Outcome;note:string;nextAction:string|null;dueAt:string|null;completeAction:boolean})=>service.recordOutcome(actor,args),'Work recorded');
 }
 
-export function useAddLeadNote() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  return useMutation({
-    mutationFn: ({ leadId, note }: { leadId: string; note: string }) =>
-      addLeadNote(leadId, note),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ["lead-activities", vars.leadId] });
-      toast({ title: "Note added" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Could not save note", description: err.message, variant: "destructive" });
-    },
-  });
+export function useCrmEvidence(lead:service.Lead|null|undefined) {
+  const {user}=useAuth();
+  return useQuery({queryKey:crmKey(user?.id,'evidence',lead?.id),queryFn:()=>service.fetchCrmEvidence(user!.id,lead!),enabled:!!user&&!!lead,retry:false});
 }

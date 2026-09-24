@@ -54,7 +54,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.backfill-property-aggregates]
-verify_jwt = true
+verify_jwt = false
 
 [functions.export-user-data]
 verify_jwt = true
@@ -82,7 +82,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.migrate-to-external]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-foia-invite]
 verify_jwt = true
@@ -100,7 +100,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.process-email-queue]
-verify_jwt = true
+verify_jwt = false
 
 [functions.update-campaign-lead]
 verify_jwt = false
@@ -155,3 +155,17 @@ verify_jwt = false
 [functions.seed_mcp_client]
 verify_jwt = false
 
+
+[functions.test-pipeline]
+verify_jwt = false
+
+[functions.signal-delta-worker]
+verify_jwt = false
+
+[functions.watchlist-fanout-worker]
+verify_jwt = false
+
+# Internal workers above perform exact configured private-key checks in
+# _shared/internalWorkerAuth.ts before business work. Gateway JWT verification
+# is disabled there so a Vault-backed scheduler secret or Supabase secret key
+# can be used; a public key or merely decoded service_role claim never suffices.

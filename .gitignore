@@ -34,3 +34,7 @@ supabase/.temp/
 
 # Local browser test artifacts
 test-results/
+
+# Python verification caches
+__pycache__/
+*.py[cod]

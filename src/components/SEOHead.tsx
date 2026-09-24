@@ -1,26 +1,19 @@
 import { useEffect } from "react";
+import { setMeta, resetPageMetadata } from "@/lib/pageMetadata";
 
 interface SEOHeadProps {
   title: string;
   description: string;
   canonical: string;
   ogImage?: string;
+  noIndex?: boolean;
 }
 
-/**
- * Dynamically sets <title>, meta description, canonical, and OG tags.
- * Cleans up on unmount by restoring defaults.
- */
-export default function SEOHead({ title, description, canonical, ogImage = "https://snapignite.com/og-image.png" }: SEOHeadProps) {
+/** Route-specific metadata is removed when leaving the page. */
+export default function SEOHead({ title, description, canonical, ogImage = "https://snapignite.com/og-image.png", noIndex }: SEOHeadProps) {
   useEffect(() => {
-    // Title
     document.title = title;
-
-    // Meta description
-    const metaDesc = document.querySelector('meta[name="description"]');
-    if (metaDesc) metaDesc.setAttribute("content", description);
-
-    // Canonical
+    setMeta("name", "description", description);
     let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!link) {
       link = document.createElement("link");
@@ -28,42 +21,10 @@ export default function SEOHead({ title, description, canonical, ogImage = "http
       document.head.appendChild(link);
     }
     link.href = canonical;
-
-    // OG tags
-    const ogTags: Record<string, string> = {
-      "og:title": title,
-      "og:description": description,
-      "og:url": canonical,
-      "og:image": ogImage,
-    };
-
-    for (const [property, content] of Object.entries(ogTags)) {
-      let tag = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement | null;
-      if (!tag) {
-        tag = document.createElement("meta");
-        tag.setAttribute("property", property);
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute("content", content);
-    }
-
-    // Twitter tags
-    const twitterTags: Record<string, string> = {
-      "twitter:title": title,
-      "twitter:description": description,
-      "twitter:image": ogImage,
-    };
-
-    for (const [name, content] of Object.entries(twitterTags)) {
-      let tag = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
-      if (!tag) {
-        tag = document.createElement("meta");
-        tag.setAttribute("name", name);
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute("content", content);
-    }
-  }, [title, description, canonical, ogImage]);
-
+    for (const [property, content] of Object.entries({ "og:title": title, "og:description": description, "og:url": canonical, "og:image": ogImage })) setMeta("property", property, content);
+    for (const [name, content] of Object.entries({ "twitter:title": title, "twitter:description": description, "twitter:image": ogImage })) setMeta("name", name, content);
+    if (noIndex !== undefined) setMeta("name", "robots", noIndex ? "noindex, nofollow" : "index, follow");
+    return resetPageMetadata;
+  }, [title, description, canonical, ogImage, noIndex]);
   return null;
 }

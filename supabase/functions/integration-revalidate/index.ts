@@ -1,10 +1,11 @@
+import { internalWorkerDenial } from "../_shared/internalWorkerAuth.ts";
 // integration-revalidate
 // Cron-invoked daily health check for all active integrations.
 // - Fetches each active row, decrypts credentials, pings provider's lightweight endpoint
 // - On failure: increments validation_failure_count; after 3 strikes → status='disabled'
 // - On success: resets failure count, updates last_validated_at
 // - Internal-only: requires x-internal-secret header matching INTERNAL_FUNCTION_SECRET
-//   OR a service-role JWT (cron uses anon, so we rely on the shared secret).
+//   OR the exact configured service credential. Public keys never authorize.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
@@ -24,12 +25,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
 
-  // Auth: x-internal-secret OR service-role-style header from cron
-  const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
-  const provided = req.headers.get("x-internal-secret");
-  if (!internalSecret || provided !== internalSecret) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
-  }
+  const denial = internalWorkerDenial(req, corsHeaders);
+  if (denial) return denial;
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

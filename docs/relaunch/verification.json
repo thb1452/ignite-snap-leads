@@ -1,0 +1,52 @@
+{
+  "date": "2026-09-24",
+  "base_commit": "16c1397507026d1eb03bebec7c7aec08d45ec2ee",
+  "status": "local_candidate_verified_release_on_hold",
+  "checks": [
+    {
+      "command": "node --test tests/*.test.mjs tests/billing/*.test.mjs",
+      "passed": 83,
+      "failed": 0,
+      "includes": "Integrated execution of all three migrations, actual SQL/RLS/transactions, provider stubs, auth/cache, privacy, CRM and existing source-review tests"
+    },
+    {
+      "command": "node scripts/test-relaunch-security.mjs",
+      "passed": 184,
+      "failed": 0,
+      "limits": "Actual handlers with isolated Auth/DB/provider stubs; no sends"
+    },
+    {
+      "command": "node scripts/test-insight-containment.mjs",
+      "passed": 213,
+      "failed": 0
+    },
+    {
+      "command": "python -m unittest discover -s ops/city-response/tests -v",
+      "passed": 51,
+      "failed": 0
+    },
+    {
+      "command": "npx tsc --noEmit -p tsconfig.app.json",
+      "status": "passed"
+    },
+    {
+      "command": "npm run build",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    }
+  ],
+  "not_verified": [
+    "Hosted staging migration and native advisors",
+    "Authenticated two-account/browser, desktop/mobile and keyboard journeys",
+    "Multi-connection PostgreSQL races",
+    "Signed Stripe sandbox payment-to-delivery",
+    "Original-source accuracy and exception review",
+    "Provider/support inbox delivery",
+    "Live buyer pilot and return use"
+  ],
+  "production_changed": false,
+  "lovable_credits_used": 0
+}

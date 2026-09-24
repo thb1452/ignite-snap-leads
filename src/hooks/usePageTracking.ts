@@ -1,15 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { trackPageView } from '@/lib/analytics';
+import { activityRouteTemplate } from '@/lib/analyticsPolicy';
 import { logActivity } from '@/services/activityLogger';
 
-/** Fires a GA4 page_view + audit log on every SPA route change. */
+/** Public GA acquisition events; existing first-party logs retain only fixed route templates. */
 export function usePageTracking() {
-  const location = useLocation();
-
+  const { pathname } = useLocation();
+  const lastPath = useRef<string | null>(null);
   useEffect(() => {
-    const path = location.pathname + location.search;
-    trackPageView(path);
-    logActivity({ action: 'page_view', pagePath: location.pathname });
-  }, [location]);
+    if (lastPath.current === pathname) return; // Includes StrictMode effect replays.
+    lastPath.current = pathname;
+    trackPageView(pathname);
+    const template = activityRouteTemplate(pathname);
+    if (template) void logActivity({ action: 'page_view', pagePath: template });
+  }, [pathname]);
 }

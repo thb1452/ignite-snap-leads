@@ -30,7 +30,7 @@ const ACTIVITY_ICON: Record<string, React.ComponentType<{ className?: string }>>
 
 export function LeadActivityTimeline({ leadId }: Props) {
   const [note, setNote] = useState("");
-  const { data: activities, isLoading } = useLeadActivities(leadId);
+  const { data: activities, isLoading, isError, refetch } = useLeadActivities(leadId);
   const { mutate: addNote, isPending } = useAddLeadNote();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -54,6 +54,8 @@ export function LeadActivityTimeline({ leadId }: Props) {
             onChange={(e) => setNote(e.target.value)}
             placeholder="Add a note about this lead…"
             rows={3}
+            maxLength={4000}
+            aria-label="Private lead note"
             className="resize-none"
           />
           <div className="flex justify-end">
@@ -65,7 +67,7 @@ export function LeadActivityTimeline({ leadId }: Props) {
         </form>
 
         <div className="space-y-3">
-          {isLoading ? (
+          {isError ? (<div role="alert"><p className="text-sm">Activity could not be loaded.</p><Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button></div>) : isLoading ? (
             <p className="text-sm text-muted-foreground">Loading activity…</p>
           ) : !activities || activities.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -110,6 +112,13 @@ export function LeadActivityTimeline({ leadId }: Props) {
                         Moved between stages
                       </p>
                     )}
+                    {['task', 'system', 'call', 'email'].includes(a.activity_type) && (<div className="text-sm mt-1 space-y-1">
+                      {typeof payload.outcome === 'string' && <p className="font-medium">{payload.outcome.replace(/_/g, ' ')}</p>}
+                      {typeof payload.description === 'string' && <p>{payload.description}</p>}
+                      {typeof payload.note === 'string' && <p className="whitespace-pre-wrap">{payload.note}</p>}
+                      {typeof payload.completed_action === 'string' && <p>Completed: {payload.completed_action}</p>}
+                      {typeof payload.next_action === 'string' && <p>Next: {payload.next_action}{typeof payload.due_at === 'string' ? ` · ${new Date(payload.due_at).toLocaleString()}` : ''}</p>}
+                    </div>)}
                     {isDistress && (
                       <p className="text-sm mt-1">
                         {(payload.event_type as string)?.replace("_", " ")}

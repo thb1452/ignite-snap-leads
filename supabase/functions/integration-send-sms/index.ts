@@ -1,3 +1,4 @@
+import { relaunchProviderHeld, relaunchProviderHeldResponse } from "../_shared/relaunchProviderHold.ts";
 // Supabase Edge Function: integration-send-sms
 //
 // Sends an SMS via the org's Twilio integration with TCPA compliance, idempotency,
@@ -32,6 +33,8 @@ const SMS_COST_USD = 0.0083;
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  if (relaunchProviderHeld()) return relaunchProviderHeldResponse("communications", corsHeaders);
 
   const auth = await getAuthContext(req);
   if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);

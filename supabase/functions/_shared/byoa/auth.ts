@@ -20,26 +20,52 @@ export async function getAuthContext(req: Request): Promise<
   | { ok: true; ctx: AuthContext }
   | { ok: false; status: number; error: string }
 > {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const admin = createClient(supabaseUrl, serviceKey);
+  if (req.method !== "POST") return { ok: false, status: 405, error: "method_not_allowed" };
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !serviceKey || !anonKey || serviceKey === anonKey) {
+    return { ok: false, status: 503, error: "authorization_unavailable" };
+  }
 
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  const token = /^Bearer ([^\s]+)$/.exec(req.headers.get("authorization") ?? "")?.[1];
+  if (!token || token === anonKey || token === serviceKey) {
     return { ok: false, status: 401, error: "Unauthorized" };
   }
-  const token = authHeader.replace("Bearer ", "");
-  const { data: authData, error: authErr } = await admin.auth.getUser(token);
-  if (authErr || !authData?.user) {
+  const userClient = createClient(supabaseUrl, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const { data: authData, error: authErr } = await userClient.auth.getUser(token);
+  const user = authData?.user;
+  // GoTrue versions may return these administrative account-state fields even
+  // when their public User type omits them. Treat malformed ban values as denied.
+  const accountState = user as unknown as Record<string, unknown> | undefined;
+  const bannedUntil = accountState?.banned_until;
+  if (authErr || !user || user.is_anonymous || accountState?.deleted_at ||
+      (!user.email_confirmed_at && !user.phone_confirmed_at) ||
+      (bannedUntil != null && (typeof bannedUntil !== "string" || !Number.isFinite(Date.parse(bannedUntil)) || Date.parse(bannedUntil) > Date.now()))) {
     return { ok: false, status: 401, error: "Unauthorized" };
   }
-  const userId = authData.user.id;
+  const userId = user.id;
 
-  const { data: profile } = await admin
+  // Run this with the caller's JWT: a service-role client would bypass the very
+  // isolation being checked. Missing migration or failed lookup must deny before
+  // touching an integration, Vault credential, or external provider.
+  const { data: workspaceReady, error: workspaceError } = await userClient.rpc("fn_customer_workspace_ready_v1");
+  if (workspaceError) return { ok: false, status: 503, error: "workspace_verification_unavailable" };
+  if (workspaceReady !== true) return { ok: false, status: 403, error: "private_workspace_required" };
+
+  const admin = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: profile, error: profileError } = await userClient
     .from("profiles")
     .select("org_id")
     .eq("user_id", userId)
     .maybeSingle();
+  if (profileError) return { ok: false, status: 503, error: "workspace_verification_unavailable" };
   if (!profile?.org_id) {
     return { ok: false, status: 400, error: "No org_id on profile" };
   }

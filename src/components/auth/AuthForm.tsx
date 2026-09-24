@@ -6,13 +6,13 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
 import { lovable } from '@/integrations/lovable/index';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { FREE_ACCOUNT_MESSAGE } from '@/lib/publicAvailability';
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -22,9 +22,7 @@ const signInSchema = z.object({
 const signUpSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
   email: z.string().email('Invalid email address'),
-  phone: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  smsConsent: z.boolean().optional(),
 });
 
 type SignInFormData = z.infer<typeof signInSchema>;
@@ -56,10 +54,10 @@ export function AuthForm() {
           variant: "destructive",
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Google sign in failed",
-        description: err.message || "Something went wrong",
+        description: err instanceof Error ? err.message : "Something went wrong",
         variant: "destructive",
       });
     } finally {
@@ -74,7 +72,7 @@ export function AuthForm() {
 
   const signUpForm = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { fullName: '', email: '', phone: '', password: '', smsConsent: false },
+    defaultValues: { fullName: '', email: '', password: '' },
   });
 
   const handleSignIn = async (data: SignInFormData) => {
@@ -106,7 +104,7 @@ export function AuthForm() {
             {isSignUp ? 'Create Your Account' : 'Welcome Back'}
           </CardTitle>
           <CardDescription>
-            {isSignUp ? 'Sign up to start finding distressed property leads.' : 'Sign in to your Snap Ignite account.'}
+            {isSignUp ? FREE_ACCOUNT_MESSAGE : 'Sign in to your Snap Ignite account.'}
           </CardDescription>
         </CardHeader>
 
@@ -174,16 +172,6 @@ export function AuthForm() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="signup-phone">Phone Number <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                <Input
-                  id="signup-phone"
-                  type="tel"
-                  placeholder="+1 (555) 123-4567"
-                  {...signUpForm.register('phone')}
-                />
-                <p className="text-xs text-muted-foreground">For property alert SMS notifications</p>
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="signup-password">Password</Label>
                 <Input
                   id="signup-password"
@@ -196,27 +184,7 @@ export function AuthForm() {
                 )}
               </div>
 
-              {/* A2P 10DLC SMS opt-in — OPTIONAL, not pre-checked, separate from Terms acceptance */}
-              <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
-                <div className="flex items-start space-x-3">
-                  <Checkbox
-                    id="signup-sms-consent"
-                    checked={signUpForm.watch('smsConsent') === true}
-                    onCheckedChange={(checked) => {
-                      signUpForm.setValue('smsConsent', checked === true, { shouldValidate: false });
-                    }}
-                    className="mt-0.5"
-                  />
-                  <label htmlFor="signup-sms-consent" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                    I agree to receive recurring automated text messages from Snap Ignite, including property alerts, account notifications, and platform updates. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help.
-                  </label>
-                </div>
-                <p className="text-[11px] text-muted-foreground/80 pl-7">
-                  Optional — you can sign up without enabling SMS. Consent is not a condition of purchase. View our{' '}
-                  <Link to="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</Link>{' '}and{' '}
-                  <Link to="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms and Conditions</Link>.
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground">Creating an account does not subscribe you to SMS alerts. View our <Link to="/privacy-policy" className="underline">Privacy Policy</Link> and <Link to="/terms-and-conditions" className="underline">Terms</Link>.</p>
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>

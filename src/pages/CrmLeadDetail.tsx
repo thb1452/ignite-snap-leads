@@ -1,206 +1,45 @@
-import { useParams, Link } from "react-router-dom";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  useLead,
-  usePipelineStages,
-  useUpdateLeadStage,
-  useArchiveLead,
-} from "@/hooks/useLeads";
-import { LeadActivityTimeline } from "@/components/crm/LeadActivityTimeline";
-import { DistressTimeline } from "@/components/crm/DistressTimeline";
-import { ArrowLeft, Archive, ExternalLink } from "lucide-react";
-import { EnrollInSequenceButton } from "@/components/crm/EnrollInSequenceButton";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import SEOHead from "@/components/SEOHead";
-
-function usePropertySnapshot(propertyId: string | undefined) {
-  return useQuery({
-    queryKey: ["lead-property-snapshot", propertyId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("properties")
-        .select("id, address, city, state, zip, snap_score, snap_insight")
-        .eq("id", propertyId!)
-        .maybeSingle();
-      if (error) throw error;
-      return data as {
-        id: string;
-        address: string | null;
-        city: string | null;
-        state: string | null;
-        zip: string | null;
-        snap_score: number | null;
-        snap_insight: string | null;
-      } | null;
-    },
-    enabled: !!propertyId,
-  });
-}
+import { useParams, Link } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useLead, usePipelineStages, useUpdateLeadStage, useArchiveLead, useCrmEvidence } from '@/hooks/useLeads';
+import { LeadActivityTimeline } from '@/components/crm/LeadActivityTimeline';
+import { LeadWorkEditor, LeadContacts, ManualOutcome } from '@/components/crm/CrmLeadWorkspace';
+import { propertyLink } from '@/services/crmModel';
+import SEOHead from '@/components/SEOHead';
 
 export default function CrmLeadDetail() {
-  const { id } = useParams<{ id: string }>();
-  const { data: lead, isLoading: leadLoading } = useLead(id);
-  const { data: stages } = usePipelineStages();
-  const { data: property, isLoading: propLoading } = usePropertySnapshot(lead?.property_id);
-  const { mutate: moveStage } = useUpdateLeadStage();
-  const { mutate: archive, isPending: archiving } = useArchiveLead();
-
-  const currentStage = stages?.find((s) => s.id === lead?.stage_id);
-
-  return (
-    <AppLayout>
-      <SEOHead title="Lead Detail | Snap Ignite CRM" description="View and manage a CRM lead." canonical="/crm/leads" />
-      <div className="px-4 md:px-6 py-6 space-y-4 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between gap-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/crm/pipeline">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Pipeline
-            </Link>
-          </Button>
-          {lead && (
-            <div className="flex items-center gap-2">
-              <EnrollInSequenceButton leadId={lead.id} />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => archive(lead.id)}
-                disabled={archiving}
-              >
-                <Archive className="h-4 w-4" />
-                Archive
-              </Button>
-            </div>
-          )}
+  const {id}=useParams<{id:string}>(); const query=useLead(id);const lead=query.data;
+  const stages=usePipelineStages();const evidence=useCrmEvidence(lead);const move=useUpdateLeadStage();const archive=useArchiveLead();
+  const property=evidence.data?.kind==='property'?evidence.data.property:null;
+  return <AppLayout>
+    <SEOHead title="Lead Detail | Snap Ignite CRM" description="Private lead notes, contacts and next actions." canonical="/crm/leads"/>
+    <div className="px-4 md:px-6 py-6 space-y-4 max-w-6xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-2"><Button variant="ghost" asChild><Link to="/crm/pipeline">← Back to Pipeline</Link></Button>{lead&&<Button variant="outline" disabled={archive.isPending} onClick={()=>archive.mutate({leadId:lead.id,restore:!!lead.archived_at})}>{lead.archived_at?'Restore lead':'Archive lead'}</Button>}</div>
+      {query.isLoading?<Skeleton className="h-32"/>:query.isError?<Card className="p-6" role="alert"><p>We could not load this lead. No changes have been confirmed.</p><Button variant="outline" onClick={()=>query.refetch()}>Retry</Button></Card>:!lead?<Card className="p-8">This lead was not found or is not available to this account.</Card>:<>
+      <div><h1 className="text-2xl font-semibold">{lead.title||property?.address||'Saved property'}</h1><p className="text-sm text-muted-foreground">Private label · Lead {lead.id.slice(0,8)}</p>{lead.contact_restricted&&<Badge variant="destructive">Do not contact — restriction recorded</Badge>}{lead.archived_at&&<Badge variant="secondary">Archived — restore before recording work</Badge>}</div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-4">
+          <Card><CardHeader><CardTitle className="text-base">Property evidence</CardTitle></CardHeader><CardContent className="space-y-3">
+            {evidence.isLoading?<p>Checking current evidence access…</p>:evidence.isError?<div role="status"><p>Source evidence is unavailable or its permission has expired. Your private contacts, notes and follow-up history remain below.</p><Button variant="outline" size="sm" onClick={()=>evidence.refetch()}>Check access again</Button></div>
+            :evidence.data?.kind==='source'?evidence.data.rows.map((row,i)=><div key={i} className="space-y-2"><p className="font-medium">{row.address}, {row.city}, {row.state}</p><p className="text-sm">Reviewed historical snapshot · {row.scope}</p><p className="text-xs text-muted-foreground">A source snapshot is not proof of current condition or seller intent. Collection time is separate from the event date.</p>{row.events.map(event=><details key={event.record_key} className="border p-3 rounded-md text-sm"><summary>Case opened {event.case_opened_date||'not supplied'} · {event.status_as_collected||'status not supplied'}</summary><p>{event.case_opened_date_meaning}</p><p>Violation date: {event.violation_date||'not supplied'} · Collected: {event.collected_at||'not supplied'}</p><pre className="whitespace-pre-wrap font-sans text-xs mt-2">{event.source_original_text}</pre></details>)}</div>)
+            :property?<><p>{property.address}, {property.city}, {property.state} {property.zip}</p><Button variant="outline" size="sm" asChild><Link to={propertyLink(property.id)}>View full property</Link></Button></>:<p className="text-sm text-muted-foreground">Property evidence is not currently available. Your private work is preserved.</p>}
+          </CardContent></Card>
+          <LeadWorkEditor key={lead.id} lead={lead}/>
+          <ManualOutcome key={lead.id} lead={lead}/>
+          <LeadActivityTimeline key={lead.id} leadId={lead.id}/>
         </div>
-
-        {leadLoading ? (
-          <Skeleton className="h-32 w-full" />
-        ) : !lead ? (
-          <Card className="p-8 text-center text-muted-foreground">Lead not found.</Card>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 space-y-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-2 flex-wrap">
-                    <div>
-                      <CardTitle className="text-xl">
-                        {propLoading
-                          ? "Loading property…"
-                          : property?.address ?? "Unknown property"}
-                      </CardTitle>
-                      {property && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {property.city}, {property.state} {property.zip ?? ""}
-                        </p>
-                      )}
-                    </div>
-                    {property?.snap_score != null && (
-                      <Badge variant="secondary" className="text-base px-3 py-1">
-                        SnapScore {property.snap_score}
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {property?.snap_insight && (
-                    <div className="rounded-md bg-muted/50 p-3">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-                        AI Brief
-                      </p>
-                      <p className="text-sm leading-relaxed">{property.snap_insight}</p>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Source</p>
-                      <p className="font-medium">{lead.source}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Created</p>
-                      <p className="font-medium">
-                        {new Date(lead.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  {property && (
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={`/properties?focus=${property.id}`}>
-                        <ExternalLink className="h-4 w-4" />
-                        View full property
-                      </Link>
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-
-              <DistressTimeline propertyId={lead.property_id} />
-
-              <LeadActivityTimeline leadId={lead.id} />
-            </div>
-
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Stage</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Select
-                    value={lead.stage_id}
-                    onValueChange={(stageId) => moveStage({ leadId: lead.id, stageId })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stages?.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="h-2 w-2 rounded-full"
-                              style={{ backgroundColor: s.color }}
-                            />
-                            {s.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {currentStage && (
-                    <p className="text-xs text-muted-foreground">
-                      Currently in <strong>{currentStage.name}</strong>
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Owner Contact</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Owner contact will appear here once skip-trace is enriched.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )}
-      </div>
-    </AppLayout>
-  );
+        <div className="space-y-4">
+          <Card><CardHeader><CardTitle className="text-base">Stage</CardTitle></CardHeader><CardContent>
+            {stages.isError?<p role="alert">Stages could not be loaded.</p>:<><label className="sr-only" htmlFor="lead-stage">Pipeline stage</label><select id="lead-stage" className="w-full border rounded-md p-2 bg-background" value={lead.stage_id} disabled={move.isPending||!!lead.archived_at} onChange={e=>move.mutate({leadId:lead.id,stageId:e.target.value})}>{stages.data?.map(stage=><option key={stage.id} value={stage.id}>{stage.name}</option>)}</select></>}
+            {move.isError&&<p role="alert" className="text-sm text-destructive">The stage change failed. Please retry.</p>}
+          </CardContent></Card>
+          <LeadContacts key={lead.id} lead={lead}/>
+          <Card className="p-4 text-sm space-y-2"><p>Assigned to you</p><p>Last reached: {lead.last_contacted_at?new Date(lead.last_contacted_at).toLocaleString():'Not recorded'}</p><p className="text-xs text-muted-foreground">Contact attempts do not count as a successful conversation.</p></Card>
+        </div>
+      </div></>}
+    </div>
+  </AppLayout>;
 }

@@ -55,14 +55,14 @@ export function TrialExpiredModal() {
             Trial Expired
           </DialogTitle>
           <DialogDescription className="text-center">
-            Your saved properties are waiting. Upgrade to export them and continue finding motivated sellers.
+            Your trial has ended. New purchases and customer record exports are paused while the relaunch is verified.
           </DialogDescription>
         </DialogHeader>
 
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           <Link to="/pricing" className="w-full">
             <Button className="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700" size="lg">
-              Subscribe to {tierDisplay} — ${price}/mo
+              Review {tierDisplay} plan — ${price}/mo
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </Link>

@@ -57,16 +57,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // ---- Get Customer ID ----
     // Filter by active statuses and prefer the most recent subscription
-    const { data: subscription } = await supabase
+    const { data: subscription, error: mappingError } = await supabase
       .from("user_subscriptions")
       .select("stripe_customer_id")
       .eq("user_id", user.id)
-      .in("status", ["active", "trialing", "past_due", "trial"])
       .not("stripe_customer_id", "is", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
+    if (mappingError) throw mappingError;
     if (!subscription?.stripe_customer_id) {
       return new Response(
         JSON.stringify({ error: "No active subscription found" }),
@@ -74,9 +74,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    const customer = await stripe.customers.retrieve(subscription.stripe_customer_id);
+    if (customer.deleted || (customer.metadata?.supabase_user_id && customer.metadata.supabase_user_id !== user.id)) {
+      throw new Error("Billing customer mapping needs review. Contact support.");
+    }
+    // During the purchase hold, only an explicitly configured portal with plan
+    // changes disabled is allowed. Never silently use a purchasable default portal.
+    const { data: enabled, error: releaseError } = await supabase.rpc("fn_billing_checkout_enabled_v1");
+    const portalConfiguration = Deno.env.get("STRIPE_MANAGEMENT_PORTAL_CONFIGURATION_ID");
+    if (releaseError || enabled !== true) {
+      if (!portalConfiguration) throw new Error("Billing management is being verified. Contact support for subscription cancellation.");
+      const configuration = await stripe.billingPortal.configurations.retrieve(portalConfiguration);
+      if (!configuration.active || configuration.features.subscription_update.enabled) {
+        throw new Error("Billing management is being verified. Contact support for subscription cancellation.");
+      }
+    }
     // ---- Create Portal Session ----
     const session = await stripe.billingPortal.sessions.create({
       customer: subscription.stripe_customer_id,
+      ...(portalConfiguration ? { configuration: portalConfiguration } : {}),
       return_url: `${appUrl}/settings?tab=subscription`,
     });
 

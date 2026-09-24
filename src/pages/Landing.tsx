@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import SEOHead from "@/components/SEOHead";
+import AvailabilityNotice from "@/components/AvailabilityNotice";
+import { FREE_ACCOUNT_MESSAGE } from "@/lib/publicAvailability";
+import { Sheet, SheetContent, SheetTitle, SheetDescription, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { trackEvent } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/externalClient";
@@ -35,6 +38,7 @@ function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
       role="figure"
       aria-label={unlocked ? "Example unlocked property card" : "Example locked property card with blurred address"}
     >
+      <p className="text-xs font-semibold text-landing-warning mb-4">Illustrative record — not live data or available coverage</p>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           {unlocked ? <Unlock className="w-4 h-4 text-landing-accent" /> : <Lock className="w-4 h-4 text-landing-text-muted" />}
@@ -66,24 +70,12 @@ function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
           <span className="text-xs font-semibold text-landing-accent">AI Investor Brief</span>
         </div>
         <p className="text-xs text-landing-text-muted leading-relaxed">
-          Water disconnected since Feb 2026. 3 open violations including structural. Visible enforcement pressure is increasing.{" "}
+          Fictional example: a notice records a maintenance issue. Source report: February 2026. Current condition and owner intent are unknown.{" "}
           <span className="text-red-500 font-semibold">Review before outreach.</span>
         </p>
       </div>
 
-      {unlocked ? (
-        <div className="space-y-2">
-          <div className="flex gap-2 mt-1">
-            <Button size="sm" className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg text-xs flex-1">Export Lead</Button>
-            <Button size="sm" variant="outline" className="border-landing-surface text-landing-text text-xs flex-1">Save ❤️</Button>
-          </div>
-        </div>
-      ) : (
-        <Button className="w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
-          <Lock className="w-4 h-4 mr-2" />
-          Unlock for {PAYG_PRICE_DISPLAY}
-        </Button>
-      )}
+      <p className="rounded-lg border border-landing-surface p-3 text-sm text-landing-text-muted">Illustration only · customer unlocks and exports are paused</p>
     </div>
   );
 }
@@ -94,7 +86,7 @@ function PropertyCardMock({ unlocked }: { unlocked: boolean }) {
 export default function Landing() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [heroFlipped, setHeroFlipped] = useState(false);
+  const heroFlipped = false;
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
@@ -103,22 +95,17 @@ export default function Landing() {
     });
   }, [navigate]);
 
-  // Auto-flip hero card demo
-  useEffect(() => {
-    const interval = setInterval(() => setHeroFlipped((p) => !p), 4000);
-    return () => clearInterval(interval);
-  }, []);
-
+  // The product illustration is static; it does not imply live customer data.
   const scrollTo = (id: string) => {
     setMobileMenuOpen(false);
-    setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }), 100);
+    setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }), 100);
   };
 
   return (
     <div className="landing-theme min-h-screen bg-landing-bg text-landing-text overflow-x-hidden">
       <SEOHead
         title="Snap Ignite | Enforcement Intelligence for Distressed Property Investors"
-        description="Monitor code violations, water shutoffs, repeat notices, and municipal enforcement pressure. Snap Ignite ranks distressed property opportunities and writes the AI Investor Brief."
+        description="Municipal enforcement intelligence for property research. Customer market access and purchases are paused during relaunch verification."
         canonical="https://snapignite.com/"
       />
 
@@ -131,15 +118,8 @@ export default function Landing() {
             "@type": "WebApplication",
             name: "Snap Ignite",
             url: "https://snapignite.com",
-            description: "Monitor code violations, water shutoffs, repeat notices, and municipal enforcement pressure across 3,800+ cities. Snap Ignite ranks distressed property opportunities and writes the AI Investor Brief.",
+            description: "Municipal enforcement intelligence for property research. Customer market access and purchases are paused during relaunch verification.",
             applicationCategory: "BusinessApplication",
-            offers: [
-              { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD", description: "3 free unlocks, browse all properties, AI investor briefs" },
-              { "@type": "Offer", name: "Pay As You Go", price: "0.67", priceCurrency: "USD", description: "Per credit, no subscription needed" },
-              { "@type": "Offer", name: "Starter", price: "49", priceCurrency: "USD", description: "750 credits/month" },
-              { "@type": "Offer", name: "Pro", price: "99", priceCurrency: "USD", description: "1,500 credits/month" },
-              { "@type": "Offer", name: "Elite", price: "199", priceCurrency: "USD", description: "3,000 credits/month" },
-            ],
             publisher: { "@type": "Organization", name: "Snap Intelligence LLC" },
           }),
         }}
@@ -171,54 +151,29 @@ export default function Landing() {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden text-landing-text-muted hover:text-landing-text"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle mobile menu"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild><Button variant="ghost" size="icon" className="md:hidden text-landing-text" aria-label="Open navigation"><Menu className="h-5 w-5" /></Button></SheetTrigger>
+              <SheetContent className="landing-theme bg-landing-bg text-landing-text border-landing-surface">
+                <SheetTitle className="text-landing-text">Snap Ignite navigation</SheetTitle>
+                <SheetDescription className="text-landing-text-muted">Explore the workflow, pricing, and availability.</SheetDescription>
+                <div className="flex flex-col gap-4 mt-8">
+                  {[{ id: "how-it-works", label: "How it works" }, { id: "pricing", label: "Pricing" }, { id: "faq", label: "FAQ" }].map(item => <Button key={item.id} variant="ghost" className="justify-start" onClick={() => scrollTo(item.id)}>{item.label}</Button>)}
+                  <SheetClose asChild><Link to="/code-violations" className="px-4 py-2">Market availability</Link></SheetClose>
+                  <SheetClose asChild><Link to="/auth?mode=signup" className="px-4 py-2">Create free account</Link></SheetClose>
+                </div>
+              </SheetContent>
+            </Sheet>
             <Link to="/auth?mode=signin">
               <Button variant="ghost" className="text-landing-text-muted hover:text-landing-text hover:bg-landing-surface/50 text-sm">Sign In</Button>
             </Link>
             <Link to="/auth?mode=signup">
               <Button className="hidden sm:flex bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-sm">
-                Start Free <ArrowRight className="w-4 h-4 ml-1.5" />
+                Create Free Account <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
             </Link>
           </div>
         </div>
 
-        {/* Mobile menu */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t border-landing-surface/50 bg-landing-bg/95 backdrop-blur-xl"
-            >
-              <div className="container mx-auto px-4 py-4 flex flex-col gap-2">
-                {[
-                  { id: "how-it-works", label: "How It Works" },
-                  { id: "pricing", label: "Pricing" },
-                  { id: "faq", label: "FAQ" },
-                ].map((nav) => (
-                  <button key={nav.id} onClick={() => scrollTo(nav.id)} className="text-left py-3 text-landing-text-muted hover:text-landing-text transition border-b border-landing-surface/30">
-                    {nav.label}
-                  </button>
-                ))}
-                <Link to="/auth?mode=signup" className="w-full">
-                  <Button className="mt-2 w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold">
-                    Start Free <ArrowRight className="w-4 h-4 ml-1.5" />
-                  </Button>
-                </Link>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </nav>
 
       {/* ─── HERO ─────────────────────────────────────────── */}
@@ -240,11 +195,11 @@ export default function Landing() {
 
               <motion.h1 id="hero-heading" variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="text-3xl md:text-5xl font-bold leading-tight">
                 Monitor Municipal Pressure Signals {" "}
-                <span className="text-landing-accent">Before They Become Commodity Lists</span>
+                <span className="text-landing-accent">With the Source in View</span>
               </motion.h1>
 
               <motion.p variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="text-lg text-landing-text-muted max-w-xl">
-                Snap Ignite turns code violations, water shutoffs, repeat notices, and municipal enforcement records into ranked market intelligence across <strong className="text-landing-text">3,800+ cities</strong> — then writes the AI Investor Brief that explains the visible signals behind each property.
+                Snap Ignite brings municipal enforcement records, source context, and your follow-up workflow together. Check the evidence and current status before deciding which properties deserve more research.
               </motion.p>
 
               <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="flex flex-col sm:flex-row gap-3">
@@ -254,7 +209,7 @@ export default function Landing() {
                     onClick={() => trackEvent("hero_cta_click", { location: "hero" })}
                     className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
                   >
-                    Start Monitoring Free <ArrowRight className="w-5 h-5 ml-2" />
+                    Create Free Account <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
                 <Button
@@ -269,7 +224,7 @@ export default function Landing() {
 
               <motion.p variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="text-sm text-landing-text-muted flex items-center gap-2">
                 <Check className="w-4 h-4 text-landing-accent" />
-                Free signup · 3 free unlocks · Choose a market and start monitoring
+                Free account · No paid trial · Customer record access is paused
               </motion.p>
             </motion.div>
 
@@ -291,22 +246,24 @@ export default function Landing() {
         </div>
       </section>
 
+      <div className="container mx-auto px-4 pb-12 max-w-5xl"><AvailabilityNotice /></div>
+
       {/* ─── WHAT YOU GET ─────────────────────────────────── */}
       <section className="py-16 bg-landing-surface/30" aria-labelledby="offer-heading">
         <div className="container mx-auto px-4">
           <h2 id="offer-heading" className="text-3xl md:text-4xl font-bold text-center mb-4">
-            Preview the Pressure Signal Before You Unlock
+            Know What the Record Actually Says
           </h2>
           <p className="text-lg text-landing-text-muted text-center mb-12 max-w-2xl mx-auto">
-            Browse market-level intelligence, compare pressure signals, and unlock only when the enforcement signal is strong enough to justify action.
+            Our relaunch workflow is built around source evidence, careful review, and your next action. Customer access remains paused while this workflow is verified.
           </p>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
             {[
               { icon: Shield, title: "Source-Backed Signals", desc: "See why a record exists: violation categories, open pressure, dates, and severity context before revealing the exact address." },
-              { icon: Sparkles, title: "AI Investor Brief", desc: "Every property gets an investor-readable brief that explains visible enforcement signals without guessing owner intent." },
-              { icon: Bell, title: "Market Monitoring", desc: "Use city and recency filters to build a weekly review habit around fresh pressure, not stale one-time exports." },
-              { icon: Lock, title: "Controlled Unlocks", desc: "Street number and export rights stay gated until the signal is strong enough to spend a credit." },
+              { icon: Sparkles, title: "AI Investor Brief", desc: "Where available, summaries explain visible enforcement records. Always check them against the source; they do not establish owner intent." },
+              { icon: Bell, title: "Market Monitoring", desc: "Review changes in an approved market using source dates. Refresh timing depends on the issuing agency." },
+              { icon: Lock, title: "Controlled Unlocks", desc: "Customer unlocks and exports are paused until source access and delivery are verified." },
             ].map((item, i) => (
               <div key={i} className="bg-landing-bg/50 border border-landing-surface rounded-xl p-6 text-center">
                 <div className="w-12 h-12 rounded-full bg-landing-accent/10 flex items-center justify-center mx-auto mb-4">
@@ -324,13 +281,13 @@ export default function Landing() {
       <section id="how-it-works" className="py-20" aria-labelledby="hiw-heading">
         <div className="container mx-auto px-4">
           <h2 id="hiw-heading" className="text-3xl md:text-4xl font-bold text-center mb-4">How It Works</h2>
-          <p className="text-lg text-landing-text-muted text-center mb-16">Three steps from market monitoring to an evidence-backed unlock</p>
+          <p className="text-lg text-landing-text-muted text-center mb-16">The workflow being prepared for approved customer markets</p>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
               { step: "01", icon: Search, title: "Scan Enforcement Pressure", desc: "Choose a city, then filter by SnapScore, violation category, recency, and open enforcement pressure to monitor the market pockets that matter." },
               { step: "02", icon: Eye, title: "Validate the Signal", desc: "Read the AI Investor Brief, violation timeline, and severity cues before spending anything. Separate visible pressure signals from noisy public records." },
-              { step: "03", icon: Unlock, title: "Unlock, Export, Monitor", desc: `Use a free unlock, pay ${PAYG_PRICE_DISPLAY} one-time, or subscribe. Reveal the full address when ready to act, then keep watching the market for fresh pressure.` },
+              { step: "03", icon: Unlock, title: "Save Research and Follow Up", desc: `Save research context and a next action in your private pipeline. Unlocks, exports, and purchases remain paused during verification.` },
             ].map((s, i) => (
               <motion.div
                 key={i}
@@ -361,10 +318,10 @@ export default function Landing() {
           <h2 id="trust-heading" className="sr-only">Platform Coverage</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto text-center">
             {[
-              { value: "500K+", label: "Enforcement Records" },
-              { value: "3,800+", label: "Cities Monitored" },
-              { value: "Weekly", label: "Fresh Pressure Signals" },
-              { value: "AI", label: "Investor Briefs on Every Lead" },
+              { value: "Source", label: "Review the original context" },
+              { value: "Dates", label: "Distinguish filing from receipt" },
+              { value: "Status", label: "Check resolution and uncertainty" },
+              { value: "Action", label: "Keep your next step visible" },
             ].map((stat, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
                 <div className="text-3xl md:text-4xl font-bold text-landing-accent">{stat.value}</div>
@@ -378,20 +335,20 @@ export default function Landing() {
       {/* ─── PRICING ──────────────────────────────────────── */}
       <section id="pricing" className="py-20" aria-labelledby="pricing-heading">
         <div className="container mx-auto px-4">
-          <h2 id="pricing-heading" className="text-3xl md:text-4xl font-bold text-center mb-4">Pricing Built for Selective Unlocks and Weekly Monitoring</h2>
+          <h2 id="pricing-heading" className="text-3xl md:text-4xl font-bold text-center mb-4">Plan Reference — Purchases Paused</h2>
           <p className="text-lg text-landing-text-muted text-center mb-14 max-w-xl mx-auto">
-            Browse broadly, monitor markets weekly, and unlock selectively when a property has enough public pressure signal to justify action.
+            These are the configured plan prices, not an offer of current data availability. No new purchases, free unlocks, or exports are available during the relaunch review.
           </p>
 
           {/* Subscription tiers */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mb-8">
             {[
-              { name: "Free", price: "$0", suffix: "/forever", features: ["3 unlocks total, never expire", "Browse markets", "AI Investor Brief previews", "SnapScore ranking"], cta: "Start Monitoring", highlighted: false },
-              { name: "Pay As You Go", price: PAYG_PRICE_DISPLAY, suffix: "/credit", features: ["No monthly fee", "1 credit = 1 selective unlock + export", "Credits never expire", "Use when the signal is strong"], cta: "Start Free", highlighted: false, badge: "Selective Unlocks" },
-              { name: "Starter", price: "$49", suffix: "/mo", features: ["750 credits/month", "Monitor one or more markets", "Code violation data", "CSV export for unlocked value"], cta: "Start Free", highlighted: false },
-              { name: "Pro", price: "$99", suffix: "/mo", features: ["1,500 credits/month", "Weekly market monitoring workflow", "Pressure Level™ filters", "All Starter features"], cta: "Start Free", highlighted: true, badge: "Most Popular" },
-              { name: "Elite", price: "$199", suffix: "/mo", features: ["3,000 credits/month", "Water shutoff data", "Multi-market monitoring", "Full platform access"], cta: "Start Free", highlighted: false },
-              { name: "Enterprise", price: "Custom", suffix: "", features: ["25,000+ addresses", "API access", "Dedicated account manager", "Custom contract"], cta: "Contact Us", highlighted: false, isEnterprise: true },
+              { name: "Free", price: "$0", suffix: " account", features: ["No paid trial", "No card required", "Customer record access paused"], cta: "Create Free Account", highlighted: false },
+              { name: "Pay As You Go", price: PAYG_PRICE_DISPLAY, suffix: "/credit", features: ["Reference price", "Purchases and unlocks paused"], cta: "View Availability", highlighted: false },
+              { name: "Starter", price: "$49", suffix: "/mo", features: ["750 credits/month when available", "Purchases and access paused"], cta: "View Availability", highlighted: false },
+              { name: "Pro", price: "$99", suffix: "/mo", features: ["1,500 credits/month when available", "Purchases and access paused"], cta: "View Availability", highlighted: true },
+              { name: "Elite", price: "$199", suffix: "/mo", features: ["3,000 credits/month when available", "Signal coverage varies by market"], cta: "View Availability", highlighted: false },
+              { name: "Enterprise", price: "Custom", suffix: "", features: ["Discuss requirements", "Subject to confirmed data availability"], cta: "Contact Us", highlighted: false, isEnterprise: true },
             ].map((plan, i) => (
               <motion.div
                 key={i}
@@ -405,9 +362,9 @@ export default function Landing() {
                     : "bg-landing-bg/50 border border-landing-surface"
                 }`}
               >
-                {plan.badge && (
+                {"badge" in plan && plan.badge && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-landing-accent text-landing-bg text-xs font-semibold rounded-full whitespace-nowrap">
-                    {plan.badge}
+                    {String(plan.badge)}
                   </div>
                 )}
                 <div className="text-center mb-4">
@@ -432,7 +389,7 @@ export default function Landing() {
                     </li>
                   ))}
                 </ul>
-                <Link to={"isEnterprise" in plan && plan.isEnterprise ? "mailto:hello@snapignite.com" : "/auth?mode=signup"}>
+                <Link to={"isEnterprise" in plan && plan.isEnterprise ? "mailto:hello@snapignite.com" : plan.name === "Free" ? "/auth?mode=signup" : "/code-violations"}>
                   <Button
                     className={`w-full text-sm ${
                       plan.highlighted
@@ -451,7 +408,7 @@ export default function Landing() {
           {/* Bulk Credits */}
           <div className="max-w-4xl mx-auto mt-16">
             <h3 className="text-2xl font-bold text-center mb-2">Bulk Credits</h3>
-            <p className="text-landing-text-muted text-center mb-8">Buy once, use anytime. No subscription required.</p>
+            <p className="text-landing-text-muted text-center mb-8">Reference prices only. Bulk credit purchases are paused.</p>
             <div className="grid sm:grid-cols-3 gap-6">
               {[
                 { credits: "5,000", price: "$750", per: "$0.15/credit" },
@@ -469,9 +426,7 @@ export default function Landing() {
                   <p className="text-2xl font-bold mb-1">{pkg.credits} credits</p>
                   <p className="text-3xl font-bold text-landing-accent mb-1">{pkg.price}</p>
                   <p className="text-sm text-landing-text-muted mb-4">{pkg.per}</p>
-                  <Link to="/auth?mode=signup">
-                    <Button className="w-full bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">Get Started</Button>
-                  </Link>
+                  <Button disabled className="w-full bg-landing-accent text-landing-bg">Purchases paused</Button>
                 </motion.div>
               ))}
             </div>
@@ -486,7 +441,7 @@ export default function Landing() {
       {/* ─── WHY SNAP IGNITE ──────────────────────────────── */}
       <section className="py-20 bg-landing-surface/30" aria-labelledby="why-heading">
         <div className="container mx-auto px-4">
-          <h2 id="why-heading" className="text-3xl md:text-4xl font-bold text-center mb-4">Why Investors Choose Snap Ignite</h2>
+          <h2 id="why-heading" className="text-3xl md:text-4xl font-bold text-center mb-4">Built for Evidence and Follow-Through</h2>
           <p className="text-lg text-landing-text-muted text-center mb-14 max-w-2xl mx-auto">
             Snap Ignite is designed around enforcement pressure, freshness, and action history — the ingredients that make a data product feel proprietary instead of disposable.
           </p>
@@ -499,7 +454,7 @@ export default function Landing() {
                 <h3 className="text-xl font-bold">Commodity Lead Lists</h3>
               </div>
               <div className="space-y-3 text-sm text-landing-text-muted">
-                {["Reviewing broad homeowner lists with little context", "Buying the same stale lists every other investor already has", "No clear view into current municipal pressure", "Exporting bulk data before knowing which records deserve attention"].map((item, i) => (
+                {["Reviewing broad homeowner lists with little context", "Using records without checking their source date", "No clear view into current municipal pressure", "Exporting bulk data before knowing which records deserve attention"].map((item, i) => (
                   <div key={i} className="flex items-center gap-2"><X className="w-3.5 h-3.5 text-red-400 shrink-0" />{item}</div>
                 ))}
               </div>
@@ -513,9 +468,9 @@ export default function Landing() {
               <div className="space-y-3 text-sm text-landing-text-muted">
                 {[
                   "Municipal pressure signals ranked by SnapScore",
-                  "Fresh enforcement records create weekly reasons to return",
+                  "Review source changes when the issuing agency supplies updates",
                   "AI Investor Brief explains visible signals without claiming owner intent",
-                  `Unlock exact addresses only when the signal is strong at ${PAYG_PRICE_DISPLAY} each`,
+                  `Keep property research and follow-up together in a private workflow`,
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-landing-accent shrink-0" />{item}</div>
                 ))}
@@ -583,12 +538,12 @@ export default function Landing() {
             <h2 id="faq-heading" className="text-3xl md:text-4xl font-bold text-center mb-12">Frequently Asked Questions</h2>
             <Accordion type="single" collapsible className="space-y-4">
               {[
-                { q: "Do I need a subscription to use Snap Ignite?", a: "No. Sign up free and browse market signals with AI Investor Brief previews. Pay only when you want to unlock an exact address, or subscribe when market monitoring becomes a recurring workflow." },
-                { q: "What are the 3 free unlocks?", a: "Every new account gets 3 free unlocks so you can inspect full records before buying credits. Each unlock reveals the exact address, violation context, and export rights. No credit card needed." },
-                { q: "What happens when I unlock a property?", a: "You get the exact street address, violation history, AI Investor Brief, and export rights for that record. Unlocks are for properties you are ready to evaluate or act on." },
-                { q: "How does Pay As You Go work?", a: `Pay ${PAYG_PRICE_DISPLAY} per credit. No subscription, no commitment. 1 credit = 1 selective unlock + export rights for that record. Credits never expire.` },
-                { q: "Where does the data come from?", a: "Snap Ignite aggregates municipal enforcement records including code violations, fines, repeat notices, and water shutoff signals where available. AI Investor Briefs explain visible public/property signals rather than claiming owner intent." },
-                { q: "How is this different from other lead lists?", a: "Most lead lists hand you broad homeowner data. Snap Ignite is built for market monitoring: compare visible enforcement pressure, read the AI context, and unlock exact addresses only when the signal is strong." },
+                { q: "Can I use customer records now?", a: "Customer record access, unlocks, exports, and new purchases are paused while we verify the relaunch. No customer market is currently approved for access." },
+                { q: "Is creating an account free?", a: FREE_ACCOUNT_MESSAGE },
+                { q: "What happened to the free unlock offer?", a: "Free unlocks are paused along with customer record access. Signing up does not promise immediate property access or enroll you in a paid trial." },
+                { q: "Where does the data come from?", a: "We review municipal enforcement sources. Availability, field completeness, and update timing depend on the issuing agency. A record's receipt date is different from its event date." },
+                { q: "Does a violation mean the owner wants to sell?", a: "No. A municipal record documents agency activity. Confirm the current status and property match, and do your own research before acting." },
+                { q: "Which markets can I use?", a: "No customer market is currently approved. We will identify confirmed availability by city and state; a research directory entry is not customer coverage." },
               ].map((faq, i) => (
                 <AccordionItem key={i} value={`item-${i}`} className="bg-landing-bg/50 border border-landing-surface rounded-lg px-6 data-[state=open]:border-landing-accent/50">
                   <AccordionTrigger className="text-left font-semibold hover:text-landing-accent py-5 text-sm md:text-base">{faq.q}</AccordionTrigger>
@@ -604,16 +559,16 @@ export default function Landing() {
       <section className="py-20 relative overflow-hidden" aria-labelledby="cta-heading">
         <div className="absolute inset-0 bg-gradient-to-t from-landing-accent/10 to-transparent" />
         <div className="container mx-auto px-4 relative z-10 text-center">
-          <h2 id="cta-heading" className="text-3xl md:text-5xl font-bold mb-4">Stop treating every property like an equal lead.</h2>
+          <h2 id="cta-heading" className="text-3xl md:text-5xl font-bold mb-4">Start with evidence. Keep your next action clear.</h2>
           <p className="text-lg text-landing-text-muted mb-8 max-w-xl mx-auto">
-            Monitor code violations, water shutoffs, and repeat notices before they become commodity lists. Sign up free and use 3 unlocks when the signal is strong.
+            Create a free account while we prepare customer access. Availability will be identified by market; no paid trial starts when you sign up.
           </p>
           <Link to="/auth?mode=signup">
             <Button
               size="lg"
               className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg font-semibold text-lg px-10 py-6 shadow-lg hover:shadow-[0_0_30px_rgba(56,178,172,0.3)] transition-shadow"
             >
-              Start Free <ArrowRight className="w-5 h-5 ml-2" />
+              Create Free Account <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </Link>
         </div>
@@ -629,7 +584,7 @@ export default function Landing() {
                 <span className="text-landing-text"> IGNITE</span>
               </span>
               <p className="text-landing-text-muted text-sm mt-4">
-                The enforcement intelligence platform for investors monitoring municipal pressure signals before opportunities become commodity lists.
+                Municipal enforcement intelligence and a private research workflow for real estate investors.
               </p>
             </div>
             <div>
@@ -666,7 +621,7 @@ export default function Landing() {
                 <Button variant="ghost" size="sm" className="text-landing-text-muted hover:text-landing-text">Sign In</Button>
               </Link>
               <Link to="/auth?mode=signup">
-                <Button size="sm" className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">Start Free</Button>
+                <Button size="sm" className="bg-landing-accent hover:bg-landing-accent/90 text-landing-bg">Create Free Account</Button>
               </Link>
             </div>
           </div>

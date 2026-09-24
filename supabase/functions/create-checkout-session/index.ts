@@ -31,7 +31,7 @@ async function resolveLatestInvoice(stripe: Stripe, subscription: Stripe.Subscri
 
 function normalizeReturnPath(rawPath: unknown, fallback: string): string {
   if (typeof rawPath !== "string") return fallback;
-  if (!rawPath.startsWith("/")) return fallback;
+  if (!rawPath.startsWith("/") || rawPath.startsWith("//") || rawPath.includes("\\")) return fallback;
   return rawPath;
 }
 
@@ -111,7 +111,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
     }
 
+    // The default is closed. This call must succeed before customer creation,
+    // subscription changes, portal plan updates, or checkout writes to Stripe.
+    const { data: checkoutEnabled, error: releaseError } = await supabase.rpc("fn_billing_checkout_enabled_v1");
+    if (releaseError || checkoutEnabled !== true) {
+      return new Response(JSON.stringify({ code: "checkout_paused", error: "Purchases are paused while customer delivery is verified. Existing billing can be managed in Settings." }), { status: 503, headers });
+    }
     const user = authData.user;
+    const { data: accountOpen, error: closureError } = await supabase.rpc("fn_billing_account_open_v1", { p_user_id: user.id });
+    if (closureError || accountOpen !== true) {
+      return new Response(JSON.stringify({ error: "Account closure is pending. Contact support before starting another purchase." }), { status: 409, headers });
+    }
     const body = await req.json();
     const { checkout_type } = body;
 
@@ -146,7 +156,6 @@ async function handleSingleUnlock(
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    payment_method_types: ["card"],
     line_items: [{ price: PAYG_PRICE_ID, quantity: 1 }],
     mode: "payment",
     // Stripe replaces {CHECKOUT_SESSION_ID}. Client calls handle-unlock with stripe_session_id so unlock works if webhook is delayed.
@@ -176,6 +185,9 @@ async function handleSubscription(
   headers: Record<string, string>,
 ) {
   const { tier_name, billing_cycle = "monthly", trial = false } = body;
+  if (trial || billing_cycle !== "monthly") {
+    return new Response(JSON.stringify({ error: "This checkout offer is unavailable." }), { status: 400, headers });
+  }
   const returnPath = normalizeReturnPath(body.return_path, "/settings?tab=subscription");
 
   if (!tier_name) {
@@ -197,13 +209,21 @@ async function handleSubscription(
     .eq("name", dbTierName)
     .single();
 
-  const { data: existingSubscription } = await supabase
+  const { data: existingSubscription, error: existingError } = await supabase
     .from("user_subscriptions")
     .select("id, stripe_customer_id, stripe_subscription_id, status, plan_id")
     .eq("user_id", user.id)
-    .in("status", ["active", "trialing", "trial", "past_due"])
+    .in("status", ["active", "trialing", "trial", "past_due", "unpaid"])
     .maybeSingle();
 
+  if (existingError) throw existingError;
+  if (!plan?.id) throw new Error("Plan unavailable");
+  if (existingSubscription?.stripe_subscription_id && existingSubscription.plan_id === plan.id && existingSubscription.status === "active") {
+    return new Response(JSON.stringify({ error: "This plan already exists. Manage it in billing settings." }), { status: 409, headers });
+  }
+  if (existingSubscription?.stripe_subscription_id && ["past_due", "unpaid"].includes(existingSubscription.status)) {
+    return new Response(JSON.stringify({ error: "Resolve your existing subscription in billing settings before starting a new checkout." }), { status: 409, headers });
+  }
   let customerId = existingSubscription?.stripe_customer_id;
 
   // If user already trialing same plan, convert to active (only after Stripe collects payment)
@@ -332,16 +352,9 @@ async function handleSubscription(
     }
   }
 
-  // Cancel internal trial record
-  if (
-    existingSubscription &&
-    !existingSubscription.stripe_subscription_id &&
-    (existingSubscription.status === "trial" || existingSubscription.status === "trialing")
-  ) {
-    await supabase
-      .from("user_subscriptions")
-      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
-      .eq("id", existingSubscription.id);
+  // Preserve legacy local trials until their provider mapping is explicitly reconciled.
+  if (existingSubscription && !existingSubscription.stripe_subscription_id) {
+    return new Response(JSON.stringify({ error: "Your existing billing record needs review before a new checkout. Contact support." }), { status: 409, headers });
   }
 
   if (!customerId) {
@@ -359,7 +372,6 @@ async function handleSubscription(
   const successPath = `/checkout/success?session_id={CHECKOUT_SESSION_ID}${trial ? "&trial=true" : ""}`;
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    payment_method_types: ["card"],
     line_items: [{ price: priceId, quantity: 1 }],
     mode: "subscription",
     success_url: `${appUrl}${successPath}`,
@@ -376,7 +388,7 @@ async function handleSubscription(
 
 // ---- Shared: Get or Create Stripe Customer ----
 async function getOrCreateCustomer(stripe: Stripe, supabase: any, user: any): Promise<string> {
-  const { data: existingSub } = await supabase
+  const { data: existingSub, error: customerMappingError } = await supabase
     .from("user_subscriptions")
     .select("stripe_customer_id")
     .eq("user_id", user.id)
@@ -384,18 +396,19 @@ async function getOrCreateCustomer(stripe: Stripe, supabase: any, user: any): Pr
     .limit(1)
     .maybeSingle();
 
-  // Verify stored customer still exists in Stripe (handles env mismatch / deleted customers)
+  if (customerMappingError) throw customerMappingError;
+  // A provider lookup failure is not permission to create another billing identity.
   if (existingSub?.stripe_customer_id) {
-    try {
-      await stripe.customers.retrieve(existingSub.stripe_customer_id);
-      return existingSub.stripe_customer_id;
-    } catch {
-      console.warn("[checkout] Stored customer ID invalid, will create new:", existingSub.stripe_customer_id);
-    }
+    const storedCustomer = await stripe.customers.retrieve(existingSub.stripe_customer_id);
+    if (storedCustomer.deleted) throw new Error("Stored billing customer needs review");
+    if (storedCustomer.metadata?.supabase_user_id && storedCustomer.metadata.supabase_user_id !== user.id)
+      throw new Error("Stored customer owner mismatch");
+    return existingSub.stripe_customer_id;
   }
 
   const existingCustomers = await stripe.customers.list({ email: user.email, limit: 1 });
-  if (existingCustomers.data.length > 0) return existingCustomers.data[0].id;
+  const ownedCustomer = existingCustomers.data.find(customer => customer.metadata?.supabase_user_id === user.id);
+  if (ownedCustomer) return ownedCustomer.id;
 
   const customer = await stripe.customers.create({
     email: user.email,
@@ -429,7 +442,6 @@ async function handleBulkCredits(
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    payment_method_types: ["card"],
     line_items: [{ price: pack.priceId, quantity: 1 }],
     mode: "payment",
     success_url: `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&credits_added=${pack.credits}`,

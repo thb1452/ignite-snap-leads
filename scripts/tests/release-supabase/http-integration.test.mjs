@@ -62,7 +62,11 @@ test('real local Supabase Auth, PostgREST and function gateway preserve release 
     denied(await request('/rest/v1/crm_contacts',{token:b.token,method:'POST',body:{lead_id:lead.id,org_id:orgB,name:'Forged synthetic relationship',source:'Synthetic fixture'}}));
     const changed=success(await request(`/rest/v1/leads?id=eq.${lead.id}`,{token:b.token,method:'PATCH',headers:{Prefer:'return=representation'},body:{title:'Forged'}}));
     assert.deepEqual(changed,[]);
-    denied(await request(`/rest/v1/profiles?user_id=eq.${a.id}`,{token:a.token,method:'PATCH',body:{org_id:orgB}}));
+    // An UPDATE hidden by its RLS USING policy changes zero rows rather than
+    // raising. Assert the represented rows AND the canonical stored identity.
+    assert.deepEqual(success(await request(`/rest/v1/profiles?user_id=eq.${a.id}`,{token:a.token,method:'PATCH',headers:{Prefer:'return=representation'},body:{org_id:orgB}})),[]);
+    assert.equal((await sql.query('SELECT org_id FROM public.profiles WHERE user_id=$1',[a.id])).rows[0].org_id,orgA);
+    assert.deepEqual(success(await request(`/rest/v1/pipeline_stages?org_id=eq.${orgB}&select=id`,{token:a.token})),[]);
   });
   await record('HTTP outcome retry reconciles one receipt and rejects stale competing action',async()=>{
     lead=row(success(await request(`/rest/v1/leads?id=eq.${lead.id}&select=*`,{token:a.token})));
@@ -70,8 +74,12 @@ test('real local Supabase Auth, PostgREST and function gateway preserve release 
     const changed=row(success(await rpc('fn_crm_record_outcome_v1',a.token,command)));
     assert.equal(row(success(await rpc('fn_crm_record_outcome_v1',a.token,command))).id,lead.id);
     assert.equal(success(await request(`/rest/v1/lead_activities?id=eq.${outcome}&select=id`,{token:a.token})).length,1);
-    const stale=await rpc('fn_crm_record_outcome_v1',a.token,{...command,p_request_id:randomUUID()});
-    assert.equal(stale.status,409);assert.equal(stale.data.code,'40001');
+    const staleRequest=randomUUID();
+    const stale=await rpc('fn_crm_record_outcome_v1',a.token,{...command,p_request_id:staleRequest});
+    // PostgREST 16 maps SQLSTATE40* (transaction rollback) to HTTP500.
+    assert.equal(stale.status,500);assert.equal(stale.data.code,'40001');
+    assert.equal((await sql.query('SELECT count(*)::int n FROM public.lead_activities WHERE id=$1',[staleRequest])).rows[0].n,0);
+    assert.equal(row(success(await request(`/rest/v1/leads?id=eq.${lead.id}&select=*`,{token:a.token}))).updated_at,changed.updated_at);
     denied(await rpc('fn_crm_record_outcome_v1',b.token,{...command,p_request_id:randomUUID(),p_expected_updated_at:changed.updated_at}));
   });
   await record('real token refresh retains only its own private workspace',async()=>{
@@ -113,7 +121,12 @@ test('real local Supabase Auth, PostgREST and function gateway preserve release 
       assert.equal(result.status,401);
       // The handler also returns 401, so status alone cannot prove gateway JWT
       // verification. Require the gateway envelope, not its Unauthorized body.
-      assert.equal(Number(result.data.code),401);assert.equal(typeof result.data.message,'string');
+      // CLI2.117.0 uses named RequestErrors plus this matching gateway header
+      // (apps/cli/src/shared/functions/serve.main.ts), not numeric body codes.
+      const expected=token===''?['UNAUTHORIZED_NO_AUTH_HEADER','UNAUTHORIZED_INVALID_JWT_FORMAT']:['UNAUTHORIZED_LEGACY_JWT'];
+      assert.ok(expected.includes(result.data.code),'Expected the pinned local gateway rejection code');
+      assert.equal(result.gatewayErrorCode,result.data.code);
+      assert.equal(typeof result.data.message,'string');
       assert.equal(result.data.error,undefined);
     }
     const heldCheckout=await request('/functions/v1/create-checkout-session',{token:a.token,method:'POST',body:{mode:'subscription',plan:'starter'}});

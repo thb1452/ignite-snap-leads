@@ -22,7 +22,7 @@ export async function request(path,{token=anon,method='GET',body,headers={}}={})
   assert.ok(path.startsWith('/')&&!path.startsWith('//'),'Relative local API path required');
   const response=await fetch(`${api}${path}`,{method,headers:{apikey:anon,Authorization:`Bearer ${token}`,'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(20000)});
   const raw=await response.text();let data;try{data=JSON.parse(raw);}catch{data=raw;}
-  return {status:response.status,ok:response.ok,data};
+  return {status:response.status,ok:response.ok,data,gatewayErrorCode:response.headers.get('sb-error-code')};
 }
 export function success(response){assert.ok(response.ok,`Local API returned ${response.status}; code=${response.data?.code??response.data?.error_code??'unknown'}`);return response.data;}
 export function denied(response){

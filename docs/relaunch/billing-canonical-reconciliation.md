@@ -4,6 +4,8 @@
 
 The private review distinguishes historical test evidence, verified current-provider mappings, unresolved account/mode identities and records without provider identity. Detailed account references, subscription timestamps, invoice history, financial totals, row hashes and classification counts are retained outside this public repository.
 
+Follow-up read-only retrievals in the confirmed historical sandbox and the business account's separate legacy shared Test mode did not locate the unresolved subscription identities. Sampled subscriptions with known historical test-event evidence were also absent from both reviewed test scopes. Account identity and test-key mode were verified before each bounded check; no complete legacy Test mode inventory is claimed. These results leave the identities unresolved; absence does not establish cancellation, nonpayment or test classification. The evidence remains private, and the correction proposal remains unapplied.
+
 ## Required interpretation
 
 - A missing identity in one provider account/mode does not prove cancellation or nonpayment.
@@ -26,4 +28,4 @@ Candidate billing functions require explicit `STRIPE_EXPECTED_LIVEMODE=true` for
 
 ## Verification limits
 
-Offline reconciliation tests pass; they verify evidence classification and proposal/preflight safety using fixtures. **Zero real Stripe payment tests and zero signed provider events have run.** See [sandbox status](stripe-sandbox-tests.md). Native synthetic PostgreSQL concurrency is separately documented in [staging verification](staging-verification.md). Neither result proves hosted payment-to-delivery or resolves private historical identities.
+Offline reconciliation tests pass; they verify evidence classification and proposal/preflight safety using fixtures. See [sandbox status](stripe-sandbox-tests.md) for the current real-provider execution results and limitations. Native synthetic PostgreSQL concurrency is separately documented in [staging verification](staging-verification.md). Those checks do not by themselves prove hosted payment-to-delivery or resolve private historical identities.

@@ -2,7 +2,7 @@
 
 **Release state: HOLD. No market accepted or published.** The original source file, receipt and manifest have been recovered and their expected hashes match. Independent reconstruction and agent inspection of the required source sample and held exceptions completed without import drift. Detailed evidence remains private. A remaining archived observation object was not downloaded; full archive byte verification is incomplete. Source inspection does not establish coverage completeness or customer delivery.
 
-A requested-period discrepancy remains under review. Do not infer complete requested coverage, silently add out-of-period records, change held exceptions into inventory or describe every agency case as an active violation. Status, dates, provenance, privacy and freshness require explicit review.
+The requested-period discrepancy is resolved only for a limited, dated pilot snapshot of the exact reviewed subset. Historical request/report filters are unchanged and all excluded records remain held. The proposed claim states the source-report date and observed included filing dates, labels coverage as partial, preserves agency status, and makes no claim about current conditions, seller intent or future updates. Full requested-period fulfillment remains unverified. The private scope decision does not itself accept or publish the source.
 
 Source identities, archive locations, actual hashes, raw records, exception ledgers and private evidence counts are intentionally absent from this public report. Retain them in the approved private evidence store. Access to an original does not authorize its upload to Git, a public preview, a new service or a staging clone.
 
@@ -31,8 +31,8 @@ Even a passing verifier returns only `READY_FOR_OWNER_REVIEW` with `customer_rel
 
 ## Remaining acceptance
 
-- Retrieve the remaining archived observation and resolve requested-period discrepancies. Agent source inspection itself is complete; no human sign-off is claimed.
-- Confirm coverage and freshness wording against the accepted subset.
+- Retrieve and rehash the remaining archived observation. Agent source inspection and the narrow snapshot interpretation are complete; no human sign-off is claimed.
+- Deploy and verify the bounded snapshot wording against the accepted subset. A fixed dated pilot promises no update schedule; a recurring freshness offer requires separately verified delivery and refresh behavior.
 - Exercise actual isolated customer authorization, approved handoff, expiry/revocation and preservation of private CRM work.
 - Obtain explicit market acceptance before customer delivery or buyer pilot use.
 

@@ -1,48 +1,53 @@
 # Isolated Stripe sandbox verification
 
-**Status: BLOCKED; zero real-provider payment tests ran.** The harness and isolated SQL bootstrap are prepared. A prepared script is not a passed payment test. See `stripe-sandbox-verification-20260924.json` for the sanitized attempt receipt.
+**Selected sandbox billing suite: PASS — 13 checks passed, none failed. Customer release remains HOLD.** The completed run exercised real test-mode payments and authentic signed Stripe events against the candidate webhook handler, corrected billing helpers and isolated SQL. This is not hosted deployment, browser Checkout or usable property-delivery acceptance. See `stripe-sandbox-verification-20260924.json`.
 
-Two blockers were observed:
+The earlier anonymous CLI provisioning route failed. Authorized, authenticated Dashboard setup subsequently created a new blank sandbox without copying live configuration. A complete read-only preflight verified the intended test account and found no configured v1 webhook endpoints or v2 event destinations before writes. Credentials and account references remain private.
 
-1. Automatic approval review initially rejected new external account creation and use of the owner email because it required explicit authorization. The user subsequently approved that free sandbox setup. One bounded attempt in the approved scope was also rejected by automatic review as lacking consent; the reason it did not accept the later approval is unknown. No further retry or indirect provisioning route was attempted after that second rejection.
-2. The approved attempt's private debug log identified the technical failure: the anonymous provisioning challenge at `ai.stripe.com` returned `Forbidden`. The CLI then offered its standard browser login fallback, but no live confirmation URL, test key, or claim URL appeared. No browser signup was followed. Approval does not fix this unavailable provisioning route.
+## Passing checks
 
-A usable isolated Stripe sandbox with securely supplied test credentials is still required; the user has approved creating the free sandbox. No production account was modified, no live payment was attempted and no new staging resource was provisioned. Future credit spending requires owner approval.
+1. Checkout's release gate remained closed.
+2. A genuine completed test Checkout granted exactly one purchased credit pack.
+3. Replaying its authentic signed event did not grant credits twice.
+4. An invalid signature could not modify receipts.
+5. An injected database failure rolled back; authentic-event replay committed once.
+6. An initial paid subscription invoice established allowance without wallet credits.
+7. A paid-proration upgrade changed the plan without duplicate allowance.
+8. A clock-driven renewal extended paid-through access once without changing the wallet.
+9. Cancellation followed by first delivery of an earlier authentic event did not resurrect access.
+10. Trial conversion preserved recorded usage and established the paid service period.
+11. Failed payment did not establish paid subscription access.
+12. A paid single-property test event retained the fulfillment hold and remained retryable.
+13. Delayed Checkout remained pending at initial delivery, then asynchronous payment success granted exactly one pack and receipt.
 
-`scripts/test-stripe-sandbox.mjs` is opt-in and refuses keys whose prefix is not explicitly test-only. It connects the real Stripe SDK **14.21.0**, API **2023-10-16**, and Stripe CLI signed event forwarding to the unchanged `stripe-webhook` handler and shared billing helpers. Only the Supabase transport is replaced: RPC and plan/mapping reads execute in isolated PGlite PostgreSQL using the shared captured-schema billing fixture and the actual candidate migration.
+An earlier provider run exposed the paid-proration mismatch: the pinned Stripe API represents the upgrade debit as an `invoiceitem` proration line. The corrected helper requires a positive paid debit matching the current subscription, item, price and service term. It rejects unrelated items, old-plan credits and unpaid invoices; proration does not extend paid-through access. The focused local billing regression suite passed 32 results, and the complete provider rerun above verified the correction.
 
-The script tests:
+An intermediate run was interrupted when automatic approval review flagged a CLI request to GitHub. Source inspection confirmed a fixed public release-version lookup without authentication, request body or customer/credential data. That concern was resolved before the completed run; no execution block remains for this recorded result.
 
-- Closed checkout release gate.
-- Genuine Checkout completion and one purchased pack grant.
-- Signed duplicate replay and invalid-signature rejection.
-- Injected SQL failure, rollback, and authentic-event retry.
-- Initial subscription payment, paid proration upgrade, and clock-driven renewal without duplicate wallet allowance.
-- Cancellation followed by first delivery of an earlier authentic subscription-created event.
-- Trial conversion with preserved usage.
-- Failed card payment without paid access.
-- A synthetic paid single-property event remaining held.
-- Delayed Checkout completion remaining pending until asynchronous payment success, if the disposable sandbox supports the needed dynamic payment method.
+No live charges or production billing writes occurred. No Lovable generation prompts or new Lovable provisioning were initiated; existing hosted runtime consumption was not measured. Checkout and customer delivery remain held.
 
-The source creates test products, prices, customers, payment methods, subscriptions, clocks and Checkout sessions in the disposable sandbox. It never accepts live keys or connects to a production database. It uses official Stripe CLI test fixtures, not an interactive browser/card entry flow. Test identity values are synthetic. Secret keys, webhook secrets and sandbox claim URLs must stay outside Git, logs, and receipts.
+## Harness and reproduction
 
-## Run
+`scripts/test-stripe-sandbox.mjs` uses Stripe SDK **14.21.0**, API **2023-10-16**, and official CLI package **1.51.1**. Signed forwarding invokes the candidate `stripe-webhook` handler and shared helpers. Only the Supabase transport is replaced: RPC and plan/mapping reads execute in isolated PGlite PostgreSQL with the selected schema fixture and actual candidate migration.
 
-Install the CLI in scratch using the currently retrievable official package. `@stripe/cli@1.52.0` advertised in npm metadata returned a 404 tarball; `@stripe/cli@1.51.1` installed successfully. Use an already approved isolated sandbox or obtain explicit approval for new account creation and any required identity disclosure. Discover `stripe sandbox create --help` before an approved creation attempt, use isolated CLI configuration, capture output privately and verify test-only identity. Do not place an account identity in this public runbook. Do not use the live Stripe MCP connection after anonymous sandbox creation; that connection requires the documented claim/authentication process before reuse.
+The harness creates synthetic products, prices, customers, payment methods, subscriptions, clocks and Checkout sessions only in the approved sandbox. It refuses live keys and requires the exact intended account plus complete destination preflight before writes. Existing external destinations are never disabled to make an environment appear isolated. Checkout completion uses official CLI fixtures, not interactive browser/card entry.
 
-Install `stripe@14.21.0` in a separate scratch npm prefix. Supply these environment variables through a secret-safe process environment:
+Use the existing approved blank sandbox and isolated CLI configuration. Supply these variables through a secret-safe process environment:
 
 | Variable | Required value |
 |---|---|
-| `SNAP_STRIPE_SANDBOX_KEY` | Newly provisioned sandbox test key |
-| `SNAP_STRIPE_CLI` | Absolute path to the official Stripe CLI executable |
-| `SNAP_STRIPE_RUNTIME` | Scratch npm prefix containing `stripe@14.21.0` |
-| `SNAP_STRIPE_SANDBOX_REPORT` | Private path for the JSON execution receipt |
+| `SNAP_STRIPE_SANDBOX_KEY` | Approved isolated sandbox test key |
+| `SNAP_STRIPE_EXPECTED_ACCOUNT` | Privately verified intended sandbox account identity |
+| `SNAP_STRIPE_CLI` | Absolute path to the official CLI executable |
+| `SNAP_STRIPE_RUNTIME` | Scratch npm prefix containing pinned Stripe SDK |
+| `SNAP_STRIPE_SANDBOX_REPORT` | Private JSON execution-receipt path |
 
-Run `node scripts/test-stripe-sandbox.mjs`. Never supply credentials as command-line arguments or commit a local environment/config file. The private receipt may contain test object/event IDs, results, handler responses, scope and limitations; it must omit keys, signatures, event payloads, customer names and claim links. Publish only an aggregate-free status/test summary after review, not account or event identities.
+Run `node scripts/test-stripe-sandbox.mjs` only in that approved scope. Never supply credentials as command-line arguments or commit local environment/configuration files. Account/customer/event identities, keys, signatures, raw payloads and private evidence stay outside this public repository. Publish only reviewed status and test summaries.
 
-## Evidence limits
+## Remaining acceptance
 
-Passing this harness proves the selected real-provider billing events exercised the actual candidate handler and SQL. It does not prove hosted Supabase gateway authorization, deployment/configuration, browser Checkout UX, production schema migration, independent database connections, financial reversal policy, or delivery of usable property data. The release control stays closed. Native PostgreSQL multi-connection testing passed separately at the commit recorded in [staging-verification.md](staging-verification.md). Market/privacy approval and a customer delivery journey are independent release gates.
+This passing run establishes the selected provider lifecycle against the candidate handler and isolated SQL. It does not establish hosted Supabase deployment/configuration, browser Checkout UX, production migration, financial reversal policy or useful property delivery.
 
-Official references: [Stripe sandboxes](https://docs.stripe.com/sandboxes), [sandbox CLI](https://docs.stripe.com/cli/sandbox), [signed local forwarding](https://docs.stripe.com/cli/listen), [real API fixture events](https://docs.stripe.com/cli/trigger), [test clocks](https://docs.stripe.com/billing/testing/test-clocks), and [fulfillment](https://docs.stripe.com/checkout/fulfillment).
+Native PostgreSQL concurrency and real local Auth/PostgREST/gateway checks passed separately in [staging verification](staging-verification.md) and [local Supabase CI](local-supabase-ci.md). They do not constitute a deployed hosted backend. Market/privacy acceptance, the customer delivery journey and buyer pilot remain independent gates. Release controls stay closed.
+
+Official references: [Stripe sandboxes](https://docs.stripe.com/sandboxes), [signed local forwarding](https://docs.stripe.com/cli/listen), [test fixtures](https://docs.stripe.com/cli/trigger), [test clocks](https://docs.stripe.com/billing/testing/test-clocks), and [fulfillment](https://docs.stripe.com/checkout/fulfillment).

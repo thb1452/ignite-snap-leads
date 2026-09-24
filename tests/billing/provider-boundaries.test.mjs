@@ -15,6 +15,31 @@ assert.equal(sync.paidPeriodEnd(invoice,'sub_test'),new Date(2000*1000).toISOStr
 assert.equal(sync.paidPeriodEnd({...invoice,status:'open',paid:false},'sub_test'),null);
 assert.equal(sync.paidPeriodEnd(invoice,'sub_other'),null);
 });
+test('canonical paid upgrade invoiceitem proves the new plan without extending its paid term',()=>{
+  const subscription={id:'sub_test',current_period_start:1000,current_period_end:2000,items:{data:[{id:'si_test',price:{id:'price_new'}}]}};
+  const debit={type:'invoiceitem',subscription:'sub_test',subscription_item:'si_test',price:{id:'price_new'},proration:true,amount:500,period:{start:1500,end:2000}};
+  const credit={...debit,price:{id:'price_old'},amount:-250};
+  const invoice={paid:true,status:'paid',subscription:'sub_test',billing_reason:'subscription_update',lines:{data:[credit,debit]}};
+  assert.equal(sync.paidPlanVerified(invoice,subscription,'price_new'),true);
+  assert.equal(sync.paidPeriodEnd(invoice,'sub_test','price_new'),null);
+  for(const changed of [
+    {...debit,amount:0},{...debit,amount:-1},{...debit,proration:false},
+    {...debit,subscription:'sub_foreign'},{...debit,subscription_item:'si_foreign'},
+    {...debit,subscription_item:null},{...debit,price:{id:'price_old'}},
+    {...debit,period:{start:500,end:2000}},{...debit,period:{start:2000,end:2000}},
+    {...debit,period:{start:1500,end:3000}},
+  ]) assert.equal(sync.paidPlanVerified({...invoice,lines:{data:[credit,changed]}},subscription,'price_new'),false);
+  for(const changed of [{paid:false},{status:'open'},{subscription:'sub_foreign'},{billing_reason:'manual'}])
+    assert.equal(sync.paidPlanVerified({...invoice,...changed},subscription,'price_new'),false);
+});
+test('paid zero-dollar recurring service retains proof while ordinary invoice items do not',()=>{
+  const subscription={id:'sub_test',current_period_start:1000,current_period_end:2000,items:{data:[]}};
+  const line={type:'subscription',subscription:'sub_test',price:{id:'price_new'},proration:false,amount:0,period:{start:1000,end:2000}};
+  const invoice={paid:true,status:'paid',lines:{data:[line]}};
+  assert.equal(sync.paidPlanVerified(invoice,subscription,'price_new'),true);
+  assert.equal(sync.paidPeriodEnd(invoice,'sub_test','price_new'),new Date(2000*1000).toISOString());
+  assert.equal(sync.paidPlanVerified({...invoice,lines:{data:[{...line,type:'invoiceitem'}]}},subscription,'price_new'),false);
+});
 test('completed but unpaid asynchronous session cannot fulfill',()=>{
 assert.throws(()=>sync.checkoutPayment({payment_status:'unpaid',livemode:false},false),/checkout_payment_pending/);
 assert.throws(()=>sync.checkoutPayment({payment_status:'paid',livemode:false,metadata:{user_id:'u',checkout_type:'bulk_credits',credit_count:'90000000'}},false),/checkout_pack_invalid/);

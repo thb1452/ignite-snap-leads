@@ -18,6 +18,23 @@ export function paidPeriodEnd(invoice: Stripe.Invoice | null, subscriptionId: st
   return periods.length ? iso(Math.max(...periods)) : null;
 }
 
+export function paidPlanVerified(invoice: Stripe.Invoice | null, subscription: Stripe.Subscription, priceId: string): boolean {
+  if (!invoice?.paid || invoice.status !== "paid") return false;
+  return invoice.lines.data.some(line => {
+    if (stripeObjectId(line.subscription) !== subscription.id || stripeObjectId(line.price) !== priceId) return false;
+    if (!line.proration) return line.type === "subscription" && line.amount >= 0;
+    // Stripe's pinned API represents immediate upgrade prorations as invoiceitem
+    // lines. Require its positive debit for the current item and current term;
+    // unrelated invoice items and the old-plan credit are not payment proof.
+    return (line.type === "invoiceitem" || line.type === "subscription") && line.amount > 0
+      && invoice.billing_reason === "subscription_update" && stripeObjectId(invoice.subscription) === subscription.id
+      && subscription.items.data.some(item => item.id === stripeObjectId(line.subscription_item)
+        && stripeObjectId(item.price) === priceId)
+      && line.period.start >= subscription.current_period_start
+      && line.period.start < line.period.end && line.period.end === subscription.current_period_end;
+  });
+}
+
 export async function subscriptionSnapshot(supabase: any, stripe: Stripe, subscriptionId: string, expectedUser: string | undefined, expectedLivemode: boolean) {
   // The database issues a monotonic ticket before each provider fetch. This avoids
   // ordering events by their second-resolution timestamp or trusting Edge clock drift.
@@ -54,9 +71,7 @@ export async function subscriptionSnapshot(supabase: any, stripe: Stripe, subscr
     period_start: iso(subscription.current_period_start),
     period_end: iso(subscription.current_period_end),
     paid_through: paidPeriodEnd(invoice, subscription.id, plan.priceId),
-    paid_plan_verified: Boolean(invoice?.paid && invoice.status === "paid" && invoice.lines.data.some(line =>
-      line.type === "subscription" && line.amount >= 0 && stripeObjectId(line.subscription) === subscription.id
-      && stripeObjectId(line.price) === plan.priceId)),
+    paid_plan_verified: paidPlanVerified(invoice, subscription, plan.priceId),
     trial_start: iso(subscription.trial_start),
     trial_end: iso(subscription.trial_end),
     cancel_at: iso(subscription.cancel_at),

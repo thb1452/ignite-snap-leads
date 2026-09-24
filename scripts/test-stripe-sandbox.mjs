@@ -1,6 +1,7 @@
 /**
  * Opt-in real Stripe SANDBOX smoke/lifecycle test. Never loads production credentials.
- * Requires SNAP_STRIPE_SANDBOX_KEY (test key), SNAP_STRIPE_CLI, SNAP_STRIPE_RUNTIME
+ * Requires SNAP_STRIPE_SANDBOX_KEY (test key), SNAP_STRIPE_EXPECTED_ACCOUNT,
+ * SNAP_STRIPE_CLI, SNAP_STRIPE_RUNTIME
  * (scratch npm prefix containing stripe@14.21.0), SNAP_STRIPE_SANDBOX_REPORT.
  * Uses authentic Stripe CLI forwarded signatures and unchanged production handler/
  * helper source. Only the Supabase transport is replaced by isolated PostgreSQL SQL.
@@ -18,10 +19,11 @@ import {database} from '../tests/billing/sandbox/database.mjs';
 const key=process.env.SNAP_STRIPE_SANDBOX_KEY;
 assert.ok(/^(?:sk_test_|rk_test_|rkcs_test_)/.test(key??''),'an explicit TEST-only sandbox key is required');
 const cli=process.env.SNAP_STRIPE_CLI;
-assert.ok(cli && process.env.SNAP_STRIPE_RUNTIME && process.env.SNAP_STRIPE_SANDBOX_REPORT,'CLI, scratch runtime and report paths required');
+const expectedAccount=process.env.SNAP_STRIPE_EXPECTED_ACCOUNT;
+assert.ok(cli && expectedAccount && process.env.SNAP_STRIPE_RUNTIME && process.env.SNAP_STRIPE_SANDBOX_REPORT,'expected account, CLI, scratch runtime and private report paths required');
 const require=createRequire(`${process.env.SNAP_STRIPE_RUNTIME}/package.json`);
 const Stripe=require('stripe');
-assert.equal(require('stripe/package.json').version,'14.21.0');
+assert.equal(Stripe.PACKAGE_VERSION,'14.21.0');
 const stripe=new Stripe(key,{apiVersion:'2023-10-16',httpClient:Stripe.createFetchHttpClient(),maxNetworkRetries:1,timeout:30000});
 const report={started_at:new Date().toISOString(),sdk:'14.21.0',api_version:'2023-10-16',mode:'isolated Stripe sandbox',checks:[],deliveries:[],limitations:[
   'Supabase transport is a SQL adapter to isolated PGlite; not deployed Edge gateway or production database.',
@@ -40,6 +42,29 @@ async function command(args) {
     let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
     child.on('error',reject);child.on('exit',code=>code===0?resolve(output):reject(new Error(redact(`CLI ${args[0]} exited ${code}: ${output.slice(-2500)}`))));
   });
+}
+async function configuredDestinationPreflight() {
+  // A test key does not prove isolation. Historical sandbox endpoints can forward
+  // genuine test events to production services. Never modify or disable them here.
+  const endpoints=await stripe.webhookEndpoints.list({limit:100}).autoPagingToArray({limit:10000});
+  const destinations=[];
+  let page='https://api.stripe.com/v2/core/event_destinations?include%5B0%5D=webhook_endpoint.url&limit=100';
+  let pageCount=0;
+  while(page) {
+    assert.ok(++pageCount<=100,'event-destination pagination bound exceeded');
+    const url=new URL(page,'https://api.stripe.com');assert.equal(url.origin,'https://api.stripe.com');
+    // Current v2 metadata API is read-only. Billing requests retain API2023-10-16.
+    const response=await fetch(url,{headers:{authorization:`Bearer ${key}`,'Stripe-Version':'2026-08-26.dahlia'},signal:AbortSignal.timeout(30000)});
+    if(!response.ok)throw new Error(`event-destination preflight unavailable: HTTP ${response.status}; writes prohibited`);
+    const data=await response.json();assert.ok(Array.isArray(data.data),'event-destination response incomplete');
+    destinations.push(...data.data);page=data.next_page_url;
+  }
+  for(const destination of [...endpoints,...destinations])assert.equal(destination.livemode,false,'live destination in test preflight');
+  const enabledV1=endpoints.filter(x=>x.status==='enabled').length;
+  const enabledV2=destinations.filter(x=>x.status==='enabled').length;
+  report.destination_preflight={complete:true,v1_count:endpoints.length,v2_count:destinations.length,enabled_v1:enabledV1,enabled_v2:enabledV2};save();
+  assert.equal(enabledV1,0,'existing enabled webhook destination; isolation unproven and writes prohibited');
+  assert.equal(enabledV2,0,'existing enabled event destination; isolation unproven and writes prohibited');
 }
 function moduleUrl(path,replacements={}) {
   let source=readFileSync(new URL(path,import.meta.url),'utf8');
@@ -106,9 +131,11 @@ async function completeCheckout(user,{kind='bulk_credits',asyncPayment=false,pay
 try {
   // Key prefix alone is insufficient: prove the authenticated account and all events are test-only.
   const account=await stripe.accounts.retrieve();
+  assert.equal(account.id,expectedAccount,'authenticated Stripe account differs from explicitly approved sandbox');
   report.account_reference=createHash('sha256').update(account.id).digest('hex').slice(0,16);
   report.account_country=account.country;
   log('sandbox_authenticated',{account_reference:report.account_reference});
+  await configuredDestinationPreflight();
   const source=readFileSync(new URL('../supabase/functions/stripe-webhook/index.ts',import.meta.url),'utf8').replace(/^import .*;\s*$/gm,'');
   const env={SUPABASE_URL:'http://isolated-sql.invalid',SUPABASE_SERVICE_ROLE_KEY:'isolated-adapter-only',STRIPE_SECRET_KEY:key,STRIPE_EXPECTED_LIVEMODE:'false'};
   const deno={env:{get:name=>name==='STRIPE_WEBHOOK_SECRET'?webhookSecret:env[name]},serve:callback=>{handler=callback;}};

@@ -54,7 +54,11 @@
       "head_commit": "bbfd18be090983a78207532d668984823cc76abc",
       "run_url": "https://github.com/thb1452/ignite-snap-leads/actions/runs/36047669169",
       "artifact_sha256": "e49e3305baa6256c3e2579769e4e7df005edcd9a4cf258003147662f15dc1d4a",
-      "limits": "Synthetic schema fixture; no hosted Supabase Auth/PostgREST or provider delivery"
+      "limits": "Synthetic schema fixture; no hosted Supabase Auth/PostgREST or provider delivery",
+      "latest_successful_rerun": {
+        "head_commit": "e234606486729e31612eeb646f1bfde79525c782",
+        "run_url": "https://github.com/thb1452/ignite-snap-leads/actions/runs/36054108477"
+      }
     },
     {
       "check": "Independent original reconstruction and required sample/exception inspection",
@@ -62,14 +66,46 @@
       "reviewer": "Codex agent",
       "human_review_claimed": false,
       "evidence_location": "Private operator evidence; no original rows or account metadata included here",
-      "limits": "Remaining archived observation, period interpretation, cadence and hosted customer source/CRM acceptance remain open"
+      "limits": "Archived observation and customer source/CRM acceptance remain open. Period interpretation resolved only for an exact, partial, dated snapshot; recurring refresh remains unverified."
+    },
+    {
+      "command": "GitHub Actions: Release local Supabase HTTP integration",
+      "status": "passed",
+      "scenarios_passed": 9,
+      "node_results_passed": 10,
+      "failed": 0,
+      "head_commit": "e234606486729e31612eeb646f1bfde79525c782",
+      "tested_merge_commit": "44ef1402373d381de01569779c5c02f5883c4678",
+      "run_url": "https://github.com/thb1452/ignite-snap-leads/actions/runs/36054108463",
+      "artifact_sha256": "77f1f3bc3f1f6f4b2e0e4c2aa714001d478f84f334b81c664d5b3e4762326296",
+      "limits": "Ephemeral Docker with real Auth, PostgREST and gateway; synthetic app/source baseline, no hosted deployment or property delivery"
+    },
+    {
+      "command": "node --test tests/billing/provider-boundaries.test.mjs tests/billing/atomic-fulfillment.test.mjs",
+      "passed": 32,
+      "failed": 0,
+      "includes": "Canonical paid upgrade invoiceitem proof plus negative ownership, price, amount, period and payment-state cases; paid term and wallet allowance remain unchanged",
+      "limits": "Targeted regressions; current real-provider status is recorded separately in stripe-sandbox-verification-20260924.json"
+    },
+    {
+      "command": "node scripts/test-stripe-sandbox.mjs",
+      "status": "passed",
+      "checks_passed": 13,
+      "failed": 0,
+      "authentic_signed_deliveries_observed": 26,
+      "sdk_version": "14.21.0",
+      "api_version": "2023-10-16",
+      "cli_version": "1.51.1",
+      "sandbox_isolation": "Exact approved test account; complete v1 and v2 destination preflight with zero configured endpoints before writes",
+      "receipt": "stripe-sandbox-verification-20260924.json",
+      "limits": "Real Stripe events and candidate handler/SQL through isolated PGlite adapter; no hosted deployment, browser checkout or useful property-delivery proof"
     }
   ],
   "not_verified": [
     "Hosted staging migration and native advisors",
     "Authenticated two-account/browser, desktop/mobile and keyboard journeys",
     "Signed Stripe sandbox payment-to-delivery",
-    "Full archive byte verification, release-period interpretation, cadence and customer source acceptance",
+    "Full archive byte verification, full-period fulfillment, recurring cadence and customer source acceptance",
     "Provider/support inbox delivery",
     "Live buyer pilot and return use"
   ],
@@ -80,7 +116,8 @@
     "cloud_accounts_verified": [
       "Lovable",
       "Vercel",
-      "Supabase"
+      "Supabase",
+      "Stripe"
     ],
     "public_checks": [
       "Landing renders with explicit access/purchase hold and fictional example label",

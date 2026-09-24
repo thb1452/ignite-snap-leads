@@ -1,7 +1,14 @@
 # Ephemeral Supabase HTTP integration
 
-Status: **prepared; first CI execution pending**. This is a local Docker stack on
-a disposable standard GitHub runner, not a deployed hosted staging project.
+Status: **PASS: nine scenarios, ten Node results, zero failures.** This is a local
+Docker stack on a disposable standard GitHub runner, not a deployed hosted staging
+project.
+
+- PR head: `e234606486729e31612eeb646f1bfde79525c782`.
+- Tested PR merge: `44ef1402373d381de01569779c5c02f5883c4678`.
+- [Successful run 36054108463](https://github.com/thb1452/ignite-snap-leads/actions/runs/36054108463), job `107816687040`.
+- [Artifact 10832220401](https://github.com/thb1452/ignite-snap-leads/actions/runs/36054108463/artifacts/10832220401), downloaded and SHA-256 checked: `77f1f3bc3f1f6f4b2e0e4c2aa714001d478f84f334b81c664d5b3e4762326296`.
+- Unchanged synthetic proof retained as [receipt](evidence/local-supabase-receipt.json) and [test output](evidence/local-supabase-test.txt), because the hosted artifact expires after one day.
 
 The workflow is limited to a public repository and a standard `ubuntu-24.04`
 runner. GitHub documents this use as free. It uses no Supabase account login,
@@ -24,13 +31,21 @@ and the local function gateway, rather than a transport stub or manually invente
 customer JWT. The copied checkout and retired-worker handlers remain unchanged
 and use their repository `verify_jwt` settings.
 
-The planned checks cover distinct signup workspaces, forged metadata, anonymous
+The passing checks cover distinct signup workspaces, forged metadata, anonymous
 and foreign-account denial, private contacts/notes, ordinary-property handoff,
 atomic outcome retry/stale conflicts, refresh identity, synthetic service-only
 billing replay, closed checkout, gateway JWT rejection, internal-worker guards
 and an Auth ban evaluated against an existing token. A fake local Stripe key
 allows the unchanged checkout handler to reach its closed database gate; no
 actual provider credentials or payments are used.
+
+The real stack established details hidden by transport substitutes: an RLS-filtered
+profile update returns zero affected rows while the stored workspace remains
+unchanged; PostgREST maps stale SQLSTATE `40001` to HTTP 500; and this pinned local
+gateway returns named `UNAUTHORIZED_*` codes with matching `sb-error-code` headers.
+Tests assert those exact boundaries, unchanged state and absent failed receipts.
+They distinguish a gateway rejection from the handler's own unauthorized response.
+No production handler, migration, policy or release hold changed to make them pass.
 
 The receipt explicitly excludes managed hosted deployment, browser behavior,
 Storage, realtime, original municipal lineage, source acceptance, actual payment,

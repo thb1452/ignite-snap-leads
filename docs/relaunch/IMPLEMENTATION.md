@@ -36,7 +36,7 @@ The consolidated result is in [verification.json](verification.json): 93 Node re
 
 Pinned PGlite exercises actual candidate SQL, RLS, privileges, triggers and rollback within explicitly bounded schema/Auth/source fixtures. [Native PostgreSQL CI](staging-verification.md) additionally passed seven concurrency scenarios across three independent sessions at commit `bbfd18be090983a78207532d668984823cc76abc`; its public run and artifact are preserved. Later SQL or harness changes require fresh matching verification. These results do not certify a hosted Supabase deployment.
 
-**Zero real Stripe sandbox payment tests and zero signed provider events have run.** The harness and isolated SQL bootstrap are prepared. Sandbox setup remains blocked by an automatic approval boundary and unavailable automatic provisioning; no browser signup was followed. An approved usable sandbox and securely supplied test credentials are required. Stubbed providers are not payment-to-delivery evidence.
+An approved blank Stripe sandbox is available and genuine signed provider events have exercised the candidate handler and billing SQL. The provider sequence exposed a paid-proration proof bug; the correction passed 32 targeted regressions and the complete 13-check isolated provider suite. See [sandbox verification](stripe-sandbox-tests.md) for the current provider execution results and exact remaining limits. These results do not establish hosted payment-to-delivery. Real local Supabase Auth, PostgREST and function-gateway checks also passed nine synthetic scenarios; the [separate receipt](local-supabase-ci.md) preserves that scope.
 
 CRM tests replay the exact saved command after a committed outcome loses its acknowledgement, producing one activity. Recovery is scoped to actor and lead, uses per-tab sessionStorage, preserves the original 24-hour expiry and removes private text after expiry while retaining a blocking receipt pointer. Only validated same-actor initial hydration may preserve it; account switches, sign-out and permission failures purge it. Stale callbacks cannot erase another actor's pending attempt. Hosted browser reload/token-refresh/account-switch behavior remains a release check.
 
@@ -46,13 +46,13 @@ CRM tests replay the exact saved command after a committed outcome loses its ack
 2. Apply the exact migrations and coordinated function/configuration bundle in [deployment-runbook.md](deployment-runbook.md). Stop on any constraint/precondition failure; never delete history or weaken RLS to continue.
 3. Review private account mapping and canonical billing provenance before any exact-row correction. Missing provider identities do not establish cancellation, and historical test events do not prove current provider state.
 4. Complete hosted two-account security, signed payment events, delayed/failed payment, account closure, CRM and source-preservation acceptance. Keep provider, source and checkout holds enabled.
-5. Finish the remaining archived-observation verification, resolve source-period discrepancies and obtain explicit source acceptance. Independent source inspection passed; that does not by itself approve a customer market.
-6. Approve exact recipients and invitation text before outreach, then observe real buyer tasks and return use. Synthetic rehearsal cannot substitute for the pilot. Paid acquisition remains closed.
+5. Finish the remaining archived-observation verification and scoped source acceptance. The period interpretation is resolved only for an exact partial dated snapshot; recurring refresh remains unverified. Independent source inspection passed; that does not by itself approve a customer market.
+6. Send the already approved single qualification invitation after the email connection returns a verified sender, then observe real buyer tasks and return use. No send call has occurred. Other recipient ambiguities remain unresolved. Synthetic rehearsal cannot substitute for the pilot. Paid acquisition remains closed.
 
 ## Evidence
 
 - [Customer isolation](tenancy-status.md) and [privileged endpoints/support](security-status.md)
-- [Billing implementation](billing-status.md), [reconciliation process](billing-canonical-reconciliation.md) and [blocked sandbox checks](stripe-sandbox-tests.md)
+- [Billing implementation](billing-status.md), [reconciliation process](billing-canonical-reconciliation.md) and [sandbox verification](stripe-sandbox-tests.md)
 - [CRM implementation](crm-status.md) and [native staging verification](staging-verification.md)
 - [Market validation process](market-validation.md)
 - [Public product experience](frontend-status.md) and [analytics privacy](analytics-privacy.md)

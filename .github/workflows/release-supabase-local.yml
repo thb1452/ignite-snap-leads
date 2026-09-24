@@ -1,0 +1,72 @@
+name: Release local Supabase HTTP integration
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-supabase-local.yml'
+      - 'scripts/tests/release-supabase/**'
+      - 'scripts/tests/release-stage/**'
+      - 'tests/helpers/**'
+      - 'supabase/config.toml'
+      - 'supabase/functions/create-checkout-session/**'
+      - 'supabase/functions/test-pipeline/**'
+      - 'supabase/functions/_shared/**'
+      - 'supabase/migrations/20260924*'
+permissions:
+  contents: read
+jobs:
+  local-supabase:
+    # Standard public-repository runners are free. Do not silently move this
+    # workload to a private repository, larger runner or paid hosted resource.
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SNAP_LOCAL_STACK_DIR: ${{ runner.temp }}/snap-release-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.117.0'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm ci --prefix scripts/tests/release-stage --ignore-scripts --no-audit --no-fund
+      - name: Prepare a new synthetic-only local project
+        run: |
+          supabase --version
+          supabase start --help >/dev/null
+          supabase functions serve --help >/dev/null
+          node scripts/tests/release-supabase/prepare.mjs "$SNAP_LOCAL_STACK_DIR"
+      - name: Start real local Auth, REST and gateway services
+        run: |
+          supabase start --workdir "$SNAP_LOCAL_STACK_DIR" --exclude realtime,storage-api,imgproxy,postgres-meta,studio,logflare,vector,supavisor >"$RUNNER_TEMP/supabase-start.log" 2>&1
+          supabase status --workdir "$SNAP_LOCAL_STACK_DIR" --output json >"$SNAP_LOCAL_STACK_DIR/status.json"
+          chmod 600 "$SNAP_LOCAL_STACK_DIR/status.json"
+      - name: Apply bounded fixture without replacing managed Auth
+        run: node scripts/tests/release-supabase/bootstrap.mjs
+      - name: Serve unchanged candidate functions with their actual JWT settings
+        run: |
+          supabase functions serve --workdir "$SNAP_LOCAL_STACK_DIR" --env-file "$SNAP_LOCAL_STACK_DIR/functions.env" >"$RUNNER_TEMP/supabase-functions.log" 2>&1 &
+          echo "$!" >"$RUNNER_TEMP/supabase-functions.pid"
+      - name: Exercise real local HTTP boundaries
+        run: |
+          set -o pipefail
+          node --test scripts/tests/release-supabase/http-integration.test.mjs | tee local-supabase-test.log
+      - name: Preserve synthetic verification only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-supabase-http-integration
+          retention-days: 1
+          path: |
+            local-supabase-test.log
+            local-supabase-receipt.json
+          if-no-files-found: warn
+      - name: Remove this ephemeral stack and local credentials
+        if: always()
+        run: |
+          supabase stop --workdir "$SNAP_LOCAL_STACK_DIR" --no-backup
+          rm -f "$SNAP_LOCAL_STACK_DIR/status.json" "$SNAP_LOCAL_STACK_DIR/functions.env"

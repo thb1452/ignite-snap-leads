@@ -1,0 +1,54 @@
+{
+  "kind": "native_postgresql_synthetic_concurrency",
+  "status": "PASS",
+  "hosted_supabase_verified": false,
+  "real_payment_verified": false,
+  "production_writes": 0,
+  "checks": [
+    {
+      "name": "workspace_provision_replay",
+      "distinct_sessions": true,
+      "blocking_observed": true,
+      "result": "PASS"
+    },
+    {
+      "name": "workspace_writer_conflict",
+      "distinct_sessions": true,
+      "blocking_observed": true,
+      "result": "PASS"
+    },
+    {
+      "name": "crm_handoff_replay",
+      "distinct_sessions": true,
+      "blocking_observed": true,
+      "result": "PASS"
+    },
+    {
+      "name": "crm_outcome_replay",
+      "distinct_sessions": true,
+      "blocking_observed": true,
+      "result": "PASS"
+    },
+    {
+      "name": "crm_outcome_conflict",
+      "distinct_sessions": true,
+      "blocking_observed": true,
+      "result": "PASS"
+    },
+    {
+      "name": "billing_receipt_replay",
+      "distinct_sessions": true,
+      "blocking_observed": true,
+      "result": "PASS"
+    },
+    {
+      "name": "billing_terminal_order",
+      "distinct_sessions": true,
+      "blocking_observed": true,
+      "result": "PASS"
+    }
+  ],
+  "version": "17.6 (Debian 17.6-2.pgdg13+1)",
+  "isolation": "read committed",
+  "distinct_backend_sessions": 3
+}

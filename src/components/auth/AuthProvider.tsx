@@ -62,11 +62,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let sessionRevision = 0;
     const boundary = createAuthBoundary<User>({
       loadRoles: fetchRoles,
-      clearSessionData: () => {
+      clearSessionData: (preserveInitialActor) => {
         const storage: Storage[] = [];
+        let recoverySessionStore: Storage | undefined;
         try { storage.push(window.localStorage); } catch { /* unavailable */ }
-        try { storage.push(window.sessionStorage); } catch { /* unavailable */ }
-        clearSessionData(queryClient, storage);
+        try { recoverySessionStore = window.sessionStorage; storage.push(recoverySessionStore); } catch { /* unavailable */ }
+        clearSessionData(queryClient, storage, preserveInitialActor, recoverySessionStore);
       },
       onChange: (state) => {
         if (!mounted) return;

@@ -5,6 +5,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { expectedStripeMode, assertStripeObjectMode } from "../_shared/stripeMode.ts";
 import { applyBilling, checkoutPayment } from "../_shared/billingSync.ts";
 
 const corsHeaders = {
@@ -31,6 +32,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const expectedLivemode = expectedStripeMode(Deno.env.get("STRIPE_EXPECTED_LIVEMODE"), stripeKey);
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
       httpClient: Stripe.createFetchHttpClient(),
@@ -51,11 +53,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const body = await req.json();
     if (typeof body.session_id !== "string") return Response.json({ fulfilled: false, reason: "session_id_required" }, { headers });
     const session = await stripe.checkout.sessions.retrieve(body.session_id);
+    assertStripeObjectMode(session, expectedLivemode);
     if (session.metadata?.user_id !== authData.user.id || session.metadata?.checkout_type !== "bulk_credits") {
       return Response.json({ error: "Checkout session does not belong to this account" }, { status: 403, headers });
     }
     if (session.payment_status !== "paid") return Response.json({ fulfilled: false, reason: "payment_pending" }, { headers });
-    const payment = checkoutPayment(session);
+    const payment = checkoutPayment(session, expectedLivemode);
     await applyBilling(supabase, { event_id: `verify-checkout:${session.id}`, event_type: "authenticated.checkout.verify", payment });
     return Response.json({ fulfilled: true, credits: payment.credits, session_id: session.id }, { headers });
   } catch (error) {

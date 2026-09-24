@@ -15,7 +15,7 @@ export function hasAllowedRole(roles: readonly AppRole[], allowed: readonly AppR
 /** Discard stale permission responses before exposing a different identity. */
 export function createAuthBoundary<User extends { id: string }>(options: {
   loadRoles: (userId: string, signal: AbortSignal) => Promise<AppRole[]>;
-  clearSessionData: () => void;
+  clearSessionData: (preserveInitialActor?: string) => void;
   onChange: (state: PermissionState<User>) => void;
   timeoutMs?: number;
 }) {
@@ -36,13 +36,15 @@ export function createAuthBoundary<User extends { id: string }>(options: {
     if (disposed) return;
     generation += 1;
     cancel();
+    options.clearSessionData();
     options.onChange({ user: currentUser, roles: [], loading: false, error: message });
   };
   const apply = (user: User | null) => {
     if (disposed) return;
     const ticket = ++generation;
     cancel();
-    if (!initialized || currentUser?.id !== user?.id) options.clearSessionData();
+    if (!initialized) options.clearSessionData(user?.id);
+    else if (currentUser?.id !== user?.id) options.clearSessionData();
     initialized = true;
     currentUser = user;
     options.onChange({ user, roles: [], loading: !!user, error: null });

@@ -14,7 +14,7 @@ def setup(cases=None):
     raw = fixture(cases)
     context = dict(agency_key="us:mi:madisonheights", adapter_version=MADISON_VERSION,
                    receipt_id="fixture-receipt", request_id="fixture-request", original_sha256=sha(raw),
-                   period_start="2026-08-22", period_end="2026-09-20", archive_id="fixture-archive",
+                   period_start="2026-08-23", period_end="2026-09-20", archive_id="fixture-archive",
                    archive_manifest_sha256="a" * 64, archive_verified=True,
                    binding_evidence_ref="fixture-bound-request", freshness_policy_ref="fixture-policy",
                    isolation_test_receipt="fixture-isolation", refresh_preservation_receipt="fixture-refresh")
@@ -104,6 +104,16 @@ class MarketValidationTests(unittest.TestCase):
         context["archive_verified"] = False
         result = validate(raw, context, stored, reviews)
         self.assertTrue({"receipt_counts_mismatch", "freshness_cadence_unverified", "customer_isolation_unverified", "archive_or_request_binding_not_verified"}.issubset(result["blockers"]))
+
+    def test_report_filter_cannot_certify_missing_request_days(self):
+        for field, value in (("period_start", "2026-08-22"), ("period_end", "2026-09-24")):
+            with self.subTest(field=field):
+                raw, context, stored, reviews = setup()
+                context[field] = value
+                result = validate(raw, context, stored, reviews)
+                self.assertIn("source_report_does_not_cover_request_period", result["blockers"])
+                self.assertEqual(result["status"], "HOLD")
+                self.assertEqual(result["mismatches"], [])
 
 
 if __name__ == "__main__":

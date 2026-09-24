@@ -5,7 +5,7 @@
   "checks": [
     {
       "command": "node --test tests/*.test.mjs tests/billing/*.test.mjs",
-      "passed": 83,
+      "passed": 93,
       "failed": 0,
       "includes": "Integrated execution of all three migrations, actual SQL/RLS/transactions, provider stubs, auth/cache, privacy, CRM and existing source-review tests"
     },
@@ -22,7 +22,7 @@
     },
     {
       "command": "python -m unittest discover -s ops/city-response/tests -v",
-      "passed": 51,
+      "passed": 52,
       "failed": 0
     },
     {
@@ -36,17 +36,70 @@
     {
       "command": "git diff --check",
       "status": "passed"
+    },
+    {
+      "command": "node --test tests/billing/reconciliation-review.test.mjs",
+      "passed": 6,
+      "failed": 0,
+      "includes": "Offline evidence classification/preflight safety; additional to the 93-test consolidated run"
+    },
+    {
+      "command": "GitHub Actions: Native PostgreSQL release stage",
+      "status": "passed",
+      "scenarios_passed": 7,
+      "node_results_passed": 8,
+      "postgresql": "17.6",
+      "distinct_backend_sessions": 3,
+      "blocking_observed_in_every_race": true,
+      "head_commit": "bbfd18be090983a78207532d668984823cc76abc",
+      "run_url": "https://github.com/thb1452/ignite-snap-leads/actions/runs/36047669169",
+      "artifact_sha256": "e49e3305baa6256c3e2579769e4e7df005edcd9a4cf258003147662f15dc1d4a",
+      "limits": "Synthetic schema fixture; no hosted Supabase Auth/PostgREST or provider delivery"
+    },
+    {
+      "check": "Independent original reconstruction and required sample/exception inspection",
+      "status": "passed_with_release_holds",
+      "reviewer": "Codex agent",
+      "human_review_claimed": false,
+      "evidence_location": "Private operator evidence; no original rows or account metadata included here",
+      "limits": "Remaining archived observation, period interpretation, cadence and hosted customer source/CRM acceptance remain open"
     }
   ],
   "not_verified": [
     "Hosted staging migration and native advisors",
     "Authenticated two-account/browser, desktop/mobile and keyboard journeys",
-    "Multi-connection PostgreSQL races",
     "Signed Stripe sandbox payment-to-delivery",
-    "Original-source accuracy and exception review",
+    "Full archive byte verification, release-period interpretation, cadence and customer source acceptance",
     "Provider/support inbox delivery",
     "Live buyer pilot and return use"
   ],
   "production_changed": false,
-  "lovable_credits_used": 0
+  "lovable_generation_prompts_sent": 0,
+  "new_staging_resources_provisioned": false,
+  "browser": {
+    "cloud_accounts_verified": [
+      "Lovable",
+      "Vercel",
+      "Supabase"
+    ],
+    "public_checks": [
+      "Landing renders with explicit access/purchase hold and fictional example label",
+      "FAQ opens by click and closes with Enter",
+      "View Availability navigates to held coverage page"
+    ],
+    "not_verified": [
+      "Signed-in customer behavior",
+      "Mobile layout",
+      "Full keyboard acceptance",
+      "Isolated hosted backend"
+    ],
+    "backend_warning": "Preview source defaults to existing production Supabase when dedicated environment variables are absent; it is not an isolated staging environment.",
+    "public_preview_reference": "PR 193"
+  },
+  "private_evidence_included": false,
+  "public_followup_publication": {
+    "status": "blocked_pending_explicit_public_repository_approval",
+    "reason": "Automatic approval review rejected both private operational evidence disclosure and subsequent public code-only publication; no bypass attempted",
+    "private_evidence_excluded": true
+  }
 }

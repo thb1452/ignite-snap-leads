@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,8 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useUpdateLead, useCrmContacts, useSaveCrmContact, useRecordOutcome } from '@/hooks/useLeads';
-import { nextActionInput, toLocalInput, parseMoney, validateContact, OUTCOMES, outcomeLabel, type Outcome } from '@/services/crmModel';
-import type { Lead, CrmContact, ContactInput } from '@/services/leads';
+import { crmKey, nextActionInput, toLocalInput, parseMoney, validateContact, OUTCOMES, outcomeLabel, type Outcome } from '@/services/crmModel';
+import { hasOutcomeReceipt, type Lead, type CrmContact, type ContactInput } from '@/services/leads';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { readOutcomeRecovery, saveOutcomeAttempt, clearOutcomeAttempt, type OutcomeRecovery } from '@/services/crmOutcomeRecovery';
 
 export function LeadWorkEditor({lead}:{lead:Lead}) {
   const [title,setTitle]=useState(lead.title??'');const [action,setAction]=useState(lead.next_action??'');const [due,setDue]=useState(toLocalInput(lead.next_follow_up_at));
@@ -37,35 +41,54 @@ export function LeadWorkEditor({lead}:{lead:Lead}) {
   </CardContent></Card>;
 }
 export function ManualOutcome({lead}:{lead:Lead}) {
+  const {user}=useAuth();const actor=user?.id??'';const queryClient=useQueryClient();
   const [outcome,setOutcome]=useState<Outcome>('research');const [note,setNote]=useState('');const [action,setAction]=useState('');const [due,setDue]=useState('');
   const [complete,setComplete]=useState(!!lead.next_action);const [noNext,setNoNext]=useState(false);const [requestId,setRequestId]=useState(()=>crypto.randomUUID());const [error,setError]=useState('');
-  const save=useRecordOutcome();
-  const [attempt,setAttempt]=useState<Parameters<typeof save.mutate>[0]|null>(null);
+  const save=useRecordOutcome();const [checking,setChecking]=useState(false);
+  const [recovery,setRecovery]=useState<OutcomeRecovery>(()=>{try{return readOutcomeRecovery(window.sessionStorage,actor,lead.id);}catch{return {status:'unavailable'};}});
+  useEffect(()=>{const timer=setInterval(()=>{try{setRecovery(readOutcomeRecovery(window.sessionStorage,actor,lead.id));}catch{setRecovery({status:'unavailable'});}},60000);return()=>clearInterval(timer);},[actor,lead.id]);
+  const attempt=recovery.status==='pending'?recovery.saved.command:null;
+  const blocked=!['none','pending'].includes(recovery.status);
+  function clearConfirmed(id:string){clearOutcomeAttempt(window.sessionStorage,actor,lead.id,id);setRecovery(readOutcomeRecovery(window.sessionStorage,actor,lead.id));setRequestId(crypto.randomUUID());}
+  async function checkReceipt(){
+    const id=recovery.status==='pending'?recovery.saved.command.requestId:recovery.status==='expired'?recovery.saved.requestId:null;
+    if(!id)return;setChecking(true);setError('');
+    try{if(await hasOutcomeReceipt(actor,lead.id,id)){clearConfirmed(id);queryClient.invalidateQueries({queryKey:crmKey(actor)});}else setError(recovery.status==='expired'?'The expired attempt has no visible receipt. Ask support to reconcile it before recording this outcome again.':'No saved receipt was found. Retry this exact outcome; it will not create a second activity.');}
+    catch(err){setError(err instanceof Error?err.message:'The saved outcome could not be checked.');}finally{setChecking(false);}
+  }
   function submit(e:React.FormEvent){e.preventDefault();setError('');try{
+    if(blocked)throw new Error('Resolve the saved action before recording another outcome.');
     if(!attempt&&!noNext&&!action.trim())throw new Error('Schedule a next action or explicitly choose no follow-up.');
     const next=nextActionInput(noNext?'':action,noNext?'':due);
     const command=attempt??{leadId:lead.id,requestId,expected:lead.updated_at,outcome,note,nextAction:next.next_action,dueAt:next.next_follow_up_at,completeAction:complete};
-    setAttempt(command);
-    save.mutate(command,{onSuccess:()=>{setAttempt(null);setRequestId(crypto.randomUUID());setNote('');setAction('');setDue('');setNoNext(false);},onError:failure=>{
-      // An explicit transaction rejection cannot have committed. Transport errors
-      // retain the exact request for a safe retry, even after a query refetch.
-      if(['22023','40001','42501'].includes((failure as Error & {code?:string}).code??'')){setAttempt(null);setRequestId(crypto.randomUUID());}
+    const saved=saveOutcomeAttempt(window.sessionStorage,actor,command);setRecovery({status:'pending',saved});
+    save.mutate(saved.command,{onSuccess:()=>{clearConfirmed(command.requestId);setNote('');setAction('');setDue('');setNoNext(false);},onError:failure=>{
+      // The server checks an existing request receipt before optimistic version
+      // rejection. A 40001 therefore proves this exact request did not commit.
+      if((failure as Error & {code?:string}).code==='40001')clearConfirmed(command.requestId);
     }});
   }catch(err){setError(err instanceof Error?err.message:'Check your entries.');}}
   return <Card><CardHeader><CardTitle className="text-base">Record manual work</CardTitle></CardHeader><CardContent><form onSubmit={submit} className="space-y-3">
-    <fieldset disabled={!!attempt} className="space-y-3">
-    <p className="text-xs text-muted-foreground">Records work you performed. Snap does not make a call, send a message or enroll a sequence.</p>
-    {lead.next_action&&<label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={complete} onChange={e=>setComplete(e.target.checked)}/>Complete: {lead.next_action}</label>}
-    <div><Label htmlFor="crm-outcome">Outcome</Label><select id="crm-outcome" className="w-full border rounded-md p-2 bg-background" value={outcome} onChange={e=>setOutcome(e.target.value as Outcome)}>{OUTCOMES.map(o=><option key={o} value={o}>{outcomeLabel(o)}</option>)}</select></div>
-    <div><Label htmlFor="crm-outcome-note">What happened?</Label><Textarea id="crm-outcome-note" value={note} maxLength={4000} onChange={e=>setNote(e.target.value)}/></div>
-    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={noNext} onChange={e=>setNoNext(e.target.checked)}/>No follow-up needed</label>
-    {!noNext&&<><div><Label htmlFor="crm-outcome-next">Next action</Label><Input id="crm-outcome-next" value={action} onChange={e=>setAction(e.target.value)} maxLength={500}/></div><div><Label htmlFor="crm-outcome-due">Next due time</Label><Input id="crm-outcome-due" type="datetime-local" value={due} onChange={e=>setDue(e.target.value)}/></div></>}
+    {recovery.status==='other_lead'&&<div role="status" className="text-sm"><p>A saved outcome on another lead needs reconciliation first.</p><Button asChild variant="outline"><Link to={`/crm/leads/${recovery.leadId}`}>Open saved action</Link></Button></div>}
+    {recovery.status==='expired'&&<p role="status" className="text-sm">This attempt expired after 24 hours. Its private draft text has been removed. Check its saved receipt before taking another action.</p>}
+    {['foreign','invalid','unavailable'].includes(recovery.status)&&<p role="alert" className="text-sm">Private recovery state could not be verified for this account. Reopen the page or contact support before recording work.</p>}
+    {attempt&&<div role="status" className="text-sm border rounded-md p-3"><p className="font-medium">Unconfirmed outcome: {outcomeLabel(attempt.outcome)}</p><p className="whitespace-pre-wrap">{attempt.note}</p><p>{attempt.nextAction?`Next: ${attempt.nextAction}`:'No follow-up scheduled'}</p></div>}
+    <fieldset disabled={!!attempt||blocked} className="space-y-3">
+      <p className="text-xs text-muted-foreground">Records work you performed. Snap does not make a call, send a message or enroll a sequence.</p>
+      {lead.next_action&&<label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={complete} onChange={e=>setComplete(e.target.checked)}/>Complete: {lead.next_action}</label>}
+      <div><Label htmlFor="crm-outcome">Outcome</Label><select id="crm-outcome" className="w-full border rounded-md p-2 bg-background" value={outcome} onChange={e=>setOutcome(e.target.value as Outcome)}>{OUTCOMES.map(o=><option key={o} value={o}>{outcomeLabel(o)}</option>)}</select></div>
+      <div><Label htmlFor="crm-outcome-note">What happened?</Label><Textarea id="crm-outcome-note" value={note} maxLength={4000} onChange={e=>setNote(e.target.value)}/></div>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={noNext} onChange={e=>setNoNext(e.target.checked)}/>No follow-up needed</label>
+      {!noNext&&<><div><Label htmlFor="crm-outcome-next">Next action</Label><Input id="crm-outcome-next" value={action} onChange={e=>setAction(e.target.value)} maxLength={500}/></div><div><Label htmlFor="crm-outcome-due">Next due time</Label><Input id="crm-outcome-due" type="datetime-local" value={due} onChange={e=>setDue(e.target.value)}/></div></>}
     </fieldset>
     {(error||save.isError)&&<p role="alert" className="text-sm text-destructive">{error||save.error?.message}</p>}
-    {attempt&&!save.isPending&&<p className="text-sm">This attempt is unconfirmed. Retry the same saved action before recording another outcome.</p>}
-    <Button disabled={save.isPending||!!lead.archived_at}>{save.isPending?'Recording…':attempt?'Retry same outcome':'Record outcome'}</Button>
+    {attempt&&!save.isPending&&<p className="text-sm">Retry the same saved action or check whether it was already recorded. Recovery stays in this browser tab and clears on sign-out.</p>}
+    <div className="flex flex-wrap gap-2"><Button disabled={blocked||save.isPending||checking||!!lead.archived_at}>{save.isPending?'Recording…':attempt?'Retry same outcome':'Record outcome'}</Button>
+      {(attempt||recovery.status==='expired')&&<Button type="button" variant="outline" disabled={checking||save.isPending} onClick={checkReceipt}>{checking?'Checking…':'Check saved outcome'}</Button>}
+    </div>
   </form></CardContent></Card>;
 }
+
 function ContactEditor({lead,contact,onDone}:{lead:Lead;contact?:CrmContact;onDone:()=>void}) {
   const [input,setInput]=useState<ContactInput>(contact??{id:crypto.randomUUID(),name:'',relationship:'owner',phone:'',email:'',source:'',do_not_contact:false,restriction_note:''});
   const [error,setError]=useState('');const save=useSaveCrmContact();

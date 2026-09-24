@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { expectedStripeMode } from "../_shared/stripeMode.ts";
 import { STRIPE_SUBSCRIPTION_PRICE_IDS_BY_PLAN } from "../_shared/stripeSubscriptionPlan.ts";
 
 const corsHeaders = {
@@ -94,6 +95,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+    expectedStripeMode(Deno.env.get("STRIPE_EXPECTED_LIVEMODE"), stripeKey);
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
       httpClient: Stripe.createFetchHttpClient(),

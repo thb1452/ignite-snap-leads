@@ -1,4 +1,5 @@
 import type Stripe from "https://esm.sh/stripe@14.21.0";
+import { assertStripeObjectMode } from "./stripeMode.ts";
 import { resolvePlanFromStripeSubscription } from "./stripeSubscriptionPlan.ts";
 
 // Shared by signed webhooks and authenticated verification. All writes are one RPC.
@@ -17,13 +18,14 @@ export function paidPeriodEnd(invoice: Stripe.Invoice | null, subscriptionId: st
   return periods.length ? iso(Math.max(...periods)) : null;
 }
 
-export async function subscriptionSnapshot(supabase: any, stripe: Stripe, subscriptionId: string, expectedUser?: string) {
+export async function subscriptionSnapshot(supabase: any, stripe: Stripe, subscriptionId: string, expectedUser: string | undefined, expectedLivemode: boolean) {
   // The database issues a monotonic ticket before each provider fetch. This avoids
   // ordering events by their second-resolution timestamp or trusting Edge clock drift.
   const { data: syncVersion, error: versionError } = await supabase.rpc("fn_begin_billing_sync_v1");
   if (versionError || !syncVersion) throw versionError ?? new Error("billing_sync_version_unavailable");
   const observedAt = new Date().toISOString();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId, { expand: ["latest_invoice"] });
+  assertStripeObjectMode(subscription, expectedLivemode);
   const { data: existing, error } = await supabase.from("user_subscriptions")
     .select("user_id").eq("stripe_subscription_id", subscriptionId).maybeSingle();
   if (error) throw error;
@@ -32,13 +34,14 @@ export async function subscriptionSnapshot(supabase: any, stripe: Stripe, subscr
     throw new Error("subscription_owner_conflict");
   if (!userId && subscription.customer) {
     const customer = await stripe.customers.retrieve(stripeObjectId(subscription.customer)!);
-    if (!customer.deleted) userId = customer.metadata?.supabase_user_id;
+    if (!customer.deleted) { assertStripeObjectMode(customer, expectedLivemode); userId = customer.metadata?.supabase_user_id; }
   }
   if (!userId || (expectedUser && userId !== expectedUser)) throw new Error("subscription_owner_unverified");
   const plan = await resolvePlanFromStripeSubscription(supabase, subscription);
   if (!plan) throw new Error("unknown_stripe_price");
   let invoice = subscription.latest_invoice as Stripe.Invoice | null;
   if (typeof invoice === "string") invoice = await stripe.invoices.retrieve(invoice);
+  if (invoice) assertStripeObjectMode(invoice, expectedLivemode);
   return {
     user_id: userId,
     subscription_id: subscription.id,
@@ -67,7 +70,8 @@ export async function applyBilling(supabase: any, payload: Record<string, unknow
   return data;
 }
 
-export function checkoutPayment(session: Stripe.Checkout.Session) {
+export function checkoutPayment(session: Stripe.Checkout.Session, expectedLivemode: boolean) {
+  assertStripeObjectMode(session, expectedLivemode);
   if (session.payment_status !== "paid") throw new Error("checkout_payment_pending");
   const userId = session.metadata?.user_id;
   const kind = session.metadata?.checkout_type;

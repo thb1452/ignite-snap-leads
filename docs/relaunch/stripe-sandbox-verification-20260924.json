@@ -1,0 +1,40 @@
+{
+  "observed_date": "2026-09-24",
+  "status": "BLOCKED",
+  "provider_payment_tests_run": 0,
+  "provider_signed_events_exercised": 0,
+  "test_credentials_obtained": false,
+  "usable_sandbox_provisioned": false,
+  "browser_signup_followed": false,
+  "production_billing_writes": 0,
+  "live_charges": 0,
+  "prepared_harness": "scripts/test-stripe-sandbox.mjs",
+  "prepared_sql_adapter": "tests/billing/sandbox/database.mjs",
+  "preflight": {
+    "cli_version_installed": "1.51.1",
+    "stripe_sdk_version": "14.21.0",
+    "stripe_api_version": "2023-10-16",
+    "javascript_syntax_check": "PASS",
+    "shared_native_catalog_sql_bootstrap": "PASS",
+    "isolated_checkout_release_gate": false
+  },
+  "blockers": [
+    {
+      "type": "automatic_approval_review",
+      "action": "new external sandbox account creation",
+      "reason": "Separate setup authorization required; payment-testing authorization alone did not cover the creation action."
+    },
+    {
+      "type": "provisioning_unavailable",
+      "reason": "CLI reported automatic sandbox provisioning failed and fell back to browser signup. No test credentials or claim URL were obtained. Browser signup was not followed."
+    }
+  ],
+  "limitations": [
+    "Prepared checks have not run against Stripe and are not claimed as passes.",
+    "PGlite uses one connection. The separate native PostgreSQL CI verifies selected synthetic multi-session scenarios at its recorded commit; neither certifies hosted integration.",
+    "The SQL adapter does not verify a deployed Supabase gateway, production configuration or full hosted integration.",
+    "Property delivery and checkout remain held; a future billing receipt pass will not by itself prove customer delivery."
+  ],
+  "lovable_generation_prompts_sent": 0,
+  "future_credit_spending_requires_owner_permission": true
+}

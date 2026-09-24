@@ -8,7 +8,7 @@ Goal: determine whether five independent target buyers can understand the suppor
 
 - Release commit, staging URL and test identities recorded. New independent customer workspaces pass read/write/cache/export negative tests. No founder shared organization.
 - Billing sandbox passes checkout, duplicate/reordered invoice, allowance, delivery, cancel and retry tests. No real-card test or invoice generation for participants by default.
-- One market/source release is explicitly accepted from original-backed evidence. [Madison Heights remains held](../market-validation.md). Synthetic examples may support an internal rehearsal only; label them and do not call that a real market pilot.
+- One market/source release is explicitly accepted from original-backed evidence. [Candidate market validation remains held](../market-validation.md). Synthetic examples may support an internal rehearsal only; label them and do not call that a real market pilot.
 - All five tasks below work on desktop and mobile using scoped seed data; refresh/source revocation preserves private notes and history. Provider enrichment, email/SMS enrollment, and paid automation remain off.
 - One coherent public offer and visible source dates, sample labels and limitations. Support and error recovery have an identified operator.
 - JD/operator identifies and approves the exact five recipients and invitation text before sending. Confirm eligibility, consent to participation and optional recording separately. No purchases or incentives assumed.

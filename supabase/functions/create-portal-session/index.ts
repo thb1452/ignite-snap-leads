@@ -4,6 +4,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { expectedStripeMode, assertStripeObjectMode } from "../_shared/stripeMode.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +31,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const expectedLivemode = expectedStripeMode(Deno.env.get("STRIPE_EXPECTED_LIVEMODE"), stripeKey);
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
       httpClient: Stripe.createFetchHttpClient(),
@@ -78,6 +80,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (customer.deleted || (customer.metadata?.supabase_user_id && customer.metadata.supabase_user_id !== user.id)) {
       throw new Error("Billing customer mapping needs review. Contact support.");
     }
+    assertStripeObjectMode(customer, expectedLivemode);
     // During the purchase hold, only an explicitly configured portal with plan
     // changes disabled is allowed. Never silently use a purchasable default portal.
     const { data: enabled, error: releaseError } = await supabase.rpc("fn_billing_checkout_enabled_v1");

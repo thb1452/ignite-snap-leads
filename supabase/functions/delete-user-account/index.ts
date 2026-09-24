@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { expectedStripeMode } from "../_shared/stripeMode.ts";
 import { cancelOwnedSubscriptions } from "../_shared/billingClosure.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
@@ -13,6 +14,7 @@ Deno.serve(async (req: Request) => {
   try {
     const url = Deno.env.get("SUPABASE_URL"), key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!url || !key || !stripeKey) throw new Error("SERVER_MISCONFIGURED");
+    const expectedLivemode = expectedStripeMode(Deno.env.get("STRIPE_EXPECTED_LIVEMODE"), stripeKey);
     supabase = createClient(url, key);
     const authorization = req.headers.get("authorization");
     if (!authorization?.startsWith("Bearer ")) return Response.json({ error: "Unauthorized" }, { status: 401, headers });
@@ -26,7 +28,7 @@ Deno.serve(async (req: Request) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16", httpClient: Stripe.createFetchHttpClient() });
     const { error: startError } = await supabase.rpc("fn_record_account_closure_v1", { p_user_id: userId, p_status: "cancellation_requested" });
     if (startError) throw startError;
-    await cancelOwnedSubscriptions(stripe, userId, user.email, rows ?? []);
+    await cancelOwnedSubscriptions(stripe, userId, user.email, rows ?? [], expectedLivemode);
     const { error: recordError } = await supabase.rpc("fn_record_account_closure_v1", { p_user_id: userId, p_status: "pending_retention_review" });
     if (recordError) throw recordError;
     // Financial records, private CRM and source retention require a reviewed erasure policy.

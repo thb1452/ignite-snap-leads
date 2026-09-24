@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { expectedStripeMode, assertStripeObjectMode } from "../_shared/stripeMode.ts";
 import { applyBilling, checkoutPayment, stripeObjectId, subscriptionSnapshot } from "../_shared/billingSync.ts";
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -12,6 +13,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     if (!supabaseUrl || !supabaseKey || !stripeKey || !webhookSecret) throw new Error("SERVER_MISCONFIGURED");
+    const expectedLivemode = expectedStripeMode(Deno.env.get("STRIPE_EXPECTED_LIVEMODE"), stripeKey);
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16", httpClient: Stripe.createFetchHttpClient() });
     const signature = req.headers.get("stripe-signature");
     if (!signature) return Response.json({ error: "No signature" }, { status: 400 });
@@ -21,28 +23,32 @@ Deno.serve(async (req: Request): Promise<Response> => {
     } catch {
       return Response.json({ error: "Invalid signature" }, { status: 400 });
     }
+    try { assertStripeObjectMode(event, expectedLivemode); }
+    catch { return Response.json({ error: "Stripe event mode does not match this environment" }, { status: 400 }); }
     eventId = event.id;
     const supabase = createClient(supabaseUrl, supabaseKey);
     const payload: Record<string, unknown> = { event_id: event.id, event_type: event.type };
     if (["checkout.session.completed", "checkout.session.async_payment_succeeded"].includes(event.type)) {
       const object = event.data.object as Stripe.Checkout.Session;
       const session = await stripe.checkout.sessions.retrieve(object.id);
+      assertStripeObjectMode(session, expectedLivemode);
       if (session.mode === "subscription") {
         const subId = stripeObjectId(session.subscription);
         if (!subId) throw new Error("subscription_missing");
-        payload.subscription = await subscriptionSnapshot(supabase, stripe, subId, session.metadata?.user_id);
+        payload.subscription = await subscriptionSnapshot(supabase, stripe, subId, session.metadata?.user_id, expectedLivemode);
       } else if (session.mode === "payment") {
         // Completed is not proof of settlement for delayed payment methods.
         if (session.payment_status !== "paid") return Response.json({ received: true, pending: true });
-        payload.payment = checkoutPayment(session);
+        payload.payment = checkoutPayment(session, expectedLivemode);
       }
     } else if (["customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"].includes(event.type)) {
-      payload.subscription = await subscriptionSnapshot(supabase, stripe, (event.data.object as Stripe.Subscription).id);
+      payload.subscription = await subscriptionSnapshot(supabase, stripe, (event.data.object as Stripe.Subscription).id, undefined, expectedLivemode);
     } else if (["invoice.payment_succeeded", "invoice.paid", "invoice.payment_failed"].includes(event.type)) {
       const invoice = await stripe.invoices.retrieve((event.data.object as Stripe.Invoice).id);
+      assertStripeObjectMode(invoice, expectedLivemode);
       const subId = stripeObjectId(invoice.subscription);
       if (subId) {
-        const snapshot = await subscriptionSnapshot(supabase, stripe, subId);
+        const snapshot = await subscriptionSnapshot(supabase, stripe, subId, undefined, expectedLivemode);
         payload.subscription = snapshot;
         if (invoice.paid && invoice.status === "paid") payload.invoice = {
           invoice_id: invoice.id, user_id: snapshot.user_id, subscription_id: subId,

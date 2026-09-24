@@ -41,7 +41,7 @@ The initial `send_page_view: false` adjustment has been superseded by a stronger
 
 ## Integration browser attempt
 
-The integration owner attempted the supported browser preview at `http://127.0.0.1:8080`; navigation returned `net::ERR_BLOCKED_BY_CLIENT`. No alternate browser, tunnel, or bypass was used. Therefore desktop/mobile rendered layout, keyboard focus/Escape/return, screen-reader behavior, and authenticated journeys remain unverified. Compilation and pure logic tests do not close this gate.
+The initial local preview was blocked. After cloud sign-in, the PR 193 preview became accessible: public desktop presentation, FAQ click/Enter behavior and availability routing passed. The preview does not establish isolated hosted staging. Mobile layout, full keyboard focus/Escape/return behavior, screen-reader acceptance and authenticated customer journeys remain unverified. Compilation, public screenshots and pure logic tests do not close those gates.
 
 ## Final error telemetry follow-up
 

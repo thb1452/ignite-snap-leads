@@ -109,6 +109,14 @@ def validate(raw, context, stored_rows, reviews=None):
         blockers.append("original_layout_or_semantics_rejected")
         return result
     result["original_sha256"] = report["original_sha256"]
+    result["request_period"] = [context["period_start"], context["period_end"]]
+    result["source_period"] = [report["source_period_start"], report["source_period_end"]]
+    # A perfectly preserved subset still cannot certify complete delivery of a
+    # wider request. The September receipt exposed this: its report starts one
+    # day after the request. Require explicit scope resolution outside this tool.
+    if (report["source_period_start"] > context["period_start"] or
+            report["source_period_end"] < context["period_end"]):
+        blockers.append("source_report_does_not_cover_request_period")
     result["counts"] = dict(original_cases=report["input_records"], physical_rows=report["physical_rows"],
                             passing_cases=report["passed_records"], exceptions=report["held_records"],
                             passing_status_counts=dict(Counter(r["source_status"] for r in report["records"] if r["accuracy_status"] == "passed")))

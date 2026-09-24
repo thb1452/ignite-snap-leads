@@ -114,3 +114,8 @@ export async function fetchCrmEvidence(actor:string,lead:Lead):Promise<{kind:'so
   if(source!==false)throw new Error('Property access could not be verified.');
   return {kind:'property',property:await fetchPropertySnapshot(actor,lead.property_id)};
 }
+
+export async function hasOutcomeReceipt(actor:string,leadId:string,requestId:string):Promise<boolean> {
+  const receipt=await checked<{id:string}|null>(actor,()=>db.from('lead_activities').select('id').eq('id',requestId).eq('lead_id',leadId).eq('actor_id',actor).eq('activity_type','task').maybeSingle());
+  return receipt?.id===requestId;
+}

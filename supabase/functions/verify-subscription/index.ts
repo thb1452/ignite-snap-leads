@@ -5,6 +5,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { expectedStripeMode, assertStripeObjectMode } from "../_shared/stripeMode.ts";
 import { applyBilling, stripeObjectId, subscriptionSnapshot } from "../_shared/billingSync.ts";
 
 const corsHeaders = {
@@ -31,6 +32,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const expectedLivemode = expectedStripeMode(Deno.env.get("STRIPE_EXPECTED_LIVEMODE"), stripeKey);
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
       httpClient: Stripe.createFetchHttpClient(),
@@ -62,6 +64,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let paymentConfirmed = false;
     if (sessionId) {
       const session = await stripe.checkout.sessions.retrieve(sessionId);
+      assertStripeObjectMode(session, expectedLivemode);
       if (session.metadata?.user_id !== userId || session.mode !== "subscription") {
         return Response.json({ error: "Checkout session does not belong to this account" }, { status: 403, headers });
       }
@@ -78,7 +81,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       subscriptionId = rows[0].stripe_subscription_id;
     }
     if (!subscriptionId) return Response.json({ synced: false, reason: "subscription_missing" }, { headers });
-    const snapshot = await subscriptionSnapshot(supabase, stripe, subscriptionId, userId);
+    const snapshot = await subscriptionSnapshot(supabase, stripe, subscriptionId, userId, expectedLivemode);
     await applyBilling(supabase, {
       event_id: `verify-subscription:${subscriptionId}:${crypto.randomUUID()}`,
       event_type: "authenticated.subscription.verify", subscription: snapshot,

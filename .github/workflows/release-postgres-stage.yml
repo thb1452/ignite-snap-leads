@@ -1,0 +1,53 @@
+name: Release PostgreSQL concurrency
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-postgres-stage.yml'
+      - 'scripts/tests/release-stage/**'
+      - 'tests/helpers/**'
+      - 'supabase/migrations/20260924*'
+permissions:
+  contents: read
+jobs:
+  native-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: snap_release_stage
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm ci --prefix scripts/tests/release-stage --ignore-scripts --no-audit --no-fund
+      - name: Real PostgreSQL concurrent sessions
+        env:
+          SNAP_STAGE_DATABASE_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/snap_release_stage
+          SNAP_STAGE_RECEIPT: native-stage-receipt.json
+        run: |
+          set -o pipefail
+          node --test scripts/tests/release-stage/native-concurrency.test.mjs | tee native-stage-test.log
+      - name: Preserve verification receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-postgres-concurrency
+          path: |
+            native-stage-test.log
+            native-stage-receipt.json
+          if-no-files-found: warn

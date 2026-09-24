@@ -10,8 +10,9 @@ import path from 'node:path';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 export const migration = '20260924182954_snap_customer_workspace_isolation_v1.sql';
 const sqlFile = (name) => readFile(path.join(root, 'supabase/migrations', name), 'utf8');
-export async function createTenancyDb({ applyMigration = true } = {}) {
-  const db = new PGlite();
+export async function createTenancyDb({ applyMigration = true, database } = {}) {
+  // A supplied adapter allows the same DDL to run against native multi-session PostgreSQL.
+  const db = database ?? new PGlite();
   await db.exec(`
     CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS;
     CREATE SCHEMA auth; GRANT USAGE ON SCHEMA auth TO anon,authenticated,service_role;

@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      SNAP_LOCAL_STACK_DIR: ${{ runner.temp }}/snap-release-ci
+      SNAP_LOCAL_STACK_DIR: /tmp/snap-release-ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

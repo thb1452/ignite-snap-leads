@@ -98,8 +98,10 @@
   },
   "private_evidence_included": false,
   "public_followup_publication": {
-    "status": "blocked_pending_explicit_public_repository_approval",
-    "reason": "Automatic approval review rejected both private operational evidence disclosure and subsequent public code-only publication; no bypass attempted",
+    "status": "published_to_existing_pull_request",
+    "commit": "68b64bc2701487120ce00aeebf8d0126acf76a5c",
+    "reviewed_tree": "a0090ba95a032b1ec2c22a6792d8812469fdca36",
     "private_evidence_excluded": true
-  }
+  },
+  "lovable_staging_spending_authorized": false
 }

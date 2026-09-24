@@ -4,10 +4,10 @@
 
 Two blockers were observed:
 
-1. Automatic approval review rejected new external account creation because that setup required separate authorization. No retry or indirect provisioning route was attempted after rejection.
-2. The CLI's captured attempt output reported that automatic provisioning was unavailable and fell back to browser signup. No test key or claim URL appeared. Browser launch was disabled, no signup was followed, and no provisioning process remained. Explicit sandbox approval alone therefore would not establish that automated provisioning will work.
+1. Automatic approval review initially rejected new external account creation and use of the owner email because it required explicit authorization. The user subsequently approved that free sandbox setup. One bounded attempt in the approved scope was also rejected by automatic review as lacking consent; the reason it did not accept the later approval is unknown. No further retry or indirect provisioning route was attempted after that second rejection.
+2. The approved attempt's private debug log identified the technical failure: the anonymous provisioning challenge at `ai.stripe.com` returned `Forbidden`. The CLI then offered its standard browser login fallback, but no live confirmation URL, test key, or claim URL appeared. No browser signup was followed. Approval does not fix this unavailable provisioning route.
 
-An approved, usable isolated Stripe sandbox with securely supplied test credentials is still required. No production account was modified, no live payment was attempted and no new staging resource was provisioned. Future credit spending requires owner approval.
+A usable isolated Stripe sandbox with securely supplied test credentials is still required; the user has approved creating the free sandbox. No production account was modified, no live payment was attempted and no new staging resource was provisioned. Future credit spending requires owner approval.
 
 `scripts/test-stripe-sandbox.mjs` is opt-in and refuses keys whose prefix is not explicitly test-only. It connects the real Stripe SDK **14.21.0**, API **2023-10-16**, and Stripe CLI signed event forwarding to the unchanged `stripe-webhook` handler and shared billing helpers. Only the Supabase transport is replaced: RPC and plan/mapping reads execute in isolated PGlite PostgreSQL using the shared captured-schema billing fixture and the actual candidate migration.
 

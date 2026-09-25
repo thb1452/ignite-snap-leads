@@ -7,6 +7,16 @@ expected blocker PID and a waiting lock on the adapter's exact advisory key
 before releasing the first transaction. A tenth check rejects repeatable-read
 transactions.
 
+The service explicitly uses ICU `en-US`, with `en_US.UTF-8` collation/ctype,
+matching the independently inspected hosted staging database. The harness checks
+the provider, locale and exact JSON-key ordering before applying application SQL.
+Its receipt records the database collation version as well. The initial native
+attempt used Docker's default libc `en_US.utf8`, which orders `source_rows` before
+`source_row_sha256`; the adapter's exact-key allowlist rejected valid fixtures
+before any race ran. The unchanged adapter therefore has a known portability
+limit: a target with different key ordering needs a separately reviewed fix or
+matching verified configuration. This job does not claim support for every locale.
+
 The checks cover exact and equivalent concurrent handoffs, both orders of source
 reading and revocation, denial of queued handoffs after revocation, consumer and
 operator bans committed by a third session during the wait, grant revocation,

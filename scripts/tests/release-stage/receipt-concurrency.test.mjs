@@ -28,6 +28,13 @@ test('native receipt sessions serialize handoff, reads, revocation and post-wait
     const version=(await setup.query("SELECT current_setting('server_version') version,current_setting('transaction_isolation') isolation")).rows[0];
     assert.match(version.version,/^17\.6(?:\D|$)/);assert.equal(version.isolation,'read committed');
     evidence.version=version.version;evidence.isolation=version.isolation;
+    const locale=(await setup.query(`SELECT datlocprovider::text provider,datlocale locale,datcollate collate,datctype ctype,
+      datcollversion version FROM pg_database WHERE datname=current_database()`)).rows[0];
+    assert.equal(locale.provider,'i');assert.equal(locale.locale,'en-US');
+    assert.equal(locale.collate,'en_US.UTF-8');assert.equal(locale.ctype,'en_US.UTF-8');
+    assert.deepEqual((await setup.query("SELECT array_agg(k ORDER BY k) keys FROM unnest(ARRAY['source_rows','source_row_sha256']) k")).rows[0].keys,
+      ['source_row_sha256','source_rows'],'Exact receipt JSON-key ordering must match the inspected hosted database');
+    evidence.database_locale=locale;
     const pids=await Promise.all(clients.map(async c=>(await c.query('SELECT pg_backend_pid() pid')).rows[0].pid));
     assert.equal(new Set(pids).size,3);evidence.distinct_backend_sessions=pids.length;
     await bootstrapReceiptDatabase(db);

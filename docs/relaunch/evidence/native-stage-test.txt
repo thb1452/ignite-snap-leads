@@ -1,0 +1,17 @@
+▶ native PostgreSQL sessions serialize workspace, CRM and billing operations
+  ✔ simultaneous reviewed provision creates one workspace (64.230063ms)
+  ✔ racing legacy write cannot slip between provision preflight and ownership reassignment (16.194929ms)
+  ✔ same-property handoff has one lead and creation event (40.080923ms)
+  ✔ identical simultaneous outcome requests append once (35.6341ms)
+  ✔ competing outcome with stale version fails without a second event (34.466883ms)
+  ✔ different webhook identities for same purchase fulfill once (35.431631ms)
+  ✔ terminal cancellation wins under overlapping reordered billing snapshots (35.606146ms)
+✔ native PostgreSQL sessions serialize workspace, CRM and billing operations (467.931644ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 567.802005

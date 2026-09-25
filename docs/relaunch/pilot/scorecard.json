@@ -1,0 +1,45 @@
+{
+  "version": "snap-five-buyer-pilot-v1",
+  "status": "blocked_by_release_gates",
+  "prepared_on": "2026-09-24",
+  "release_commit": null,
+  "environment": null,
+  "market_acceptance_ref": null,
+  "privacy_test_ref": null,
+  "billing_sandbox_test_ref": null,
+  "approved_recipient_set_ref": null,
+  "participant_template": {
+    "participant_id": "P01",
+    "eligible": null,
+    "eligibility_basis": null,
+    "participation_consent_ref": null,
+    "recording_consent": false,
+    "device": null,
+    "session_at": null,
+    "tasks": [
+      {"id": 1, "name": "source_fit", "completed": null, "unaided": null, "seconds": null, "evidence_ref": null, "first_obstacle": null},
+      {"id": 2, "name": "interpret_evidence", "completed": null, "unaided": null, "seconds": null, "evidence_ref": null, "first_obstacle": null},
+      {"id": 3, "name": "save_private_work", "completed": null, "unaided": null, "seconds": null, "evidence_ref": null, "first_obstacle": null},
+      {"id": 4, "name": "plan_follow_up", "completed": null, "unaided": null, "seconds": null, "evidence_ref": null, "first_obstacle": null},
+      {"id": 5, "name": "return_and_recover", "completed": null, "unaided": null, "seconds": null, "evidence_ref": null, "first_obstacle": null}
+    ],
+    "return_at": null,
+    "return_reminder_assisted": null,
+    "source_understanding_correct": null,
+    "privacy_or_payment_incident": null,
+    "private_history_intact": null,
+    "operator_minutes": null,
+    "actual_provider_cost_usd": null,
+    "price_objection_paraphrase": null,
+    "actual_collected_revenue_usd": null
+  },
+  "participants": [],
+  "summary": {
+    "recruited": 0,
+    "sessions_completed": 0,
+    "eligible_observed_denominator": null,
+    "task_unaided_numerators": null,
+    "return_use_numerator": null,
+    "decision": "not_run"
+  }
+}

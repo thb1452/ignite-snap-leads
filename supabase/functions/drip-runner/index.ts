@@ -1,3 +1,5 @@
+import { relaunchProviderHeld, relaunchProviderHeldResponse } from "../_shared/relaunchProviderHold.ts";
+import { internalWorkerDenial } from "../_shared/internalWorkerAuth.ts";
 // drip-runner
 // Cron-triggered. Processes all due drip_enrollments (status=active AND next_run_at <= now).
 // For each: loads next step, sends SMS via direct Twilio call (using org's BYOA creds from vault),
@@ -116,6 +118,10 @@ async function sendViaTwilio(
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const denial = internalWorkerDenial(req, corsHeaders);
+  if (denial) return denial;
+  if (relaunchProviderHeld()) return relaunchProviderHeldResponse("communications", corsHeaders);
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

@@ -1,0 +1,5162 @@
+{
+  "captured_at": "2026-09-24T19:07:44.264624+00:00",
+  "columns": [
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "affiliate_commissions",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "referral_id",
+      "notnull": true,
+      "table": "affiliate_commissions",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "transaction_id",
+      "notnull": true,
+      "table": "affiliate_commissions",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "amount",
+      "notnull": true,
+      "table": "affiliate_commissions",
+      "type": "integer"
+    },
+    {
+      "default": "30",
+      "generated": "",
+      "identity": "",
+      "name": "commission_rate",
+      "notnull": true,
+      "table": "affiliate_commissions",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "paid_at",
+      "notnull": false,
+      "table": "affiliate_commissions",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "'pending'::text",
+      "generated": "",
+      "identity": "",
+      "name": "status",
+      "notnull": true,
+      "table": "affiliate_commissions",
+      "type": "text"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "affiliate_referrals",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "referrer_id",
+      "notnull": true,
+      "table": "affiliate_referrals",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "referred_user_id",
+      "notnull": true,
+      "table": "affiliate_referrals",
+      "type": "uuid"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "signup_at",
+      "notnull": true,
+      "table": "affiliate_referrals",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "first_purchase_at",
+      "notnull": false,
+      "table": "affiliate_referrals",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "commission_paid",
+      "notnull": true,
+      "table": "affiliate_referrals",
+      "type": "boolean"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "credit_ledger",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "user_id",
+      "notnull": true,
+      "table": "credit_ledger",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "delta",
+      "notnull": true,
+      "table": "credit_ledger",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "reason",
+      "notnull": true,
+      "table": "credit_ledger",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "meta",
+      "notnull": false,
+      "table": "credit_ledger",
+      "type": "jsonb"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "credit_ledger",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "((meta ->> 'job_id'::text))::uuid",
+      "generated": "s",
+      "identity": "",
+      "name": "job_id_extracted",
+      "notnull": false,
+      "table": "credit_ledger",
+      "type": "uuid"
+    },
+    {
+      "default": "((meta ->> 'property_id'::text))::uuid",
+      "generated": "s",
+      "identity": "",
+      "name": "property_id_extracted",
+      "notnull": false,
+      "table": "credit_ledger",
+      "type": "uuid"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "drip_enrollments",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": true,
+      "table": "drip_enrollments",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "lead_id",
+      "notnull": true,
+      "table": "drip_enrollments",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "sequence_id",
+      "notnull": true,
+      "table": "drip_enrollments",
+      "type": "uuid"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "current_step",
+      "notnull": true,
+      "table": "drip_enrollments",
+      "type": "integer"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "next_run_at",
+      "notnull": true,
+      "table": "drip_enrollments",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "'active'::text",
+      "generated": "",
+      "identity": "",
+      "name": "status",
+      "notnull": true,
+      "table": "drip_enrollments",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "pause_reason",
+      "notnull": false,
+      "table": "drip_enrollments",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "to_number",
+      "notnull": false,
+      "table": "drip_enrollments",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "enrolled_by",
+      "notnull": false,
+      "table": "drip_enrollments",
+      "type": "uuid"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "drip_enrollments",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": true,
+      "table": "drip_enrollments",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "completed_at",
+      "notnull": false,
+      "table": "drip_enrollments",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "drip_sequences",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": true,
+      "table": "drip_sequences",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "name",
+      "notnull": true,
+      "table": "drip_sequences",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "description",
+      "notnull": false,
+      "table": "drip_sequences",
+      "type": "text"
+    },
+    {
+      "default": "'manual'::text",
+      "generated": "",
+      "identity": "",
+      "name": "trigger_type",
+      "notnull": true,
+      "table": "drip_sequences",
+      "type": "text"
+    },
+    {
+      "default": "'{}'::jsonb",
+      "generated": "",
+      "identity": "",
+      "name": "trigger_config",
+      "notnull": true,
+      "table": "drip_sequences",
+      "type": "jsonb"
+    },
+    {
+      "default": "true",
+      "generated": "",
+      "identity": "",
+      "name": "is_active",
+      "notnull": true,
+      "table": "drip_sequences",
+      "type": "boolean"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "created_by",
+      "notnull": false,
+      "table": "drip_sequences",
+      "type": "uuid"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "drip_sequences",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": true,
+      "table": "drip_sequences",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "drip_steps",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "sequence_id",
+      "notnull": true,
+      "table": "drip_steps",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "step_order",
+      "notnull": true,
+      "table": "drip_steps",
+      "type": "integer"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "delay_hours",
+      "notnull": true,
+      "table": "drip_steps",
+      "type": "integer"
+    },
+    {
+      "default": "'sms'::text",
+      "generated": "",
+      "identity": "",
+      "name": "channel",
+      "notnull": true,
+      "table": "drip_steps",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "template_body",
+      "notnull": true,
+      "table": "drip_steps",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "branch_condition",
+      "notnull": false,
+      "table": "drip_steps",
+      "type": "jsonb"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "drip_steps",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "nextval('integration_action_log_id_seq'::regclass)",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "integration_action_log",
+      "type": "bigint"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "integration_id",
+      "notnull": false,
+      "table": "integration_action_log",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "user_id",
+      "notnull": false,
+      "table": "integration_action_log",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "action_type",
+      "notnull": true,
+      "table": "integration_action_log",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "request_metadata",
+      "notnull": false,
+      "table": "integration_action_log",
+      "type": "jsonb"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "response_status",
+      "notnull": false,
+      "table": "integration_action_log",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "success",
+      "notnull": true,
+      "table": "integration_action_log",
+      "type": "boolean"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "error_code",
+      "notnull": false,
+      "table": "integration_action_log",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "error_message",
+      "notnull": false,
+      "table": "integration_action_log",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "cost_estimate_usd",
+      "notnull": false,
+      "table": "integration_action_log",
+      "type": "numeric(8,4)"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "integration_action_log",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "lead_activities",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "lead_id",
+      "notnull": true,
+      "table": "lead_activities",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": true,
+      "table": "lead_activities",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "actor_id",
+      "notnull": false,
+      "table": "lead_activities",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "activity_type",
+      "notnull": true,
+      "table": "lead_activities",
+      "type": "text"
+    },
+    {
+      "default": "'{}'::jsonb",
+      "generated": "",
+      "identity": "",
+      "name": "payload",
+      "notnull": true,
+      "table": "lead_activities",
+      "type": "jsonb"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "lead_activities",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "lead_activity",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "property_id",
+      "notnull": false,
+      "table": "lead_activity",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "user_id",
+      "notnull": false,
+      "table": "lead_activity",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "status",
+      "notnull": false,
+      "table": "lead_activity",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "notes",
+      "notnull": false,
+      "table": "lead_activity",
+      "type": "text"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": false,
+      "table": "lead_activity",
+      "type": "timestamp without time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": false,
+      "table": "lead_activity",
+      "type": "timestamp without time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "lead_lists",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "user_id",
+      "notnull": false,
+      "table": "lead_lists",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "name",
+      "notnull": true,
+      "table": "lead_lists",
+      "type": "text"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": false,
+      "table": "lead_lists",
+      "type": "timestamp without time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "lead_id",
+      "notnull": true,
+      "table": "lead_tag_assignments",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "tag_id",
+      "notnull": true,
+      "table": "lead_tag_assignments",
+      "type": "uuid"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "lead_tag_assignments",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "lead_tags",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": true,
+      "table": "lead_tags",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "label",
+      "notnull": true,
+      "table": "lead_tags",
+      "type": "text"
+    },
+    {
+      "default": "'#64748b'::text",
+      "generated": "",
+      "identity": "",
+      "name": "color",
+      "notnull": true,
+      "table": "lead_tags",
+      "type": "text"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "lead_tags",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "leads",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": true,
+      "table": "leads",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "property_id",
+      "notnull": true,
+      "table": "leads",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "owner_id",
+      "notnull": false,
+      "table": "leads",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "stage_id",
+      "notnull": true,
+      "table": "leads",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "assigned_to",
+      "notnull": false,
+      "table": "leads",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "created_by",
+      "notnull": true,
+      "table": "leads",
+      "type": "uuid"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "priority",
+      "notnull": true,
+      "table": "leads",
+      "type": "integer"
+    },
+    {
+      "default": "'manual'::text",
+      "generated": "",
+      "identity": "",
+      "name": "source",
+      "notnull": true,
+      "table": "leads",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "notes",
+      "notnull": false,
+      "table": "leads",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "last_contacted_at",
+      "notnull": false,
+      "table": "leads",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "next_follow_up_at",
+      "notnull": false,
+      "table": "leads",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "archived_at",
+      "notnull": false,
+      "table": "leads",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "leads",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": true,
+      "table": "leads",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "list_properties",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "list_id",
+      "notnull": false,
+      "table": "list_properties",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "property_id",
+      "notnull": false,
+      "table": "list_properties",
+      "type": "uuid"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "added_at",
+      "notnull": false,
+      "table": "list_properties",
+      "type": "timestamp without time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "created_by",
+      "notnull": false,
+      "table": "list_properties",
+      "type": "uuid"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "organizations",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "name",
+      "notnull": true,
+      "table": "organizations",
+      "type": "text"
+    },
+    {
+      "default": "100",
+      "generated": "",
+      "identity": "",
+      "name": "credits",
+      "notnull": false,
+      "table": "organizations",
+      "type": "integer"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "organizations",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": true,
+      "table": "organizations",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "owners",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "property_id",
+      "notnull": true,
+      "table": "owners",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": true,
+      "table": "owners",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "name",
+      "notnull": false,
+      "table": "owners",
+      "type": "text"
+    },
+    {
+      "default": "'[]'::jsonb",
+      "generated": "",
+      "identity": "",
+      "name": "phones",
+      "notnull": false,
+      "table": "owners",
+      "type": "jsonb"
+    },
+    {
+      "default": "'[]'::jsonb",
+      "generated": "",
+      "identity": "",
+      "name": "emails",
+      "notnull": false,
+      "table": "owners",
+      "type": "jsonb"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "mailing_address",
+      "notnull": false,
+      "table": "owners",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "confidence",
+      "notnull": false,
+      "table": "owners",
+      "type": "text"
+    },
+    {
+      "default": "'unknown'::text",
+      "generated": "",
+      "identity": "",
+      "name": "source",
+      "notnull": true,
+      "table": "owners",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "raw_payload",
+      "notnull": false,
+      "table": "owners",
+      "type": "jsonb"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "created_by",
+      "notnull": false,
+      "table": "owners",
+      "type": "uuid"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "owners",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": true,
+      "table": "owners",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "pipeline_stages",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": true,
+      "table": "pipeline_stages",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "name",
+      "notnull": true,
+      "table": "pipeline_stages",
+      "type": "text"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "sort_order",
+      "notnull": true,
+      "table": "pipeline_stages",
+      "type": "integer"
+    },
+    {
+      "default": "'#64748b'::text",
+      "generated": "",
+      "identity": "",
+      "name": "color",
+      "notnull": true,
+      "table": "pipeline_stages",
+      "type": "text"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "is_won",
+      "notnull": true,
+      "table": "pipeline_stages",
+      "type": "boolean"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "is_lost",
+      "notnull": true,
+      "table": "pipeline_stages",
+      "type": "boolean"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "is_default",
+      "notnull": true,
+      "table": "pipeline_stages",
+      "type": "boolean"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "pipeline_stages",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": true,
+      "table": "pipeline_stages",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "profiles",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "user_id",
+      "notnull": true,
+      "table": "profiles",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": true,
+      "table": "profiles",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "email",
+      "notnull": false,
+      "table": "profiles",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "full_name",
+      "notnull": false,
+      "table": "profiles",
+      "type": "text"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "profiles",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": true,
+      "table": "profiles",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "is_beta_user",
+      "notnull": true,
+      "table": "profiles",
+      "type": "boolean"
+    },
+    {
+      "default": "3",
+      "generated": "",
+      "identity": "",
+      "name": "free_unlocks_remaining",
+      "notnull": true,
+      "table": "profiles",
+      "type": "integer"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "daily_view_count",
+      "notnull": true,
+      "table": "profiles",
+      "type": "integer"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "daily_view_reset_at",
+      "notnull": true,
+      "table": "profiles",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "referred_by",
+      "notnull": false,
+      "table": "profiles",
+      "type": "uuid"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "properties",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "address",
+      "notnull": true,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "city",
+      "notnull": true,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "state",
+      "notnull": true,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "zip",
+      "notnull": true,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "latitude",
+      "notnull": false,
+      "table": "properties",
+      "type": "numeric(10,8)"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "longitude",
+      "notnull": false,
+      "table": "properties",
+      "type": "numeric(11,8)"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "snap_score",
+      "notnull": false,
+      "table": "properties",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "snap_insight",
+      "notnull": false,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "photo_url",
+      "notnull": false,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": false,
+      "table": "properties",
+      "type": "timestamp without time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": false,
+      "table": "properties",
+      "type": "timestamp without time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "geom",
+      "notnull": false,
+      "table": "properties",
+      "type": "geometry(Point,4326)"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "jurisdiction_id",
+      "notnull": false,
+      "table": "properties",
+      "type": "uuid"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "total_violations",
+      "notnull": false,
+      "table": "properties",
+      "type": "integer"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "open_violations",
+      "notnull": false,
+      "table": "properties",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "oldest_violation_date",
+      "notnull": false,
+      "table": "properties",
+      "type": "date"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "newest_violation_date",
+      "notnull": false,
+      "table": "properties",
+      "type": "date"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "avg_days_open",
+      "notnull": false,
+      "table": "properties",
+      "type": "integer"
+    },
+    {
+      "default": "'{}'::text[]",
+      "generated": "",
+      "identity": "",
+      "name": "violation_types",
+      "notnull": false,
+      "table": "properties",
+      "type": "text[]"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "repeat_offender",
+      "notnull": false,
+      "table": "properties",
+      "type": "boolean"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "multi_department",
+      "notnull": false,
+      "table": "properties",
+      "type": "boolean"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "escalated",
+      "notnull": false,
+      "table": "properties",
+      "type": "boolean"
+    },
+    {
+      "default": "'{}'::text[]",
+      "generated": "",
+      "identity": "",
+      "name": "distress_signals",
+      "notnull": false,
+      "table": "properties",
+      "type": "text[]"
+    },
+    {
+      "default": "'watch'::text",
+      "generated": "",
+      "identity": "",
+      "name": "opportunity_class",
+      "notnull": false,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "last_analyzed_at",
+      "notnull": false,
+      "table": "properties",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "'city'::text",
+      "generated": "",
+      "identity": "",
+      "name": "scope",
+      "notnull": false,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "county",
+      "notnull": false,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "last_enforcement_date",
+      "notnull": false,
+      "table": "properties",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "'code_violation'::text",
+      "generated": "",
+      "identity": "",
+      "name": "enforcement_type",
+      "notnull": true,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "investor_insight_brief",
+      "notnull": false,
+      "table": "properties",
+      "type": "jsonb"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "street_number",
+      "notnull": false,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "street_name",
+      "notnull": false,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "beds",
+      "notnull": false,
+      "table": "properties",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "baths",
+      "notnull": false,
+      "table": "properties",
+      "type": "numeric(4,1)"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "sqft",
+      "notnull": false,
+      "table": "properties",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "year_built",
+      "notnull": false,
+      "table": "properties",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "lot_size_sqft",
+      "notnull": false,
+      "table": "properties",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "enrichment_source",
+      "notnull": false,
+      "table": "properties",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "enriched_at",
+      "notnull": false,
+      "table": "properties",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "sms_messages",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "thread_id",
+      "notnull": true,
+      "table": "sms_messages",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": true,
+      "table": "sms_messages",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "direction",
+      "notnull": true,
+      "table": "sms_messages",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "body",
+      "notnull": true,
+      "table": "sms_messages",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "twilio_sid",
+      "notnull": false,
+      "table": "sms_messages",
+      "type": "text"
+    },
+    {
+      "default": "'queued'::text",
+      "generated": "",
+      "identity": "",
+      "name": "status",
+      "notnull": true,
+      "table": "sms_messages",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "error_code",
+      "notnull": false,
+      "table": "sms_messages",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "cost_cents",
+      "notnull": false,
+      "table": "sms_messages",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "drip_enrollment_id",
+      "notnull": false,
+      "table": "sms_messages",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "sent_by",
+      "notnull": false,
+      "table": "sms_messages",
+      "type": "uuid"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "sent_at",
+      "notnull": true,
+      "table": "sms_messages",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "sms_threads",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": true,
+      "table": "sms_threads",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "lead_id",
+      "notnull": false,
+      "table": "sms_threads",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "property_id",
+      "notnull": false,
+      "table": "sms_threads",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "from_number",
+      "notnull": true,
+      "table": "sms_threads",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "to_number",
+      "notnull": true,
+      "table": "sms_threads",
+      "type": "text"
+    },
+    {
+      "default": "'active'::text",
+      "generated": "",
+      "identity": "",
+      "name": "status",
+      "notnull": true,
+      "table": "sms_threads",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "last_inbound_at",
+      "notnull": false,
+      "table": "sms_threads",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "last_outbound_at",
+      "notnull": false,
+      "table": "sms_threads",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "last_message_preview",
+      "notnull": false,
+      "table": "sms_threads",
+      "type": "text"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "unread_count",
+      "notnull": true,
+      "table": "sms_threads",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "created_by",
+      "notnull": false,
+      "table": "sms_threads",
+      "type": "uuid"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "sms_threads",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": true,
+      "table": "sms_threads",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "name",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "display_name",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "description",
+      "notnull": false,
+      "table": "subscription_plans",
+      "type": "text"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "price_monthly_cents",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "integer"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "price_annual_cents",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "integer"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "max_monthly_exports",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "integer"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "max_counties",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "integer"
+    },
+    {
+      "default": "1",
+      "generated": "",
+      "identity": "",
+      "name": "max_user_seats",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "integer"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "max_skip_traces_per_month",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "integer"
+    },
+    {
+      "default": "'[]'::jsonb",
+      "generated": "",
+      "identity": "",
+      "name": "features",
+      "notnull": false,
+      "table": "subscription_plans",
+      "type": "jsonb"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "has_advanced_filters",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "boolean"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "has_violation_filtering",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "boolean"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "has_rolling_intelligence",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "boolean"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "has_escalation_alerts",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "boolean"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "has_api_access",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "boolean"
+    },
+    {
+      "default": "false",
+      "generated": "",
+      "identity": "",
+      "name": "has_dedicated_manager",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "boolean"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "sort_order",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "integer"
+    },
+    {
+      "default": "true",
+      "generated": "",
+      "identity": "",
+      "name": "is_active",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "boolean"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "5",
+      "generated": "",
+      "identity": "",
+      "name": "max_states",
+      "notnull": false,
+      "table": "subscription_plans",
+      "type": "integer"
+    },
+    {
+      "default": "'basic'::text",
+      "generated": "",
+      "identity": "",
+      "name": "data_tier",
+      "notnull": true,
+      "table": "subscription_plans",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "stripe_price_id",
+      "notnull": false,
+      "table": "subscription_plans",
+      "type": "text"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "suppression_list",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "phone_number",
+      "notnull": false,
+      "table": "suppression_list",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "email",
+      "notnull": false,
+      "table": "suppression_list",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "reason",
+      "notnull": true,
+      "table": "suppression_list",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "added_by",
+      "notnull": false,
+      "table": "suppression_list",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": false,
+      "table": "suppression_list",
+      "type": "uuid"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "suppression_list",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "transactions",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "user_id",
+      "notnull": true,
+      "table": "transactions",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "stripe_payment_intent_id",
+      "notnull": false,
+      "table": "transactions",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "amount",
+      "notnull": true,
+      "table": "transactions",
+      "type": "integer"
+    },
+    {
+      "default": "'usd'::text",
+      "generated": "",
+      "identity": "",
+      "name": "currency",
+      "notnull": true,
+      "table": "transactions",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "description",
+      "notnull": false,
+      "table": "transactions",
+      "type": "text"
+    },
+    {
+      "default": "'{}'::jsonb",
+      "generated": "",
+      "identity": "",
+      "name": "metadata",
+      "notnull": false,
+      "table": "transactions",
+      "type": "jsonb"
+    },
+    {
+      "default": "'pending'::text",
+      "generated": "",
+      "identity": "",
+      "name": "status",
+      "notnull": true,
+      "table": "transactions",
+      "type": "text"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "transactions",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "unlocked_properties",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "user_id",
+      "notnull": true,
+      "table": "unlocked_properties",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "property_id",
+      "notnull": true,
+      "table": "unlocked_properties",
+      "type": "uuid"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "unlocked_at",
+      "notnull": true,
+      "table": "unlocked_properties",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "1",
+      "generated": "",
+      "identity": "",
+      "name": "credit_cost",
+      "notnull": true,
+      "table": "unlocked_properties",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "unlock_source",
+      "notnull": true,
+      "table": "unlocked_properties",
+      "type": "text"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "user_integrations",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "user_id",
+      "notnull": true,
+      "table": "user_integrations",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "org_id",
+      "notnull": true,
+      "table": "user_integrations",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "service_name",
+      "notnull": true,
+      "table": "user_integrations",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "vault_secret_id",
+      "notnull": true,
+      "table": "user_integrations",
+      "type": "uuid"
+    },
+    {
+      "default": "'{}'::jsonb",
+      "generated": "",
+      "identity": "",
+      "name": "display_metadata",
+      "notnull": true,
+      "table": "user_integrations",
+      "type": "jsonb"
+    },
+    {
+      "default": "'active'::text",
+      "generated": "",
+      "identity": "",
+      "name": "status",
+      "notnull": true,
+      "table": "user_integrations",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "last_validated_at",
+      "notnull": false,
+      "table": "user_integrations",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "validation_failure_count",
+      "notnull": true,
+      "table": "user_integrations",
+      "type": "integer"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "daily_spend_cap_usd",
+      "notnull": false,
+      "table": "user_integrations",
+      "type": "numeric(8,2)"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "daily_spend_used_usd",
+      "notnull": true,
+      "table": "user_integrations",
+      "type": "numeric(8,2)"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "daily_spend_reset_at",
+      "notnull": false,
+      "table": "user_integrations",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "user_integrations",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": true,
+      "table": "user_integrations",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "user_subscriptions",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "user_id",
+      "notnull": true,
+      "table": "user_subscriptions",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "plan_id",
+      "notnull": true,
+      "table": "user_subscriptions",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "stripe_customer_id",
+      "notnull": false,
+      "table": "user_subscriptions",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "stripe_subscription_id",
+      "notnull": false,
+      "table": "user_subscriptions",
+      "type": "text"
+    },
+    {
+      "default": "'active'::text",
+      "generated": "",
+      "identity": "",
+      "name": "status",
+      "notnull": true,
+      "table": "user_subscriptions",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "current_period_start",
+      "notnull": false,
+      "table": "user_subscriptions",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "current_period_end",
+      "notnull": false,
+      "table": "user_subscriptions",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "cancel_at",
+      "notnull": false,
+      "table": "user_subscriptions",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "cancelled_at",
+      "notnull": false,
+      "table": "user_subscriptions",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "created_at",
+      "notnull": true,
+      "table": "user_subscriptions",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "updated_at",
+      "notnull": true,
+      "table": "user_subscriptions",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "trial_started_at",
+      "notnull": false,
+      "table": "user_subscriptions",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "trial_ends_at",
+      "notnull": false,
+      "table": "user_subscriptions",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "trial_tier",
+      "notnull": false,
+      "table": "user_subscriptions",
+      "type": "text"
+    },
+    {
+      "default": "0",
+      "generated": "",
+      "identity": "",
+      "name": "trial_exports_used",
+      "notnull": false,
+      "table": "user_subscriptions",
+      "type": "integer"
+    },
+    {
+      "default": "50",
+      "generated": "",
+      "identity": "",
+      "name": "trial_exports_limit",
+      "notnull": false,
+      "table": "user_subscriptions",
+      "type": "integer"
+    },
+    {
+      "default": "gen_random_uuid()",
+      "generated": "",
+      "identity": "",
+      "name": "id",
+      "notnull": true,
+      "table": "webhook_events",
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "event_id",
+      "notnull": true,
+      "table": "webhook_events",
+      "type": "text"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "event_type",
+      "notnull": true,
+      "table": "webhook_events",
+      "type": "text"
+    },
+    {
+      "default": "now()",
+      "generated": "",
+      "identity": "",
+      "name": "processed_at",
+      "notnull": true,
+      "table": "webhook_events",
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "generated": "",
+      "identity": "",
+      "name": "payload",
+      "notnull": false,
+      "table": "webhook_events",
+      "type": "jsonb"
+    }
+  ],
+  "constraints": [
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "affiliate_commissions_pkey",
+      "table": "affiliate_commissions",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (referral_id) REFERENCES affiliate_referrals(id) ON DELETE CASCADE",
+      "name": "affiliate_commissions_referral_id_fkey",
+      "table": "affiliate_commissions",
+      "type": "f"
+    },
+    {
+      "definition": "CHECK ((status = ANY (ARRAY['pending'::text, 'paid'::text, 'cancelled'::text])))",
+      "name": "affiliate_commissions_status_check",
+      "table": "affiliate_commissions",
+      "type": "c"
+    },
+    {
+      "definition": "FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE",
+      "name": "affiliate_commissions_transaction_id_fkey",
+      "table": "affiliate_commissions",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "affiliate_referrals_pkey",
+      "table": "affiliate_referrals",
+      "type": "p"
+    },
+    {
+      "definition": "UNIQUE (referred_user_id)",
+      "name": "affiliate_referrals_referred_user_id_key",
+      "table": "affiliate_referrals",
+      "type": "u"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "credit_ledger_pkey",
+      "table": "credit_ledger",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE",
+      "name": "drip_enrollments_lead_id_fkey",
+      "table": "drip_enrollments",
+      "type": "f"
+    },
+    {
+      "definition": "UNIQUE (lead_id, sequence_id)",
+      "name": "drip_enrollments_lead_id_sequence_id_key",
+      "table": "drip_enrollments",
+      "type": "u"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "drip_enrollments_org_id_fkey",
+      "table": "drip_enrollments",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "drip_enrollments_pkey",
+      "table": "drip_enrollments",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (sequence_id) REFERENCES drip_sequences(id) ON DELETE CASCADE",
+      "name": "drip_enrollments_sequence_id_fkey",
+      "table": "drip_enrollments",
+      "type": "f"
+    },
+    {
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'paused'::text, 'completed'::text, 'cancelled'::text, 'failed'::text])))",
+      "name": "drip_enrollments_status_check",
+      "table": "drip_enrollments",
+      "type": "c"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "drip_sequences_org_id_fkey",
+      "table": "drip_sequences",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "drip_sequences_pkey",
+      "table": "drip_sequences",
+      "type": "p"
+    },
+    {
+      "definition": "CHECK ((trigger_type = ANY (ARRAY['manual'::text, 'stage_change'::text, 'distress_event'::text])))",
+      "name": "drip_sequences_trigger_type_check",
+      "table": "drip_sequences",
+      "type": "c"
+    },
+    {
+      "definition": "CHECK ((channel = ANY (ARRAY['sms'::text, 'email'::text, 'task'::text])))",
+      "name": "drip_steps_channel_check",
+      "table": "drip_steps",
+      "type": "c"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "drip_steps_pkey",
+      "table": "drip_steps",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (sequence_id) REFERENCES drip_sequences(id) ON DELETE CASCADE",
+      "name": "drip_steps_sequence_id_fkey",
+      "table": "drip_steps",
+      "type": "f"
+    },
+    {
+      "definition": "UNIQUE (sequence_id, step_order)",
+      "name": "drip_steps_sequence_id_step_order_key",
+      "table": "drip_steps",
+      "type": "u"
+    },
+    {
+      "definition": "FOREIGN KEY (integration_id) REFERENCES user_integrations(id) ON DELETE CASCADE",
+      "name": "integration_action_log_integration_id_fkey",
+      "table": "integration_action_log",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "integration_action_log_pkey",
+      "table": "integration_action_log",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL",
+      "name": "integration_action_log_user_id_fkey",
+      "table": "integration_action_log",
+      "type": "f"
+    },
+    {
+      "definition": "CHECK ((activity_type = ANY (ARRAY['note'::text, 'call'::text, 'sms'::text, 'email'::text, 'stage_change'::text, 'distress_event'::text, 'assignment'::text, 'task'::text, 'system'::text])))",
+      "name": "lead_activities_activity_type_check",
+      "table": "lead_activities",
+      "type": "c"
+    },
+    {
+      "definition": "FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE",
+      "name": "lead_activities_lead_id_fkey",
+      "table": "lead_activities",
+      "type": "f"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "lead_activities_org_id_fkey",
+      "table": "lead_activities",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "lead_activities_pkey",
+      "table": "lead_activities",
+      "type": "p"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "lead_activity_pkey",
+      "table": "lead_activity",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE",
+      "name": "lead_activity_property_id_fkey",
+      "table": "lead_activity",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "lead_lists_pkey",
+      "table": "lead_lists",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE",
+      "name": "lead_tag_assignments_lead_id_fkey",
+      "table": "lead_tag_assignments",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (lead_id, tag_id)",
+      "name": "lead_tag_assignments_pkey",
+      "table": "lead_tag_assignments",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (tag_id) REFERENCES lead_tags(id) ON DELETE CASCADE",
+      "name": "lead_tag_assignments_tag_id_fkey",
+      "table": "lead_tag_assignments",
+      "type": "f"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "lead_tags_org_id_fkey",
+      "table": "lead_tags",
+      "type": "f"
+    },
+    {
+      "definition": "UNIQUE (org_id, label)",
+      "name": "lead_tags_org_id_label_key",
+      "table": "lead_tags",
+      "type": "u"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "lead_tags_pkey",
+      "table": "lead_tags",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "leads_org_id_fkey",
+      "table": "leads",
+      "type": "f"
+    },
+    {
+      "definition": "UNIQUE (org_id, property_id)",
+      "name": "leads_org_id_property_id_key",
+      "table": "leads",
+      "type": "u"
+    },
+    {
+      "definition": "FOREIGN KEY (owner_id) REFERENCES owners(id) ON DELETE SET NULL",
+      "name": "leads_owner_id_fkey",
+      "table": "leads",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "leads_pkey",
+      "table": "leads",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE",
+      "name": "leads_property_id_fkey",
+      "table": "leads",
+      "type": "f"
+    },
+    {
+      "definition": "FOREIGN KEY (stage_id) REFERENCES pipeline_stages(id) ON DELETE RESTRICT",
+      "name": "leads_stage_id_fkey",
+      "table": "leads",
+      "type": "f"
+    },
+    {
+      "definition": "FOREIGN KEY (list_id) REFERENCES lead_lists(id) ON DELETE CASCADE",
+      "name": "list_properties_list_id_fkey",
+      "table": "list_properties",
+      "type": "f"
+    },
+    {
+      "definition": "UNIQUE (list_id, property_id)",
+      "name": "list_properties_list_id_property_id_key",
+      "table": "list_properties",
+      "type": "u"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "list_properties_pkey",
+      "table": "list_properties",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE",
+      "name": "list_properties_property_id_fkey",
+      "table": "list_properties",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "organizations_pkey",
+      "table": "organizations",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "owners_org_id_fkey",
+      "table": "owners",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "owners_pkey",
+      "table": "owners",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE",
+      "name": "owners_property_id_fkey",
+      "table": "owners",
+      "type": "f"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "pipeline_stages_org_id_fkey",
+      "table": "pipeline_stages",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "pipeline_stages_pkey",
+      "table": "pipeline_stages",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "profiles_org_id_fkey",
+      "table": "profiles",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "profiles_pkey",
+      "table": "profiles",
+      "type": "p"
+    },
+    {
+      "definition": "UNIQUE (user_id)",
+      "name": "profiles_user_id_key",
+      "table": "profiles",
+      "type": "u"
+    },
+    {
+      "definition": "CHECK (((baths IS NULL) OR ((baths >= (0)::numeric) AND (baths <= (50)::numeric))))",
+      "name": "properties_baths_check",
+      "table": "properties",
+      "type": "c"
+    },
+    {
+      "definition": "CHECK (((beds IS NULL) OR ((beds >= 0) AND (beds <= 50))))",
+      "name": "properties_beds_check",
+      "table": "properties",
+      "type": "c"
+    },
+    {
+      "definition": "FOREIGN KEY (jurisdiction_id) REFERENCES jurisdictions(id) ON DELETE SET NULL",
+      "name": "properties_jurisdiction_id_fkey",
+      "table": "properties",
+      "type": "f"
+    },
+    {
+      "definition": "CHECK (((lot_size_sqft IS NULL) OR ((lot_size_sqft >= 0) AND (lot_size_sqft <= 100000000))))",
+      "name": "properties_lot_size_check",
+      "table": "properties",
+      "type": "c"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "properties_pkey",
+      "table": "properties",
+      "type": "p"
+    },
+    {
+      "definition": "CHECK ((scope = ANY (ARRAY['city'::text, 'county'::text])))",
+      "name": "properties_scope_check",
+      "table": "properties",
+      "type": "c"
+    },
+    {
+      "definition": "CHECK (((sqft IS NULL) OR ((sqft >= 0) AND (sqft <= 1000000))))",
+      "name": "properties_sqft_check",
+      "table": "properties",
+      "type": "c"
+    },
+    {
+      "definition": "CHECK (((year_built IS NULL) OR ((year_built >= 1700) AND (year_built <= ((EXTRACT(year FROM now()))::integer + 1)))))",
+      "name": "properties_year_built_check",
+      "table": "properties",
+      "type": "c"
+    },
+    {
+      "definition": "CHECK ((direction = ANY (ARRAY['outbound'::text, 'inbound'::text])))",
+      "name": "sms_messages_direction_check",
+      "table": "sms_messages",
+      "type": "c"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "sms_messages_org_id_fkey",
+      "table": "sms_messages",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "sms_messages_pkey",
+      "table": "sms_messages",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (thread_id) REFERENCES sms_threads(id) ON DELETE CASCADE",
+      "name": "sms_messages_thread_id_fkey",
+      "table": "sms_messages",
+      "type": "f"
+    },
+    {
+      "definition": "UNIQUE (twilio_sid)",
+      "name": "sms_messages_twilio_sid_key",
+      "table": "sms_messages",
+      "type": "u"
+    },
+    {
+      "definition": "FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL",
+      "name": "sms_threads_lead_id_fkey",
+      "table": "sms_threads",
+      "type": "f"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "sms_threads_org_id_fkey",
+      "table": "sms_threads",
+      "type": "f"
+    },
+    {
+      "definition": "UNIQUE (org_id, from_number, to_number)",
+      "name": "sms_threads_org_id_from_number_to_number_key",
+      "table": "sms_threads",
+      "type": "u"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "sms_threads_pkey",
+      "table": "sms_threads",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE SET NULL",
+      "name": "sms_threads_property_id_fkey",
+      "table": "sms_threads",
+      "type": "f"
+    },
+    {
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'paused'::text, 'closed'::text])))",
+      "name": "sms_threads_status_check",
+      "table": "sms_threads",
+      "type": "c"
+    },
+    {
+      "definition": "UNIQUE (name)",
+      "name": "subscription_plans_name_key",
+      "table": "subscription_plans",
+      "type": "u"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "subscription_plans_pkey",
+      "table": "subscription_plans",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (added_by) REFERENCES auth.users(id) ON DELETE SET NULL",
+      "name": "suppression_list_added_by_fkey",
+      "table": "suppression_list",
+      "type": "f"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "suppression_list_org_id_fkey",
+      "table": "suppression_list",
+      "type": "f"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "suppression_list_pkey",
+      "table": "suppression_list",
+      "type": "p"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "transactions_pkey",
+      "table": "transactions",
+      "type": "p"
+    },
+    {
+      "definition": "CHECK ((status = ANY (ARRAY['pending'::text, 'succeeded'::text, 'failed'::text])))",
+      "name": "transactions_status_check",
+      "table": "transactions",
+      "type": "c"
+    },
+    {
+      "definition": "UNIQUE (stripe_payment_intent_id)",
+      "name": "transactions_stripe_payment_intent_id_key",
+      "table": "transactions",
+      "type": "u"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "unlocked_properties_pkey",
+      "table": "unlocked_properties",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE",
+      "name": "unlocked_properties_property_id_fkey",
+      "table": "unlocked_properties",
+      "type": "f"
+    },
+    {
+      "definition": "CHECK ((unlock_source = ANY (ARRAY['free_credit'::text, 'paid_unlock'::text, 'subscription'::text, 'credit_pack'::text])))",
+      "name": "unlocked_properties_unlock_source_check",
+      "table": "unlocked_properties",
+      "type": "c"
+    },
+    {
+      "definition": "FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+      "name": "user_integrations_org_id_fkey",
+      "table": "user_integrations",
+      "type": "f"
+    },
+    {
+      "definition": "UNIQUE (org_id, service_name)",
+      "name": "user_integrations_org_id_service_name_key",
+      "table": "user_integrations",
+      "type": "u"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "user_integrations_pkey",
+      "table": "user_integrations",
+      "type": "p"
+    },
+    {
+      "definition": "CHECK ((service_name = ANY (ARRAY['twilio'::text, 'telnyx'::text, 'batchdata'::text, 'tracerfy'::text, 'skipgenie'::text, 'gohighlevel'::text, 'hubspot'::text, 'podio'::text, 'resimpli'::text, 'zapier_webhook'::text])))",
+      "name": "user_integrations_service_name_check",
+      "table": "user_integrations",
+      "type": "c"
+    },
+    {
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'invalid'::text, 'expired'::text, 'rate_limited'::text, 'disabled'::text])))",
+      "name": "user_integrations_status_check",
+      "table": "user_integrations",
+      "type": "c"
+    },
+    {
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "name": "user_integrations_user_id_fkey",
+      "table": "user_integrations",
+      "type": "f"
+    },
+    {
+      "definition": "CHECK (((trial_tier IS NULL) OR (trial_tier = ANY (ARRAY['starter'::text, 'professional'::text, 'enterprise'::text]))))",
+      "name": "chk_trial_tier",
+      "table": "user_subscriptions",
+      "type": "c"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "user_subscriptions_pkey",
+      "table": "user_subscriptions",
+      "type": "p"
+    },
+    {
+      "definition": "FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE RESTRICT",
+      "name": "user_subscriptions_plan_id_fkey",
+      "table": "user_subscriptions",
+      "type": "f"
+    },
+    {
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'past_due'::text, 'cancelled'::text, 'unpaid'::text, 'trialing'::text])))",
+      "name": "user_subscriptions_status_check",
+      "table": "user_subscriptions",
+      "type": "c"
+    },
+    {
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "name": "user_subscriptions_user_id_fkey",
+      "table": "user_subscriptions",
+      "type": "f"
+    },
+    {
+      "definition": "UNIQUE (event_id)",
+      "name": "webhook_events_event_id_key",
+      "table": "webhook_events",
+      "type": "u"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "webhook_events_pkey",
+      "table": "webhook_events",
+      "type": "p"
+    }
+  ],
+  "indexes": [
+    {
+      "definition": "CREATE UNIQUE INDEX affiliate_commissions_pkey ON public.affiliate_commissions USING btree (id)",
+      "name": "affiliate_commissions_pkey",
+      "table": "affiliate_commissions"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX affiliate_referrals_pkey ON public.affiliate_referrals USING btree (id)",
+      "name": "affiliate_referrals_pkey",
+      "table": "affiliate_referrals"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX affiliate_referrals_referred_user_id_key ON public.affiliate_referrals USING btree (referred_user_id)",
+      "name": "affiliate_referrals_referred_user_id_key",
+      "table": "affiliate_referrals"
+    },
+    {
+      "definition": "CREATE INDEX idx_affiliate_referrals_referrer ON public.affiliate_referrals USING btree (referrer_id)",
+      "name": "idx_affiliate_referrals_referrer",
+      "table": "affiliate_referrals"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX credit_ledger_pkey ON public.credit_ledger USING btree (id)",
+      "name": "credit_ledger_pkey",
+      "table": "credit_ledger"
+    },
+    {
+      "definition": "CREATE INDEX idx_credit_ledger_created_at ON public.credit_ledger USING btree (created_at DESC)",
+      "name": "idx_credit_ledger_created_at",
+      "table": "credit_ledger"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX idx_credit_ledger_unique_session ON public.credit_ledger USING btree (((meta ->> 'stripe_session_id'::text))) WHERE ((meta ->> 'stripe_session_id'::text) IS NOT NULL)",
+      "name": "idx_credit_ledger_unique_session",
+      "table": "credit_ledger"
+    },
+    {
+      "definition": "CREATE INDEX idx_credit_ledger_user_created ON public.credit_ledger USING btree (user_id, created_at DESC)",
+      "name": "idx_credit_ledger_user_created",
+      "table": "credit_ledger"
+    },
+    {
+      "definition": "CREATE INDEX idx_credit_ledger_user_id ON public.credit_ledger USING btree (user_id)",
+      "name": "idx_credit_ledger_user_id",
+      "table": "credit_ledger"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX uniq_ledger_job_prop_reason ON public.credit_ledger USING btree (user_id, job_id_extracted, property_id_extracted, reason) WHERE ((job_id_extracted IS NOT NULL) AND (property_id_extracted IS NOT NULL))",
+      "name": "uniq_ledger_job_prop_reason",
+      "table": "credit_ledger"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX drip_enrollments_lead_id_sequence_id_key ON public.drip_enrollments USING btree (lead_id, sequence_id)",
+      "name": "drip_enrollments_lead_id_sequence_id_key",
+      "table": "drip_enrollments"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX drip_enrollments_pkey ON public.drip_enrollments USING btree (id)",
+      "name": "drip_enrollments_pkey",
+      "table": "drip_enrollments"
+    },
+    {
+      "definition": "CREATE INDEX idx_drip_enrollments_due ON public.drip_enrollments USING btree (next_run_at) WHERE (status = 'active'::text)",
+      "name": "idx_drip_enrollments_due",
+      "table": "drip_enrollments"
+    },
+    {
+      "definition": "CREATE INDEX idx_drip_enrollments_lead ON public.drip_enrollments USING btree (lead_id)",
+      "name": "idx_drip_enrollments_lead",
+      "table": "drip_enrollments"
+    },
+    {
+      "definition": "CREATE INDEX idx_drip_enrollments_org ON public.drip_enrollments USING btree (org_id)",
+      "name": "idx_drip_enrollments_org",
+      "table": "drip_enrollments"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX drip_sequences_pkey ON public.drip_sequences USING btree (id)",
+      "name": "drip_sequences_pkey",
+      "table": "drip_sequences"
+    },
+    {
+      "definition": "CREATE INDEX idx_drip_sequences_org ON public.drip_sequences USING btree (org_id)",
+      "name": "idx_drip_sequences_org",
+      "table": "drip_sequences"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX drip_steps_pkey ON public.drip_steps USING btree (id)",
+      "name": "drip_steps_pkey",
+      "table": "drip_steps"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX drip_steps_sequence_id_step_order_key ON public.drip_steps USING btree (sequence_id, step_order)",
+      "name": "drip_steps_sequence_id_step_order_key",
+      "table": "drip_steps"
+    },
+    {
+      "definition": "CREATE INDEX idx_drip_steps_sequence ON public.drip_steps USING btree (sequence_id, step_order)",
+      "name": "idx_drip_steps_sequence",
+      "table": "drip_steps"
+    },
+    {
+      "definition": "CREATE INDEX idx_iaction_log_integration_created ON public.integration_action_log USING btree (integration_id, created_at DESC)",
+      "name": "idx_iaction_log_integration_created",
+      "table": "integration_action_log"
+    },
+    {
+      "definition": "CREATE INDEX idx_iaction_log_user_created ON public.integration_action_log USING btree (user_id, created_at DESC)",
+      "name": "idx_iaction_log_user_created",
+      "table": "integration_action_log"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX integration_action_log_pkey ON public.integration_action_log USING btree (id)",
+      "name": "integration_action_log_pkey",
+      "table": "integration_action_log"
+    },
+    {
+      "definition": "CREATE INDEX idx_lead_activities_lead ON public.lead_activities USING btree (lead_id, created_at DESC)",
+      "name": "idx_lead_activities_lead",
+      "table": "lead_activities"
+    },
+    {
+      "definition": "CREATE INDEX idx_lead_activities_org ON public.lead_activities USING btree (org_id, created_at DESC)",
+      "name": "idx_lead_activities_org",
+      "table": "lead_activities"
+    },
+    {
+      "definition": "CREATE INDEX idx_lead_activities_type ON public.lead_activities USING btree (activity_type)",
+      "name": "idx_lead_activities_type",
+      "table": "lead_activities"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX lead_activities_pkey ON public.lead_activities USING btree (id)",
+      "name": "lead_activities_pkey",
+      "table": "lead_activities"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX lead_activity_pkey ON public.lead_activity USING btree (id)",
+      "name": "lead_activity_pkey",
+      "table": "lead_activity"
+    },
+    {
+      "definition": "CREATE INDEX idx_lead_lists_user_id ON public.lead_lists USING btree (user_id)",
+      "name": "idx_lead_lists_user_id",
+      "table": "lead_lists"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX lead_lists_pkey ON public.lead_lists USING btree (id)",
+      "name": "lead_lists_pkey",
+      "table": "lead_lists"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX lead_tag_assignments_pkey ON public.lead_tag_assignments USING btree (lead_id, tag_id)",
+      "name": "lead_tag_assignments_pkey",
+      "table": "lead_tag_assignments"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX lead_tags_org_id_label_key ON public.lead_tags USING btree (org_id, label)",
+      "name": "lead_tags_org_id_label_key",
+      "table": "lead_tags"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX lead_tags_pkey ON public.lead_tags USING btree (id)",
+      "name": "lead_tags_pkey",
+      "table": "lead_tags"
+    },
+    {
+      "definition": "CREATE INDEX idx_leads_assigned_to ON public.leads USING btree (assigned_to)",
+      "name": "idx_leads_assigned_to",
+      "table": "leads"
+    },
+    {
+      "definition": "CREATE INDEX idx_leads_next_follow_up ON public.leads USING btree (next_follow_up_at) WHERE (next_follow_up_at IS NOT NULL)",
+      "name": "idx_leads_next_follow_up",
+      "table": "leads"
+    },
+    {
+      "definition": "CREATE INDEX idx_leads_org_stage ON public.leads USING btree (org_id, stage_id)",
+      "name": "idx_leads_org_stage",
+      "table": "leads"
+    },
+    {
+      "definition": "CREATE INDEX idx_leads_priority ON public.leads USING btree (org_id, priority DESC)",
+      "name": "idx_leads_priority",
+      "table": "leads"
+    },
+    {
+      "definition": "CREATE INDEX idx_leads_property ON public.leads USING btree (property_id)",
+      "name": "idx_leads_property",
+      "table": "leads"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX leads_org_id_property_id_key ON public.leads USING btree (org_id, property_id)",
+      "name": "leads_org_id_property_id_key",
+      "table": "leads"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX leads_pkey ON public.leads USING btree (id)",
+      "name": "leads_pkey",
+      "table": "leads"
+    },
+    {
+      "definition": "CREATE INDEX idx_list_properties_list_id ON public.list_properties USING btree (list_id)",
+      "name": "idx_list_properties_list_id",
+      "table": "list_properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_list_properties_property_id ON public.list_properties USING btree (property_id)",
+      "name": "idx_list_properties_property_id",
+      "table": "list_properties"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX list_properties_list_id_property_id_key ON public.list_properties USING btree (list_id, property_id)",
+      "name": "list_properties_list_id_property_id_key",
+      "table": "list_properties"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX list_properties_pkey ON public.list_properties USING btree (id)",
+      "name": "list_properties_pkey",
+      "table": "list_properties"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX organizations_pkey ON public.organizations USING btree (id)",
+      "name": "organizations_pkey",
+      "table": "organizations"
+    },
+    {
+      "definition": "CREATE INDEX idx_owners_org_created ON public.owners USING btree (org_id, created_at DESC)",
+      "name": "idx_owners_org_created",
+      "table": "owners"
+    },
+    {
+      "definition": "CREATE INDEX idx_owners_property_id ON public.owners USING btree (property_id)",
+      "name": "idx_owners_property_id",
+      "table": "owners"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX owners_pkey ON public.owners USING btree (id)",
+      "name": "owners_pkey",
+      "table": "owners"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX ux_owners_property_source ON public.owners USING btree (property_id, source)",
+      "name": "ux_owners_property_source",
+      "table": "owners"
+    },
+    {
+      "definition": "CREATE INDEX idx_pipeline_stages_org ON public.pipeline_stages USING btree (org_id, sort_order)",
+      "name": "idx_pipeline_stages_org",
+      "table": "pipeline_stages"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX pipeline_stages_pkey ON public.pipeline_stages USING btree (id)",
+      "name": "pipeline_stages_pkey",
+      "table": "pipeline_stages"
+    },
+    {
+      "definition": "CREATE INDEX idx_profiles_org_id ON public.profiles USING btree (org_id)",
+      "name": "idx_profiles_org_id",
+      "table": "profiles"
+    },
+    {
+      "definition": "CREATE INDEX idx_profiles_user_id ON public.profiles USING btree (user_id)",
+      "name": "idx_profiles_user_id",
+      "table": "profiles"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)",
+      "name": "profiles_pkey",
+      "table": "profiles"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX profiles_user_id_key ON public.profiles USING btree (user_id)",
+      "name": "profiles_user_id_key",
+      "table": "profiles"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_address_city ON public.properties USING btree (lower(address), lower(city))",
+      "name": "idx_properties_address_city",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_address_trgm ON public.properties USING gin (address gin_trgm_ops)",
+      "name": "idx_properties_address_trgm",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_city ON public.properties USING btree (city)",
+      "name": "idx_properties_city",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_city_lower ON public.properties USING btree (lower(city))",
+      "name": "idx_properties_city_lower",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_city_state ON public.properties USING btree (city, state)",
+      "name": "idx_properties_city_state",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_county ON public.properties USING btree (county)",
+      "name": "idx_properties_county",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_county_state ON public.properties USING btree (county, state)",
+      "name": "idx_properties_county_state",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_created_at ON public.properties USING btree (created_at DESC)",
+      "name": "idx_properties_created_at",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_enforcement_type ON public.properties USING btree (enforcement_type)",
+      "name": "idx_properties_enforcement_type",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_enriched_at ON public.properties USING btree (enriched_at) WHERE (enriched_at IS NOT NULL)",
+      "name": "idx_properties_enriched_at",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_geom ON public.properties USING gist (geom)",
+      "name": "idx_properties_geom",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_insight_model ON public.properties USING btree (((investor_insight_brief ->> 'model'::text)))",
+      "name": "idx_properties_insight_model",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_investor_insight_brief ON public.properties USING gin (investor_insight_brief)",
+      "name": "idx_properties_investor_insight_brief",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_jurisdiction_id ON public.properties USING btree (jurisdiction_id)",
+      "name": "idx_properties_jurisdiction_id",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_jurisdiction_score ON public.properties USING btree (jurisdiction_id, snap_score DESC)",
+      "name": "idx_properties_jurisdiction_score",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_last_enforcement_date ON public.properties USING btree (last_enforcement_date DESC NULLS LAST)",
+      "name": "idx_properties_last_enforcement_date",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_missing_insight_priority ON public.properties USING btree (snap_score DESC NULLS LAST, id) WHERE (snap_insight IS NULL)",
+      "name": "idx_properties_missing_insight_priority",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_open_violations ON public.properties USING btree (open_violations) WHERE (open_violations > 0)",
+      "name": "idx_properties_open_violations",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_opportunity_class ON public.properties USING btree (opportunity_class)",
+      "name": "idx_properties_opportunity_class",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_repeat_offender ON public.properties USING btree (repeat_offender) WHERE (repeat_offender = true)",
+      "name": "idx_properties_repeat_offender",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_snap ON public.properties USING btree (snap_score)",
+      "name": "idx_properties_snap",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_snap_insight_null ON public.properties USING btree (id) WHERE (snap_insight IS NULL)",
+      "name": "idx_properties_snap_insight_null",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_snap_score ON public.properties USING btree (snap_score)",
+      "name": "idx_properties_snap_score",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_snap_score_desc ON public.properties USING btree (snap_score DESC NULLS LAST)",
+      "name": "idx_properties_snap_score_desc",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_state ON public.properties USING btree (state)",
+      "name": "idx_properties_state",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_state_city_snap ON public.properties USING btree (state, city, snap_score DESC NULLS LAST)",
+      "name": "idx_properties_state_city_snap",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_state_lower ON public.properties USING btree (lower(state))",
+      "name": "idx_properties_state_lower",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_state_score ON public.properties USING btree (state, snap_score DESC NULLS LAST)",
+      "name": "idx_properties_state_score",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_state_upper ON public.properties USING btree (upper(state))",
+      "name": "idx_properties_state_upper",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_total_violations ON public.properties USING btree (total_violations) WHERE (total_violations > 0)",
+      "name": "idx_properties_total_violations",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX idx_properties_unique_address ON public.properties USING btree (lower(TRIM(BOTH FROM address)), lower(TRIM(BOTH FROM city)), lower(TRIM(BOTH FROM state)), lower(TRIM(BOTH FROM zip))) WHERE ((address IS NOT NULL) AND (city IS NOT NULL) AND (state IS NOT NULL) AND (zip IS NOT NULL))",
+      "name": "idx_properties_unique_address",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_updated_at ON public.properties USING btree (updated_at)",
+      "name": "idx_properties_updated_at",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_upper_state_city ON public.properties USING btree (upper(state), city)",
+      "name": "idx_properties_upper_state_city",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_properties_violation_types_gin ON public.properties USING gin (violation_types)",
+      "name": "idx_properties_violation_types_gin",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX properties_pkey ON public.properties USING btree (id)",
+      "name": "properties_pkey",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE INDEX idx_sms_messages_org ON public.sms_messages USING btree (org_id, sent_at DESC)",
+      "name": "idx_sms_messages_org",
+      "table": "sms_messages"
+    },
+    {
+      "definition": "CREATE INDEX idx_sms_messages_thread ON public.sms_messages USING btree (thread_id, sent_at DESC)",
+      "name": "idx_sms_messages_thread",
+      "table": "sms_messages"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX sms_messages_pkey ON public.sms_messages USING btree (id)",
+      "name": "sms_messages_pkey",
+      "table": "sms_messages"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX sms_messages_twilio_sid_key ON public.sms_messages USING btree (twilio_sid)",
+      "name": "sms_messages_twilio_sid_key",
+      "table": "sms_messages"
+    },
+    {
+      "definition": "CREATE INDEX idx_sms_threads_lead ON public.sms_threads USING btree (lead_id)",
+      "name": "idx_sms_threads_lead",
+      "table": "sms_threads"
+    },
+    {
+      "definition": "CREATE INDEX idx_sms_threads_org ON public.sms_threads USING btree (org_id, updated_at DESC)",
+      "name": "idx_sms_threads_org",
+      "table": "sms_threads"
+    },
+    {
+      "definition": "CREATE INDEX idx_sms_threads_to_number ON public.sms_threads USING btree (org_id, to_number)",
+      "name": "idx_sms_threads_to_number",
+      "table": "sms_threads"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX sms_threads_org_id_from_number_to_number_key ON public.sms_threads USING btree (org_id, from_number, to_number)",
+      "name": "sms_threads_org_id_from_number_to_number_key",
+      "table": "sms_threads"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX sms_threads_pkey ON public.sms_threads USING btree (id)",
+      "name": "sms_threads_pkey",
+      "table": "sms_threads"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX subscription_plans_name_key ON public.subscription_plans USING btree (name)",
+      "name": "subscription_plans_name_key",
+      "table": "subscription_plans"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX subscription_plans_pkey ON public.subscription_plans USING btree (id)",
+      "name": "subscription_plans_pkey",
+      "table": "subscription_plans"
+    },
+    {
+      "definition": "CREATE INDEX idx_suppression_email ON public.suppression_list USING btree (email)",
+      "name": "idx_suppression_email",
+      "table": "suppression_list"
+    },
+    {
+      "definition": "CREATE INDEX idx_suppression_phone ON public.suppression_list USING btree (phone_number)",
+      "name": "idx_suppression_phone",
+      "table": "suppression_list"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX suppression_list_pkey ON public.suppression_list USING btree (id)",
+      "name": "suppression_list_pkey",
+      "table": "suppression_list"
+    },
+    {
+      "definition": "CREATE INDEX idx_transactions_user ON public.transactions USING btree (user_id)",
+      "name": "idx_transactions_user",
+      "table": "transactions"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX transactions_pkey ON public.transactions USING btree (id)",
+      "name": "transactions_pkey",
+      "table": "transactions"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX transactions_stripe_payment_intent_id_key ON public.transactions USING btree (stripe_payment_intent_id)",
+      "name": "transactions_stripe_payment_intent_id_key",
+      "table": "transactions"
+    },
+    {
+      "definition": "CREATE INDEX idx_unlocked_properties_property ON public.unlocked_properties USING btree (property_id)",
+      "name": "idx_unlocked_properties_property",
+      "table": "unlocked_properties"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX idx_unlocked_properties_user_property ON public.unlocked_properties USING btree (user_id, property_id)",
+      "name": "idx_unlocked_properties_user_property",
+      "table": "unlocked_properties"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX unlocked_properties_pkey ON public.unlocked_properties USING btree (id)",
+      "name": "unlocked_properties_pkey",
+      "table": "unlocked_properties"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX user_integrations_org_id_service_name_key ON public.user_integrations USING btree (org_id, service_name)",
+      "name": "user_integrations_org_id_service_name_key",
+      "table": "user_integrations"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX user_integrations_pkey ON public.user_integrations USING btree (id)",
+      "name": "user_integrations_pkey",
+      "table": "user_integrations"
+    },
+    {
+      "definition": "CREATE INDEX idx_user_subscriptions_plan_id ON public.user_subscriptions USING btree (plan_id)",
+      "name": "idx_user_subscriptions_plan_id",
+      "table": "user_subscriptions"
+    },
+    {
+      "definition": "CREATE INDEX idx_user_subscriptions_status ON public.user_subscriptions USING btree (status)",
+      "name": "idx_user_subscriptions_status",
+      "table": "user_subscriptions"
+    },
+    {
+      "definition": "CREATE INDEX idx_user_subscriptions_stripe_sub ON public.user_subscriptions USING btree (stripe_subscription_id)",
+      "name": "idx_user_subscriptions_stripe_sub",
+      "table": "user_subscriptions"
+    },
+    {
+      "definition": "CREATE INDEX idx_user_subscriptions_user_id ON public.user_subscriptions USING btree (user_id)",
+      "name": "idx_user_subscriptions_user_id",
+      "table": "user_subscriptions"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX one_active_subscription_per_user ON public.user_subscriptions USING btree (user_id) WHERE (status = ANY (ARRAY['active'::text, 'trialing'::text, 'past_due'::text]))",
+      "name": "one_active_subscription_per_user",
+      "table": "user_subscriptions"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX unique_active_subscription_per_user ON public.user_subscriptions USING btree (user_id) WHERE (status = ANY (ARRAY['active'::text, 'trialing'::text, 'past_due'::text]))",
+      "name": "unique_active_subscription_per_user",
+      "table": "user_subscriptions"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX unique_non_cancelled_subscription ON public.user_subscriptions USING btree (user_id) WHERE (status <> 'cancelled'::text)",
+      "name": "unique_non_cancelled_subscription",
+      "table": "user_subscriptions"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX user_subscriptions_pkey ON public.user_subscriptions USING btree (id)",
+      "name": "user_subscriptions_pkey",
+      "table": "user_subscriptions"
+    },
+    {
+      "definition": "CREATE INDEX idx_webhook_events_event_id ON public.webhook_events USING btree (event_id)",
+      "name": "idx_webhook_events_event_id",
+      "table": "webhook_events"
+    },
+    {
+      "definition": "CREATE INDEX idx_webhook_events_processed_at ON public.webhook_events USING btree (processed_at)",
+      "name": "idx_webhook_events_processed_at",
+      "table": "webhook_events"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX webhook_events_event_id_key ON public.webhook_events USING btree (event_id)",
+      "name": "webhook_events_event_id_key",
+      "table": "webhook_events"
+    },
+    {
+      "definition": "CREATE UNIQUE INDEX webhook_events_pkey ON public.webhook_events USING btree (id)",
+      "name": "webhook_events_pkey",
+      "table": "webhook_events"
+    }
+  ],
+  "policies": [
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can view own commissions",
+      "qual": "(EXISTS ( SELECT 1\n   FROM affiliate_referrals ar\n  WHERE ((ar.id = affiliate_commissions.referral_id) AND (ar.referrer_id = auth.uid()))))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "affiliate_commissions",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can view own referrals",
+      "qual": "(referrer_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "affiliate_referrals",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users view own credit history",
+      "qual": "(auth.uid() = user_id)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "credit_ledger",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "credit_ledger_user",
+      "qual": "(user_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "credit_ledger",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members read drip_enrollments",
+      "qual": "(org_id = current_user_org_id())",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "drip_enrollments",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members update drip_enrollments",
+      "qual": "(org_id = current_user_org_id())",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "drip_enrollments",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members write drip_enrollments",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "drip_enrollments",
+      "with_check": "(org_id = current_user_org_id())"
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members delete drip_sequences",
+      "qual": "(org_id = current_user_org_id())",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "drip_sequences",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members read drip_sequences",
+      "qual": "(org_id = current_user_org_id())",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "drip_sequences",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members update drip_sequences",
+      "qual": "(org_id = current_user_org_id())",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "drip_sequences",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members write drip_sequences",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "drip_sequences",
+      "with_check": "(org_id = current_user_org_id())"
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members delete drip_steps",
+      "qual": "(EXISTS ( SELECT 1\n   FROM drip_sequences s\n  WHERE ((s.id = drip_steps.sequence_id) AND (s.org_id = current_user_org_id()))))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "drip_steps",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members read drip_steps",
+      "qual": "(EXISTS ( SELECT 1\n   FROM drip_sequences s\n  WHERE ((s.id = drip_steps.sequence_id) AND (s.org_id = current_user_org_id()))))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "drip_steps",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members update drip_steps",
+      "qual": "(EXISTS ( SELECT 1\n   FROM drip_sequences s\n  WHERE ((s.id = drip_steps.sequence_id) AND (s.org_id = current_user_org_id()))))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "drip_steps",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members write drip_steps",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "drip_steps",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM drip_sequences s\n  WHERE ((s.id = drip_steps.sequence_id) AND (s.org_id = current_user_org_id()))))"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "iaction_log_org_select",
+      "qual": "(integration_id IN ( SELECT user_integrations.id\n   FROM user_integrations\n  WHERE (user_integrations.org_id IN ( SELECT profiles.org_id\n           FROM profiles\n          WHERE (profiles.user_id = auth.uid())))))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "integration_action_log",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_activities_org_delete",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_activities",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_activities_org_insert",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_activities",
+      "with_check": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_activities_org_select",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_activities",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "RESTRICTIVE",
+      "policyname": "source_lead_activity_fence_v1",
+      "qual": "fn_source_lead_visible_v1(lead_id)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_activities",
+      "with_check": "fn_source_lead_visible_v1(lead_id)"
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_activity_delete",
+      "qual": "(user_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_activity",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_activity_insert",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_activity",
+      "with_check": "(user_id = auth.uid())"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_activity_select",
+      "qual": "(user_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_activity",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_activity_update",
+      "qual": "(user_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_activity",
+      "with_check": "(user_id = auth.uid())"
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_lists_delete",
+      "qual": "(user_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_lists",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_lists_insert",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_lists",
+      "with_check": "(user_id = auth.uid())"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_lists_select",
+      "qual": "(user_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_lists",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_lists_update",
+      "qual": "(user_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_lists",
+      "with_check": "(user_id = auth.uid())"
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_tag_assignments_org_all",
+      "qual": "(EXISTS ( SELECT 1\n   FROM leads l\n  WHERE ((l.id = lead_tag_assignments.lead_id) AND (l.org_id IN ( SELECT profiles.org_id\n           FROM profiles\n          WHERE (profiles.user_id = auth.uid()))))))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_tag_assignments",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM leads l\n  WHERE ((l.id = lead_tag_assignments.lead_id) AND (l.org_id IN ( SELECT profiles.org_id\n           FROM profiles\n          WHERE (profiles.user_id = auth.uid()))))))"
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "lead_tags_org_all",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "lead_tags",
+      "with_check": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))"
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "leads_org_delete",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "leads",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "leads_org_insert",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "leads",
+      "with_check": "((org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid()))) AND (created_by = auth.uid()))"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "leads_org_select",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "leads",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "leads_org_update",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "leads",
+      "with_check": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))"
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "RESTRICTIVE",
+      "policyname": "source_lead_account_fence_v1",
+      "qual": "fn_source_lead_visible_v1(id, property_id)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "leads",
+      "with_check": "fn_source_lead_visible_v1(id, property_id)"
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "list_props_delete",
+      "qual": "(EXISTS ( SELECT 1\n   FROM lead_lists l\n  WHERE ((l.id = list_properties.list_id) AND (l.user_id = auth.uid()))))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "list_properties",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "list_props_insert",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "list_properties",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM lead_lists l\n  WHERE ((l.id = list_properties.list_id) AND (l.user_id = auth.uid()))))"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "list_props_select",
+      "qual": "(EXISTS ( SELECT 1\n   FROM lead_lists l\n  WHERE ((l.id = list_properties.list_id) AND (l.user_id = auth.uid()))))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "list_properties",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "list_props_update",
+      "qual": "(EXISTS ( SELECT 1\n   FROM lead_lists l\n  WHERE ((l.id = list_properties.list_id) AND (l.user_id = auth.uid()))))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "list_properties",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM lead_lists l\n  WHERE ((l.id = list_properties.list_id) AND (l.user_id = auth.uid()))))"
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "System can insert organizations",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "organizations",
+      "with_check": "false"
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can update their organization",
+      "qual": "(id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "organizations",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can view their organization",
+      "qual": "(id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "organizations",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "owners_org_delete",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "owners",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owners_org_insert",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "owners",
+      "with_check": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owners_org_select",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "owners",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "owners_org_update",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "owners",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "pipeline_stages_org_delete",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "pipeline_stages",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "pipeline_stages_org_insert",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "pipeline_stages",
+      "with_check": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "pipeline_stages_org_select",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "pipeline_stages",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "pipeline_stages_org_update",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "pipeline_stages",
+      "with_check": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))"
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can insert their own profile",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "profiles",
+      "with_check": "( SELECT has_role(auth.uid(), 'admin'::app_role) AS has_role)"
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can update their own profile",
+      "qual": "( SELECT has_role(auth.uid(), 'admin'::app_role) AS has_role)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "profiles",
+      "with_check": "( SELECT has_role(auth.uid(), 'admin'::app_role) AS has_role)"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can view their own profile",
+      "qual": "(auth.uid() = user_id)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "profiles",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can delete properties",
+      "qual": "( SELECT has_role(auth.uid(), 'admin'::app_role) AS has_role)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "properties",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can insert properties",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "properties",
+      "with_check": "( SELECT has_role(auth.uid(), 'admin'::app_role) AS has_role)"
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can update investor brief",
+      "qual": "( SELECT has_role(auth.uid(), 'admin'::app_role) AS has_role)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "properties",
+      "with_check": "( SELECT has_role(auth.uid(), 'admin'::app_role) AS has_role)"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "properties_select_auth",
+      "qual": "( SELECT has_role(auth.uid(), 'admin'::app_role) AS has_role)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "properties",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "RESTRICTIVE",
+      "policyname": "security_containment_admin_only_20260909",
+      "qual": "( SELECT has_role(auth.uid(), 'admin'::app_role) AS has_role)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "properties",
+      "with_check": "( SELECT has_role(auth.uid(), 'admin'::app_role) AS has_role)"
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "RESTRICTIVE",
+      "policyname": "source_property_account_fence_v1",
+      "qual": "fn_source_property_visible_v1(id)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "properties",
+      "with_check": "fn_source_property_visible_v1(id)"
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "admins manage sms_messages",
+      "qual": "has_role(auth.uid(), 'admin'::app_role)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "sms_messages",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members read sms_messages",
+      "qual": "(org_id = current_user_org_id())",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "sms_messages",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members write sms_messages",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "sms_messages",
+      "with_check": "(org_id = current_user_org_id())"
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "admins manage sms_threads",
+      "qual": "has_role(auth.uid(), 'admin'::app_role)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "sms_threads",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members read sms_threads",
+      "qual": "(org_id = current_user_org_id())",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "sms_threads",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members update sms_threads",
+      "qual": "(org_id = current_user_org_id())",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "sms_threads",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "org members write sms_threads",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "sms_threads",
+      "with_check": "(org_id = current_user_org_id())"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Anyone can view active plans",
+      "qual": "(is_active = true)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "subscription_plans",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "suppression_org_delete",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "suppression_list",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "suppression_org_insert",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "suppression_list",
+      "with_check": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "suppression_org_select",
+      "qual": "((org_id IS NULL) OR (org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid()))))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "suppression_list",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "suppression_org_update",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "suppression_list",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Admins can read all transactions",
+      "qual": "has_role(auth.uid(), 'admin'::app_role)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "transactions",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can view own transactions",
+      "qual": "(user_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "transactions",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can view own unlocks",
+      "qual": "(user_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "unlocked_properties",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "user_integrations_org_delete",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "user_integrations",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "user_integrations_org_insert",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "user_integrations",
+      "with_check": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "user_integrations_org_select",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "user_integrations",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "user_integrations_org_update",
+      "qual": "(org_id IN ( SELECT profiles.org_id\n   FROM profiles\n  WHERE (profiles.user_id = auth.uid())))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "user_integrations",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role manages subscriptions",
+      "qual": "((auth.jwt() ->> 'role'::text) = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "user_subscriptions",
+      "with_check": "((auth.jwt() ->> 'role'::text) = 'service_role'::text)"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can view their own subscriptions",
+      "qual": "(user_id = auth.uid())",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "user_subscriptions",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Admins can read webhook_events",
+      "qual": "has_role(auth.uid(), 'admin'::app_role)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "webhook_events",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Service role only",
+      "qual": "false",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "webhook_events",
+      "with_check": "false"
+    }
+  ],
+  "server_version": "17.6",
+  "tables": [
+    {
+      "force_rls": false,
+      "name": "affiliate_commissions",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "affiliate_referrals",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "credit_ledger",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "drip_enrollments",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "drip_sequences",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "drip_steps",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "integration_action_log",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "lead_activities",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "lead_activity",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "lead_lists",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "lead_tag_assignments",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "lead_tags",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "leads",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "list_properties",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "organizations",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "owners",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "pipeline_stages",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "profiles",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "properties",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "sms_messages",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "sms_threads",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "subscription_plans",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "suppression_list",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "transactions",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "unlocked_properties",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "user_integrations",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "user_subscriptions",
+      "rls": true
+    },
+    {
+      "force_rls": false,
+      "name": "webhook_events",
+      "rls": true
+    }
+  ],
+  "transaction_isolation": "read committed",
+  "triggers": [
+    {
+      "definition": "CREATE TRIGGER credit_ledger_debit_guard_v1 BEFORE INSERT OR UPDATE OF user_id, delta ON public.credit_ledger FOR EACH ROW EXECUTE FUNCTION guard_credit_ledger_debit_v1()",
+      "function": "guard_credit_ledger_debit_v1()",
+      "function_md5": "7efb79059f59dad9980879b8aa313797",
+      "name": "credit_ledger_debit_guard_v1",
+      "table": "credit_ledger"
+    },
+    {
+      "definition": "CREATE TRIGGER sms_enrollment_connection_hold BEFORE INSERT OR UPDATE ON public.drip_enrollments FOR EACH ROW EXECUTE FUNCTION guard_sms_enrollment_connection_hold()",
+      "function": "guard_sms_enrollment_connection_hold()",
+      "function_md5": "c34317c731a8382d276566123c8cba5c",
+      "name": "sms_enrollment_connection_hold",
+      "table": "drip_enrollments"
+    },
+    {
+      "definition": "CREATE TRIGGER tg_drip_enrollments_updated BEFORE UPDATE ON public.drip_enrollments FOR EACH ROW EXECUTE FUNCTION tg_set_updated_at()",
+      "function": "tg_set_updated_at()",
+      "function_md5": "c92f0820fb2505d7f9819c0f75dac743",
+      "name": "tg_drip_enrollments_updated",
+      "table": "drip_enrollments"
+    },
+    {
+      "definition": "CREATE TRIGGER tg_drip_sequences_updated BEFORE UPDATE ON public.drip_sequences FOR EACH ROW EXECUTE FUNCTION tg_set_updated_at()",
+      "function": "tg_set_updated_at()",
+      "function_md5": "c92f0820fb2505d7f9819c0f75dac743",
+      "name": "tg_drip_sequences_updated",
+      "table": "drip_sequences"
+    },
+    {
+      "definition": "CREATE TRIGGER source_activity_immutable_v1 BEFORE DELETE OR UPDATE ON public.lead_activities FOR EACH ROW EXECUTE FUNCTION protect_source_property_and_lead_v1()",
+      "function": "protect_source_property_and_lead_v1()",
+      "function_md5": "9acd0b3ae10d8620a5a70414f32464e7",
+      "name": "source_activity_immutable_v1",
+      "table": "lead_activities"
+    },
+    {
+      "definition": "CREATE TRIGGER source_lead_identity_v1 BEFORE DELETE OR UPDATE ON public.leads FOR EACH ROW EXECUTE FUNCTION protect_source_property_and_lead_v1()",
+      "function": "protect_source_property_and_lead_v1()",
+      "function_md5": "9acd0b3ae10d8620a5a70414f32464e7",
+      "name": "source_lead_identity_v1",
+      "table": "leads"
+    },
+    {
+      "definition": "CREATE TRIGGER trg_leads_log_stage_change AFTER UPDATE ON public.leads FOR EACH ROW EXECUTE FUNCTION log_lead_stage_change()",
+      "function": "log_lead_stage_change()",
+      "function_md5": "32872146833b0dd9c625657f97fd70e1",
+      "name": "trg_leads_log_stage_change",
+      "table": "leads"
+    },
+    {
+      "definition": "CREATE TRIGGER trg_leads_updated_at BEFORE UPDATE ON public.leads FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()",
+      "function": "update_updated_at_column()",
+      "function_md5": "7be3d094bf7781418fbcac3630a25c24",
+      "name": "trg_leads_updated_at",
+      "table": "leads"
+    },
+    {
+      "definition": "CREATE TRIGGER trg_orgs_seed_pipeline_stages AFTER INSERT ON public.organizations FOR EACH ROW EXECUTE FUNCTION handle_new_org_pipeline_stages()",
+      "function": "handle_new_org_pipeline_stages()",
+      "function_md5": "c7a304e8d711b922ba84397db5b9b0d7",
+      "name": "trg_orgs_seed_pipeline_stages",
+      "table": "organizations"
+    },
+    {
+      "definition": "CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON public.organizations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()",
+      "function": "update_updated_at_column()",
+      "function_md5": "7be3d094bf7781418fbcac3630a25c24",
+      "name": "update_organizations_updated_at",
+      "table": "organizations"
+    },
+    {
+      "definition": "CREATE TRIGGER trg_owners_updated_at BEFORE UPDATE ON public.owners FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()",
+      "function": "update_updated_at_column()",
+      "function_md5": "7be3d094bf7781418fbcac3630a25c24",
+      "name": "trg_owners_updated_at",
+      "table": "owners"
+    },
+    {
+      "definition": "CREATE TRIGGER trg_pipeline_stages_updated_at BEFORE UPDATE ON public.pipeline_stages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()",
+      "function": "update_updated_at_column()",
+      "function_md5": "7be3d094bf7781418fbcac3630a25c24",
+      "name": "trg_pipeline_stages_updated_at",
+      "table": "pipeline_stages"
+    },
+    {
+      "definition": "CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()",
+      "function": "update_updated_at_column()",
+      "function_md5": "7be3d094bf7781418fbcac3630a25c24",
+      "name": "update_profiles_updated_at",
+      "table": "profiles"
+    },
+    {
+      "definition": "CREATE TRIGGER source_property_immutable_v1 BEFORE DELETE OR UPDATE ON public.properties FOR EACH ROW EXECUTE FUNCTION protect_source_property_and_lead_v1()",
+      "function": "protect_source_property_and_lead_v1()",
+      "function_md5": "9acd0b3ae10d8620a5a70414f32464e7",
+      "name": "source_property_immutable_v1",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE TRIGGER trg_log_snapscore_change AFTER UPDATE OF snap_score ON public.properties FOR EACH ROW WHEN ((old.snap_score IS DISTINCT FROM new.snap_score)) EXECUTE FUNCTION fn_log_snapscore_change()",
+      "function": "fn_log_snapscore_change()",
+      "function_md5": "ae80634e49397ac4f8c9fe104c45218f",
+      "name": "trg_log_snapscore_change",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE TRIGGER trg_update_properties_geom BEFORE INSERT OR UPDATE OF latitude, longitude ON public.properties FOR EACH ROW EXECUTE FUNCTION update_properties_geom()",
+      "function": "update_properties_geom()",
+      "function_md5": "f4c1f1baa2cfc87dd450d3b353f0c227",
+      "name": "trg_update_properties_geom",
+      "table": "properties"
+    },
+    {
+      "definition": "CREATE TRIGGER tg_sms_threads_updated BEFORE UPDATE ON public.sms_threads FOR EACH ROW EXECUTE FUNCTION tg_set_updated_at()",
+      "function": "tg_set_updated_at()",
+      "function_md5": "c92f0820fb2505d7f9819c0f75dac743",
+      "name": "tg_sms_threads_updated",
+      "table": "sms_threads"
+    },
+    {
+      "definition": "CREATE TRIGGER update_subscription_plans_timestamp BEFORE UPDATE ON public.subscription_plans FOR EACH ROW EXECUTE FUNCTION update_subscription_timestamp()",
+      "function": "update_subscription_timestamp()",
+      "function_md5": "0653e92ef61b6a6bdab6a733a8a5cfc1",
+      "name": "update_subscription_plans_timestamp",
+      "table": "subscription_plans"
+    },
+    {
+      "definition": "CREATE TRIGGER trg_user_integrations_updated_at BEFORE UPDATE ON public.user_integrations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()",
+      "function": "update_updated_at_column()",
+      "function_md5": "7be3d094bf7781418fbcac3630a25c24",
+      "name": "trg_user_integrations_updated_at",
+      "table": "user_integrations"
+    },
+    {
+      "definition": "CREATE TRIGGER update_user_subscriptions_timestamp BEFORE UPDATE ON public.user_subscriptions FOR EACH ROW EXECUTE FUNCTION update_subscription_timestamp()",
+      "function": "update_subscription_timestamp()",
+      "function_md5": "0653e92ef61b6a6bdab6a733a8a5cfc1",
+      "name": "update_user_subscriptions_timestamp",
+      "table": "user_subscriptions"
+    }
+  ]
+}

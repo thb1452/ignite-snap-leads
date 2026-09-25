@@ -1,3 +1,4 @@
+import { internalWorkerDenial } from "../_shared/internalWorkerAuth.ts";
 /**
  * test-pipeline — server-side harness that triggers pipeline-runner.
  * PIPELINE_API_KEY stays in env; never leaves the server.
@@ -10,6 +11,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const denial = internalWorkerDenial(req, corsHeaders);
+  if (denial) return denial;
+  // Legacy cross-project migration/test endpoints are retired. A future operation
+  // must be a reviewed server-side command, never a browser-accessible proxy.
+  if (legacyEndpointRetired()) return new Response(JSON.stringify({ error: "endpoint_retired" }), {
+    status: 410, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body, null, 2), {
@@ -121,3 +130,5 @@ Deno.serve(async (req) => {
     return json({ error: (err as Error).message }, 500);
   }
 });
+
+function legacyEndpointRetired(): boolean { return true; }

@@ -1,0 +1,1285 @@
+{
+  "schema_version": 1,
+  "candidate_commit": "68850520cc3570bfcc9c0b8e23c8d1ab5e0c430d",
+  "diff_baseline_commit": "16c1397507026d1eb03bebec7c7aec08d45ec2ee",
+  "function_count": 24,
+  "verify_jwt_true_count": 12,
+  "verify_jwt_false_count": 12,
+  "deployment_executed": false,
+  "generated_from": "Immutable Git objects, parsed TypeScript imports and environment reads; no secret values",
+  "shared_source_files": [
+    {
+      "path": "supabase/functions/_shared/accountExport.ts",
+      "bytes": 2269,
+      "sha256": "508efc8ec7c0cbe0cb18688f34257ecae50436fc2c0439c9ff7a5fe9a2fb22f9"
+    },
+    {
+      "path": "supabase/functions/_shared/billingClosure.ts",
+      "bytes": 2870,
+      "sha256": "1c7a5b6bf3332001394ab252f7eeda4630ce4a6f715ba3c20448ac90879e4907"
+    },
+    {
+      "path": "supabase/functions/_shared/billingSync.ts",
+      "bytes": 6354,
+      "sha256": "44d09df0911b97124d847b0d4a33f44ba5b0e49d9d34b95fb0599fe774aa83b6"
+    },
+    {
+      "path": "supabase/functions/_shared/byoa/actionLog.ts",
+      "bytes": 3468,
+      "sha256": "6dcb0cde0edafe75e0918b2d9fe22b99b95101af2c9af177a30e34d6064d581d"
+    },
+    {
+      "path": "supabase/functions/_shared/byoa/auth.ts",
+      "bytes": 4520,
+      "sha256": "168f198b772b6a325dae150cd8e6c540f83febb69f9f0371ea06f86640e5298f"
+    },
+    {
+      "path": "supabase/functions/_shared/byoa/compliance.ts",
+      "bytes": 2912,
+      "sha256": "3c1121c16db4476b808d49a254ad163d4023b42706ed5de4bebaeead89e3f617"
+    },
+    {
+      "path": "supabase/functions/_shared/byoa/fetchWithRetry.ts",
+      "bytes": 1650,
+      "sha256": "68094b47200ae5dc5e93f8620c7b461b5774c68df08fae534eab53b80471b09f"
+    },
+    {
+      "path": "supabase/functions/_shared/byoa/idempotency.ts",
+      "bytes": 2963,
+      "sha256": "64a97b6bcd9505170fe0bfcdc97b7d5d463cf5e5b3da648ee597983441ac954e"
+    },
+    {
+      "path": "supabase/functions/_shared/byoa/sanitize.ts",
+      "bytes": 1402,
+      "sha256": "56e6f8337a362d947edfa1588abae0d49dbc93f9db861ef934bc10e2ebfb870b"
+    },
+    {
+      "path": "supabase/functions/_shared/byoa/timezone.ts",
+      "bytes": 15978,
+      "sha256": "8db3a57604f4316b7148a85ef11c0ec57625087548a82759fc3047f483b5bfec"
+    },
+    {
+      "path": "supabase/functions/_shared/byoa/vault.ts",
+      "bytes": 1459,
+      "sha256": "7d2ef08bc7df9161c6286146098a2bc0395a4777021e61dc0a1d8cdfd7dfdf72"
+    },
+    {
+      "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+      "bytes": 2240,
+      "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+    },
+    {
+      "path": "supabase/functions/_shared/relaunchProviderHold.ts",
+      "bytes": 876,
+      "sha256": "b33c6e5c3ca0c582db9dc13e949b5ccbd8d7f0caba1736f1f69c561947230d80"
+    },
+    {
+      "path": "supabase/functions/_shared/stripeMode.ts",
+      "bytes": 742,
+      "sha256": "d4200348c19163107473e92c801b6561fcf1640f5627df4fe5a192bc29d5e239"
+    },
+    {
+      "path": "supabase/functions/_shared/stripeSubscriptionPlan.ts",
+      "bytes": 4188,
+      "sha256": "1823cffb4c088560f1afec4fd56488373913fd9e8c3992d28af46bb31f053d0a"
+    }
+  ],
+  "environment_names": [
+    "APP_URL",
+    "BATCHDATA_API_KEY",
+    "EXTERNAL_SUPABASE_SERVICE_ROLE_KEY",
+    "EXTERNAL_SUPABASE_URL",
+    "INTERNAL_FUNCTION_SECRET",
+    "LOVABLE_API_KEY",
+    "LOVABLE_SEND_URL",
+    "PIPELINE_API_KEY",
+    "RESEND_API_KEY",
+    "SNAP_PROXY_SECRET",
+    "STRIPE_EXPECTED_LIVEMODE",
+    "STRIPE_MANAGEMENT_PORTAL_CONFIGURATION_ID",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_URL"
+  ],
+  "functions": [
+    {
+      "name": "backfill-property-aggregates",
+      "group": "private_worker",
+      "entrypoint_path": "supabase/functions/backfill-property-aggregates/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Exact configured service key or dedicated internal secret; POST only",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+          "bytes": 2240,
+          "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+        },
+        {
+          "path": "supabase/functions/backfill-property-aggregates/index.ts",
+          "bytes": 6026,
+          "sha256": "44fa19c884182fde94ae2ce6c87551a5a923ad4296b6783f225e2a389bcbdecf"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        },
+        {
+          "path": "supabase/functions/backfill-property-aggregates/deno.json",
+          "bytes": 166,
+          "sha256": "aba8e16068503b2002743e49152c003f5303d7e2126724fa4893ef263c53a0cf"
+        },
+        {
+          "path": "supabase/functions/backfill-property-aggregates/deno.lock",
+          "bytes": 1499,
+          "sha256": "e930bd01c1e2f47cb6b1bdf42ed5142966675c6005f3cbba98329d8ec2fba024"
+        }
+      ],
+      "external_imports": [
+        "https://deno.land/std@0.168.0/http/server.ts",
+        "https://esm.sh/@supabase/supabase-js@2.57.4"
+      ],
+      "environment_names": [
+        "INTERNAL_FUNCTION_SECRET",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "create-checkout-session",
+      "group": "billing",
+      "entrypoint_path": "supabase/functions/create-checkout-session/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/stripeMode.ts",
+          "bytes": 742,
+          "sha256": "d4200348c19163107473e92c801b6561fcf1640f5627df4fe5a192bc29d5e239"
+        },
+        {
+          "path": "supabase/functions/_shared/stripeSubscriptionPlan.ts",
+          "bytes": 4188,
+          "sha256": "1823cffb4c088560f1afec4fd56488373913fd9e8c3992d28af46bb31f053d0a"
+        },
+        {
+          "path": "supabase/functions/create-checkout-session/index.ts",
+          "bytes": 18898,
+          "sha256": "8e21ceb67ff5215b52bb6260f659365ff4ecc2acb6429cb11aa8b0a02aac7a2f"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "https://esm.sh/stripe@14.21.0",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "APP_URL",
+        "STRIPE_EXPECTED_LIVEMODE",
+        "STRIPE_SECRET_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "create-portal-session",
+      "group": "billing",
+      "entrypoint_path": "supabase/functions/create-portal-session/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/stripeMode.ts",
+          "bytes": 742,
+          "sha256": "d4200348c19163107473e92c801b6561fcf1640f5627df4fe5a192bc29d5e239"
+        },
+        {
+          "path": "supabase/functions/create-portal-session/index.ts",
+          "bytes": 4866,
+          "sha256": "11e0a300c0a5c9e893a51427d607ab4665dbd49685fd637a33c527e0abc800c5"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "https://esm.sh/stripe@14.21.0",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "APP_URL",
+        "STRIPE_EXPECTED_LIVEMODE",
+        "STRIPE_MANAGEMENT_PORTAL_CONFIGURATION_ID",
+        "STRIPE_SECRET_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "delete-user-account",
+      "group": "billing",
+      "entrypoint_path": "supabase/functions/delete-user-account/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/billingClosure.ts",
+          "bytes": 2870,
+          "sha256": "1c7a5b6bf3332001394ab252f7eeda4630ce4a6f715ba3c20448ac90879e4907"
+        },
+        {
+          "path": "supabase/functions/_shared/stripeMode.ts",
+          "bytes": 742,
+          "sha256": "d4200348c19163107473e92c801b6561fcf1640f5627df4fe5a192bc29d5e239"
+        },
+        {
+          "path": "supabase/functions/delete-user-account/index.ts",
+          "bytes": 3597,
+          "sha256": "a0c90829318d25a33168ed2c30633532c4329efd986f9baf9df88270f8bc44ce"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "https://esm.sh/stripe@14.21.0",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "STRIPE_EXPECTED_LIVEMODE",
+        "STRIPE_SECRET_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "distress-event-fanout",
+      "group": "private_worker",
+      "entrypoint_path": "supabase/functions/distress-event-fanout/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Exact configured service key or dedicated internal secret; POST only",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+          "bytes": 2240,
+          "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+        },
+        {
+          "path": "supabase/functions/distress-event-fanout/index.ts",
+          "bytes": 5483,
+          "sha256": "4d276bbeb035ac0736be0e3436c7738a3dc1f70e8e09f4dc47e6367ad43743d5"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.0"
+      ],
+      "environment_names": [
+        "INTERNAL_FUNCTION_SECRET",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "drip-enroll",
+      "group": "customer_provider_export_support",
+      "entrypoint_path": "supabase/functions/drip-enroll/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/relaunchProviderHold.ts",
+          "bytes": 876,
+          "sha256": "b33c6e5c3ca0c582db9dc13e949b5ccbd8d7f0caba1736f1f69c561947230d80"
+        },
+        {
+          "path": "supabase/functions/drip-enroll/index.ts",
+          "bytes": 4084,
+          "sha256": "e02fc88cfa8e3af485e9c5379d59e8905d5a8bbf60224c66fdddecab6cc50fdc"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "drip-runner",
+      "group": "private_worker",
+      "entrypoint_path": "supabase/functions/drip-runner/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Exact configured service key or dedicated internal secret; POST only",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/byoa/vault.ts",
+          "bytes": 1459,
+          "sha256": "7d2ef08bc7df9161c6286146098a2bc0395a4777021e61dc0a1d8cdfd7dfdf72"
+        },
+        {
+          "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+          "bytes": 2240,
+          "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+        },
+        {
+          "path": "supabase/functions/_shared/relaunchProviderHold.ts",
+          "bytes": 876,
+          "sha256": "b33c6e5c3ca0c582db9dc13e949b5ccbd8d7f0caba1736f1f69c561947230d80"
+        },
+        {
+          "path": "supabase/functions/drip-runner/index.ts",
+          "bytes": 12709,
+          "sha256": "11925eaa93618c5022311913f06523b8a008cd5e1cec9ecb0ab7dbbe9f0f6127"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "INTERNAL_FUNCTION_SECRET",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "enrich-property-contact",
+      "group": "customer_provider_export_support",
+      "entrypoint_path": "supabase/functions/enrich-property-contact/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "documented_default_made_explicit_in_fragment",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/relaunchProviderHold.ts",
+          "bytes": 876,
+          "sha256": "b33c6e5c3ca0c582db9dc13e949b5ccbd8d7f0caba1736f1f69c561947230d80"
+        },
+        {
+          "path": "supabase/functions/enrich-property-contact/index.ts",
+          "bytes": 6261,
+          "sha256": "f1e6981306ea45bd058a4e47689b4552e9393258a8e20a4f383d0fffd14fe6ba"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "BATCHDATA_API_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "export-user-data",
+      "group": "customer_provider_export_support",
+      "entrypoint_path": "supabase/functions/export-user-data/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/accountExport.ts",
+          "bytes": 2269,
+          "sha256": "508efc8ec7c0cbe0cb18688f34257ecae50436fc2c0439c9ff7a5fe9a2fb22f9"
+        },
+        {
+          "path": "supabase/functions/export-user-data/index.ts",
+          "bytes": 3857,
+          "sha256": "0252ac331f54c930f83d49fb0ca43f6bf30566c17611da4ea7a15e9e755d3079"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://deno.land/std@0.190.0/http/server.ts",
+        "https://esm.sh/@supabase/supabase-js@2"
+      ],
+      "environment_names": [
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "integration-revalidate",
+      "group": "private_worker",
+      "entrypoint_path": "supabase/functions/integration-revalidate/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Exact configured service key or dedicated internal secret; POST only",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/byoa/actionLog.ts",
+          "bytes": 3468,
+          "sha256": "6dcb0cde0edafe75e0918b2d9fe22b99b95101af2c9af177a30e34d6064d581d"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/fetchWithRetry.ts",
+          "bytes": 1650,
+          "sha256": "68094b47200ae5dc5e93f8620c7b461b5774c68df08fae534eab53b80471b09f"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/sanitize.ts",
+          "bytes": 1402,
+          "sha256": "56e6f8337a362d947edfa1588abae0d49dbc93f9db861ef934bc10e2ebfb870b"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/vault.ts",
+          "bytes": 1459,
+          "sha256": "7d2ef08bc7df9161c6286146098a2bc0395a4777021e61dc0a1d8cdfd7dfdf72"
+        },
+        {
+          "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+          "bytes": 2240,
+          "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+        },
+        {
+          "path": "supabase/functions/integration-revalidate/index.ts",
+          "bytes": 5328,
+          "sha256": "0f491655307c890a75f88b246bbf3fc85a2353d85dbb200c7060973953bebb53"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "INTERNAL_FUNCTION_SECRET",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "integration-send-sms",
+      "group": "customer_provider_export_support",
+      "entrypoint_path": "supabase/functions/integration-send-sms/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/byoa/actionLog.ts",
+          "bytes": 3468,
+          "sha256": "6dcb0cde0edafe75e0918b2d9fe22b99b95101af2c9af177a30e34d6064d581d"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/auth.ts",
+          "bytes": 4520,
+          "sha256": "168f198b772b6a325dae150cd8e6c540f83febb69f9f0371ea06f86640e5298f"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/compliance.ts",
+          "bytes": 2912,
+          "sha256": "3c1121c16db4476b808d49a254ad163d4023b42706ed5de4bebaeead89e3f617"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/fetchWithRetry.ts",
+          "bytes": 1650,
+          "sha256": "68094b47200ae5dc5e93f8620c7b461b5774c68df08fae534eab53b80471b09f"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/idempotency.ts",
+          "bytes": 2963,
+          "sha256": "64a97b6bcd9505170fe0bfcdc97b7d5d463cf5e5b3da648ee597983441ac954e"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/sanitize.ts",
+          "bytes": 1402,
+          "sha256": "56e6f8337a362d947edfa1588abae0d49dbc93f9db861ef934bc10e2ebfb870b"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/timezone.ts",
+          "bytes": 15978,
+          "sha256": "8db3a57604f4316b7148a85ef11c0ec57625087548a82759fc3047f483b5bfec"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/vault.ts",
+          "bytes": 1459,
+          "sha256": "7d2ef08bc7df9161c6286146098a2bc0395a4777021e61dc0a1d8cdfd7dfdf72"
+        },
+        {
+          "path": "supabase/functions/_shared/relaunchProviderHold.ts",
+          "bytes": 876,
+          "sha256": "b33c6e5c3ca0c582db9dc13e949b5ccbd8d7f0caba1736f1f69c561947230d80"
+        },
+        {
+          "path": "supabase/functions/integration-send-sms/index.ts",
+          "bytes": 7682,
+          "sha256": "71b7fc02a16c0d65e371e36107cfc6e7a14f2ab84c5cbf21f9d8924772b66002"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "integration-skip-trace",
+      "group": "customer_provider_export_support",
+      "entrypoint_path": "supabase/functions/integration-skip-trace/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/byoa/actionLog.ts",
+          "bytes": 3468,
+          "sha256": "6dcb0cde0edafe75e0918b2d9fe22b99b95101af2c9af177a30e34d6064d581d"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/auth.ts",
+          "bytes": 4520,
+          "sha256": "168f198b772b6a325dae150cd8e6c540f83febb69f9f0371ea06f86640e5298f"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/fetchWithRetry.ts",
+          "bytes": 1650,
+          "sha256": "68094b47200ae5dc5e93f8620c7b461b5774c68df08fae534eab53b80471b09f"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/idempotency.ts",
+          "bytes": 2963,
+          "sha256": "64a97b6bcd9505170fe0bfcdc97b7d5d463cf5e5b3da648ee597983441ac954e"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/sanitize.ts",
+          "bytes": 1402,
+          "sha256": "56e6f8337a362d947edfa1588abae0d49dbc93f9db861ef934bc10e2ebfb870b"
+        },
+        {
+          "path": "supabase/functions/_shared/byoa/vault.ts",
+          "bytes": 1459,
+          "sha256": "7d2ef08bc7df9161c6286146098a2bc0395a4777021e61dc0a1d8cdfd7dfdf72"
+        },
+        {
+          "path": "supabase/functions/_shared/relaunchProviderHold.ts",
+          "bytes": 876,
+          "sha256": "b33c6e5c3ca0c582db9dc13e949b5ccbd8d7f0caba1736f1f69c561947230d80"
+        },
+        {
+          "path": "supabase/functions/integration-skip-trace/index.ts",
+          "bytes": 14121,
+          "sha256": "2acd442a74f80d33ac72187aa3bb8329b1ba45e0c4c24e47db6cbaf79ff1da89"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "migrate-to-external",
+      "group": "private_worker",
+      "entrypoint_path": "supabase/functions/migrate-to-external/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Exact configured service key or dedicated internal secret; POST only",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+          "bytes": 2240,
+          "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+        },
+        {
+          "path": "supabase/functions/migrate-to-external/index.ts",
+          "bytes": 10413,
+          "sha256": "70b3fda8144e68e31f4b21d138257a066c9088d177f0025e874eb63d382ac69e"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.49.1"
+      ],
+      "environment_names": [
+        "EXTERNAL_SUPABASE_SERVICE_ROLE_KEY",
+        "EXTERNAL_SUPABASE_URL",
+        "INTERNAL_FUNCTION_SECRET",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "process-email-queue",
+      "group": "private_worker",
+      "entrypoint_path": "supabase/functions/process-email-queue/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Exact configured service key or dedicated internal secret; POST only",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+          "bytes": 2240,
+          "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+        },
+        {
+          "path": "supabase/functions/process-email-queue/index.ts",
+          "bytes": 11975,
+          "sha256": "9e667c637c9c23677a664f0e776ed82855b98a0334e2bd88dd4a400003ced708"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        },
+        {
+          "path": "supabase/functions/process-email-queue/deno.json",
+          "bytes": 2,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        }
+      ],
+      "external_imports": [
+        "npm:@lovable.dev/email-js",
+        "npm:@supabase/supabase-js@2"
+      ],
+      "environment_names": [
+        "INTERNAL_FUNCTION_SECRET",
+        "LOVABLE_API_KEY",
+        "LOVABLE_SEND_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "send-sms-threaded",
+      "group": "customer_provider_export_support",
+      "entrypoint_path": "supabase/functions/send-sms-threaded/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/relaunchProviderHold.ts",
+          "bytes": 876,
+          "sha256": "b33c6e5c3ca0c582db9dc13e949b5ccbd8d7f0caba1736f1f69c561947230d80"
+        },
+        {
+          "path": "supabase/functions/send-sms-threaded/index.ts",
+          "bytes": 5207,
+          "sha256": "c29bf3f0777bf78001a7c614b373036a117b6ad8c1f79a6c43f0bf55564ed847"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "send-support-message",
+      "group": "customer_provider_export_support",
+      "entrypoint_path": "supabase/functions/send-support-message/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "documented_default_made_explicit_in_fragment",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/send-support-message/index.ts",
+          "bytes": 6168,
+          "sha256": "6580bc40e9007d5e1f9057b9a4ef7ba2ea49a93b81fe3def8e747af964c07f88"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://deno.land/std@0.190.0/http/server.ts",
+        "https://esm.sh/@supabase/supabase-js@2",
+        "https://esm.sh/resend@2.0.0"
+      ],
+      "environment_names": [
+        "RESEND_API_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "signal-delta-worker",
+      "group": "private_worker",
+      "entrypoint_path": "supabase/functions/signal-delta-worker/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Exact configured service key or dedicated internal secret; POST only",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+          "bytes": 2240,
+          "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+        },
+        {
+          "path": "supabase/functions/signal-delta-worker/index.ts",
+          "bytes": 10471,
+          "sha256": "1d3cb11becb58197828f00fc976308918ed5a941277d8bcc6befe1753fa401d5"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        },
+        {
+          "path": "supabase/functions/signal-delta-worker/deno.json",
+          "bytes": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ],
+      "external_imports": [
+        "node:crypto",
+        "npm:@supabase/supabase-js@2"
+      ],
+      "environment_names": [
+        "INTERNAL_FUNCTION_SECRET",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "snap-mcp-keepwarm",
+      "group": "private_worker",
+      "entrypoint_path": "supabase/functions/snap-mcp-keepwarm/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Exact configured service key or dedicated internal secret; POST only",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+          "bytes": 2240,
+          "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+        },
+        {
+          "path": "supabase/functions/snap-mcp-keepwarm/index.ts",
+          "bytes": 2068,
+          "sha256": "05e174ed4905fea23398b4a388eaec8c6596b2294f3be3a9f8f55a413a55045a"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "node:crypto"
+      ],
+      "environment_names": [
+        "INTERNAL_FUNCTION_SECRET",
+        "SNAP_PROXY_SECRET",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY"
+      ]
+    },
+    {
+      "name": "stripe-webhook",
+      "group": "billing",
+      "entrypoint_path": "supabase/functions/stripe-webhook/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Stripe signature plus explicit environment and retrieved-object mode checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/billingSync.ts",
+          "bytes": 6354,
+          "sha256": "44d09df0911b97124d847b0d4a33f44ba5b0e49d9d34b95fb0599fe774aa83b6"
+        },
+        {
+          "path": "supabase/functions/_shared/stripeMode.ts",
+          "bytes": 742,
+          "sha256": "d4200348c19163107473e92c801b6561fcf1640f5627df4fe5a192bc29d5e239"
+        },
+        {
+          "path": "supabase/functions/_shared/stripeSubscriptionPlan.ts",
+          "bytes": 4188,
+          "sha256": "1823cffb4c088560f1afec4fd56488373913fd9e8c3992d28af46bb31f053d0a"
+        },
+        {
+          "path": "supabase/functions/stripe-webhook/index.ts",
+          "bytes": 4470,
+          "sha256": "0aba17d3e212d611703d2aac11c6f22811e163d35a4f73b6454afe8ad906eff2"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "https://esm.sh/stripe@14.21.0",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "STRIPE_EXPECTED_LIVEMODE",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "test-pipeline",
+      "group": "private_worker",
+      "entrypoint_path": "supabase/functions/test-pipeline/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Exact configured service key or dedicated internal secret; POST only",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+          "bytes": 2240,
+          "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+        },
+        {
+          "path": "supabase/functions/test-pipeline/index.ts",
+          "bytes": 4404,
+          "sha256": "b1fad37c3335b65ee12722decd77ce8f3d787bd087382cff937aa87c21ee4842"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.95.0/cors"
+      ],
+      "environment_names": [
+        "INTERNAL_FUNCTION_SECRET",
+        "PIPELINE_API_KEY",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "verify-bulk-credits",
+      "group": "billing",
+      "entrypoint_path": "supabase/functions/verify-bulk-credits/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "documented_default_made_explicit_in_fragment",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/billingSync.ts",
+          "bytes": 6354,
+          "sha256": "44d09df0911b97124d847b0d4a33f44ba5b0e49d9d34b95fb0599fe774aa83b6"
+        },
+        {
+          "path": "supabase/functions/_shared/stripeMode.ts",
+          "bytes": 742,
+          "sha256": "d4200348c19163107473e92c801b6561fcf1640f5627df4fe5a192bc29d5e239"
+        },
+        {
+          "path": "supabase/functions/_shared/stripeSubscriptionPlan.ts",
+          "bytes": 4188,
+          "sha256": "1823cffb4c088560f1afec4fd56488373913fd9e8c3992d28af46bb31f053d0a"
+        },
+        {
+          "path": "supabase/functions/verify-bulk-credits/index.ts",
+          "bytes": 3454,
+          "sha256": "c378c6f0a928e97aa81bdd930205d1e07f4331310f6ddb07a971d12db720976a"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "https://esm.sh/stripe@14.21.0",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "STRIPE_EXPECTED_LIVEMODE",
+        "STRIPE_SECRET_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "verify-subscription",
+      "group": "billing",
+      "entrypoint_path": "supabase/functions/verify-subscription/index.ts",
+      "verify_jwt": true,
+      "jwt_source": "documented_default_made_explicit_in_fragment",
+      "handler_auth": "Gateway JWT plus handler Supabase Auth getUser; preserve ownership/workspace checks",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/billingSync.ts",
+          "bytes": 6354,
+          "sha256": "44d09df0911b97124d847b0d4a33f44ba5b0e49d9d34b95fb0599fe774aa83b6"
+        },
+        {
+          "path": "supabase/functions/_shared/stripeMode.ts",
+          "bytes": 742,
+          "sha256": "d4200348c19163107473e92c801b6561fcf1640f5627df4fe5a192bc29d5e239"
+        },
+        {
+          "path": "supabase/functions/_shared/stripeSubscriptionPlan.ts",
+          "bytes": 4188,
+          "sha256": "1823cffb4c088560f1afec4fd56488373913fd9e8c3992d28af46bb31f053d0a"
+        },
+        {
+          "path": "supabase/functions/verify-subscription/index.ts",
+          "bytes": 4944,
+          "sha256": "71c3dd21d48d5d774d2a0ddf5fd3615a5a62f2f8066e8cf334e430b4b071ae0c"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://esm.sh/@supabase/supabase-js@2.45.3",
+        "https://esm.sh/stripe@14.21.0",
+        "jsr:@supabase/functions-js/edge-runtime.d.ts"
+      ],
+      "environment_names": [
+        "STRIPE_EXPECTED_LIVEMODE",
+        "STRIPE_SECRET_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "watchlist-fanout-worker",
+      "group": "private_worker",
+      "entrypoint_path": "supabase/functions/watchlist-fanout-worker/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Exact configured service key or dedicated internal secret; POST only",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+          "bytes": 2240,
+          "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+        },
+        {
+          "path": "supabase/functions/watchlist-fanout-worker/index.ts",
+          "bytes": 12532,
+          "sha256": "e54e1b783103d9d7c08a240f8c5b7cc901c55add9674219fc5a9b0eeef4de4d0"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        },
+        {
+          "path": "supabase/functions/watchlist-fanout-worker/deno.json",
+          "bytes": 3,
+          "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+        }
+      ],
+      "external_imports": [
+        "npm:@supabase/supabase-js@2"
+      ],
+      "environment_names": [
+        "INTERNAL_FUNCTION_SECRET",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    },
+    {
+      "name": "weekly-digest",
+      "group": "private_worker",
+      "entrypoint_path": "supabase/functions/weekly-digest/index.ts",
+      "verify_jwt": false,
+      "jwt_source": "explicit_candidate_config",
+      "handler_auth": "Exact configured service key or dedicated internal secret; POST only",
+      "source_files": [
+        {
+          "path": "supabase/functions/_shared/internalWorkerAuth.ts",
+          "bytes": 2240,
+          "sha256": "d8b1e8aeb3696d5ef3ccee339ed079fac844705427d7811417f96c109b74ab19"
+        },
+        {
+          "path": "supabase/functions/_shared/relaunchProviderHold.ts",
+          "bytes": 876,
+          "sha256": "b33c6e5c3ca0c582db9dc13e949b5ccbd8d7f0caba1736f1f69c561947230d80"
+        },
+        {
+          "path": "supabase/functions/weekly-digest/index.ts",
+          "bytes": 22307,
+          "sha256": "f5a32d23fd81fd9c9caae9cd3b99b2154b82e43bf28019e36e9fe9b130936f11"
+        }
+      ],
+      "dependency_configuration_files": [
+        {
+          "path": "supabase/functions/deno.json",
+          "bytes": 32,
+          "sha256": "3c20d8d3404476b73cae9252fa378ab96d8687ffba41811b407db30d5937eb8b"
+        },
+        {
+          "path": "supabase/functions/deno.lock",
+          "bytes": 11894,
+          "sha256": "6c83790e0619552d26f5201f4bab80ecb43a191cb57a153daf449303686dd54c"
+        }
+      ],
+      "external_imports": [
+        "https://deno.land/std@0.190.0/http/server.ts",
+        "https://esm.sh/@supabase/supabase-js@2",
+        "https://esm.sh/resend@2.0.0"
+      ],
+      "environment_names": [
+        "APP_URL",
+        "INTERNAL_FUNCTION_SECRET",
+        "RESEND_API_KEY",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ]
+    }
+  ]
+}

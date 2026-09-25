@@ -1,3 +1,4 @@
+import { internalWorkerDenial } from "../_shared/internalWorkerAuth.ts";
 /**
  * Backfill Property Aggregates (v3 - Parallel Processing)
  *
@@ -17,6 +18,7 @@ interface BackfillRequest {
   batchSize?: number;
   concurrency?: number; // Number of parallel batches
   autoResume?: boolean;
+  maxCycles?: number;
 }
 
 serve(async (req) => {
@@ -24,12 +26,24 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const denial = internalWorkerDenial(req, corsHeaders);
+  if (denial) return denial;
+
   try {
     const {
       batchSize = 200,
       concurrency = 5, // Run 5 batches in parallel = 1000 properties per cycle
-      autoResume = true,
+      autoResume = false,
+      maxCycles = 1,
     }: BackfillRequest = await req.json().catch(() => ({}));
+
+    if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 500 ||
+        !Number.isInteger(concurrency) || concurrency < 1 || concurrency > 5 ||
+        typeof autoResume !== "boolean" || !Number.isInteger(maxCycles) || maxCycles < 1 || maxCycles > 10) {
+      return new Response(JSON.stringify({ error: "invalid_batch_limits" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -80,25 +94,27 @@ serve(async (req) => {
     // Auto-resume if there are more to process
     const hasMore = remaining > 0 && totalProcessed > 0;
     
-    if (autoResume && hasMore) {
+    const autoResuming = autoResume && hasMore && maxCycles > 1;
+    if (autoResuming) {
       console.log(`[backfill-v3] Auto-resuming, ${remaining} remaining...`);
-      
-      const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
       
       const continueTask = async () => {
         try {
-          await fetch(`${SUPABASE_URL}/functions/v1/backfill-property-aggregates`, {
+          const response = await fetch(`${SUPABASE_URL}/functions/v1/backfill-property-aggregates`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
             },
             body: JSON.stringify({
               batchSize,
               concurrency,
               autoResume: true,
+              maxCycles: maxCycles - 1,
             }),
           });
+          await response.body?.cancel();
+          if (!response.ok) throw new Error(`Continuation rejected: ${response.status}`);
         } catch (err) {
           console.error('[backfill-v3] Auto-resume failed:', err);
         }
@@ -108,7 +124,7 @@ serve(async (req) => {
       if (typeof runtime !== 'undefined' && runtime.waitUntil) {
         runtime.waitUntil(continueTask());
       } else {
-        continueTask();
+        await continueTask();
       }
     }
 
@@ -127,7 +143,7 @@ serve(async (req) => {
         updated: totalUpdated,
         remaining: remaining,
         progress,
-        autoResuming: autoResume && hasMore,
+        autoResuming,
         version: 'v3-parallel'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

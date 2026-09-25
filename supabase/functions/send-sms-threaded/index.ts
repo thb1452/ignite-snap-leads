@@ -1,3 +1,4 @@
+import { relaunchProviderHeld, relaunchProviderHeldResponse } from "../_shared/relaunchProviderHold.ts";
 // send-sms-threaded
 // Wraps integration-send-sms: sends an SMS via the org's BYOA Twilio,
 // then upserts an sms_threads row and inserts an outbound sms_messages row.
@@ -22,6 +23,8 @@ function json(body: unknown, status = 200) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  if (relaunchProviderHeld()) return relaunchProviderHeldResponse("communications", corsHeaders);
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

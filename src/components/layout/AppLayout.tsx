@@ -1,6 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
 import {
   LogOut,
   User,
@@ -16,7 +17,6 @@ import {
   Shield,
   PanelLeft,
   Menu,
-  X,
   Inbox,
   Zap,
 } from "lucide-react";
@@ -97,6 +97,10 @@ export function AppLayout({ children }: AppLayoutProps) {
     setMobileOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (!isMobile) setMobileOpen(false);
+  }, [isMobile]);
+
   // Determine if user has a paid (non-trial) subscription
   const isPaidSubscriber =
     hasActiveSubscription &&
@@ -170,6 +174,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <Link
           key={item.path}
           to={item.path}
+          aria-label={item.name}
+          aria-current={isActive ? "page" : undefined}
           className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
             isActive
               ? "bg-white/10 text-white"
@@ -206,15 +212,20 @@ export function AppLayout({ children }: AppLayoutProps) {
       <header className="sticky top-0 z-40 backdrop-blur-md bg-white/75 supports-[backdrop-filter]:bg-white/55 border-b border-slate-200/70 pt-[env(safe-area-inset-top)]">
         <div className="px-4 md:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Mobile hamburger */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 md:hidden"
-              onClick={() => setMobileOpen(true)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 md:hidden" aria-label="Open navigation">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[260px] bg-slate-900 text-white p-0 flex flex-col border-white/10">
+                <div className="px-4 py-4 border-b border-white/10">
+                  <SheetTitle className="text-white text-sm">Snap Ignite navigation</SheetTitle>
+                  <SheetDescription className="sr-only">Choose a workspace page.</SheetDescription>
+                </div>
+                <nav aria-label="Mobile workspace" className="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">{renderNavItems(true)}</nav>
+              </SheetContent>
+            </Sheet>
             <LogoWordmark className="text-[18px] leading-none" />
           </div>
 
@@ -228,6 +239,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   variant="ghost"
                   size="sm"
                   className="h-8 px-3 gap-2"
+                  aria-label="Account menu"
                 >
                   <User className="h-4 w-4" />
                   <span className="hidden sm:inline text-sm truncate max-w-[120px]">
@@ -321,7 +333,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         className={`fixed left-0 top-14 bottom-0 z-30 hidden md:flex flex-col bg-slate-900 transition-[width] duration-200 ease-in-out ${sidebarWidth}`}
       >
         {/* Nav items */}
-        <nav className="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
+        <nav aria-label="Workspace" className="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
           {renderNavItems(!collapsed)}
         </nav>
 
@@ -343,36 +355,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           </button>
         </div>
       </aside>
-
-      {/* Mobile Sidebar Overlay */}
-      {mobileOpen && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-50 bg-black/50 md:hidden"
-            onClick={() => setMobileOpen(false)}
-          />
-          {/* Slide-out panel */}
-          <aside className="fixed left-0 top-0 bottom-0 z-50 w-[260px] bg-slate-900 flex flex-col md:hidden animate-in slide-in-from-left duration-200">
-            {/* Mobile sidebar header */}
-            <div className="h-14 flex items-center justify-between px-4 border-b border-white/10">
-              <span className="text-white font-semibold text-sm">Menu</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-slate-400 hover:text-white hover:bg-white/10"
-                onClick={() => setMobileOpen(false)}
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-            {/* Nav items */}
-            <nav className="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
-              {renderNavItems(true)}
-            </nav>
-          </aside>
-        </>
-      )}
 
       {/* Main Content — offset by sidebar width on desktop */}
       <main

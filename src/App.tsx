@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { usePageTracking } from "@/hooks/usePageTracking";
+import { RouteMetadataBoundary } from "@/components/RouteMetadataBoundary";
 import { FoiaAuthGuard } from "@/components/foia/shared/FoiaAuthGuard";
 
 import Landing from "./pages/Landing";
@@ -101,6 +102,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <RouteMetadataBoundary />
             <PageTracker />
             <Suspense fallback={<PageLoader />}>
               <Routes>

@@ -1,3 +1,4 @@
+import { AddToPipelineButton } from "@/components/crm/AddToPipelineButton";
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -324,7 +325,8 @@ export function MobilePropertyDetailSheet({
           {/* 7. Action Footer — Sticky */}
           <div className="border-t p-4 bg-background pb-[calc(env(safe-area-inset-bottom)+16px)] shrink-0">
             {isUnlocked ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <AddToPipelineButton propertyId={property.id} className="w-full gap-2" />
                 <Button
                   variant="default"
                   size="sm"

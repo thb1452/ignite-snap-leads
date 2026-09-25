@@ -1,0 +1,163 @@
+{
+  "kind": "snap_hosted_synthetic_sql",
+  "schema_version": 1,
+  "remote_operations": 0,
+  "apply_order": [
+    "scripts/tests/release-hosted/00_baseline.sql",
+    "supabase/migrations/20260924182954_snap_customer_workspace_isolation_v1.sql",
+    "supabase/migrations/20260924183006_snap_billing_atomic_fulfillment_v1.sql",
+    "supabase/migrations/20260924183021_snap_crm_workflow_v1.sql",
+    "scripts/tests/release-hosted/04_hardening.sql",
+    "scripts/tests/release-hosted/05_function_search_paths.sql",
+    "scripts/tests/release-hosted/06_self_scoped_role_check.sql",
+    "supabase/migrations/20260924214048_snap_crm_outcome_conflict_v1.sql"
+  ],
+  "bootstrap_apply_order": [
+    "scripts/tests/release-hosted/00_baseline.sql",
+    "supabase/migrations/20260924182954_snap_customer_workspace_isolation_v1.sql",
+    "supabase/migrations/20260924183006_snap_billing_atomic_fulfillment_v1.sql",
+    "supabase/migrations/20260924183021_snap_crm_workflow_v1.sql",
+    "scripts/tests/release-hosted/04_hardening.sql"
+  ],
+  "additive_apply_order": [
+    "scripts/tests/release-hosted/05_function_search_paths.sql",
+    "scripts/tests/release-hosted/06_self_scoped_role_check.sql",
+    "supabase/migrations/20260924214048_snap_crm_outcome_conflict_v1.sql"
+  ],
+  "inputs": [
+    {
+      "path": "tests/helpers/tenancy-db.mjs",
+      "sha256": "bf684bc7e71d4f8ad103b40785e0e290b2618c0890cc8d4b411ee85207f69a4d"
+    },
+    {
+      "path": "tests/helpers/billing-db.mjs",
+      "sha256": "84a7de04fe34f07c49a3ecebd0f7133e1e2f4ee77dbcdcd66436b1600546a8d6"
+    },
+    {
+      "path": "scripts/tests/release-stage/native-catalog-20260924.json",
+      "sha256": "6c77dd5f00979802114211315bee7639aa0f77379becf13b81715db195ba1e67"
+    },
+    {
+      "path": "supabase/migrations/20260915030704_87a8db45-8e67-4add-825a-0a86de81af73.sql",
+      "sha256": "2403b02c60e73049f5d1d07443a1708ff5c8e61573cb042e2b024fb700d1ab12"
+    },
+    {
+      "path": "supabase/migrations/20260924182954_snap_customer_workspace_isolation_v1.sql",
+      "sha256": "bde711b47167ae0f5e81901dc868c83a828205fc3d665ce768c0ddd8f7348964"
+    },
+    {
+      "path": "supabase/migrations/20260924183006_snap_billing_atomic_fulfillment_v1.sql",
+      "sha256": "e684672544b9c6a1614bb46277ff7f067ca2a0ee91a1d7c78ed4e2c6935035bf"
+    },
+    {
+      "path": "supabase/migrations/20260924183021_snap_crm_workflow_v1.sql",
+      "sha256": "9e2c4ea807d757ee2e4e3fb57ca0e9cadb7180da69f4bcfb13f718f3153fc7d3"
+    },
+    {
+      "path": "supabase/migrations/20260924214048_snap_crm_outcome_conflict_v1.sql",
+      "sha256": "78424491f270db425505b5c4ce7609e85437b05a44c20e997103a7d797ba7dd3"
+    },
+    {
+      "path": "supabase/migrations/20250919212701_1bc992a8-75d2-4aaa-b89a-6de851b70152.sql",
+      "sha256": "5ac54b134153d1d643141c7f301871ed9024f979a9a91841400eee343e4500b0"
+    },
+    {
+      "path": "supabase/migrations/20251006003730_068f464c-f09b-42c3-9a94-34fd946529e9.sql",
+      "sha256": "20d2f23b43f4fa600200a9f7dcf1ebb3bc24a3e5e85c4089606752464d81c0b2"
+    },
+    {
+      "path": "supabase/migrations/20260421000802_aa059f47-ccff-4a59-a8b3-1b51fafa17ad.sql",
+      "sha256": "e81c9980cf57a49bb906a09954ccbacbcb78f5b87d82f87ae15a7aacc67cad24"
+    },
+    {
+      "path": "supabase/migrations/20260421002715_b86e19f0-d5cb-4209-8bbb-032081ad1c75.sql",
+      "sha256": "1f8e7672bc9b0e1843dde501d6e7dbd34991ca3ae2ed53d885dad05127d4d0f5"
+    },
+    {
+      "path": "supabase/migrations/20260421005437_88f8af2d-ffaa-4727-bc49-97883c7f8499.sql",
+      "sha256": "960f6f9b0c479ec37ebf8e9eaf5caaf88e64f7d2024bd17e07bee79a025c5a6d"
+    },
+    {
+      "path": "supabase/migrations/20260421012616_99ce70b4-4241-487c-9f71-89920067b7e9.sql",
+      "sha256": "fc6f353bcc1d8e3cf2d6fcd009502997891eeca44d7a943dfacce6f5f0488051"
+    },
+    {
+      "path": "supabase/migrations/20260914224935_7e6c2c54-889c-492a-9b48-e09fc0d44119.sql",
+      "sha256": "392209ad8095dd6971975f1a08311f96b33b133a33756dff5a69e791037c78a3"
+    },
+    {
+      "path": "supabase/migrations/20260324120000_profiles_on_auth_user_created.sql",
+      "sha256": "9d7b86d64ab7cb3e30f38b2b04157bc53d3d036828ec34f31a54381e8ee87987"
+    },
+    {
+      "path": "supabase/migrations/20260118211721_a62363c9-7a61-42d0-afc1-4bfa616f34c2.sql",
+      "sha256": "68652bff3dc53a34efb7648c8bc88449e13047048cabc4297d1c2d79ba583d72"
+    },
+    {
+      "path": "supabase/migrations/20251006021041_52f662d2-70bb-4f35-b984-43426093d16b.sql",
+      "sha256": "7074517fe4dd1ac8adce7776e60817994c437c8aa13c7b6d4026f50789141095"
+    },
+    {
+      "path": "supabase/migrations/20251009014647_516002b4-6eb7-4ad1-9dcc-975db2f959fa.sql",
+      "sha256": "181725d0e2f47954e460bf9e41acb8dc92d31c95aa425ec80e853a3c5bee17c7"
+    },
+    {
+      "path": "supabase/migrations/20260408162339_3da10f19-afc6-43f6-a599-d3e922404b33.sql",
+      "sha256": "263f481cf19d8491839d8df7fd17a1cd2bf83e384bf31e826815df0de47bcbf6"
+    },
+    {
+      "path": "supabase/migrations/20260221044405_a5971aef-e77c-46dd-8d9d-dd891b7d2862.sql",
+      "sha256": "7b68c24db7b1b4b59c06c7080a369b83ab9b8fde6d9f07a7df5f15659a70b79c"
+    },
+    {
+      "path": "supabase/migrations/20260914204015_26d148c0-361c-4e10-b112-714c5abc4f4a.sql",
+      "sha256": "b864f39a9e70dcd18dca877576f329e7f876e5fa4fa0ccd607e80579488e6f99"
+    },
+    {
+      "path": "supabase/migrations/20260320005804_4e6a5669-9ced-485b-afee-07e721e0e4dd.sql",
+      "sha256": "0778531a5177da03bf3c3ec0d84d03b01e89df7689e51f06b4f74eb92eef8b52"
+    },
+    {
+      "path": "supabase/migrations/20260118215403_728b91ac-7f6f-4578-86b0-9ef32f92c097.sql",
+      "sha256": "c9ac41cbdc83311dab52f6a742f4c27be303fbf5878b0ecb26d8dbb037c482f2"
+    },
+    {
+      "path": "scripts/tests/release-hosted/generate.mjs",
+      "sha256": "bb1c0077474b4053495fae627705cc06bbc93ed38061a6ce33f9bb1325c25caa"
+    },
+    {
+      "path": "scripts/tests/release-hosted/preflight.sql",
+      "sha256": "abe2945080ff54cae3f433180f33599492785de082a4d45be637b52f14d3b8a4"
+    },
+    {
+      "path": "scripts/tests/release-hosted/hardening.sql",
+      "sha256": "40114cdf4c61618c2712b46e76ba4f17ca0253b8d375cfcacba71c9a238bd704"
+    },
+    {
+      "path": "scripts/tests/release-hosted/05_function_search_paths.sql",
+      "sha256": "6baa8c865e38fa4d6dae5bbd5d4bf4b3c946d5c3d33b5d7c52cc0665355e20ec"
+    },
+    {
+      "path": "scripts/tests/release-hosted/06_self_scoped_role_check.sql",
+      "sha256": "9837a350fb3f59f4815dbb770780a040f33a0ccd28c140992f69c762a00f44e5"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "scripts/tests/release-hosted/00_baseline.sql",
+      "sha256": "9fa3bc97e37621b980aa2923fb57629fa3de68d12a212240049d7af92bc0e7df",
+      "bytes": 70286
+    },
+    {
+      "path": "scripts/tests/release-hosted/04_hardening.sql",
+      "sha256": "40114cdf4c61618c2712b46e76ba4f17ca0253b8d375cfcacba71c9a238bd704",
+      "bytes": 7893
+    }
+  ],
+  "limits": [
+    "Selected synthetic schema, not a production clone",
+    "Managed Auth and realtime definitions preserved; signup trigger is application-owned",
+    "Source acceptance and mapping are limited fixtures; source detail/export remain held",
+    "No provider credentials, scheduled jobs, production data, or paid features"
+  ]
+}

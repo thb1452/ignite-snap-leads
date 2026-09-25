@@ -1,3 +1,4 @@
+import { CHECKOUT_AVAILABLE, AVAILABILITY_MESSAGE } from "@/lib/publicAvailability";
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,7 @@ export function SubscriptionSettings() {
   });
 
   const handleUpgrade = async (tierName: string) => {
+    if (!CHECKOUT_AVAILABLE) { toast({ title: "Purchases paused", description: AVAILABILITY_MESSAGE }); return; }
     try {
       setCheckoutLoading(tierName);
 
@@ -172,13 +174,13 @@ export function SubscriptionSettings() {
               No Active Subscription
             </h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Choose a plan to unlock enforcement intelligence and start finding motivated sellers.
+              {AVAILABILITY_MESSAGE}
             </p>
             <div className="flex gap-3 justify-center">
               <Button 
                 onClick={() => handleUpgrade('starter')}
                 variant="outline"
-                disabled={checkoutLoading === 'starter'}
+                disabled={!CHECKOUT_AVAILABLE || checkoutLoading === 'starter'}
               >
                 {checkoutLoading === 'starter' ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -187,7 +189,7 @@ export function SubscriptionSettings() {
             </Button>
             <Button
               onClick={() => handleUpgrade('professional')}
-              disabled={checkoutLoading === 'professional'}
+              disabled={!CHECKOUT_AVAILABLE || checkoutLoading === 'professional'}
               className="bg-brand hover:bg-brand/90"
             >
               {checkoutLoading === 'professional' ? (
@@ -200,7 +202,7 @@ export function SubscriptionSettings() {
             <Button
               onClick={() => handleUpgrade('enterprise')}
               variant="outline"
-              disabled={checkoutLoading === 'enterprise'}
+              disabled={!CHECKOUT_AVAILABLE || checkoutLoading === 'enterprise'}
             >
               {checkoutLoading === 'enterprise' ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

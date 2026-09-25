@@ -1,44 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/externalClient";
+import { useAuth } from "@/hooks/use-auth";
+import { CUSTOMER_RECORDS_AVAILABLE } from "@/lib/publicAvailability";
+import { recordIngestionStats, recordIngestionWindow } from "@/lib/recordIngestionStats";
 
-interface MonthlyViolationStats {
-  count: number;
-  formattedCount: string;
-}
-
+/** Historical filename retained for callers. This counts accessible imported rows over 30 days. */
 export function useWeeklyViolationCount() {
-  return useQuery<MonthlyViolationStats>({
-    queryKey: ["monthly-violation-count"],
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["accessible-record-ingestion-count", user?.id],
+    enabled: !!user && CUSTOMER_RECORDS_AVAILABLE,
     queryFn: async () => {
-      // Count violations created in the last 30 days
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
+      const now = new Date();
       const { count, error } = await supabase
         .from("violations")
         .select("*", { count: "exact", head: true })
-        .gte("created_at", thirtyDaysAgo.toISOString());
-      
-      if (error) {
-        console.error("[useMonthlyViolationCount] Error:", error);
-        throw error;
-      }
-      
-      const violationCount = count ?? 0;
-      
-      // Format the count - round to nearest hundred if over 1k
-      let formattedCount: string;
-      if (violationCount >= 1000) {
-        const rounded = Math.round(violationCount / 100) * 100;
-        formattedCount = `${rounded.toLocaleString()}+`;
-      } else {
-        formattedCount = violationCount.toLocaleString();
-      }
-      
-      return {
-        count: violationCount,
-        formattedCount
-      };
+        .gte("created_at", recordIngestionWindow(now))
+        .lte("created_at", now.toISOString());
+      if (error) throw new Error("Record count unavailable");
+      return recordIngestionStats(count, now);
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,

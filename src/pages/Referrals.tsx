@@ -1,15 +1,14 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/externalClient';
-import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Users, DollarSign, UserPlus, CheckCircle2 } from 'lucide-react';
+import { Copy, Users, DollarSign, UserPlus, CheckCircle2, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
-function StatCard({ icon: Icon, label, value, sub }: { icon: any; label: string; value: string; sub?: string }) {
+function StatCard({ icon: Icon, label, value, sub }: { icon: LucideIcon; label: string; value: string; sub?: string }) {
   return (
     <Card>
       <CardContent className="pt-6">
@@ -75,7 +74,7 @@ export default function Referrals() {
   };
 
   return (
-    <AppLayout>
+    <>
       <div className="max-w-3xl mx-auto space-y-6 p-4 sm:p-6">
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold">Referral Program</h1>
@@ -144,6 +143,6 @@ export default function Referrals() {
           </CardContent>
         </Card>
       </div>
-    </AppLayout>
+    </>
   );
 }

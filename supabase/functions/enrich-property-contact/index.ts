@@ -1,3 +1,4 @@
+import { relaunchProviderHeld, relaunchProviderHeldResponse } from "../_shared/relaunchProviderHold.ts";
 // Supabase Edge Function: Enrich property with owner contact info via BatchData
 // Called automatically after a property is unlocked
 
@@ -17,6 +18,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  if (relaunchProviderHeld()) return relaunchProviderHeldResponse("enrichment", corsHeaders);
 
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
 

@@ -1,0 +1,17 @@
+{
+  "status": "HOLD",
+  "mode": "public_summary_only",
+  "production_billing_changed": false,
+  "reconciliation_applied": false,
+  "private_evidence_included": false,
+  "remaining_checks": [
+    "Canonical account/mode/payment provenance for unresolved identities",
+    "Exact-record review and fresh read-only preflight before any correction",
+    "Signed sandbox and hosted payment-to-delivery acceptance"
+  ],
+  "limitations": [
+    "Missing provider identity does not establish cancellation",
+    "Historical test events do not establish current provider status",
+    "Private and pseudonymized row-level evidence is excluded from this public repository"
+  ]
+}

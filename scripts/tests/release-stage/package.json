@@ -1,0 +1,8 @@
+{
+  "name": "snap-release-stage-tests",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "pg": "8.16.3"
+  }
+}

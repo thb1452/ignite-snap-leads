@@ -5,7 +5,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
-import { resolvePlanFromStripeSubscription } from "../_shared/stripeSubscriptionPlan.ts";
+import { expectedStripeMode, assertStripeObjectMode } from "../_shared/stripeMode.ts";
+import { applyBilling, stripeObjectId, subscriptionSnapshot } from "../_shared/billingSync.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +32,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const expectedLivemode = expectedStripeMode(Deno.env.get("STRIPE_EXPECTED_LIVEMODE"), stripeKey);
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
       httpClient: Stripe.createFetchHttpClient(),
@@ -54,151 +56,44 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    const user = authData.user;
-    const userId = user.id;
-    const userEmail = user.email;
-
-    console.log("[verify-subscription] Reconciling from Stripe for user:", userId, userEmail);
-
-    if (!userEmail) {
-      return new Response(JSON.stringify({ synced: false, reason: "no_email" }), { headers });
-    }
-
-    const customers = await stripe.customers.list({ email: userEmail, limit: 10 });
-    if (!customers.data.length) {
-      console.log("[verify-subscription] No Stripe customer found for:", userEmail);
-      return new Response(JSON.stringify({ synced: false, reason: "no_stripe_customer" }), { headers });
-    }
-
-    let bestSub: Stripe.Subscription | null = null;
-    let bestCreated = -1;
-
-    for (const customer of customers.data) {
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customer.id,
-        status: "all",
-        limit: 40,
-      });
-
-      for (const sub of subscriptions.data) {
-        if (!["active", "trialing", "past_due"].includes(sub.status)) continue;
-        if (sub.created > bestCreated) {
-          bestCreated = sub.created;
-          bestSub = sub;
-        }
+    const userId = authData.user.id;
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch { /* Verification can inspect the mapped subscription. */ }
+    const sessionId = typeof body.session_id === "string" ? body.session_id : null;
+    let subscriptionId: string | null = null;
+    let paymentConfirmed = false;
+    if (sessionId) {
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      assertStripeObjectMode(session, expectedLivemode);
+      if (session.metadata?.user_id !== userId || session.mode !== "subscription") {
+        return Response.json({ error: "Checkout session does not belong to this account" }, { status: 403, headers });
       }
-    }
-
-    if (!bestSub) {
-      console.log("[verify-subscription] No billable Stripe subscription for:", userEmail);
-      return new Response(JSON.stringify({ synced: false, reason: "no_active_subscription" }), { headers });
-    }
-
-    console.log("[verify-subscription] Canonical Stripe subscription:", bestSub.id, "status:", bestSub.status);
-
-    const resolved = await resolvePlanFromStripeSubscription(supabase, bestSub);
-    if (!resolved) {
-      console.error("[verify-subscription] Could not map Stripe prices to a plan:", bestSub.id);
-      return new Response(JSON.stringify({ synced: false, reason: "unknown_stripe_price" }), { status: 500, headers });
-    }
-
-    const dbPlanId = resolved.planId;
-    const planName = resolved.planName;
-    console.log(
-      "[verify-subscription] Stripe price → plan",
-      JSON.stringify({
-        price_id: resolved.priceId,
-        plan_id: dbPlanId,
-        plan_name: planName,
-        source: resolved.source,
-      }),
-    );
-
-    const customerId = typeof bestSub.customer === "string" ? bestSub.customer : bestSub.customer?.id ?? "";
-    const isTrialing = bestSub.status === "trialing";
-    const dbStatus = isTrialing ? "trialing" : bestSub.status === "past_due" ? "past_due" : "active";
-
-    const periodStart = new Date(bestSub.current_period_start * 1000).toISOString();
-    const periodEnd = new Date(bestSub.current_period_end * 1000).toISOString();
-
-    const { data: matchRows } = await supabase
-      .from("user_subscriptions")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("stripe_subscription_id", bestSub.id)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    const matchId = matchRows?.[0]?.id;
-
-    const { data: otherRows } = await supabase
-      .from("user_subscriptions")
-      .select("id, stripe_subscription_id")
-      .eq("user_id", userId)
-      .neq("status", "cancelled");
-
-    for (const row of otherRows ?? []) {
-      if (row.stripe_subscription_id !== bestSub.id) {
-        await supabase
-          .from("user_subscriptions")
-          .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
-          .eq("id", row.id);
-      }
-    }
-
-    const baseUpdate: Record<string, unknown> = {
-      plan_id: dbPlanId,
-      status: dbStatus,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: bestSub.id,
-      current_period_start: periodStart,
-      current_period_end: periodEnd,
-      cancelled_at: null,
-    };
-
-    if (isTrialing && bestSub.trial_end) {
-      baseUpdate.trial_started_at = new Date().toISOString();
-      baseUpdate.trial_ends_at = new Date(bestSub.trial_end * 1000).toISOString();
-      baseUpdate.trial_tier = planName;
-      baseUpdate.trial_exports_used = 0;
-      baseUpdate.trial_exports_limit = 500;
-    }
-
-    if (matchId) {
-      const { error: upErr } = await supabase.from("user_subscriptions").update(baseUpdate).eq("id", matchId);
-      if (upErr) {
-        console.error("[verify-subscription] Update failed:", upErr);
-        return new Response(
-          JSON.stringify({ synced: false, reason: "update_failed", error: upErr.message }),
-          { status: 500, headers },
-        );
-      }
+      if (session.status !== "complete") return Response.json({ synced: false, reason: "checkout_pending" }, { headers });
+      subscriptionId = stripeObjectId(session.subscription);
+      paymentConfirmed = session.payment_status === "paid";
     } else {
-      const insertRow: Record<string, unknown> = {
-        user_id: userId,
-        ...baseUpdate,
-      };
-
-      const { error: insertErr } = await supabase.from("user_subscriptions").insert(insertRow);
-      if (insertErr) {
-        console.error("[verify-subscription] Insert failed:", insertErr);
-        return new Response(
-          JSON.stringify({ synced: false, reason: "insert_failed", error: insertErr.message }),
-          { status: 500, headers },
-        );
+      const { data: rows, error } = await supabase.from("user_subscriptions")
+        .select("stripe_subscription_id").eq("user_id", userId).neq("status", "cancelled");
+      if (error) throw error;
+      if (rows?.length !== 1 || !rows[0].stripe_subscription_id) {
+        return Response.json({ synced: false, reason: "subscription_mapping_requires_review" }, { headers });
       }
+      subscriptionId = rows[0].stripe_subscription_id;
     }
-
-    console.log("[verify-subscription] Synced user:", userId, "plan:", planName, "sub:", bestSub.id);
-    return new Response(
-      JSON.stringify({ synced: true, plan: planName, status: dbStatus, stripe_subscription_id: bestSub.id }),
-      { headers },
-    );
-  } catch (e: any) {
-    console.error("[verify-subscription] Error:", e?.message ?? e);
-    return new Response(
-      JSON.stringify({ error: e?.message ?? "Internal error" }),
-      { status: 500, headers }
-    );
+    if (!subscriptionId) return Response.json({ synced: false, reason: "subscription_missing" }, { headers });
+    const snapshot = await subscriptionSnapshot(supabase, stripe, subscriptionId, userId, expectedLivemode);
+    await applyBilling(supabase, {
+      event_id: `verify-subscription:${subscriptionId}:${crypto.randomUUID()}`,
+      event_type: "authenticated.subscription.verify", subscription: snapshot,
+    });
+    // Return a verified session result, never infer a new payment from an old active row.
+    const entitled = snapshot.stripe_status === "trialing"
+      ? Boolean(snapshot.trial_end && Date.parse(snapshot.trial_end) > Date.now())
+      : snapshot.stripe_status === "active" && Boolean(snapshot.paid_through && Date.parse(snapshot.paid_through) > Date.now());
+    return Response.json({ synced: true, confirmed: Boolean(sessionId && entitled), payment_confirmed: paymentConfirmed,
+      status: snapshot.stripe_status, plan: snapshot.plan_name, session_id: sessionId }, { headers });
+  } catch (error) {
+    console.error("[verify-subscription] failed", error instanceof Error ? error.message : String(error));
+    return Response.json({ synced: false, error: "Subscription verification is pending. Contact support if it persists." }, { status: 503, headers });
   }
 });

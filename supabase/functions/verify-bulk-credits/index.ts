@@ -5,6 +5,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { expectedStripeMode, assertStripeObjectMode } from "../_shared/stripeMode.ts";
+import { applyBilling, checkoutPayment } from "../_shared/billingSync.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +32,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const expectedLivemode = expectedStripeMode(Deno.env.get("STRIPE_EXPECTED_LIVEMODE"), stripeKey);
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
       httpClient: Stripe.createFetchHttpClient(),
@@ -47,113 +50,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
     }
 
-    const user = authData.user;
-    const userId = user.id;
-
-    // Body may optionally include a session_id for targeted verification
-    let body: Record<string, unknown> = {};
-    try { body = await req.json(); } catch { /* empty body is fine */ }
-    const sessionId = typeof body.session_id === "string" ? body.session_id : null;
-
-    console.log("[verify-bulk-credits] user:", userId, "session_id:", sessionId);
-
-    // Strategy: look up recent checkout sessions for this user's Stripe customer
-    // and fulfill any bulk_credits sessions that haven't been ledgered yet.
-    const userEmail = user.email;
-    if (!userEmail) {
-      return new Response(JSON.stringify({ fulfilled: false, reason: "no_email" }), { headers });
+    const body = await req.json();
+    if (typeof body.session_id !== "string") return Response.json({ fulfilled: false, reason: "session_id_required" }, { headers });
+    const session = await stripe.checkout.sessions.retrieve(body.session_id);
+    assertStripeObjectMode(session, expectedLivemode);
+    if (session.metadata?.user_id !== authData.user.id || session.metadata?.checkout_type !== "bulk_credits") {
+      return Response.json({ error: "Checkout session does not belong to this account" }, { status: 403, headers });
     }
-
-    const customers = await stripe.customers.list({ email: userEmail, limit: 5 });
-    if (!customers.data.length) {
-      return new Response(JSON.stringify({ fulfilled: false, reason: "no_stripe_customer" }), { headers });
-    }
-
-    let totalFulfilled = 0;
-
-    for (const customer of customers.data) {
-      // List recent completed checkout sessions
-      const sessions = await stripe.checkout.sessions.list({
-        customer: customer.id,
-        status: "complete",
-        limit: sessionId ? 1 : 10,
-        ...(sessionId ? {} : {}),
-      });
-
-      for (const session of sessions.data) {
-        // If a specific session was requested, only process that one
-        if (sessionId && session.id !== sessionId) continue;
-
-        // Only process bulk_credits sessions
-        if (session.metadata?.checkout_type !== "bulk_credits") continue;
-        if (session.metadata?.user_id !== userId) continue;
-
-        const credits = parseInt(session.metadata?.credit_count ?? "0", 10);
-        if (credits <= 0) continue;
-
-        // Check if already fulfilled (idempotency)
-        const { data: existing } = await supabase
-          .from("credit_ledger")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("reason", "credit_pack_purchase")
-          .filter("meta->>stripe_session_id", "eq", session.id)
-          .maybeSingle();
-
-        if (existing) {
-          console.log("[verify-bulk-credits] Already fulfilled session:", session.id);
-          totalFulfilled += credits; // count as fulfilled for response
-          continue;
-        }
-
-        // Verify payment was actually completed
-        if (session.payment_status !== "paid") {
-          console.log("[verify-bulk-credits] Session not paid:", session.id, session.payment_status);
-          continue;
-        }
-
-        // Insert credits
-        const paymentIntentId = typeof session.payment_intent === "string"
-          ? session.payment_intent
-          : (session.payment_intent as any)?.id ?? null;
-
-        const { error: creditErr } = await supabase.from("credit_ledger").insert({
-          user_id: userId,
-          delta: credits,
-          reason: "credit_pack_purchase",
-          meta: {
-            stripe_session_id: session.id,
-            payment_intent_id: paymentIntentId,
-            credit_count: credits,
-            source: "verify-bulk-credits",
-          },
-        });
-
-        if (creditErr) {
-          // 23505 = unique constraint violation — already inserted by webhook race
-          if (creditErr.code === "23505") {
-            console.log("[verify-bulk-credits] Credits already added (unique constraint), session:", session.id);
-            totalFulfilled += credits;
-          } else {
-            console.error("[verify-bulk-credits] Insert error:", creditErr.message);
-          }
-          continue;
-        }
-
-        console.log("[verify-bulk-credits] Fulfilled", credits, "credits for session:", session.id);
-        totalFulfilled += credits;
-      }
-    }
-
-    return new Response(
-      JSON.stringify({ fulfilled: totalFulfilled > 0, credits: totalFulfilled }),
-      { headers },
-    );
-  } catch (e: any) {
-    console.error("[verify-bulk-credits] Error:", e?.message ?? e);
-    return new Response(
-      JSON.stringify({ error: e?.message ?? "Internal error" }),
-      { status: 500, headers },
-    );
+    if (session.payment_status !== "paid") return Response.json({ fulfilled: false, reason: "payment_pending" }, { headers });
+    const payment = checkoutPayment(session, expectedLivemode);
+    await applyBilling(supabase, { event_id: `verify-checkout:${session.id}`, event_type: "authenticated.checkout.verify", payment });
+    return Response.json({ fulfilled: true, credits: payment.credits, session_id: session.id }, { headers });
+  } catch (error) {
+    console.error("[verify-bulk-credits] failed", error instanceof Error ? error.message : String(error));
+    return Response.json({ fulfilled: false, error: "Payment verification is pending. Contact support if it persists." }, { status: 503, headers });
   }
 });

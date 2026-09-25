@@ -1,0 +1,19 @@
+▶ real local Supabase Auth, PostgREST and function gateway preserve release boundaries
+  ✔ real signup and password sessions isolate workspaces despite forged metadata (781.167228ms)
+  ✔ PostgREST denies anonymous CRM and server-only billing RPC access (14.78985ms)
+  ✔ ordinary-property handoff honors visibility and unlocks through HTTP (41.564195ms)
+  ✔ private contacts and notes resist foreign-account reads and writes (58.479699ms)
+  ✔ HTTP outcome retry reconciles one receipt and rejects stale competing action (47.499091ms)
+  ✔ real token refresh retains only its own private workspace (146.765251ms)
+  ✔ service-only synthetic billing replay cannot release checkout or source data (22.221905ms)
+  ✔ local gateway preserves configured JWT checks and internal worker guard (3812.96049ms)
+  ✔ real Auth ban blocks existing token at the database workspace fence (47.156036ms)
+✔ real local Supabase Auth, PostgREST and function gateway preserve release boundaries (5005.780846ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5102.347901

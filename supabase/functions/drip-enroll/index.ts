@@ -1,3 +1,4 @@
+import { relaunchProviderHeld, relaunchProviderHeldResponse } from "../_shared/relaunchProviderHold.ts";
 // drip-enroll
 // Manually enroll a lead in a sequence. Validates org, resolves to_number from owner/property contact,
 // and creates a drip_enrollment with current_step=0 and next_run_at=now (or first step delay).
@@ -21,6 +22,8 @@ function json(body: unknown, status = 200) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  if (relaunchProviderHeld()) return relaunchProviderHeldResponse("communications", corsHeaders);
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

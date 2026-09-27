@@ -38,7 +38,10 @@ export async function validateSourceExportReceipt(data: unknown, requestId: stri
     !receipt.property_ids.every(id) || new Set(receipt.property_ids).size !== receipt.row_count ||
     !Array.isArray(receipt.rows) || receipt.rows.length !== receipt.row_count ||
     !receipt.entitlement || typeof receipt.entitlement !== 'object' ||
-    receipt.entitlement.acceptance_id !== acceptanceId || !hash(receipt.entitlement.acceptance_revision))
+    receipt.entitlement.acceptance_id !== acceptanceId || !hash(receipt.entitlement.acceptance_revision) ||
+    typeof receipt.entitlement.export_as_of !== 'string' ||
+    !Number.isFinite(Date.parse(receipt.entitlement.export_as_of)) ||
+    Date.parse(receipt.entitlement.export_as_of)>Date.now())
     throw Error('The cleaned export receipt did not reconcile.');
   const groups = receipt.rows as SourceExportReceipt['rows'];
   if (groups.some(group => !group || typeof group !== 'object' ||
@@ -52,7 +55,7 @@ export async function validateSourceExportReceipt(data: unknown, requestId: stri
   const evidence = await parseAcceptedCleanEvidence({
     version:'accepted-clean-investor-evidence-v1', acceptance_id:acceptanceId,
     acceptance_revision:receipt.entitlement.acceptance_revision,
-    as_of:new Date().toISOString(), events,
+    as_of:receipt.entitlement.export_as_of, events,
   });
   if (new Set(evidence.events.map(e => e.property_id)).size !== receipt.row_count ||
     groups.some(group => group.events.some(event =>
@@ -67,7 +70,7 @@ export async function sourceExportCsv(receipt: SourceExportReceipt): Promise<str
     version:'accepted-clean-investor-evidence-v1',
     acceptance_id:receipt.entitlement.acceptance_id,
     acceptance_revision:receipt.entitlement.acceptance_revision,
-    as_of:new Date().toISOString(), events:rows,
+    as_of:receipt.entitlement.export_as_of, events:rows,
   });
   const lines = base.split('\r\n');
   const mapping = groups.flatMap(group => group.events.map(() => group.property_id));

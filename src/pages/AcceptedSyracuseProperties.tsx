@@ -7,6 +7,9 @@ import { loadCleanSyracuseCatalog } from '@/services/loadCleanSyracuseCatalog';
 import { exportSourceDetailCsv } from '@/services/export';
 import { SYRACUSE_DATASET_PUBLICATION_DATE } from '../../supabase/functions/_shared/cleanInvestorEvidence';
 
+const sourceDate = (value: string) => new Date(value).toLocaleDateString(undefined, {timeZone:'UTC'}) + ' (UTC)';
+const observedTime = (value: string) => new Date(value).toLocaleString(undefined, {timeZoneName:'short'});
+
 export default function AcceptedSyracuseProperties() {
   const { user } = useAuth();
   const { propertyId } = useParams<{ propertyId?: string }>();
@@ -54,7 +57,7 @@ export default function AcceptedSyracuseProperties() {
         <h2 className="text-xl font-semibold">{property.address}</h2>
         <p>{property.city}, {property.state} {property.zip}</p>
         <p className="mt-2 text-sm">{property.events.length} documented violations · {property.openCount} open at collection</p>
-        <p className="text-sm text-muted-foreground">Latest collection {new Date(property.newestCollection).toLocaleString()}
+        <p className="text-sm text-muted-foreground">Latest collection {observedTime(property.newestCollection)}
           {property.stale ? ' · Collection older than the 48-hour target' : ' · Collection within the 48-hour target'}</p>
         {!propertyId && <Link className="mt-2 inline-block text-sm font-medium underline" to={`/properties/syracuse/${property.id}`}>Open property history</Link>}
       </div>
@@ -72,18 +75,18 @@ export default function AcceptedSyracuseProperties() {
         <div className="mt-4 space-y-4">{property.events.map(({event}) => <section key={event.record_key} className="border-t pt-4 text-sm space-y-1">
           <h3 className="font-medium">{event.cleaned_description}</h3>
           <p>Parcel {event.parcel_id} · Case {event.case_id} · Violation {event.published_violation_number}</p>
-          <p>Agency status: {event.source_status} when collected {new Date(event.citation.collected_at).toLocaleString()}</p>
-          <p>Violation cited {new Date(event.citation_at).toLocaleDateString()}
-            {event.status_changed_at && ` · recorded status changed ${new Date(event.status_changed_at).toLocaleDateString()}`}</p>
-          <p>Parent case opened {event.case_opened_at ? new Date(event.case_opened_at).toLocaleDateString() : 'date unavailable'}
-            {event.compliance_due_at && ` · compliance due ${new Date(event.compliance_due_at).toLocaleDateString()}`}</p>
+          <p>Agency status: {event.source_status} when collected {observedTime(event.citation.collected_at)}</p>
+          <p>Violation cited {sourceDate(event.citation_at)}
+            {event.status_changed_at && ` · recorded status changed ${sourceDate(event.status_changed_at)}`}</p>
+          <p>Parent case opened {event.case_opened_at ? sourceDate(event.case_opened_at) : 'date unavailable'}
+            {event.compliance_due_at && ` · compliance due ${sourceDate(event.compliance_due_at)}`}</p>
           <p className="text-muted-foreground">The case opening is not a separately verified violation-opening date. Status transitions before the observations below are unavailable.</p>
           <details className="py-2">
             <summary className="cursor-pointer">Recorded status observations</summary>
             <ul className="mt-2 space-y-1">{property.observations.filter(item => item.event.record_key === event.record_key)
               .sort((a,b) => a.event.citation.collected_at.localeCompare(b.event.citation.collected_at))
               .map(({event: observed}) => <li key={observed.citation.delivery_id}>
-                {new Date(observed.citation.collected_at).toLocaleString()}: {observed.source_status}
+                {observedTime(observed.citation.collected_at)}: {observed.source_status}
                 {' · '}<a className="underline" href={observed.citation.source_url} target="_blank" rel="noopener noreferrer">Source</a>
                 {' · '}row {observed.citation.source_row}
               </li>)}</ul>
@@ -91,7 +94,7 @@ export default function AcceptedSyracuseProperties() {
           </details>
           <p className="text-muted-foreground"><strong>What this means:</strong> {property.insight?.implications.find(item=>item.record_key===event.record_key)?.text}</p>
           <p>Source: <a className="underline" href={event.citation.source_url} target="_blank" rel="noopener noreferrer">
-            City of Syracuse Code Violations V2</a> · row {event.citation.source_row} · parcel evidence retrieved {new Date(event.citation.parcel_retrieved_at).toLocaleString()}</p>
+            City of Syracuse Code Violations V2</a> · row {event.citation.source_row} · parcel evidence retrieved {observedTime(event.citation.parcel_retrieved_at)}</p>
           {!event.citation.publication_date && <p className="text-muted-foreground">The portal did not supply an individual publication date for this violation.</p>}
           <p className="text-xs text-muted-foreground">Evidence SHA-256: {event.citation.original_sha256}</p>
         </section>)}</div>
@@ -103,6 +106,7 @@ export default function AcceptedSyracuseProperties() {
           {exporting===id ? 'Preparing cleaned export…' : 'Export accepted batch'}
         </button>)}
       </div>
+      <p className="text-sm text-muted-foreground">Exports every property in the accepted batch. Existing plan limits or credits apply.</p>
       <p className="text-xs text-muted-foreground">City of Syracuse Open Data, Code Violations V2.
         <a className="ml-1 underline" href="https://data.syr.gov/datasets/107745f070b049feb38273a7ab200487_0/about" target="_blank" rel="noopener noreferrer">Dataset</a>
         {' '}published {SYRACUSE_DATASET_PUBLICATION_DATE}. The City of Syracuse makes no representation, warranty or guarantee relating to the data or analyses derived from these data.

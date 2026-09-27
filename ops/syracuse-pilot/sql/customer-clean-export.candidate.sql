@@ -113,7 +113,8 @@ BEGIN
  END IF;
  entitlement:=entitlement||jsonb_build_object('acceptance_id',a.id,'acceptance_revision',a.command_sha256,
   'preparation_sha256',a.preparation_sha256,'selection_sha256',a.selection_sha256,'mapping_ids',a.mapping_ids,
-  'event_count',cardinality(a.record_keys),'billing_unit','property','scope',a.scope);
+  'event_count',cardinality(a.record_keys),'billing_unit','property','scope',a.scope,
+  'export_as_of',clock_timestamp());
  INSERT INTO public.export_logs(user_id,row_count,filters,reservation_key,reservation_version,request_sha256,
   selection_sha256,authorized_property_ids,receipt_payload,entitlement_receipt)
  VALUES(auth.uid(),n,jsonb_build_object('authorization','source-event-export-v1'),p_request_id,'source-event-export-v1',

@@ -6,7 +6,7 @@ This path collects and cleans source data without a customer login. Reviewed sou
 
 Private intake, native violation identities and immutable source/destination receipt linking are installed. The most recent live check found 27 observations of 9 distinct violations across three captures, three property mappings, one review and zero customer acceptances. Private reviewer grants are limited and expire; account-specific executed SQL is retained outside this public repository.
 
-The customer catalog, detail screen, clean export, ordinary-consumer access check and repeated-capture mapping fix are candidates. They are not deployed. The live timer started collection on September 27 at 07:23:50 UTC; the service exited successfully at 07:24:12 and both systems hold the same resulting receipt. Backend counts and synthetic tests do not establish customer delivery.
+The customer catalog, detail screen, clean export, ordinary-consumer access check and repeated-capture mapping fix are candidates in PR 194. They are not deployed. A live-schema trial recognized all three latest property mappings and verified endpoint privileges, then rolled back; original function hashes and absence of new functions were reconfirmed. The live timer started collection on September 27 at 07:23:50 UTC; the service exited successfully at 07:24:12 and both systems hold the same resulting receipt. Backend counts and synthetic tests do not establish customer delivery.
 
 ## Data contract
 
@@ -22,7 +22,7 @@ An authorized customer can search and open the matched property, see each docume
 
 The supported indicator is documented open-violation count. Investment score, market value, repair costs, owner intent and private contacts are unavailable. The property screen keeps authorized observations over time and separately counts the latest distinct violations. The selected citation window is incomplete history; unobserved status transitions remain unavailable. The 48-hour collection freshness target is a product policy and does not establish when the City last updated its source. Parcel evidence dates remain explicit.
 
-The analysis and CSV serializers require the strict cleaned contract. They cannot fall back to raw narratives. Export groups all violations by authorized property, retains existing property-based billing and quota checks, and replays the saved receipt without a second debit.
+The analysis and CSV serializers require the strict cleaned contract. They cannot fall back to raw narratives. Export groups all violations by authorized property, retains existing property-based billing and quota checks, and replays the saved receipt and export timestamp without a second debit or changed CSV bytes.
 
 ## Source-level distribution review
 
@@ -42,6 +42,6 @@ Portable boundary tests: `python3 -m unittest discover -s ops/syracuse-pilot/tes
 
 The isolated database regression uses two real captured inputs and synthetic accounts. It verifies nine latest violations, eighteen observations, three reused mappings, unauthorized-account rejection, revocation, receipt replay, one export debit and rollback. Real capture files, account-specific grants and the test's private deployment fixture stay outside Git. Fifteen Python tests, eleven database test groups, TypeScript checking and production build passed. Madison privacy checks are regression evidence only. These tests are not a 10,000-file throughput benchmark.
 
-Rollback preserves originals, saved outboxes, observations and receipts. Disable the private handoff policy first; restore the pinned collector/service configuration only after checking for newer changes. Do not drop evidence tables. The live handoff kill switch and exact-byte retry have been exercised; complete host restoration remains to be verified.
+Rollback preserves originals, saved outboxes, observations and receipts. Disable the private handoff policy first; restore the pinned collector/service configuration only after checking for newer changes. Do not drop evidence tables. The live handoff kill switch and exact-byte retry have been exercised. On September 27 the pinned collector and service configuration were restored under the service lock, then the current version was reinstated. The timer remained active and all six saved outbox/receipt files were unchanged; the recovery check did not start a collection.
 
 Phase 3 remains open until fresh normal-trigger collection, cleaned acceptance, real signed-in customer search/detail/cited insights/export, negative-account behavior, second accepted collection and rollback are all proved in the deployed system.

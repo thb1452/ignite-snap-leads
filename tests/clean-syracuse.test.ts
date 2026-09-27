@@ -43,9 +43,10 @@ const receipt={status:'reserved',request_id:'22222222-2222-4222-8222-22222222222
   property_ids:propertyIds,
   rows:propertyIds.map(property_id=>({property_id,source_property_id:property_id,
     events:events.filter((e:any)=>e.property_id===property_id)})),
-  entitlement:{acceptance_id,acceptance_revision}};
+  entitlement:{acceptance_id,acceptance_revision,export_as_of:as_of}};
 await validateSourceExportReceipt(receipt,receipt.request_id,acceptance_id);
 const sourceCsv=await sourceExportCsv(receipt);
+assert.equal(await sourceExportCsv({...receipt,status:'replayed'}),sourceCsv);
 assert.equal(sourceCsv.split('\r\n').length,10);
 assert.ok(sourceCsv.startsWith('customer_property_id,'));
 const values=new Map<string,string>(), sent:string[]=[];

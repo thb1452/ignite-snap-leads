@@ -51,7 +51,7 @@ export function OwnerSourceActions({actor,preparation,page,offset,recordsBusy,on
   const currentReview=preview&&state?.reviews.find(r=>r.current&&r.outcome==='reviewed'&&r.selection_sha256===preview.selection_sha256);
   const sourceIds=[...new Set(preview?.items.map(i=>i.source_property_id)||[])];
   const mappings=sourceIds.map(id=>state?.mappings.find(m=>m.source_property_id===id&&m.current&&!m.revoked&&
-    m.source_evidence_sha256===preview?.items.find(i=>i.source_property_id===id)?.parcel_evidence_sha256)).filter(Boolean);
+    (m.current_source_evidence_sha256??m.source_evidence_sha256)===preview?.items.find(i=>i.source_property_id===id)?.parcel_evidence_sha256)).filter(Boolean);
   const reasonList=[...new Set(records.flatMap(e=>e.review_reasons))];
   const acceptance=state?.acceptances.find(a=>a.id===activeAcceptance);
   const sourceChoices=acceptance?state?.mappings.filter(m=>acceptance.mapping_ids.includes(m.id))||[]:[];

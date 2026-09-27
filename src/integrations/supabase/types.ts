@@ -5540,6 +5540,10 @@ export type Database = {
           property_id: string
         }[]
       }
+      fn_clean_syracuse_catalog_v1: {
+        Args: { p_search?: string }
+        Returns: Json
+      }
       fn_consume_credit: {
         Args: { p_meta?: Json; p_reason: string }
         Returns: number
@@ -5671,6 +5675,10 @@ export type Database = {
       }
       fn_import_cleaned_receipt_v1: {
         Args: { p_payload_sha256: string; p_payload_text: string }
+        Returns: Json
+      }
+      fn_import_syracuse_private_v1: {
+        Args: { p_envelope_sha256: string; p_envelope_text: string }
         Returns: Json
       }
       fn_increment_trial_exports: {
@@ -5977,6 +5985,10 @@ export type Database = {
           p_note: string
           p_target_id: string
         }
+        Returns: Json
+      }
+      fn_source_investor_evidence_v1: {
+        Args: { p_acceptance_id: string }
         Returns: Json
       }
       fn_source_lead_visible_v1: {

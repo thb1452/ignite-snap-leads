@@ -1249,6 +1249,11 @@ function Leads() {
 
         {/* Water shutoff upgrade banner for Starter users */}
         <WaterShutoffUpgradeBanner dataTier={dataTier} />
+        <div className="border-b bg-background px-4 py-2 text-sm">
+          <a className="font-medium text-primary underline underline-offset-2" href="/properties/syracuse">
+            Search accepted Syracuse enforcement history
+          </a>
+        </div>
 
         <UpgradePrompt
           open={showUpgradePrompt}

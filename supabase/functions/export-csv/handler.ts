@@ -71,7 +71,7 @@ export async function handleExport(req: Request, client: any): Promise<Response>
       });
       if (response.error) return failure(response.error);
       const receipt = await validateSourceExportReceipt(response.data, requestId, sourceRequest.acceptanceId);
-      const body = sourceExportCsv(receipt);
+      const body = await sourceExportCsv(receipt);
       return new Response(body, { headers: { ...headers, 'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': `attachment; filename="snapignite_source_events_${requestId}.csv"`,
         'X-Export-Request-Id': requestId, 'X-Export-Property-Count': String(receipt.row_count),

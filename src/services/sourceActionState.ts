@@ -1,7 +1,7 @@
 import { HASH, ID, sourceRpc, type SourceActionRpc } from './sourceActions.ts';
 
 export type SourceReviewDecision = {id:string;record_keys:string[];selection_sha256:string;outcome:'reviewed'|'held'|'rejected';current:boolean;note:string;evidence_sha256:string;created_at:string;reviewer_user_id:string};
-export type SourceMapping = {id:string;source_property_id:string;customer_property_id:string;source_evidence_sha256:string;target_snapshot_sha256:string;source_address:string;target_address:string;current:boolean;revoked:boolean;created_for_source:boolean;created_at:string};
+export type SourceMapping = {id:string;source_property_id:string;customer_property_id:string;source_evidence_sha256:string;current_source_evidence_sha256?:string|null;target_snapshot_sha256:string;source_address:string;target_address:string;current:boolean;revoked:boolean;created_for_source:boolean;created_at:string};
 export type SourceAcceptance = {id:string;review_event_id:string;actor_user_id:string;consumer_user_id:string;consumer_org_id:string;consumer_label:string;purpose:'customer_export'|'crm';record_keys:string[];mapping_ids:string[];valid_until:string;current:boolean;unavailable_reason:string|null;created_at:string};
 export type SourceActionState = {version:string;preparation_sha256:string;actor_user_id:string;checked_at:string;can_administer:true;complete:boolean;counts:Record<string,number>;
   reviews:SourceReviewDecision[];mappings:SourceMapping[];acceptances:SourceAcceptance[];revocations:Array<{id:string;kind:string;target_id:string;note:string;created_at:string}>;
@@ -23,7 +23,7 @@ export function parseSourceActionState(value:any,actor:string,preparation:string
         !Number.isInteger(value.counts[k])||value.counts[k]<value[k].length)||
       value.complete!==keys.every(k=>value.counts[k]===value[k].length)) throw new Error('Owner action history is incomplete or belongs to another account.');
   for(const r of value.reviews)if(!digest(r.selection_sha256)||!Array.isArray(r.record_keys)||!r.record_keys.every(digest)||typeof r.current!=='boolean'||!['reviewed','held','rejected'].includes(r.outcome))throw new Error('Source review history could not be checked.');
-  for(const m of value.mappings)if(!uuid(m.source_property_id)||!uuid(m.customer_property_id)||!digest(m.source_evidence_sha256)||!digest(m.target_snapshot_sha256)||typeof m.current!=='boolean'||typeof m.revoked!=='boolean')throw new Error('Property mappings could not be checked.');
+  for(const m of value.mappings)if(!uuid(m.source_property_id)||!uuid(m.customer_property_id)||!digest(m.source_evidence_sha256)||(m.current_source_evidence_sha256!=null&&!digest(m.current_source_evidence_sha256))||!digest(m.target_snapshot_sha256)||typeof m.current!=='boolean'||typeof m.revoked!=='boolean')throw new Error('Property mappings could not be checked.');
   for(const a of value.acceptances)if(!uuid(a.review_event_id)||!uuid(a.consumer_user_id)||!uuid(a.consumer_org_id)||!Array.isArray(a.mapping_ids)||!a.mapping_ids.every(uuid)||!Array.isArray(a.record_keys)||!a.record_keys.every(digest)||typeof a.current!=='boolean'||!['customer_export','crm'].includes(a.purpose))throw new Error('Consumer decisions could not be checked.');
   return value;
 }

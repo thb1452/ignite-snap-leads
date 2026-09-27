@@ -17,6 +17,7 @@ import Auth from "./pages/Auth";
 
 const Upload = lazy(() => import("./pages/Upload"));
 const Leads = lazy(() => import("./pages/Leads"));
+const AcceptedSyracuseProperties = lazy(() => import("./pages/AcceptedSyracuseProperties"));
 const Lists = lazy(() => import("./pages/Lists").then((m) => ({ default: m.Lists })));
 const ListDetail = lazy(() => import("./pages/ListDetail"));
 const SavedProperties = lazy(() => import("./pages/SavedProperties"));
@@ -115,6 +116,8 @@ const App = () => (
                 <Route path="/app" element={<Navigate to="/properties" replace />} />
                 <Route path="/leads" element={<Navigate to="/properties" replace />} />
                 <Route path="/properties" element={<RoleProtectedRoute allowedRoles={["admin", "user"]}><Leads /></RoleProtectedRoute>} />
+                <Route path="/properties/syracuse" element={<RoleProtectedRoute allowedRoles={["admin", "user"]}><AcceptedSyracuseProperties /></RoleProtectedRoute>} />
+                <Route path="/properties/syracuse/:propertyId" element={<RoleProtectedRoute allowedRoles={["admin", "user"]}><AcceptedSyracuseProperties /></RoleProtectedRoute>} />
                 <Route path="/lists" element={<RoleProtectedRoute allowedRoles={["admin", "user"]}><Lists /></RoleProtectedRoute>} />
                 <Route path="/lists/:listId" element={<RoleProtectedRoute allowedRoles={["admin", "user"]}><ListDetail /></RoleProtectedRoute>} />
                 <Route path="/enrich" element={<RoleProtectedRoute allowedRoles={["admin", "user"]}><EnrichGate /></RoleProtectedRoute>} />

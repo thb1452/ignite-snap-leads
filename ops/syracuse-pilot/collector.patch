@@ -1,0 +1,24 @@
+--- a/harvester_service.py
++++ b/harvester_service.py
+@@ -29 +29 @@
+-ERRORS={'database_unavailable','health_write_failed','harvester_control_missing','harvester_control_invalid',
++ERRORS={'customer_intake_unconfirmed','database_unavailable','health_write_failed','harvester_control_missing','harvester_control_invalid',
+@@ -212 +212 @@
+-                registry_factory=DeliveryRegistry,runner_factory=HarvesterRunner,clock=None,queue_backup=False):
++                registry_factory=DeliveryRegistry,runner_factory=HarvesterRunner,clock=None,queue_backup=False,queue_intake=False):
+@@ -214 +214 @@
+-    if type(execute) is not bool or type(queue_backup) is not bool: raise ServiceError('collection_failed')
++    if type(execute) is not bool or type(queue_backup) is not bool or type(queue_intake) is not bool: raise ServiceError('collection_failed')
+@@ -239,0 +240,5 @@
++                if queue_intake and result.get('status') in SUCCESS:
++                    db.gate()
++                    from syracuse_worker import run_pending
++                    try: run_pending(archive,db.conn)
++                    except Exception: raise ServiceError('customer_intake_unconfirmed') from None
+@@ -272,0 +278 @@
++    parser.add_argument('--queue-intake',action='store_true',help='Send the fixed Syracuse cohort to private cleaned intake and link its receipt')
+@@ -273,0 +280 @@
++    if args.queue_intake and not args.run: parser.error('--queue-intake requires --run')
+@@ -277 +284 @@
+-    try: result=run_service(execute=args.run,queue_backup=args.queue_backup)
++    try: result=run_service(execute=args.run,queue_backup=args.queue_backup,queue_intake=args.queue_intake)

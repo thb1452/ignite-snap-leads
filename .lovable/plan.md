@@ -1,18 +1,16 @@
-# Read-only database access check — result: INACCESSIBLE
+# Read-only data audit — result: LIVE SELECT UNAVAILABLE
 
-Checked 2026-09-23 against backend ojyxblegxpdgaqiscxpz. Nothing was edited, migrated, deployed, enabled, or sent.
+Attempted 2026-10-01 against backend ojyxblegxpdgaqiscxpz. Nothing was edited, migrated, deployed, or invoked.
 
-## Blockers observed
-1. Shell database access: connection refused at the pooler with "tenant/user sandbox_exec.ojyxblegxpdgaqiscxpz not found". The read-only role for this sandbox is not provisioned on the pooler right now.
-2. Built-in read query tool: "database connection pooler is unavailable" (SUPABASE_POOLER_UNAVAILABLE, status 544, connection timeout). Session start metadata failed the same way.
+## Exact error
+Built-in read-only SELECT (`select now(), current_database()`):
+"The project's database connection pooler is unavailable — the Supabase project is likely paused or still waking up." (SUPABASE_POOLER_UNAVAILABLE; session metadata also failed: status 544, connection timeout)
 
-Both point to the database pooler being unreachable (paused, waking, or unhealthy), which also explains the connector's 499 / request_cancelled.
+## Result
+```json
+{"backend":"ojyxblegxpdgaqiscxpz","query_timestamp":null,"status":"UNAVAILABLE","groups":null,"upload_jobs":null,"source_linkage":null}
+```
+No counts are inferred; no zeros reported. Stopped as instructed.
 
-## Not retrieved (UNKNOWN)
-- now() / current_database()
-- Private import / source binding / insight function signatures
-- Table columns for violations, properties, source_* and intake tables
-- generate-insights deployed version/status (no read-only deployment metadata is exposed)
-
-## Next step (needs your approval, not done)
-Check backend status and, if paused, resume it (Cloud status / resume action), then re-run the same three read-only queries unchanged.
+## Next step (needs approval, not done)
+Check backend status and resume if paused, then rerun the same grouped queries unchanged.

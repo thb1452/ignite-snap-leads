@@ -1,0 +1,75 @@
+{
+  "observed_date": "2026-09-24",
+  "status": "PASS_SELECTED_SANDBOX_SUITE_CUSTOMER_RELEASE_HELD",
+  "real_provider_payments_exercised": true,
+  "authentic_signed_provider_events_exercised": true,
+  "complete_provider_suite_passed": true,
+  "test_credentials_obtained": true,
+  "usable_sandbox_provisioned": true,
+  "setup": {
+    "user_approved_free_sandbox": true,
+    "earlier_anonymous_cli_provisioning": "FAILED",
+    "authenticated_dashboard_setup": "SUCCEEDED",
+    "new_blank_sandbox": true,
+    "live_configuration_copied": false,
+    "intended_test_account_verified": true,
+    "complete_v1_and_v2_destination_preflight": "PASS_NO_CONFIGURED_DESTINATIONS"
+  },
+  "completed_provider_run": {
+    "status": "PASS",
+    "process_exit_code": 0,
+    "suite_checks_passed": 13,
+    "suite_checks_failed": 0,
+    "recorded_test_deliveries": 26,
+    "passed_checks": [
+      "Checkout release gate remained closed",
+      "Completed test Checkout granted exactly one purchased credit pack",
+      "Authentic signed duplicate delivery did not grant twice",
+      "Invalid signature could not modify receipts",
+      "Injected database failure rolled back and authentic replay committed atomically",
+      "Initial paid subscription invoice established allowance without wallet deposit",
+      "Paid-proration upgrade changed the plan without duplicate allowance",
+      "Clock-driven renewal extended paid-through once without changing the wallet",
+      "Cancellation followed by earlier authentic event delivery did not resurrect access",
+      "Trial conversion preserved usage and established paid service",
+      "Failed payment did not establish paid subscription access",
+      "Paid single-property test event retained its fulfillment hold and retry behavior",
+      "Delayed Checkout stayed pending until asynchronous success granted one pack and receipt"
+    ],
+    "selected_provider_lifecycle_verified": true
+  },
+  "paid_proration_regression": {
+    "earlier_provider_check": "FAILED",
+    "candidate_correction": "Validates a positive paid invoiceitem proration against current subscription, item, price and term without extending paid-through access",
+    "targeted_local_regression_results_passed": 32,
+    "provider_check_after_fix": "PASS",
+    "complete_provider_rerun_after_fix": "PASS"
+  },
+  "intermediate_interruption": {
+    "prior_attempt": "INTERRUPTED_AFTER_GATE_CHECK",
+    "approval_concern": "RESOLVED_PUBLIC_CLI_VERSION_LOOKUP_WITHOUT_PRIVATE_DATA",
+    "blocks_completed_result": false
+  },
+  "harness": "scripts/test-stripe-sandbox.mjs",
+  "sql_adapter": "tests/billing/sandbox/database.mjs",
+  "runtime": {
+    "stripe_cli_package": "1.51.1",
+    "stripe_sdk": "14.21.0",
+    "stripe_api": "2023-10-16"
+  },
+  "limitations": [
+    "Supabase transport uses isolated PGlite SQL, not a deployed hosted backend",
+    "Checkout completion uses official CLI fixtures, not interactive browser card entry",
+    "Native concurrency and real local Supabase HTTP verification are separate synthetic checks",
+    "The passing provider suite does not establish production migration, financial reversal policy or useful property delivery",
+    "Market acceptance, hosted customer delivery and buyer pilot remain separate release gates"
+  ],
+  "checkout_release_enabled": false,
+  "customer_delivery_release_enabled": false,
+  "production_billing_writes": 0,
+  "live_charges": 0,
+  "lovable_generation_prompts_sent": 0,
+  "lovable_staging_provisioning_initiated": false,
+  "existing_hosted_runtime_consumption_measured": false,
+  "private_account_or_event_evidence_included": false
+}

@@ -25,7 +25,7 @@ export function HelpSection() {
   const isSupport = modalType === 'support';
 
   async function handleSubmit() {
-    if (!message.trim()) return;
+    if (sending || !message.trim() || !modalType) return;
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-support-message', {
@@ -33,17 +33,20 @@ export function HelpSection() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      if (data?.status !== 'accepted' || typeof data?.message_id !== 'string' || !data.message_id.trim()) {
+        throw new Error('We could not confirm submission. Your draft has been kept.');
+      }
 
       toast({
-        title: isSupport ? 'Message Sent' : 'Feature Request Sent',
-        description: "We'll get back to you shortly.",
+        title: isSupport ? 'Support Request Submitted' : 'Feature Request Submitted',
+        description: 'Your message was accepted for delivery. Inbox delivery has not been confirmed. Replies go to your account email.',
       });
       setMessage('');
       setModalType(null);
-    } catch (err: any) {
+    } catch {
       toast({
-        title: 'Failed to Send',
-        description: err.message || 'Please try again later.',
+        title: 'Submission Not Confirmed',
+        description: 'Your draft has been kept. Delivery is unconfirmed; check your inbox before submitting again.',
         variant: 'destructive',
       });
     } finally {
@@ -89,13 +92,13 @@ export function HelpSection() {
         </CardContent>
       </Card>
 
-      <Dialog open={modalType !== null} onOpenChange={(open) => { if (!open) { setModalType(null); setMessage(''); } }}>
+      <Dialog open={modalType !== null} onOpenChange={(open) => { if (!open && !sending) { setModalType(null); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{isSupport ? 'Contact Support' : 'Request a Feature'}</DialogTitle>
             <DialogDescription>
               {isSupport
-                ? 'Describe your issue and we\'ll get back to you via email.'
+                ? 'Describe your issue. Support can reply to your account email.'
                 : 'Tell us what feature you\'d like to see.'}
               {' '}Your name, email, and plan are included automatically.
             </DialogDescription>

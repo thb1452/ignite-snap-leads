@@ -1,3 +1,4 @@
+import { internalWorkerDenial } from "../_shared/internalWorkerAuth.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
@@ -90,6 +91,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const denial = internalWorkerDenial(req, corsHeaders);
+  if (denial) return denial;
+  // Legacy cross-project migration/test endpoints are retired. A future operation
+  // must be a reviewed server-side command, never a browser-accessible proxy.
+  if (legacyEndpointRetired()) return new Response(JSON.stringify({ error: "endpoint_retired" }), {
+    status: 410, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
 
   try {
     const { action, table, cursor } = await req.json();
@@ -284,3 +293,5 @@ async function migrateTable(
     return { table, status: "error", error: (e as Error).message, hasMore: false, nextCursor: cursor ?? null };
   }
 }
+
+function legacyEndpointRetired(): boolean { return true; }

@@ -1,3 +1,4 @@
+import { internalWorkerDenial } from "../_shared/internalWorkerAuth.ts";
 // signal-delta-worker
 //
 // Consumes pgmq queue 'signal_delta_processing'. For each message:
@@ -253,7 +254,9 @@ async function processMessage(msg: QueueMessage): Promise<{ status: string; delt
   }
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req: Request) => {
+  const denial = internalWorkerDenial(req);
+  if (denial) return denial;
   const summary = { processed: 0, skipped: 0, no_change: 0, failed: 0, dlq: 0 };
 
   const { data: messages, error: readErr } = await supabase.rpc("read_signal_delta_batch", {

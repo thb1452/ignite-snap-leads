@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import SEOHead from "@/components/SEOHead";
+import AvailabilityNotice from "@/components/AvailabilityNotice";
+import { CHECKOUT_AVAILABLE, FREE_ACCOUNT_MESSAGE } from "@/lib/publicAvailability";
+import { PAYG_PRICE_PER_CREDIT, subscriptionSavings } from "@/lib/pricing";
 import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, X, Zap, TrendingUp, Building2, ArrowRight, Droplets, Loader2, Crown, Shield, AlertTriangle, Sparkles, Users, Mail, type LucideIcon } from "lucide-react";
+import { Check, Zap, TrendingUp, Building2, ArrowRight, Droplets, Loader2, Crown, Shield, Sparkles, Users, type LucideIcon } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/externalClient";
 import { useToast } from "@/hooks/use-toast";
@@ -38,17 +41,15 @@ const PRICING_TIERS: PricingTier[] = [
     name: "free",
     display_name: "Free",
     price: 0,
-    description: "Browse markets and learn the pressure signals before you unlock.",
+    description: "Create an account while customer access is being verified.",
     features: [
-      "3 free unlocks on signup",
-      "Browse market-level property signals",
-      "AI Investor Brief previews",
-      "SnapScore ranking",
-      "Violation data",
-      "Address always blurred until unlock",
+      "No paid trial or card required",
+      "Customer record access paused",
+      "Free unlocks paused",
+      "Exports paused",
     ],
     icon: Users,
-    cta: "Start Free — No Credit Card Required",
+    cta: "Create Free Account",
     isFree: true,
     footnote: undefined,
   },
@@ -56,15 +57,15 @@ const PRICING_TIERS: PricingTier[] = [
     id: "payg",
     name: "payg",
     display_name: "Pay As You Go",
-    price: 0.67,
+    price: PAYG_PRICE_PER_CREDIT,
     perAddress: "$0.67/credit",
     description: "For selective unlocks when a signal is strong enough to act.",
     features: [
       "$0.67 per credit",
-      "1 credit = 1 selective unlock + export",
-      "Credits never expire",
+      "Intended allowance: 1 unlock + export per credit",
+      "Purchases paused during verification",
       "No subscription required",
-      "Best for targeted market checks",
+      "Market availability must be confirmed",
     ],
     icon: Zap,
     cta: "Buy Credits",
@@ -80,8 +81,8 @@ const PRICING_TIERS: PricingTier[] = [
     perAddress: "$0.07/address",
     description: "For investors starting a recurring market-monitoring habit.",
     features: [
-      "750 credits/month",
-      "1 credit = 1 unlock + export",
+      "750 credits/month when available",
+      "Unlocks and exports paused",
       "All Free features",
       "Code violation monitoring",
       "Basic market filters",
@@ -98,16 +99,16 @@ const PRICING_TIERS: PricingTier[] = [
     perAddress: "$0.07/address",
     description: "For operators reviewing municipal pressure signals every week.",
     features: [
-      "1,500 credits/month",
-      "1 credit = 1 unlock + export",
+      "1,500 credits/month when available",
+      "Unlocks and exports paused",
       "All Starter features",
       "Pressure Level™ filters",
       "Weekly monitoring workflow",
     ],
     icon: TrendingUp,
     popular: true,
-    badge: "Most Popular",
-    savingsBadge: "Save $553 vs Pay As You Go",
+    badge: "Pro",
+    savingsBadge: `At full use: $${subscriptionSavings(1500, 99).toLocaleString("en-US")} vs PAYG`,
     cta: "Get Pro",
     footnote: undefined,
   },
@@ -117,17 +118,17 @@ const PRICING_TIERS: PricingTier[] = [
     display_name: "Elite",
     price: 199,
     perAddress: "$0.07/address",
-    description: "For teams monitoring multiple markets and premium pressure signals.",
+    description: "Reference allowance for teams. Market and signal availability must be confirmed.",
     features: [
-      "3,000 credits/month",
-      "1 credit = 1 unlock + export",
+      "3,000 credits/month when available",
+      "Unlocks and exports paused",
       "All Pro features",
-      "Water shutoff data",
-      "Multi-market monitoring",
-      "Priority support",
+      "Signal coverage depends on the released market",
+      "Market availability must be confirmed",
+      "Contact us with support questions",
     ],
     icon: Building2,
-    savingsBadge: "Save $1,812 vs Pay As You Go",
+    savingsBadge: `At full use: $${subscriptionSavings(3000, 199).toLocaleString("en-US")} vs PAYG`,
     cta: "Get Elite",
     footnote: undefined,
   },
@@ -136,15 +137,15 @@ const PRICING_TIERS: PricingTier[] = [
     name: "custom",
     display_name: "Enterprise",
     price: null,
-    description: "For teams, funds, and data operators monitoring coverage at scale. Custom pricing, API access, and dedicated support.",
+    description: "Discuss data and workflow requirements. No coverage or integration is promised before a separate agreement.",
     features: [
-      "25,000+ monitored records",
-      "API access",
-      "Dedicated account manager",
+      "Discuss required record volume",
+      "Discuss integration requirements",
+      "Discuss support requirements",
       "Custom contract",
-      "Custom rate limits",
-      "Dedicated onboarding",
-      "SLA terms",
+      "Availability confirmed before any agreement",
+      "Discuss onboarding needs",
+      "Service terms require a separate agreement",
     ],
     icon: Shield,
     cta: "Contact Us",
@@ -163,6 +164,7 @@ function BulkCreditCards({ user, navigate, toast }: { user: User | null; navigat
   const [loadingPack, setLoadingPack] = useState<number | null>(null);
 
   const handleBuy = async (rawCount: number) => {
+    if (!CHECKOUT_AVAILABLE) return;
     if (!user) {
       navigate("/auth?mode=signup");
       return;
@@ -199,12 +201,12 @@ function BulkCreditCards({ user, navigate, toast }: { user: User | null; navigat
             <div className="text-sm text-muted-foreground mb-4">{pkg.per}</div>
             <Button
               onClick={() => handleBuy(pkg.rawCount)}
-              disabled={loadingPack === pkg.rawCount}
+              disabled={!CHECKOUT_AVAILABLE || loadingPack === pkg.rawCount}
               className="w-full bg-teal-500 hover:bg-teal-600 text-white"
               size="lg"
             >
               {loadingPack === pkg.rawCount ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Buy Now <ArrowRight className="ml-2 w-4 h-4" />
+              {CHECKOUT_AVAILABLE ? "Buy Now" : "Purchases paused"} <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </CardContent>
         </Card>
@@ -230,6 +232,7 @@ export default function Pricing() {
   const activePlanName = subscription?.plan_name;
 
   const handleDirectUpgrade = async (tierName: string) => {
+    if (!CHECKOUT_AVAILABLE) return;
     if (upgradeInFlightRef.current) return;
     upgradeInFlightRef.current = true;
     setUpgradingTier(tierName);
@@ -271,6 +274,7 @@ export default function Pricing() {
       window.location.href = 'mailto:hello@snapignite.com?subject=Enterprise%20Plan%20Inquiry';
       return;
     }
+    if (!CHECKOUT_AVAILABLE) return;
     if (tier.isPayg) {
       // Navigate to leads where they can buy individual addresses
       if (!user) {
@@ -392,7 +396,7 @@ export default function Pricing() {
         <CardContent className="flex-1 flex flex-col">
           <Button
             onClick={() => handlePlanClick(tier)}
-            disabled={isUpgrading || (isActivePaid && isCurrent)}
+            disabled={isUpgrading || (isActivePaid && isCurrent) || (!CHECKOUT_AVAILABLE && !tier.isFree && !tier.isEnterprise)}
             className={`w-full mb-2 ${
               tier.popular
                 ? "bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white"
@@ -406,7 +410,7 @@ export default function Pricing() {
             ) : isCurrent ? (
               'Your Active Plan'
             ) : (
-              tier.cta
+              !CHECKOUT_AVAILABLE && !tier.isFree && !tier.isEnterprise ? "Purchases paused" : tier.cta
             )}
             {!isUpgrading && !isCurrent && <ArrowRight className="ml-2 w-4 h-4" />}
           </Button>
@@ -427,7 +431,7 @@ export default function Pricing() {
             {!tier.isEnterprise && (
               <li className="flex items-start gap-2.5">
                 <Check className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5" />
-                <span className="text-sm text-muted-foreground/60 italic">Owner Contact Enrichment — Coming Soon</span>
+                <span className="text-sm text-muted-foreground/60 italic">Owner Contact Enrichment — Unavailable</span>
               </li>
             )}
           </ul>
@@ -435,7 +439,7 @@ export default function Pricing() {
           {tier.isPayg && (
             <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 text-xs font-semibold">
               <Sparkles className="w-3 h-3" />
-              Owner Contact Enrichment — Coming Soon
+              Owner Contact Enrichment — Unavailable
             </div>
           )}
         </CardContent>
@@ -446,8 +450,8 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <SEOHead
-        title="Pricing — Plans from $0.67/credit | Snap Ignite"
-        description="Choose your Snap Ignite plan. Browse market pressure signals free, use Pay As You Go for selective unlocks, or subscribe for recurring market monitoring."
+        title="Plan Pricing — Purchases Paused | Snap Ignite"
+        description="View configured Snap Ignite prices. Customer record access, unlocks, exports, and new purchases are paused during relaunch verification."
         canonical="https://snapignite.com/pricing"
       />
 
@@ -476,7 +480,7 @@ export default function Pricing() {
               You're on the {activePlanName === 'professional' ? 'Pro' : activePlanName === 'enterprise' ? 'Elite' : 'Starter'} plan
             </h1>
             <p className="text-lg text-emerald-100/80 mb-8 max-w-2xl mx-auto">
-              Your subscription is active. Manage billing or switch plans below.
+              Review your existing subscription in account settings. New purchases and plan changes are paused.
             </p>
             <Button
               onClick={() => navigate('/settings')}
@@ -492,12 +496,15 @@ export default function Pricing() {
       <div className="container max-w-7xl py-12 px-4">
         <div className="text-center mb-12">
           <h1 className="text-3xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
-            Pricing for monitoring municipal pressure — not dumping commodity lead lists.
+            Plan reference — purchases paused
           </h1>
           <p className="text-xl text-muted-foreground mb-2">
-            Browse markets, compare visible enforcement signals, and spend credits only when a record is strong enough to unlock.
+            Configured plan prices are shown for reference. A plan allowance does not establish available market coverage.
           </p>
         </div>
+
+        <AvailabilityNotice className="mb-10" />
+        <p className="text-center text-sm text-muted-foreground mb-8">Savings compare the complete monthly allowance at $0.67 per credit with the monthly plan fee. They assume every credit is used; they do not promise record availability.</p>
 
         {/* 6-tier grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
@@ -507,10 +514,10 @@ export default function Pricing() {
         {/* Bulk Credits Section */}
         <div className="max-w-4xl mx-auto mb-16">
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-2">
-            Need selective unlock capacity? Buy once, use anytime.
+            Bulk credit reference prices
           </h2>
           <p className="text-center text-muted-foreground mb-2">No subscription required.</p>
-          <p className="text-center text-sm text-muted-foreground mb-8">Each credit unlocks one full property record, including the exact address and export rights for that record.</p>
+          <p className="text-center text-sm text-muted-foreground mb-8">The intended allowance is one unlock and export per credit. These actions and new credit purchases are currently paused.</p>
           <BulkCreditCards user={user} navigate={navigate} toast={toast} />
           <p className="text-center text-sm text-muted-foreground mt-4">
             Need 25,000+? <a href="mailto:hello@snapignite.com?subject=Enterprise%20Pricing%20Inquiry" className="text-primary hover:underline">Contact us</a> for Enterprise pricing.
@@ -523,13 +530,12 @@ export default function Pricing() {
             <CardHeader>
               <div className="flex items-center gap-3 justify-center">
                 <Droplets className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
-                <CardTitle className="text-2xl text-center">Why Water Shutoffs Matter</CardTitle>
+                <CardTitle className="text-2xl text-center">Signal availability varies by source</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-center text-muted-foreground">
-                Water shutoffs are among the strongest municipal pressure signals visible on a property record.
-                This premium signal layer is available on the Elite plan.
+                Utility records can add research context, but do not establish owner intent, vacancy, or financial distress. No water shutoff dataset is currently promised for customer access.
               </p>
             </CardContent>
           </Card>
@@ -543,8 +549,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">Do I need a subscription?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  No. Browse market signals free. When the public enforcement evidence is strong enough to act, unlock the record for $0.67 — no subscription required.
-                  Subscriptions are for investors who monitor markets and unlock records regularly.
+                  {FREE_ACCOUNT_MESSAGE} Customer records remain paused; no paid plan is needed to create an account.
                 </p>
               </CardContent>
             </Card>
@@ -552,8 +557,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">How does Pay As You Go work?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Buy credits one at a time for $0.67 each. Each credit unlocks one property — exact address, violation context, and export rights.
-                  No monthly commitment, no expiration.
+                  The configured reference price is $0.67 per credit. The intended allowance is one property unlock and export. Purchases, unlocks, and exports remain paused.
                 </p>
               </CardContent>
             </Card>
@@ -562,8 +566,7 @@ export default function Pricing() {
               <CardContent>
                 <p className="text-muted-foreground">
                   <strong>Code violations</strong> indicate properties with visible municipal enforcement activity.
-                  <strong> Water shutoffs</strong> are utility disconnections — a stronger pressure signal when available.
-                  Water shutoff data is available on the Elite plan.
+                  <strong> Water shutoffs</strong> are utility disconnections with several possible explanations. Availability is source-specific and is not currently promised on any plan.
                 </p>
               </CardContent>
             </Card>
@@ -571,8 +574,7 @@ export default function Pricing() {
               <CardHeader><CardTitle className="text-lg">Can I change tiers later?</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Yes! Upgrade or downgrade anytime. Upgrades take effect immediately with prorated billing.
-                  Downgrades take effect at your next billing cycle.
+                  New purchases and plan changes are paused. Existing customers can use account settings to review their billing or contact support about cancellation.
                 </p>
               </CardContent>
             </Card>
@@ -581,7 +583,7 @@ export default function Pricing() {
 
         <div className="text-center mt-16">
           <p className="text-sm text-muted-foreground mb-6 italic">
-            Unlocks are the unit of value: one credit reveals one full property record and export rights. AI Investor Briefs explain visible enforcement signals; they do not claim an owner wants to sell.
+            All prices and intended allowances above are reference information while access is paused. A record or AI summary does not establish an owner’s willingness to sell.
           </p>
           <p className="text-muted-foreground mb-4">
             Questions? Email us at <a href="mailto:hello@snapignite.com" className="text-blue-600 dark:text-blue-400 hover:underline">hello@snapignite.com</a>

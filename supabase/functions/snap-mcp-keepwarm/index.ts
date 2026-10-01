@@ -1,8 +1,9 @@
+import { internalWorkerDenial } from "../_shared/internalWorkerAuth.ts";
 // snap-mcp-keepwarm
 // Vault-free keep-warm pinger for snap-mcp-proxy.
 //
 // Architecture:
-//   pg_cron (every 4 min) -> net.http_post (plain, no signing) -> THIS FUNCTION
+//   pg_cron (every 4 min) -> net.http_post (Vault-backed internal credential) -> THIS FUNCTION
 //     -> reads SNAP_PROXY_SECRET from Deno.env -> signs HMAC -> POSTs {operation:"ping"}
 //        to snap-mcp-proxy
 //
@@ -14,12 +15,8 @@ import { createHmac } from "node:crypto";
 const SNAP_PROXY_URL = "https://ojyxblegxpdgaqiscxpz.supabase.co/functions/v1/snap-mcp-proxy";
 
 Deno.serve(async (req) => {
-  if (req.method !== "GET" && req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "method_not_allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  const denial = internalWorkerDenial(req);
+  if (denial) return denial;
 
   const secret = Deno.env.get("SNAP_PROXY_SECRET");
   if (!secret) {

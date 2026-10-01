@@ -1,3 +1,5 @@
+import { useAuth } from "@/components/auth/AuthProvider";
+import { assertCrmIdentity } from "@/services/leads";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,11 +26,13 @@ export type DistressEvent = {
  */
 export function usePropertyDistressEvents(propertyId: string | undefined) {
   const qc = useQueryClient();
-  const queryKey = ["distress-events", propertyId];
+  const { user } = useAuth();
+  const queryKey = ["distress-events", user?.id, propertyId];
 
   const query = useQuery({
     queryKey,
     queryFn: async (): Promise<DistressEvent[]> => {
+      await assertCrmIdentity(user!.id);
       const { data, error } = await supabase
         .from("distress_events")
         .select("*")
@@ -36,15 +40,16 @@ export function usePropertyDistressEvents(propertyId: string | undefined) {
         .order("detected_at", { ascending: false })
         .limit(100);
       if (error) throw error;
+      await assertCrmIdentity(user!.id);
       return (data ?? []) as DistressEvent[];
     },
-    enabled: !!propertyId,
+    enabled: !!user && !!propertyId,
     staleTime: 60_000,
   });
 
   // Realtime subscription scoped to this property
   useEffect(() => {
-    if (!propertyId) return;
+    if (!user || !propertyId) return;
     const channel = supabase
       .channel(`distress_events:${propertyId}`)
       .on(
@@ -64,7 +69,7 @@ export function usePropertyDistressEvents(propertyId: string | undefined) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [propertyId, qc]);
+  }, [propertyId, qc, user?.id]);
 
   return query;
 }

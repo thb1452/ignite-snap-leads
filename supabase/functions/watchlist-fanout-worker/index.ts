@@ -1,3 +1,4 @@
+import { internalWorkerDenial } from "../_shared/internalWorkerAuth.ts";
 // watchlist-fanout-worker
 //
 // Consumes pgmq queue 'watchlist_event_fanout'. For each message
@@ -317,7 +318,9 @@ async function processMessage(msg: QueueMessage): Promise<{ status: string; emit
   }
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req: Request) => {
+  const denial = internalWorkerDenial(req);
+  if (denial) return denial;
   const summary = { processed: 0, skipped: 0, no_users: 0, failed: 0, dlq: 0, emitted: 0 };
 
   const { data: messages, error: readErr } = await supabase.rpc("read_watchlist_fanout_batch", {

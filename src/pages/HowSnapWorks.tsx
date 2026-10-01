@@ -1,11 +1,10 @@
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Target, TrendingUp, AlertTriangle, Home, Flame, Wrench, Scale, Eye, Info } from "lucide-react";
 
 export default function HowSnapWorks() {
   return (
-    <AppLayout>
+    <>
       <div className="max-w-5xl mx-auto space-y-8 p-6">
         {/* Header */}
         <div className="space-y-4">
@@ -26,7 +25,7 @@ export default function HowSnapWorks() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-ink-700">
-              Snap is <strong>not</strong> a lead list, skip tracer, or CRM. It's a system that:
+              Snap brings public-record research and a private CRM workflow together. It is designed to:
             </p>
             <ol className="list-decimal list-inside space-y-2 text-ink-700 ml-4">
               <li>Ingests public enforcement data (CSV, PDFs, FOIA responses, portals)</li>
@@ -346,6 +345,6 @@ export default function HowSnapWorks() {
           </CardContent>
         </Card>
       </div>
-    </AppLayout>
+    </>
   );
 }

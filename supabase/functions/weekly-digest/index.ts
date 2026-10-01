@@ -1,3 +1,5 @@
+import { internalWorkerDenial } from "../_shared/internalWorkerAuth.ts";
+import { relaunchProviderHeld, relaunchProviderHeldResponse } from "../_shared/relaunchProviderHold.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -462,57 +464,19 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    // SECURITY: Require x-internal-secret matching service role key OR cron token
-    const internalSecret = req.headers.get("x-internal-secret");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const cronToken = "snap-ignite-digest-cron-2026";
-    
-    if (!internalSecret || (internalSecret !== serviceRoleKey && internalSecret !== cronToken)) {
-      // Also allow admin JWT as fallback
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader?.startsWith("Bearer ")) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
-      }
-      
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const authClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const token = authHeader.replace("Bearer ", "");
-      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims?.sub) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
-      }
-      
-      const adminClient = createClient(supabaseUrl, serviceRoleKey);
-      const { data: roleData } = await adminClient
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", claimsData.claims.sub)
-        .eq("role", "admin")
-        .maybeSingle();
-      
-      if (!roleData) {
-        return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } });
-      }
-    }
+  const denial = internalWorkerDenial(req, corsHeaders);
+  if (denial) return denial;
+  if (relaunchProviderHeld()) return relaunchProviderHeldResponse("digest", corsHeaders);
 
+  try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse optional force flag from body
-    let forceRun = false;
-    try {
-      const body = await req.clone().json();
-      forceRun = body?.force === true;
-    } catch { /* no body or not JSON */ }
-
-    // Guard: only send on Mondays (day 1) unless explicitly forced
+    // Scheduling and durable send identity cannot be bypassed by request flags.
     const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
     const dayOfWeek = nowET.getDay(); // 0=Sun, 1=Mon
-    if (dayOfWeek !== 1 && !forceRun) {
+    if (dayOfWeek !== 1) {
       console.log(`Skipping digest: today is day ${dayOfWeek} (not Monday). Pass {"force": true} to override.`);
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: "Not Monday. Pass {\"force\": true} to override." }),
@@ -529,7 +493,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("email_type", "weekly_digest")
       .gte("sent_at", todayStart.toISOString());
 
-    if ((alreadySentToday || 0) > 0 && !forceRun) {
+    if ((alreadySentToday || 0) > 0) {
       console.log(`Digest already sent today (${alreadySentToday} records). Skipping.`);
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: `Already sent today (${alreadySentToday} records)` }),

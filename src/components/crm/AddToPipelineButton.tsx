@@ -26,7 +26,7 @@ export function AddToPipelineButton({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (existing) {
+    if (existing && !existing.archived_at) {
       navigate(`/crm/leads/${existing.id}`);
       return;
     }
@@ -56,7 +56,7 @@ export function AddToPipelineButton({
       ) : (
         <Briefcase className="h-4 w-4" />
       )}
-      {existing ? "In Pipeline" : label}
+      {existing?.archived_at ? "Restore to Pipeline" : existing ? "Open Pipeline Lead" : label}
     </Button>
   );
 }

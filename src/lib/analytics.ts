@@ -1,56 +1,62 @@
-/**
- * GA4 Analytics utility — thin wrapper around gtag.
- * Measurement ID: G-W5JGFESNT0
- */
+import { publicPageContext, sanitizePublicEvent } from './analyticsPolicy.ts';
+
+const MEASUREMENT_ID = 'G-W5JGFESNT0';
+/** Must stay unset/false until stream enhanced measurement and privacy/consent controls are verified. */
+const ENABLED = import.meta.env?.VITE_ENABLE_PUBLIC_ANALYTICS === 'true';
+let initialized = false;
 
 declare global {
   interface Window {
     gtag?: (...args: unknown[]) => void;
+    dataLayer?: unknown[];
+    'ga-disable-G-W5JGFESNT0'?: boolean;
   }
 }
 
-function gtag(...args: unknown[]) {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag(...args);
+function allowPublicCollection(path: string) {
+  if (typeof window === 'undefined') return false;
+  const context = publicPageContext(path);
+  window['ga-disable-G-W5JGFESNT0'] = !ENABLED || !context;
+  if (!ENABLED || !context) return false;
+  if (!initialized) {
+    // Do not inject or contact Google at all with the default closed release gate.
+    window.dataLayer = window.dataLayer || [];
+    // Match Google's documented gtag command queue format.
+    // eslint-disable-next-line prefer-rest-params
+    window.gtag = function () { window.dataLayer?.push(arguments); };
+    window.gtag('js', new Date());
+    window.gtag('config', MEASUREMENT_ID, {
+      send_page_view: false,
+      allow_google_signals: false,
+      allow_ad_personalization_signals: false,
+      ...context,
+    });
+    const tag = document.createElement('script');
+    tag.async = true;
+    tag.src = `https://www.googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}`;
+    document.head.appendChild(tag);
+    initialized = true;
   }
+  return true;
 }
 
-/** Send a page_view for SPA route changes */
-export function trackPageView(path: string, title?: string) {
-  gtag('event', 'page_view', {
-    page_path: path,
-    page_title: title || document.title,
-  });
+/** No document.title, query string, hash, or external referrer is collected. */
+export function trackPageView(path: string) {
+  if (!allowPublicCollection(path)) return;
+  const event = sanitizePublicEvent('page_view', path);
+  if (event) window.gtag?.('event', event.name, event.params);
 }
 
-/** Fire a custom GA4 event */
-export function trackEvent(
-  eventName: string,
-  params?: Record<string, string | number | boolean | undefined>
-) {
-  gtag('event', eventName, params);
+/** Only fixed public events with enum values are admitted; other fields are dropped. */
+export function trackEvent(eventName: string, params?: Record<string, unknown>) {
+  if (typeof window === 'undefined') return;
+  const path = window.location.pathname;
+  if (!allowPublicCollection(path)) return;
+  const event = sanitizePublicEvent(eventName, path, params);
+  if (event) window.gtag?.('event', event.name, event.params);
 }
 
-// ── Pre-defined event helpers ──────────────────────────────
-
-// Core funnel
+// A checkout intent is not a paid invoice. Client-side revenue/success tracking is excluded.
 export const analytics = {
-  signupPageView: () => trackEvent('signup_page_view'),
-  signupStarted: () => trackEvent('signup_started'),
-  signupSubmitted: () => trackEvent('signup_submitted'),
-  signupSuccess: () => trackEvent('signup_success'),
-  signupFailed: (reason?: string) => trackEvent('signup_failed', { reason }),
-  loginSuccess: () => trackEvent('login_success'),
-  paymentStarted: (plan?: string) => trackEvent('payment_started', { plan }),
-  paymentSuccess: (plan?: string) => trackEvent('payment_success', { plan }),
-  paymentFailed: (reason?: string) => trackEvent('payment_failed', { reason }),
-
-  // Product usage
-  propertySearch: (query?: string) => trackEvent('property_search', { query }),
-  filterUsed: (filterName: string, value?: string) =>
-    trackEvent('filter_used', { filter_name: filterName, filter_value: value }),
-  propertyViewed: (propertyId: string) =>
-    trackEvent('property_viewed', { property_id: propertyId }),
-  snapScoreClicked: (propertyId: string, score?: number) =>
-    trackEvent('snap_score_clicked', { property_id: propertyId, score }),
+  paymentStarted: (plan?: string) => trackEvent('checkout_started', { plan }),
 };

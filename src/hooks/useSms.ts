@@ -1,3 +1,5 @@
+import { useAuth } from "@/components/auth/AuthProvider";
+import { assertCrmIdentity } from "@/services/leads";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,15 +34,19 @@ export interface SmsMessage {
 }
 
 export function useSmsThreads() {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ["sms_threads"],
+    queryKey: ["sms_threads", user?.id],
+    enabled: !!user,
     queryFn: async () => {
+      await assertCrmIdentity(user!.id);
       const { data, error } = await supabase
         .from("sms_threads" as any)
         .select("*")
         .order("updated_at", { ascending: false })
         .limit(200);
       if (error) throw error;
+      await assertCrmIdentity(user!.id);
       return (data ?? []) as unknown as SmsThread[];
     },
     refetchInterval: 30_000,
@@ -48,30 +54,32 @@ export function useSmsThreads() {
 }
 
 export function useSmsMessages(threadId: string | null) {
+  const { user } = useAuth();
   const qc = useQueryClient();
 
   useEffect(() => {
-    if (!threadId) return;
+    if (!threadId || !user) return;
     const channel = supabase
       .channel(`sms_messages:${threadId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "sms_messages", filter: `thread_id=eq.${threadId}` },
         () => {
-          qc.invalidateQueries({ queryKey: ["sms_messages", threadId] });
-          qc.invalidateQueries({ queryKey: ["sms_threads"] });
+          qc.invalidateQueries({ queryKey: ["sms_messages", user?.id, threadId] });
+          qc.invalidateQueries({ queryKey: ["sms_threads", user?.id] });
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [threadId, qc]);
+  }, [threadId, qc, user?.id]);
 
   return useQuery({
-    queryKey: ["sms_messages", threadId],
-    enabled: !!threadId,
+    queryKey: ["sms_messages", user?.id, threadId],
+    enabled: !!user && !!threadId,
     queryFn: async () => {
+      await assertCrmIdentity(user!.id);
       const { data, error } = await supabase
         .from("sms_messages" as any)
         .select("*")
@@ -79,6 +87,7 @@ export function useSmsMessages(threadId: string | null) {
         .order("sent_at", { ascending: true })
         .limit(500);
       if (error) throw error;
+      await assertCrmIdentity(user!.id);
       return (data ?? []) as unknown as SmsMessage[];
     },
   });
@@ -127,30 +136,37 @@ export interface DripStep {
 }
 
 export function useDripSequences() {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ["drip_sequences"],
+    queryKey: ["drip_sequences", user?.id],
+    enabled: !!user,
     queryFn: async () => {
+      await assertCrmIdentity(user!.id);
       const { data, error } = await supabase
         .from("drip_sequences" as any)
         .select("*")
         .order("updated_at", { ascending: false });
       if (error) throw error;
+      await assertCrmIdentity(user!.id);
       return (data ?? []) as unknown as DripSequence[];
     },
   });
 }
 
 export function useDripSteps(sequenceId: string | null) {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ["drip_steps", sequenceId],
-    enabled: !!sequenceId,
+    queryKey: ["drip_steps", user?.id, sequenceId],
+    enabled: !!user && !!sequenceId,
     queryFn: async () => {
+      await assertCrmIdentity(user!.id);
       const { data, error } = await supabase
         .from("drip_steps" as any)
         .select("*")
         .eq("sequence_id", sequenceId!)
         .order("step_order", { ascending: true });
       if (error) throw error;
+      await assertCrmIdentity(user!.id);
       return (data ?? []) as unknown as DripStep[];
     },
   });

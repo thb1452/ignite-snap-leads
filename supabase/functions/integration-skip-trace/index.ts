@@ -1,3 +1,4 @@
+import { relaunchProviderHeld, relaunchProviderHeldResponse } from "../_shared/relaunchProviderHold.ts";
 // integration-skip-trace
 // Skip-trace a property's owner via the user's BYOA provider (BatchData / ReiSift).
 // UPSERTs into owners on (property_id, source).
@@ -30,6 +31,8 @@ interface SkipTraceRequest {
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  if (relaunchProviderHeld()) return relaunchProviderHeldResponse("enrichment", corsHeaders);
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
 
   try {
@@ -188,7 +191,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // 9. UPSERT into owners on (property_id, source) — overwrite on re-run
+    // 9. UPSERT into owners on (org_id, property_id, source) — overwrite on re-run
     const { error: upsertErr } = await admin
       .from("owners")
       .upsert(
@@ -205,7 +208,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           created_by: userId,
           updated_at: new Date().toISOString(),
         } as any,
-        { onConflict: "property_id,source" }
+        { onConflict: "org_id,property_id,source" }
       );
 
     if (upsertErr) {

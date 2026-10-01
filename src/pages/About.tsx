@@ -6,7 +6,7 @@ import SEOHead from "@/components/SEOHead";
 export default function About() {
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead title="About Snap Ignite | Municipal Enforcement Intelligence" description="Snap Ignite is a municipal enforcement intelligence platform built for serious real estate operators. We track code violations across 3,800+ cities, sourced directly from municipal agencies, updated weekly." canonical="https://snapignite.com/about" />
+      <SEOHead title="About Snap Ignite | Municipal Enforcement Intelligence" description="Snap Ignite helps real estate operators research municipal enforcement records. Customer access is under review for the relaunch." canonical="https://snapignite.com/about" />
       <div className="max-w-3xl mx-auto px-6 py-16">
         <Link to="/">
           <Button variant="ghost" className="mb-8 -ml-2">
@@ -20,24 +20,24 @@ export default function About() {
 
         <div className="prose prose-slate max-w-none space-y-8">
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Snap Ignite is a municipal enforcement intelligence platform built for serious real estate operators. We track code violations, water shutoffs, and escalating fines across 3,800+ cities nationwide — sourced directly from municipal agencies, updated weekly.
+            Snap Ignite brings municipal enforcement records and a private research workflow together. We are verifying source quality, customer access, and delivery before the relaunch.
           </p>
 
           <p className="text-lg text-muted-foreground leading-relaxed">
-            We built Snap because the best opportunities in real estate aren't found in stale databases. They're found in enforcement pressure that most platforms completely miss. Our team monitors government enforcement records so operators can act on signals before they resolve or hit the market.
+            We built Snap to make fragmented municipal records easier to investigate. An enforcement event provides context; it does not establish an owner’s intent, finances, or willingness to sell.
           </p>
 
           <div className="border-t pt-8 mt-8">
             <h2 className="text-2xl font-semibold text-foreground mb-4">Our Approach</h2>
             <p className="text-muted-foreground leading-relaxed">
-              We don't scrape. We don't aggregate third-party feeds. Every data point in Snap Ignite comes directly from the municipal agencies and county jurisdictions that generate it. That means fewer false positives, more accurate enforcement signals, and intelligence you can actually act on.
+              We review records from municipal sources, verify their property matches, and distinguish event dates from receipt dates. Source availability and update timing vary by jurisdiction. No customer market is currently approved for release.
             </p>
           </div>
 
           <div className="border-t pt-8">
             <h2 className="text-2xl font-semibold text-foreground mb-4">What We're Not</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Snap Ignite is not a leads tool. It's not a list service. It's not a skip tracing platform. It's an intelligence layer — one that sits alongside your existing workflow and shows you where enforcement pressure is building before anyone else knows to look.
+              Snap provides research context. It does not guarantee seller motivation, exclusivity, a deal, or an investment return. Customer record access, unlocks, exports, and new purchases remain paused during verification.
             </p>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { internalWorkerDenial } from "../_shared/internalWorkerAuth.ts";
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -21,6 +22,9 @@ const cors = {
  */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+
+  const denial = internalWorkerDenial(req, cors);
+  if (denial) return denial;
 
   const sb = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { persistSession: false },

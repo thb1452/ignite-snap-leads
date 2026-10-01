@@ -1,0 +1,53 @@
+{
+  "kind": "ephemeral_local_supabase_http_integration",
+  "status": "PASS",
+  "synthetic_data_only": true,
+  "hosted_supabase_verified": false,
+  "real_payment_verified": false,
+  "production_writes": 0,
+  "checks": [
+    {
+      "name": "real signup and password sessions isolate workspaces despite forged metadata",
+      "result": "PASS"
+    },
+    {
+      "name": "PostgREST denies anonymous CRM and server-only billing RPC access",
+      "result": "PASS"
+    },
+    {
+      "name": "ordinary-property handoff honors visibility and unlocks through HTTP",
+      "result": "PASS"
+    },
+    {
+      "name": "private contacts and notes resist foreign-account reads and writes",
+      "result": "PASS"
+    },
+    {
+      "name": "HTTP outcome retry reconciles one receipt and rejects stale competing action",
+      "result": "PASS"
+    },
+    {
+      "name": "real token refresh retains only its own private workspace",
+      "result": "PASS"
+    },
+    {
+      "name": "service-only synthetic billing replay cannot release checkout or source data",
+      "result": "PASS"
+    },
+    {
+      "name": "local gateway preserves configured JWT checks and internal worker guard",
+      "result": "PASS"
+    },
+    {
+      "name": "real Auth ban blocks existing token at the database workspace fence",
+      "result": "PASS"
+    }
+  ],
+  "managed_auth_preserved": true,
+  "postgresql_version": "17.6",
+  "limits": [
+    "Selected application baseline; not a managed deployment clone",
+    "Synthetic property/unlock/source lineage fixtures",
+    "No browser, realtime, Storage, provider payment, delivery or restored-backup proof"
+  ]
+}

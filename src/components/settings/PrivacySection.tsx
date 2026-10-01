@@ -42,6 +42,7 @@ export function PrivacySection() {
             Authorization: `Bearer ${session.access_token}`,
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ confirmation: deleteConfirmation }),
         }
       );
 
@@ -105,6 +106,7 @@ export function PrivacySection() {
             Authorization: `Bearer ${session.access_token}`,
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ confirmation: deleteConfirmation }),
         }
       );
 
@@ -113,13 +115,15 @@ export function PrivacySection() {
         throw new Error(error.error || 'Failed to delete account');
       }
 
-      toast({
-        title: "Account Deleted",
-        description: "Your account and all data have been permanently deleted.",
-      });
-
-      // Sign out and redirect
-      await signOut();
+      const result = await response.json();
+      if (result.closure_requested) {
+        toast({ title: "Deletion request recorded", description: result.message });
+      } else if (result.success === true) {
+        toast({ title: "Account Deleted", description: "Your account deletion is confirmed." });
+        await signOut();
+      } else {
+        throw new Error("Account deletion is not confirmed. Contact support.");
+      }
     } catch (error: any) {
       console.error('Error deleting account:', error);
       toast({
@@ -182,23 +186,23 @@ export function PrivacySection() {
                 ) : (
                   <Trash2 className="h-4 w-4" />
                 )}
-                {isDeleting ? 'Deleting...' : 'Delete Account'}
+                {isDeleting ? 'Requesting...' : 'Request Account Deletion'}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle className="flex items-center gap-2 text-destructive">
                   <AlertTriangle className="h-5 w-5" />
-                  Delete Account Permanently
+                  Request Account Deletion
                 </AlertDialogTitle>
                 <AlertDialogDescription asChild>
                   <div className="space-y-3">
                     <p>
-                      <strong>This action cannot be undone.</strong> This will permanently delete your
-                      account and remove all your data from our servers.
+                      This requests account deletion and immediate cancellation of verified Snap subscriptions.
+                      We will retain your data until support completes the deletion review.
                     </p>
                     <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-sm">
-                      <p className="font-medium text-destructive mb-2">The following will be deleted:</p>
+                      <p className="font-medium text-destructive mb-2">Your deletion request covers:</p>
                       <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                         <li>Your profile and account settings</li>
                         <li>All saved lists and properties</li>
@@ -230,10 +234,10 @@ export function PrivacySection() {
                   {isDeleting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Deleting...
+                      Requesting...
                     </>
                   ) : (
-                    'Delete My Account'
+                    'Cancel Subscription and Request Deletion'
                   )}
                 </Button>
               </AlertDialogFooter>

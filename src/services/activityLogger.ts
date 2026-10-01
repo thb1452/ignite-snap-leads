@@ -4,6 +4,7 @@
  * so tracking never blocks or breaks the UI.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeActivity } from "@/lib/analyticsPolicy";
 
 type ActivityAction =
   | "page_view"
@@ -26,19 +27,19 @@ interface LogParams {
   pagePath?: string;
 }
 
-export async function logActivity({ action, metadata = {}, pagePath }: LogParams) {
+export async function logActivity({ action, pagePath }: LogParams) {
+  const safe = sanitizeActivity(action, pagePath ?? (typeof window !== "undefined" ? window.location.pathname : null));
+  if (!safe) return;
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return; // only track authenticated users
 
     // Fire-and-forget — don't await in calling code
-    await (supabase as any)
+    await supabase
       .from("user_activity_log")
       .insert({
         user_id: session.user.id,
-        action,
-        metadata,
-        page_path: pagePath ?? (typeof window !== "undefined" ? window.location.pathname : null),
+        ...safe,
       });
   } catch {
     // Silent fail — never break the app for tracking

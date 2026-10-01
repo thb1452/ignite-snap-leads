@@ -1,0 +1,144 @@
+{
+  "date": "2026-09-24",
+  "base_commit": "16c1397507026d1eb03bebec7c7aec08d45ec2ee",
+  "status": "local_candidate_verified_release_on_hold",
+  "checks": [
+    {
+      "command": "node --test tests/*.test.mjs tests/billing/*.test.mjs",
+      "passed": 93,
+      "failed": 0,
+      "includes": "Integrated execution of all three migrations, actual SQL/RLS/transactions, provider stubs, auth/cache, privacy, CRM and existing source-review tests"
+    },
+    {
+      "command": "node scripts/test-relaunch-security.mjs",
+      "passed": 184,
+      "failed": 0,
+      "limits": "Actual handlers with isolated Auth/DB/provider stubs; no sends"
+    },
+    {
+      "command": "node scripts/test-insight-containment.mjs",
+      "passed": 213,
+      "failed": 0
+    },
+    {
+      "command": "python -m unittest discover -s ops/city-response/tests -v",
+      "passed": 52,
+      "failed": 0
+    },
+    {
+      "command": "npx tsc --noEmit -p tsconfig.app.json",
+      "status": "passed"
+    },
+    {
+      "command": "npm run build",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    },
+    {
+      "command": "node --test tests/billing/reconciliation-review.test.mjs",
+      "passed": 6,
+      "failed": 0,
+      "includes": "Offline evidence classification/preflight safety; additional to the 93-test consolidated run"
+    },
+    {
+      "command": "GitHub Actions: Native PostgreSQL release stage",
+      "status": "passed",
+      "scenarios_passed": 7,
+      "node_results_passed": 8,
+      "postgresql": "17.6",
+      "distinct_backend_sessions": 3,
+      "blocking_observed_in_every_race": true,
+      "head_commit": "bbfd18be090983a78207532d668984823cc76abc",
+      "run_url": "https://github.com/thb1452/ignite-snap-leads/actions/runs/36047669169",
+      "artifact_sha256": "e49e3305baa6256c3e2579769e4e7df005edcd9a4cf258003147662f15dc1d4a",
+      "limits": "Synthetic schema fixture; no hosted Supabase Auth/PostgREST or provider delivery",
+      "latest_successful_rerun": {
+        "head_commit": "e234606486729e31612eeb646f1bfde79525c782",
+        "run_url": "https://github.com/thb1452/ignite-snap-leads/actions/runs/36054108477"
+      }
+    },
+    {
+      "check": "Independent original reconstruction and required sample/exception inspection",
+      "status": "passed_with_release_holds",
+      "reviewer": "Codex agent",
+      "human_review_claimed": false,
+      "evidence_location": "Private operator evidence; no original rows or account metadata included here",
+      "limits": "Archived observation and customer source/CRM acceptance remain open. Period interpretation resolved only for an exact, partial, dated snapshot; recurring refresh remains unverified."
+    },
+    {
+      "command": "GitHub Actions: Release local Supabase HTTP integration",
+      "status": "passed",
+      "scenarios_passed": 9,
+      "node_results_passed": 10,
+      "failed": 0,
+      "head_commit": "e234606486729e31612eeb646f1bfde79525c782",
+      "tested_merge_commit": "44ef1402373d381de01569779c5c02f5883c4678",
+      "run_url": "https://github.com/thb1452/ignite-snap-leads/actions/runs/36054108463",
+      "artifact_sha256": "77f1f3bc3f1f6f4b2e0e4c2aa714001d478f84f334b81c664d5b3e4762326296",
+      "limits": "Ephemeral Docker with real Auth, PostgREST and gateway; synthetic app/source baseline, no hosted deployment or property delivery"
+    },
+    {
+      "command": "node --test tests/billing/provider-boundaries.test.mjs tests/billing/atomic-fulfillment.test.mjs",
+      "passed": 32,
+      "failed": 0,
+      "includes": "Canonical paid upgrade invoiceitem proof plus negative ownership, price, amount, period and payment-state cases; paid term and wallet allowance remain unchanged",
+      "limits": "Targeted regressions; current real-provider status is recorded separately in stripe-sandbox-verification-20260924.json"
+    },
+    {
+      "command": "node scripts/test-stripe-sandbox.mjs",
+      "status": "passed",
+      "checks_passed": 13,
+      "failed": 0,
+      "authentic_signed_deliveries_observed": 26,
+      "sdk_version": "14.21.0",
+      "api_version": "2023-10-16",
+      "cli_version": "1.51.1",
+      "sandbox_isolation": "Exact approved test account; complete v1 and v2 destination preflight with zero configured endpoints before writes",
+      "receipt": "stripe-sandbox-verification-20260924.json",
+      "limits": "Real Stripe events and candidate handler/SQL through isolated PGlite adapter; no hosted deployment, browser checkout or useful property-delivery proof"
+    }
+  ],
+  "not_verified": [
+    "Hosted staging migration and native advisors",
+    "Authenticated two-account/browser, desktop/mobile and keyboard journeys",
+    "Signed Stripe sandbox payment-to-delivery",
+    "Full archive byte verification, full-period fulfillment, recurring cadence and customer source acceptance",
+    "Provider/support inbox delivery",
+    "Live buyer pilot and return use"
+  ],
+  "production_changed": false,
+  "lovable_generation_prompts_sent": 0,
+  "new_staging_resources_provisioned": false,
+  "browser": {
+    "cloud_accounts_verified": [
+      "Lovable",
+      "Vercel",
+      "Supabase",
+      "Stripe"
+    ],
+    "public_checks": [
+      "Landing renders with explicit access/purchase hold and fictional example label",
+      "FAQ opens by click and closes with Enter",
+      "View Availability navigates to held coverage page"
+    ],
+    "not_verified": [
+      "Signed-in customer behavior",
+      "Mobile layout",
+      "Full keyboard acceptance",
+      "Isolated hosted backend"
+    ],
+    "backend_warning": "Preview source defaults to existing production Supabase when dedicated environment variables are absent; it is not an isolated staging environment.",
+    "public_preview_reference": "PR 193"
+  },
+  "private_evidence_included": false,
+  "public_followup_publication": {
+    "status": "published_to_existing_pull_request",
+    "commit": "68b64bc2701487120ce00aeebf8d0126acf76a5c",
+    "reviewed_tree": "a0090ba95a032b1ec2c22a6792d8812469fdca36",
+    "private_evidence_excluded": true
+  },
+  "lovable_staging_spending_authorized": false
+}

@@ -1,0 +1,33 @@
+name: Receipt case validation
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  receipt-validation:
+    # Keep this bounded job on standard, free public-repository runners.
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Validate isolated receipt, account and CRM behavior
+        # All HTTP harness calls use injected synthetic responses. No hosted
+        # credentials, source records, browser or provider calls are required.
+        run: node --test tests/receipt-case*.test.mjs tests/auth-boundary.test.mjs tests/crm-workflow.test.mjs tests/crm-outcome-recovery.test.mjs
+      - name: Typecheck the application
+        run: npx --no-install tsc --noEmit -p tsconfig.app.json
+      - name: Build with explicit synthetic preview configuration
+        env:
+          VERCEL_ENV: preview
+          VITE_SUPABASE_URL: https://aaaaaaaaaaaaaaaaaaaa.supabase.co
+          VITE_SUPABASE_PROJECT_ID: aaaaaaaaaaaaaaaaaaaa
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_synthetic_ci_only_no_remote_access
+        run: npm run build

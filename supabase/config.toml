@@ -155,3 +155,5 @@ verify_jwt = false
 [functions.seed_mcp_client]
 verify_jwt = false
 
+[functions.original-intake]
+verify_jwt = true

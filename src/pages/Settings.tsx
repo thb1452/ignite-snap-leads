@@ -1,133 +1,20 @@
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/externalClient';
 import { useAuth } from '@/hooks/use-auth';
-import { useToast } from '@/hooks/use-toast';
 import { PlanUsageSection } from '@/components/settings/PlanUsageSection';
 import { NotificationsSection } from '@/components/settings/NotificationsSection';
 import { AccountDetailsSection } from '@/components/settings/AccountDetailsSection';
 import { PrivacySection } from '@/components/settings/PrivacySection';
 import { HelpSection } from '@/components/settings/HelpSection';
 import { MarketRequestSection } from '@/components/settings/MarketRequestSection';
-import { clearPendingStripeCheckout, getPendingStripeCheckout } from '@/utils/pendingStripeCheckout';
+import { CheckoutReturnNotice } from '@/components/settings/CheckoutReturnNotice';
 
 export function Settings() {
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const planSectionRef = useRef<HTMLDivElement>(null);
-  // Timers are kept in a ref so setSearchParams re-triggering this effect
-  // doesn't cancel them via the effect cleanup.
-  const creditPollTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  // Clean up any outstanding poll timers when the component unmounts.
-  useEffect(() => () => creditPollTimers.current.forEach(clearTimeout), []);
-
-  // Handle ?credits_added=N param set by Stripe success_url redirect.
-  // Uses hard refetchQueries (not invalidate) and schedules retries to catch
-  // webhook processing delay. Timers live in a ref so they survive the
-  // setSearchParams re-render without being cancelled.
-  useEffect(() => {
-    const creditsAdded = searchParams.get('credits_added');
-    if (!creditsAdded) return;
-
-    const refetch = () =>
-      void queryClient.refetchQueries({ queryKey: ['credits', 'balance'] });
-
-    // Cancel any timers from a previous credits_added run.
-    creditPollTimers.current.forEach(clearTimeout);
-
-    // Call verify-bulk-credits to ensure credits are fulfilled even if webhook missed
-    supabase.functions.invoke('verify-bulk-credits', { body: {} })
-      .then(() => refetch())
-      .catch((e) => console.error('[Settings] verify-bulk-credits error:', e));
-
-    // Immediate fetch + retries at 2 s / 5 s / 10 s to catch webhook delay.
-    refetch();
-    creditPollTimers.current = [
-      setTimeout(refetch, 2000),
-      setTimeout(refetch, 5000),
-      setTimeout(refetch, 10000),
-    ];
-
-    toast({
-      title: `✅ ${Number(creditsAdded).toLocaleString()} credits added to your account`,
-    });
-
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete('credits_added');
-    setSearchParams(newParams, { replace: true });
-    // No cleanup return here — timers are managed by the ref + unmount effect.
-  }, [searchParams, setSearchParams, queryClient, toast]);
-
-  // Sync subscription/bulk credit state when returning from Stripe checkout
-  useEffect(() => {
-    const handleFocus = async () => {
-      if (!user?.id) return;
-      const pending = getPendingStripeCheckout();
-      if (!pending) return;
-
-      let synced = false;
-
-      if (pending.type === "subscription") {
-        try {
-          const { data } = await supabase.functions.invoke("verify-subscription", { method: "POST", body: {} });
-          synced = !!data?.synced;
-        } catch (e) {
-          console.error("[Settings] verify-subscription error:", e);
-        }
-      } else {
-        // Bulk credits — call verify to ensure fulfillment
-        try {
-          const { data } = await supabase.functions.invoke("verify-bulk-credits", { body: {} });
-          synced = !!data?.fulfilled;
-        } catch (e) {
-          console.error("[Settings] verify-bulk-credits error:", e);
-        }
-      }
-
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ["subscription", user.id] }),
-        queryClient.refetchQueries({ queryKey: ["subscription-usage", user.id] }),
-        queryClient.refetchQueries({ queryKey: ["credits", "balance"] }),
-        queryClient.refetchQueries({ queryKey: ["user", "credits"] }),
-        queryClient.refetchQueries({ queryKey: ["free-unlocks"] }),
-      ]);
-
-      if (pending.type === "subscription") {
-        const currentSubscription = queryClient.getQueryData<{ plan_name?: string }>(["subscription", user.id]);
-        if (pending.expectedTier) {
-          synced = currentSubscription?.plan_name === pending.expectedTier;
-        } else {
-          synced = synced || !!currentSubscription?.plan_name;
-        }
-      } else {
-        // For bulk credits, check that balance increased by at least the expected amount
-        const currentBalance = Number(queryClient.getQueryData<number>(["credits", "balance"]) ?? 0);
-        synced = pending.expectedBalance != null
-          ? currentBalance >= pending.expectedBalance
-          : currentBalance > 0;
-      }
-
-      if (!synced) return;
-
-      clearPendingStripeCheckout();
-
-      toast({
-        title: pending.type === "subscription"
-          ? "Subscription activated!"
-          : `✅ ${(pending.expectedBalance ?? 0).toLocaleString()} credits added to your account`,
-        description: pending.type === "subscription" ? "Your plan is now active." : undefined,
-      });
-    };
-
-    window.addEventListener("focus", handleFocus);
-    handleFocus();
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [user?.id, queryClient, toast]);
-
   useEffect(() => {
     if (searchParams.get('tab') === 'subscription' && planSectionRef.current) {
       planSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -167,6 +54,8 @@ export function Settings() {
           Manage your account, preferences, and subscription
         </p>
       </div>
+
+      <CheckoutReturnNotice userId={user?.id ?? null} search={searchParams.toString()} />
 
       <div className="space-y-6">
         <div ref={planSectionRef}>

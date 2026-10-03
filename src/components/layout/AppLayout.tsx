@@ -14,6 +14,7 @@ import {
   Briefcase,
   Users,
   Shield,
+  Activity,
   PanelLeft,
   Menu,
   X,
@@ -138,6 +139,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   if (isAdmin) {
     navItems.push({ name: "Admin", path: "/admin-console", icon: Shield });
+    navItems.push({ name: "Operations", path: "/admin/monitoring", icon: Activity });
   }
 
   const sidebarWidth = collapsed ? "w-[60px]" : "w-[220px]";

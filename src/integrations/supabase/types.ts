@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
@@ -5820,6 +5820,10 @@ export type Database = {
           opportunity_class: string
           property_count: number
         }[]
+      }
+      fn_owner_buffalo_source_review_v1: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: Json
       }
       fn_owner_source_acceptance_detail_v1: {
         Args: { p_acceptance_id: string; p_preparation: string }

@@ -34,3 +34,9 @@ supabase/.temp/
 
 # Local browser test artifacts
 test-results/
+
+# Private local investor pilot: never commit source records, drafts, or runtime logs.
+ops/buffalo-local-brief-pilot/private/
+ops/buffalo-local-brief-pilot/**/__pycache__/
+ops/buffalo-local-brief-pilot/__pycache__/
+ops/buffalo-pilot/runtime/__pycache__/

@@ -1,0 +1,85 @@
+{
+  "version": "buffalo-first-pilot-proof-v1",
+  "date": "2026-10-20",
+  "target": "Snap customer database configured as ojyxblegxpdgaqiscxpz",
+  "state": "imported_private_owner_review",
+  "receipt": {
+    "address_count": 307,
+    "case_count": 322,
+    "created_at": "2026-10-20T16:48:40.185243+00:00",
+    "event_count": 984,
+    "held_count": 4,
+    "manifest_sha256": "e8a160bb048efb984f54008248ceba5c9cc6fa83f564483743038e00428a2e68",
+    "preparation_sha256": "3b183a7897deb2e919f364a6131d501e6bf67ce010c6ea097a1e31c3f0a8499b",
+    "records_sha256": "2b86ea206f5288e9fae9ec6b00b66a19bfaee731c2852c6fdbcf921333c64a71",
+    "status": "imported",
+    "version": "buffalo-pilot-import-receipt-v1"
+  },
+  "readback": {
+    "cases": 322,
+    "complete_addresses": 307,
+    "earliest_violation": "2026-09-21",
+    "government_ids": 984,
+    "latest_violation": "2026-10-05",
+    "saved_records_sha256": "2b86ea206f5288e9fae9ec6b00b66a19bfaee731c2852c6fdbcf921333c64a71",
+    "saved_rows": 984,
+    "source_parcels": 376
+  },
+  "transaction_tests": {
+    "address_count": 307,
+    "api_roles_cannot_import": true,
+    "case_count": 322,
+    "checks_passed": true,
+    "event_count": 984,
+    "evidence_immutable": true,
+    "held_excluded": 4,
+    "ledger_sealed": true,
+    "owner_read_allowed": true,
+    "replay_added": 0,
+    "reviewer_fk_cascades": true,
+    "revocation_passed": true,
+    "source_parcel_count": 376,
+    "unassigned_read_denied": true
+  },
+  "legacy_inventory": {
+    "properties": 449227,
+    "violations": 611531,
+    "changed_by_import": false
+  },
+  "original_payload_bytes": 2912235,
+  "duplicate_check": {
+    "existing_operations_inventory_matches": 0,
+    "existing_customer_inventory_matches": 0,
+    "scope": "New York case and conservative address keys; before import"
+  },
+  "frontend": {
+    "contract_tests": 12,
+    "cleaner_tests": 15,
+    "synthetic_browser_checks": 7,
+    "typescript": "passed",
+    "targeted_lint": "passed",
+    "production_build": "passed",
+    "real_prepared_records_checked": 984,
+    "actual_rpc_boundary": "passed_first_and_last_pages",
+    "deployment": "pending",
+    "signed_in_owner_browser_check": "not_completed_no_session"
+  },
+  "customer_leads_published": false,
+  "other_city_batches_processed": false,
+  "hardening": {
+    "deployed": true,
+    "initial_import_with_seal_test": "passed_in_isolated_rolled_back_schema",
+    "forward_migration_test": "passed_in_rollback",
+    "saved_ledger_test": "passed",
+    "review_findings_addressed": [
+      "Account deletion cascades only the review assignment",
+      "Additional inserts into the populated ledger are rejected"
+    ]
+  },
+  "anonymous_api_check": {
+    "http_status": 401,
+    "code": "42501",
+    "result": "read_denied"
+  },
+  "transport_cleanup": "completed_original_payload_retained_in_batch"
+}

@@ -1,16 +1,9 @@
-# Read-only data audit — result: LIVE SELECT UNAVAILABLE
+# Buffalo first-batch repair — October 20, 2026
 
-Attempted 2026-10-01 against backend ojyxblegxpdgaqiscxpz. Nothing was edited, migrated, deployed, or invoked.
+The configured customer database is responding again. The former billing pause is no longer the observed blocker. The application's independent general upload hold remains in place.
 
-## Exact error
-Built-in read-only SELECT (`select now(), current_database()`):
-"The project's database connection pooler is unavailable — the Supabase project is likely paused or still waking up." (SUPABASE_POOLER_UNAVAILABLE; session metadata also failed: status 544, connection timeout)
+984 cleaned residential Buffalo source violations have been imported into a new private, immutable source ledger. Counts: 322 agency cases, 307 complete addresses, 376 source parcel IDs; four possible duplicate rows excluded. Actual saved hashes and identity counts reconcile with the retained preparation. Exact replay adds zero records. SQL rollback tests passed for owner access, unassigned access, revocation, immutability and API role restrictions.
 
-## Result
-```json
-{"backend":"ojyxblegxpdgaqiscxpz","query_timestamp":null,"status":"UNAVAILABLE","groups":null,"upload_jobs":null,"source_linkage":null}
-```
-No counts are inferred; no zeros reported. Stopped as instructed.
+A dedicated authenticated Buffalo panel is being added to /owner/source-review. Existing Syracuse and Madison Heights paths remain unchanged. This is private owner review, not customer lead publication. General customer properties/violations were unchanged by this import. No other downloaded city batch is included.
 
-## Next step (needs approval, not done)
-Check backend status and resume if paused, then rerun the same grouped queries unchanged.
+See ops/buffalo-pilot/README.md and proof-20261020.json for scope, implementation and verification limitations. Preserve global ingestion and source/account controls.

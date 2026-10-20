@@ -48,7 +48,7 @@ CREATE TABLE snap_relaunch.buffalo_pilot_events_v1 (
 );
 
 CREATE TABLE snap_relaunch.buffalo_pilot_review_access_v1 (
-  review_user_id uuid NOT NULL REFERENCES auth.users(id),
+  review_user_id uuid NOT NULL CONSTRAINT buffalo_pilot_review_access_user_fk_v1 REFERENCES auth.users(id) ON DELETE CASCADE,
   preparation_sha256 text NOT NULL REFERENCES snap_relaunch.buffalo_pilot_batches_v1(preparation_sha256),
   enabled boolean NOT NULL DEFAULT true,
   granted_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
@@ -85,6 +85,52 @@ FOR EACH ROW EXECUTE FUNCTION snap_relaunch.reject_buffalo_pilot_mutation_v1();
 CREATE TRIGGER buffalo_pilot_events_no_truncate_v1
 BEFORE TRUNCATE ON snap_relaunch.buffalo_pilot_events_v1
 FOR EACH STATEMENT EXECUTE FUNCTION snap_relaunch.reject_buffalo_pilot_mutation_v1();
+
+-- The event ledger accepts exactly one complete reviewed INSERT statement.
+-- No later direct SQL insert may add a 985th row or displace a paginated record.
+CREATE FUNCTION snap_relaunch.seal_buffalo_pilot_events_v1()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER
+SET search_path = pg_catalog SET row_security = on
+AS $function$
+DECLARE v_count bigint; v_digest text;
+BEGIN
+  IF TG_OP <> 'INSERT' OR TG_LEVEL <> 'STATEMENT'
+     OR TG_TABLE_SCHEMA <> 'snap_relaunch' OR TG_TABLE_NAME <> 'buffalo_pilot_events_v1' THEN
+    RAISE EXCEPTION 'Invalid Buffalo ledger seal invocation' USING ERRCODE = '42501';
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('snap:buffalo:SRC_2c09ff0ee9f5da4d', 0));
+  IF TG_WHEN = 'BEFORE' THEN
+    IF EXISTS (SELECT 1 FROM snap_relaunch.buffalo_pilot_events_v1) THEN
+      RAISE EXCEPTION 'Buffalo pilot ledger is sealed; further records require a separately reviewed batch' USING ERRCODE = '42501';
+    END IF;
+    RETURN NULL;
+  ELSIF TG_WHEN <> 'AFTER' THEN
+    RAISE EXCEPTION 'Invalid Buffalo ledger seal timing' USING ERRCODE = '42501';
+  END IF;
+  SELECT count(*), encode(sha256(convert_to(string_agg(
+    concat_ws('|',source_id,agency_record_id,source_row_number::text,raw_content_sha256,cleaned_sha256),
+    E'\n' ORDER BY source_row_number),'UTF8')),'hex') INTO v_count, v_digest
+  FROM snap_relaunch.buffalo_pilot_events_v1;
+  IF v_count IS DISTINCT FROM 984
+     OR v_digest IS DISTINCT FROM '2b86ea206f5288e9fae9ec6b00b66a19bfaee731c2852c6fdbcf921333c64a71'
+     OR EXISTS (SELECT 1 FROM snap_relaunch.buffalo_pilot_events_v1 WHERE
+       raw_content_sha256 IS DISTINCT FROM encode(sha256(convert_to(raw_source_text,'UTF8')),'hex')
+       OR cleaned_sha256 IS DISTINCT FROM encode(sha256(convert_to(cleaned_text,'UTF8')),'hex')
+       OR raw_source IS DISTINCT FROM raw_source_text::jsonb
+       OR cleaned IS DISTINCT FROM cleaned_text::jsonb) THEN
+    RAISE EXCEPTION 'Buffalo ledger must contain exactly the complete reviewed 984-record batch' USING ERRCODE = '42501';
+  END IF;
+  RETURN NULL;
+END;
+$function$;
+REVOKE ALL ON FUNCTION snap_relaunch.seal_buffalo_pilot_events_v1() FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE TRIGGER buffalo_pilot_events_sealed_before_insert_v1
+BEFORE INSERT ON snap_relaunch.buffalo_pilot_events_v1
+FOR EACH STATEMENT EXECUTE FUNCTION snap_relaunch.seal_buffalo_pilot_events_v1();
+CREATE TRIGGER buffalo_pilot_events_sealed_after_insert_v1
+AFTER INSERT ON snap_relaunch.buffalo_pilot_events_v1
+FOR EACH STATEMENT EXECUTE FUNCTION snap_relaunch.seal_buffalo_pilot_events_v1();
 
 CREATE FUNCTION snap_relaunch.fn_import_buffalo_pilot_v1(p_payload_text text, p_payload_sha256 text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER

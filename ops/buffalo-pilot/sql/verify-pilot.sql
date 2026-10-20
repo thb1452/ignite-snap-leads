@@ -3,6 +3,8 @@
 -- database role simulations, not browser sessions or changes to auth.users.
 DO $checks$
 DECLARE r jsonb; n integer; actual_hash text; v_role text; v_table text;
+  v_raw jsonb; v_clean jsonb; v_raw_hash text; v_probe_preparation text;
+  v_tables text[] := ARRAY['buffalo_pilot_batches_v1','buffalo_pilot_events_v1','buffalo_pilot_review_access_v1'];
 BEGIN
   SELECT count(*) INTO n FROM snap_relaunch.buffalo_pilot_events_v1;
   IF n <> 984 THEN RAISE EXCEPTION 'Wrong saved row count'; END IF;
@@ -42,6 +44,38 @@ BEGIN
     UPDATE snap_relaunch.buffalo_pilot_events_v1 SET agency_record_id=agency_record_id WHERE source_row_number=(SELECT min(source_row_number) FROM snap_relaunch.buffalo_pilot_events_v1);
     RAISE EXCEPTION 'Immutable evidence was updateable';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- A new identity with internally coherent raw/cleaned evidence would satisfy
+  -- the original row constraints. The statement seal must still reject it.
+  SELECT raw_source || jsonb_build_object('uniquekey','999999999'),
+    cleaned || jsonb_build_object('agency_record_id','999999999','source_row_number','1'), preparation_sha256
+    INTO v_raw, v_clean, v_probe_preparation
+    FROM snap_relaunch.buffalo_pilot_events_v1 ORDER BY source_row_number LIMIT 1;
+  v_raw_hash := encode(sha256(convert_to(v_raw::text,'UTF8')),'hex');
+  v_clean := v_clean || jsonb_build_object('source_content_hash',v_raw_hash);
+  BEGIN
+    INSERT INTO snap_relaunch.buffalo_pilot_events_v1 (
+      source_id,agency_record_id,preparation_sha256,source_row_number,raw_content_sha256,cleaned_sha256,
+      raw_source_text,cleaned_text,raw_source,cleaned)
+    VALUES ('SRC_2c09ff0ee9f5da4d','999999999',v_probe_preparation,1,v_raw_hash,
+      encode(sha256(convert_to(v_clean::text,'UTF8')),'hex'),v_raw::text,v_clean::text,v_raw,v_clean);
+    RAISE EXCEPTION 'Sealed Buffalo ledger accepted an additional source record';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  IF (SELECT count(*) FROM snap_relaunch.buffalo_pilot_events_v1) IS DISTINCT FROM n
+     OR EXISTS (SELECT 1 FROM snap_relaunch.buffalo_pilot_events_v1 WHERE agency_record_id = '999999999') THEN
+    RAISE EXCEPTION 'Rejected extra source record changed the sealed ledger';
+  END IF;
+  IF (SELECT count(*) FROM pg_catalog.pg_constraint AS c
+      JOIN pg_catalog.pg_attribute AS child ON child.attrelid = c.conrelid AND child.attname = 'review_user_id' AND NOT child.attisdropped
+      JOIN pg_catalog.pg_attribute AS parent ON parent.attrelid = c.confrelid AND parent.attname = 'id' AND NOT parent.attisdropped
+      WHERE c.contype = 'f' AND c.conrelid = 'snap_relaunch.buffalo_pilot_review_access_v1'::regclass
+        AND c.confrelid = 'auth.users'::regclass AND c.conkey = ARRAY[child.attnum]
+        AND c.confkey = ARRAY[parent.attnum] AND c.confdeltype = 'c') IS DISTINCT FROM 1::bigint THEN
+    RAISE EXCEPTION 'Reviewer-user FK must cascade access removal on account deletion';
+  END IF;
+  -- Transport is deliberately removable after import; inspect it only if it remains.
+  IF to_regclass('snap_relaunch.buffalo_pilot_transfer_chunks_v1') IS NOT NULL THEN
+    v_tables := array_append(v_tables,'buffalo_pilot_transfer_chunks_v1');
+  END IF;
   IF has_function_privilege('anon','public.fn_owner_buffalo_source_review_v1(integer,integer)','EXECUTE') IS DISTINCT FROM false
      OR has_function_privilege('service_role','public.fn_owner_buffalo_source_review_v1(integer,integer)','EXECUTE') IS DISTINCT FROM false
      OR has_function_privilege('authenticated','public.fn_owner_buffalo_source_review_v1(integer,integer)','EXECUTE') IS DISTINCT FROM true THEN
@@ -51,13 +85,16 @@ BEGIN
     IF has_function_privilege(v_role,'snap_relaunch.fn_import_buffalo_pilot_v1(text,text)','EXECUTE') IS DISTINCT FROM false THEN
       RAISE EXCEPTION 'API role % can execute the private importer', v_role;
     END IF;
-    FOREACH v_table IN ARRAY ARRAY['buffalo_pilot_batches_v1','buffalo_pilot_events_v1','buffalo_pilot_review_access_v1','buffalo_pilot_transfer_chunks_v1'] LOOP
+    IF has_function_privilege(v_role,'snap_relaunch.seal_buffalo_pilot_events_v1()','EXECUTE') IS DISTINCT FROM false THEN
+      RAISE EXCEPTION 'API role % can execute the private ledger seal function', v_role;
+    END IF;
+    FOREACH v_table IN ARRAY v_tables LOOP
       IF has_table_privilege(v_role,'snap_relaunch.' || v_table,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') IS DISTINCT FROM false THEN
         RAISE EXCEPTION 'API role % has direct privileges on %', v_role, v_table;
       END IF;
     END LOOP;
   END LOOP;
-  FOREACH v_table IN ARRAY ARRAY['buffalo_pilot_batches_v1','buffalo_pilot_events_v1','buffalo_pilot_review_access_v1','buffalo_pilot_transfer_chunks_v1'] LOOP
+  FOREACH v_table IN ARRAY v_tables LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class AS c JOIN pg_catalog.pg_namespace AS ns ON ns.oid = c.relnamespace
       WHERE ns.nspname = 'snap_relaunch' AND c.relname = v_table AND c.relrowsecurity) THEN
       RAISE EXCEPTION 'Private table % does not have RLS enabled', v_table;
@@ -113,4 +150,4 @@ RESET ROLE;
 SELECT jsonb_build_object('checks_passed',true,'event_count',984,'case_count',322,'address_count',307,
   'source_parcel_count',376,'held_excluded',4,'replay_added',0,'evidence_immutable',true,
   'owner_read_allowed',true,'unassigned_read_denied',true,'revocation_passed',true,
-  'api_roles_cannot_import',true) AS verification;
+  'api_roles_cannot_import',true,'ledger_sealed',true,'reviewer_fk_cascades',true) AS verification;

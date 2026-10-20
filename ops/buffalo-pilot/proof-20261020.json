@@ -33,8 +33,10 @@
     "event_count": 984,
     "evidence_immutable": true,
     "held_excluded": 4,
+    "ledger_sealed": true,
     "owner_read_allowed": true,
     "replay_added": 0,
+    "reviewer_fk_cascades": true,
     "revocation_passed": true,
     "source_parcel_count": 376,
     "unassigned_read_denied": true
@@ -63,5 +65,21 @@
     "signed_in_owner_browser_check": "not_completed_no_session"
   },
   "customer_leads_published": false,
-  "other_city_batches_processed": false
+  "other_city_batches_processed": false,
+  "hardening": {
+    "deployed": true,
+    "initial_import_with_seal_test": "passed_in_isolated_rolled_back_schema",
+    "forward_migration_test": "passed_in_rollback",
+    "saved_ledger_test": "passed",
+    "review_findings_addressed": [
+      "Account deletion cascades only the review assignment",
+      "Additional inserts into the populated ledger are rejected"
+    ]
+  },
+  "anonymous_api_check": {
+    "http_status": 401,
+    "code": "42501",
+    "result": "read_denied"
+  },
+  "transport_cleanup": "completed_original_payload_retained_in_batch"
 }

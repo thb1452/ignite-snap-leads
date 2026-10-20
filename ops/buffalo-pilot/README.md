@@ -17,6 +17,8 @@ The existing Snap session opens `/owner/source-review`. The Buffalo panel calls 
 
 The importer is private, SECURITY INVOKER, and unavailable to API roles. The owner RPC is authenticated, with explicit batch access and account validity checks. Source evidence is immutable. The manifest, each raw/cleaned record, and the complete record sequence are SHA-256 verified. Identical replays return the original receipt; changed payloads or source IDs are rejected for review.
 
+The ledger is sealed after its one complete, verified INSERT. Later inserts are rejected, including by the migration owner. Deleting an auth account removes its review assignment without deleting source evidence. These two protections address the initial code review findings; both the fresh-install path and the installed-database patch passed transactional tests. The public API rejects anonymous reads.
+
 ## Reproducing the proof
 
 Use the retained `Buffalo_Pilot_2026-10-20` preparation directory; do not redownload the agency data. No raw records or credentials are committed to this repository.
@@ -33,6 +35,8 @@ npm run build
 `sql/import-review.sql` is an intentionally non-repeatable schema installation. It does not itself import records or grant owner access. For a fresh isolated test, use its BEGIN but remove its final COMMIT, call the private importer with the complete hash-verified payload, run `sql/verify-pilot.sql`, and ROLLBACK. Never append a rollback after an already committed installation.
 
 `sql/transport.sql` is a temporary admin-only workaround for SQL request size limits: 31 ordered text chunks are reconstructed and verified before the unchanged importer is called. It does not import partial records or expose a new API. Remove that table only after successful import and saved-evidence readback; the batch retains the complete original envelope.
+
+`sql/forward-hardening.sql` is only for the initial pre-hardening installation. It has already been applied to the live pilot. Do not run it after the updated baseline, which already installs the same seal. It preserves all records and grants, validates the saved ledger under locks, and changes only the review-account foreign key and insert guards. Temporary transport has been removed after successful readback.
 
 The verifier checks exact saved hashes/counts, replay with zero added rows, altered-payload rejection, source immutability, owner and unassigned reads, revocation, API role restrictions and RLS. Its role claims are transaction-local test simulations, not real sign-in sessions. Run it inside a transaction that will be rolled back.
 
